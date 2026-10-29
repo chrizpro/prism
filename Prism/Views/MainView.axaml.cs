@@ -489,6 +489,10 @@ public partial class MainView : UserControl
         if ((e.Source as Control)?.FindAncestorOfType<ListBoxItem>()?.DataContext is CommandHit hit) Vm?.RunSearchHit(hit);
     }
 
+    void OnPendingCreate(object? sender, RoutedEventArgs e) => Vm?.Session.ResolvePending(true);
+    void OnPendingDiscard(object? sender, RoutedEventArgs e) => Vm?.Session.ResolvePending(false);
+    void OnPendingKeep(object? sender, RoutedEventArgs e) => Vm?.Session.KeepPending();
+
     // ================================================================= value entry
     void OnInputKey(object? sender, KeyEventArgs e)
     {

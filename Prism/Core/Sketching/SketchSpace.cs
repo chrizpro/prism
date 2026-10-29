@@ -603,6 +603,61 @@ public sealed partial class SketchContext
         return result;
     }
 
+    /// <summary>
+    /// Sketches that were already turned into features are hidden; one the user shows again is there to be used. Its geometry behaves as if it
+    /// were in this sketch: endpoints, centers and midpoints snap first (<paramref name="pointsOnly"/>), then anywhere along its curves.
+    /// </summary>
+    SnapInfo? SnapReferenceSketches(CadSession s, double px, double py, bool pointsOnly)
+    {
+        SnapInfo? best = null; double distance = pointsOnly ? 10 : 8;
+        void Candidate(Vec3 world, double screenDistance, string note)
+        {
+            if (screenDistance >= distance) return;
+            bool projected = Math.Abs(Vec3.Dot(world - Plane.Origin, Plane.Normal)) > 1e-6;
+            if (projected && !ProjectOtherCurves) return;
+            var (u, v) = Plane.Project(world);
+            best = new(u, v, projected ? SnapKind.Projected : SnapKind.External, -1, note); distance = screenDistance;
+        }
+        void Point(Vec3 world, string note)
+        {
+            var p = s.Camera.Project(world); if (p == null) return;
+            Candidate(world, Math.Sqrt(Math.Pow(p.Value.x - px, 2) + Math.Pow(p.Value.y - py, 2)), note);
+        }
+        foreach (var obj in s.Objects.Where(o => o.Kind == ObjKind.Sketch && o.Visible && o.Id != EditingId && !s.HiddenIds.Contains(o.Id) && o.SketchData != null && o.SketchPlane != null))
+            foreach (var (model, plane) in obj.SketchData!.DrawingModels(obj.SketchPlane!.Value))
+            {
+                if (pointsOnly)
+                {
+                    foreach (var e in model.Entities.Where(e => !e.Construction || model.ShowConstruction))
+                    {
+                        Vec3 At(int id) { var q = model.P(id); return plane.PointAt(q.X, q.Y); }
+                        switch (e.Type)
+                        {
+                            case EntType.Line:
+                                Point(At(e.A), obj.Name + " · endpoint"); Point(At(e.B), obj.Name + " · endpoint");
+                                Point((At(e.A) + At(e.B)) * 0.5, obj.Name + " · midpoint");
+                                break;
+                            case EntType.Circle or EntType.Ellipse: Point(At(e.A), obj.Name + " · center"); break;
+                            case EntType.Arc: Point(At(e.A), obj.Name + " · center"); Point(At(e.B), obj.Name + " · endpoint"); Point(At(e.C), obj.Name + " · endpoint"); break;
+                            case EntType.Point: Point(At(e.A), obj.Name + " · point"); break;
+                        }
+                    }
+                    continue;
+                }
+                foreach (var (entity, points) in model.Polylines(plane))
+                {
+                    if (entity.Construction && !model.ShowConstruction) continue;
+                    for (int k = 1; k < points.Count; k++)
+                    {
+                        var a = s.Camera.Project(points[k - 1]); var b = s.Camera.Project(points[k]); if (a == null || b == null) continue;
+                        var (t, dist) = Picking.SegDist(px, py, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
+                        Candidate(Vec3.Lerp(points[k - 1], points[k], t), dist, obj.Name + " · curve");
+                    }
+                }
+            }
+        return best;
+    }
+
     SnapInfo? SnapExternal(CadSession s, double px, double py)
     {
         SnapInfo? best = null; double distance = 10;

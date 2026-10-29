@@ -607,6 +607,31 @@
 
 
 
+                <!-- an unfinished command (its preview) is not thrown away silently when the user starts something else -->
+
+                <Border IsVisible="{Binding Session.PendingNotice, Converter={x:Static ObjectConverters.IsNotNull}}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,64,0,0" Padding="16,12" CornerRadius="11"
+                        Background="{DynamicResource OverlayBg}" BorderBrush="{DynamicResource Danger}" BorderThickness="1.5">
+
+                    <StackPanel Spacing="9" MinWidth="300" MaxWidth="420">
+
+                        <TextBlock Text="{Binding Session.PendingNotice}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+
+                        <TextBlock Text="Create it to keep it in the model, or discard it. Then your next step carries on." Classes="soft" TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+
+                            <Button Classes="ghost" Content="Keep editing" Click="OnPendingKeep"/>
+
+                            <Button Classes="ghost" Content="Discard" Click="OnPendingDiscard"/>
+
+                            <Button Classes="primary" Content="{Binding Session.PendingTitle, StringFormat='Create {0}'}" Click="OnPendingCreate"/>
+
+                        </StackPanel>
+
+                    </StackPanel>
+
+                </Border>
+
                 <!-- result colour legend -->
 
                 <Border IsVisible="{Binding ShowLegend}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,42" Padding="12,9" CornerRadius="10"

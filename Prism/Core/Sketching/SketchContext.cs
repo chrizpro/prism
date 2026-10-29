@@ -6,8 +6,9 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum SnapKind { Grid, Point, Entity, External, Projected, Gizmo }
-public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id);
+public enum SnapKind { Grid, Point, Entity, External, Projected, Gizmo, Midpoint }
+/// <summary>Where a click would land. <c>Note</c> says what it landed on when that is geometry outside this sketch (for example "Sketch 1 · center").</summary>
+public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id, string? Note = null);
 
 public static class GridMath
 {
@@ -80,6 +81,7 @@ public sealed partial class SketchContext
         DrawingAxis = 0; _lastPlacement = null;
         _axisPreview=null;_inferredVisualAxis=-1;
         Tool?.Deactivate(s);
+        Hint = null;
         Tool = t;
         s.Say(t?.Prompt ?? "Pick a sketch tool.");
         t?.Activate(s);
@@ -418,6 +420,17 @@ public sealed partial class SketchContext
             if (bestP >= 0) { var p = Model.P(bestP); return new SnapInfo(p.X, p.Y, SnapKind.Point, bestP); }
             if (Is3DEnabled && Math.Abs(Vec3.Dot(GizmoFrame.Origin - Plane.Origin, Plane.Normal)) < 1e-6 && s.Camera.Project(GizmoFrame.Origin) is { } gizmo && Math.Sqrt(Math.Pow(gizmo.x - px, 2) + Math.Pow(gizmo.y - py, 2)) < 9)
             { var local = Plane.Project(GizmoFrame.Origin); return new SnapInfo(local.u, local.v, SnapKind.Gizmo, -1); }
+            // a visible sketch that is not being edited counts as part of this one: its endpoints, centers and midpoints snap
+            if (SnapReferenceSketches(s, px, py, true) is { } referencePoint) return referencePoint;
+            int bestM = -1; double bm = 9 * ps; (double, double) mid = (0, 0);
+            foreach (var e in Model.Entities)
+            {
+                if (e.Type != EntType.Line || !EntityVisible(e) || excludeEntities?.Contains(e.Id) == true) continue;
+                var a = Model.P(e.A); var b = Model.P(e.B);
+                double mx = (a.X + b.X) / 2, my = (a.Y + b.Y) / 2, d = Math.Sqrt((mx - uv.u) * (mx - uv.u) + (my - uv.v) * (my - uv.v));
+                if (d < bm) { bm = d; bestM = e.Id; mid = (mx, my); }
+            }
+            if (bestM >= 0) return new SnapInfo(mid.Item1, mid.Item2, SnapKind.Midpoint, bestM);
             int bestE = -1; double be = 8 * ps; (double, double) bq = (0, 0);
             foreach (var e in Model.Entities)
             {
@@ -427,6 +440,7 @@ public sealed partial class SketchContext
                 if (d < be) { be = d; bestE = e.Id; bq = (qu, qv); }
             }
             if (bestE >= 0) return new SnapInfo(bq.Item1, bq.Item2, SnapKind.Entity, bestE);
+            if (SnapReferenceSketches(s, px, py, false) is { } referenceCurve) return referenceCurve;
             if (SnapOtherCurves && SnapExternal(s, px, py) is { } external) return external;
         }
         if (!s.SketchGridSnap) return new SnapInfo(uv.u, uv.v, SnapKind.Grid, -1);   // free placement
@@ -440,8 +454,35 @@ public sealed partial class SketchContext
         if (sn.Kind == SnapKind.Point) return sn.Id;
         int id = Model.AddPoint(sn.U, sn.V);
         if (sn.Kind == SnapKind.Entity) Model.Add(CType.PointOnEntity, 0, 0, false, id, sn.Id);
+        else if (sn.Kind == SnapKind.Midpoint) Model.Add(CType.Midpoint, 0, 0, false, id, sn.Id);
         return id;
     }
+
+    // ---------------------------------------------------------------- inference: tell the user what the next click will do
+    /// <summary>What the active tool expects the next click to mean ("Horizontal", "Concentric"...). Cleared on every pointer move.</summary>
+    public string? Hint { get; set; }
+
+    /// <summary>The circle, arc or ellipse centred on this point; a new round curve centred here is concentric with it.</summary>
+    public SkEntity? RoundAtCenter(int pointId) =>
+        Model.Entities.FirstOrDefault(e => e.Type is EntType.Circle or EntType.Arc or EntType.Ellipse && e.A == pointId && EntityVisible(e));
+
+    /// <summary>A circle or arc whose radius is within <paramref name="tolerance"/> of <paramref name="r"/>; the nearest one.</summary>
+    public SkEntity? RoundOfRadius(double r, double tolerance) =>
+        Model.Entities.Where(e => e.Type is EntType.Circle or EntType.Arc && EntityVisible(e) && Math.Abs(Model.Radius(e) - r) < tolerance)
+            .OrderBy(e => Math.Abs(Model.Radius(e) - r)).FirstOrDefault();
+
+    /// <summary>A plain-words label for what a snap lands on.</summary>
+    public string? DescribeSnap(SnapInfo sn) => sn.Kind switch
+    {
+        SnapKind.Point => sn.Id == 0 ? "Origin" : RoundAtCenter(sn.Id) != null ? "Center" :
+            Model.Entities.Any(e => e.Type == EntType.Line && (e.A == sn.Id || e.B == sn.Id) || e.Type == EntType.Arc && (e.B == sn.Id || e.C == sn.Id)) ? "Endpoint" : "Point",
+        SnapKind.Entity => "On curve",
+        SnapKind.Midpoint => "Midpoint",
+        SnapKind.Gizmo => "Gizmo origin",
+        SnapKind.External => sn.Note ?? "Other curve snap",
+        SnapKind.Projected => sn.Note ?? "Projected curve snap",
+        _ => null,
+    };
 
     public int PickPoint(CadSession s, double px, double py, double tolPx = 10)
     {
@@ -558,8 +599,8 @@ public sealed partial class SketchContext
         {
             var cp = Plane.PointAt(cur.U, cur.V);
             o.AddDot(cp, cur.Kind == SnapKind.Point ? 0xFFFFA630 : cur.Kind == SnapKind.Entity ? 0xFF35B6FF : 0xFFFFFFFF, cur.Kind == SnapKind.Grid ? 6 : 11);
-            if (cur.Kind is SnapKind.External or SnapKind.Projected)
-                o.AddLabel(cp + Plane.V * (cam.PixelSizeAt(cp) * 20), cur.Kind == SnapKind.Projected ? "Projected curve snap" : cur.Kind == SnapKind.Gizmo ? "Gizmo origin" : "Other curve snap", true);
+            if ((Hint ?? DescribeSnap(cur)) is { } text)
+                o.AddLabel(cp + Plane.V * (cam.PixelSizeAt(cp) * 20), text, true, Hint != null ? 4 : 0);
         }
     }
 

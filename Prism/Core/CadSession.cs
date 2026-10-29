@@ -760,8 +760,27 @@ public sealed partial class CadSession : ObservableObject
 
     public void StartCommand(Func<Command> make) { var c = make(); c.Factory = make; StartCommand(c); }
 
+    /// <summary>
+    /// Set by the app. A command that is showing a preview is work not yet made: starting something else would silently throw it away,
+    /// so the request is parked and <see cref="PendingNotice"/> asks what to do. Scripts and tests leave this off.
+    /// </summary>
+    public bool ProtectPendingCommand { get; set; }
+    Command? _deferred;
+    /// <summary>Plain-words explanation shown over the viewport while a request waits on an unfinished command; null when nothing waits.</summary>
+    [ObservableProperty] public partial string? PendingNotice { get; set; }
+    /// <summary>Title of the unfinished command, for the "create it" button.</summary>
+    [ObservableProperty] public partial string PendingTitle { get; set; } = "";
+
     public void StartCommand(Command cmd)
     {
+        if (ProtectPendingCommand && ActiveCommand is { } unfinished && Preview.Count > 0 && cmd.GetType() != unfinished.GetType())
+        {
+            _deferred = cmd; PendingTitle = unfinished.Title;
+            PendingNotice = $"{unfinished.Title} is not finished: it is only a preview, nothing has been created yet.";
+            Say($"{unfinished.Title} is still a preview. Create it or discard it before starting {cmd.Title}.", true);
+            return;
+        }
+        ClearPendingNotice();
         if (ActiveCommand != null) CancelCommand();
         if (Sketch != null) { Say("Finish or cancel the sketch first.", true); return; }
         ActiveCommand = cmd;
@@ -770,9 +789,30 @@ public sealed partial class CadSession : ObservableObject
         RaiseState();
     }
 
+    void ClearPendingNotice() { _deferred = null; PendingNotice = null; }
+
+    /// <summary>Answer the notice: create the unfinished command (<paramref name="create"/>) or throw it away, then carry on with what the user asked for.</summary>
+    public void ResolvePending(bool create)
+    {
+        var next = _deferred; if (ActiveCommand == null) { ClearPendingNotice(); return; }
+        if (create)
+        {
+            var before = ActiveCommand;
+            CommitCommand();
+            if (ActiveCommand == before) return;       // it could not be built: the reason is on the status line and the notice stays
+        }
+        else CancelCommand();
+        ClearPendingNotice();
+        if (next != null) StartCommand(next);
+    }
+
+    /// <summary>Close the notice and keep working on the unfinished command.</summary>
+    public void KeepPending() => ClearPendingNotice();
+
     public void CancelCommand()
     {
         if (ActiveCommand == null) return;
+        ClearPendingNotice();
         var c = ActiveCommand; ActiveCommand = null;
         c.OnEnd(); c.OnCancel();
         ClearPreview();
@@ -789,6 +829,7 @@ public sealed partial class CadSession : ObservableObject
         try { res = c.TryBuild(); } finally { c.Committing = false; }
         if (res == null) { Say(c.Error ?? "Complete the required selections first.", true); return; }
         res.Label ??= c.Title; res.Icon ??= c.Icon;
+        PendingNotice = null;
         ActiveCommand = null;
         c.OnEnd();
         ClearPreview();

@@ -61,6 +61,7 @@ public abstract class SketchTool : IViewportTool
         var sk = Sk(s);
         Hot = sk.Snap(s, p.X, p.Y, !p.Alt);
         sk.Cursor = Hot;
+        sk.Hint = null;
         if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V);
         s.Invalidate();
     }
@@ -271,6 +272,7 @@ public abstract class ClickTool : SketchTool
         Hot = sn is { } a ? Constrain(s, a) : null;
         UpdateTypedPreview(s);
         sk.Cursor = Hot;
+        sk.Hint = Hot is { } hinted ? Inference(s, hinted) : null;
         if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V);
         if(!_typing&&DateTime.UtcNow-_lastPanelUpdate>TimeSpan.FromMilliseconds(90)){_lastPanelUpdate=DateTime.UtcNow;s.RaiseState();}
         s.Invalidate();
@@ -298,6 +300,27 @@ public abstract class ClickTool : SketchTool
     }
     protected virtual SnapInfo Constrain(CadSession s, SnapInfo sn)
         => Shift&&Clicks.Count>0?LockDirection(sn,Clicks[^1]):sn;
+    /// <summary>What the next click would add besides the curve itself ("Horizontal", "Concentric"...), shown beside the pointer.</summary>
+    protected virtual string? Inference(CadSession s, SnapInfo hot) => null;
+
+    /// <summary>A new round curve centred on an existing center (in this sketch or a visible one) is concentric with it.</summary>
+    protected static string? CenterInference(SketchContext sk, SnapInfo hot)
+    {
+        if (hot.Kind == SnapKind.Point && sk.RoundAtCenter(hot.Id) is { } round) return $"Concentric with {round.Type.ToString().ToLowerInvariant()}";
+        if (hot.Kind is SnapKind.External or SnapKind.Projected && hot.Note is { } note && note.EndsWith("· center", StringComparison.Ordinal)) return "Concentric with " + note[..^"· center".Length].Trim();
+        return null;
+    }
+
+    /// <summary>Pull a free radius to the radius of a nearby circle or arc, so the two stay equal. Returns the curve it matched.</summary>
+    protected static (SnapInfo point, SkEntity match)? EqualRadius(CadSession s, SnapInfo center, SnapInfo sn)
+    {
+        if (sn.Kind != SnapKind.Grid) return null;
+        var sk = Sk(s); double r = Dist(center.U, center.V, sn.U, sn.V);
+        double ps = s.Camera.PixelSizeAt(sk.Plane.PointAt(center.U, center.V));
+        if (r < 6 * ps || sk.RoundOfRadius(r, 6 * ps) is not { } match) return null;
+        double target = sk.Model.Radius(match);
+        return (new SnapInfo(center.U + (sn.U - center.U) / r * target, center.V + (sn.V - center.V) / r * target, SnapKind.Grid, -1), match);
+    }
     protected virtual bool DoubleClickFinishes => false;
     protected abstract void Click(CadSession s, SketchContext sk, SnapInfo sn);
     protected virtual void Finish(CadSession s) { PreservePending(s); Clicks.Clear(); }
@@ -344,12 +367,13 @@ public sealed class LineTool(int variant = 0) : ClickTool
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _mid ? 1 : 0;
     protected override void ApplyOption(int index) => _mid = index == 1;
-    protected override void ResetState(CadSession s) { _from = -1; _first = null; _chainStart = -1; _inferH = _inferV = false; base.ResetState(s); }
+    protected override void ResetState(CadSession s) { _from = -1; _first = null; _chainStart = -1; _inferH = _inferV = false; _refLine = -1; base.ResetState(s); }
 
     int _from = -1;                 // model point the next segment starts from
     int _chainStart = -1;           // first point of this chain (to detect closing)
     SnapInfo? _first;               // first click before any geometry exists
     bool _inferH, _inferV;
+    int _refLine = -1; bool _refPerp;      // an existing line the pointer is aligned with (parallel or perpendicular)
     public override string Name => "Line";
     public override string Mode => _mid ? "Midpoint" : "Chain";
     public override string Prompt => _mid ? "Line (midpoint): click where the middle of the line goes, then click one end; the other end is mirrored. Type the full length (Tab for the angle) and press Enter. Hold Alt for no snapping."
@@ -369,7 +393,7 @@ public sealed class LineTool(int variant = 0) : ClickTool
         var p = PolarPoint(o, h, _mid && !double.IsNaN(v[0]) ? v[0] / 2 : v[0], v[1]);
         if (Dist(o.u, o.v, p.U, p.V) < 1e-6) { s.Say("A line needs a length above zero.", true); return null; }
         // a typed horizontal or vertical angle also becomes a constraint
-        _inferH = _inferV = false;
+        _inferH = _inferV = false; _refLine = -1;
         if (Math.Abs(p.V - o.v) < 1e-7 * Math.Max(1, Math.Abs(p.U - o.u))) { _inferH = true; p = p with { V = o.v }; }
         else if (Math.Abs(p.U - o.u) < 1e-7 * Math.Max(1, Math.Abs(p.V - o.v))) { _inferV = true; p = p with { U = o.u }; }
         return p;
@@ -377,7 +401,7 @@ public sealed class LineTool(int variant = 0) : ClickTool
 
     protected override SnapInfo Constrain(CadSession s, SnapInfo sn)
     {
-        _inferH = _inferV = false;
+        _inferH = _inferV = false; _refLine = -1;
         if (Origin(s) is not { } o) return sn;
         if(Shift)
         {
@@ -388,8 +412,36 @@ public sealed class LineTool(int variant = 0) : ClickTool
         double ps = s.Camera.PixelSizeAt(Sk(s).Plane.PointAt(o.u, o.v));
         if (Math.Abs(sn.V - o.v) < 6 * ps) { _inferH = true; return sn with { V = o.v }; }
         if (Math.Abs(sn.U - o.u) < 6 * ps) { _inferV = true; return sn with { U = o.u }; }
-        return sn;
+        return _mid ? sn : AlignWithLine(s, o, sn, ps);
     }
+
+    /// <summary>Within a few degrees of parallel or perpendicular to an existing line: turn the new line exactly that way and remember to constrain it.</summary>
+    SnapInfo AlignWithLine(CadSession s, (double u, double v) o, SnapInfo sn, double ps)
+    {
+        var sk = Sk(s);
+        double dx = sn.U - o.u, dy = sn.V - o.v, len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 20 * ps) return sn;
+        const double tolerance = 0.052;       // sin 3 degrees
+        double best = tolerance; double nx = 0, ny = 0;
+        foreach (var e in sk.Model.Entities)
+        {
+            if (e.Type != EntType.Line || !sk.EntityVisible(e)) continue;
+            var a = sk.Model.P(e.A); var b = sk.Model.P(e.B);
+            double ex = b.X - a.X, ey = b.Y - a.Y, el = Math.Sqrt(ex * ex + ey * ey);
+            if (el < 1e-9 || Math.Abs(ex) < 1e-9 * el || Math.Abs(ey) < 1e-9 * el) continue;       // horizontal and vertical lines are already inferred
+            ex /= el; ey /= el;
+            double along = (dx * ex + dy * ey) / len, across = (-dx * ey + dy * ex) / len;
+            bool touchesStart = e.A == _from || e.B == _from;
+            if (!touchesStart && Math.Abs(across) < best)
+            { best = Math.Abs(across); _refLine = e.Id; _refPerp = false; (nx, ny) = (Math.Sign(along) * ex, Math.Sign(along) * ey); }
+            if (Math.Abs(along) < best)
+            { best = Math.Abs(along); _refLine = e.Id; _refPerp = true; (nx, ny) = (Math.Sign(across) * -ey, Math.Sign(across) * ex); }
+        }
+        return _refLine < 0 ? sn : new SnapInfo(o.u + nx * len, o.v + ny * len, SnapKind.Grid, -1);
+    }
+
+    protected override string? Inference(CadSession s, SnapInfo hot)
+        => _inferH ? "Horizontal" : _inferV ? "Vertical" : _refLine >= 0 ? (_refPerp ? "Perpendicular" : "Parallel") : null;
 
     protected override void Click(CadSession s, SketchContext sk, SnapInfo sn)
     {
@@ -408,9 +460,9 @@ public sealed class LineTool(int variant = 0) : ClickTool
             });
             return;
         }
-        bool inferH = _inferH, inferV = _inferV;
+        bool inferH = _inferH, inferV = _inferV, perpendicular = _refPerp; int reference = _refLine;
         int next = -1, startPt = -1;
-        bool ok = sk.Edit(s, "That line", () =>
+        bool Draw(bool aligned) => sk.Edit(s, "That line", () =>
         {
             int a = _from >= 0 ? _from : sk.PointFor(_first!.Value);
             int b = sk.PointFor(sn);
@@ -419,8 +471,12 @@ public sealed class LineTool(int variant = 0) : ClickTool
             int line = sk.Model.AddLine(a, b, sk.Construction);
             if (inferH) sk.Model.Add(CType.Horizontal, refs: line);
             else if (inferV) sk.Model.Add(CType.Vertical, refs: line);
+            else if (aligned && reference >= 0) sk.Model.Add(perpendicular ? CType.Perpendicular : CType.Parallel, refs: [line, reference]);
             next = b;
         });
+        // if the alignment cannot be honoured (it fights another constraint) the line is still drawn, just without it
+        bool ok = Draw(true) || reference >= 0 && Draw(false);
+        _refLine = -1;
         if (!ok || next < 0) return;
         if (_chainStart < 0) _chainStart = startPt;
         bool closed = sn.Kind == SnapKind.Point && sk.Model.CoincidentGroup(sn.Id).Contains(_chainStart) && Clicks.Count >= 2;
@@ -455,6 +511,8 @@ public sealed class LineTool(int variant = 0) : ClickTool
         o.AddLine(W(sk, f.u, f.v), W(sk, h.U, h.V), Rubber, 2f);
         if (_inferH) o.AddLine(W(sk, f.u - 1e4, f.v), W(sk, f.u + 1e4, f.v), 0x60FFC53D, 1.2f);
         if (_inferV) o.AddLine(W(sk, f.u, f.v - 1e4), W(sk, f.u, f.v + 1e4), 0x60FFC53D, 1.2f);
+        if (_refLine >= 0 && sk.Model.EntityOrNull(_refLine) is { } reference)       // light up the line this one is aligned with
+            o.AddLine(W(sk, sk.Model.P(reference.A).X, sk.Model.P(reference.A).Y), W(sk, sk.Model.P(reference.B).X, sk.Model.P(reference.B).Y), 0xB0FFC53D, 3f);
     }
 }
 
@@ -671,7 +729,16 @@ public sealed class CircleTool(CircleMode mode) : ClickTool
 {
     protected override string PlacementAction => mode == CircleMode.Ellipse && !Locked ? Clicks.Count == 1 ? "Set major axis" : "Create ellipse"
         : mode == CircleMode.ThreePoint && Clicks.Count == 1 ? "Set second point" : "Create circle";
-    protected override SnapInfo Constrain(CadSession s,SnapInfo sn)=>sn;
+    int _equalTo = -1;      // a circle or arc the radius being dragged out matches
+    protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
+    {
+        _equalTo = -1;
+        bool radiusStep = Clicks.Count == 1 && (mode == CircleMode.CenterRadius || mode == CircleMode.Ellipse && Locked);
+        if (!radiusStep || EqualRadius(s, Clicks[0], sn) is not { } equal) return sn;
+        _equalTo = equal.match.Id; return equal.point;
+    }
+    protected override string? Inference(CadSession s, SnapInfo hot)
+        => Clicks.Count == 0 && mode is CircleMode.CenterRadius or CircleMode.Ellipse ? CenterInference(Sk(s), hot) : _equalTo >= 0 ? "Equal radius" : null;
     public override string Name => mode == CircleMode.Ellipse ? "Ellipse" : "Circle";
     public override string Mode => mode switch { CircleMode.CenterRadius => "Circle (center)", CircleMode.TwoPoint => "Circle (2-point)", CircleMode.ThreePoint => "Circle (3-point)", _ => _lock ? "Circle (locked)" : "Ellipse" };
     static readonly ToolOption[] Opts = [new("Ellipse", "Center, the end of one axis, then the other radius. Shift or L locks it into a circle", "ellipse"), new("Circle", "Center, then a point on the circle", "circle"), new("2-Point", "The two ends of a diameter", "circle-2pt"), new("3-Point", "Three points on the circle", "circle-3pt")];
@@ -766,14 +833,21 @@ public sealed class CircleTool(CircleMode mode) : ClickTool
             (cx, cy, r) = k;
         }
         if (r < 1e-6) return;
-        sk.Edit(s, "That circle", () =>
+        int equalTo = kind == CircleMode.CenterRadius ? _equalTo : -1; _equalTo = -1;
+        var concentric = kind == CircleMode.CenterRadius && c[0].Kind == SnapKind.Point ? sk.RoundAtCenter(c[0].Id) : null;
+        bool Draw(bool withEqual) => sk.Edit(s, "That circle", () =>
         {
             int ctr = kind == CircleMode.CenterRadius ? sk.PointFor(c[0]) : sk.Model.AddPoint(cx, cy);
             int circle = sk.Model.AddCircle(ctr, r, sk.Construction);
             // points the user snapped onto existing geometry stay attached to the circle
             if (kind == CircleMode.ThreePoint) foreach (var click in c) { if (click.Kind == SnapKind.Point) sk.Model.Add(CType.PointOnEntity, 0, 0, false, click.Id, circle); }
             if (kind == CircleMode.CenterRadius && c[1].Kind == SnapKind.Point) sk.Model.Add(CType.PointOnEntity, 0, 0, false, c[1].Id, circle);
+            if (withEqual && equalTo >= 0) sk.Model.Add(CType.Equal, refs: [circle, equalTo]);
         });
+        if (!(Draw(true) || equalTo >= 0 && Draw(false))) return;
+        // the center is the existing one, so the two share it: say so, since nothing new appears in the constraint list
+        if (concentric != null) s.Say($"Concentric with the {concentric.Type.ToString().ToLowerInvariant()}: they share one center.");
+        else if (equalTo >= 0) s.Say("Equal radius: the new circle follows the size of the one it matched.");
     }
 
     /// <summary>Distance of the third click from the line through the centre and the axis end.</summary>

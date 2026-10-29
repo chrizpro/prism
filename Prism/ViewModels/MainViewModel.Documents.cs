@@ -88,6 +88,7 @@ public sealed partial class MainViewModel
     /// <summary>Everything the UI listens to on the current document.</summary>
     void AttachSession(CadSession s)
     {
+        s.ProtectPendingCommand = true;
         _onScene = () => { RebuildBrowser(); UpdateSelectionInfo(); UpdateTitle(); RefreshRibbon(); ApplyWorkspace(); SyncLook(); InvalidateStudios(); };
         _onSelection = () => { UpdateSelectionInfo(); RefreshRibbon(); SyncLook(); RefreshStudios(); };
         _onView = () => { CommandError = s.CommandError; };

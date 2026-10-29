@@ -153,6 +153,65 @@ var tangentModel=tangentSession.Sketch!.Model;tangentModel.AddLine(tangentModel.
 var tangentArc=new ArcTool(ArcMode.Tangent);tangentSession.Sketch.SetTool(tangentSession,tangentArc);tangentArc.Feed(tangentSession,20,20);
 var tangentPixel=tangentSession.Camera.Project(new Vec3(35,60,0))!.Value;tangentArc.PointerDown(tangentSession,new(tangentPixel.x,tangentPixel.y,true,true,false,false));
 Check(tangentSession.Sketch.Model.Entities.Any(e=>e.Type==EntType.Arc)&&tangentSession.Sketch.Result.Converged,"tangent arc accepts a Shift-locked endpoint while retaining tangency");
+// ---- inference: the app says what the next click means, and applies it
+CadSession Fresh(){var f=new CadSession();f.EnterSketch(Plane3.XY,alignView:true);f.Ortho=true;return f;}
+(double x,double y) Px(CadSession f,double u,double v){var p=f.Camera.Project(new Vec3(u,v,0))!.Value;return (p.x,p.y);}
+void Move(CadSession f,SketchTool t,double u,double v){var p=Px(f,u,v);t.PointerMove(f,new(p.x,p.y,false,false,false,false));}
+void Down(CadSession f,SketchTool t,double u,double v){var p=Px(f,u,v);t.PointerMove(f,new(p.x,p.y,false,false,false,false));t.PointerDown(f,new(p.x,p.y,true,false,false,false));}
+{
+ var cs=Fresh();var first=new CircleTool(CircleMode.CenterRadius);cs.Sketch!.SetTool(cs,first);first.Feed(cs,30,30);first.Feed(cs,40,30);
+ var second=new CircleTool(CircleMode.CenterRadius);cs.Sketch.SetTool(cs,second);
+ Move(cs,second,30,30);Check(cs.Sketch.Hint?.StartsWith("Concentric")==true,"hovering the center of a circle says the new circle is concentric");
+ Down(cs,second,30,30);Down(cs,second,35,30);
+ var circles=cs.Sketch.Model.Entities.Where(e=>e.Type==EntType.Circle).ToList();
+ Check(circles.Count==2&&circles[0].A==circles[1].A&&cs.Status.Contains("Concentric"),"an inner circle shares the outer circle's center and the user is told");
+ var eq=Fresh();var a=new CircleTool(CircleMode.CenterRadius);eq.Sketch!.SetTool(eq,a);a.Feed(eq,30,30);a.Feed(eq,40,30);
+ var b=new CircleTool(CircleMode.CenterRadius);eq.Sketch.SetTool(eq,b);Down(eq,b,80,30);Move(eq,b,90.2,30);
+ Check(eq.Sketch.Hint=="Equal radius","dragging a circle to a similar size says it will be equal");
+ Down(eq,b,90.2,30);var made=eq.Sketch.Model.Entities.Where(e=>e.Type==EntType.Circle).ToList();
+ Check(made.Count==2&&Math.Abs(made[1].R-10)<1e-6&&eq.Sketch.Model.Constraints.Any(c=>c.Type==CType.Equal),"the matched circle gets exactly that radius and an Equal constraint");
+ var ms=Fresh();var ml=ms.Sketch!.Model;ml.AddLine(ml.AddPoint(10,10),ml.AddPoint(50,10));ms.Sketch.Solve(ms);
+ var mp=Px(ms,30,10.2);var mid=ms.Sketch.Snap(ms,mp.x,mp.y)!.Value;
+ Check(mid.Kind==SnapKind.Midpoint&&Math.Abs(mid.U-30)<1e-9,"the middle of a line snaps as a midpoint");
+ ms.Sketch.Edit(ms,"mid",()=>ms.Sketch.PointFor(mid));
+ Check(ml.Constraints.Any(c=>c.Type==CType.Midpoint)&&ms.Sketch.Result.Converged,"a midpoint snap keeps the point at the middle with a constraint");
+ var ps=Fresh();var pm=ps.Sketch!.Model;pm.AddLine(pm.AddPoint(10,10),pm.AddPoint(40,30));ps.Sketch.Solve(ps);
+ var pl=new LineTool();ps.Sketch.SetTool(ps,pl);pl.Feed(ps,10,50);Move(ps,pl,70,91);
+ Check(ps.Sketch.Hint=="Parallel","a line drawn nearly parallel to another says Parallel");
+ Down(ps,pl,70,91);var drawn=ps.Sketch.Model.Entities.Last();var da=ps.Sketch.Model.P(drawn.A);var db=ps.Sketch.Model.P(drawn.B);
+ Check(ps.Sketch.Model.Constraints.Any(c=>c.Type==CType.Parallel)&&Math.Abs((db.Y-da.Y)*30-(db.X-da.X)*20)<1e-6,"the parallel line is exact and constrained");
+ var rs=Fresh();var rm=rs.Sketch!.Model;rm.AddLine(rm.AddPoint(10,10),rm.AddPoint(40,30));rs.Sketch.Solve(rs);
+ var rl=new LineTool();rs.Sketch.SetTool(rs,rl);rl.Feed(rs,60,10);Move(rs,rl,40.5,40);
+ Check(rs.Sketch.Hint=="Perpendicular","a line drawn nearly square to another says Perpendicular");
+}
+{
+ var rs=new CadSession();var refModel=new SketchModel();refModel.AddCircle(refModel.AddPoint(50,50),12);
+ var reference=rs.AddObject(Occ.Vertex(Vec3.Zero),"Ref sketch",ObjKind.Sketch,plane:Plane3.XY,sketch:refModel);
+ rs.EnterSketch(Plane3.XY,alignView:true);rs.Ortho=true;
+ var cp=Px(rs,50.3,50.2);var hit=rs.Sketch!.Snap(rs,cp.x,cp.y)!.Value;
+ Check(hit.Kind==SnapKind.External&&Math.Abs(hit.U-50)<1e-6&&hit.Note==reference.Name+" · center","a visible sketch's circle center snaps without turning any option on");
+ var rc=new CircleTool(CircleMode.CenterRadius);rs.Sketch.SetTool(rs,rc);Move(rs,rc,50.3,50.2);
+ Check(rs.Sketch.Hint=="Concentric with "+reference.Name,"drawing over a visible sketch's circle says concentric with that sketch");
+ var rp=Px(rs,62,50);var edge=rs.Sketch.Snap(rs,rp.x,rp.y)!.Value;
+ Check(edge.Kind==SnapKind.External&&edge.Note==reference.Name+" · curve","a visible sketch's curves snap too");
+ rs.Update(reference.Id,o=>o.WithVisible(false));
+ Check(rs.Sketch.Snap(rs,cp.x,cp.y)!.Value.Kind==SnapKind.Grid,"a hidden sketch is not used");
+}
+{
+ var ps=new CadSession();
+ var body=ps.AddObject(Occ.Box(20,20,10),"Rib target",ObjKind.Solid);
+ var rib=ps.AddObject(Occ.Line(new(-5,0,10),new(5,0,10)),"Rib sketch",ObjKind.Sketch,plane:Plane3.XZ);
+ var ribCmd=new Prism.Commands.RibCommand();ps.StartCommand(ribCmd);
+ ribCmd.ConfigureInputs(()=>{ribCmd.Slots[0].Items.Add(SelItem.Of(rib));ribCmd.Slots[1].Items.Add(SelItem.Of(body));});ribCmd.OnChanged();
+ ps.ProtectPendingCommand=true;
+ ps.StartCommand(new Prism.Commands.BoxCommand());
+ Check(ps.ActiveCommand==ribCmd&&ps.Preview.Count>0&&ps.PendingNotice!=null,"starting another command keeps an unfinished preview and explains why");
+ ps.KeepPending();Check(ps.PendingNotice==null&&ps.ActiveCommand==ribCmd,"Keep editing closes the notice without losing the preview");
+ ps.StartCommand(new Prism.Commands.BoxCommand());ps.ResolvePending(true);
+ Check(ps.ActiveCommand is Prism.Commands.BoxCommand&&ps.Find(body.Id)!.Shape.Props().Volume>body.Shape.Props().Volume+100,"Create finishes the unfinished feature, then starts what was asked for");
+ var again=new Prism.Commands.RibCommand();ps.StartCommand(again);
+ ps.StartCommand(new Prism.Commands.BoxCommand());Check(ps.PendingNotice==null,"a command with nothing to lose is replaced without a notice");
+}
 host.Close();Console.WriteLine($"SUCCESS: {checks} checks");
 sealed class TestApp:Application{public override void Initialize(){Styles.Add(new FluentTheme());Styles.Add(new StyleInclude(new Uri("avares://Prism/")){Source=new Uri("avares://Prism/Styles/Theme.axaml")});}}
 static class Native{[DllImport("kernel32",CharSet=CharSet.Unicode)]public static extern bool SetDllDirectory(string path);}

@@ -123,7 +123,8 @@ public sealed partial class MainViewModel
                     continue;
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
-                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
+                // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Sketch" && group.Title == "Constrain") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
                 if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = group.Title is "Transform" or "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));

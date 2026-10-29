@@ -19,6 +19,8 @@ public sealed class ArcTool(ArcMode mode) : ClickTool
     protected override string PlacementAction => mode != ArcMode.Tangent && Clicks.Count == 1 ? "Set start or end point" : "Create arc";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
         =>Shift&&Clicks.Count>0&&(Clicks.Count==1||mode==ArcMode.CenterStartEnd)?LockDirection(sn,Clicks[0]):sn;
+    protected override string? Inference(CadSession s, SnapInfo hot)
+        => mode == ArcMode.CenterStartEnd && Clicks.Count == 0 ? CenterInference(Sk(s), hot) : null;
     public override string Name => "Arc";
     public override string Mode => mode switch { ArcMode.ThreePoint => "3-point", ArcMode.CenterStartEnd => "Center", _ => "Tangent" };
     static readonly ToolOption[] Opts = [new("3-Point", "Start, end, then pull the arc out to the side you want", "arc"), new("Center", "Center, start, then sweep round to the end", "arc-center"), new("Tangent", "Continue tangent from the end of a line or arc", "arc-tangent")];
@@ -241,7 +243,15 @@ public sealed class EllipseTool(EllipseMode mode, bool circleLock = false) : Cli
 {
     protected override string PlacementAction => mode == EllipseMode.ThreePoint && Clicks.Count == 1 ? Locked ? "Set second point" : "Set major axis"
         : mode == EllipseMode.Center && !Locked && Clicks.Count == 1 ? "Set major axis" : Locked ? "Create circle" : "Create ellipse";
-    protected override SnapInfo Constrain(CadSession s,SnapInfo sn)=>sn;
+    int _equalTo = -1;      // a circle or arc the radius being dragged out matches
+    protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
+    {
+        _equalTo = -1;
+        if (!(Locked && mode == EllipseMode.Center && Clicks.Count == 1) || EqualRadius(s, Clicks[0], sn) is not { } equal) return sn;
+        _equalTo = equal.match.Id; return equal.point;
+    }
+    protected override string? Inference(CadSession s, SnapInfo hot)
+        => Clicks.Count == 0 && mode == EllipseMode.Center ? CenterInference(Sk(s), hot) : _equalTo >= 0 ? "Equal radius" : null;
     public override string Name => "Ellipse";
     public override string Mode => mode switch { EllipseMode.Center => "Ellipse (center)", EllipseMode.TwoPoint => "Ellipse (2-point)", _ => "Ellipse (3-point)" };
     static readonly ToolOption[] Opts = [new("Center", "Center, the end of one axis, then the other radius", "ellipse"), new("2-Point", "Two opposite corners of the box the ellipse fits in", "rect"), new("3-Point", "The two ends of the long axis, then a point for the other radius", "ellipse")];
@@ -374,7 +384,16 @@ public sealed class EllipseTool(EllipseMode mode, bool circleLock = false) : Cli
                 (cx,cy,r) = circle;
             }
             if (r < 1e-6) return;
-            sk.Edit(s, "That circle", () => sk.Model.AddCircle(mode == EllipseMode.Center ? sk.PointFor(c[0]) : sk.Model.AddPoint(cx,cy), r, sk.Construction));
+            int equalTo = mode == EllipseMode.Center ? _equalTo : -1; _equalTo = -1;
+            var concentric = mode == EllipseMode.Center && c[0].Kind == SnapKind.Point ? sk.RoundAtCenter(c[0].Id) : null;
+            bool Draw(bool withEqual) => sk.Edit(s, "That circle", () =>
+            {
+                int circle = sk.Model.AddCircle(mode == EllipseMode.Center ? sk.PointFor(c[0]) : sk.Model.AddPoint(cx,cy), r, sk.Construction);
+                if (withEqual && equalTo >= 0) sk.Model.Add(CType.Equal, refs: [circle, equalTo]);
+            });
+            if (!(Draw(true) || equalTo >= 0 && Draw(false))) return;
+            if (concentric != null) s.Say($"Concentric with the {concentric.Type.ToString().ToLowerInvariant()}: they share one center.");
+            else if (equalTo >= 0) s.Say("Equal radius: the new circle follows the size of the one it matched.");
             return;
         }
         if (Fit(mode == EllipseMode.TwoPoint ? [c[0]] : c, hu, hv) is not { } sh || Dist(sh.cx, sh.cy, sh.ex, sh.ey) < 1e-6 || sh.minor < 1e-6) { s.Say("Both radii of an ellipse must be above zero.", true); return; }
