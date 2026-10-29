@@ -1,0 +1,46 @@
+PASS CNC and print tools share one CAM tab
+PASS CAM retains Profile
+PASS CAM retains Pocket
+PASS CAM retains Drill
+PASS CAM retains Face
+PASS CAM retains Post G-code
+PASS CAM retains Basic FDM slice
+PASS CAM retains Export 3MF
+PASS CAM retains Export STL
+PASS CAM retains Draft analysis
+PASS CAM retains Layer View
+PASS built-in slicing retains its stable command identity
+PASS Surface groups related tools
+PASS Surface nested tools retain command identities
+PASS NURBS groups related tools
+PASS NURBS nested tools retain command identities
+PASS Freeform groups related tools
+PASS Freeform nested tools retain command identities
+PASS NURBS ribbon stays within a 1024px window
+WIDTH NURBS: tools=1211, viewport=976
+PASS NURBS shows an overflow arrow
+PASS NURBS overflow arrow reaches the final tools
+PASS Freeform ribbon stays within a 1024px window
+WIDTH Freeform: tools=1388, viewport=976
+PASS Freeform shows an overflow arrow
+PASS Freeform overflow arrow reaches the final tools
+PASS CAM ribbon stays within a 1024px window
+WIDTH CAM: tools=1024, viewport=1024
+PASS ECAD ribbon stays within a 1024px window
+WIDTH ECAD: tools=1024, viewport=1024
+PASS Thermal ribbon stays within a 1024px window
+WIDTH Thermal: tools=1024, viewport=1024
+PASS Dynamics ribbon stays within a 1024px window
+WIDTH Dynamics: tools=1024, viewport=1024
+PASS Fluids ribbon stays within a 1024px window
+WIDTH Fluids: tools=1024, viewport=1024
+PASS CAE workspace includes the four analysis areas
+PASS ECAD exposes Rectangular board
+PASS ECAD exposes Board from outline
+PASS ECAD exposes Mounting Hole
+PASS ECAD exposes Component Envelope
+PASS ECAD exposes Interference
+PASS ECAD exposes Import STEP
+PASS ECAD exposes Export STEP
+PASS opening a split menu does not execute its current tool
+SUCCESS: 38 checks

@@ -1,0 +1,28 @@
+{
+  "studio": {
+    "width": 1280,
+    "height": 720,
+    "firstPixel": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "minAlpha": 255,
+    "maxAlpha": 255,
+    "partialAlphaPixels": 0
+  },
+  "transparent": {
+    "width": 1280,
+    "height": 720,
+    "firstPixel": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "minAlpha": 0,
+    "maxAlpha": 255,
+    "partialAlphaPixels": 1413
+  }
+}

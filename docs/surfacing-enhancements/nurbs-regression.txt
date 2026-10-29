@@ -1,0 +1,15 @@
+PASS preselection populates the required profile input
+PASS preselection does not also populate optional rails
+PASS batched input changes do not build intermediate previews
+PASS configured inputs build one final preview
+PASS failed configuration does not leave previews suspended
+PASS flat NURBS surface initially has zero geometric height
+PASS rendering does not inflate a flat NURBS surface's height
+PASS geometric dimensions are independent of display mesh state
+PASS surface bounds remain within the control-net convex hull
+PASS a flat NURBS surface thickens into a valid solid
+PASS thickened NURBS plate reports its actual 2.8mm thickness
+PASS mouse housing before the problematic fillet is valid
+PASS invalid mouse fillet is rejected instead of replacing the housing
+PASS rejected fillet preserves the original valid housing
+SUCCESS: 14 checks

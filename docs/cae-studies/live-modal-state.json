@@ -1,0 +1,17 @@
+{
+  "running": false,
+  "status": "Complete — results in C:\\Users\\chris\\AppData\\Local\\Prism\\CAE\\20261027_194004_316f39",
+  "error": null,
+  "resultFolder": "C:\\Users\\chris\\AppData\\Local\\Prism\\CAE\\20261027_194004_316f39",
+  "kind": "Modal",
+  "frequenciesHz": [
+    819.4581,
+    820.6666,
+    4922.983,
+    4939.749,
+    7600.065,
+    12700.72
+  ],
+  "minimumTemperature": null,
+  "maximumTemperature": null
+}

@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Prism.ViewModels"
+             xmlns:views="using:Prism.Views"
+             x:Class="Prism.Views.SketchPanel">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="14,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
+                <Button Grid.Column="2" Classes="primary" Content="Finish sketch" Click="OnFinish"/>
+            </Grid>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+        <!-- the active tool's own panel -->
+        <Border DockPanel.Dock="Top" IsVisible="{Binding HasToolOptions}" Margin="12,8,12,0" Padding="10" Background="{DynamicResource PanelAlt}" CornerRadius="8">
+            <ItemsControl ItemsSource="{Binding ToolOptions}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ToolOptionItem">
+                        <Button Content="{Binding Label}" Classes.primary="{Binding IsSelected}" Click="OnToolOption" Margin="2" ToolTip.Tip="{Binding Tip}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+        <Border DockPanel.Dock="Top" IsVisible="{Binding HasToolPanel}" Margin="12,12,12,0" Padding="14,12" CornerRadius="10" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding ToolPanelTitle}" Classes="panelTitle"/>
+                <TextBlock Text="{Binding ToolPanelHint}" Classes="soft" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding ToolPanel}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:ToolControlRow">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding IsInfo}"/>
+                                <CheckBox Content="{Binding Label}" IsChecked="{Binding On, Mode=TwoWay}" IsVisible="{Binding IsToggle}"/>
+                                <Grid ColumnDefinitions="*,110,Auto" ColumnSpacing="8" IsVisible="{Binding IsNumber}" IsEnabled="{Binding Enabled}">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" Text="{Binding NumberText, Mode=TwoWay}" HorizontalContentAlignment="Right" KeyDown="OnToolNumberKey" LostFocus="OnToolNumberLost"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Unit}" Classes="faint" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Button Content="{Binding Label}" Classes.primary="{Binding Primary}" IsEnabled="{Binding Enabled}" IsVisible="{Binding IsButton}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnToolButton"/>
+                                <TextBlock Text="{Binding Text}" Classes="faint" TextWrapping="Wrap" IsVisible="{Binding HasText}" FontSize="11.5"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <views:SketchSpacePanel/>
+
+        <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6" Spacing="4">
+            <TextBlock Text="SKETCH" Classes="panelTitle"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                <Ellipse Width="10" Height="10" Fill="{DynamicResource Ok}" VerticalAlignment="Center" IsVisible="{Binding SketchFull}"/>
+                <Ellipse Width="10" Height="10" Fill="{DynamicResource Accent}" VerticalAlignment="Center" IsVisible="{Binding SketchFree}"/>
+                <Ellipse Width="10" Height="10" Fill="{DynamicResource Danger}" VerticalAlignment="Center" IsVisible="{Binding SketchBad}"/>
+                <TextBlock Text="{Binding SketchStateText}" FontSize="15" FontWeight="SemiBold"/>
+            </StackPanel>
+            <TextBlock Text="{Binding SketchSummary}" Classes="faint" TextWrapping="Wrap"/>
+            <TextBlock Text="Blue geometry can still move; white is fully constrained. Drag with Select to test it." Classes="faint" TextWrapping="Wrap" Margin="0,6,0,0"/>
+            <TextBlock Text="CONSTRAINTS AND DIMENSIONS" Classes="panelTitle" Margin="0,14,0,4"/>
+        </StackPanel>
+
+        <Panel>
+            <ListBox ItemsSource="{Binding SketchConstraints}" Classes="hist" DoubleTapped="OnRowDoubleTapped">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:ConstraintRow">
+                        <Grid ColumnDefinitions="26,*,Auto,Auto" Height="40" ColumnSpacing="8" Background="Transparent" Margin="{Binding Indent}">
+                            <TextBlock Text="{Binding Glyph}" FontSize="15" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding IsDetail}"/>
+                            <Button Classes="tool" Content="{Binding Glyph}" Tag="{Binding GroupName}" Click="OnToggleGroup" IsVisible="{Binding IsHeader}" FontSize="13" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding Detail}" Classes="faint" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding Value}" IsVisible="{Binding HasValue}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="3" Classes="tool" Content="✕" FontSize="10" Padding="6,3" Click="OnDeleteRow" ToolTip.Tip="Remove" IsVisible="{Binding IsDetail}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="No constraints yet. Draw lines near horizontal or vertical, snap to points, or use the Constrain and Dimension tools." Classes="faint" TextWrapping="Wrap"
+                       Margin="18,6" IsHitTestVisible="False" VerticalAlignment="Top"
+                       IsVisible="{Binding !SketchConstraints.Count}"/>
+        </Panel>
+        </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

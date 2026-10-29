@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <ApplicationIcon>..\Prism\Assets\prism.ico</ApplicationIcon>
+        <Product>Prism</Product>
+        <Title>Prism</Title>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Native Open CASCADE kernel (build with native/build.ps1) -->
+        <None Include="..\native\bin\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Prism\Prism.csproj"/>
+    </ItemGroup>
+</Project>

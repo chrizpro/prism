@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="Prism.Android/Prism.Android.csproj">
+    <Deploy />
+  </Project>
+  <Project Path="Prism.Browser/Prism.Browser.csproj" />
+  <Project Path="Prism.Desktop/Prism.Desktop.csproj" />
+  <Project Path="Prism.iOS/Prism.iOS.csproj">
+    <Deploy />
+  </Project>
+  <Project Path="Prism/Prism.csproj" />
+  <Project Path="Prism.Kernel/Prism.Kernel.csproj" />
+  <Project Path="Prism.Mcp/Prism.Mcp.csproj" />
+</Solution>

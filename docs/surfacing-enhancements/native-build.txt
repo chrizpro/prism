@@ -1,0 +1,15 @@
+MSBuild version 17.13.9+e0f243f1e for .NET Framework
+
+  kernel.cpp
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TopTools_ListOfShape.hxx(27): warning : TopTools_ListOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection types directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TColStd_Array1OfInteger.hxx(27): warning : TColStd_Array1OfInteger.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<int> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TColStd_Array1OfReal.hxx(26): warning : TColStd_Array1OfReal.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<double> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TColgp_Array1OfPnt.hxx(27): warning : TColgp_Array1OfPnt.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array1<gp_Pnt> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TColgp_HArray1OfPnt.hxx(28): warning : TColgp_HArray1OfPnt.hxx is deprecated since OCCT 8.0.0. Use NCollection_HArray1<gp_Pnt> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TColgp_Array2OfPnt.hxx(27): warning : TColgp_Array2OfPnt.hxx is deprecated since OCCT 8.0.0. Use NCollection_Array2<gp_Pnt> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:\vcpkg\installed\x64-windows-rel\include\opencascade\TopTools_SequenceOfShape.hxx(27): warning : TopTools_SequenceOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection_Sequence<TopoDS_Shape> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TopTools_HSequenceOfShape.hxx(28): warning : TopTools_HSequenceOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection_HSequence<TopoDS_Shape> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TopTools_IndexedMapOfShape.hxx(28): warning : TopTools_IndexedMapOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection_IndexedMap<TopoDS_Shape, TopTools_ShapeMapHasher> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+C:/vcpkg/installed/x64-windows-rel/include/opencascade\TopTools_IndexedDataMapOfShapeListOfShape.hxx(31): warning : TopTools_IndexedDataMapOfShapeListOfShape.hxx is deprecated since OCCT 8.0.0. Use NCollection_IndexedDataMap<TopoDS_Shape, TopTools_ListOfShape, TopTools_ShapeMapHasher> directly. [C:\Users\chris\RiderProjects\Prism\native\build\prism_kernel.vcxproj]
+     Creating library C:/Users/chris/RiderProjects/Prism/native/build/Release/prism_kernel.lib and object C:/Users/chris/RiderProjects/Prism/native/build/Release/prism_kernel.exp
+  prism_kernel.vcxproj -> C:\Users\chris\RiderProjects\Prism\native\build\Release\prism_kernel.dll

@@ -1,0 +1,24 @@
+PASS material identity survives save and reopen
+PASS custom colour and finish survive save and reopen
+PASS material scene loads for Transparent
+PASS render completes requested samples for Transparent
+PASS material scene loads for White
+PASS render completes requested samples for White
+PASS transparent background has zero alpha
+PASS white background exports exact opaque white
+PASS fixture exercises antialiased silhouette coverage
+PASS white and transparent renders composite consistently at silhouettes
+PASS render uses the assigned orange material colour
+PASS session reports successful completion and sample count
+PASS save creates the output directory and writes a PNG
+PASS stop cancels without reporting completion
+PASS close clears the render
+PASS saving without a render reports failure
+PASS render does not expose a modeling preview toggle
+PASS white-furnace energy bounded for metallic=0, N·V=1 (reflectance 0.9143)
+PASS white-furnace energy bounded for metallic=0, N·V=0.3 (reflectance 0.8248)
+PASS white-furnace energy bounded for metallic=1, N·V=1 (reflectance 0.9156)
+PASS white-furnace energy bounded for metallic=1, N·V=0.3 (reflectance 0.8298)
+PASS metallicity remains continuous across the former 0.5 switch
+PASS polished-metal grazing evaluation remains finite
+SUCCESS: 23 checks; artifacts: C:\Users\chris\AppData\Local\Temp\prism-render-tests-d6d21b0e436849ab86216deda8b5c6ab

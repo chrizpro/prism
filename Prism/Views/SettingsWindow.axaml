@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Prism.Views.SettingsWindow"
+        Title="Settings" Width="940" Height="700" MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource PanelBg}">
+    <Grid ColumnDefinitions="190,1,*">
+        <Border Background="{DynamicResource TabBarBg}" Padding="10,16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Settings" FontSize="17" FontWeight="SemiBold" Margin="8,0,0,12"/>
+                <ListBox Name="Nav" Background="Transparent" SelectedIndex="0" SelectionChanged="OnNav">
+                    <ListBoxItem Content="Appearance"/>
+                    <ListBoxItem Content="Interaction"/>
+                    <ListBoxItem Content="Workspace"/>
+                    <ListBoxItem Content="Toolbars"/>
+                    <ListBoxItem Content="Ribbon"/>
+                </ListBox>
+            </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Background="{DynamicResource Line}"/>
+
+        <Panel Grid.Column="2">
+            <!-- ============ appearance ============ -->
+            <ScrollViewer Name="PageAppearance">
+                <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
+                    <TextBlock Text="Appearance" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                    <TextBlock Text="Dark is easier on the eyes in a dim room; Light suits a bright office or printing screenshots." Classes="soft" TextWrapping="Wrap"/>
+                    <StackPanel Spacing="6" Margin="0,4,0,0">
+                        <RadioButton Name="ThemeDark" GroupName="theme" Content="Dark" Click="OnTheme"/>
+                        <RadioButton Name="ThemeLight" GroupName="theme" Content="Light" Click="OnTheme"/>
+                        <RadioButton Name="ThemeSystem" GroupName="theme" Content="Match Windows" Click="OnTheme"/>
+                    </StackPanel>
+                    <TextBlock Text="3D view backdrop and grid" FontWeight="SemiBold" Margin="0,22,0,0"/>
+                    <TextBlock Text="Pick a look for the space you model in. Classic follows the theme above; the rest keep their own colors." Classes="soft" TextWrapping="Wrap"/>
+                    <WrapPanel Name="GridHost" Margin="0,4,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============ interaction ============ -->
+            <ScrollViewer Name="PageInteraction" IsVisible="False">
+                <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
+                    <TextBlock Text="Interaction" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Right-click menu" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                    <TextBlock Text="Hold the right mouse button still and a ring of tools for what you are looking at appears: drag toward one and let go. A quick right click opens the same ring. Moving first orbits as usual." Classes="soft" TextWrapping="Wrap"/>
+                    <CheckBox Name="MarkingOn" Content="Use the right-click menu" Click="OnMarking"/>
+                    <StackPanel Spacing="4" Margin="0,6,0,0">
+                        <TextBlock Name="HoldLabel" Text="Hold time"/>
+                        <Slider Name="HoldMs" Minimum="100" Maximum="600" TickFrequency="20" IsSnapToTickEnabled="True" Width="320" HorizontalAlignment="Left" ValueChanged="OnHold"/>
+                        <TextBlock Text="How long to keep the button still before the ring opens. Shorter feels snappier; longer avoids it popping up when you only meant to orbit." Classes="faint" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============ workspace ============ -->
+            <ScrollViewer Name="PageWorkspace" IsVisible="False">
+                <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
+                    <TextBlock Text="Workspace" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Your workspace is the folder your parts live in. Save, Open and new-part names all start there, and the home screen lists what is inside." Classes="soft" TextWrapping="Wrap"/>
+                    <TextBlock Name="WsPath" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <WrapPanel>
+                        <Button Content="Change…" Click="OnWsChange" Margin="0,0,8,6"/>
+                        <Button Name="WsDefault" Content="Use the default (Documents\Prism)" Click="OnWsDefault" Margin="0,0,8,6"/>
+                        <Button Content="Show in Explorer" Click="OnWsShow" Margin="0,0,8,6"/>
+                    </WrapPanel>
+                    <CheckBox Name="WsHome" Content="Show the home screen when Prism starts" Click="OnWsHome" Margin="0,8,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============ toolbars ============ -->
+            <ScrollViewer Name="PageToolbars" IsVisible="False">
+                <StackPanel Margin="28,24" Spacing="14">
+                    <TextBlock Text="Toolbars" FontSize="20" FontWeight="SemiBold"/>
+                    <StackPanel Name="ToolbarHost" Spacing="26"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ============ ribbon ============ -->
+            <Grid Name="PageRibbon" IsVisible="False" RowDefinitions="Auto,*" Margin="28,24,28,20">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Ribbon" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Make the ribbon yours: hide tabs you never use, move commands between groups, and build whole new tabs. Everything can be put back the way it shipped." Classes="soft" TextWrapping="Wrap"/>
+                    <StackPanel Name="RibbonBar" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0"/>
+                    <StackPanel Name="RibbonBar2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,6"/>
+                </StackPanel>
+                <Grid Grid.Row="1" ColumnDefinitions="*,12,*">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Text="In this tab" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <ListBox Name="Rows" Grid.Row="1" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="6"/>
+                        <WrapPanel Name="RowButtons" Grid.Row="2" Margin="0,8,0,0"/>
+                    </Grid>
+                    <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto">
+                        <TextBlock Text="All commands" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <TextBox Name="Filter" Grid.Row="1" Watermark="Search commands" Margin="0,0,0,6" TextChanged="OnFilter"/>
+                        <ListBox Name="Catalog" Grid.Row="2" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="6" DoubleTapped="OnCatalogDouble"/>
+                        <WrapPanel Name="CatButtons" Grid.Row="3" Margin="0,8,0,0"/>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Panel>
+    </Grid>
+</Window>

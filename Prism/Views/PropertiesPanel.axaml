@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Prism.ViewModels"
+             x:Class="Prism.Views.PropertiesPanel">
+    <ScrollViewer>
+        <StackPanel Margin="14,14,14,10" Spacing="4">
+            <TextBlock Text="PROPERTIES" Classes="panelTitle" Margin="0,0,0,8"/>
+
+            <StackPanel IsVisible="{Binding !HasSelection}" Spacing="6" Margin="0,24,0,0">
+                <TextBlock Text="Nothing selected" FontWeight="SemiBold" HorizontalAlignment="Center" Classes="soft"/>
+                <TextBlock Text="Click an object in the viewport or in the Model list to see its properties." TextWrapping="Wrap" TextAlignment="Center" Classes="faint"/>
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding HasSelection}" Spacing="4">
+                <TextBlock Text="{Binding SelectionTitle}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBox Name="RenameBox" Text="{Binding RenameText}" Watermark="Name" Padding="8,6" CornerRadius="5" KeyDown="OnRenameKey" LostFocus="OnRenameLostFocus"/>
+
+                <ItemsControl ItemsSource="{Binding Properties}" Margin="0,10,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:PropertyLine">
+                            <Grid ColumnDefinitions="110,*" Margin="0,3">
+                                <TextBlock Text="{Binding Label}" Classes="soft"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="COLOR" Classes="panelTitle" Margin="0,16,0,6"/>
+                <ItemsControl Name="Swatches">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Prism.Views.ScriptPanel">
+    <Border Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Grid RowDefinitions="Auto,*,5,200,Auto">
+            <!-- toolbar -->
+            <Border Grid.Row="0" Padding="8,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <WrapPanel Orientation="Horizontal">
+                        <Button Name="RunBtn" Classes="primary" Content="▶  Run" Click="OnRun" ToolTip.Tip="Run the script (F5)" Padding="12,4"/>
+                        <Button Name="StopBtn" Classes="ghost" Content="■  Stop" Click="OnStop" ToolTip.Tip="Stop the running script (Shift+F5)" Padding="12,4" IsEnabled="False"/>
+                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,2"/>
+                        <Button Classes="ghost" Content="New" Click="OnNew" Padding="10,4" ToolTip.Tip="Start a new script"/>
+                        <Button Name="OpenBtn" Classes="ghost" Content="Open ▾" Click="OnOpenMenu" Padding="10,4" ToolTip.Tip="Open one of your scripts or an example"/>
+                        <Button Classes="ghost" Content="Save" Click="OnSave" Padding="10,4" ToolTip.Tip="Save the script (Ctrl+S)"/>
+                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,2"/>
+                        <ComboBox Name="LangBox" Classes="field" Width="110" ToolTip.Tip="Script language"/>
+                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,2"/>
+                        <Button Classes="ghost" Content="VS Code" Click="OnVsCode" Padding="10,4" ToolTip.Tip="Open this script in Visual Studio Code. The library sits next to your scripts, so it works there too."/>
+                        <Button Classes="ghost" Content="PyCharm" Click="OnPyCharm" Padding="10,4" ToolTip.Tip="Open this script in PyCharm."/>
+                        <TextBlock Name="NameText" Classes="soft" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </WrapPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- editor: line numbers and text scroll together -->
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="{DynamicResource AppBg}">
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Name="Gutter" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12.5" LineHeight="18" TextAlignment="Right"
+                               Foreground="{DynamicResource InkSoft}" Margin="10,6,8,6" MinWidth="26"/>
+                    <TextBox Name="Editor" Grid.Column="1" AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" BorderThickness="0" Background="Transparent"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12.5" LineHeight="18" Padding="2,6,10,6" MinHeight="120"
+                             KeyDown="OnEditorKeyDown"/>
+                </Grid>
+            </ScrollViewer>
+
+            <GridSplitter Grid.Row="2" Background="{DynamicResource Line}" Height="5"/>
+
+            <!-- console -->
+            <Grid Grid.Row="3" RowDefinitions="Auto,*">
+                <DockPanel Margin="10,3,6,0">
+                    <Button DockPanel.Dock="Right" Classes="tool" Content="Clear" Click="OnClear" Padding="8,2" FontSize="11"/>
+                    <TextBlock Text="CONSOLE" Classes="panelTitle" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBox Name="Console" Grid.Row="1" IsReadOnly="True" TextWrapping="NoWrap" AcceptsReturn="True" BorderThickness="0" Background="Transparent"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" Padding="10,2"/>
+            </Grid>
+
+            <Border Grid.Row="4" Padding="10,3" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+                <TextBlock Name="StatusText" Classes="faint" FontSize="11"/>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

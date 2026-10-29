@@ -1,0 +1,28 @@
+C:\Users\chris\RiderProjects\Prism\Prism\Tools\SketchTrimTool.cs(273,38): warning CS8321: The local function 'At' is declared but never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\FormScanCommands.cs(69,39): warning CS9113: Parameter 's' is unread. [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,16): warning CS0219: The variable 'rIn' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,39): warning CS0219: The variable 'rOut' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+PASS material identity survives save and reopen
+PASS custom colour and finish survive save and reopen
+PASS material scene loads for Transparent
+PASS render completes requested samples for Transparent
+PASS material scene loads for White
+PASS render completes requested samples for White
+PASS transparent background has zero alpha
+PASS white background exports exact opaque white
+PASS fixture exercises antialiased silhouette coverage
+PASS white and transparent renders composite consistently at silhouettes
+PASS render uses the assigned orange material colour
+PASS session reports successful completion and sample count
+PASS save creates the output directory and writes a PNG
+PASS stop cancels without reporting completion
+PASS close clears the render
+PASS saving without a render reports failure
+PASS render does not expose a modeling preview toggle
+PASS white-furnace energy bounded for metallic=0, N·V=1 (reflectance 0.9143)
+PASS white-furnace energy bounded for metallic=0, N·V=0.3 (reflectance 0.8248)
+PASS white-furnace energy bounded for metallic=1, N·V=1 (reflectance 0.9156)
+PASS white-furnace energy bounded for metallic=1, N·V=0.3 (reflectance 0.8298)
+PASS metallicity remains continuous across the former 0.5 switch
+PASS polished-metal grazing evaluation remains finite
+SUCCESS: 23 checks; artifacts: C:\Users\chris\AppData\Local\Temp\prism-render-tests-48be6e1b038a48d1b55d93481fbe4876

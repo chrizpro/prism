@@ -1,0 +1,290 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                <SolidColorBrush x:Key="AppBg">#12161C</SolidColorBrush>
+                <SolidColorBrush x:Key="PanelBg">#1A1F27</SolidColorBrush>
+                <SolidColorBrush x:Key="PanelAlt">#212733</SolidColorBrush>
+                <SolidColorBrush x:Key="Line">#2C3442</SolidColorBrush>
+                <SolidColorBrush x:Key="LineSoft">#252C38</SolidColorBrush>
+                <SolidColorBrush x:Key="Ink">#E8EDF5</SolidColorBrush>
+                <SolidColorBrush x:Key="InkSoft">#9CA9BC</SolidColorBrush>
+                <SolidColorBrush x:Key="InkFaint">#68768A</SolidColorBrush>
+                <SolidColorBrush x:Key="Accent">#4C94FF</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentDark">#3A7DE6</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentSoft">#1D3556</SolidColorBrush>
+                <SolidColorBrush x:Key="HoverBg">#283140</SolidColorBrush>
+                <SolidColorBrush x:Key="PressedBg">#33405A</SolidColorBrush>
+                <SolidColorBrush x:Key="CheckedBg">#243F66</SolidColorBrush>
+                <SolidColorBrush x:Key="CheckedLine">#4C94FF</SolidColorBrush>
+                <SolidColorBrush x:Key="RibbonBg">#1E2430</SolidColorBrush>
+                <SolidColorBrush x:Key="TabBarBg">#151A21</SolidColorBrush>
+                <SolidColorBrush x:Key="Danger">#FF6B6F</SolidColorBrush>
+                <SolidColorBrush x:Key="Ok">#3FCF8E</SolidColorBrush>
+                <SolidColorBrush x:Key="Gold">#FFC53D</SolidColorBrush>
+                <SolidColorBrush x:Key="TipBg">#262E3C</SolidColorBrush>
+                <SolidColorBrush x:Key="PopupLine">#3A4558</SolidColorBrush>
+                <SolidColorBrush x:Key="PopupBg">#232A36</SolidColorBrush>
+                <SolidColorBrush x:Key="FieldBg">#151A21</SolidColorBrush>
+                <SolidColorBrush x:Key="FieldLine">#2F3847</SolidColorBrush>
+                <SolidColorBrush x:Key="TabHover">#202734</SolidColorBrush>
+                <SolidColorBrush x:Key="HoverLine">#3C4A63</SolidColorBrush>
+                <SolidColorBrush x:Key="BtnBg">#242B38</SolidColorBrush>
+                <SolidColorBrush x:Key="BtnLine">#344055</SolidColorBrush>
+                <SolidColorBrush x:Key="SegOn">#2A3445</SolidColorBrush>
+                <SolidColorBrush x:Key="SelHover">#2C4B7A</SolidColorBrush>
+                <SolidColorBrush x:Key="TlBg">#222A37</SolidColorBrush>
+                <SolidColorBrush x:Key="TlLine">#334055</SolidColorBrush>
+                <SolidColorBrush x:Key="OverlayBg">#F0151A21</SolidColorBrush>
+                <SolidColorBrush x:Key="OnAccent">#0B1220</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentHover">#6AA6FF</SolidColorBrush>
+                <SolidColorBrush x:Key="PrimaryOffBg">#2D4466</SolidColorBrush>
+                <SolidColorBrush x:Key="PrimaryOffFg">#7C8CA6</SolidColorBrush>
+                <SolidColorBrush x:Key="CurrentLine">#9CC4FF</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                <SolidColorBrush x:Key="AppBg">#E9EDF3</SolidColorBrush>
+                <SolidColorBrush x:Key="PanelBg">#F7F9FC</SolidColorBrush>
+                <SolidColorBrush x:Key="PanelAlt">#EBF0F6</SolidColorBrush>
+                <SolidColorBrush x:Key="Line">#CFD7E3</SolidColorBrush>
+                <SolidColorBrush x:Key="LineSoft">#DEE4EC</SolidColorBrush>
+                <SolidColorBrush x:Key="Ink">#1B2432</SolidColorBrush>
+                <SolidColorBrush x:Key="InkSoft">#4A576A</SolidColorBrush>
+                <SolidColorBrush x:Key="InkFaint">#788699</SolidColorBrush>
+                <SolidColorBrush x:Key="Accent">#2F7BF0</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentDark">#1F63CC</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentSoft">#D5E4FA</SolidColorBrush>
+                <SolidColorBrush x:Key="HoverBg">#E0E7F0</SolidColorBrush>
+                <SolidColorBrush x:Key="PressedBg">#CFDAE8</SolidColorBrush>
+                <SolidColorBrush x:Key="CheckedBg">#CDE0FA</SolidColorBrush>
+                <SolidColorBrush x:Key="CheckedLine">#2F7BF0</SolidColorBrush>
+                <SolidColorBrush x:Key="RibbonBg">#FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="TabBarBg">#E3E8EF</SolidColorBrush>
+                <SolidColorBrush x:Key="Danger">#D1343C</SolidColorBrush>
+                <SolidColorBrush x:Key="Ok">#1C9A60</SolidColorBrush>
+                <SolidColorBrush x:Key="Gold">#B97F00</SolidColorBrush>
+                <SolidColorBrush x:Key="TipBg">#FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="PopupLine">#C3CCD9</SolidColorBrush>
+                <SolidColorBrush x:Key="PopupBg">#FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="FieldBg">#FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="FieldLine">#C3CCD9</SolidColorBrush>
+                <SolidColorBrush x:Key="TabHover">#D9E0EA</SolidColorBrush>
+                <SolidColorBrush x:Key="HoverLine">#A9B7CB</SolidColorBrush>
+                <SolidColorBrush x:Key="BtnBg">#EAEFF5</SolidColorBrush>
+                <SolidColorBrush x:Key="BtnLine">#C3CCD9</SolidColorBrush>
+                <SolidColorBrush x:Key="SegOn">#D3E0F2</SolidColorBrush>
+                <SolidColorBrush x:Key="SelHover">#BCD3F2</SolidColorBrush>
+                <SolidColorBrush x:Key="TlBg">#EDF1F6</SolidColorBrush>
+                <SolidColorBrush x:Key="TlLine">#C3CCD9</SolidColorBrush>
+                <SolidColorBrush x:Key="OverlayBg">#F2FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="OnAccent">#FFFFFF</SolidColorBrush>
+                <SolidColorBrush x:Key="AccentHover">#4F93F5</SolidColorBrush>
+                <SolidColorBrush x:Key="PrimaryOffBg">#BCCCE6</SolidColorBrush>
+                <SolidColorBrush x:Key="PrimaryOffFg">#6F7F98</SolidColorBrush>
+                <SolidColorBrush x:Key="CurrentLine">#1F63CC</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- ============ base ============ -->
+    <Style Selector="TextBlock">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+    </Style>
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource TipBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PopupLine}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="CornerRadius" Value="7"/>
+    </Style>
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource PopupBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PopupLine}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+    </Style>
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{DynamicResource FieldBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource FieldLine}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+
+    <!-- ============ ribbon tabs ============ -->
+    <Style Selector="Button.rtab">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource InkSoft}"/>
+        <Setter Property="Padding" Value="15,0"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{TemplateBinding Background}" BorderThickness="0,2,0,0" BorderBrush="{TemplateBinding BorderBrush}" Padding="{TemplateBinding Padding}" CornerRadius="7,7,0,0" Margin="1,0,1,0">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      TextElement.Foreground="{TemplateBinding Foreground}" TextElement.FontWeight="{TemplateBinding FontWeight}"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.rtab:pointerover"><Setter Property="Background" Value="{DynamicResource TabHover}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style Selector="Button.rtab.selected"><Setter Property="Background" Value="{DynamicResource RibbonBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.rtab.selected /template/ Border#Bd"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="Button.rtab.file"><Setter Property="Background" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="18,0"/></Style>
+    <Style Selector="Button.rtab.file:pointerover"><Setter Property="Background" Value="{DynamicResource AccentHover}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/></Style>
+    <Style Selector="Button.rtab.file.selected"><Setter Property="Background" Value="{DynamicResource AccentHover}"/></Style>
+
+    <!-- ============ ribbon buttons ============ -->
+    <Style Selector="Button.rb">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.rb:pointerover"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+    <Style Selector="Button.rb:pointerover /template/ Border#Bd"><Setter Property="BorderBrush" Value="{DynamicResource HoverLine}"/></Style>
+    <Style Selector="Button.rb:pressed"><Setter Property="Background" Value="{DynamicResource PressedBg}"/></Style>
+    <Style Selector="Button.rb.checked"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
+    <Style Selector="Button.rb.checked /template/ Border#Bd"><Setter Property="BorderBrush" Value="{DynamicResource CheckedLine}"/></Style>
+    <Style Selector="Button.rb:disabled"><Setter Property="Opacity" Value="0.5"/></Style>
+    <Style Selector="Button.rb:disabled /template/ Border#Bd"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
+    <Style Selector="Button.rb:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
+
+    <Style Selector="TextBlock.glabel"><Setter Property="FontSize" Value="10.5"/><Setter Property="Foreground" Value="White"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="LetterSpacing" Value="0.4"/></Style>
+
+    <!-- ============ generic buttons ============ -->
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{DynamicResource Accent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccent}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="18,7"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentHover}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/></Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource PrimaryOffBg}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryOffFg}"/></Style>
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="{DynamicResource BtnBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BtnLine}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style Selector="Button.tool">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource InkSoft}"/>
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.tool:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style Selector="Button.tool.on /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
+    <Style Selector="Button.tool:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+
+    <Style Selector="ToggleButton.tool /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="ToggleButton.tool:checked /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="ToggleButton.tool:unchecked /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="ToggleButton.tool:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+
+    <!-- segmented tabs (Browser / History) -->
+    <Style Selector="Button.seg">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource InkSoft}"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.seg:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource BtnBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style Selector="Button.seg.on /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource SegOn}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+
+    <!-- ============ panels ============ -->
+    <Style Selector="TextBlock.panelTitle"><Setter Property="FontSize" Value="10.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource InkFaint}"/><Setter Property="LetterSpacing" Value="0.8"/></Style>
+    <Style Selector="TextBlock.soft"><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/></Style>
+    <Style Selector="TextBlock.faint"><Setter Property="Foreground" Value="{DynamicResource InkFaint}"/><Setter Property="FontSize" Value="11.5"/></Style>
+
+    <!-- browser tree -->
+    <Style Selector="TreeView.browser"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="4,2"/></Style>
+    <Style Selector="TreeView.browser TreeViewItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+    </Style>
+    <Style Selector="TreeView.browser TreeViewItem /template/ Border#PART_LayoutRoot"><Setter Property="CornerRadius" Value="6"/><Setter Property="Margin" Value="0,1"/></Style>
+    <Style Selector="TreeView.browser TreeViewItem /template/ Border#PART_LayoutRoot:pointerover"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+    <Style Selector="TreeView.browser TreeViewItem:selected /template/ Border#PART_LayoutRoot"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
+    <Style Selector="TreeView.browser TreeViewItem:selected /template/ Border#PART_LayoutRoot:pointerover"><Setter Property="Background" Value="{DynamicResource SelHover}"/></Style>
+
+    <Style Selector="ListBox.hist"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="4,2"/></Style>
+    <Style Selector="ListBox.hist ListBoxItem">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0,1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+    <Style Selector="ListBox.hist ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+    <Style Selector="ListBox.hist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
+
+    <Style Selector="ListBox.results"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="0"/></Style>
+    <Style Selector="ListBox.results ListBoxItem"><Setter Property="Padding" Value="10,7"/><Setter Property="CornerRadius" Value="7"/><Setter Property="Margin" Value="4,1"/></Style>
+    <Style Selector="ListBox.results ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+    <Style Selector="ListBox.results ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
+
+    <Style Selector="NumericUpDown.field">
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="ShowButtonSpinner" Value="False"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="NumericUpDown.field /template/ TextBox#PART_TextBox">
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="8,0"/>
+        <Setter Property="MinHeight" Value="28"/>
+    </Style>
+    <Style Selector="ComboBox.field"><Setter Property="MinHeight" Value="28"/><Setter Property="CornerRadius" Value="6"/><Setter Property="FontSize" Value="12.5"/><Setter Property="HorizontalAlignment" Value="Stretch"/></Style>
+
+    <Style Selector="Button.statusbtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="10,3"/>
+        <Setter Property="CornerRadius" Value="5"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Foreground" Value="{DynamicResource InkSoft}"/>
+    </Style>
+    <Style Selector="Button.statusbtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <Style Selector="Button.statusbtn.checked /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+
+    <!-- ============ timeline nodes ============ -->
+    <Style Selector="Button.tl">
+        <Setter Property="Background" Value="{DynamicResource TlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource TlLine}" BorderThickness="1" CornerRadius="15" Padding="{TemplateBinding Padding}" Height="30">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.tl:pointerover"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+    <Style Selector="Button.tl.current"><Setter Property="Background" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="Button.tl.current /template/ Border#Bd"><Setter Property="BorderBrush" Value="{DynamicResource CurrentLine}"/></Style>
+    <Style Selector="Button.tl.current TextBlock"><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.tl.future"><Setter Property="Opacity" Value="0.45"/></Style>
+</Styles>

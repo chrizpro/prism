@@ -1,0 +1,29 @@
+C:\Users\chris\RiderProjects\Prism\Prism\Tools\SketchTrimTool.cs(273,38): warning CS8321: The local function 'At' is declared but never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,16): warning CS0219: The variable 'rIn' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,39): warning CS0219: The variable 'rOut' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\FormScanCommands.cs(69,39): warning CS9113: Parameter 's' is unread. [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\tests\Prism.CaeTests\Program.cs(18,75): warning CS8602: Dereference of a possibly null reference. [C:\Users\chris\RiderProjects\Prism\tests\Prism.CaeTests\Prism.CaeTests.csproj]
+Success !!!!
+PASS thermal solver returns every mesh node
+PASS steady conduction matches the analytic linear temperature field (max error 4.99E-06 °C)
+PASS nodal temperature CSV is written
+PASS temperature field uses the result renderer
+Success !!!!
+PASS early transient interior remains cooler than steady state
+PASS transient temperatures are finite
+PASS conflicting temperature boundaries are rejected
+PASS canceled jobs do not start solving
+Success !!!!
+Success !!!!
+PASS existing static solver retains the expected axial displacement
+PASS modal solver returns six frequencies and mode shapes
+PASS first bending mode agrees with slender-beam theory within 8% (819.458 vs 816.034 Hz)
+PASS natural frequencies are ordered
+PASS mode display uses normalized relative magnitude
+PASS laminar pipe loss matches Hagen–Poiseuille
+PASS turbulent friction satisfies Colebrook–White
+PASS transitional pipe flow is explicitly rejected
+PASS default pipe-flow inputs produce a valid result
+PASS installed CalculiX executable is available
+PASS changing the source body invalidates a displayed CAE field
+SUCCESS: 19 checks

@@ -1,0 +1,72 @@
+Thread (0x94E4):
+  [Native Frames]
+  Prism.Kernel!Prism.Kernel.Occ.Distance(class Prism.Kernel.Shape,class Prism.Kernel.Shape)
+  Prism!Prism.Commands.GuidedLoft.Fit(class Prism.Kernel.Shape,value class Prism.Kernel.Vec3,class System.Collections.Generic.List`1<class Prism.Kernel.Shape>)
+  Prism!Prism.Commands.GuidedLoft.Build(class System.Collections.Generic.List`1<class Prism.Kernel.Shape>,class System.Collections.Generic.List`1<class Prism.Kernel.Shape>,bool,bool,int32)
+  Prism!Prism.Commands.LoftCommand.Build()
+  Prism!Prism.Commands.Command.TryBuild()
+  Prism!Prism.Core.CadSession.RefreshPreview(class Prism.Commands.Command)
+  Prism!Prism.Commands.Command.<Slot>b__95_0()
+  Prism!Prism.Commands.SelectionSlot.<.ctor>b__60_0(class System.Object,class System.Collections.Specialized.NotifyCollectionChangedEventArgs)
+  System.ObjectModel.il!System.Collections.ObjectModel.ObservableCollection`1[Prism.Core.SelItem].OnCollectionChanged(class System.Collections.Specialized.NotifyCollectionChangedEventArgs)
+  System.ObjectModel.il!System.Collections.ObjectModel.ObservableCollection`1[Prism.Core.SelItem].OnCollectionChanged(value class System.Collections.Specialized.NotifyCollectionChangedAction,class System.Object,int32)
+  System.ObjectModel.il!System.Collections.ObjectModel.ObservableCollection`1[Prism.Core.SelItem].InsertItem(int32,!0)
+  System.Private.CoreLib.il!System.Collections.ObjectModel.Collection`1[Prism.Core.SelItem].Add(!0)
+  Prism!Prism.Commands.SelectionSlot.TryAdd(value class Prism.Core.SelItem)
+  Prism!Prism.Automation.AutomationApi.ApplySlots(class Prism.Commands.Command,class System.Text.Json.Nodes.JsonObject)
+  Prism!Prism.Automation.AutomationApi.<Register>b__35_6(class System.Text.Json.Nodes.JsonObject)
+  Prism!Prism.Automation.AutomationApi+<>c__DisplayClass12_0.<Add>b__0(class System.Text.Json.Nodes.JsonObject)
+  Prism!Prism.Automation.AutomationApi+<>c__DisplayClass8_0+<<CallAsync>b__0>d.MoveNext()
+  System.Private.CoreLib.il!System.Runtime.CompilerServices.AsyncMethodBuilderCore.Start(!!0&)
+  System.Private.CoreLib.il!System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1[System.__Canon].Start(!!0&)
+  Prism!Prism.Automation.AutomationApi+<>c__DisplayClass8_0.<CallAsync>b__0()
+  Avalonia.Base!Avalonia.Threading.DispatcherOperation`1[System.__Canon].InvokeCore()
+  Avalonia.Base!Avalonia.Threading.Dispatcher.ExecuteJobsCore(bool)
+  Avalonia.Win32!Avalonia.Win32.Win32Platform.WndProc(int,unsigned int32,int,int)
+  ?!?
+  Avalonia.Win32!Avalonia.Win32.Win32DispatcherImpl.RunLoop(value class System.Threading.CancellationToken)
+  Avalonia.Base!Avalonia.Threading.DispatcherFrame.Run(class Avalonia.Threading.IControlledDispatcherImpl)
+  Avalonia.Base!Avalonia.Threading.Dispatcher.PushFrame(class Avalonia.Threading.DispatcherFrame)
+  Avalonia.Base!Avalonia.Threading.Dispatcher.MainLoop(value class System.Threading.CancellationToken)
+  Avalonia.Controls!Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.StartCore(class System.String[])
+  Avalonia.Controls!Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.Start(class System.String[])
+  Avalonia.Controls!Avalonia.ClassicDesktopStyleApplicationLifetimeExtensions.StartWithClassicDesktopLifetime(class Avalonia.AppBuilder,class System.String[],class System.Action`1<class Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime>)
+  Prism.Desktop!Prism.Desktop.Program.Main(class System.String[])
+
+Thread (0x8E28):
+  [Native Frames]
+  Avalonia.Win32!Avalonia.Win32.WinRT.Composition.WinUiCompositorConnection.RunLoop()
+  Avalonia.Win32!Avalonia.Win32.WinRT.Composition.WinUiCompositorConnection+<>c__DisplayClass7_0.<TryCreateAndRegisterCore>b__0()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+
+Thread (0x8FB4):
+  [Native Frames]
+  System.Private.CoreLib.il!System.Threading.WaitHandle.WaitOneNoCheck(int32,bool,class System.Object,value class WaitHandleWaitSourceMap)
+  System.Private.CoreLib.il!System.Threading.TimerQueue.TimerThread()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+
+Thread (0x88A8):
+  [Native Frames]
+  System.Private.CoreLib.il!System.Threading.WaitHandle.WaitOneNoCheck(int32,bool,class System.Object,value class WaitHandleWaitSourceMap)
+  System.Private.CoreLib.il!System.Threading.PortableThreadPool+GateThread.GateThreadStart()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+
+Thread (0x5118):
+  [Native Frames]
+  System.Private.CoreLib.il!System.Threading.PortableThreadPool+IOCompletionPoller.Poll()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+
+Thread (0x6A38):
+  [Native Frames]
+  System.Private.CoreLib.il!System.Threading.LowLevelLifoSemaphore.WaitForSignal(int32)
+  System.Private.CoreLib.il!System.Threading.LowLevelLifoSemaphore.Wait(int32,bool)
+  System.Private.CoreLib.il!System.Threading.PortableThreadPool+WorkerThread.WorkerThreadStart()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+
+Thread (0x4FC0):
+  [Native Frames]
+  System.Private.CoreLib.il!System.Threading.LowLevelLifoSemaphore.WaitForSignal(int32)
+  System.Private.CoreLib.il!System.Threading.LowLevelLifoSemaphore.Wait(int32,bool)
+  System.Private.CoreLib.il!System.Threading.PortableThreadPool+WorkerThread.WorkerThreadStart()
+  System.Private.CoreLib.il!System.Threading.Thread.StartCallback()
+

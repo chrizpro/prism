@@ -1,0 +1,53 @@
+{
+  "failures": [
+    {
+      "args": {
+        "metal": 1.2
+      },
+      "rejected": true
+    },
+    {
+      "args": {
+        "gloss": -0.1
+      },
+      "rejected": true
+    },
+    {
+      "args": {
+        "patternScale": 0
+      },
+      "rejected": true
+    },
+    {
+      "args": {
+        "pattern": "Unknown"
+      },
+      "rejected": true
+    }
+  ],
+  "appearance": {
+    "materialId": "304",
+    "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+    "metal": 1,
+    "gloss": 0.6,
+    "pattern": "Automatic",
+    "patternScale_mm": 12,
+    "patternAngle_deg": 0,
+    "physicalDataRevision": "2026-10-27.1",
+    "physicalDataPinned": true,
+    "physicalProperties": {
+      "density_g_cm3": 7.9,
+      "youngs_GPa": 200,
+      "poisson": 0.29,
+      "yield_MPa": 230,
+      "strength_MPa": 540,
+      "strengthBasis": "Tensile strength",
+      "conductivity_W_mK": 15,
+      "expansion_um_mK": 16,
+      "specificHeat_J_kgK": 500,
+      "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+      "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540–750). Physical properties at 20 °C; expansion 20–100 °C. Poisson ratio and service limit remain estimates.",
+      "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+    }
+  }
+}

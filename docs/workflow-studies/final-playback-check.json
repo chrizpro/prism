@@ -1,0 +1,24 @@
+{
+  "start": {
+    "playing": true,
+    "seconds": 265.4363480454673,
+    "duration": 482.61154190084955,
+    "speed": 10,
+    "position": [
+      56.1555,
+      30,
+      1.8
+    ]
+  },
+  "end": {
+    "playing": false,
+    "seconds": 270.77347704546725,
+    "duration": 482.61154190084955,
+    "speed": 10,
+    "position": [
+      12.8417,
+      38,
+      1.8
+    ]
+  }
+}

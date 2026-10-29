@@ -1,0 +1,17 @@
+{
+  "staticStudies": [],
+  "faceSets": [],
+  "caeSetups": [],
+  "camSetup": null,
+  "playback": {
+    "playing": false,
+    "seconds": 380.1191005504247,
+    "duration": 482.61154190084955,
+    "speed": 8,
+    "position": [
+      7.3874,
+      14,
+      2.6
+    ]
+  }
+}

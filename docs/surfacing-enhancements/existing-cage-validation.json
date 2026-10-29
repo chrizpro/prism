@@ -1,0 +1,200 @@
+[
+  {
+    "document": 0,
+    "object": "01 Azure - bottle body",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 0,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 40
+    }
+  },
+  {
+    "document": 0,
+    "object": "01 Azure - measuring cap",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 32
+    }
+  },
+  {
+    "document": 1,
+    "object": "02 Grove - lofted bottle",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 32
+    }
+  },
+  {
+    "document": 1,
+    "object": "02 Grove - cap",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 32
+    }
+  },
+  {
+    "document": 2,
+    "object": "03 Glide - soleplate",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 8
+    }
+  },
+  {
+    "document": 2,
+    "object": "03 Glide - water housing",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 8
+    }
+  },
+  {
+    "document": 2,
+    "object": "03 Glide - soft grip",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 16
+    }
+  },
+  {
+    "document": 2,
+    "object": "03 Glide - temperature dial",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 32
+    }
+  },
+  {
+    "document": 2,
+    "object": "03 Glide - water inlet",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 24
+    }
+  },
+  {
+    "document": 3,
+    "object": "01 Azure - bottle body",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 0,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 40
+    }
+  },
+  {
+    "document": 3,
+    "object": "01 Azure - measuring cap",
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 32
+    }
+  }
+]

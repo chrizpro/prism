@@ -1,0 +1,98 @@
+{
+  "status": "Compare corresponding natural patch boundaries. Reports sampled gaps, normal angles and cross-boundary normal curvature, not a global G2 certificate or self-intersection test.",
+  "statusIsError": false,
+  "created": [],
+  "objectCount": 2,
+  "activeCommand": {
+    "title": "Surface Continuity",
+    "hint": "Compare corresponding natural patch boundaries. Reports sampled gaps, normal angles and cross-boundary normal curvature, not a global G2 certificate or self-intersection test.",
+    "params": [
+      {
+        "label": "First boundary",
+        "visible": true,
+        "type": "choice",
+        "value": "U min",
+        "options": [
+          "U min",
+          "U max",
+          "V min",
+          "V max"
+        ]
+      },
+      {
+        "label": "Second boundary",
+        "visible": true,
+        "type": "choice",
+        "value": "U min",
+        "options": [
+          "U min",
+          "U max",
+          "V min",
+          "V max"
+        ]
+      },
+      {
+        "label": "Reverse along second boundary",
+        "visible": true,
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "label": "Seam samples",
+        "visible": true,
+        "type": "integer",
+        "value": 51
+      }
+    ],
+    "slots": [
+      {
+        "label": "First surface or face",
+        "multi": false,
+        "optional": false,
+        "visible": true,
+        "active": true,
+        "items": [
+          "Changing 1"
+        ]
+      },
+      {
+        "label": "Second surface or face",
+        "multi": false,
+        "optional": false,
+        "visible": true,
+        "active": false,
+        "items": [
+          "Reference 1"
+        ]
+      }
+    ],
+    "results": [
+      {
+        "label": "Maximum gap",
+        "value": "0 mm",
+        "level": 0
+      },
+      {
+        "label": "RMS gap",
+        "value": "0 mm",
+        "level": 0
+      },
+      {
+        "label": "Maximum normal angle",
+        "value": "1.20742E-06°",
+        "level": 0
+      },
+      {
+        "label": "Cross-boundary curvature difference",
+        "value": "3.46945E-18 /mm",
+        "level": 0
+      },
+      {
+        "label": "Samples",
+        "value": "51",
+        "level": 0
+      }
+    ],
+    "error": null
+  }
+}

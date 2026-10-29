@@ -1,0 +1,48 @@
+C:\Users\chris\RiderProjects\Prism\Prism\Tools\SketchTrimTool.cs(273,38): warning CS8321: The local function 'At' is declared but never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\FormScanCommands.cs(69,39): warning CS9113: Parameter 's' is unread. [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,16): warning CS0219: The variable 'rIn' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,39): warning CS0219: The variable 'rOut' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+PASS display remeshing does not change exact geometry provenance
+PASS body identities survive save/reopen
+PASS active static setup survives save/reopen
+PASS boundary references and load vectors roundtrip
+PASS mesh size is saved while native result handles are excluded
+PASS named selections and thermal settings roundtrip
+PASS unchanged B-rep signatures survive serialization
+PASS stock setup and path source provenance survive serialization
+PASS cosmetic changes do not stale toolpath geometry
+PASS changed setup invalidates its operation
+PASS edited geometry rejects saved face indices
+PASS edited geometry rejects stale toolpaths
+PASS undersized stock rejected
+PASS legacy geometry files still load
+PASS playback time distinguishes rapid, plunge and cutting feeds
+PASS playhead endpoints clamp correctly
+PASS feed-based interpolation locates a mid-plunge tool tip
+PASS incomplete per-move feed arrays rejected
+PASS out-of-range move codes rejected
+PASS unordered layer offsets rejected
+PASS lateral rapid below clearance rejected
+PASS post subtracts the saved stock-top G54 origin
+PASS zoom extents fits paths even without a model body
+PASS operation selector appears before playback controls
+PASS large paths render a bounded sparse overview without invented connecting chords
+PASS external linear nozzle path and extrusion layers parsed
+PASS G92 extrusion reset preserves extrusion classification
+PASS per-move feeds retained
+PASS relative coordinates and M83 extrusion supported
+PASS G92 shifts program zero without teleporting physical position
+PASS inch coordinates convert to millimeters
+PASS Marlin G90 clears extrusion-mode override
+PASS unsupported or malformed G-code rejected: G2 X1 I2
+PASS unsupported or malformed G-code rejected: G29
+PASS unsupported or malformed G-code rejected: G1 A5 X1
+PASS unsupported or malformed G-code rejected: G1 Xbanana
+PASS unsupported or malformed G-code rejected: G1 X1 F0
+PASS unsupported or malformed G-code rejected: G1 X1 G28
+PASS unsupported or malformed G-code rejected: T1 G1 X1
+PASS unsupported or malformed G-code rejected: G1 X1000001
+PASS three real static meshes produce a convergence CSV
+PASS refinement increases mesh node counts
+PASS all refinement levels agree with axial beam displacement
+SUCCESS: 43 checks

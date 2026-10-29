@@ -1,0 +1,245 @@
+[
+  {
+    "file": "01-azure-detergent.prism",
+    "roundtrip": true,
+    "forms": [
+      {
+        "name": "01 Azure - bottle body",
+        "vertexCount": 208,
+        "faceCount": 196,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -62.9532,
+          -36.3948,
+          0
+        ],
+        "max": [
+          102,
+          36.3948,
+          220
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 0
+        }
+      },
+      {
+        "name": "01 Azure - measuring cap",
+        "vertexCount": 80,
+        "faceCount": 66,
+        "creaseCount": 32,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -52,
+          -22,
+          216
+        ],
+        "max": [
+          -8,
+          22,
+          246
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      }
+    ]
+  },
+  {
+    "file": "02-grove-detergent.prism",
+    "roundtrip": true,
+    "forms": [
+      {
+        "name": "02 Grove - lofted bottle",
+        "vertexCount": 128,
+        "faceCount": 114,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -45.996,
+          -28.4919,
+          0
+        ],
+        "max": [
+          46,
+          28.4902,
+          211
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      },
+      {
+        "name": "02 Grove - cap",
+        "vertexCount": 80,
+        "faceCount": 66,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -12,
+          -20,
+          207
+        ],
+        "max": [
+          28,
+          20,
+          231
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      }
+    ]
+  },
+  {
+    "file": "03-glide-steam-iron.prism",
+    "roundtrip": true,
+    "forms": [
+      {
+        "name": "03 Glide - soleplate",
+        "vertexCount": 138,
+        "faceCount": 136,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -120,
+          -55,
+          0
+        ],
+        "max": [
+          120,
+          55,
+          6
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      },
+      {
+        "name": "03 Glide - water housing",
+        "vertexCount": 138,
+        "faceCount": 136,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -120,
+          -55,
+          7
+        ],
+        "max": [
+          120,
+          55,
+          62.8149
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      },
+      {
+        "name": "03 Glide - soft grip",
+        "vertexCount": 152,
+        "faceCount": 146,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -104.7529,
+          -11,
+          46.622
+        ],
+        "max": [
+          57.1227,
+          11,
+          129.9274
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      },
+      {
+        "name": "03 Glide - temperature dial",
+        "vertexCount": 64,
+        "faceCount": 50,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          -31,
+          -19,
+          62
+        ],
+        "max": [
+          7,
+          19,
+          70
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      },
+      {
+        "name": "03 Glide - water inlet",
+        "vertexCount": 48,
+        "faceCount": 38,
+        "creaseCount": 0,
+        "smoothLevel": 3,
+        "closed": true,
+        "min": [
+          59,
+          -9,
+          52
+        ],
+        "max": [
+          77,
+          9,
+          58
+        ],
+        "topology": {
+          "boundaryEdges": 0,
+          "nonManifoldEdges": 0,
+          "windingConflicts": 0,
+          "connectedComponents": 1,
+          "eulerCharacteristic": 2
+        }
+      }
+    ]
+  }
+]

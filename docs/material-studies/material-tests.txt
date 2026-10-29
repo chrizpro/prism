@@ -1,0 +1,102 @@
+PASS a36 physical ranges
+PASS 1045 physical ranges
+PASS 4140 physical ranges
+PASS 304 physical ranges
+PASS 316 physical ranges
+PASS 17-4 physical ranges
+PASS cast-iron physical ranges
+PASS 6061 physical ranges
+PASS 7075 physical ranges
+PASS 5052 physical ranges
+PASS cast-al physical ranges
+PASS ti64 physical ranges
+PASS inconel physical ranges
+PASS copper physical ranges
+PASS brass physical ranges
+PASS bronze physical ranges
+PASS az31 physical ranges
+PASS zamak physical ranges
+PASS abs physical ranges
+PASS pla physical ranges
+PASS petg physical ranges
+PASS nylon physical ranges
+PASS pc physical ranges
+PASS pom physical ranges
+PASS peek physical ranges
+PASS hdpe physical ranges
+PASS pp physical ranges
+PASS pmma physical ranges
+PASS ptfe physical ranges
+PASS tpu physical ranges
+PASS silicone physical ranges
+PASS cfrp physical ranges
+PASS gfrp physical ranges
+PASS oak physical ranges
+PASS fir physical ranges
+PASS glass physical ranges
+PASS alumina physical ranges
+PASS a36 complete engineering snapshot roundtrip (including undefined yield)
+PASS 1045 complete engineering snapshot roundtrip (including undefined yield)
+PASS 4140 complete engineering snapshot roundtrip (including undefined yield)
+PASS 304 complete engineering snapshot roundtrip (including undefined yield)
+PASS 316 complete engineering snapshot roundtrip (including undefined yield)
+PASS 17-4 complete engineering snapshot roundtrip (including undefined yield)
+PASS cast-iron complete engineering snapshot roundtrip (including undefined yield)
+PASS 6061 complete engineering snapshot roundtrip (including undefined yield)
+PASS 7075 complete engineering snapshot roundtrip (including undefined yield)
+PASS 5052 complete engineering snapshot roundtrip (including undefined yield)
+PASS cast-al complete engineering snapshot roundtrip (including undefined yield)
+PASS ti64 complete engineering snapshot roundtrip (including undefined yield)
+PASS inconel complete engineering snapshot roundtrip (including undefined yield)
+PASS copper complete engineering snapshot roundtrip (including undefined yield)
+PASS brass complete engineering snapshot roundtrip (including undefined yield)
+PASS bronze complete engineering snapshot roundtrip (including undefined yield)
+PASS az31 complete engineering snapshot roundtrip (including undefined yield)
+PASS zamak complete engineering snapshot roundtrip (including undefined yield)
+PASS abs complete engineering snapshot roundtrip (including undefined yield)
+PASS pla complete engineering snapshot roundtrip (including undefined yield)
+PASS petg complete engineering snapshot roundtrip (including undefined yield)
+PASS nylon complete engineering snapshot roundtrip (including undefined yield)
+PASS pc complete engineering snapshot roundtrip (including undefined yield)
+PASS pom complete engineering snapshot roundtrip (including undefined yield)
+PASS peek complete engineering snapshot roundtrip (including undefined yield)
+PASS hdpe complete engineering snapshot roundtrip (including undefined yield)
+PASS pp complete engineering snapshot roundtrip (including undefined yield)
+PASS pmma complete engineering snapshot roundtrip (including undefined yield)
+PASS ptfe complete engineering snapshot roundtrip (including undefined yield)
+PASS tpu complete engineering snapshot roundtrip (including undefined yield)
+PASS silicone complete engineering snapshot roundtrip (including undefined yield)
+PASS cfrp complete engineering snapshot roundtrip (including undefined yield)
+PASS gfrp complete engineering snapshot roundtrip (including undefined yield)
+PASS oak complete engineering snapshot roundtrip (including undefined yield)
+PASS fir complete engineering snapshot roundtrip (including undefined yield)
+PASS glass complete engineering snapshot roundtrip (including undefined yield)
+PASS alumina complete engineering snapshot roundtrip (including undefined yield)
+PASS audited bronze density and cold-rolled 304 strengths
+PASS wood strength identified as bending rather than tensile
+PASS oak unsupported structural constitutive model rejected
+PASS fir unsupported structural constitutive model rejected
+PASS cfrp unsupported structural constitutive model rejected
+PASS gfrp unsupported structural constitutive model rejected
+PASS silicone unsupported structural constitutive model rejected
+PASS tpu unsupported structural constitutive model rejected
+PASS oak directional thermal model required
+PASS fir directional thermal model required
+PASS cfrp directional thermal model required
+PASS gfrp directional thermal model required
+PASS incompressible linear material rejected
+PASS cosmetic changes preserve a custom pinned property set through save/reopen
+PASS library lookup does not overwrite saved physical properties
+PASS legacy material ids load with compatible finish defaults
+PASS Plain finite translation-invariant finish
+PASS Wood finite translation-invariant finish
+PASS Brushed finite translation-invariant finish
+PASS Cast finite translation-invariant finish
+PASS CarbonWeave finite translation-invariant finish
+PASS wood orientation changes grain
+PASS automatic material finish mapping
+PASS static study requires assigned properties before meshing
+Success !!!!
+PASS brittle elastic solution does not invent a yield-based safety factor
+PASS undefined safety factor cannot produce a contour
+SUCCESS: 100 checks; artifacts: C:\Users\chris\AppData\Local\Temp\prism-material-tests-b4119e2571ad480bb947de73456c4494

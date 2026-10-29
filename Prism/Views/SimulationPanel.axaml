@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Prism.ViewModels"
+             xmlns:cmd="using:Prism.Commands"
+             xmlns:c="using:Prism.Controls"
+             x:Class="Prism.Views.SimulationPanel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.good"><Setter Property="Foreground" Value="#3FCF8E"/></Style>
+        <Style Selector="TextBlock.warn"><Setter Property="Foreground" Value="#FFC53D"/></Style>
+        <Style Selector="TextBlock.bad"><Setter Property="Foreground" Value="#FF6B6F"/></Style>
+    </UserControl.Styles>
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="14,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{Binding SimStatus}" Classes="soft" TextWrapping="Wrap" IsVisible="{Binding SimStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Button Grid.Column="0" Classes="primary" Content="Run study" Click="OnRun" IsEnabled="{Binding !SimBusy}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="ghost" Content="Mesh only" Click="OnMesh" IsEnabled="{Binding !SimBusy}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer>
+            <StackPanel Margin="14,14,14,10" Spacing="6">
+                <TextBlock Text="SIMULATION" Classes="panelTitle"/>
+                <TextBlock Text="{Binding SimTitle}" FontSize="17" FontWeight="SemiBold"/>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" RowDefinitions="Auto,Auto">
+                    <TextBlock Text="Body" Classes="soft"/>
+                    <TextBlock Grid.Column="1" Text="{Binding SimBody}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Row="1" Text="Material" Classes="soft"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SimMaterial}" TextWrapping="Wrap"/>
+                </Grid>
+
+                <TextBlock Text="SETUP" Classes="panelTitle" Margin="0,12,0,2"/>
+                <TextBlock Text="Add a Fixed Support and at least one load from the ribbon." Classes="faint" TextWrapping="Wrap" IsVisible="{Binding !SimRows.Count}"/>
+                <ItemsControl ItemsSource="{Binding SimRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:SimRow">
+                            <Border Background="{DynamicResource PanelAlt}" CornerRadius="7" Padding="9,7" Margin="0,0,0,5">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                                    <c:IconView Icon="{Binding Glyph}" Width="22" Height="22" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Detail}" Classes="faint" FontSize="11" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Classes="tool" Content="✕" FontSize="10" Padding="6,3" Tag="{Binding Id}" Click="OnRemoveRow" ToolTip.Tip="Remove"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="MESH" Classes="panelTitle" Margin="0,12,0,2"/>
+                <Grid ColumnDefinitions="*,92,26" Margin="0,3">
+                    <TextBlock Text="Element size" Classes="soft" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Column="1" Classes="field" Value="{Binding SimElementSize}" Minimum="0" Increment="0.5" FormatString="0.##" HorizontalContentAlignment="Right"/>
+                    <TextBlock Grid.Column="2" Text="mm" Classes="faint" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </Grid>
+                <TextBlock Text="{Binding SimAutoSize}" Classes="faint" FontSize="11"/>
+                <TextBlock Text="0 = automatic. Smaller elements are more accurate and slower; halve the size and check that the stress away from supports barely changes." Classes="faint" TextWrapping="Wrap" FontSize="11"/>
+
+                <StackPanel IsVisible="{Binding HasResult}" Spacing="6" Margin="0,12,0,0">
+                    <TextBlock Text="RESULTS" Classes="panelTitle"/>
+                    <ComboBox Classes="field" ItemsSource="{Binding ResultKinds}" SelectedIndex="{Binding ResultKindIndex}" HorizontalAlignment="Stretch"/>
+                    <Grid ColumnDefinitions="*,92" Margin="0,3">
+                        <TextBlock Text="Deformation scale  ×" Classes="soft" VerticalAlignment="Center"/>
+                        <NumericUpDown Grid.Column="1" Classes="field" Value="{Binding DeformScale}" Minimum="0" Maximum="5000" Increment="5" FormatString="0.#" HorizontalContentAlignment="Right"/>
+                    </Grid>
+                    <CheckBox Content="Show mesh" IsChecked="{Binding ShowMeshEdges}"/>
+                    <ItemsControl ItemsSource="{Binding SimStats}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="cmd:ResultLine">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                                    <TextBlock Text="{Binding Label}" Classes="soft" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" HorizontalAlignment="Right" TextAlignment="Right" FontWeight="SemiBold"
+                                               Classes.good="{Binding IsGood}" Classes.warn="{Binding IsWarn}" Classes.bad="{Binding IsBad}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="ghost" Content="Clear results" Click="OnClear" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding SimNotes}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding}" Classes="faint" TextWrapping="Wrap" FontSize="11" Margin="0,2"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rb="using:Prism.Ribbon"
+             xmlns:c="using:Prism.Controls"
+             x:Class="Prism.Ribbon.RibbonView">
+    <UserControl.DataTemplates>
+
+        <!-- Large button: icon above a (possibly two line) label -->
+        <DataTemplate DataType="rb:RibbonButton">
+            <Button Classes="rb" Classes.checked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Click="OnRibbonButtonClick">
+                <ToolTip.Tip>
+                    <StackPanel MaxWidth="280" Spacing="3">
+                        <TextBlock Text="{Binding ToolTipTitle}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Classes="soft"/>
+                    </StackPanel>
+                </ToolTip.Tip>
+                <Panel>
+                    <StackPanel IsVisible="{Binding IsLarge}" Orientation="Vertical" Spacing="2" Margin="8,5,8,3" MinWidth="40">
+                        <c:IconView Icon="{Binding Icon}" Width="34" Height="34" HorizontalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
+                        <TextBlock Text="{Binding Caption}" TextAlignment="Center" HorizontalAlignment="Center" FontSize="11.5" LineHeight="13"/>
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding IsSmall}" Orientation="Horizontal" Spacing="7" Margin="7,0,9,0" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <c:IconView Icon="{Binding Icon}" Width="18" Height="18" VerticalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
+                        <TextBlock Text="{Binding Caption}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Panel>
+            </Button>
+        </DataTemplate>
+
+        <DataTemplate DataType="rb:RibbonGroup">
+            <Border BorderBrush="{DynamicResource LineSoft}" BorderThickness="0,0,1,0" Padding="6,6,6,0">
+                <Grid RowDefinitions="Auto,Auto" >
+                    <ItemsControl ItemsSource="{Binding Items}" Grid.Row="0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><rb:RibbonGroupPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <TextBlock Grid.Row="1" Text="{Binding Title}" Classes="glabel" Margin="0,5,0,4"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <StackPanel Background="{DynamicResource TabBarBg}">
+        <!-- tab strip -->
+        <Grid ColumnDefinitions="*,Auto" Height="31" Margin="8,0,8,0">
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PointerWheelChanged="OnGroupsWheel">
+            <ItemsControl ItemsSource="{Binding Tabs}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="rb:RibbonTab">
+                        <Button Classes="rtab" Classes.selected="{Binding IsSelected}" Classes.file="{Binding IsFile}"
+                                IsVisible="{Binding IsVisible}" Content="{Binding Title}"
+                                BorderBrush="{Binding ContextBrush}"
+                                Click="OnTabClick" DoubleTapped="OnTabDoubleTapped"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </ScrollViewer>
+            <Button Grid.Column="1" Classes="tool" Padding="6,4" VerticalAlignment="Center" Click="OnCollapseClick" ToolTip.Tip="Collapse or expand the ribbon">
+                <Path Data="M2 6 L6 2 L10 6" Stroke="{DynamicResource InkSoft}" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round" Width="12" Height="8" Stretch="Uniform"
+                      RenderTransformOrigin="50%,50%"/>
+            </Button>
+        </Grid>
+
+        <!-- content -->
+        <Border Background="{DynamicResource RibbonBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1"
+                IsVisible="{Binding !RibbonCollapsed}" Height="124">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Button x:Name="ScrollLeft" Classes="tool" Content="‹" FontSize="24" Width="24" IsVisible="False" Click="OnScrollLeft" ToolTip.Tip="Previous ribbon tools"/>
+            <ScrollViewer Grid.Column="1" x:Name="GroupScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PointerWheelChanged="OnGroupsWheel" ScrollChanged="OnGroupScrollChanged">
+                <ItemsControl ItemsSource="{Binding SelectedTab.Groups}" Margin="4,0">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+            <Button Grid.Column="2" x:Name="ScrollRight" Classes="tool" Content="›" FontSize="24" Width="24" IsVisible="False" Click="OnScrollRight" ToolTip.Tip="More ribbon tools"/>
+            </Grid>
+        </Border>
+        <Border Height="1" Background="{DynamicResource Line}" IsVisible="{Binding RibbonCollapsed}"/>
+    </StackPanel>
+</UserControl>

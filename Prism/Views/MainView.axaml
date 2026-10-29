@@ -1,0 +1,786 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="using:Prism.ViewModels"
+
+             xmlns:rb="using:Prism.Ribbon"
+
+             xmlns:c="using:Prism.Controls"
+
+             xmlns:v="using:Prism.Views"
+
+             xmlns:r="using:Prism.Rendering"
+
+             x:Class="Prism.Views.MainView">
+
+
+
+    <UserControl.Styles>
+
+        <Style Selector="TextBlock.hidden"><Setter Property="Opacity" Value="0.42"/></Style>
+
+        <Style Selector="TextBlock.folder"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/></Style>
+
+        <Style Selector="Button.opt"><Setter Property="Padding" Value="11,6"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="7"/><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/></Style>
+
+        <Style Selector="Border.doc"><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/></Style>
+
+        <Style Selector="Border.doc:pointerover"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+
+        <Style Selector="Border.doc.on"><Setter Property="Background" Value="{DynamicResource AppBg}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="BorderThickness" Value="0,2,0,0"/></Style>
+
+        <Style Selector="Button.opt:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+
+        <Style Selector="Button.opt.on /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/></Style>
+
+        <Style Selector="Button.opt.on"><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+
+        <Style Selector="TextBlock.err"><Setter Property="Foreground" Value="{DynamicResource Danger}"/></Style>
+
+    </UserControl.Styles>
+
+
+
+    <Grid>
+
+    <DockPanel Background="{DynamicResource AppBg}">
+
+
+
+        <!-- ============ title strip: app, quick access, command search ============ -->
+
+        <Border DockPanel.Dock="Top" Height="44" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,0">
+
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+
+                    <Image Source="/Assets/prism-mark.png" Width="24" Height="24" Stretch="Uniform" AutomationProperties.Name="Prism logo"/>
+
+                    <TextBlock Text="Prism" FontWeight="Bold" FontSize="14.5" VerticalAlignment="Center"/>
+
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" Margin="10,0,0,0" VerticalAlignment="Center">
+
+                    <Button Classes="tool" Click="OnSave" ToolTip.Tip="Save (Ctrl+S)"><c:IconView Icon="save" Width="18" Height="18"/></Button>
+
+                    <Button Classes="tool" Click="OnUndo" ToolTip.Tip="Undo (Ctrl+Z)"><c:IconView Icon="undo" Width="18" Height="18"/></Button>
+
+                    <Button Classes="tool" Click="OnRedo" ToolTip.Tip="Redo (Ctrl+Y)"><c:IconView Icon="redo" Width="18" Height="18"/></Button>
+
+                    <Button Name="BtnHome" Classes="tool" Click="OnHome" ToolTip.Tip="Home: your workspace, recent parts and new part">
+
+                        <Path Width="18" Height="18" Stretch="Uniform" Stroke="{DynamicResource InkSoft}" StrokeThickness="1.8" StrokeJoin="Round" Data="M3 11.5 L12 3.5 L21 11.5 M5.5 10 V20.5 H10 V14.5 H14 V20.5 H18.5 V10"/>
+
+                    </Button>
+
+
+
+                    <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="10,0"/>
+
+                    <!-- workspaces: which ribbon tabs are shown -->
+
+                    <ItemsControl ItemsSource="{Binding Workspaces}">
+
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+
+                            <DataTemplate DataType="vm:WorkspaceItem">
+
+                                <Button Classes="opt" Classes.on="{Binding IsCurrent}" Tag="{Binding Id}" Click="OnWorkspace" ToolTip.Tip="{Binding Tip}" Padding="10,5">
+
+                                    <TextBlock Text="{Binding Name}" FontSize="12"/>
+
+                                </Button>
+
+                            </DataTemplate>
+
+                        </ItemsControl.ItemTemplate>
+
+                    </ItemsControl>
+
+                    <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="10,0"/>
+
+                    <Button Classes="opt" Classes.on="{Binding AssistantOpen}" Click="OnToggleAssistant" ToolTip.Tip="Open the AI assistant" Padding="10,5">
+
+                        <TextBlock Text="✦ Assistant" FontSize="12"/>
+
+                    </Button>
+
+                </StackPanel>
+
+
+
+                <!-- command search -->
+
+                <Grid Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Width="420">
+
+                    <TextBox Name="SearchBox" Text="{Binding SearchText}" Watermark="Search commands  (Ctrl+K)" Padding="34,7,12,7" CornerRadius="9" FontSize="12.5"
+
+                             KeyDown="OnSearchKey"/>
+
+                    <Path Data="M6 1 a5 5 0 1 0 0.01 0 M10 10 L14 14" Stroke="{DynamicResource InkFaint}" StrokeThickness="1.6" StrokeLineCap="Round" Width="14" Height="14" Stretch="Uniform"
+
+                          HorizontalAlignment="Left" Margin="12,0,0,0" IsHitTestVisible="False"/>
+
+                    <Popup IsOpen="{Binding SearchOpen}" PlacementTarget="{Binding #SearchBox}" Placement="Bottom" VerticalOffset="6" IsLightDismissEnabled="False" Width="420">
+
+                        <Border Background="{DynamicResource PopupBg}" BorderBrush="{DynamicResource PopupLine}" BorderThickness="1" CornerRadius="10" Padding="0,6">
+
+                            <ListBox Classes="results" ItemsSource="{Binding SearchResults}" SelectedIndex="{Binding SearchIndex}" Name="SearchList" PointerReleased="OnSearchListClick" MaxHeight="360">
+
+                                <ListBox.ItemTemplate>
+
+                                    <DataTemplate DataType="vm:CommandHit">
+
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+
+                                            <c:IconView Icon="{Binding Icon}" Width="22" Height="22" VerticalAlignment="Center" Dimmed="{Binding !Enabled}"/>
+
+                                            <StackPanel Grid.Column="1" Spacing="1">
+
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+
+                                                <TextBlock Text="{Binding Description}" Classes="faint" TextTrimming="CharacterEllipsis"/>
+
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="2" Text="{Binding Tab}" Classes="faint" VerticalAlignment="Center"/>
+
+                                        </Grid>
+
+                                    </DataTemplate>
+
+                                </ListBox.ItemTemplate>
+
+                            </ListBox>
+
+                        </Border>
+
+                    </Popup>
+
+                </Grid>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Name="PanelPicker" Classes="opt" Content="Panels ▾" Click="OnPanelPickerClick" ToolTip.Tip="Select multiple right-side panels"/>                    <Button Name="BtnSettings" Classes="tool" Click="OnSettings" ToolTip.Tip="Settings">
+
+                        <Path Width="18" Height="18" Stretch="Uniform" Fill="{DynamicResource InkSoft}"
+
+                              Data="F0 M10.08 4.85 L10.45 2.22 L13.55 2.22 L13.92 4.85 L15.70 5.59 L17.82 3.99 L20.01 6.18 L18.41 8.30 L19.15 10.08 L21.78 10.45 L21.78 13.55 L19.15 13.92 L18.41 15.70 L20.01 17.82 L17.82 20.01 L15.70 18.41 L13.92 19.15 L13.55 21.78 L10.45 21.78 L10.08 19.15 L8.30 18.41 L6.18 20.01 L3.99 17.82 L5.59 15.70 L4.85 13.92 L2.22 13.55 L2.22 10.45 L4.85 10.08 L5.59 8.30 L3.99 6.18 L6.18 3.99 L8.30 5.59 Z M15.2 12 A3.2 3.2 0 1 0 8.8 12 A3.2 3.2 0 1 0 15.2 12 Z"/>
+
+                    </Button><TextBlock Text="{Binding DocumentTitle}" VerticalAlignment="Center" Classes="soft" FontWeight="Medium" Margin="8,0,0,0"/></StackPanel>
+
+            </Grid>
+
+        </Border>
+
+
+
+        <!-- ============ ribbon ============ -->
+
+        <rb:RibbonView DockPanel.Dock="Top"/>
+
+
+
+        <!-- ============ status bar ============ -->
+
+        <Border DockPanel.Dock="Bottom" Height="28" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
+
+                <TextBlock Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                <StackPanel Name="StatusRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
+
+            </Grid>
+
+        </Border>
+
+
+
+        <!-- ============ branching design history ============ -->
+
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+
+            <StackPanel>
+
+                <Thumb Height="5" Cursor="SizeNorthSouth" DragDelta="OnHistoryResize" IsVisible="{Binding HistoryExpanded}" ToolTip.Tip="Drag to resize design history"/>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" Height="38" Margin="12,0">
+
+                    <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+
+                        <TextBlock Text="Design history" FontWeight="SemiBold" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="{Binding HistorySummary}" Classes="faint" VerticalAlignment="Center"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+
+                        <Button Classes="tool" Click="OnUndo" ToolTip.Tip="Undo"><c:IconView Icon="undo" Width="16" Height="16"/></Button>
+
+                        <Button Classes="tool" Click="OnRedo" ToolTip.Tip="Redo"><c:IconView Icon="redo" Width="16" Height="16"/></Button>
+
+                        <Button Classes="ghost" Content="Checkpoint" Click="OnPinCheckpoint" Padding="10,4"/>
+
+                        <Button Classes="ghost" Content="Branch here" Click="OnBranchHistory" Padding="10,4" ToolTip.Tip="Start a named alternative from this step. Existing continuations are kept."/>
+
+                        <Button Classes="ghost" Content="All steps" Click="OnToggleHistory" Padding="10,4"/>
+
+                        <Button Classes="ghost" Content="{Binding HistoryToggleText}" Click="OnCollapseHistory" Padding="10,4" ToolTip.Tip="Collapse or expand the history graph"/>
+
+                    </StackPanel>
+
+                </Grid>
+
+                <c:HistoryGraphView Name="HistoryGraph" Height="{Binding HistoryHeight}" IsVisible="{Binding HistoryExpanded}"/>
+
+            </StackPanel>
+
+        </Border>
+
+        <!-- ============ animation timeline (while the Animation command is open) ============ -->
+
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" IsVisible="{Binding ShowAnimationTimeline}">
+
+            <DockPanel>
+
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Height="38" Margin="12,0">
+
+                    <TextBlock Text="Animation timeline" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0"/>
+
+                    <Button Grid.Column="1" Classes="ghost" Content="⏮" Click="OnTimelineStart" Padding="9,4" ToolTip.Tip="Back to the start (Home)"/>
+
+                    <Button Grid.Column="2" Classes="ghost" Content="{Binding TimelinePlayText}" Click="OnTimelinePlay" Padding="12,4" Margin="6,0" MinWidth="86" ToolTip.Tip="Play or stop (Space)"/>
+
+                    <TextBlock Grid.Column="3" Text="{Binding TimelineTimeText}" Classes="faint" VerticalAlignment="Center" Margin="8,0"/>
+
+                    <Button Grid.Column="4" Classes="ghost" Content="Key changed values" Click="OnTimelineKey" Padding="10,4" Margin="0,0,6,0" ToolTip.Tip="Change joint values in the panel, then key them at the playhead. Double-click a row to add one key."/>
+
+                    <Button Grid.Column="5" Classes="ghost" Content="Remove keys here" Click="OnTimelineRemoveKeys" Padding="10,4" ToolTip.Tip="Remove the keys at the playhead (or select a diamond and press Delete)"/>
+
+                </Grid>
+
+                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+
+                    <c:AnimationTimelineView Command="{Binding AnimationEditor}"/>
+
+                </ScrollViewer>
+
+            </DockPanel>
+
+        </Border>
+
+
+
+        <!-- ============ workspace ============ -->
+
+        <Grid Name="WorkGrid" ColumnDefinitions="272,Auto,*,Auto,312">
+
+
+
+            <!-- left: browser / history -->
+
+            <Border Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+
+                <DockPanel>
+
+                    <Border DockPanel.Dock="Top" Padding="10,10,10,6">
+
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+
+                            <Button Name="TabBrowser" Classes="seg" Content="Browser" Click="OnShowBrowser"/>
+
+                            <Button Name="TabHistory" Classes="seg" Content="History" Grid.Column="1" Click="OnShowHistory" Margin="2,0,0,0"/>
+
+                            <Button Grid.Column="3" Classes="tool" Padding="5" Click="OnCollapseAll" ToolTip.Tip="Collapse all folders">
+
+                                <Path Data="M2 4 L6 8 L10 4 M2 9 L6 13 L10 9" Stroke="{DynamicResource InkSoft}" StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round" Width="12" Height="14" Stretch="Uniform"/>
+
+                            </Button>
+
+                        </Grid>
+
+                    </Border>
+
+
+
+                    <!-- browser -->
+
+                    <DockPanel IsVisible="{Binding !ShowHistoryPanel}">
+
+                        <Grid DockPanel.Dock="Top" Margin="10,2,10,6">
+
+                            <TextBox Text="{Binding BrowserFilter}" Watermark="Filter…" Padding="30,6,10,6" FontSize="12"/>
+
+                            <Path Data="M5 1 a4 4 0 1 0 0.01 0 M8.5 8.5 L12 12" Stroke="{DynamicResource InkFaint}" StrokeThickness="1.5" StrokeLineCap="Round" Width="12" Height="12" Stretch="Uniform"
+
+                                  HorizontalAlignment="Left" Margin="11,0,0,0" IsHitTestVisible="False"/>
+
+                        </Grid>
+
+                        <Panel>
+
+                            <TreeView Name="Tree" Classes="browser" ItemsSource="{Binding Browser}" SelectionMode="Multiple" SelectionChanged="OnTreeSelectionChanged"
+
+                                      ContextRequested="OnTreeContext" KeyDown="OnTreeKey" DoubleTapped="OnTreeDoubleTapped">
+
+                                <TreeView.DataTemplates>
+
+                                    <TreeDataTemplate DataType="vm:BrowserNode" ItemsSource="{Binding Children}">
+
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Height="30" ColumnSpacing="8" Background="Transparent">
+
+                                            <c:IconView Icon="{Binding Icon}" Width="19" Height="19" VerticalAlignment="Center" Dimmed="{Binding !IsVisible}"/>
+
+                                            <Border Grid.Column="1" Width="9" Height="9" CornerRadius="5" VerticalAlignment="Center" BorderBrush="#50FFFFFF" BorderThickness="1" IsVisible="{Binding HasSwatch}"
+
+                                                    Background="{Binding Color, Converter={x:Static c:ArgbToBrush.Instance}}"/>
+
+                                            <Panel Grid.Column="2" VerticalAlignment="Center">
+
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Classes.hidden="{Binding !IsVisible}" Classes.folder="{Binding IsFolder}" IsVisible="{Binding !IsEditing}"/>
+
+                                                <TextBox Text="{Binding EditText}" IsVisible="{Binding IsEditing}" Padding="6,3" MinHeight="0" FontSize="12.5"
+
+                                                         Initialized="OnRenameBoxInit" KeyDown="OnRenameKey" LostFocus="OnRenameLost"/>
+
+                                            </Panel>
+
+                                            <TextBlock Grid.Column="3" Text="{Binding Badge}" Classes="faint" VerticalAlignment="Center"/>
+
+                                            <ToggleButton Grid.Column="4" IsChecked="{Binding IsVisible}" IsVisible="{Binding HasEye}" Classes="tool" Padding="4" Background="Transparent" BorderThickness="0"
+
+                                                          ToolTip.Tip="Show / hide">
+
+                                                <Panel Width="16" Height="12">
+
+                                                    <Path Data="M1 6 Q8 -1.5 15 6 Q8 13.5 1 6Z" Stroke="{DynamicResource InkSoft}" StrokeThickness="1.3" StrokeJoin="Round" Stretch="None"/>
+
+                                                    <Ellipse Width="5" Height="5" Fill="{DynamicResource InkSoft}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                                    <Path Data="M2 12 L14 0" Stroke="{DynamicResource Danger}" StrokeThickness="1.4" StrokeLineCap="Round" IsVisible="{Binding !IsVisible}" Stretch="None"/>
+
+                                                </Panel>
+
+                                            </ToggleButton>
+
+                                        </Grid>
+
+                                    </TreeDataTemplate>
+
+                                </TreeView.DataTemplates>
+
+                            </TreeView>
+
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" IsHitTestVisible="False" Margin="20" Name="EmptyHint" IsVisible="False">
+
+                                <TextBlock Text="Nothing here yet" FontWeight="SemiBold" HorizontalAlignment="Center" Classes="soft"/>
+
+                                <TextBlock Text="Create a Box from the Home tab, or start a Sketch on a plane." TextWrapping="Wrap" TextAlignment="Center" Classes="faint"/>
+
+                            </StackPanel>
+
+                        </Panel>
+
+                    </DockPanel>
+
+
+
+                    <!-- history tree -->
+
+                    <ListBox Name="HistoryList" Classes="hist" ItemsSource="{Binding HistoryRows}" IsVisible="{Binding ShowHistoryPanel}" SelectionChanged="OnHistorySelection" ContextRequested="OnHistoryContext">
+
+                        <ListBox.ItemTemplate>
+
+                            <DataTemplate DataType="vm:HistoryItem">
+
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="{Binding Indent}" Height="38" ColumnSpacing="8" Background="Transparent" PointerEntered="OnHistoryRowEnter" PointerExited="OnTimelineExit">
+
+                                    <Border Width="3" CornerRadius="2" Margin="4,6,0,6" Background="{DynamicResource Accent}" IsVisible="{Binding IsCurrent}"/>
+
+                                    <c:IconView Grid.Column="1" Icon="{Binding Icon}" Width="20" Height="20" VerticalAlignment="Center" Margin="4,0,0,0" Opacity="{Binding OnPath, Converter={x:Static c:OpacityFor.Instance}}"/>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+
+                                            <TextBlock Text="{Binding Label}" FontWeight="{Binding IsCurrent, Converter={x:Static c:BoldFor.Instance}}" Opacity="{Binding OnPath, Converter={x:Static c:OpacityFor.Instance}}"/>
+
+                                            <TextBlock Text="★" Foreground="{DynamicResource Gold}" IsVisible="{Binding IsPinned}"/>
+
+                                            <TextBlock Text="⑂" Foreground="{DynamicResource Gold}" IsVisible="{Binding HasBranches}"/>
+
+                                        </StackPanel>
+
+                                        <TextBlock Text="{Binding Pin}" Classes="faint" IsVisible="{Binding IsPinned}" Foreground="{DynamicResource Gold}"/>
+
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0" HorizontalAlignment="Right">
+
+                                        <TextBlock Text="{Binding Chips}" Classes="faint" HorizontalAlignment="Right"/>
+
+                                        <TextBlock Text="{Binding TimeText}" Classes="faint" HorizontalAlignment="Right" FontSize="10.5"/>
+
+                                    </StackPanel>
+
+                                </Grid>
+
+                            </DataTemplate>
+
+                        </ListBox.ItemTemplate>
+
+                    </ListBox>
+
+                </DockPanel>
+
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource Line}" IsEnabled="False"/>
+
+
+
+            <!-- viewport with the open documents as tabs above it -->
+
+            <DockPanel Grid.Column="2">
+
+            <Border DockPanel.Dock="Top" Height="34" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+
+                <StackPanel Orientation="Horizontal" Margin="6,0,0,0">
+
+                    <ItemsControl ItemsSource="{Binding Documents}">
+
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+
+                            <DataTemplate DataType="vm:DocumentTab">
+
+                                <Border Classes="doc" Classes.on="{Binding IsActive}" CornerRadius="7,7,0,0" Padding="12,0,4,0" Height="30" VerticalAlignment="Bottom" Tag="{Binding}" PointerPressed="OnDocTabPressed">
+
+                                    <ToolTip.Tip>
+                                        <StackPanel Spacing="5" MaxWidth="320">
+                                            <Image Source="{Binding Preview}" IsVisible="{Binding HasPreview}" Width="300" Stretch="Uniform"/>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Detail}" Classes="faint" FontSize="11.5"/>
+                                        </StackPanel>
+                                    </ToolTip.Tip>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+
+                                        <TextBlock Text="{Binding Title}" FontSize="12.5" VerticalAlignment="Center"/>
+
+                                        <TextBlock Text="•" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsDirty}" VerticalAlignment="Center"/>
+
+                                        <Button Classes="tool" Tag="{Binding}" Click="OnDocClose" Padding="5,2" Content="✕" FontSize="10" VerticalAlignment="Center"
+
+                                                ToolTip.Tip="Close this document"/>
+
+                                    </StackPanel>
+
+                                </Border>
+
+                            </DataTemplate>
+
+                        </ItemsControl.ItemTemplate>
+
+                    </ItemsControl>
+
+                    <Button Classes="tool" Click="OnDocNew" Padding="9,4" Content="+" FontSize="16" ToolTip.Tip="New document (Ctrl+N)" VerticalAlignment="Center"/>
+
+                </StackPanel>
+
+            </Border>
+
+            <Grid ClipToBounds="True" Background="Transparent">
+
+                <!-- the model view plus three locked standard views, arranged by the active layout -->
+
+                <Grid Name="ViewGrid" ColumnDefinitions="*,*" RowDefinitions="*,*">
+
+                    <Grid Name="Cell0" Background="Transparent" Grid.ColumnSpan="2" Grid.RowSpan="2" ClipToBounds="True">
+
+                        <r:GlViewport Name="Viewport" Session="{Binding Session}" CameraIndex="0"/>
+
+                        <c:HudOverlay Viewport="{Binding #Viewport}"/>
+
+                        <c:ViewCube Session="{Binding Session}" Viewport="{Binding #Viewport}" Width="150" Height="150" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0"/>
+
+                        <c:MarkingMenu Name="Marking"/>
+
+                        <TextBlock Name="Label0" Text="Model" FontWeight="SemiBold" Classes="soft" IsVisible="False" Margin="10,6" IsHitTestVisible="False"/>
+
+                    </Grid>
+
+                    <Grid Name="Cell1" Background="Transparent" IsVisible="False" ClipToBounds="True">
+
+                        <r:GlViewport Name="ViewFront" Session="{Binding Session}" CameraIndex="1"/>
+
+                        <c:HudOverlay Viewport="{Binding #ViewFront}"/>
+
+                        <TextBlock Text="Front" FontWeight="SemiBold" Classes="soft" Margin="10,6" IsHitTestVisible="False"/>
+
+                    </Grid>
+
+                    <Grid Name="Cell2" Background="Transparent" IsVisible="False" ClipToBounds="True">
+
+                        <r:GlViewport Name="ViewRight" Session="{Binding Session}" CameraIndex="2"/>
+
+                        <c:HudOverlay Viewport="{Binding #ViewRight}"/>
+
+                        <TextBlock Text="Right" FontWeight="SemiBold" Classes="soft" Margin="10,6" IsHitTestVisible="False"/>
+
+                    </Grid>
+
+                    <Grid Name="Cell3" Background="Transparent" IsVisible="False" ClipToBounds="True">
+
+                        <r:GlViewport Name="ViewTop" Session="{Binding Session}" CameraIndex="3"/>
+
+                        <c:HudOverlay Viewport="{Binding #ViewTop}"/>
+
+                        <TextBlock Text="Top" FontWeight="SemiBold" Classes="soft" Margin="10,6" IsHitTestVisible="False"/>
+
+                    </Grid>
+
+                    <!-- separators between the views -->
+
+                    <Border Name="SepV" IsVisible="False" Grid.RowSpan="2" Width="2" HorizontalAlignment="Left" Background="{DynamicResource Line}" IsHitTestVisible="False"/>
+
+                    <Border Name="SepH" IsVisible="False" Grid.ColumnSpan="2" Height="2" VerticalAlignment="Top" Background="{DynamicResource Line}" IsHitTestVisible="False"/>
+
+                </Grid>
+
+
+
+
+
+
+
+                <!-- on-screen value entry (dimensions) -->
+
+                <Border IsVisible="{Binding InputOpen}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,64,0,0" Padding="16,12" CornerRadius="11" Background="{DynamicResource OverlayBg}"
+
+                        BorderBrush="{DynamicResource Accent}" BorderThickness="1.5">
+
+                    <StackPanel Spacing="7" MinWidth="260">
+
+                        <TextBlock Text="{Binding InputPrompt}" Classes="soft"/>
+
+                        <TextBox Name="InputBox" Text="{Binding InputText}" FontSize="18" FontWeight="SemiBold" KeyDown="OnInputKey" LostFocus="OnInputLost" Padding="10,7"/>
+
+                        <TextBlock Text="Enter to apply  ·  Esc to cancel" Classes="faint"/>
+
+                    </StackPanel>
+
+                </Border>
+
+
+
+                <!-- result colour legend -->
+
+                <Border IsVisible="{Binding ShowLegend}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,42" Padding="12,9" CornerRadius="10"
+
+                        Background="{DynamicResource OverlayBg}" BorderBrush="#33415A" BorderThickness="1" IsHitTestVisible="False">
+
+                    <StackPanel Spacing="7">
+
+                        <TextBlock Text="{Binding LegendTitle}" FontWeight="SemiBold" FontSize="12"/>
+
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9" Height="170">
+
+                            <Border Width="16" CornerRadius="3">
+
+                                <Border.Background>
+
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+
+                                        <GradientStop Color="#EB2E1F" Offset="0"/><GradientStop Color="#F7E626" Offset="0.25"/><GradientStop Color="#33D94D" Offset="0.5"/>
+
+                                        <GradientStop Color="#1ACCE6" Offset="0.75"/><GradientStop Color="#2640F2" Offset="1"/>
+
+                                    </LinearGradientBrush>
+
+                                </Border.Background>
+
+                            </Border>
+
+                            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto">
+
+                                <TextBlock Grid.Row="0" Text="{Binding LegendLabels[0]}" FontSize="11"/>
+
+                                <TextBlock Grid.Row="2" Text="{Binding LegendLabels[1]}" FontSize="11"/>
+
+                                <TextBlock Grid.Row="4" Text="{Binding LegendLabels[2]}" FontSize="11"/>
+
+                                <TextBlock Grid.Row="6" Text="{Binding LegendLabels[3]}" FontSize="11"/>
+
+                                <TextBlock Grid.Row="8" Text="{Binding LegendLabels[4]}" FontSize="11"/>
+
+                            </Grid>
+
+                        </Grid>
+
+                    </StackPanel>
+
+                </Border>
+
+
+
+                <!-- floating toolbar: any ribbon command (Settings > Toolbars) -->
+
+                <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0" Background="{DynamicResource OverlayBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="3"
+
+                        IsVisible="{Binding HasQuickBar}">
+
+                    <ItemsControl ItemsSource="{Binding QuickBar}">
+
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+
+                        <ItemsControl.DataTemplates>
+
+                            <DataTemplate DataType="rb:RibbonButton">
+
+                                <Button Classes="tool" Classes.on="{Binding IsChecked}" Command="{Binding ClickCommand}" IsEnabled="{Binding IsEnabled}">
+
+                                    <ToolTip.Tip>
+
+                                        <StackPanel MaxWidth="260" Spacing="3">
+
+                                            <TextBlock Text="{Binding ToolTipTitle}" FontWeight="SemiBold"/>
+
+                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Classes="soft"/>
+
+                                        </StackPanel>
+
+                                    </ToolTip.Tip>
+
+                                    <c:IconView Icon="{Binding Icon}" Width="20" Height="20" Dimmed="{Binding !IsEnabled}"/>
+
+                                </Button>
+
+                            </DataTemplate>
+
+                            <DataTemplate DataType="vm:QuickSeparator">
+
+                                <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="5,0"/>
+
+                            </DataTemplate>
+
+                        </ItemsControl.DataTemplates>
+
+                    </ItemsControl>
+
+                </Border>
+
+
+
+                <!-- AI assistant -->
+
+                <v:AssistantPanel IsVisible="{Binding AssistantOpen}" HorizontalAlignment="Right" VerticalAlignment="Stretch" Margin="0,8,8,56" Width="400"/>
+
+
+
+                <!-- rendered picture -->
+
+                <Border IsVisible="{Binding RenderVisible}" Margin="48,40,48,56" CornerRadius="12" Background="{DynamicResource OverlayBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="10">
+
+                    <DockPanel>
+
+                        <Border DockPanel.Dock="Bottom" Padding="2,10,2,0">
+
+                            <DockPanel>
+
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+
+                                    <Button Content="Stop" Click="OnRenderStop" IsVisible="{Binding RenderRunning}" Padding="14,6"/>
+
+                                    <Button Content="Save PNG" Click="OnRenderSave" Padding="14,6"/>
+
+                                    <Button Content="Close" Click="OnRenderClose" Padding="14,6"/>
+
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding RenderStatus}" Classes="soft" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                            </DockPanel>
+
+                        </Border>
+
+                        <Image Source="{Binding RenderBitmap}" Stretch="Uniform"/>
+
+                    </DockPanel>
+
+                </Border>
+
+
+
+                <TextBlock Text="Right-drag: orbit    Shift + right-drag: pan    Wheel: zoom" Classes="faint" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,10" IsHitTestVisible="False"/>
+
+            </Grid>
+
+            </DockPanel>
+
+
+
+            <GridSplitter Grid.Column="3" Width="1" Background="{DynamicResource Line}" IsEnabled="False"/>
+
+
+
+            <!-- right: command panel or properties -->
+
+            <Border Grid.Column="4" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+
+
+                <DockPanel>
+
+                    <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="{DynamicResource PanelAlt}">
+                        <ItemsControl ItemsSource="{Binding RightPanelTabs}" Margin="6,5">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:RightPanelTab">
+                                    <Button Content="{Binding Title}" Tag="{Binding Id}" Classes="seg" Classes.on="{Binding IsSelected}" Click="OnRightPanelTab"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                <Panel>
+
+                    <v:CommandPanel IsVisible="{Binding ShowCommandPanel}"/>
+
+                    <v:SketchPanel IsVisible="{Binding ShowSketchPanel}"/>
+
+                    <v:StudiosPanel IsVisible="{Binding AnyStudioVisible}"/>
+                    <v:PropertiesPanel IsVisible="{Binding ShowProperties}"/>
+
+                    <v:MaterialsPanel IsVisible="{Binding ShowMaterialsPanel}"/>
+
+                    <v:LibraryPanel IsVisible="{Binding ShowLibraryPanel}"/>
+
+                    <v:SimulationPanel IsVisible="{Binding ShowSimPanel}"/>
+
+                    <v:ScriptPanel IsVisible="{Binding ShowScriptEditor}"/>
+
+                </Panel>
+
+                </DockPanel>
+
+
+
+            </Border>
+
+        </Grid>
+
+    </DockPanel>
+
+    <v:HomeView IsVisible="{Binding HomeOpen}" Margin="0,44,0,0"/>
+
+    </Grid>
+
+</UserControl>
+

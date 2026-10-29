@@ -1,0 +1,63 @@
+{
+  "title": "Mesh Refinement Check",
+  "hint": "Compare h, 0.7h and 0.49h using maximum displacement. Peak stress is reported separately: stress singularities at supports and loads can grow under refinement. This is a comparison, not an accuracy certificate.",
+  "params": [
+    {
+      "label": "Coarse element size (0 = automatic)",
+      "visible": true,
+      "type": "number",
+      "value": 5,
+      "unit": "mm"
+    },
+    {
+      "label": "Save comparison CSV",
+      "visible": true,
+      "type": "text",
+      "value": "C:/Users/chris/RiderProjects/Prism/docs/workflow-studies/live-convergence.csv"
+    },
+    {
+      "label": "Compare three meshes",
+      "visible": true,
+      "type": "action"
+    },
+    {
+      "label": "Stop after current solve",
+      "visible": true,
+      "type": "action"
+    }
+  ],
+  "slots": [],
+  "results": [
+    {
+      "label": "Status",
+      "value": "Three-mesh comparison complete. Compare displacement changes; inspect local stress separately. CSV: C:/Users/chris/RiderProjects/Prism/docs/workflow-studies/live-convergence.csv",
+      "level": 0
+    },
+    {
+      "label": "h = 5 mm",
+      "value": "410 nodes · displacement 0.000574676 mm · peak stress 1.12988 MPa",
+      "level": 0
+    },
+    {
+      "label": "h = 3.5 mm",
+      "value": "1,029 nodes · displacement 0.000575274 mm · peak stress 1.17108 MPa",
+      "level": 0
+    },
+    {
+      "label": "Displacement change",
+      "value": "0.104%",
+      "level": 0
+    },
+    {
+      "label": "h = 2.45 mm",
+      "value": "2,237 nodes · displacement 0.000575697 mm · peak stress 1.42892 MPa",
+      "level": 0
+    },
+    {
+      "label": "Displacement change",
+      "value": "0.07346%",
+      "level": 0
+    }
+  ],
+  "error": null
+}

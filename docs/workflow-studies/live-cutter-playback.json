@@ -1,0 +1,41 @@
+{
+  "staticStudies": [],
+  "faceSets": [],
+  "caeSetups": [],
+  "camSetup": {
+    "Name": "Plate milling",
+    "BodyId": "c69ee9ed-df85-4442-9955-72c9180ca265",
+    "ShapeSignature": "054DFEAADD161EC923976EFAF0A214D2A7419AF308FF4C7D85707CA2C388A7CF",
+    "StockMin": [
+      -49,
+      -34,
+      0
+    ],
+    "StockMax": [
+      49,
+      34,
+      13
+    ],
+    "WorkZero": [
+      -49,
+      -34,
+      13
+    ],
+    "ToolDiameter": 8,
+    "Feed": 900,
+    "Plunge": 300,
+    "Rpm": 12000,
+    "Clearance": 5
+  },
+  "playback": {
+    "playing": false,
+    "seconds": 90.68533333333333,
+    "duration": 90.68533333333333,
+    "speed": 3,
+    "position": [
+      49,
+      33.2,
+      18
+    ]
+  }
+}

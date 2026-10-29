@@ -1,0 +1,100 @@
+using System.Runtime.InteropServices;
+using Prism.Core.Form;
+using Prism.Core;
+using Prism.Commands;
+using Prism.Kernel;
+
+NativeSearch.Initialize();
+int checks = 0;
+void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; Console.WriteLine("PASS " + message); }
+Vec3[] Net(bool reference, int side, bool reverse = false)
+{
+    var result = new Vec3[16];
+    for (int u = 0; u < 4; u++) for (int v = 0; v < 4; v++)
+    {
+        double x = reference ? -10 * u : 3 + 10 * u;
+        double y = -15 + 10 * v;
+        double z = reference ? .012 * x * x + .003 * y * y : 8 + .2 * x;
+        int i = side % 2 == 1 ? 3 - u : u, j = reference && reverse ? 3 - v : v;
+        if (side >= 2) (i, j) = (j, i);
+        result[i * 4 + j] = new(x, y, z);
+    }
+    return result;
+}
+for (int side = 0; side < 4; side++) for (int refSide = 0; refSide < 4; refSide++) foreach (bool reverse in new[] { false, true })
+{
+    using var source = Occ.NurbsSurface(Net(false, side), 4, 4);
+    using var reference = Occ.NurbsSurface(Net(true, refSide, reverse), 4, 4);
+    var original = Occ.FaceNet(reference).Points;
+    var before = Occ.SurfaceContinuity(source, side, reference, refSide, reverse);
+    Check(before.Gap > 3, $"fixture has a real gap {side}/{refSide}/{reverse}");
+    for (int order = 0; order <= 2; order++)
+    {
+        using var matched = Occ.MatchSurface(source, side, reference, refSide, order, reverse, .8);
+        var report = Occ.SurfaceContinuity(matched, side, reference, refSide, reverse, 101);
+        Check(matched.IsValid && report.Gap < 1e-7, $"G{order} closes the boundary {side}/{refSide}/{reverse}");
+        if (order >= 1) Check(report.NormalAngle < 1e-4, "matching tangents align the tangent planes");
+        if (order == 2) Check(report.CurvatureDifference < 1e-8, "matching second derivatives aligns cross-boundary normal curvature");
+    }
+    Check(Occ.FaceNet(reference).Points.SequenceEqual(original), "reference control net remains fixed");
+    Check(Occ.FaceNet(source).Points.SequenceEqual(Net(false, side)), "source input remains unchanged until accepted");
+}
+using (var source = Occ.NurbsSurface(Net(false, 0), 4, 4))
+using (var reference = Occ.NurbsSurface(Net(true, 0), 4, 4))
+{
+    using var refined = Occ.RefineFace(reference);
+    bool rejected = false; try { using var result = Occ.MatchSurface(source, 0, refined, 0, 2); } catch (KernelException) { rejected = true; }
+    Check(rejected, "incompatible boundary knot layouts are rejected");
+    using var refinedSource = Occ.RefineFace(source);
+    using var matched = Occ.MatchSurface(refinedSource, 0, refined, 0, 2);
+    Check(Occ.SurfaceContinuity(matched, 0, refined, 0).CurvatureDifference < 1e-8, "G2 works after compatible knot refinement");
+    using var elevated = Occ.ElevateFace(source); using var elevatedRef = Occ.ElevateFace(reference);
+    using var elevatedMatch = Occ.MatchSurface(elevated, 0, elevatedRef, 0, 2);
+    Check(Occ.SurfaceContinuity(elevatedMatch, 0, elevatedRef, 0).NormalAngle < 1e-4, "G2 works after degree elevation");
+}
+SubdMesh Quad() { var m = new SubdMesh(); m.V.AddRange([new(0,0,0),new(10,0,0),new(10,10,0),new(0,10,0)]); m.F.Add([0,1,2,3]); return m; }
+var open = Quad(); var r = CageReport.Inspect(open);
+Check(r.Valid && r.BoundaryEdges == 4 && r.Components == 1, "an open manifold cage is valid for surface conversion");
+var invalid = Quad(); invalid.F.Add([0,1,999]);
+Check(!CageReport.Inspect(invalid).Valid && CageReport.Inspect(invalid).InvalidFaces == 1, "invalid indices are reported safely");
+var winding = Quad(); winding.V.AddRange([new(10,-10,0),new(0,-10,0)]); winding.F.Add([0,1,4,5]);
+Check(CageReport.Inspect(winding).WindingConflicts == 1, "same-direction shared edges are detected");
+var bowtie = Quad(); bowtie.V.AddRange([new(-10,0,0),new(-10,-10,0),new(0,-10,0)]); bowtie.F.Add([0,4,5,6]);
+Check(CageReport.Inspect(bowtie).DisconnectedVertexFans == 1, "non-manifold bow-tie vertices are detected");
+bool blocked = false; try { using var result = FormToBrep.ToShape(bowtie); } catch (KernelException) { blocked = true; }
+Check(blocked, "non-manifold cages cannot be silently converted to CAD geometry");
+var degenerate = Quad(); degenerate.V[2] = degenerate.V[1]; degenerate.V[3] = degenerate.V[0];
+Check(CageReport.Inspect(degenerate).DegenerateFaces == 1, "zero-area faces are detected");
+Check(!CageReport.Inspect(new SubdMesh()).Valid, "an empty cage does not pass validation");
+var session = new CadSession();
+var changing = session.AddObject(Occ.NurbsSurface(Net(false, 0), 4, 4), "Changing", ObjKind.Surface);
+var fixedPatch = session.AddObject(Occ.NurbsSurface(Net(true, 0), 4, 4), "Reference", ObjKind.Surface);
+var command = new MatchSurfaceCommand(); session.StartCommand(command);
+command.ConfigureInputs(() =>
+{
+    command.Slots[0].Items.Add(SelItem.Of(changing)); command.Slots[1].Items.Add(SelItem.Of(fixedPatch));
+    ((ChoiceParam)command.Params.Single(p => p.Label == "Reference boundary")).Index = 0;
+    ((ChoiceParam)command.Params.Single(p => p.Label == "Continuity")).Index = 2;
+});
+command.OnChanged();
+Check(command.Error == null && session.Preview.Count == 1, "matching produces a preview through the real command lifecycle");
+Check(Occ.SurfaceContinuity(changing.Shape, 0, fixedPatch.Shape, 0).Gap > 3, "preview does not modify the source document");
+session.CommitCommand();
+Check(Occ.SurfaceContinuity(session.Find(changing.Id)!.Shape, 0, fixedPatch.Shape, 0).Gap < 1e-7, "accept applies the matched patch");
+session.Undo(); Check(Occ.SurfaceContinuity(session.Find(changing.Id)!.Shape, 0, fixedPatch.Shape, 0).Gap > 3, "undo restores the original patch");
+session.Redo(); Check(Occ.SurfaceContinuity(session.Find(changing.Id)!.Shape, 0, fixedPatch.Shape, 0).Gap < 1e-7, "redo restores the matched patch");
+var folder = Path.GetFullPath("docs/surfacing-enhancements"); Directory.CreateDirectory(folder);
+session.Save(Path.Combine(folder, "G2-matched-patches.prism"));
+session.ExportStep(Path.Combine(folder, "G2-matched-patches.step"));
+var reopened = new CadSession(); reopened.Open(session.FilePath!);
+Check(reopened.Objects.All(o => o.Shape.IsValid) && Occ.SurfaceContinuity(reopened.Objects.First(o => o.Name.StartsWith("Changing")).Shape, 0,
+    reopened.Objects.First(o => o.Name.StartsWith("Reference")).Shape, 0).Gap < 1e-7, "saved matching retains valid geometry and seam position");
+using var imported = Occ.ImportStep(Path.Combine(folder, "G2-matched-patches.step"));
+Check(imported.IsValid && imported.Count(SubKind.Face) == 2, "STEP roundtrip retains both valid patches");
+Console.WriteLine($"SUCCESS: {checks} checks");
+
+static class NativeSearch
+{
+    [DllImport("kernel32", CharSet = CharSet.Unicode)] static extern bool SetDllDirectory(string path);
+    public static void Initialize() => SetDllDirectory(Path.GetFullPath("native/bin"));
+}

@@ -1,0 +1,160 @@
+{
+  "before": {
+    "id": "2f5d6da9",
+    "name": "Aluminum slab",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#C9CED6",
+    "min": [
+      101,
+      45,
+      0
+    ],
+    "max": [
+      147,
+      85,
+      9
+    ],
+    "faces": 6,
+    "edges": 12,
+    "volume": 16560,
+    "area": 5228,
+    "size": [
+      46,
+      40,
+      9
+    ],
+    "center": [
+      124,
+      65,
+      4.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": "6061",
+      "material": "Aluminum 6061-T6",
+      "metal": 1,
+      "gloss": 0.5,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": "2026-10-27.1",
+      "physicalDataPinned": true,
+      "physicalProperties": {
+        "density_g_cm3": 2.7,
+        "youngs_GPa": 68.9,
+        "poisson": 0.33,
+        "yield_MPa": 276,
+        "strength_MPa": 310,
+        "strengthBasis": "Tensile strength",
+        "conductivity_W_mK": 167,
+        "expansion_um_mK": 23.6,
+        "specificHeat_J_kgK": 896,
+        "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+        "condition": "6061-T6/T651 typical values. Conductivity at 20 °C; expansion averaged 20–100 °C; specific heat at 100 °C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+        "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+      }
+    }
+  },
+  "cleared": {
+    "id": "2f5d6da9",
+    "name": "Aluminum slab",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#C9CED6",
+    "min": [
+      101,
+      45,
+      0
+    ],
+    "max": [
+      147,
+      85,
+      9
+    ],
+    "faces": 6,
+    "edges": 12,
+    "volume": 16560,
+    "area": 5228,
+    "size": [
+      46,
+      40,
+      9
+    ],
+    "center": [
+      124,
+      65,
+      4.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 1,
+      "gloss": 0.5,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "restored": {
+    "id": "2f5d6da9",
+    "name": "Aluminum slab",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#C9CED6",
+    "min": [
+      101,
+      45,
+      0
+    ],
+    "max": [
+      147,
+      85,
+      9
+    ],
+    "faces": 6,
+    "edges": 12,
+    "volume": 16560,
+    "area": 5228,
+    "size": [
+      46,
+      40,
+      9
+    ],
+    "center": [
+      124,
+      65,
+      4.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": "6061",
+      "material": "Aluminum 6061-T6",
+      "metal": 1,
+      "gloss": 0.5,
+      "pattern": "Brushed",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": "2026-10-27.1",
+      "physicalDataPinned": true,
+      "physicalProperties": {
+        "density_g_cm3": 2.7,
+        "youngs_GPa": 68.9,
+        "poisson": 0.33,
+        "yield_MPa": 276,
+        "strength_MPa": 310,
+        "strengthBasis": "Tensile strength",
+        "conductivity_W_mK": 167,
+        "expansion_um_mK": 23.6,
+        "specificHeat_J_kgK": 896,
+        "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+        "condition": "6061-T6/T651 typical values. Conductivity at 20 °C; expansion averaged 20–100 °C; specific heat at 100 °C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+        "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+      }
+    }
+  }
+}

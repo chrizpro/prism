@@ -1,0 +1,10 @@
+{
+  "running": false,
+  "status": "Complete — results in C:\\Users\\chris\\AppData\\Local\\Prism\\CAE\\20261027_205902_4230bb",
+  "error": null,
+  "resultFolder": "C:\\Users\\chris\\AppData\\Local\\Prism\\CAE\\20261027_205902_4230bb",
+  "kind": "SteadyThermal",
+  "frequenciesHz": [],
+  "minimumTemperature": 20,
+  "maximumTemperature": 100
+}

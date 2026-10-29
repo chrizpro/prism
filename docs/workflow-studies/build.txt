@@ -1,0 +1,12 @@
+C:\Users\chris\RiderProjects\Prism\Prism.Desktop\Prism.Desktop.csproj : warning NU1903: Package 'Tmds.DBus.Protocol' 0.21.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-xrw6-gwf8-vvr9
+  Prism.Kernel -> C:\Users\chris\RiderProjects\Prism\Prism.Kernel\bin\Release\net10.0\Prism.Kernel.dll
+  Prism -> C:\Users\chris\RiderProjects\Prism\Prism\bin\Release\net10.0\Prism.dll
+  Prism.Desktop -> C:\Users\chris\RiderProjects\Prism\Prism.Desktop\bin\Release\net10.0\Prism.Desktop.dll
+
+Build succeeded.
+
+C:\Users\chris\RiderProjects\Prism\Prism.Desktop\Prism.Desktop.csproj : warning NU1903: Package 'Tmds.DBus.Protocol' 0.21.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-xrw6-gwf8-vvr9
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.84

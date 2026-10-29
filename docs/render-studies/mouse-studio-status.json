@@ -1,0 +1,12 @@
+{
+  "running": false,
+  "finished": true,
+  "samples": 512,
+  "totalSamples": 512,
+  "seconds": 27.84,
+  "width": 1280,
+  "height": 720,
+  "status": "Done: 1280×720, 512 samples in 27.8s",
+  "savedTo": null,
+  "error": null
+}

@@ -1,0 +1,19 @@
+PASS primitive is closed and consistently oriented
+PASS bridging two caps produces a closed cage
+PASS both bridge seams preserve face orientation
+PASS bridge produces handle topology (Euler characteristic zero)
+PASS open tube exposes two boundary loops
+PASS edge-chain bridge closes both seams consistently
+PASS adjacent faces cannot be bridged
+PASS rejected adjacent-face bridge leaves cage untouched
+PASS different corner counts cannot be bridged
+PASS rejected bridge preserves every original face
+PASS internal edges cannot be used as bridge boundaries
+PASS invalid face indices are rejected
+PASS inconsistent boundary winding is rejected
+PASS failed boundary validation adds no partial faces
+PASS curved pipe is closed
+PASS curved pipe caps agree with adjacent side faces
+PASS hard shallow crease has separate shading normals on each side
+PASS soft crease retains smoothly blended shading normals
+SUCCESS: 18 checks

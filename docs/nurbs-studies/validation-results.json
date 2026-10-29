@@ -1,0 +1,268 @@
+{
+  "savedModels": [
+    {
+      "model": "N01-nurbs-mouse",
+      "bodies": [
+        {
+          "id": "c6b326da",
+          "name": "N01 mouse - scroll wheel",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#34445B",
+          "min": [
+            -2.9998,
+            -35,
+            17.0002
+          ],
+          "max": [
+            3.0002,
+            -15,
+            37.0002
+          ],
+          "faces": 3,
+          "edges": 3,
+          "volume": 1884.9556,
+          "area": 1005.3096,
+          "size": [
+            6,
+            20,
+            20
+          ],
+          "center": [
+            0.0002,
+            -25,
+            27.0002
+          ],
+          "valid": true
+        },
+        {
+          "id": "719b77cb",
+          "name": "N01 mouse - base plate",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#34445B",
+          "min": [
+            -35.5827,
+            -65,
+            4.8
+          ],
+          "max": [
+            35.5827,
+            65,
+            7.6
+          ],
+          "faces": 6,
+          "edges": 12,
+          "volume": 22676.865,
+          "area": 17187.1043,
+          "size": [
+            71.1654,
+            130,
+            2.8
+          ],
+          "center": [
+            0,
+            0,
+            6.2
+          ],
+          "valid": true
+        },
+        {
+          "id": "69893435",
+          "name": "N01 mouse - thickened housing",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#CFD8DE",
+          "min": [
+            -37.1547,
+            -66.2347,
+            7
+          ],
+          "max": [
+            37.1547,
+            66.2347,
+            35.5758
+          ],
+          "faces": 14,
+          "edges": 37,
+          "volume": 20280.1099,
+          "area": 21221.5816,
+          "size": [
+            74.3093,
+            132.4693,
+            28.5758
+          ],
+          "center": [
+            0,
+            0,
+            21.2879
+          ],
+          "valid": true
+        }
+      ]
+    },
+    {
+      "model": "N02-lofted-bottle",
+      "bodies": [
+        {
+          "id": "ef83e47f",
+          "name": "N02 bottle - NURBS body",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#DFA66B",
+          "min": [
+            -42.3021,
+            -29.1949,
+            0
+          ],
+          "max": [
+            42.4695,
+            29.1949,
+            181
+          ],
+          "faces": 3,
+          "edges": 3,
+          "volume": 302735.9874,
+          "area": 31756.9011,
+          "size": [
+            84.7716,
+            58.3899,
+            181
+          ],
+          "center": [
+            0.0837,
+            0,
+            90.5
+          ],
+          "valid": true
+        },
+        {
+          "id": "d970855e",
+          "name": "N02 bottle - cap",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#3B5264",
+          "min": [
+            -27,
+            -17,
+            177
+          ],
+          "max": [
+            7,
+            17,
+            197
+          ],
+          "faces": 3,
+          "edges": 3,
+          "volume": 18158.4055,
+          "area": 3952.1236,
+          "size": [
+            34,
+            34,
+            20
+          ],
+          "center": [
+            -10,
+            0,
+            187
+          ],
+          "valid": true
+        }
+      ]
+    },
+    {
+      "model": "N03-nurbs-duct",
+      "bodies": [
+        {
+          "id": "8479cbc7",
+          "name": "N03 duct - NURBS wall",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#7DAAB8",
+          "min": [
+            -45.5754,
+            -30.2348,
+            -0.0821
+          ],
+          "max": [
+            46.2089,
+            36.0891,
+            98.3198
+          ],
+          "faces": 4,
+          "edges": 8,
+          "volume": 37910.9562,
+          "area": 39861.3515,
+          "size": [
+            91.7843,
+            66.3239,
+            98.4019
+          ],
+          "center": [
+            0.3168,
+            2.9272,
+            49.1188
+          ],
+          "valid": true
+        },
+        {
+          "id": "deb55a34",
+          "name": "N03 duct - mounting flange",
+          "kind": "Solid",
+          "visible": true,
+          "color": "#586879",
+          "min": [
+            -53.1493,
+            -36.0833,
+            -4
+          ],
+          "max": [
+            54.2779,
+            36.0833,
+            0
+          ],
+          "faces": 8,
+          "edges": 18,
+          "volume": 8046.3952,
+          "area": 6563.2144,
+          "size": [
+            107.4273,
+            72.1666,
+            4
+          ],
+          "center": [
+            0.5643,
+            0,
+            -2
+          ],
+          "valid": true
+        }
+      ]
+    }
+  ],
+  "stepRoundtrips": [
+    {
+      "model": "N01-nurbs-mouse",
+      "valid": true,
+      "expectedVolume": 44841.9305,
+      "importedVolume": 44841.9305
+    },
+    {
+      "model": "N02-lofted-bottle",
+      "valid": true,
+      "expectedVolume": 320894.3929,
+      "importedVolume": 320894.3929
+    },
+    {
+      "model": "N03-nurbs-duct",
+      "valid": true,
+      "expectedVolume": 45957.3514,
+      "importedVolume": 45957.3514
+    }
+  ],
+  "automatedChecks": {
+    "nurbs": 14,
+    "freeform": 18,
+    "python": 4
+  }
+}

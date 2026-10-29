@@ -1,0 +1,10 @@
+{
+  "running": false,
+  "status": "Canceled",
+  "error": null,
+  "resultFolder": null,
+  "kind": null,
+  "frequenciesHz": null,
+  "minimumTemperature": null,
+  "maximumTemperature": null
+}

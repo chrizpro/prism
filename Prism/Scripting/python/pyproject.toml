@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cadkit"
+version = "0.1"
+description = "Drive the CAD application from Python (standard library only)."
+requires-python = ">=3.9"
+
+[tool.setuptools]
+packages = ["cadkit"]

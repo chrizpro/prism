@@ -1,0 +1,94 @@
+{
+  "title": "Pipe Flow",
+  "hint": "Steady, incompressible, fully developed flow in a circular full pipe. Darcy–Weisbach pressure drop; laminar 64/Re or turbulent Colebrook friction. No 3D CFD, compressibility, entrance-flow or thermal coupling.",
+  "params": [
+    {
+      "label": "Internal diameter",
+      "visible": true,
+      "type": "number",
+      "value": 10,
+      "unit": "mm"
+    },
+    {
+      "label": "Pipe length",
+      "visible": true,
+      "type": "number",
+      "value": 1000,
+      "unit": "mm"
+    },
+    {
+      "label": "Volume flow",
+      "visible": true,
+      "type": "number",
+      "value": 0.5,
+      "unit": "L/min"
+    },
+    {
+      "label": "Fluid density",
+      "visible": true,
+      "type": "number",
+      "value": 998.2,
+      "unit": "kg/m³"
+    },
+    {
+      "label": "Dynamic viscosity",
+      "visible": true,
+      "type": "number",
+      "value": 0.001002,
+      "unit": "Pa·s"
+    },
+    {
+      "label": "Absolute roughness",
+      "visible": true,
+      "type": "number",
+      "value": 0.0015,
+      "unit": "mm"
+    },
+    {
+      "label": "Total minor-loss coefficient",
+      "visible": true,
+      "type": "number",
+      "value": 0,
+      "unit": ""
+    }
+  ],
+  "slots": [],
+  "results": [
+    {
+      "label": "Regime",
+      "value": "Laminar",
+      "level": 0
+    },
+    {
+      "label": "Reynolds number",
+      "value": "1057.01",
+      "level": 0
+    },
+    {
+      "label": "Mean velocity",
+      "value": "0.106103 m/s",
+      "level": 0
+    },
+    {
+      "label": "Darcy friction factor",
+      "value": "0.0605482",
+      "level": 0
+    },
+    {
+      "label": "Pressure drop",
+      "value": "34.021 Pa",
+      "level": 0
+    },
+    {
+      "label": "Head loss",
+      "value": "0.00347543 m",
+      "level": 0
+    },
+    {
+      "label": "Hydraulic power",
+      "value": "0.000283508 W",
+      "level": 0
+    }
+  ],
+  "error": null
+}

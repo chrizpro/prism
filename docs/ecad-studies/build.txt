@@ -1,0 +1,20 @@
+C:\Users\chris\RiderProjects\Prism\Prism.Desktop\Prism.Desktop.csproj : warning NU1903: Package 'Tmds.DBus.Protocol' 0.21.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-xrw6-gwf8-vvr9
+  Prism.Kernel -> C:\Users\chris\RiderProjects\Prism\Prism.Kernel\bin\Release\net10.0\Prism.Kernel.dll
+C:\Users\chris\RiderProjects\Prism\Prism\Tools\SketchTrimTool.cs(273,38): warning CS8321: The local function 'At' is declared but never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\FormScanCommands.cs(69,39): warning CS9113: Parameter 's' is unread. [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,16): warning CS0219: The variable 'rIn' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,39): warning CS0219: The variable 'rOut' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+  Prism -> C:\Users\chris\RiderProjects\Prism\Prism\bin\Release\net10.0\Prism.dll
+  Prism.Desktop -> C:\Users\chris\RiderProjects\Prism\Prism.Desktop\bin\Release\net10.0\Prism.Desktop.dll
+
+Build succeeded.
+
+C:\Users\chris\RiderProjects\Prism\Prism.Desktop\Prism.Desktop.csproj : warning NU1903: Package 'Tmds.DBus.Protocol' 0.21.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-xrw6-gwf8-vvr9
+C:\Users\chris\RiderProjects\Prism\Prism\Tools\SketchTrimTool.cs(273,38): warning CS8321: The local function 'At' is declared but never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\FormScanCommands.cs(69,39): warning CS9113: Parameter 's' is unread. [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,16): warning CS0219: The variable 'rIn' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+C:\Users\chris\RiderProjects\Prism\Prism\Commands\SheetMetalCommands.cs(190,39): warning CS0219: The variable 'rOut' is assigned but its value is never used [C:\Users\chris\RiderProjects\Prism\Prism\Prism.csproj]
+    5 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:14.61
