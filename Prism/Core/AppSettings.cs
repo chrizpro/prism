@@ -33,6 +33,7 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Dark";                 // Dark | Light | System
     public bool MarkingMenu { get; set; } = true;
     public bool ReverseScrollZoom { get; set; }
+    public bool ShowGridOnStart { get; set; } = true;
     /// <summary>The 3D view backdrop and grid look (see GridPreset).</summary>
     public string GridStyle { get; set; } = "classic";
     /// <summary>The folder parts are saved to and opened from by default. Null until the user picks one.</summary>

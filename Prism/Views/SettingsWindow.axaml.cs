@@ -37,6 +37,7 @@ public partial class SettingsWindow : Window
         ThemeDark.IsChecked = s.Theme == "Dark"; ThemeLight.IsChecked = s.Theme == "Light"; ThemeSystem.IsChecked = s.Theme == "System";
         MarkingOn.IsChecked = s.MarkingMenu; HoldMs.Value = s.MarkingHoldMs; HoldLabel.Text = $"Hold time: {s.MarkingHoldMs} ms";
         ReverseScrollZoom.IsChecked = s.ReverseScrollZoom;
+        ShowGridOnStart.IsChecked = s.ShowGridOnStart;
         BuildGridSwatches();
         ShowWorkspace(); WsHome.IsChecked = s.ShowHomeOnStart;
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.WorkspaceFolder)) ShowWorkspace(); };
@@ -117,6 +118,14 @@ public partial class SettingsWindow : Window
     {
         if (_loading) return;
         AppSettings.Current.MarkingMenu = MarkingOn.IsChecked == true; AppSettings.Save();
+    }
+
+    void OnShowGridOnStart(object? sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        AppSettings.Current.ShowGridOnStart = ShowGridOnStart.IsChecked == true;
+        _vm.Session.ShowGrid = AppSettings.Current.ShowGridOnStart;
+        AppSettings.Save();
     }
 
     void OnReverseScrollZoom(object? sender, RoutedEventArgs e)

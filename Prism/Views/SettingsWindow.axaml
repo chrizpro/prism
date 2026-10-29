@@ -32,6 +32,7 @@
                         <RadioButton Name="ThemeSystem" GroupName="theme" Content="Match Windows" Click="OnTheme"/>
                     </StackPanel>
                     <TextBlock Text="3D view backdrop and grid" FontWeight="SemiBold" Margin="0,22,0,0"/>
+                    <CheckBox Name="ShowGridOnStart" Content="Show the grid when Prism starts" Click="OnShowGridOnStart"/>
                     <TextBlock Text="Pick a look for the space you model in. Classic follows the theme above; the rest keep their own colors." Classes="soft" TextWrapping="Wrap"/>
                     <WrapPanel Name="GridHost" Margin="0,4,0,0"/>
                 </StackPanel>

@@ -143,7 +143,7 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>See-through bodies: faces turn translucent so hidden edges and inner shapes show.</summary>
     [ObservableProperty] public partial bool XRay { get; set; }
     [ObservableProperty] public partial bool Zebra { get; set; }
-    [ObservableProperty] public partial bool ShowGrid { get; set; } = true;
+    [ObservableProperty] public partial bool ShowGrid { get; set; } = AppSettings.Current.ShowGridOnStart;
     /// <summary>Sketch points land on the visible grid lines. Off by default: most CAD work is free placement plus dimensions.</summary>
     [ObservableProperty] public partial bool SketchGridSnap { get; set; }
     [ObservableProperty] public partial bool Ortho { get; set; }
