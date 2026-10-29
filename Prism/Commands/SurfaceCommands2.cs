@@ -99,7 +99,7 @@ public sealed class BoundaryFillCommand : Command
         _cells = Text("Spaces to keep (blank = all)", "", "numbers as listed below, e.g. 1, 3");
     }
 
-    public override string Title => "Boundary Fill";
+    public override string Title => "Create Enclosed Solid";
     public override string Icon => "fill";
     public override string OkText => "Create solids";
     public override string Hint => "Pick surfaces, planes or bodies that together close off a space (for example a surface that cuts a block in two, or planes around a shape). Each enclosed space becomes a solid; list the ones you want in 'Spaces to keep'.";
@@ -114,12 +114,12 @@ public sealed class BoundaryFillCommand : Command
         if (n == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps.");
         var want = new HashSet<int>();
         foreach (var tok in _cells.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries)) if (int.TryParse(tok, NumberStyles.Integer, CultureInfo.InvariantCulture, out int k)) want.Add(k);
-        var o = new CommandOutput { Label = "Boundary fill", Icon = "fill" };
+        var o = new CommandOutput { Label = "Enclosed solid", Icon = "fill" };
         for (int i = 0; i < n; i++)
         {
             var cell = vol.Sub(SubKind.Solid, i);
             Results.Add(new ResultLine($"Space {i + 1}", $"{cell.Props().Volume:#,0.##} mm³"));
-            if (want.Count == 0 || want.Contains(i + 1)) o.Add.Add(new(cell, "Boundary fill", ObjKind.Solid));
+            if (want.Count == 0 || want.Contains(i + 1)) o.Add.Add(new(cell, "Enclosed solid", ObjKind.Solid));
         }
         if (o.Add.Count == 0) throw new FormatException("None of the listed spaces exist.");
         return o;

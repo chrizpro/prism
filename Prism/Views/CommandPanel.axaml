@@ -5,6 +5,7 @@
              xmlns:v="using:Prism.Views"
              x:Class="Prism.Views.CommandPanel">
     <UserControl.Styles>
+        <StyleInclude Source="avares://Prism/Styles/Studio.axaml"/>
         <Style Selector="TextBlock.section"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,10,0,7"/></Style>
         <Style Selector="TextBlock.good"><Setter Property="Foreground" Value="{DynamicResource Ok}"/></Style>
         <Style Selector="TextBlock.warn"><Setter Property="Foreground" Value="{DynamicResource Gold}"/></Style>
@@ -28,6 +29,14 @@
     </UserControl.Styles>
 
     <UserControl.DataTemplates>
+        <DataTemplate DataType="cmd:CommandSection">
+            <Expander IsVisible="{Binding IsVisible}" IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch" Margin="-12,0,-12,10">
+                <Expander.Header>
+                    <c:PanelStepHeader Step="{Binding Number}" Title="{Binding Title}" Margin="-10,-8"/>
+                </Expander.Header>
+                <ItemsControl ItemsSource="{Binding Items}" Margin="12,0"/>
+            </Expander>
+        </DataTemplate>
         <DataTemplate DataType="cmd:NumberParam">
             <StackPanel Margin="0,4" IsVisible="{Binding IsVisible}" Spacing="3">
                 <Grid ColumnDefinitions="*,112,24" ColumnSpacing="5">
@@ -74,7 +83,7 @@
         <Border Grid.Row="0" Padding="12,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="24,*,Auto,Auto" ColumnSpacing="8">
                 <c:IconView Icon="{Binding ActiveCommand.Icon}" Width="24" Height="24" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding ActiveCommand.DisplayTitle}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveCommand.DisplayTitle}"/>
+                <TextBlock Grid.Column="1" Text="{Binding ActiveCommand.DisplayTitle}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveCommand.DisplayTitle}"/>
                 <Button Grid.Column="2" Classes="tool" Content="?" Padding="4,0">
                     <ToolTip.Tip><TextBlock Text="{Binding ActiveCommand.Hint}" TextWrapping="Wrap" MaxWidth="280"/></ToolTip.Tip>
                 </Button>
@@ -82,21 +91,10 @@
             </Grid>
         </Border>
         <ScrollViewer Name="PanelScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="12,10,12,12" Spacing="2">
-                <ItemsControl ItemsSource="{Binding ActiveCommand.InputSlots}"/>
-                <TextBlock Text="Settings" Classes="section" IsVisible="{Binding ActiveCommand.PanelSettings.Count}"/>
-                <ItemsControl ItemsSource="{Binding ActiveCommand.PanelSettings}"/>
-                <StackPanel Margin="0,10,0,4" IsVisible="{Binding ActiveCommand.HasAdvancedSettings}" Spacing="6">
-                    <ToggleButton Name="AdvancedToggle" Content="Advanced…" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="30" Padding="8,4" FontSize="12" CornerRadius="4" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}"/>
-                    <ItemsControl ItemsSource="{Binding ActiveCommand.AdvancedSettings}" IsVisible="{Binding #AdvancedToggle.IsChecked}"/>
-                </StackPanel>
-                <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,8,0,0" IsVisible="{Binding ActiveCommand.ResultSettings.Count}">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="Result" FontWeight="SemiBold"/>
-                        <ItemsControl ItemsSource="{Binding ActiveCommand.ResultSettings}"/>
-                        <ItemsControl ItemsSource="{Binding ActiveCommand.ResultSlots}"/>
-                    </StackPanel>
-                </Border>
+            <StackPanel Margin="12,0,12,12" Spacing="2">
+                <TextBlock Text="{Binding ActiveCommand.Hint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
+                <ItemsControl ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
+                <v:GizmoOptionsPanel IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Margin="-12,0,-12,8"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.Results}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="cmd:ResultLine">
@@ -116,7 +114,7 @@
             <StackPanel Spacing="5">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                     <CheckBox Content="Preview" IsChecked="{Binding ActiveCommand.PreviewEnabled}" IsVisible="{Binding ActiveCommand.SupportsPreview}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Enter to confirm · Esc to cancel" Classes="faint" FontSize="10" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Enter · Esc" Classes="faint" FontSize="11" VerticalAlignment="Center"/>
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                     <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>

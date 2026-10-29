@@ -29,25 +29,65 @@ public partial class MainView : UserControl
         HistoryGraph.Edit += item => EditHistoryStep(item);
         HistoryGraph.Hover += item => Vm?.HoverHistory(item);
         HistoryGraph.StepContext += OnHistoryContext;
+        CompactHistory.Navigate += item => Vm?.GoToHistory(item);
+        CompactHistory.Edit += item => EditHistoryStep(item);
+        CompactHistory.Hover += item => Vm?.HoverHistory(item);
+        CompactHistory.StepContext += OnHistoryContext;
         DataContextChanged += (_, _) => Attach();
-        AttachedToVisualTree += (_, _) => Attach();
+        AttachedToVisualTree += (_, _) => { Attach(); WindowControls.IsVisible = TopLevel.GetTopLevel(this) is MainWindow; };
+        SearchContainer.LayoutUpdated += (_, _) => CenterSearch();
     }
+
+    void UpdateContextLocation()
+    {
+        bool bottom = AppSettings.Current.HelpContextLocation == "bottom";
+        BottomContext.IsVisible = bottom;
+        ViewportContext.IsVisible = !bottom;
+    }
+
+    void CenterSearch()
+    {
+        if (SearchContainer.Parent is not Grid grid || grid.ColumnDefinitions.Count < 3) return;
+        double available = grid.ColumnDefinitions[2].ActualWidth;
+        double width = Math.Min(420, Math.Max(0, available));
+        if (Math.Abs(SearchContainer.Width - width) > 0.1) SearchContainer.Width = width;
+        var position = SearchContainer.TranslatePoint(new Point(0, 0), grid);
+        if (position == null) return;
+        var transform = SearchContainer.RenderTransform as Avalonia.Media.TranslateTransform;
+        double current = transform?.X ?? 0;
+        double left = position.Value.X - current;
+        double shift = Math.Clamp(grid.Bounds.Width / 2 - (left + width / 2), -(available - width) / 2, (available - width) / 2);
+        if (transform == null) SearchContainer.RenderTransform = new Avalonia.Media.TranslateTransform(shift, 0);
+        else if (Math.Abs(current - shift) > 0.1) transform.X = shift;
+    }
+
+    void OnTitlePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not MainWindow window || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (e.Source is Visual source && (source is Button or TextBox || source.GetVisualAncestors().Any(v => v is Button or TextBox))) return;
+        if (e.ClickCount == 2) ToggleMaximize(window);
+        else window.BeginMoveDrag(e);
+        e.Handled = true;
+    }
+
+    static void ToggleMaximize(Window window) => window.WindowState = window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    void OnMinimize(object? sender, RoutedEventArgs e) { if (TopLevel.GetTopLevel(this) is Window window) window.WindowState = WindowState.Minimized; }
+    void OnMaximize(object? sender, RoutedEventArgs e) { if (TopLevel.GetTopLevel(this) is Window window) ToggleMaximize(window); }
+    void OnClose(object? sender, RoutedEventArgs e) { if (TopLevel.GetTopLevel(this) is Window window) window.Close(); }
 
     MainViewModel? Vm => DataContext as MainViewModel;
     void OnOpenStudio(object? sender, RoutedEventArgs e) => Vm?.OpenStudio((sender as Control)?.Tag is string panel && panel.Length > 0 ? panel : null);
     void OnPanelPickerClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Control anchor || Vm is not { } vm) return;
-        var choices = new StackPanel { Spacing = 7, MinWidth = 220, Margin = new Thickness(6) };
-        choices.Children.Add(new TextBlock { Text = "Right-side panels", FontWeight = Avalonia.Media.FontWeight.SemiBold });
-        choices.Children.Add(new TextBlock { Text = "Select several to keep them as tabs.", FontSize = 12 });
+        var choices = new List<object>();
         foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script" })
         {
-            var choice = new CheckBox { Content = MainViewModel.PanelTitle(id), IsChecked = vm.IsRightPanelOpen(id), IsEnabled = vm.ContextPanelId != id };
-            choice.IsCheckedChanged += (_, _) => vm.SetRightPanelEnabled(id, choice.IsChecked == true);
-            choices.Children.Add(choice);
+            var choice = new MenuItem { Header = (vm.IsRightPanelOpen(id) ? "✓  " : "     ") + MainViewModel.PanelTitle(id), IsEnabled = id != "properties" && vm.ContextPanelId != id };
+            choice.Click += (_, _) => vm.SetRightPanelEnabled(id, !vm.IsRightPanelOpen(id));
+            choices.Add(choice);
         }
-        var menu = new Flyout { Content = choices };
+        var menu = new MenuFlyout { ItemsSource = choices, Placement = PlacementMode.BottomEdgeAlignedLeft };
         FlyoutBase.SetAttachedFlyout(anchor, menu); menu.ShowAt(anchor);
     }
 
@@ -141,9 +181,9 @@ public partial class MainView : UserControl
         HookSession(null, vm.Session);
         vm.SessionSwapped += (old, s) => { HookSession(old, s); UpdateModeButtons(); EmptyHint.IsVisible = s.Objects.Count == 0 && string.IsNullOrWhiteSpace(vm.BrowserFilter); QueueSync(); };
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.ShowHistoryPanel)) UpdateTabs(); };
-        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel ? 394 : 312); };
-        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel ? 394 : 312);
-        BuildStatusBar(); AppSettings.Changed += BuildStatusBar;
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ActiveCommand != null ? 394 : 312); };
+        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ActiveCommand != null ? 394 : 312);
+        BuildStatusBar(); UpdateContextLocation(); AppSettings.Changed += BuildStatusBar; AppSettings.Changed += UpdateContextLocation;
         HistoryList.DoubleTapped += (_, _) => { if (HistoryList.SelectedItem is HistoryItem hi) EditHistoryStep(hi); };
         OnHistoryRebuilt();
         UpdateModeButtons(); UpdateTabs();
@@ -319,7 +359,7 @@ public partial class MainView : UserControl
 
     void OnRenameLost(object? sender, RoutedEventArgs e) { if ((sender as Control)?.DataContext is BrowserNode n) n.CommitRename(); }
 
-    void OnCollapseAll(object? s, RoutedEventArgs e) { if (Vm != null) foreach (var n in Vm.Browser) n.IsExpanded = false; }
+    void OnCollapseAll(object? s, RoutedEventArgs e) { if (Vm != null) foreach (var n in Vm.AllBrowserNodes()) n.IsExpanded = false; }
 
     // ================================================================= left tabs
     void OnShowBrowser(object? s, RoutedEventArgs e) { if (Vm != null) Vm.ShowHistoryPanel = false; }
@@ -358,6 +398,7 @@ public partial class MainView : UserControl
             try { HistoryList.SelectedItem = vm.HistoryRows.FirstOrDefault(r => r.IsCurrent); if (HistoryList.SelectedItem != null) HistoryList.ScrollIntoView(HistoryList.SelectedItem); }
             finally { _syncing = false; }
             HistoryGraph.SetHistory(vm.Session, vm.HistoryRows.ToList());
+            CompactHistory.SetHistory(vm.Session, vm.HistoryRows.ToList());
         }, DispatcherPriority.Background);
     }
 
@@ -429,6 +470,8 @@ public partial class MainView : UserControl
     }
 
     // ================================================================= command search
+    void OnSearchFocus(object? sender, GotFocusEventArgs e) => Vm?.UpdateSearchResults();
+
     void OnSearchKey(object? sender, KeyEventArgs e)
     {
         if (Vm is not { } vm) return;
@@ -437,7 +480,7 @@ public partial class MainView : UserControl
             case Key.Down: if (vm.SearchResults.Count > 0) vm.SearchIndex = Math.Min(vm.SearchIndex + 1, vm.SearchResults.Count - 1); e.Handled = true; break;
             case Key.Up: vm.SearchIndex = Math.Max(vm.SearchIndex - 1, 0); e.Handled = true; break;
             case Key.Enter: vm.RunSearchHit(vm.SearchResults.ElementAtOrDefault(vm.SearchIndex)); e.Handled = true; Focus(); break;
-            case Key.Escape: vm.SearchText = ""; e.Handled = true; Focus(); break;
+            case Key.Escape: vm.SearchText = ""; vm.SearchOpen = false; e.Handled = true; Focus(); break;
         }
     }
 
@@ -545,12 +588,50 @@ public partial class MainView : UserControl
     void OnToggleProjection(object? s, RoutedEventArgs e) { if (Vm != null) Vm.Session.Ortho = !Vm.Session.Ortho; }
     void OnCycleDisplay(object? s, RoutedEventArgs e) { if (Vm != null) Vm.Session.Display = (DisplayMode)(((int)Vm.Session.Display + 1) % 3); }
     void OnSave(object? s, RoutedEventArgs e) => Vm?.SaveFile();
+    void OnWorkspaceMenu(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control anchor || Vm is not { } vm) return;
+        var choices = new List<object>();
+        foreach (var workspace in vm.Workspaces)
+        {
+            var w = workspace;
+            var item = new MenuItem { Header = (w.IsCurrent ? "✓  " : "     ") + w.Name };
+            ToolTip.SetTip(item, w.Tip);
+            item.Click += (_, _) => vm.SetWorkspace(w.Id);
+            choices.Add(item);
+        }
+        choices.Add(new Separator());
+        var customize = new MenuItem { Header = "Show in workspace bar" };
+        foreach (var workspace in vm.Workspaces)
+        {
+            var w = workspace;
+            var item = new MenuItem { Header = (w.IsPinned ? "✓  " : "     ") + w.Name };
+            item.Click += (_, _) => vm.SetWorkspacePinned(w.Id, !w.IsPinned);
+            customize.Items.Add(item);
+        }
+        choices.Add(customize);
+        new MenuFlyout { ItemsSource = choices, Placement = PlacementMode.BottomEdgeAlignedLeft }.ShowAt(anchor);
+    }
+
     void OnWorkspace(object? s, RoutedEventArgs e) { if (s is Button { Tag: string id }) Vm?.SetWorkspace(id); }
     void OnEditSketchGeometry(object? sender, RoutedEventArgs e) => Vm?.Session.Sketch?.ToggleGeometryEditing(Vm.Session);
 
     void OnToolOption(object? s, RoutedEventArgs e) { if (s is Button { Tag: int i }) Vm?.PickToolOption(i); }
     void OnToolStep(object? s, RoutedEventArgs e) { if (s is Button { Tag: string t } && int.TryParse(t, out var d)) Vm?.StepTool(d); }
     void OnHome(object? s, RoutedEventArgs e) { if (Vm is { } vm) { if (vm.HomeOpen) vm.CloseHome(); else vm.OpenHome(); } }
+
+    void OnHelp(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control anchor) return;
+        var version = new MenuItem { Header = "Prism v0.1", IsEnabled = false };
+        var guide = new MenuItem { Header = "Open Prism guide" };
+        guide.Click += (_, _) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://prism-cad-guide.christopherbfwilliam.chatgpt.site") { UseShellExecute = true }); }
+            catch (Exception ex) { Vm?.Session.Say("Could not open the guide: " + ex.Message, true); }
+        };
+        new MenuFlyout { ItemsSource = new object[] { version, new Separator(), guide }, Placement = PlacementMode.BottomEdgeAlignedRight }.ShowAt(anchor);
+    }
 
     SettingsWindow? _settings;
 

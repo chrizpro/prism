@@ -26,13 +26,18 @@ public partial class SketchPanel : UserControl
         if (row.IsHeader) Vm?.ToggleSketchGroup(row.GroupName); else Vm?.EditConstraintValue(row);
     }
 
-    void CommitNumber(TextBox tb)
+    void CommitNumber(TextBox box)
     {
-        if (tb.DataContext is ToolControlRow row && double.TryParse(tb.Text?.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) && (v > 0 || row.Id == "orientation" || row.Id.StartsWith("draw-"))) Vm?.SetToolControl(row.Id, v);
+        if (box.DataContext is ToolControlRow row) Vm?.CommitToolNumber(row);
     }
-    void OnToolNumberKey(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter && sender is TextBox tb) { CommitNumber(tb); e.Handled = true; } }
-    void OnToolNumberLost(object? sender, RoutedEventArgs e) { if (sender is TextBox tb) CommitNumber(tb); }
-    void OnToolButton(object? sender, RoutedEventArgs e) { if ((sender as Control)?.DataContext is ToolControlRow row) Vm?.SetToolControl(row.Id, null); }
+    void OnToolNumberFocus(object? sender, GotFocusEventArgs e) { if (sender is TextBox { DataContext: ToolControlRow row }) row.IsEditing = true; }
+    void OnToolNumberKey(object? sender, KeyEventArgs e) { if (e.Key == Key.Enter && sender is TextBox box) { CommitNumber(box); e.Handled = true; } }
+    void OnToolNumberLost(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: ToolControlRow row } box) return;
+        CommitNumber(box); row.IsEditing = false;
+    }
+    void OnToolButton(object? sender, RoutedEventArgs e) { if ((sender as Control)?.DataContext is ToolControlRow row && ReferenceEquals(row.Owner, Vm?.Session.Sketch?.Tool)) Vm?.SetToolControl(row.Id, null); }
 
     void OnToggleGroup(object? sender, RoutedEventArgs e)
     {

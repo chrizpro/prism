@@ -102,10 +102,16 @@ Check(!s.StatusIsError && s.Current != sketchNode && s.Objects.Any(o => o.Kind =
 // Invalid downstream geometry must report the failed step and preserve the old branch.
 s.GoTo(updatedTip);
 var beforeFailure = s.Current;
+updatedExtrude.Pin = "Depth approved";
+string? lastPublishedPin = null;
+void ObserveCheckpoint() => lastPublishedPin = s.Current.Pin;
+s.TimelineChanged += ObserveCheckpoint;
 Check(s.EditSketch(s.Find(sketch.Id)!), "start a sketch edit that invalidates a later feature");
 s.Sketch!.Model.Entities.Single().R = 0.05;
 s.ExitSketch(true);
 Check(s.StatusIsError && s.Status.Contains("could not be repeated"), "invalid downstream fillet reports rebuild failure: " + s.Status);
+s.TimelineChanged -= ObserveCheckpoint;
+Check(lastPublishedPin == "Depth approved", "failed rebuild publishes the retained checkpoint on the last successful step");
 s.GoTo(beforeFailure);
 Check(s.Objects.Any(o => o.Kind == ObjKind.Solid), "failed rebuild preserves the complete original branch");
 
@@ -118,6 +124,13 @@ Check(HistoryGraphLayout.Build(s.Root).Entries.All(e => layoutBefore[e.Node.Id] 
 var deepRoot = new HistoryNode(); var leaf = deepRoot;
 for (int i = 0; i < 12000; i++) { var next = new HistoryNode { Parent = leaf }; leaf.Children.Add(next); leaf = next; }
 Check(HistoryGraphLayout.Build(deepRoot).Entries.Count == 12001, "graph handles deep history without recursive traversal");
+var laneRoot = new HistoryNode { Id = 0 };
+var laneMain = new HistoryNode { Id = 1, Parent = laneRoot }; laneRoot.Children.Add(laneMain);
+var laneTip = new HistoryNode { Id = 2, Parent = laneMain }; laneMain.Children.Add(laneTip);
+var deepFork = new HistoryNode { Id = 3, Parent = laneMain }; laneMain.Children.Add(deepFork);
+int oldLane = HistoryGraphLayout.Build(laneRoot).Entries.Single(e => e.Node == deepFork).Lane;
+laneRoot.Children.Add(new HistoryNode { Id = 4, Parent = laneRoot });
+Check(HistoryGraphLayout.Build(laneRoot).Entries.Single(e => e.Node == deepFork).Lane == oldLane, "adding a newer fork near the root preserves existing deeper branch lanes");
 
 var assembly = new CadSession();
 var firstSketch = CircleSketch(assembly, 8); Extrude(assembly, firstSketch, 10);
@@ -149,6 +162,15 @@ Check(view.GetVisualDescendants().OfType<Button>().Count(b => b.DataContext is H
 var nodeButton = view.GetVisualDescendants().OfType<Button>().First(b => b.DataContext is HistoryItem { Node: var n } && n == originalTip);
 nodeButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 Check(invoked?.Node == originalTip, "clicking a graph node invokes the correct history state");
+var mainLaneLabel = view.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == "Main design");
+double labelLeft = mainLaneLabel.TranslatePoint(default, view)!.Value.X;
+var graphScroll = view.GetVisualDescendants().OfType<ScrollViewer>().Single();
+graphScroll.Offset = new Vector(200, 0); Dispatcher.UIThread.RunJobs();
+Check(Math.Abs(mainLaneLabel.TranslatePoint(default, view)!.Value.X - labelLeft) < 0.1, "branch names stay fixed while the graph scrolls horizontally");
+var rootButton = view.GetVisualDescendants().OfType<Button>().Single(b => b.DataContext is HistoryItem { Node.IsRoot: true });
+double nodeCenterY = rootButton.TranslatePoint(new Point(0, rootButton.Bounds.Height / 2), view)!.Value.Y;
+double labelCenterY = mainLaneLabel.TranslatePoint(new Point(0, mainLaneLabel.Bounds.Height / 2), view)!.Value.Y;
+Check(Math.Abs(nodeCenterY - labelCenterY) < 2, "fixed branch names align with their graph lane");
 string output = Path.GetFullPath("docs/history-timeline"); Directory.CreateDirectory(output);
 foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
 {
@@ -169,13 +191,46 @@ try
     var window = new Window { Width = 1000, Height = 640, Content = workspace };
     window.Show(); Dispatcher.UIThread.RunJobs();
     var graphView = workspace.FindControl<HistoryGraphView>("HistoryGraph")!;
+    var compactView = workspace.FindControl<HistoryGraphView>("CompactHistory")!;
     Check(graphView.IsVisible && graphView.Bounds.Height == 180, "timeline is expanded and sized correctly at the minimum window size");
     var collapse = workspace.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Collapse"));
     collapse.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
     Check(!graphView.IsVisible && !workspaceVm.HistoryExpanded, "collapse hides the graph while preserving its header");
+    Check(compactView.IsVisible && compactView.Bounds.Height == 46, "collapsed history shows a compact interactive trail in the toolbar");
+    var uiSession = workspaceVm.Session;
+    var uiSketch = CircleSketch(uiSession, 18); Extrude(uiSession, uiSketch, 30);
+    var uiBase = uiSession.Current;
+    uiSession.PinCurrent("Base approved");
+    uiSession.BranchHistory("Lightweight");
+    uiSession.Update(uiSession.Objects.Last().Id, o => o.WithName("Lightweight body"));
+    uiSession.GoTo(uiBase);
+    uiSession.BranchHistory("Alternate mount");
+    uiSession.Update(uiSession.Objects.Last().Id, o => o.WithColor(0x87A9BC));
+    Dispatcher.UIThread.RunJobs();
+    var compactButtons = compactView.GetVisualDescendants().OfType<Button>().Where(b => b.DataContext is HistoryItem).ToList();
+    Check(compactButtons.Count == uiSession.HistoryPath().Past.Count, "compact trail follows the active branch without mixing in sibling alternatives");
+    Check(compactButtons.Any(b => b.DataContext is HistoryItem { IsCurrent: true }), "compact trail includes the current step");
+    Check(compactView.Bounds.Width > 300 && compactView.Bounds.Right <= 1000, "compact history fits alongside actions at the minimum window width");
+    compactButtons.Single(b => ((HistoryItem)b.DataContext!).Node == uiBase).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    Dispatcher.UIThread.RunJobs();
+    Check(uiSession.Current == uiBase && compactView.GetVisualDescendants().OfType<Button>().Any(b => b.DataContext is HistoryItem { IsFuture: true }), "compact navigation rolls back and retains the dimmed redo continuation");
+    uiSession.Redo(); uiSession.Redo();
+    for (int i = 0; i < 18; i++) uiSession.Update(uiSession.Objects.Last().Id, o => o.WithName("Detail " + i));
+    Dispatcher.UIThread.RunJobs();
+    var compactScroll = compactView.GetVisualDescendants().OfType<ScrollViewer>().Single();
+    var activeButton = compactView.GetVisualDescendants().OfType<Button>().Single(b => b.DataContext is HistoryItem { IsCurrent: true });
+    double activeX = Canvas.GetLeft(activeButton);
+    Check(activeX >= compactScroll.Offset.X && activeX + activeButton.Width <= compactScroll.Offset.X + compactScroll.Viewport.Width + 1, "long compact histories scroll the entire current step into view after layout");
+    foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+    {
+        Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs();
+        using var bitmap = new RenderTargetBitmap(new PixelSize(1000, 640)); bitmap.Render(workspace);
+        bitmap.Save(Path.Combine(output, $"workspace-compact-{theme.Key.ToString()!.ToLowerInvariant()}.png"));
+    }
     var expand = workspace.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Expand"));
     expand.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
     Check(graphView.IsVisible && workspaceVm.HistoryHeight == 180, "expanding restores the previous timeline height");
+    Check(!compactView.IsVisible, "expanded graph replaces the compact trail");
     window.Close();
 }
 finally

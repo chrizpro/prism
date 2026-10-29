@@ -2,8 +2,46 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Prism.ViewModels"
              xmlns:views="using:Prism.Views"
+             xmlns:c="using:Prism.Controls"
              x:Class="Prism.Views.SketchPanel">
-    <DockPanel>
+    <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:SketchToolSection">
+            <Expander IsExpanded="{Binding IsExpanded}" HorizontalAlignment="Stretch" Margin="0,0,0,10">
+                <Expander.Header><c:PanelStepHeader Step="{Binding Number}" Title="{Binding Title}" Margin="-10,-8"/></Expander.Header>
+                <StackPanel Margin="12,0" Spacing="9">
+                    <TextBlock Text="{Binding Guidance}" IsVisible="{Binding HasGuidance}" Classes="soft" TextWrapping="Wrap" FontSize="12"/>
+                    <ItemsControl ItemsSource="{Binding Options}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate><DataTemplate DataType="vm:ToolOptionItem">
+                            <Button Classes="studioAction" Classes.primary="{Binding IsSelected}" Click="OnToolOption" Margin="0,0,5,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}">
+                                <Grid ColumnDefinitions="20,*" ColumnSpacing="6"><c:IconView Icon="{Binding Icon}" Width="18" Height="18"/><TextBlock Grid.Column="1" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/></Grid>
+                            </Button>
+                        </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding Controls}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ToolControlRow">
+            <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding IsInfo}"/>
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding On, Mode=TwoWay}" IsVisible="{Binding IsToggle}" IsEnabled="{Binding Enabled}"/>
+                <Grid ColumnDefinitions="*,104,28" ColumnSpacing="7" IsVisible="{Binding IsNumber}" IsEnabled="{Binding Enabled}">
+                    <TextBlock Text="{Binding Label}" Classes="soft" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <TextBox Grid.Column="1" Text="{Binding NumberText, Mode=TwoWay}" HorizontalContentAlignment="Right" GotFocus="OnToolNumberFocus" KeyDown="OnToolNumberKey" LostFocus="OnToolNumberLost" AutomationProperties.Name="{Binding Label}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Unit}" Classes="soft" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" Foreground="{DynamicResource Danger}" TextWrapping="Wrap" FontSize="11"/>
+                <Button Content="{Binding Label}" Classes="studioAction" Classes.primary="{Binding Primary}" IsEnabled="{Binding CanRun}" IsVisible="{Binding IsButton}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnToolButton"/>
+                <TextBlock Text="{Binding Text}" Classes="soft" TextWrapping="Wrap" IsVisible="{Binding HasText}" FontSize="11"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+    <DockPanel Background="{DynamicResource PanelBg}">
+        <Border DockPanel.Dock="Top" Padding="12,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1"><TextBlock Text="{Binding ToolPanelTitle}" FontSize="14" FontWeight="SemiBold"/></Border>
         <Border DockPanel.Dock="Bottom" Padding="14,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
@@ -11,48 +49,15 @@
             </Grid>
         </Border>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
-        <!-- the active tool's own panel -->
-        <Border DockPanel.Dock="Top" IsVisible="{Binding HasToolOptions}" Margin="12,8,12,0" Padding="10" Background="{DynamicResource PanelAlt}" CornerRadius="8">
-            <ItemsControl ItemsSource="{Binding ToolOptions}">
-                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="vm:ToolOptionItem">
-                        <Button Content="{Binding Label}" Classes.primary="{Binding IsSelected}" Click="OnToolOption" Margin="2" ToolTip.Tip="{Binding Tip}"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
-        <Border DockPanel.Dock="Top" IsVisible="{Binding HasToolPanel}" Margin="12,12,12,0" Padding="14,12" CornerRadius="10" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
-            <StackPanel Spacing="8">
-                <TextBlock Text="{Binding ToolPanelTitle}" Classes="panelTitle"/>
-                <TextBlock Text="{Binding ToolPanelHint}" Classes="soft" TextWrapping="Wrap"/>
-                <ItemsControl ItemsSource="{Binding ToolPanel}">
-                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="vm:ToolControlRow">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="{Binding IsInfo}"/>
-                                <CheckBox Content="{Binding Label}" IsChecked="{Binding On, Mode=TwoWay}" IsVisible="{Binding IsToggle}"/>
-                                <Grid ColumnDefinitions="*,110,Auto" ColumnSpacing="8" IsVisible="{Binding IsNumber}" IsEnabled="{Binding Enabled}">
-                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Column="1" Text="{Binding NumberText, Mode=TwoWay}" HorizontalContentAlignment="Right" KeyDown="OnToolNumberKey" LostFocus="OnToolNumberLost"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding Unit}" Classes="faint" VerticalAlignment="Center"/>
-                                </Grid>
-                                <Button Content="{Binding Label}" Classes.primary="{Binding Primary}" IsEnabled="{Binding Enabled}" IsVisible="{Binding IsButton}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnToolButton"/>
-                                <TextBlock Text="{Binding Text}" Classes="faint" TextWrapping="Wrap" IsVisible="{Binding HasText}" FontSize="11.5"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
+        <!-- Every sketch-tool family uses the same ordered, collapsible presentation. -->
+        <ItemsControl ItemsSource="{Binding ToolSections}" Margin="0,0,0,4"/>
 
         <views:SketchSpacePanel/>
 
         <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6" Spacing="4">
-            <TextBlock Text="SKETCH" Classes="panelTitle"/>
+            <TextBlock Text="Sketch status" Classes="section"/>
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                 <Ellipse Width="10" Height="10" Fill="{DynamicResource Ok}" VerticalAlignment="Center" IsVisible="{Binding SketchFull}"/>
                 <Ellipse Width="10" Height="10" Fill="{DynamicResource Accent}" VerticalAlignment="Center" IsVisible="{Binding SketchFree}"/>
@@ -61,7 +66,7 @@
             </StackPanel>
             <TextBlock Text="{Binding SketchSummary}" Classes="faint" TextWrapping="Wrap"/>
             <TextBlock Text="Blue geometry can still move; white is fully constrained. Drag with Select to test it." Classes="faint" TextWrapping="Wrap" Margin="0,6,0,0"/>
-            <TextBlock Text="CONSTRAINTS AND DIMENSIONS" Classes="panelTitle" Margin="0,14,0,4"/>
+            <TextBlock Text="Constraints and dimensions" Classes="panelTitle" Margin="0,14,0,4"/>
         </StackPanel>
 
         <Panel>

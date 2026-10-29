@@ -1,0 +1,32 @@
+using System;
+
+namespace Prism.Core;
+
+/// <summary>Application-wide display preferences; these never change document geometry.</summary>
+public sealed class GizmoSettings
+{
+    public int DisplayMode { get; set; } // Active tool, Combined, Custom
+    public bool Move { get; set; } = true;
+    public bool Rotate { get; set; } = true;
+    public bool Scale { get; set; } = true;
+    public bool PlaneHandles { get; set; } = true;
+    public bool Labels { get; set; } = true;
+    public bool WorkPlane { get; set; } = true;
+    public double ScreenSize { get; set; } = 96;
+    public double LineWidth { get; set; } = 2.5;
+    public double HitTolerance { get; set; } = 9;
+    public bool Snap { get; set; }
+    public double MoveStep { get; set; } = 1;
+    public double AngleStep { get; set; } = 15;
+    public double ScaleStep { get; set; } = 10;
+    public static GizmoSettings Current => AppSettings.Current.Gizmo ??= new();
+    public bool Allows(int operation, int active) => DisplayMode switch
+    {
+        1 => true,
+        2 => operation == 0 ? Move : operation == 1 ? Rotate : Scale,
+        _ => operation == active,
+    };
+    public double Pixels => double.IsFinite(ScreenSize) ? Math.Clamp(ScreenSize, 56, 180) : 96;
+    public float Stroke => double.IsFinite(LineWidth) ? (float)Math.Clamp(LineWidth, 1, 5) : 2.5f;
+    public double Tolerance => double.IsFinite(HitTolerance) ? Math.Clamp(HitTolerance, 4, 18) : 9;
+}

@@ -18,7 +18,9 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
     public override string Mode => _mode switch { 0 => "Project", 1 => "Project body", 2 => "Intersect", _ => "Pierce points" };
     bool _construction;
     public override void Activate(CadSession s) => _construction = Sk(s).Construction;
-    public override string PanelTitle => "PROJECT / INCLUDE";
+    public override string PanelTitle => "Project / Include";
+    public override string PanelInputTitle => "Select references";
+    public override string PanelSettingsTitle => "Include options";
     public override IReadOnlyList<ToolControl>? Panel =>
     [
         new(ToolControlKind.Toggle, "construction", "As construction", Text: "Reference geometry stays out of profiles. Its visibility can be toggled in the tree.", On: _construction),

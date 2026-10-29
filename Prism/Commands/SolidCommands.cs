@@ -176,6 +176,28 @@ public sealed class TorusCommand : PrimitiveCommand
 // ---------------------------------------------------------------- profile helpers
 static class ProfileUtil
 {
+    public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelectionSlot slot, bool wantFaces)
+    {
+        if (slot.Items.Count == 1 && slot.Items[0].Kind != SelKind.Edge)
+        {
+            var resolved = Resolve(s, slot.Items[0], wantFaces);
+            ValidateClosed(resolved.shape, wantFaces);
+            return resolved;
+        }
+        if (slot.Items.Count == 0) throw new KernelException("Pick a profile first.");
+        var shapes = slot.Items.Select(item => s.ShapeOf(item) ?? throw new KernelException("A profile edge no longer exists.")).ToList();
+        var profile = Occ.Profile(shapes, wantFaces);
+        ValidateClosed(profile, wantFaces);
+        var owner = s.Find(slot.Items[0].Obj);
+        return (profile, owner?.SketchPlane?.Normal ?? NormalOf(profile) ?? Vec3.UnitZ);
+    }
+    static void ValidateClosed(Shape profile, bool wantFaces)
+    {
+        if (!wantFaces) return;
+        int faceWires = Enumerable.Range(0, profile.Count(SubKind.Face)).Sum(i => profile.Sub(SubKind.Face, i).Count(SubKind.Wire));
+        if (!profile.HasFaces || profile.Count(SubKind.Wire) > faceWires)
+            throw new KernelException("A solid needs a closed profile. Add the missing edges, or use the Surface command for an open chain.");
+    }
     /// <summary>Resolves a selected sketch/curve/face into a profile shape and its natural extrusion direction.</summary>
     public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelItem item, bool wantFaces)
     {
@@ -227,21 +249,24 @@ public sealed class ExtrudeCommand : BodyCommand
     public ExtrudeCommand(bool surface = false)
     {
         _surface = surface;
-        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face });
+        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, ProfileSelection = true });
         _extent = Add(new ChoiceParam { Label = "Extent", Options = ["Distance", "Two sides", "Symmetric", "To object", "Through all", "Through all, both ways"], IsIllustrated = true });
+        _extent.Caption = "Mode";
         _dist = Num("Distance", 20, -1e5);
         _dist2 = Num("Distance 2 (other side)", 10, 0, 1e5);
-        _to = Slot(new SelectionSlot { Label = "Extend to (face, plane or body)", Filter = SelFilter.Face | SelFilter.Plane | SelFilter.Solid | SelFilter.SurfaceObj, IsVisible = false, Optional = true });
+        _to = Slot(new SelectionSlot { Label = "Extend to (face, plane or body)", Section = "Extent", Filter = SelFilter.Face | SelFilter.Plane | SelFilter.Solid | SelFilter.SurfaceObj, IsVisible = false, Optional = true });
         _stopAt = Choice("Stop at", 0, "Near side", "Far side");
         _toOffset = Num("Offset from the target", 0, -1e5, 1e5, 1);
         _taper = Num("Taper angle", 0, -80, 80, 1, "°");
         _flip = Check("Reverse direction", false);
         _region = Num("Region (0 = all of them)", 0, 0, 999, 1, ""); _region.IsVisible = false;
+        foreach (var p in Params) p.Section = "Extent";
+        _taper.Section = "Refine";
         if (!surface) AddOperation(true);
         _extent.Changed = () => { UpdateVisibility(); OnChanged(); };
     }
     public override string Title => _surface ? "Extrude Surface" : "Extrude";
-    public override string Hint => "Select a sketch, a closed curve or a face. Pull the orange arrow (or just type a number), and pick the Extent: one distance, two different distances, symmetric, up to a face or body, or through everything.";
+    public override string Hint => _surface ? "Choose a profile or an open edge chain, then set the extrusion extent." : "Choose a profile, set its extent, then choose how the result combines with your model. Use selection intent to pick individual edges or a chain.";
 
     int Ext => _extent.Index;
 
@@ -257,6 +282,7 @@ public sealed class ExtrudeCommand : BodyCommand
     }
 
     (SelItem? item, Vec3 origin, Vec3 n) _hc;
+    int _hcSelection;
     int _hcRegion;
     bool _autoFlip;
 
@@ -282,9 +308,10 @@ public sealed class ExtrudeCommand : BodyCommand
     {
         if (_profile.Items.Count == 0) return false;
         var it = _profile.Items[0];
-        if (!Equals(_hc.item, it) || _hcRegion != (int)_region.Value)
+        int selection = _profile.Items.Aggregate(17, (hash, item) => HashCode.Combine(hash, item));
+        if (!Equals(_hc.item, it) || _hcRegion != (int)_region.Value || _hcSelection != selection)
         {
-            try { var (prof, n) = ProfileUtil.Resolve(S, it, !_surface); prof = PickRegion(prof); _hcRegion = (int)_region.Value; _hc = (it, CenterOf(prof), RegionNormal(prof, n)); }
+            try { var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface); prof = PickRegion(prof); _hcRegion = (int)_region.Value; _hcSelection = selection; _hc = (it, CenterOf(prof), RegionNormal(prof, n)); }
             catch (Exception e) when (e is not OutOfMemoryException) { return false; }
         }
         return true;
@@ -370,7 +397,7 @@ public sealed class ExtrudeCommand : BodyCommand
     {
         if (!Complete) return null;
         Results.Clear();
-        var (prof, n) = ProfileUtil.Resolve(S, _profile.Items[0], !_surface);
+        var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface);
         int regions = prof.HasFaces ? prof.Count(SubKind.Face) : 0;
         prof = PickRegion(prof);
         n = RegionNormal(prof, n);
@@ -414,18 +441,22 @@ public sealed class RevolveCommand : BodyCommand
     public RevolveCommand(bool surface = false)
     {
         _surface = surface;
-        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face });
+        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, ProfileSelection = true });
         _axis = Choice("Axis", 2, "World X", "World Y", "World Z", "Pick a line");
-        _axisEdge = Slot(new SelectionSlot { Label = "Axis line", Filter = SelFilter.Edge | SelFilter.Axis, IsVisible = false });
+        _axis.Caption = "Axis type";
+        _axis.Section = "Axis";
+        _axisEdge = Slot(new SelectionSlot { Label = "Axis line", Section = "Axis", Filter = SelFilter.Edge | SelFilter.Axis, IsVisible = false });
         _extent = Add(new ChoiceParam { Label = "Extent", Options = ["Angle", "Full 360°", "Two sides", "Symmetric"], IsIllustrated = true, IsAngular = true });
+        _extent.Caption = "Mode";
         _angle = Num("Angle", 360, -360, 360, 1, "°");
         _angle2 = Num("Angle 2 (other side)", 90, 0, 360, 1, "°");
         _flip = Check("Reverse direction", false);
+        foreach (var p in Params.Where(p => p != _axis)) p.Section = "Extent";
         if (!surface) AddOperation();
         _extent.Changed = () => { UpdateVisibility(); OnChanged(); };
     }
     public override string Title => _surface ? "Revolve Surface" : "Revolve";
-    public override string Hint => "Select a profile and the axis to revolve around. Pull the orange arrow along the arc (or type a number) to set the angle; Extent offers a full turn, two different angles, or symmetric about the profile.";
+    public override string Hint => _surface ? "Choose a profile or edge chain, choose the rotation axis, then set the angle." : "Choose a profile, choose the rotation axis, then set the angle and result.";
 
     protected override void UpdateVisibility()
     {
@@ -458,6 +489,7 @@ public sealed class RevolveCommand : BodyCommand
     }
 
     (SelItem? item, Vec3 center) _hc;
+    SelItem[] _hcItems = [];
     public override IReadOnlyList<HandleSpec> Handles
     {
         get
@@ -467,7 +499,11 @@ public sealed class RevolveCommand : BodyCommand
             {
                 if (!Axis(out var o, out var a)) return [];
                 var it = _profile.Items[0];
-                if (!Equals(_hc.item, it)) { var (prof, _) = ProfileUtil.Resolve(S, it, !_surface); _hc = (it, CenterOf(prof)); }
+                if (!_hcItems.SequenceEqual(_profile.Items))
+                {
+                    var (prof, _) = ProfileUtil.Resolve(S, _profile, !_surface); _hc = (it, CenterOf(prof));
+                    _hcItems = _profile.Items.ToArray();
+                }
                 a = a.Normalized(); var rel = _hc.center - o; var radial = rel - a * Vec3.Dot(rel, a);
                 double r = radial.Length; if (r < 1e-6) return [];
                 var tangent = Vec3.Cross(a, radial).Normalized() * (_flip.Value ? -1 : 1);
@@ -484,7 +520,7 @@ public sealed class RevolveCommand : BodyCommand
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var (prof, _) = ProfileUtil.Resolve(S, _profile.Items[0], !_surface);
+        var (prof, _) = ProfileUtil.Resolve(S, _profile, !_surface);
         if (!Axis(out var o, out var a)) return null;
         a = a.Normalized(); double s = _flip.Value ? -1 : 1;
         Shape shape;

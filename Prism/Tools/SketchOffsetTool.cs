@@ -42,7 +42,9 @@ public sealed class OffsetTool : SketchTool
     }
 
     // ------------------------------------------------------------ the panel
-    public override string PanelTitle => "OFFSET";
+    public override string PanelInputTitle => "Select curves";
+    public override string PanelSettingsTitle => "Distance and side";
+    public override string PanelActionTitle => "Apply offset";
     public override IReadOnlyList<ToolControl>? Panel
     {
         get
@@ -52,12 +54,12 @@ public sealed class OffsetTool : SketchTool
             return
             [
                 new(ToolControlKind.Info, "sel", info),
-                new(ToolControlKind.Toggle, "chain", "Chain selection", Text: "Pick everything connected to the curve you click. Turn off to offset just that one curve.", On: _useChain),
-                new(ToolControlKind.Button, "selection", _selecting ? "Done selecting (Enter)" : "Change selection", Primary: _selecting, Enabled: _chains.Count > 0),
-                new(ToolControlKind.Number, "dist", "Distance", Number: Math.Round(_mag, 3), Unit: "mm"),
-                new(ToolControlKind.Button, "flip", "Flip side", Text: "Offset to the other side of the curve.", Enabled: _chains.Count > 0),
+                new(ToolControlKind.Toggle, "chain", "Chain selection", Text: "Pick everything connected to the curve you click. Turn off to offset just that one curve.", On: _useChain, Section: PanelInputTitle),
+                new(ToolControlKind.Button, "selection", _selecting ? "Done selecting (Enter)" : "Change selection", Primary: _selecting, Enabled: _chains.Count > 0, Section: PanelInputTitle),
+                new(ToolControlKind.Number, "dist", "Distance", Number: Math.Round(_mag, 3), Unit: "mm", Enabled: !_selecting && _chains.Count > 0),
+                new(ToolControlKind.Button, "flip", "Flip side", Text: "Offset to the other side of the curve.", Enabled: !_selecting && _chains.Count > 0),
                 new(ToolControlKind.Button, "apply", "Apply offset", Primary: !_selecting, Enabled: !_selecting && _chains.Count > 0 && _mag > 1e-6),
-                new(ToolControlKind.Button, "clear", "Clear selection", Enabled: _chains.Count > 0),
+                new(ToolControlKind.Button, "clear", "Clear selection", Enabled: _chains.Count > 0, Section: PanelInputTitle),
             ];
         }
     }

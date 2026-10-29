@@ -40,7 +40,7 @@
             <Grid Grid.Row="3" RowDefinitions="Auto,*">
                 <DockPanel Margin="10,3,6,0">
                     <Button DockPanel.Dock="Right" Classes="tool" Content="Clear" Click="OnClear" Padding="8,2" FontSize="11"/>
-                    <TextBlock Text="CONSOLE" Classes="panelTitle" VerticalAlignment="Center"/>
+                    <TextBlock Text="Console" Classes="panelTitle" VerticalAlignment="Center"/>
                 </DockPanel>
                 <TextBox Name="Console" Grid.Row="1" IsReadOnly="True" TextWrapping="NoWrap" AcceptsReturn="True" BorderThickness="0" Background="Transparent"
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" Padding="10,2"/>

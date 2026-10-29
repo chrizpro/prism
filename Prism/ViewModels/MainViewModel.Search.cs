@@ -13,26 +13,30 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial int SearchIndex { get; set; }
     [ObservableProperty] public partial bool SearchOpen { get; set; }
 
-    partial void OnSearchTextChanged(string value)
+    partial void OnSearchTextChanged(string value) => UpdateSearchResults();
+
+    public void UpdateSearchResults()
     {
         SearchResults.Clear();
-        var q = value.Trim();
-        if (q.Length == 0) { SearchOpen = false; return; }
+        var q = SearchText.Trim();
         var terms = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var hits = Tabs.Where(t => !t.IsFile && !t.UserHidden).SelectMany(t => t.Buttons.Where(b => !b.HasMenu).Select(b => (t, b)))
+        var hits = Tabs.Where(t => !t.IsFile && !t.UserHidden)
+            .SelectMany(t => t.Groups.SelectMany(g => g.Items.OfType<Prism.Ribbon.RibbonButton>()
+                .SelectMany(parent => parent.Menu == null
+                    ? new[] { (t, g, b: parent, menu: "") }
+                    : parent.Menu.Select(b => (t, g, b, menu: parent.Label.Replace("\n", " "))))))
             .Select(x =>
             {
                 x.b.Refresh();
-                string label = x.b.Label.Replace("\n", " "), hay = $"{label} {x.b.Description} {x.t.Title}";
-                if (!terms.All(term => hay.Contains(term, StringComparison.OrdinalIgnoreCase))) return (x.t, x.b, score: -1);
-                int score = label.StartsWith(q, StringComparison.OrdinalIgnoreCase) ? 3 : label.Contains(q, StringComparison.OrdinalIgnoreCase) ? 2 : 1;
-                return (x.t, x.b, score);
+                string label = x.b.Label.Replace("\n", " "), hay = $"{label} {x.b.Description} {x.t.Title} {x.g.Title} {x.menu} {x.b.Shortcut}";
+                int score = !terms.All(term => hay.Contains(term, StringComparison.OrdinalIgnoreCase)) ? -1 : label.StartsWith(q, StringComparison.OrdinalIgnoreCase) ? 3 : label.Contains(q, StringComparison.OrdinalIgnoreCase) ? 2 : 1;
+                return (x.t, x.g, x.b, x.menu, score);
             })
             .Where(x => x.score >= 0)
             .OrderByDescending(x => x.score).ThenBy(x => x.b.Label)
             .GroupBy(x => x.b.Label.Replace("\n", " ") + "|" + x.t.Title).Select(g => g.First())
             .Take(8);
-        foreach (var h in hits) SearchResults.Add(new CommandHit { Button = h.b, Tab = h.t.Title });
+        foreach (var h in hits) SearchResults.Add(new CommandHit { Button = h.b, Tab = h.t.Title, Path = string.Join(" › ", new[] { h.t.Title, h.g.Title, h.menu }.Where(s => !string.IsNullOrWhiteSpace(s))) });
         SearchIndex = 0;
         SearchOpen = SearchResults.Count > 0;
     }
@@ -40,10 +44,12 @@ public sealed partial class MainViewModel
     public void RunSearchHit(CommandHit? hit)
     {
         if (hit == null) return;
-        SearchOpen = false;
         SearchText = "";
+        SearchOpen = false;
         hit.Button.Refresh();
-        if (!hit.Button.IsEnabled) { Session.Say($"'{hit.Label}' is not available right now (select something or leave sketch mode).", true); return; }
+        var targetTab = Tabs.FirstOrDefault(t => t.Title == hit.Tab);
+        if (targetTab is { IsContextual: true, IsVisible: false }) { Session.Say($"'{hit.Label}' is not available in the current context; open {hit.Tab} first.", true); return; }
+        if (!hit.Button.IsEnabled) { Session.Say($"'{hit.Label}' is not available in the current context. Check the selection and active mode.", true); return; }
         if (IsSketching == false && hit.Tab != SelectedTab?.Title && !hit.Tab.StartsWith("Sketch")) { var tab = Tabs.FirstOrDefault(t => t.Title == hit.Tab); if (tab != null && !tab.IsContextual) { EnsureTabVisible(tab); SelectedTab = tab; } }
         hit.Button.Invoke();
     }

@@ -1,58 +1,44 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Styles.Resources><ResourceDictionary><ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Dark">
-            <SolidColorBrush x:Key="StudioBg">#27333F</SolidColorBrush><SolidColorBrush x:Key="StudioHeader">#303E4C</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioField">#202B36</SolidColorBrush><SolidColorBrush x:Key="StudioLine">#435364</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioInk">#E7EDF5</SolidColorBrush><SolidColorBrush x:Key="StudioMuted">#B0BFD0</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioAccent">#85C5F3</SolidColorBrush><SolidColorBrush x:Key="StudioSelected">#334F65</SolidColorBrush>
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Light">
-            <SolidColorBrush x:Key="StudioBg">#F5F7FA</SolidColorBrush><SolidColorBrush x:Key="StudioHeader">#E6ECF3</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioField">#FFFFFF</SolidColorBrush><SolidColorBrush x:Key="StudioLine">#C7D2E0</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioInk">#263748</SolidColorBrush><SolidColorBrush x:Key="StudioMuted">#52677C</SolidColorBrush>
-            <SolidColorBrush x:Key="StudioAccent">#226DAB</SolidColorBrush><SolidColorBrush x:Key="StudioSelected">#DAEAF7</SolidColorBrush>
-        </ResourceDictionary>
-    </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources>
-    <Style Selector="TextBlock.meta"><Setter Property="Foreground" Value="{DynamicResource StudioMuted}"/><Setter Property="FontSize" Value="11"/></Style>
+    <Style Selector="TextBlock.meta"><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/><Setter Property="FontSize" Value="11"/></Style>
     <Style Selector="TextBlock.section"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="12"/></Style>
-    <Style Selector="Border.sectionBar"><Setter Property="Background" Value="{DynamicResource StudioHeader}"/><Setter Property="Padding" Value="12,8"/><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/><Setter Property="BorderThickness" Value="0,1,0,1"/></Style>
-    <Style Selector="TextBox"><Setter Property="Background" Value="{DynamicResource StudioField}"/><Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="9,6"/><Setter Property="FontSize" Value="12"/></Style>
-    <Style Selector="ComboBox"><Setter Property="Background" Value="{DynamicResource StudioField}"/><Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="MinHeight" Value="30"/><Setter Property="FontSize" Value="12"/></Style>
-    <Style Selector="NumericUpDown"><Setter Property="Background" Value="{DynamicResource StudioField}"/><Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/><Setter Property="MinHeight" Value="30"/><Setter Property="CornerRadius" Value="4"/></Style>
+    <Style Selector="Border.sectionBar"><Setter Property="Background" Value="{DynamicResource PanelAlt}"/><Setter Property="Padding" Value="12,8"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="BorderThickness" Value="0,1,0,1"/></Style>
+    <Style Selector="TextBox"><Setter Property="Background" Value="{DynamicResource FieldBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="9,6"/><Setter Property="FontSize" Value="12"/></Style>
+    <Style Selector="ComboBox"><Setter Property="Background" Value="{DynamicResource FieldBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="CornerRadius" Value="4"/><Setter Property="MinHeight" Value="30"/><Setter Property="FontSize" Value="12"/></Style>
+    <Style Selector="NumericUpDown"><Setter Property="Background" Value="{DynamicResource FieldBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="MinHeight" Value="30"/><Setter Property="CornerRadius" Value="4"/></Style>
     <Style Selector="Button.studioAction">
-        <Setter Property="Background" Value="{DynamicResource StudioField}"/><Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/>
+        <Setter Property="Background" Value="{DynamicResource FieldBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
         <Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,7"/><Setter Property="FontSize" Value="12"/><Setter Property="CornerRadius" Value="4"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="Template"><ControlTemplate><Border Name="ActionBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"><ContentPresenter Foreground="{TemplateBinding Foreground}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/></Border></ControlTemplate></Setter>
     </Style>
-    <Style Selector="Button.studioAction.primary"><Setter Property="Background" Value="#83C4F2"/><Setter Property="Foreground" Value="#142A3B"/><Setter Property="BorderBrush" Value="#A1D5F8"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-    <Style Selector="Button.studioAction.primary TextBlock"><Setter Property="Foreground" Value="#142A3B"/></Style>
-    <Style Selector="Button.studioAction:pointerover"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/></Style>
+    <Style Selector="Button.studioAction.primary"><Setter Property="Background" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.studioAction.primary TextBlock"><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/></Style>
+    <Style Selector="Button.studioAction:pointerover"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
     <Style Selector="Button.studioAction:pressed"><Setter Property="Opacity" Value="0.8"/></Style>
     <Style Selector="Button.studioAction:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
-    <Style Selector="Button.studioAction:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/><Setter Property="BorderThickness" Value="2"/></Style>
-    <Style Selector="Button.studioLink"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource StudioAccent}"/><Setter Property="Padding" Value="0,4"/><Setter Property="FontSize" Value="11"/></Style>
-    <Style Selector="TabItem"><Setter Property="Foreground" Value="{DynamicResource StudioMuted}"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="14,11"/>
+    <Style Selector="Button.studioAction:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="BorderThickness" Value="2"/></Style>
+    <Style Selector="Button.studioLink"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="Padding" Value="0,4"/><Setter Property="FontSize" Value="11"/></Style>
+    <Style Selector="TabItem"><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="14,11"/>
         <Setter Property="Template"><ControlTemplate><Border Name="StudioTab" Padding="{TemplateBinding Padding}" BorderBrush="Transparent" BorderThickness="0,0,0,2"><ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"/></Border></ControlTemplate></Setter>
     </Style>
-    <Style Selector="TabItem:selected"><Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-    <Style Selector="TabItem:selected /template/ Border#StudioTab"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/></Style>
-    <Style Selector="TabItem:focus-visible /template/ Border#StudioTab"><Setter Property="Background" Value="{DynamicResource StudioSelected}"/></Style>
+    <Style Selector="TabItem:selected"><Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="TabItem:selected /template/ Border#StudioTab"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="TabItem:focus-visible /template/ Border#StudioTab"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/></Style>
     <Style Selector="ListBox.studioList"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
     <Style Selector="ListBox.studioList ListBoxItem">
         <Setter Property="Padding" Value="9,7"/><Setter Property="Margin" Value="0,2"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="1"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Template"><ControlTemplate><Border Name="StudioRow" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter Name="StudioContent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch"/></Border></ControlTemplate></Setter>
     </Style>
-    <Style Selector="ListBox.studioList ListBoxItem:pointerover"><Setter Property="Background" Value="{DynamicResource StudioHeader}"/></Style>
-    <Style Selector="ListBox.studioList ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource StudioSelected}"/><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/></Style>
-    <Style Selector="ListBox.studioList ListBoxItem:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/></Style>
+    <Style Selector="ListBox.studioList ListBoxItem:pointerover"><Setter Property="Background" Value="{DynamicResource PanelAlt}"/></Style>
+    <Style Selector="ListBox.studioList ListBoxItem:selected"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="ListBox.studioList ListBoxItem:focus-visible"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
     <Style Selector="ListBox.referencesList ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/></Style>
     <Style Selector="ListBox.referencesList ListBoxItem:selected"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
     <Style Selector="Border.refRow"><Setter Property="Padding" Value="10,6"/></Style>
-    <Style Selector="Border.refRow.selected"><Setter Property="Background" Value="{DynamicResource StudioSelected}"/></Style>
-    <Style Selector="ListBox.finishes ListBoxItem"><Setter Property="BorderBrush" Value="{DynamicResource StudioLine}"/><Setter Property="Background" Value="{DynamicResource StudioField}"/><Setter Property="Margin" Value="3"/><Setter Property="Padding" Value="4"/></Style>
-    <Style Selector="ListBox.finishes ListBoxItem:selected"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/><Setter Property="Background" Value="{DynamicResource StudioSelected}"/></Style>
+    <Style Selector="Border.refRow.selected"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/></Style>
+    <Style Selector="ListBox.finishes ListBoxItem"><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="Background" Value="{DynamicResource FieldBg}"/><Setter Property="Margin" Value="3"/><Setter Property="Padding" Value="4"/></Style>
+    <Style Selector="ListBox.finishes ListBoxItem:selected"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter Property="Background" Value="{DynamicResource AccentSoft}"/></Style>
     <Style Selector="Expander">
         <Setter Property="Template"><ControlTemplate><StackPanel>
             <ToggleButton Name="PART_ExpanderButton" Classes="studioDisclosure" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
@@ -60,9 +46,9 @@
         </StackPanel></ControlTemplate></Setter>
     </Style>
     <Style Selector="ToggleButton.studioDisclosure">
-        <Setter Property="Foreground" Value="{DynamicResource StudioInk}"/><Setter Property="Padding" Value="10,8"/>
-        <Setter Property="Template"><ControlTemplate><Border Name="DisclosureBorder" Background="{DynamicResource StudioHeader}" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,1" Padding="{TemplateBinding Padding}"><Grid ColumnDefinitions="*,16" ColumnSpacing="8"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/><TextBlock Name="DisclosureArrow" Grid.Column="1" Text="›" RenderTransformOrigin="50%,50%" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource StudioMuted}"/></Grid></Border></ControlTemplate></Setter>
+        <Setter Property="Foreground" Value="{DynamicResource Ink}"/><Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Template"><ControlTemplate><Border Name="DisclosureBorder" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1" Padding="{TemplateBinding Padding}"><Grid ColumnDefinitions="*,16" ColumnSpacing="8"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/><TextBlock Name="DisclosureArrow" Grid.Column="1" Text="›" RenderTransformOrigin="50%,50%" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource InkSoft}"/></Grid></Border></ControlTemplate></Setter>
     </Style>
     <Style Selector="ToggleButton.studioDisclosure:checked /template/ TextBlock#DisclosureArrow"><Setter Property="RenderTransform"><RotateTransform Angle="90"/></Setter></Style>
-    <Style Selector="ToggleButton.studioDisclosure:focus-visible /template/ Border#DisclosureBorder"><Setter Property="BorderBrush" Value="{DynamicResource StudioAccent}"/></Style>
+    <Style Selector="ToggleButton.studioDisclosure:focus-visible /template/ Border#DisclosureBorder"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
 </Styles>

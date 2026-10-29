@@ -18,6 +18,7 @@ public sealed partial class BrowserNode : ObservableObject
     /// <summary>For Datum rows: the saved datum's kind. ObjectId is the owning sketch (Guid.Empty for the sketch being edited) and OriginIndex its position in that sketch's datum list.</summary>
     public Core.Sketching.SketchDatumKind? DatumKind { get; init; }
     public string Icon { get; init; } = "box";
+    public string ExpansionKey { get; init; } = "";
     public uint Color { get; init; }
     public ObservableCollection<BrowserNode> Children { get; } = [];
     public Action<BrowserNode>? VisibilityEdited { get; set; }
@@ -81,8 +82,10 @@ public sealed class CommandHit
 {
     public required Ribbon.RibbonButton Button { get; init; }
     public required string Tab { get; init; }
+    public required string Path { get; init; }
     public string Label => Button.Label.Replace("\n", " ");
     public string Description => Button.Description;
     public string Icon => Button.Icon;
+    public string Shortcut => Button.Shortcut;
     public bool Enabled => Button.IsEnabled;
 }

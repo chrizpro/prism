@@ -26,13 +26,13 @@ public sealed class ConstraintRow
 }
 
 /// <summary>One variant of the active drawing tool, shown in the viewport options bar.</summary>
-public sealed class ToolOptionItem
+public sealed partial class ToolOptionItem : ObservableObject
 {
     public int Index { get; init; }
     public string Label { get; init; } = "";
     public string Tip { get; init; } = "";
     public string Icon { get; init; } = "";
-    public bool IsSelected { get; init; }
+    [ObservableProperty] public partial bool IsSelected { get; set; }
 }
 
 /// <summary>One control in a sketch tool's panel (the Offset tool's distance, its Apply button...).</summary>
@@ -40,16 +40,26 @@ public sealed partial class ToolControlRow : ObservableObject
 {
     public string Id { get; init; } = "";
     public ToolControlKind Kind { get; init; }
-    public string Label { get; init; } = "";
-    public string Text { get; init; } = "";
-    public string Unit { get; init; } = "";
-    public bool Primary { get; init; }
-    public bool Enabled { get; init; } = true;
+    [ObservableProperty] public partial string Label { get; set; } = "";
+    [ObservableProperty] public partial string Text { get; set; } = "";
+    [ObservableProperty] public partial string Unit { get; set; } = "";
+    [ObservableProperty] public partial bool Primary { get; set; } = false;
+    [ObservableProperty] public partial bool Enabled { get; set; } = true;
     public bool IsInfo => Kind == ToolControlKind.Info;
     public bool IsToggle => Kind == ToolControlKind.Toggle;
     public bool IsNumber => Kind == ToolControlKind.Number;
     public bool IsButton => Kind == ToolControlKind.Button;
     public bool HasText => Text.Length > 0;
+    public SketchTool? Owner { get; init; }
+    public bool IsEditing { get; set; }
+    [ObservableProperty] public partial string Error { get; set; } = "";
+    public bool HasError => Error.Length > 0;
+    [ObservableProperty] public partial bool BlockedByValidation { get; set; }
+    public bool CanRun => Enabled && !BlockedByValidation;
+    partial void OnEnabledChanged(bool value) => OnPropertyChanged(nameof(CanRun));
+    partial void OnBlockedByValidationChanged(bool value) => OnPropertyChanged(nameof(CanRun));
+    partial void OnErrorChanged(string value) => OnPropertyChanged(nameof(HasError));
+    partial void OnTextChanged(string value) => OnPropertyChanged(nameof(HasText));
     [ObservableProperty] public partial bool On { get; set; }
     [ObservableProperty] public partial string NumberText { get; set; } = "";
 }
@@ -83,37 +93,115 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial string ToolPanelTitle { get; set; } = "";
     [ObservableProperty] public partial string ToolPanelHint { get; set; } = "";
 
-    void RefreshToolPanel(SketchTool? t)
+    public ObservableCollection<SketchToolSection> ToolSections { get; } = [];
+    SketchTool? _presentedTool;
+    bool _syncingToolPanel;
+
+    void RefreshToolPanel(SketchTool? tool)
     {
-        ToolPanel.Clear();
-        var controls = t?.Panel;
-        HasToolPanel = controls is { Count: > 0 };
-        if (t == null || controls == null) return;
-        ToolPanelTitle = t.PanelTitle; ToolPanelHint = t.Prompt;
+        if (!ReferenceEquals(tool, _presentedTool)) { ToolPanel.Clear(); ToolSections.Clear(); ToolOptions.Clear(); _presentedTool = tool; }
+        HasToolPanel = tool != null;
+        ToolPanelTitle = tool?.PanelTitle ?? "Sketch"; ToolPanelHint = tool?.Prompt ?? "";
+        if (tool == null) return;
+        var controls = (tool.Panel ?? []).Where(c => !(c.Kind == ToolControlKind.Info && c.Label == tool.Prompt)).ToList();
+        var wanted = new List<ToolControlRow>();
         foreach (var c in controls)
         {
-            if(c.Kind==ToolControlKind.Info&&c.Label==t.Prompt)continue;
-            var row = new ToolControlRow { Id = c.Id, Kind = c.Kind, Label = c.Label, Text = c.Text, Unit = c.Unit, Primary = c.Primary, Enabled = c.Enabled, On = c.On, NumberText = double.IsFinite(c.Number) ? c.Number.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "" };
-            if (c.Kind == ToolControlKind.Toggle) row.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(ToolControlRow.On)) SetToolControl(row.Id, row.On); };
-            ToolPanel.Add(row);
+            var row = ToolPanel.FirstOrDefault(r => r.Id == c.Id && r.Kind == c.Kind);
+            if (row == null)
+            {
+                row = new ToolControlRow { Id = c.Id, Kind = c.Kind, Owner = tool };
+                var boundRow = row;
+                row.PropertyChanged += (_, e) =>
+                {
+                    if (!_syncingToolPanel && e.PropertyName == nameof(ToolControlRow.On) && boundRow.IsToggle && ReferenceEquals(Session.Sketch?.Tool, boundRow.Owner)) SetToolControl(boundRow.Id, boundRow.On);
+                    if (!_syncingToolPanel && e.PropertyName == nameof(ToolControlRow.HasError)) RefreshToolActionState();
+                };
+            }
+            row.Label = c.Label; row.Text = c.Text; row.Unit = c.Unit.Trim() == "degrees" ? "°" : c.Unit.Trim();
+            row.Primary = c.Primary; row.Enabled = c.Enabled; row.On = c.On;
+            if (!row.IsEditing && !row.HasError) row.NumberText = double.IsFinite(c.Number) ? c.Number.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "";
+            wanted.Add(row);
+        }
+        SyncCollection(ToolPanel, wanted);
+        RefreshToolActionState();
+        var groups = new List<(string title, List<ToolControlRow> rows)> { (tool.PanelInputTitle, []) };
+        for (int i = 0; i < controls.Count; i++)
+        {
+            string title = tool.SectionFor(controls[i]);
+            int group = groups.FindIndex(g => g.title == title);
+            if (group < 0) { groups.Add((title, [])); group = groups.Count - 1; }
+            groups[group].rows.Add(wanted[i]);
+        }
+        groups = groups.OrderBy(g => g.title == tool.PanelInputTitle ? 0 : g.title == tool.PanelSettingsTitle ? 1 : g.title == tool.PanelActionTitle ? 3 : 2).ToList();
+        var sections = new List<SketchToolSection>();
+        if (ToolOptions.Count > 0)
+        {
+            var method = ToolSections.FirstOrDefault(g => g.Title == "Method") ?? new SketchToolSection("Method");
+            SyncCollection(method.Options, ToolOptions); sections.Add(method);
+        }
+        foreach (var group in groups)
+        {
+            var section = ToolSections.FirstOrDefault(g => g.Title == group.title) ?? new SketchToolSection(group.title);
+            section.Guidance = group.title == tool.PanelInputTitle ? tool.Prompt : "";
+            SyncCollection(section.Controls, group.rows); sections.Add(section);
+        }
+        for (int i = 0; i < sections.Count; i++) sections[i].Number = (i + 1).ToString();
+        SyncCollection(ToolSections, sections);
+    }
+
+    static void SyncCollection<T>(ObservableCollection<T> collection, IEnumerable<T> source)
+    {
+        var wanted = source.ToList();
+        for (int i = collection.Count - 1; i >= 0; i--) if (!wanted.Contains(collection[i])) collection.RemoveAt(i);
+        for (int i = 0; i < wanted.Count; i++)
+        {
+            int old = collection.IndexOf(wanted[i]);
+            if (old < 0) collection.Insert(i, wanted[i]); else if (old != i) collection.Move(old, i);
         }
     }
 
-    public void SetToolControl(string id, object? value) => Session.Sketch?.Tool?.PanelSet(Session, id, value);
+    public void SetToolControl(string id, object? value)
+    {
+        if (id is "place" or "apply" && ToolPanel.Any(r => r.HasError)) { Session.Say("Correct the highlighted values before applying.", true); return; }
+        Session.Sketch?.Tool?.PanelSet(Session, id, value);
+        RefreshToolOptions();
+    }
+    void RefreshToolActionState()
+    {
+        bool invalid = ToolPanel.Any(r => r.HasError);
+        foreach (var row in ToolPanel.Where(r => r.IsButton)) row.BlockedByValidation = invalid && row.Id is "place" or "apply";
+    }
+    public bool CommitToolNumber(ToolControlRow row)
+    {
+        if (!ReferenceEquals(row.Owner, Session.Sketch?.Tool)) return false;
+        bool parsed = double.TryParse(row.NumberText.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value);
+        if (!parsed || !double.IsFinite(value)) { row.Error = "Enter a finite number."; return false; }
+        if (value <= 0 && row.Id != "orientation" && !row.Id.StartsWith("draw-")) { row.Error = "Enter a value greater than zero."; return false; }
+        row.Error = ""; SetToolControl(row.Id, value); return true;
+    }
 
     void RefreshToolOptions()
     {
-        RefreshToolPanel(Session.Sketch?.Tool);
-        ToolOptions.Clear();
-        var t = Session.Sketch?.Tool;
-        var opts = t?.Options;
-        HasToolOptions = opts is { Count: > 0 };
-        HasStepper = t?.StepperLabel != null;
-        if (t == null || !HasToolOptions) return;
-        ToolOptionsTitle = t.Name.ToUpperInvariant();
-        for (int i = 0; i < opts!.Count; i++)
-            ToolOptions.Add(new ToolOptionItem { Index = i, Label = opts[i].Label, Tip = opts[i].Tip, Icon = opts[i].Icon, IsSelected = i == t.OptionIndex });
-        if (HasStepper) { StepperLabel = t.StepperLabel!; StepperText = t.StepperValue.ToString(); }
+        if (_syncingToolPanel) return;
+        _syncingToolPanel = true;
+        try
+        {
+            var tool = Session.Sketch?.Tool;
+            if (!ReferenceEquals(tool, _presentedTool)) { ToolPanel.Clear(); ToolSections.Clear(); ToolOptions.Clear(); _presentedTool = tool; }
+            var options = tool?.Options ?? [];
+            HasToolOptions = options.Count > 0; HasStepper = tool?.StepperLabel != null;
+            ToolOptionsTitle = tool?.Name ?? "";
+            if (ToolOptions.Count != options.Count || ToolOptions.Where((o, i) => o.Label != options[i].Label).Any())
+            {
+                ToolOptions.Clear();
+                for (int i = 0; i < options.Count; i++) ToolOptions.Add(new ToolOptionItem { Index = i, Label = options[i].Label, Tip = options[i].Tip, Icon = options[i].Icon });
+            }
+            for (int i = 0; i < ToolOptions.Count; i++) ToolOptions[i].IsSelected = i == tool!.OptionIndex;
+            if (HasStepper) { StepperLabel = tool!.StepperLabel!; StepperText = tool.StepperValue.ToString(); }
+            RefreshToolPanel(tool);
+        }
+        finally { _syncingToolPanel = false; }
     }
 
     public void PickToolOption(int index) => Session.Sketch?.Tool?.SetOption(Session, index);

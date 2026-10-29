@@ -40,7 +40,7 @@ checkbox.IsChecked = true; Dispatcher.UIThread.RunJobs();
 Check(sketch.Is3DEnabled && vm.Sketch3DEnabled && spatial.IsVisible, "checking 3D transitions the session and reveals advanced controls");
 vm.Session.Key("SketchGizmo"); Check(sketch.GizmoEditing, "spatial keyboard controls work after opting in");
 var overlay3D = new Overlay(); sketch.BuildOverlay(vm.Session, overlay3D);
-Check(overlay3D.Lines.Count > overlay2D.Lines.Count + 100, "3D mode adds the actual plane and rotation gizmo overlay");
+Check(overlay3D.Tris.Count >= 24 && overlay3D.Lines.Count > overlay2D.Lines.Count, "3D mode adds the plane and active move arrows without inactive rotation rings");
 foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
 {
     Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs();
@@ -62,12 +62,14 @@ mainHost.Show(); Dispatcher.UIThread.RunJobs();
 Check(!main.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Tag, "diagnostics")), "far-right panel selector buttons have been removed");
 var picker = main.FindControl<Button>("PanelPicker")!;
 picker.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
-var flyout = (Flyout)Avalonia.Controls.Primitives.FlyoutBase.GetAttachedFlyout(picker)!;
-var items = ((StackPanel)flyout.Content!).Children.OfType<CheckBox>().ToList();
-Check(items.Count == 6 && items.Count(i => i.IsEnabled) == 5, "header Panels picker exposes six persistent panel choices with the contextual one retained");
-items.Single(i => Equals(i.Content, "Diagnostics")).IsChecked = true; Dispatcher.UIThread.RunJobs();
-items.Single(i => Equals(i.Content, "References")).IsChecked = true; Dispatcher.UIThread.RunJobs();
-Check(vm.RightPanelTabs.Count == 3 && flyout.IsOpen, "panel picker accepts multiple selections without closing");
+var flyout = (MenuFlyout)Avalonia.Controls.Primitives.FlyoutBase.GetAttachedFlyout(picker)!;
+var items = flyout.ItemsSource!.Cast<MenuItem>().ToList();
+Check(items.Count == 6 && items.Single(i => i.Header!.ToString()!.EndsWith("Properties")).IsEnabled == false, "panel menu keeps Properties enabled and locked");
+items.Single(i => i.Header!.ToString()!.EndsWith("Diagnostics")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
+items.Single(i => i.Header!.ToString()!.EndsWith("References")).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); Dispatcher.UIThread.RunJobs();
+Check(vm.IsRightPanelOpen("diagnostics") && vm.IsRightPanelOpen("references"), "panel menu supports multiple enabled panels");
+vm.SetRightPanelEnabled("properties", false);
+Check(vm.IsRightPanelOpen("properties"), "Properties cannot be disabled while the context changes");
 vm.SelectRightPanel("diagnostics"); flyout.Hide(); Dispatcher.UIThread.RunJobs();
 Check(vm.ShowDiagnosticsStudio && main.FindControl<Grid>("WorkGrid")!.ColumnDefinitions[4].Width.Value == 394, "panel picker opens the chosen panel at full content width");
 var probeSession=new CadSession();probeSession.EnterSketch(Plane3.XY);var editProbe=probeSession.Sketch!;
@@ -164,7 +166,8 @@ foreach(bool freeMode in new[]{false,true})
   Check(freeSketch.TryUndo(freeSession)&&Math.Abs(freeSketch.Model.P(fa).Z)<1e-9,"lifting a point is one undoable step");
  }
 }
-// Use the actual right-panel button handlers and drag the shaft, not the arrow tip.
+// Combined display keeps translation available after choosing Rotate or Scale.
+var savedGizmoDisplay = GizmoSettings.Current.DisplayMode; GizmoSettings.Current.DisplayMode = 1;
 foreach(var operation in new[]{SketchGizmoOperation.Move,SketchGizmoOperation.Rotate,SketchGizmoOperation.Size})
 foreach(double yaw in new[]{-.6,.4,1.2})
 {
@@ -193,6 +196,7 @@ foreach(double yaw in new[]{-.6,.4,1.2})
  Check(moved.X>original.X+1&&Math.Abs(moved.Y-original.Y)<1e-4&&moved.DistanceTo(arrowSketch.GizmoFrame.Origin)<1e-4,"arrow shaft translates the bound curve point even after Rotate or Scale was selected");
  buttonHost.Close();
 }
+GizmoSettings.Current.DisplayMode = savedGizmoDisplay;
 var retention=new CadSession();retention.EnterSketch(Plane3.XY);var retained=retention.Sketch!;
 var pendingSpline=new SplineTool(false);retained.SetTool(retention,pendingSpline);pendingSpline.Feed(retention,10,10);pendingSpline.Feed(retention,30,25);pendingSpline.Feed(retention,60,10);
 retained.SetTool(retention,new SelectTool());

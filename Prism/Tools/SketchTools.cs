@@ -27,8 +27,14 @@ public abstract class SketchTool : IViewportTool
     public virtual void Step(CadSession s, int delta) { }
 
     // ---- a tool can show its own controls in the sketch panel (selection summary, toggles, a distance, Apply...)
-    public virtual string PanelTitle => Name.ToUpperInvariant();
-    public virtual IReadOnlyList<ToolControl>? Panel => Options.Count>0?[new(ToolControlKind.Info,"step",Prompt)]:null;
+    public virtual string PanelTitle => Name;
+    public virtual string PanelInputTitle => "Geometry";
+    public virtual string PanelSettingsTitle => "Settings";
+    public virtual string PanelActionTitle => "Apply";
+    public virtual IReadOnlyList<ToolControl>? Panel => [new(ToolControlKind.Info,"step",Prompt)];
+    public string SectionFor(ToolControl control) => control.Section.Length > 0 ? control.Section
+        : control.Kind == ToolControlKind.Info || control.Id.StartsWith("draw-") ? PanelInputTitle
+        : control.Kind == ToolControlKind.Button && control.Id != "rotate" && control.Id != "flip" ? PanelActionTitle : PanelSettingsTitle;
     public virtual void PanelSet(CadSession s, string id, object? value) { }
 
     public void SetOption(CadSession s, int index)
@@ -96,6 +102,9 @@ public abstract class SketchTool : IViewportTool
 /// <summary>Shared click handling for tools that collect snapped points.</summary>
 public abstract class ClickTool : SketchTool
 {
+    public override string PanelInputTitle => "Placement and dimensions";
+    public override string PanelActionTitle => "Place geometry";
+    protected virtual string PlacementAction => "Place point";
     protected readonly List<SnapInfo> Clicks = [];
     public Vec3? LastPlacedWorld(CadSession s) => Clicks.Count > 0 ? Sk(s).Plane.PointAt(Clicks[^1].U, Clicks[^1].V) : null;
     protected override void ResetState(CadSession s) { PreservePending(s); Clicks.Clear(); ResetTyping(); }
@@ -118,7 +127,7 @@ public abstract class ClickTool : SketchTool
                     double value=double.TryParse(_buf[i],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var parsed)?parsed:live!=null&&i<live.Length?live[i]:0;
                     controls.Add(new(ToolControlKind.Number,"draw-"+i,fields[i].Label,Number:value,Unit:fields[i].Unit));
                 }
-                controls.Add(new(ToolControlKind.Button,"place","Place point",Primary:true));
+                controls.Add(new(ToolControlKind.Button,"place",PlacementAction,Primary:true));
             }
             return controls;
         }
@@ -456,12 +465,13 @@ public sealed record ToolOption(string Label, string Tip, string Icon);
 public enum ToolControlKind { Info, Toggle, Number, Button }
 
 /// <summary>One control in a tool's panel. Toggle uses On, Number uses Number and Unit, Button may be Primary.</summary>
-public sealed record ToolControl(ToolControlKind Kind, string Id, string Label, string Text = "", bool On = false, double Number = 0, string Unit = "", bool Primary = false, bool Enabled = true);
+public sealed record ToolControl(ToolControlKind Kind, string Id, string Label, string Text = "", bool On = false, double Number = 0, string Unit = "", bool Primary = false, bool Enabled = true, string Section = "");
 
 public enum RectMode { TwoCorner, Center, ThreePoint }
 
 public sealed class RectTool(RectMode mode) : ClickTool
 {
+    protected override string PlacementAction => mode == RectMode.ThreePoint && Clicks.Count == 1 ? "Set base side" : "Create rectangle";
     public override string Name => "Rectangle";
     public override string Mode => mode switch { RectMode.TwoCorner => "2-point", RectMode.Center => "Center", _ => "3-point" };
     static readonly ToolOption[] Opts = [new("2-Point", "Two opposite corners", "rect"), new("Center", "Center, then a corner", "rect-center"), new("3-Point", "Two points for one side (any angle), then the width", "rect-3pt")];
@@ -659,6 +669,8 @@ public enum CircleMode { Ellipse, CenterRadius, TwoPoint, ThreePoint }
 
 public sealed class CircleTool(CircleMode mode) : ClickTool
 {
+    protected override string PlacementAction => mode == CircleMode.Ellipse && !Locked ? Clicks.Count == 1 ? "Set major axis" : "Create ellipse"
+        : mode == CircleMode.ThreePoint && Clicks.Count == 1 ? "Set second point" : "Create circle";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)=>sn;
     public override string Name => mode == CircleMode.Ellipse ? "Ellipse" : "Circle";
     public override string Mode => mode switch { CircleMode.CenterRadius => "Circle (center)", CircleMode.TwoPoint => "Circle (2-point)", CircleMode.ThreePoint => "Circle (3-point)", _ => _lock ? "Circle (locked)" : "Ellipse" };
@@ -821,6 +833,7 @@ public sealed class CircleTool(CircleMode mode) : ClickTool
 // =============================================================== Polygon
 public sealed class PolygonTool(bool circumscribed) : ClickTool
 {
+    protected override string PlacementAction => "Create polygon";
     public override IReadOnlyList<ToolControl>? Panel => [..base.Panel!,new(ToolControlKind.Number,"sides","Sides",Number:_sides)];
     public override void PanelSet(CadSession s,string id,object? value){if(id=="sides"&&value is double count){_sides=Math.Clamp((int)count,3,64);s.Invalidate();}else base.PanelSet(s,id,value);}
 
@@ -892,6 +905,7 @@ public sealed class PolygonTool(bool circumscribed) : ClickTool
 // =============================================================== Slot (center to center)
 public sealed class SlotTool : ClickTool
 {
+    protected override string PlacementAction => Clicks.Count == 1 ? "Set centerline" : "Create slot";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
         =>Shift&&Clicks.Count==1?LockDirection(sn,Clicks[0]):sn;
     public override string Name => "Slot";
@@ -959,6 +973,7 @@ public sealed class SlotTool : ClickTool
 // =============================================================== Spline
 public sealed class SplineTool(bool controlPoints) : ClickTool
 {
+    protected override string PlacementAction => "Add spline point";
     public override string Name => "Spline";
     public override string Mode => controlPoints ? "Control point" : "Fit point";
     static readonly ToolOption[] Opts = [new("Fit Points", "The curve passes through every point", "spline"), new("Control Points", "The curve is pulled toward the control polygon", "spline-control")];

@@ -59,7 +59,7 @@ public partial class RibbonView : UserControl
     void OnRibbonButtonClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: RibbonButton rb } anchor) return;
-        bool icon = ReferenceEquals(_pressedButton, anchor) && _pressY < _pressH * 0.62 && !_pressRight;
+        bool icon = !ReferenceEquals(_pressedButton, anchor) || (_pressY < _pressH * 0.62 && !_pressRight);
         _pressedButton = null;
         if (!rb.HasMenu || (rb.IsSplit && icon)) rb.Invoke();
         else ShowMenu(anchor);

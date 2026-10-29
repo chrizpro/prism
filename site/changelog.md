@@ -2,6 +2,12 @@
 
 ## Development preview · 0.1.0
 
+- Shared gizmo styling with active-operation, combined and custom visibility; persistent display preferences, live preview, and move/angle/scale snapping.
+- Collapsible context tree with source sketches under their owning body and branch lines that follow the preference accent.
+- Consistent numbered command steps, including Profile → Axis → Extent → Result for Revolve, and shared styling across the right-side studios.
+- All sketch-tool families now share numbered, collapsible option panels, including Rectangle, Ellipse, Offset, drawing variants, editing tools, dimensions, and constraints. Live refreshes preserve typed values and section disclosure state.
+- Selection intent for individual edges, connected and tangent chains, and partial loops; open profiles can be extruded as surfaces.
+
 - Prism identity, faceted logo, and platform icons.
 - Shared ribbon section order and consistent Transform, Inspect, Select, and Appearance groups.
 - Grouped creation, pattern, and related tool menus across the application.

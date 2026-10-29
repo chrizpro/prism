@@ -1,0 +1,932 @@
+[
+  {
+    "Tool": "ArcTool",
+    "Name": "Arc",
+    "Mode": "3-point",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "arctool-0-0"
+  },
+  {
+    "Tool": "ArcTool",
+    "Name": "Arc",
+    "Mode": "Center",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "arctool-0-1"
+  },
+  {
+    "Tool": "ArcTool",
+    "Name": "Arc",
+    "Mode": "Tangent",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "arctool-0-2"
+  },
+  {
+    "Tool": "CircleTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "circletool-0-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Horizontal",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-0-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Vertical",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-1-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Coincident",
+    "Seed": 2,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-2-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Parallel",
+    "Seed": 3,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-3-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Perpendicular",
+    "Seed": 4,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-4-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Collinear",
+    "Seed": 5,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-5-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Equal",
+    "Seed": 6,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-6-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Tangent",
+    "Seed": 7,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-7-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Concentric",
+    "Seed": 8,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-8-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Midpoint",
+    "Seed": 9,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-9-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Symmetric",
+    "Seed": 10,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-10-0"
+  },
+  {
+    "Tool": "ConstraintTool",
+    "Name": "Constrain",
+    "Mode": "Fixed",
+    "Seed": 11,
+    "Option": 0,
+    "Sections": [
+      "Select geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "constrainttool-11-0"
+  },
+  {
+    "Tool": "DimensionTool",
+    "Name": "Dimension",
+    "Mode": "Smart",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Select geometry",
+      "Dimension value",
+      "Apply dimension"
+    ],
+    "Controls": [
+      "value",
+      "apply"
+    ],
+    "Screenshot": "dimensiontool-0-0"
+  },
+  {
+    "Tool": "DimensionTool",
+    "Name": "Dimension",
+    "Mode": "Horizontal",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Select geometry",
+      "Dimension value",
+      "Apply dimension"
+    ],
+    "Controls": [
+      "value",
+      "apply"
+    ],
+    "Screenshot": "dimensiontool-0-1"
+  },
+  {
+    "Tool": "DimensionTool",
+    "Name": "Dimension",
+    "Mode": "Vertical",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Select geometry",
+      "Dimension value",
+      "Apply dimension"
+    ],
+    "Controls": [
+      "value",
+      "apply"
+    ],
+    "Screenshot": "dimensiontool-0-2"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (center)",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-0-0"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (2-point)",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-0-1"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (3-point)",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-0-2"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (center)",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-1-0"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (2-point)",
+    "Seed": 1,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-1-1"
+  },
+  {
+    "Tool": "EllipseTool",
+    "Name": "Ellipse",
+    "Mode": "Ellipse (3-point)",
+    "Seed": 1,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "circle"
+    ],
+    "Screenshot": "ellipsetool-1-2"
+  },
+  {
+    "Tool": "ExtendTool",
+    "Name": "Extend",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "extendtool-0-0"
+  },
+  {
+    "Tool": "FilletTool",
+    "Name": "Fillet",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Geometry",
+      "Settings",
+      "Apply"
+    ],
+    "Controls": [
+      "size",
+      "apply"
+    ],
+    "Screenshot": "fillettool-0-0"
+  },
+  {
+    "Tool": "FilletTool",
+    "Name": "Chamfer",
+    "Mode": "",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Geometry",
+      "Settings",
+      "Apply"
+    ],
+    "Controls": [
+      "size",
+      "apply"
+    ],
+    "Screenshot": "fillettool-1-0"
+  },
+  {
+    "Tool": "LineTool",
+    "Name": "Line",
+    "Mode": "Chain",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "linetool-0-0"
+  },
+  {
+    "Tool": "LineTool",
+    "Name": "Line",
+    "Mode": "Midpoint",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "linetool-0-1"
+  },
+  {
+    "Tool": "OffsetTool",
+    "Name": "Offset",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Select curves",
+      "Distance and side",
+      "Apply offset"
+    ],
+    "Controls": [
+      "sel",
+      "chain",
+      "selection",
+      "dist",
+      "flip",
+      "apply",
+      "clear"
+    ],
+    "Screenshot": "offsettool-0-0"
+  },
+  {
+    "Tool": "PointTool",
+    "Name": "Point",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "pointtool-0-0"
+  },
+  {
+    "Tool": "PolygonTool",
+    "Name": "Polygon",
+    "Mode": "Inscribed",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "sides"
+    ],
+    "Screenshot": "polygontool-0-0"
+  },
+  {
+    "Tool": "PolygonTool",
+    "Name": "Polygon",
+    "Mode": "Circumscribed",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "sides"
+    ],
+    "Screenshot": "polygontool-0-1"
+  },
+  {
+    "Tool": "PolygonTool",
+    "Name": "Polygon",
+    "Mode": "Inscribed",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "sides"
+    ],
+    "Screenshot": "polygontool-1-0"
+  },
+  {
+    "Tool": "PolygonTool",
+    "Name": "Polygon",
+    "Mode": "Circumscribed",
+    "Seed": 1,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "sides"
+    ],
+    "Screenshot": "polygontool-1-1"
+  },
+  {
+    "Tool": "ProjectTool",
+    "Name": "Project",
+    "Mode": "Project",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Select references",
+      "Include options"
+    ],
+    "Controls": [
+      "construction",
+      "link"
+    ],
+    "Screenshot": "projecttool-0-0"
+  },
+  {
+    "Tool": "ProjectTool",
+    "Name": "Project",
+    "Mode": "Project body",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Select references",
+      "Include options"
+    ],
+    "Controls": [
+      "construction",
+      "link"
+    ],
+    "Screenshot": "projecttool-0-1"
+  },
+  {
+    "Tool": "ProjectTool",
+    "Name": "Project",
+    "Mode": "Intersect",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Select references",
+      "Include options"
+    ],
+    "Controls": [
+      "construction",
+      "link"
+    ],
+    "Screenshot": "projecttool-0-2"
+  },
+  {
+    "Tool": "ProjectTool",
+    "Name": "Project",
+    "Mode": "Pierce points",
+    "Seed": 0,
+    "Option": 3,
+    "Sections": [
+      "Method",
+      "Select references",
+      "Include options"
+    ],
+    "Controls": [
+      "construction",
+      "link"
+    ],
+    "Screenshot": "projecttool-0-3"
+  },
+  {
+    "Tool": "RectTool",
+    "Name": "Rectangle",
+    "Mode": "2-point",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "orientation",
+      "rotate"
+    ],
+    "Screenshot": "recttool-0-0"
+  },
+  {
+    "Tool": "RectTool",
+    "Name": "Rectangle",
+    "Mode": "Center",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions",
+      "Settings"
+    ],
+    "Controls": [
+      "orientation",
+      "rotate"
+    ],
+    "Screenshot": "recttool-0-1"
+  },
+  {
+    "Tool": "RectTool",
+    "Name": "Rectangle",
+    "Mode": "3-point",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "recttool-0-2"
+  },
+  {
+    "Tool": "SelectTool",
+    "Name": "Select",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "selecttool-0-0"
+  },
+  {
+    "Tool": "SelectTool",
+    "Name": "Select",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "selecttool-0-1"
+  },
+  {
+    "Tool": "SelectTool",
+    "Name": "Select",
+    "Mode": "",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "selecttool-1-0"
+  },
+  {
+    "Tool": "SelectTool",
+    "Name": "Select",
+    "Mode": "",
+    "Seed": 1,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "selecttool-1-1"
+  },
+  {
+    "Tool": "SketchGeometryEditTool",
+    "Name": "Edit Sketch",
+    "Mode": "Geometry",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "sketchgeometryedittool-0-0"
+  },
+  {
+    "Tool": "SketchGeometryEditTool",
+    "Name": "Edit Sketch",
+    "Mode": "Spline points",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "sketchgeometryedittool-0-1"
+  },
+  {
+    "Tool": "SketchMirrorTool",
+    "Name": "Mirror",
+    "Mode": "Live",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "sketchmirrortool-0-0"
+  },
+  {
+    "Tool": "SketchMirrorTool",
+    "Name": "Mirror",
+    "Mode": "Copy",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "sketchmirrortool-0-1"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Linear",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-0-0"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Circular",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-0-1"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Along curve",
+    "Seed": 0,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-0-2"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Linear",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-1-0"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Circular",
+    "Seed": 1,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-1-1"
+  },
+  {
+    "Tool": "SketchPatternTool",
+    "Name": "Pattern",
+    "Mode": "Along curve",
+    "Seed": 1,
+    "Option": 2,
+    "Sections": [
+      "Method",
+      "Select source geometry",
+      "Pattern settings"
+    ],
+    "Controls": [
+      "stage",
+      "count",
+      "selection"
+    ],
+    "Screenshot": "sketchpatterntool-1-2"
+  },
+  {
+    "Tool": "SlotTool",
+    "Name": "Slot",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "slottool-0-0"
+  },
+  {
+    "Tool": "SplineEditTool",
+    "Name": "Edit Spline",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "splineedittool-0-0"
+  },
+  {
+    "Tool": "SplineTool",
+    "Name": "Spline",
+    "Mode": "Fit point",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "splinetool-0-0"
+  },
+  {
+    "Tool": "SplineTool",
+    "Name": "Spline",
+    "Mode": "Control point",
+    "Seed": 0,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "splinetool-0-1"
+  },
+  {
+    "Tool": "SplineTool",
+    "Name": "Spline",
+    "Mode": "Fit point",
+    "Seed": 1,
+    "Option": 0,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "splinetool-1-0"
+  },
+  {
+    "Tool": "SplineTool",
+    "Name": "Spline",
+    "Mode": "Control point",
+    "Seed": 1,
+    "Option": 1,
+    "Sections": [
+      "Method",
+      "Placement and dimensions"
+    ],
+    "Controls": [],
+    "Screenshot": "splinetool-1-1"
+  },
+  {
+    "Tool": "TrimTool",
+    "Name": "Trim",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Geometry"
+    ],
+    "Controls": [],
+    "Screenshot": "trimtool-0-0"
+  }
+]

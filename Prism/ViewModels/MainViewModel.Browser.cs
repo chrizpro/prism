@@ -26,7 +26,7 @@ public sealed partial class MainViewModel
         bool filtering = filter.Length > 0;
         bool Match(string name) => !filtering || name.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
-        BrowserNode Folder(string title, string icon) => new() { Kind = NodeKind.Folder, Title = title, Icon = icon, IsExpanded = filtering || _folderOpen.GetValueOrDefault(title, true), VisibilityEdited = OnNodeVisibility };
+        BrowserNode Folder(string title, string icon) => new() { Kind = NodeKind.Folder, Title = title, Icon = icon, ExpansionKey = title, IsExpanded = filtering || _folderOpen.GetValueOrDefault(title, true), VisibilityEdited = OnNodeVisibility };
 
         var roots = new List<BrowserNode>();
         BrowserNode ConstructionNode(Guid id, Prism.Core.Sketching.SketchModel model)
@@ -80,7 +80,7 @@ public sealed partial class MainViewModel
         // ---- objects, grouped by kind
         void Group(string title, string icon, ObjKind kind, Func<SceneObject, bool>? only = null)
         {
-            var items = s.Objects.Where(o => o.Kind == kind && (only != null ? only(o) : (o.Component == null || kind != ObjKind.Solid)) && Match(o.Name)).ToList();
+            var items = s.Objects.Where(o => o.Kind == kind && (only != null ? only(o) : (o.Component == null || kind != ObjKind.Solid))).ToList();
             if (items.Count == 0) return;
             var f = Folder(title, icon);
             f.Badge = items.Count.ToString();
@@ -89,6 +89,7 @@ public sealed partial class MainViewModel
                 var n = new BrowserNode
                 {
                     Kind = NodeKind.Object, ObjectId = o.Id, ObjKind = o.Kind, Title = o.Name, Icon = IconFor(o.Kind), Color = o.Color,
+                    ExpansionKey = o.Id.ToString(), IsExpanded = filtering || _folderOpen.GetValueOrDefault(o.Id.ToString(), true),
                     Badge = o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
                     VisibilityEdited = OnNodeVisibility, RenameEdited = OnNodeRenamed,
                 };
@@ -114,15 +115,60 @@ public sealed partial class MainViewModel
         Group("Animations", "animation", ObjKind.Animation);
         Group("Toolpaths", "toolpath", ObjKind.Toolpath);
 
+        // Show actual feature inputs under their owning body. Shared inputs remain references to the same object.
+        var nodesById = roots.SelectMany(r => r.Children).Where(n => n.IsObject).ToDictionary(n => n.ObjectId);
+        var placed = new HashSet<Guid>();
+        for (var step = s.Current; step.Parent != null; step = step.Parent)
+        {
+            if (step.Recipe == null) continue;
+            var inputs = step.Recipe.Slots.SelectMany(items => items).Select(it => s.Find(it.Obj))
+                .Where(o => o != null && o.Kind is ObjKind.Sketch or ObjKind.Curve or ObjKind.Plane).DistinctBy(o => o!.Id).ToList();
+            var (added, modified, _) = step.Diff();
+            foreach (var body in added.Concat(modified).Where(o => o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form))
+            {
+                if (!nodesById.TryGetValue(body.Id, out var parent)) continue;
+                foreach (var input in inputs)
+                {
+                    if (input!.Id == body.Id || !nodesById.TryGetValue(input.Id, out var child) || !placed.Add(input.Id)) continue;
+                    string name = input.Kind == ObjKind.Sketch ? "Sketches" : "References";
+                    var group = parent.Children.FirstOrDefault(n => n.IsFolder && n.Title == name);
+                    if (group == null)
+                    {
+                        string key = body.Id + "/" + name;
+                        group = new BrowserNode { Kind = NodeKind.Folder, Title = name, Icon = input.Kind == ObjKind.Sketch ? "sketch" : "construction", ExpansionKey = key,
+                            IsExpanded = filtering || _folderOpen.GetValueOrDefault(key, true), VisibilityEdited = OnNodeVisibility };
+                        parent.Children.Add(group);
+                    }
+                    foreach (var root in roots) root.Children.Remove(child);
+                    group.Children.Add(child); group.Badge = group.Children.Count.ToString();
+                    group.SetVisibleSilently(group.Children.All(c => c.IsVisible));
+                }
+            }
+        }
+        foreach (var root in roots) if (root.IsFolder) root.Badge = root.Children.Count.ToString();
+        roots.RemoveAll(r => r.IsFolder && r.Children.Count == 0);
+        var document = new BrowserNode { Kind = NodeKind.Folder, Title = s.FilePath is { } path ? System.IO.Path.GetFileName(path) : "Untitled model", Icon = "component", ExpansionKey = "Document",
+            IsExpanded = filtering || _folderOpen.GetValueOrDefault("Document", true), VisibilityEdited = OnNodeVisibility };
+        foreach (var root in roots)
+        {
+            if (root.Title is "Bodies" or "Components") foreach (var body in root.Children) document.Children.Add(body);
+            else document.Children.Add(root);
+        }
+        bool Prune(BrowserNode node)
+        {
+            if (Match(node.Title)) return true;
+            foreach (var child in node.Children.ToList()) if (!Prune(child)) node.Children.Remove(child);
+            return node.Children.Count > 0;
+        }
+        if (filtering) foreach (var child in document.Children.ToList()) if (!Prune(child)) document.Children.Remove(child);
         Browser.Clear();
-        foreach (var r in roots) Browser.Add(r);
+        if (document.Children.Count > 0) Browser.Add(document);
         void Track(BrowserNode n)
         {
-            if (!n.IsFolder) return;
-            n.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(BrowserNode.IsExpanded) && !filtering) _folderOpen[n.Title] = n.IsExpanded; };
+            n.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(BrowserNode.IsExpanded) && !filtering) _folderOpen[n.ExpansionKey.Length > 0 ? n.ExpansionKey : n.Title] = n.IsExpanded; };
             foreach (var c in n.Children) Track(c);
         }
-        foreach (var r in roots) Track(r);
+        Track(document);
         BrowserRebuilt?.Invoke();
     }
 
@@ -158,8 +204,9 @@ public sealed partial class MainViewModel
         {
             foreach (var c in n.Children)
             {
-                if (c.IsFolder) { c.SetVisibleSilently(v); Cascade(c, v); }
-                else { c.SetVisibleSilently(v); Apply(c, v); }
+                c.SetVisibleSilently(v);
+                if (!c.IsFolder) Apply(c, v);
+                if (c.Children.Count > 0) Cascade(c, v);
             }
         }
         if (node.IsFolder) Cascade(node, node.IsVisible);

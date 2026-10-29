@@ -98,10 +98,10 @@ public partial class SelectionSlotView : UserControl
     {
         if (_slot == null) return;
         ExpandButton.Content = _slot.IsExpanded ? "⌄" : "›";
-        SelectionBorder.BorderBrush = this.FindResource(_slot.IsActive ? "Accent" : "FieldLine") as IBrush;
-        PickButton.Content = !_slot.CanAdd ? "Selection limit reached" : _slot.Items.Count > 0 && !_slot.Multi ? "↺  Replace selection" : "+  Pick geometry";
+        PickButton.Content = !_slot.CanAdd ? "Selection limit reached" : _slot.Items.Count > 0 && _slot.ReplacesSelection ? "↺  Replace selection" : "+  Pick geometry";
         PickButton.IsEnabled = _slot.CanAdd;
         PickHint.Text = !_slot.CanAdd ? $"Maximum {_slot.MaxCount} selections." : _slot.IsActive ? "Picking in viewport…" : _slot.Optional ? "Optional" : "";
+        if (_slot.IsPartialLoop) PickHint.Text = _slot.ChainStart == null ? "Pick the first edge, then the last edge." : _slot.ChainEnd == null ? "Pick the last edge of the chain." : "Use Other path to switch around the loop.";
         PickHint.IsVisible = PickHint.Text.Length > 0;
         MoveUpButton.IsEnabled = _slot.Ordered && Rows.SelectedIndex > 0;
         MoveDownButton.IsEnabled = _slot.Ordered && Rows.SelectedIndex >= 0 && Rows.SelectedIndex < _slot.Items.Count - 1;
@@ -116,11 +116,15 @@ public partial class SelectionSlotView : UserControl
     }
 
     void OnStartPicking(object? sender, RoutedEventArgs e) { Activate(); e.Handled = true; }
+    void OnIntentChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_slot != null && e.AddedItems.Count > 0) Activate();
+    }
     void OnToggleExpanded(object? sender, RoutedEventArgs e) { if (_slot != null) _slot.IsExpanded = !_slot.IsExpanded; e.Handled = true; }
-    void OnClear(object? sender, RoutedEventArgs e) { _slot?.Items.Clear(); Activate(); e.Handled = true; }
+    void OnClear(object? sender, RoutedEventArgs e) { _slot?.ResetChain(); _slot?.Items.Clear(); Activate(); e.Handled = true; }
     void OnRemove(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Control)?.DataContext is SelectionRow row) _slot?.Items.Remove(row.Item);
+        if ((sender as Control)?.DataContext is SelectionRow row) { _slot?.ResetChain(); _slot?.Items.Remove(row.Item); }
         e.Handled = true;
     }
 
@@ -165,7 +169,7 @@ public partial class SelectionSlotView : UserControl
         if (e.KeyModifiers == KeyModifiers.Alt && e.Key is Key.Up or Key.Down)
         { MoveSelected(e.Key == Key.Up ? -1 : 1); e.Handled = true; }
         else if (e.Key is Key.Delete or Key.Back && Rows.SelectedItem is SelectionRow row)
-        { _slot?.Items.Remove(row.Item); e.Handled = true; }
+        { _slot?.ResetChain(); _slot?.Items.Remove(row.Item); e.Handled = true; }
     }
 
     void OnGripPressed(object? sender, PointerPressedEventArgs e)

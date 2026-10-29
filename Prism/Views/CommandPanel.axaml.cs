@@ -36,7 +36,6 @@ public partial class CommandPanel : UserControl
     {
         if (e.PropertyName != nameof(MainViewModel.ActiveCommand)) return;
         PanelScroll.Offset = default;
-        AdvancedToggle.IsChecked = false;
     }
 
     void OnOk(object? sender, RoutedEventArgs e) => Vm?.Session.CommitCommand();

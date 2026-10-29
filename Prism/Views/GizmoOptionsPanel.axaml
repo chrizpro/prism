@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" VerticalAlignment="Top">
+    <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
+    <Expander Name="GizmoOptionsExpander" Header="Gizmo display and snapping" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="9" Margin="12,0">
+            <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4"><c:GizmoPreview Session="{Binding Session}" Height="190" AutomationProperties.Name="Live gizmo preview"/></Border>
+            <TextBlock Text="Handle visibility" Classes="section"/>
+            <ComboBox Name="GizmoDisplayPicker" ItemsSource="{Binding GizmoDisplayModes}" SelectedIndex="{Binding GizmoDisplayMode, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+            <StackPanel IsVisible="{Binding GizmoCustomVisibility}" Spacing="3">
+                <CheckBox Content="Move arrows" IsChecked="{Binding GizmoShowMove, Mode=TwoWay}"/>
+                <CheckBox Content="Rotation rings" IsChecked="{Binding GizmoShowRotate, Mode=TwoWay}"/>
+                <CheckBox Content="Scale handles" IsChecked="{Binding GizmoShowScale, Mode=TwoWay}"/>
+            </StackPanel>
+            <CheckBox Content="Show axis labels" IsChecked="{Binding GizmoShowLabels, Mode=TwoWay}"/>
+            <CheckBox Content="Show plane movement handles in sketches" IsChecked="{Binding GizmoShowPlanes, Mode=TwoWay}"/>
+            <CheckBox Content="Show sketch work-plane outline" IsChecked="{Binding GizmoShowWorkPlane, Mode=TwoWay}"/>
+            <TextBlock Text="Appearance and picking" Classes="section" Margin="0,6,0,0"/>
+            <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Screen size" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoScreenSize, Mode=TwoWay}" Minimum="56" Maximum="180" Increment="8" FormatString="0"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
+            <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Line width" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoLineWidth, Mode=TwoWay}" Minimum="1" Maximum="5" Increment="0.5" FormatString="0.#"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
+            <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Pick tolerance" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoHitTolerance, Mode=TwoWay}" Minimum="4" Maximum="18" Increment="1" FormatString="0"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
+            <CheckBox Content="Snap gizmo transforms" IsChecked="{Binding GizmoSnapping, Mode=TwoWay}" Margin="0,6,0,0"/>
+            <StackPanel IsEnabled="{Binding GizmoSnapping}" Spacing="7">
+                <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Move increment" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoMoveStep, Mode=TwoWay}" Minimum="0.001" Maximum="10000" Increment="0.5" FormatString="0.###"/><TextBlock Grid.Column="2" Text="mm" Classes="meta" VerticalAlignment="Center"/></Grid>
+                <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Angle increment" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoAngleStep, Mode=TwoWay}" Minimum="0.1" Maximum="180" Increment="5" FormatString="0.#"/><TextBlock Grid.Column="2" Text="°" Classes="meta" VerticalAlignment="Center"/></Grid>
+                <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Scale increment" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoScaleStep, Mode=TwoWay}" Minimum="0.1" Maximum="100" Increment="5" FormatString="0.#"/><TextBlock Grid.Column="2" Text="%" Classes="meta" VerticalAlignment="Center"/></Grid>
+            </StackPanel>
+            <TextBlock Text="Shared by sketch, freeform and control-point gizmos. Hold Alt during a drag to bypass snapping. Axis colors identify X, Y and Z; the highlight follows your theme accent." Classes="meta" TextWrapping="Wrap"/>
+            <Button Content="Reset gizmo preferences" Classes="studioAction" Click="OnReset" HorizontalAlignment="Stretch"/>
+        </StackPanel>
+    </Expander>
+</UserControl>

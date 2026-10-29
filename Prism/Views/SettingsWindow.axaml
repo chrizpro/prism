@@ -14,6 +14,7 @@
                     <ListBoxItem Content="Workspace"/>
                     <ListBoxItem Content="Toolbars"/>
                     <ListBoxItem Content="Ribbon"/>
+                    <ListBoxItem Content="AI Assistant"/>
                 </ListBox>
             </StackPanel>
         </Border>
@@ -31,6 +32,11 @@
                         <RadioButton Name="ThemeLight" GroupName="theme" Content="Light" Click="OnTheme"/>
                         <RadioButton Name="ThemeSystem" GroupName="theme" Content="Match Windows" Click="OnTheme"/>
                     </StackPanel>
+                    <TextBlock Text="Interface color" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                    <TextBlock Text="Choose the accent used for buttons and selections. The 3D grid has its own setting below." Classes="soft" TextWrapping="Wrap"/>
+                    <ComboBox Name="AccentChoice" Width="200" HorizontalAlignment="Left" SelectionChanged="OnAccent">
+                        <ComboBoxItem Content="Blue"/><ComboBoxItem Content="Teal"/><ComboBoxItem Content="Purple"/><ComboBoxItem Content="Orange"/><ComboBoxItem Content="Rose"/>
+                    </ComboBox>
                     <TextBlock Text="3D view backdrop and grid" FontWeight="SemiBold" Margin="0,22,0,0"/>
                     <CheckBox Name="ShowGridOnStart" Content="Show the grid when Prism starts" Click="OnShowGridOnStart"/>
                     <TextBlock Text="Pick a look for the space you model in. Classic follows the theme above; the rest keep their own colors." Classes="soft" TextWrapping="Wrap"/>
@@ -42,6 +48,10 @@
             <ScrollViewer Name="PageInteraction" IsVisible="False">
                 <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
                     <TextBlock Text="Interaction" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Help context location" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                    <ComboBox Name="HelpContextLocation" Width="240" HorizontalAlignment="Left" SelectionChanged="OnHelpContextLocation">
+                        <ComboBoxItem Content="Viewport (top right)"/><ComboBoxItem Content="Bottom status bar"/>
+                    </ComboBox>
                     <TextBlock Text="Navigation" FontWeight="SemiBold" Margin="0,8,0,0"/>
                     <CheckBox Name="ReverseScrollZoom" Content="Reverse scroll-wheel zoom" Click="OnReverseScrollZoom"/>
                     <TextBlock Text="Reverse the direction the mouse wheel zooms in the 3D view." Classes="soft" TextWrapping="Wrap"/>
@@ -76,6 +86,22 @@
                 <StackPanel Margin="28,24" Spacing="14">
                     <TextBlock Text="Toolbars" FontSize="20" FontWeight="SemiBold"/>
                     <StackPanel Name="ToolbarHost" Spacing="26"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <ScrollViewer Name="PageAssistant" IsVisible="False">
+                <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
+                    <TextBlock Text="AI Assistant" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Provider" FontWeight="SemiBold"/>
+                    <ComboBox SelectedIndex="{Binding AssistantProviderIndex}" Width="250" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="Claude (your login)"/><ComboBoxItem Content="Codex (your login)"/><ComboBoxItem Content="Claude (API key)"/><ComboBoxItem Content="OpenAI (API key)"/>
+                    </ComboBox>
+                    <TextBlock Text="{Binding AssistantProviderHint}" Classes="soft" TextWrapping="Wrap"/>
+                    <TextBlock Text="Model" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding AssistantModel}" Watermark="Model (blank = the tool default)" Width="320" HorizontalAlignment="Left"/>
+                    <TextBox Text="{Binding AssistantKey}" Watermark="API key" PasswordChar="•" Width="320" HorizontalAlignment="Left" IsVisible="{Binding AssistantNeedsKey}"/>
+                    <CheckBox Content="Remember the key on this computer (in your user profile)" IsChecked="{Binding AssistantRemember}" IsVisible="{Binding AssistantNeedsKey}"/>
+                    <CheckBox Content="Let the assistant open, save and export files" IsChecked="{Binding AssistantAllowFiles}"/>
                 </StackPanel>
             </ScrollViewer>
 

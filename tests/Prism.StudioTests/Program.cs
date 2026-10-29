@@ -147,9 +147,10 @@ var mainView = new MainView { DataContext = vm }; var mainHost = new Window { Wi
 mainHost.Show(); Dispatcher.UIThread.RunJobs();
 var picker = mainView.FindControl<Button>("PanelPicker")!;
 picker.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
-var panelMenu = (Avalonia.Controls.Flyout)Avalonia.Controls.Primitives.FlyoutBase.GetAttachedFlyout(picker)!;
-var parameterItem = ((StackPanel)panelMenu.Content!).Children.OfType<CheckBox>().Single(b => Equals(b.Content, "Parameters"));
-parameterItem.IsChecked = false; parameterItem.IsChecked = true; panelMenu.Hide(); Dispatcher.UIThread.RunJobs();
+var panelMenu = (Avalonia.Controls.MenuFlyout)Avalonia.Controls.Primitives.FlyoutBase.GetAttachedFlyout(picker)!;
+var parameterItem = panelMenu.ItemsSource!.Cast<MenuItem>().Single(b => b.Header!.ToString()!.EndsWith("Parameters"));
+parameterItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+parameterItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); panelMenu.Hide(); Dispatcher.UIThread.RunJobs();
 Check(vm.ShowParametersStudio && mainView.FindControl<Grid>("WorkGrid")!.ColumnDefinitions[4].Width.Value == 394, "header panel picker opens the full-width studio at the minimum window size");
 vm.ShowScriptPanel = true; vm.OpenStudio("references");
 Check(vm.ShowReferencesStudio && !vm.ShowScriptEditor, "script workspace cannot cover an explicitly opened studio");

@@ -13,11 +13,8 @@ public sealed partial class MainViewModel
     readonly Dictionary<string, string> _catalogTab = [];
     readonly Dictionary<string, List<RibbonGroup>> _defaultGroups = [];
 
-    RibbonButton ToolMenu(string label, string icon, string description, params RibbonButton[] variants) => new()
-    {
-        Label = label, Icon = icon, Description = description, Menu = [.. variants],
-        CanExecute = () => { foreach (var v in variants) { v.Refresh(); if (v.IsEnabled) return true; } return false; },
-    };
+    RibbonButton ToolMenu(string label, string icon, string description, params RibbonButton[] variants) =>
+        Split("menu:" + label + ":" + string.Join(",", variants.Select(v => v.Icon + "|" + v.Label.Replace("\n", " "))), description, variants);
 
     void OrganizeRibbons(Func<RibbonGroup> transform, Func<RibbonGroup> inspect,
         Func<RibbonGroup> appearance, Func<RibbonGroup> select)
@@ -25,6 +22,10 @@ public sealed partial class MainViewModel
         var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "ECAD" };
         foreach (var tab in Tabs)
         {
+            // Look At lives in the viewport toolbar and the View tab.
+            if (tab.Title != "View")
+                foreach (var group in tab.Groups)
+                    group.Items.RemoveAll(i => i is RibbonButton { Icon: "look-at" });
             // Shared sections come from fresh factories, never from a different tab's mutable buttons.
             for (int i = 0; i < tab.Groups.Count; i++)
             {
@@ -47,7 +48,7 @@ public sealed partial class MainViewModel
                     var tools = references.SelectMany(g => g.Items).OfType<RibbonButton>().ToArray();
                     foreach (var group in references) tab.Groups.Remove(group);
                     tab.Groups.Add(G("References", tools[0], ToolMenu("Curves & planes", "origin-plane",
-                        "Edit sketches, create spatial curves and work with construction references.", tools.Skip(1).ToArray())));
+                        "Create spatial curves and work with construction references.", tools.Skip(1).ToArray())));
                 }
             }
             if (tab.Title is "Home" or "Solid")
@@ -55,11 +56,16 @@ public sealed partial class MainViewModel
                 var primitives = tab.Groups.Single(g => g.Title is "Create" or "Primitives");
                 var features = tab.Groups.Single(g => g.Title == "Features");
                 tab.Groups.Remove(primitives); tab.Groups.Remove(features);
-                tab.Groups.Add(G("Create", primitives.Items[0], ToolMenu("Features", "extrude",
-                    "Build solid features from sketches and edit existing features.", features.Items.OfType<RibbonButton>().ToArray())));
+                tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" })).ToArray()));
             }
+            if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
             if (tab.Title == "Sketch")
             {
+                var draw = tab.Groups.Single(g => g.Title == "Draw");
+                var drawTools = draw.Items.OfType<RibbonButton>().ToArray();
+                draw.Items.Clear();
+                draw.Items.AddRange(drawTools.Take(4));
+                draw.Items.Add(ToolMenu("More drawing tools", "polygon", "Draw polygons, slots and splines.", drawTools.Skip(4).ToArray()));
                 var reference = tab.Groups.Single(g => g.Title == "Reference");
                 tab.Groups.Single(g => g.Title == "References").Items.AddRange(reference.Items);
                 tab.Groups.Remove(reference);
@@ -81,12 +87,18 @@ public sealed partial class MainViewModel
                 var look = tab.Groups.Single(g => g.Title == "Look");
                 tab.Groups.Remove(look);
                 tab.Groups.Add(appearance());
-                tab.Groups.Add(G("Orientation", look.Items.OfType<RibbonButton>().Where(b => b.Icon == "look-at").ToArray()));
             }
             if (tab.Title is "Thermal" or "Dynamics" or "Static")
             {
                 foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
                 tab.Groups.Add(appearance());
+            }
+            if (tab.Title is "Home" or "Solid")
+            {
+                var modify = tab.Groups.Single(g => g.Title == "Modify");
+                var edgeTools = modify.Items.OfType<RibbonButton>().Where(b => b.Icon is "chamfer" or "fillet").OrderBy(b => b.Icon == "chamfer" ? 0 : 1).ToArray();
+                modify.Items.RemoveAll(i => i is RibbonButton { Icon: "chamfer" or "fillet" });
+                modify.Items.Insert(0, Split("split:solid-edge", "Chamfer or fillet edges. Click the icon to run the shown tool; click the name to choose another.", edgeTools));
             }
             foreach (var group in tab.Groups)
             {
@@ -111,7 +123,7 @@ public sealed partial class MainViewModel
                     continue;
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
-                bool compact = group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display");
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
                 if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = group.Title is "Transform" or "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));
@@ -133,7 +145,7 @@ public sealed partial class MainViewModel
         return new RibbonButton
         {
             Id = id, Label = cur.Label.Replace("\n", " "), Icon = cur.Icon, Description = desc, Size = RibbonSize.Large, Menu = [.. variants], IsSplit = true, Current = cur,
-            CanExecute = () => !IsSketching,
+            CanExecute = () => { foreach (var v in variants) { v.Refresh(); if (v.IsEnabled) return true; } return false; },
             Picked = v => { picks[id] = v.Label.Replace("\n", " "); AppSettings.Save(false); },
         };
     }

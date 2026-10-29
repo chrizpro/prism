@@ -11,6 +11,7 @@ namespace Prism.Commands;
 // ---------------------------------------------------------------- parameters shown in the command panel
 public abstract partial class Param : ObservableObject
 {
+    public string Section { get; set; } = "Settings";
     public string Label { get; init; } = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayLabel))]
@@ -85,6 +86,32 @@ public sealed partial class ChoiceParam : Param
 // ---------------------------------------------------------------- selection slots
 public sealed partial class SelectionSlot : ObservableObject
 {
+    public string Section { get; set; } = "";
+    public bool ProfileSelection { get; init; }
+    public string PickerLabel => ProfileSelection ? "Selected geometry" : DisplayLabel;
+    public bool HasSelectionRules => Multi && Filter.HasFlag(SelFilter.Edge);
+    public string[] SelectionRules => ProfileSelection
+        ? ["Whole profile", "Single edges", "Connected chain", "Tangent chain", "Partial loop"]
+        : ["Single edges", "Connected chain", "Tangent chain", "Partial loop"];
+    [ObservableProperty] public partial int SelectionRuleIndex { get; set; }
+    [ObservableProperty] public partial bool OtherPath { get; set; }
+    public int EdgeRule => SelectionRuleIndex - (ProfileSelection ? 1 : 0);
+    public bool IsPartialLoop => HasSelectionRules && EdgeRule == 3;
+    public bool ReplacesSelection => !Multi || ProfileSelection && EdgeRule < 0;
+    public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter & ~SelFilter.Edge : SelFilter.Edge;
+    internal SelItem? ChainStart, ChainEnd;
+    internal bool PathNeedsUpdate;
+    public void ResetChain() { ChainStart = ChainEnd = null; PathNeedsUpdate = false; }
+    partial void OnSelectionRuleIndexChanged(int value)
+    {
+        ChainStart = ChainEnd = null; Items.Clear();
+        OnPropertyChanged(nameof(IsPartialLoop)); OnPropertyChanged(nameof(PickFilter));
+        Changed?.Invoke();
+    }
+    partial void OnOtherPathChanged(bool value)
+    {
+        if (ChainStart != null && ChainEnd != null) { PathNeedsUpdate = true; Changed?.Invoke(); }
+    }
     public string Label { get; init; } = "";
     public string? Caption { get; init; }
     public string DisplayLabel => Caption ?? Label;
@@ -101,7 +128,7 @@ public sealed partial class SelectionSlot : ObservableObject
     [ObservableProperty] public partial string Summary { get; set; } = "Click in the viewport";
     public Action? Changed { get; set; }
     public string CountText => MaxCount == int.MaxValue ? Items.Count.ToString() : $"{Items.Count}/{MaxCount}";
-    public bool CanAdd => !Multi || Items.Count < MaxCount;
+    public bool CanAdd => ReplacesSelection || Items.Count < MaxCount;
 
     public SelectionSlot() => Items.CollectionChanged += (_, _) =>
     {
@@ -112,7 +139,7 @@ public sealed partial class SelectionSlot : ObservableObject
 
     public bool TryAdd(SelItem item)
     {
-        if (Items.Contains(item) || Items.Count >= (Multi ? MaxCount : 1)) return false;
+        if (Items.Contains(item) || Items.Count >= (ReplacesSelection ? 1 : MaxCount)) return false;
         Items.Add(item);
         return true;
     }
@@ -203,6 +230,7 @@ public abstract partial class Command : ObservableObject
         {
             for (int i = 0; i < Slots.Count && i < r.Slots.Count; i++)
             {
+                if (Slots[i].ProfileSelection && r.Slots[i].Any(it => it.Kind == SelKind.Edge)) Slots[i].SelectionRuleIndex = 1;
                 Slots[i].Items.Clear();
                 foreach (var it in r.Slots[i]) Slots[i].TryAdd(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
             }
@@ -284,11 +312,13 @@ public abstract partial class Command : ObservableObject
     public ObservableCollection<Param> ResultSettings { get; } = [];
     public ObservableCollection<SelectionSlot> InputSlots { get; } = [];
     public ObservableCollection<SelectionSlot> ResultSlots { get; } = [];
+    public ObservableCollection<CommandSection> WorkflowSections { get; } = [];
     /// <summary>Read-outs shown under the parameters (measurements, mass properties, check results...).</summary>
     public ObservableCollection<ResultLine> Results { get; } = [];
     /// <summary>Commands can draw markers/curves over the viewport while they are open.</summary>
     public virtual void BuildOverlay(Core.CadSession s, Core.Overlay o) { }
     public IViewportTool? Tool { get; protected set; }
+    public bool HasGizmoOptions => Tool is FormEditTool or EditPointsTool || S != null && Handles.Count > 0;
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
     public CadSession S { get; private set; } = null!;
@@ -318,6 +348,39 @@ public abstract partial class Command : ObservableObject
         return s;
     }
 
+    void RefreshWorkflow()
+    {
+        var groups = new List<(string title, List<object> items)>();
+        void Place(string title, object item)
+        {
+            int i = groups.FindIndex(g => g.title == title);
+            if (i < 0) { groups.Add((title, [])); i = groups.Count - 1; }
+            groups[i].items.Add(item);
+        }
+        foreach (var slot in InputSlots) Place(slot.Section.Length > 0 ? slot.Section : slot.DisplayLabel, slot);
+        foreach (var p in PanelSettings) Place(p.Section, p);
+        foreach (var p in AdvancedSettings) Place("Advanced", p);
+        foreach (var p in ResultSettings) Place("Result", p);
+        foreach (var slot in ResultSlots) Place("Result", slot);
+        int number = 0;
+        foreach (var group in groups)
+        {
+            var visible = group.items.Where(x => x is Param p ? p.IsVisible : ((SelectionSlot)x).IsVisible).ToList();
+            if (visible.Count == 0) continue;
+            // Options precede their dependent pickers (e.g. axis type, then axis line).
+            visible = visible.OrderBy(x => x is SelectionSlot ? 1 : 0).ToList();
+            var section = WorkflowSections.FirstOrDefault(s => s.Title == group.title);
+            if (section == null) { section = new CommandSection(group.title); WorkflowSections.Add(section); }
+            section.Number = (++number).ToString(); section.IsVisible = true;
+            int index = WorkflowSections.IndexOf(section);
+            if (index != number - 1) WorkflowSections.Move(index, number - 1);
+            if (!section.Items.SequenceEqual(visible)) { section.Items.Clear(); foreach (var item in visible) section.Items.Add(item); }
+            section.IsActive = visible.OfType<SelectionSlot>().Any(s => s.IsActive);
+        }
+        foreach (var section in WorkflowSections)
+            if (!groups.Any(g => g.title == section.Title && g.items.Any(x => x is Param p ? p.IsVisible : ((SelectionSlot)x).IsVisible))) section.IsVisible = false;
+    }
+
     protected NumberParam Num(string label, double v, double min = double.MinValue, double max = double.MaxValue, double step = 1, string unit = "mm")
         => Add(new NumberParam { Label = label, Value = v, Min = min, Max = max, Step = step, Unit = unit });
     protected ChoiceParam Choice(string label, int index, params string[] options) => Add(new ChoiceParam { Label = label, Options = options, Index = index });
@@ -339,8 +402,11 @@ public abstract partial class Command : ObservableObject
             var seed = inputs.FirstOrDefault(slot => !slot.Optional && selected.Any(item => s.Matches(item, slot.Filter)))
                 ?? inputs.FirstOrDefault(slot => slot.Optional && selected.Any(item => s.Matches(item, slot.Filter)));
             if (seed != null)
+            {
+                if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
                 foreach (var item in selected)
                     if (s.Matches(item, seed.Filter)) seed.TryAdd(item);
+            }
             ActivateFirstOpenSlot();
         });
         OnChanged();
@@ -366,7 +432,17 @@ public abstract partial class Command : ObservableObject
     public bool Pick(SelItem item, bool additive)
     {
         var slot = ActiveSlot;
-        if (slot == null || !S.Matches(item, slot.Filter)) return false;
+        if (slot == null || !S.Matches(item, slot.PickFilter)) return false;
+        if (slot.HasSelectionRules && item.Kind == SelKind.Edge && slot.EdgeRule > 0)
+        {
+            try { ConfigureInputs(() => SelectionChains.Pick(S, slot, item)); UpdateSlots(); OnChanged(); }
+            catch (KernelException e) { S.Say(e.Message, true); }
+            return true;
+        }
+        if (slot.ProfileSelection && slot.EdgeRule < 0)
+        {
+            slot.Items.Clear(); slot.Items.Add(item); AdvanceSlot(slot); return true;
+        }
         if (slot.Multi)
         {
             if (!slot.Items.Remove(item) && !slot.TryAdd(item))
@@ -376,13 +452,17 @@ public abstract partial class Command : ObservableObject
         {
             slot.Items.Clear(); slot.Items.Add(item);
             // advance to the next slot that still needs input
-            var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && !x.Optional && x.Items.Count == 0);
-            if (next != null) { slot.IsActive = false; next.IsActive = true; }
+            AdvanceSlot(slot);
         }
         return true;
     }
 
     void UpdateSlots() { foreach (var s in Slots) s.Update(S.Describe); }
+    void AdvanceSlot(SelectionSlot slot)
+    {
+        var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && !x.Optional && x.Items.Count == 0);
+        if (next != null) { slot.IsActive = false; next.IsActive = true; }
+    }
 
     /// <summary>Re-evaluate visibility rules then rebuild the preview.</summary>
     public void OnChanged()
@@ -392,10 +472,17 @@ public abstract partial class Command : ObservableObject
         foreach (var number in Params.OfType<NumberParam>().Where(p => p.Formula.Length > 0))
             if (Math.Abs(number.Value - S.ParameterValue(number.Formula)) > 1e-10) number.Formula = "";
         UpdateVisibility();
+        ConfigureInputs(() =>
+        {
+            foreach (var slot in Slots.Where(s => s.IsPartialLoop && s.PathNeedsUpdate))
+            { slot.PathNeedsUpdate = false; SelectionChains.UpdatePartial(S, slot); }
+        });
         OnPropertyChanged(nameof(DisplayTitle));
         OnPropertyChanged(nameof(CommitText));
         OnPropertyChanged(nameof(HasAdvancedSettings));
         S.RefreshPreview(this);
+        RefreshWorkflow();
+        OnPropertyChanged(nameof(HasGizmoOptions));
     }
 
     protected virtual void UpdateVisibility() { }

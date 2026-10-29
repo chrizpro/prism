@@ -1,21 +1,21 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Prism.ViewModels" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.StudiosPanel" Foreground="{DynamicResource StudioInk}">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Prism.ViewModels" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.StudiosPanel" Foreground="{DynamicResource Ink}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
-    <DockPanel Background="{DynamicResource StudioBg}">
-        <Border DockPanel.Dock="Top" Background="{DynamicResource StudioHeader}" Padding="14,11" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,0,0,1">
+    <DockPanel Background="{DynamicResource PanelBg}">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource PanelAlt}" Padding="14,11" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="8">
                 <c:IconView Icon="{Binding StudioIcon}" Width="18" Height="18" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding StudioTitle}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Grid.Column="2" Classes="studioLink" Content="×" FontSize="17" Click="OnClose" ToolTip.Tip="Close studio"/>
             </Grid>
         </Border>
-        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" IsVisible="{Binding StudioMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" IsVisible="{Binding StudioMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
             <TextBlock Text="{Binding StudioMessage}" Classes="meta" TextWrapping="Wrap" MaxHeight="60"/>
         </Border>
         <Panel>
             <TabControl IsVisible="{Binding ShowDiagnosticsStudio}">
                 <TabItem Header="Issues">
                     <DockPanel>
-                        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0"><TextBlock Text="{Binding LastDiagnosticCheck}" Classes="meta" FontSize="10"/></Border>
+                        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0"><TextBlock Text="{Binding LastDiagnosticCheck}" Classes="meta" FontSize="11"/></Border>
                         <StackPanel DockPanel.Dock="Top" Margin="12,10,12,6" Spacing="10">
                             <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
                                 <Border Background="#28F75F64" CornerRadius="11" Padding="7,3"><StackPanel Orientation="Horizontal" Spacing="5"><TextBlock Text="!" Foreground="#F75F64" FontWeight="Bold"/><TextBlock Text="{Binding DiagnosticErrorCount, StringFormat='Errors {0}'}" FontSize="11"/></StackPanel></Border>
@@ -23,25 +23,25 @@
                                 <Button Name="RunStudioChecks" Grid.Column="3" Classes="studioAction primary" Content="Run checks" Padding="9,5" FontSize="11" Click="OnRunChecks"/>
                             </Grid>
                             <TextBox Text="{Binding DiagnosticSearch}" Watermark="Search issues…"/>
-                            <TextBlock Text="{Binding DiagnosticFreshness}" Classes="meta" FontSize="10" IsVisible="{Binding DiagnosticsStale}"/>
+                            <TextBlock Text="{Binding DiagnosticFreshness}" Classes="meta" FontSize="11" IsVisible="{Binding DiagnosticsStale}"/>
                         </StackPanel>
                         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Margin="12,4,12,12" Spacing="9">
                                 <TextBlock Text="{Binding IssueCountLabel}" Classes="section" Margin="0,4"/>
 
-                                <Border BorderBrush="{DynamicResource StudioAccent}" BorderThickness="1" CornerRadius="5" Padding="12" IsVisible="{Binding HasSelectedIssue}">
+                                <Border BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="5" Padding="12" IsVisible="{Binding HasSelectedIssue}">
                                     <StackPanel Spacing="11">
                                         <Grid ColumnDefinitions="22,*" ColumnSpacing="6"><Border Background="{Binding SelectedStudioIssue.IndicatorBrush}" CornerRadius="9" Width="18" Height="18" VerticalAlignment="Top"><TextBlock Text="{Binding SelectedStudioIssue.Symbol}" Foreground="#1A2633" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Grid.Column="1" Text="{Binding SelectedStudioIssue.DisplayTitle}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap"/></Grid>
                                         <TextBlock Text="{Binding SelectedStudioIssue.Detail}" Classes="meta" TextWrapping="Wrap"/>
                                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                                            <Border Background="{DynamicResource StudioField}" BorderBrush="{DynamicResource StudioLine}" BorderThickness="1" CornerRadius="3" ClipToBounds="True">
+                                            <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="3" ClipToBounds="True">
                                                 <c:GeometryPreview Name="IssueGeometryPreview" Source="{Binding IssuePreview}" Height="138"/>
                                             </Border>
                                             <ItemsControl Grid.Column="1" ItemsSource="{Binding IssueFields}" VerticalAlignment="Center"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:StudioField">
-                                                <StackPanel Spacing="3" Margin="0,0,0,10"><TextBlock Text="{Binding Label}" Classes="meta" FontSize="10"/><TextBlock Text="{Binding Value}" FontSize="11" TextWrapping="Wrap"/></StackPanel>
+                                                <StackPanel Spacing="3" Margin="0,0,0,10"><TextBlock Text="{Binding Label}" Classes="meta" FontSize="11"/><TextBlock Text="{Binding Value}" FontSize="11" TextWrapping="Wrap"/></StackPanel>
                                             </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                         </Grid>
-                                        <TextBlock Text="{Binding IssuePreviewCaption}" Classes="meta" FontSize="10" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding IssuePreviewCaption}" Classes="meta" FontSize="11" TextWrapping="Wrap"/>
                                         <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                             <Button Content="{Binding IssueEditorLabel}" Classes="studioAction primary" Click="OnEditIssue" IsEnabled="{Binding SelectedStudioIssue.CanEdit}" HorizontalAlignment="Stretch" FontSize="11"/>
                                             <Button Grid.Column="1" Content="Locate geometry" Classes="studioAction" Click="OnLocateIssue" IsEnabled="{Binding SelectedStudioIssue.CanLocate}" HorizontalAlignment="Stretch" FontSize="11"/>
@@ -52,11 +52,11 @@
                                     <ListBox.ItemTemplate><DataTemplate DataType="vm:StudioIssue">
                                         <Grid ColumnDefinitions="20,*" ColumnSpacing="7">
                                             <TextBlock Text="{Binding Symbol}" Foreground="{Binding IndicatorBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            <StackPanel Grid.Column="1" Spacing="2"><TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Severity}" Classes="meta" FontSize="10"/></StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2"><TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Severity}" Classes="meta" FontSize="11"/></StackPanel>
                                         </Grid>
                                     </DataTemplate></ListBox.ItemTemplate>
                                 </ListBox>
-                                <Border Background="{DynamicResource StudioHeader}" CornerRadius="4" Padding="12" IsVisible="{Binding HasNoIssues}"><TextBlock Text="✓ No issues found by these checks" Foreground="{DynamicResource Ok}" TextWrapping="Wrap"/></Border>
+                                <Border Background="{DynamicResource PanelAlt}" CornerRadius="4" Padding="12" IsVisible="{Binding HasNoIssues}"><TextBlock Text="✓ No issues found by these checks" Foreground="{DynamicResource Ok}" TextWrapping="Wrap"/></Border>
                                 <TextBlock Text="Passed checks" Classes="section" Margin="0,8,0,0"/>
                                 <ItemsControl ItemsSource="{Binding DiagnosticPassed}"><ItemsControl.ItemTemplate><DataTemplate>
                                     <Grid ColumnDefinitions="22,*" ColumnSpacing="8" Margin="0,6"><TextBlock Text="✓" Foreground="{DynamicResource Ok}"/><TextBlock Grid.Column="1" Text="{Binding}" Classes="meta" TextWrapping="Wrap"/></Grid>
@@ -70,8 +70,8 @@
             </TabControl>
 
             <DockPanel IsVisible="{Binding ShowReferencesStudio}">
-                <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" Padding="12,10">
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><Button Content="Edit reference" Classes="studioAction primary" Click="OnEditReference" HorizontalAlignment="Stretch"/><Button Grid.Column="1" Content="Create plane" Classes="studioAction" Click="OnCreatePlane" HorizontalAlignment="Stretch"/></Grid>
+                <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,10">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><Button Content="Edit reference" IsEnabled="{Binding HasReferenceSelection}" Classes="studioAction primary" Click="OnEditReference" HorizontalAlignment="Stretch"/><Button Grid.Column="1" Content="Create plane" Classes="studioAction" Click="OnCreatePlane" HorizontalAlignment="Stretch"/></Grid>
                 </Border>
                 <StackPanel DockPanel.Dock="Top" Margin="12,12,12,6" Spacing="9">
                     <TextBox Text="{Binding ReferenceSearch}" Watermark="Search references…"/>
@@ -88,44 +88,44 @@
                             </Grid></Border>
                         </StackPanel></DataTemplate></ListBox.ItemTemplate>
                     </ListBox>
-                    <Border Classes="sectionBar" Margin="0,12,0,0"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding ReferenceName}" FontWeight="SemiBold"/><Button Grid.Column="1" Content="Locate ⌖" Classes="studioLink" Click="OnLocateReference" Padding="0"/></Grid></Border>
+                    <Border Classes="sectionBar" Margin="0,12,0,0"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding ReferenceName}" FontWeight="SemiBold"/><Button Grid.Column="1" Content="Locate ⌖" IsEnabled="{Binding HasReferenceSelection}" Classes="studioLink" Click="OnLocateReference" Padding="0"/></Grid></Border>
                     <Grid ColumnDefinitions="124,*" ColumnSpacing="12" Margin="12,12" IsVisible="{Binding HasReferenceSelection}">
-                        <Border CornerRadius="4" ClipToBounds="True" BorderBrush="{DynamicResource StudioLine}" BorderThickness="1"><c:GeometryPreview Source="{Binding ReferencePreview}" Height="130"/></Border>
-                        <ItemsControl Grid.Column="1" ItemsSource="{Binding ReferenceFields}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:StudioField"><StackPanel Spacing="3" Margin="0,0,0,9"><TextBlock Text="{Binding Label}" Classes="meta" FontSize="10"/><TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        <Border CornerRadius="4" ClipToBounds="True" BorderBrush="{DynamicResource Line}" BorderThickness="1"><c:GeometryPreview Source="{Binding ReferencePreview}" Height="130"/></Border>
+                        <ItemsControl Grid.Column="1" ItemsSource="{Binding ReferenceFields}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:StudioField"><StackPanel Spacing="3" Margin="0,0,0,9"><TextBlock Text="{Binding Label}" Classes="meta" FontSize="11"/><TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                     </Grid>
                     <Border Classes="sectionBar"><TextBlock Text="Used by" Classes="section"/></Border>
                     <ItemsControl ItemsSource="{Binding ReferenceUseFeatures}" Margin="12,6"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:FeatureChoice"><Button Classes="studioLink" Click="OnOpenDependency" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"><TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                    <TextBlock Text="No captured uses on this branch" Classes="meta" Margin="12,12" IsVisible="{Binding !HasReferenceUses}"/>
+                    <TextBlock Text="No dependent features on this branch" Classes="meta" Margin="12,12" IsVisible="{Binding !HasReferenceUses}"/>
                 </StackPanel></ScrollViewer>
             </DockPanel>
 
             <TabControl Name="ParametersTabs" IsVisible="{Binding ShowParametersStudio}">
                 <TabItem Header="Document"><DockPanel>
-                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" Padding="12,10"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><Button Name="ApplyDocumentParameters" Content="Apply changes" Classes="studioAction primary" Click="OnApplyParameters" HorizontalAlignment="Stretch"/><Button Grid.Column="1" Content="Revert" Classes="studioAction" Click="OnRevertParameters"/></Grid></Border>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,10"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><Button Name="ApplyDocumentParameters" Content="Apply changes" Classes="studioAction primary" Click="OnApplyParameters" HorizontalAlignment="Stretch"/><Button Grid.Column="1" Content="Revert" Classes="studioAction" Click="OnRevertParameters"/></Grid></Border>
                     <StackPanel DockPanel.Dock="Top" Margin="12,10,12,6" Spacing="9">
                         <TextBox Text="{Binding ParameterSearch}" Watermark="Find a parameter…"/>
-                        <Grid ColumnDefinitions="*,Auto"><Button Content="＋ Parameter" Classes="studioAction" Click="OnToggleAddParameter" HorizontalAlignment="Left" Padding="9,5"/><Border Grid.Column="1" Background="{DynamicResource StudioField}" BorderBrush="{DynamicResource StudioLine}" BorderThickness="1" Padding="12,5" CornerRadius="3"><TextBlock Text="mm" Classes="meta"/></Border></Grid>
+                        <Grid ColumnDefinitions="*,Auto"><Button Content="＋ Parameter" Classes="studioAction" Click="OnToggleAddParameter" HorizontalAlignment="Left" Padding="9,5"/><Border Grid.Column="1" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="12,5" CornerRadius="3"><TextBlock Text="mm" Classes="meta"/></Border></Grid>
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel>
                         <StackPanel IsVisible="{Binding HasPinnedParameters}"><Border Classes="sectionBar"><TextBlock Text="Pinned" Classes="section"/></Border>
-                            <ItemsControl ItemsSource="{Binding PinnedParameterRows}" Margin="12,4"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:ParameterDraft"><Button Classes="studioLink" Click="OnSelectParameter" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="8"><TextBlock Text="◆" Foreground="#D8AE6A" FontSize="10" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"/><TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="12"/></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                            <ItemsControl ItemsSource="{Binding PinnedParameterRows}" Margin="12,4"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:ParameterDraft"><Button Classes="studioLink" Click="OnSelectParameter" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="8"><TextBlock Text="◆" Foreground="{DynamicResource Gold}" FontSize="11" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"/><TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="12"/></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                         </StackPanel>
                         <Border Classes="sectionBar" Margin="0,6,0,0"><TextBlock Text="{Binding ParameterCountLabel}" Classes="section"/></Border>
-                        <Grid ColumnDefinitions="94,*,62" Margin="12,9,12,4" ColumnSpacing="6"><TextBlock Text="Name" Classes="meta" FontSize="10"/><TextBlock Grid.Column="1" Text="Expression" Classes="meta" FontSize="10"/><TextBlock Grid.Column="2" Text="Value" Classes="meta" FontSize="10" HorizontalAlignment="Right"/></Grid>
+                        <Grid ColumnDefinitions="94,*,62" Margin="12,9,12,4" ColumnSpacing="6"><TextBlock Text="Name" Classes="meta" FontSize="11"/><TextBlock Grid.Column="1" Text="Expression" Classes="meta" FontSize="11"/><TextBlock Grid.Column="2" Text="Value" Classes="meta" FontSize="11" HorizontalAlignment="Right"/></Grid>
                         <ListBox Name="ParameterTable" Classes="studioList" ItemsSource="{Binding VisibleParameterRows}" SelectedItem="{Binding SelectedParameterDraft}" Margin="4,0" MaxHeight="250"><ListBox.ItemTemplate><DataTemplate DataType="vm:ParameterDraft"><Grid ColumnDefinitions="94,*,62" ColumnSpacing="6" ToolTip.Tip="{Binding Formula}"><TextBlock Text="{Binding Name}" FontSize="11" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding Formula}" FontSize="11" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="11" HorizontalAlignment="Right"/></Grid></DataTemplate></ListBox.ItemTemplate></ListBox>
-                        <Border BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" Margin="0,10,0,0" Padding="12,12" IsVisible="{Binding HasParameterSelection}"><StackPanel Spacing="9">
+                        <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,10,0,0" Padding="12,12" IsVisible="{Binding HasParameterSelection}"><StackPanel Spacing="9">
                             <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding SelectedParameterDraft.Name}" FontSize="15" FontWeight="SemiBold"/><CheckBox Grid.Column="1" Content="Pin" IsChecked="{Binding SelectedParameterDraft.Pinned}" FontSize="11"/></Grid>
                             <TextBox Text="{Binding SelectedParameterDraft.Formula}" Watermark="Expression, e.g. wall * 0.75"/>
-                            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Result" Classes="meta" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding SelectedParameterDraft.Result, StringFormat='= {0}'}" FontSize="15" Foreground="{DynamicResource StudioAccent}"/></Grid>
+                            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Result" Classes="meta" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding SelectedParameterDraft.Result, StringFormat='= {0}'}" FontSize="15" Foreground="{DynamicResource Accent}"/></Grid>
                             <TextBlock Text="Used by" Classes="section" Margin="0,5,0,0"/>
                             <ItemsControl ItemsSource="{Binding ParameterUseFeatures}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:FeatureChoice"><Button Classes="studioLink" Click="OnOpenDependency" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Content="{Binding Title}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                            <Grid ColumnDefinitions="*,Auto"><Button Content="Evaluate" Classes="studioLink" Click="OnPreviewParameters" HorizontalAlignment="Left"/><Button Grid.Column="1" Content="Remove parameter" Classes="studioLink" Click="OnRemoveSelectedParameter" FontSize="10"/></Grid>
+                            <Grid ColumnDefinitions="*,Auto"><Button Content="Evaluate" Classes="studioLink" Click="OnPreviewParameters" HorizontalAlignment="Left"/><Button Grid.Column="1" Content="Remove parameter" Classes="studioLink" Click="OnRemoveSelectedParameter" FontSize="11"/></Grid>
                         </StackPanel></Border>
-                        <Border Background="{DynamicResource StudioHeader}" CornerRadius="4" Margin="12,8" Padding="12" IsVisible="{Binding AddingParameter}"><StackPanel Spacing="7"><TextBlock Text="New parameter" FontWeight="SemiBold"/><TextBox Text="{Binding NewParameterName}" Watermark="Name, e.g. wall"/><TextBox Text="{Binding NewParameterFormula}" Watermark="Expression, e.g. 3 mm"/><Button Content="Add parameter" Classes="studioAction" Click="OnAddParameter"/></StackPanel></Border>
+                        <Border Background="{DynamicResource PanelAlt}" CornerRadius="4" Margin="12,8" Padding="12" IsVisible="{Binding AddingParameter}"><StackPanel Spacing="7"><TextBlock Text="New parameter" FontWeight="SemiBold"/><TextBox Text="{Binding NewParameterName}" Watermark="Name, e.g. wall"/><TextBox Text="{Binding NewParameterFormula}" Watermark="Expression, e.g. 3 mm"/><Button Content="Add parameter" Classes="studioAction" Click="OnAddParameter"/></StackPanel></Border>
                     </StackPanel></ScrollViewer>
                 </DockPanel></TabItem>
                 <TabItem Header="Feature"><DockPanel>
-                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" Padding="12,10"><Button Content="Update feature" Classes="studioAction primary" Click="OnApplyFeature" HorizontalAlignment="Stretch"/></Border>
+                    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,10"><Button Content="Update feature" Classes="studioAction primary" Click="OnApplyFeature" HorizontalAlignment="Stretch"/></Border>
                     <ScrollViewer><StackPanel Margin="12,12" Spacing="11"><TextBlock Text="Current branch" Classes="meta"/><ComboBox Name="FeaturePicker" ItemsSource="{Binding StudioFeatures}" SelectedItem="{Binding SelectedStudioFeature}" HorizontalAlignment="Stretch"><ComboBox.ItemTemplate><DataTemplate DataType="vm:FeatureChoice"><TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate></ComboBox><Button Content="Open full feature editor ↗" Classes="studioLink" Click="OnOpenFeatureEditor" HorizontalAlignment="Left"/><ItemsControl ItemsSource="{Binding FeatureValueRows}"><ItemsControl.ItemTemplate><DataTemplate DataType="vm:FeatureValueRow"><StackPanel Margin="0,6" Spacing="5"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Label}" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding Unit}" Classes="meta"/></Grid><TextBox Text="{Binding Formula}" Watermark="Value or named expression"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl><TextBlock Text="Use a saved parameter name to link a dimension. Updating rebuilds the following features." Classes="meta" TextWrapping="Wrap"/></StackPanel></ScrollViewer>
                 </DockPanel></TabItem>
             </TabControl>

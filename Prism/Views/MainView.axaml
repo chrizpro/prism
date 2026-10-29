@@ -36,6 +36,12 @@
 
         <Style Selector="Button.opt.on"><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
 
+        <Style Selector="Button.workspace.on /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/></Style>
+        <Style Selector="Button.workspace.on TextBlock"><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/></Style>
+        <Style Selector="Button.help:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentHover}"/></Style>
+        <Style Selector="Button.caption"><Setter Property="Width" Value="40"/><Setter Property="Height" Value="44"/><Setter Property="Padding" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+        <Style Selector="Button.caption:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
+        <Style Selector="Button.caption.close:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#C42B1C"/></Style>
         <Style Selector="TextBlock.err"><Setter Property="Foreground" Value="{DynamicResource Danger}"/></Style>
 
     </UserControl.Styles>
@@ -50,9 +56,9 @@
 
         <!-- ============ title strip: app, quick access, command search ============ -->
 
-        <Border DockPanel.Dock="Top" Height="44" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Height="50" Padding="0,6,0,0" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" PointerPressed="OnTitlePointerPressed">
 
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14,0">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="14,0,0,0">
 
                 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
 
@@ -90,7 +96,7 @@
 
                             <DataTemplate DataType="vm:WorkspaceItem">
 
-                                <Button Classes="opt" Classes.on="{Binding IsCurrent}" Tag="{Binding Id}" Click="OnWorkspace" ToolTip.Tip="{Binding Tip}" Padding="10,5">
+                                <Button Classes="opt workspace" Classes.on="{Binding IsCurrent}" IsVisible="{Binding ShowOnBar}" Tag="{Binding Id}" Click="OnWorkspace" ToolTip.Tip="{Binding Tip}" Padding="10,5">
 
                                     <TextBlock Text="{Binding Name}" FontSize="12"/>
 
@@ -101,6 +107,8 @@
                         </ItemsControl.ItemTemplate>
 
                     </ItemsControl>
+
+                    <Button Classes="opt" Content="⋯" Click="OnWorkspaceMenu" ToolTip.Tip="Choose and customize workspaces" Padding="8,5"/>
 
                     <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="10,0"/>
 
@@ -116,11 +124,11 @@
 
                 <!-- command search -->
 
-                <Grid Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Width="420">
+                <Grid Name="SearchContainer" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Width="420" MaxWidth="420">
 
                     <TextBox Name="SearchBox" Text="{Binding SearchText}" Watermark="Search commands  (Ctrl+K)" Padding="34,7,12,7" CornerRadius="9" FontSize="12.5"
 
-                             KeyDown="OnSearchKey"/>
+                             KeyDown="OnSearchKey" GotFocus="OnSearchFocus"/>
 
                     <Path Data="M6 1 a5 5 0 1 0 0.01 0 M10 10 L14 14" Stroke="{DynamicResource InkFaint}" StrokeThickness="1.6" StrokeLineCap="Round" Width="14" Height="14" Stretch="Uniform"
 
@@ -144,11 +152,11 @@
 
                                                 <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
 
-                                                <TextBlock Text="{Binding Description}" Classes="faint" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Path}" Classes="faint" TextTrimming="CharacterEllipsis"/>
 
                                             </StackPanel>
 
-                                            <TextBlock Grid.Column="2" Text="{Binding Tab}" Classes="faint" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Shortcut}" Classes="faint" VerticalAlignment="Center"/>
 
                                         </Grid>
 
@@ -171,7 +179,15 @@
 
                               Data="F0 M10.08 4.85 L10.45 2.22 L13.55 2.22 L13.92 4.85 L15.70 5.59 L17.82 3.99 L20.01 6.18 L18.41 8.30 L19.15 10.08 L21.78 10.45 L21.78 13.55 L19.15 13.92 L18.41 15.70 L20.01 17.82 L17.82 20.01 L15.70 18.41 L13.92 19.15 L13.55 21.78 L10.45 21.78 L10.08 19.15 L8.30 18.41 L6.18 20.01 L3.99 17.82 L5.59 15.70 L4.85 13.92 L2.22 13.55 L2.22 10.45 L4.85 10.08 L5.59 8.30 L3.99 6.18 L6.18 3.99 L8.30 5.59 Z M15.2 12 A3.2 3.2 0 1 0 8.8 12 A3.2 3.2 0 1 0 15.2 12 Z"/>
 
-                    </Button><TextBlock Text="{Binding DocumentTitle}" VerticalAlignment="Center" Classes="soft" FontWeight="Medium" Margin="8,0,0,0"/></StackPanel>
+                    </Button><TextBlock Text="{Binding DocumentTitle}" VerticalAlignment="Center" Classes="soft" FontWeight="Medium" Margin="8,0,0,0"/>
+                    <Button Name="BtnHelp" Classes="help" Content="?" Width="22" Height="22" Padding="0" CornerRadius="11" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="13" FontWeight="SemiBold" Click="OnHelp" ToolTip.Tip="Help and about Prism"/>
+                </StackPanel>
+
+                <StackPanel Name="WindowControls" Grid.Column="4" Orientation="Horizontal" Margin="8,0,0,0" IsVisible="False">
+                    <Button Classes="caption" Click="OnMinimize" ToolTip.Tip="Minimize" AutomationProperties.Name="Minimize"><Path Data="M0 0 H10" Stroke="{DynamicResource InkSoft}" StrokeThickness="1"/></Button>
+                    <Button Classes="caption" Click="OnMaximize" ToolTip.Tip="Maximize or restore" AutomationProperties.Name="Maximize or restore"><Path Data="M0 0 H10 V10 H0 Z" Stroke="{DynamicResource InkSoft}" StrokeThickness="1"/></Button>
+                    <Button Classes="caption close" Click="OnClose" ToolTip.Tip="Close" AutomationProperties.Name="Close"><Path Data="M0 0 L10 10 M10 0 L0 10" Stroke="{DynamicResource InkSoft}" StrokeThickness="1"/></Button>
+                </StackPanel>
 
             </Grid>
 
@@ -191,7 +207,7 @@
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
 
-                <TextBlock Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Name="BottomContext" Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                 <StackPanel Name="StatusRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
 
@@ -209,15 +225,17 @@
 
                 <Thumb Height="5" Cursor="SizeNorthSouth" DragDelta="OnHistoryResize" IsVisible="{Binding HistoryExpanded}" ToolTip.Tip="Drag to resize design history"/>
 
-                <Grid ColumnDefinitions="Auto,*,Auto" Height="38" Margin="12,0">
+                <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="46" Margin="12,0" ColumnSpacing="12">
 
                     <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
 
                         <TextBlock Text="Design history" FontWeight="SemiBold" VerticalAlignment="Center"/>
 
-                        <TextBlock Text="{Binding HistorySummary}" Classes="faint" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding HistorySummary}" Classes="faint" VerticalAlignment="Center" IsVisible="{Binding HistoryExpanded}"/>
 
                     </StackPanel>
+
+                    <c:HistoryGraphView Name="CompactHistory" Grid.Column="1" Compact="True" Height="46" ClipToBounds="True" IsVisible="{Binding !HistoryExpanded}"/>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
 
@@ -225,11 +243,11 @@
 
                         <Button Classes="tool" Click="OnRedo" ToolTip.Tip="Redo"><c:IconView Icon="redo" Width="16" Height="16"/></Button>
 
-                        <Button Classes="ghost" Content="Checkpoint" Click="OnPinCheckpoint" Padding="10,4"/>
+                        <Button Classes="ghost" Content="Checkpoint" Click="OnPinCheckpoint" Padding="10,4" IsVisible="{Binding HistoryExpanded}"/>
 
-                        <Button Classes="ghost" Content="Branch here" Click="OnBranchHistory" Padding="10,4" ToolTip.Tip="Start a named alternative from this step. Existing continuations are kept."/>
+                        <Button Classes="ghost" Content="Branch here" Click="OnBranchHistory" Padding="10,4" IsVisible="{Binding HistoryExpanded}" ToolTip.Tip="Start a named alternative from this step. Existing continuations are kept."/>
 
-                        <Button Classes="ghost" Content="All steps" Click="OnToggleHistory" Padding="10,4"/>
+                        <Button Classes="ghost" Content="All steps" Click="OnToggleHistory" Padding="10,4" IsVisible="{Binding HistoryExpanded}"/>
 
                         <Button Classes="ghost" Content="{Binding HistoryToggleText}" Click="OnCollapseHistory" Padding="10,4" ToolTip.Tip="Collapse or expand the history graph"/>
 
@@ -291,13 +309,16 @@
 
                     <Border DockPanel.Dock="Top" Padding="10,10,10,6">
 
-                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <Grid ColumnDefinitions="*,Auto">
 
-                            <Button Name="TabBrowser" Classes="seg" Content="Browser" Click="OnShowBrowser"/>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Name="TabBrowser" Classes="seg" Content="Browser" Click="OnShowBrowser"/>
+                                    <Button Name="TabHistory" Classes="seg" Content="History" Click="OnShowHistory" Margin="2,0,0,0"/>
+                                </StackPanel>
+                            </ScrollViewer>
 
-                            <Button Name="TabHistory" Classes="seg" Content="History" Grid.Column="1" Click="OnShowHistory" Margin="2,0,0,0"/>
-
-                            <Button Grid.Column="3" Classes="tool" Padding="5" Click="OnCollapseAll" ToolTip.Tip="Collapse all folders">
+                            <Button Grid.Column="1" Classes="tool" Padding="5" Click="OnCollapseAll" ToolTip.Tip="Collapse all folders">
 
                                 <Path Data="M2 4 L6 8 L10 4 M2 9 L6 13 L10 9" Stroke="{DynamicResource InkSoft}" StrokeThickness="1.4" StrokeLineCap="Round" StrokeJoin="Round" Width="12" Height="14" Stretch="Uniform"/>
 
@@ -333,7 +354,7 @@
 
                                     <TreeDataTemplate DataType="vm:BrowserNode" ItemsSource="{Binding Children}">
 
-                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Height="30" ColumnSpacing="8" Background="Transparent">
+                                        <Grid Name="BrowserRow" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Height="32" ColumnSpacing="6" Background="Transparent">
 
                                             <c:IconView Icon="{Binding Icon}" Width="19" Height="19" VerticalAlignment="Center" Dimmed="{Binding !IsVisible}"/>
 
@@ -376,6 +397,7 @@
                                 </TreeView.DataTemplates>
 
                             </TreeView>
+                            <c:BrowserBranchLines Tree="{Binding #Tree}" BranchBrush="{DynamicResource Accent}"/>
 
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" IsHitTestVisible="False" Margin="20" Name="EmptyHint" IsVisible="False">
 
@@ -498,6 +520,10 @@
             </Border>
 
             <Grid ClipToBounds="True" Background="Transparent">
+
+                <Border Name="ViewportContext" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,164,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource OverlayBg}" IsHitTestVisible="False" MaxWidth="360" ZIndex="10">
+                    <TextBlock Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" TextWrapping="Wrap"/>
+                </Border>
 
                 <!-- the model view plus three locked standard views, arranged by the active layout -->
 
@@ -738,16 +764,16 @@
 
                 <DockPanel>
 
-                    <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Background="{DynamicResource PanelAlt}">
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource PanelAlt}">
                         <ItemsControl ItemsSource="{Binding RightPanelTabs}" Margin="6,5">
-                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="vm:RightPanelTab">
                                     <Button Content="{Binding Title}" Tag="{Binding Id}" Classes="seg" Classes.on="{Binding IsSelected}" Click="OnRightPanelTab"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
+                    </Border>
 
                 <Panel>
 

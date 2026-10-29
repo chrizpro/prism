@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Prism.Ribbon;
+using Prism.Core;
 
 namespace Prism.ViewModels;
 
@@ -18,6 +19,10 @@ public sealed partial class WorkspaceItem : ObservableObject
     public string Tip => Def.Tip;
     public string Id => Def.Id;
     [ObservableProperty] public partial bool IsCurrent { get; set; }
+    [ObservableProperty] public partial bool IsPinned { get; set; }
+    public bool ShowOnBar => IsPinned || IsCurrent;
+    partial void OnIsCurrentChanged(bool value) => OnPropertyChanged(nameof(ShowOnBar));
+    partial void OnIsPinnedChanged(bool value) => OnPropertyChanged(nameof(ShowOnBar));
 }
 
 public sealed partial class MainViewModel
@@ -43,9 +48,20 @@ public sealed partial class MainViewModel
 
     void InitWorkspaces()
     {
-        foreach (var d in WorkspaceDefs) Workspaces.Add(new WorkspaceItem { Def = d });
+        var visible = AppSettings.Current.VisibleWorkspaces ?? ["design", "render", "scan", "all"];
+        foreach (var d in WorkspaceDefs.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
+            Workspaces.Add(new WorkspaceItem { Def = d, IsPinned = visible.Contains(d.Id) });
         try { if (File.Exists(UiFile)) { var id = File.ReadAllText(UiFile).Trim(); if (id == "ar") id = "design"; if (WorkspaceDefs.Any(w => w.Id == id)) WorkspaceId = id; } } catch { }
         ApplyWorkspace();
+    }
+
+    public void SetWorkspacePinned(string id, bool pinned)
+    {
+        var item = Workspaces.FirstOrDefault(w => w.Id == id);
+        if (item == null) return;
+        item.IsPinned = pinned;
+        AppSettings.Current.VisibleWorkspaces = Workspaces.Where(w => w.IsPinned).Select(w => w.Id).ToList();
+        AppSettings.Save(false);
     }
 
     public void SetWorkspace(string id)

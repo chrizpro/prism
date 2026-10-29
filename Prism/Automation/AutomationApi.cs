@@ -473,6 +473,8 @@ public sealed class AutomationApi
             var items = (val is JsonArray ja ? ja.Select(x => x!).ToList() : [val!]).Select(ParseItem).ToList();
             if (slot.Multi && items.Distinct().Count() > slot.MaxCount)
                 throw new ArgumentException($"'{slot.Label}' accepts at most {slot.MaxCount} selections.");
+            slot.ResetChain();
+            if (slot.ProfileSelection) slot.SelectionRuleIndex = items.Any(it => it.Kind == SelKind.Edge) ? 1 : 0;
             slot.Items.Clear();
             foreach (var it in items)
             {
@@ -1613,6 +1615,14 @@ public sealed class AutomationApi
                 if (a["point"] != null) S.SetOriginVisible(6, a["point"]!.GetValue<bool>());
                 _vm.RebuildBrowser();
                 return new JsonArray(CadSession.OriginNames.Select((n, i) => (JsonNode)new JsonObject { ["name"] = n, ["visible"] = S.OriginVisible[i] }).ToArray());
+            });
+
+        Add("history_view", "Inspect or resize the design history panel. Collapsed mode shows a compact, interactive trail of the active branch.",
+            Schema(null, ("expanded", "boolean", "Show the full branch graph, or the compact trail when false."), ("height", "number", "Expanded graph height, clamped to 100–360.")), a =>
+            {
+                if (a["expanded"] != null) _vm.HistoryExpanded = Bool(a, "expanded", true);
+                if (a["height"] != null) _vm.HistoryHeight = Math.Clamp(Dbl(a, "height", 180), 100, 360);
+                return new JsonObject { ["expanded"] = _vm.HistoryExpanded, ["height"] = _vm.HistoryHeight, ["summary"] = _vm.HistorySummary };
             });
 
         Add("history_tree", "The full history tree: every step with its parent, label, time, checkpoint name and which one is current. Branches exist when an edit was made after rolling back.",

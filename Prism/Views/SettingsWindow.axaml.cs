@@ -30,10 +30,13 @@ public partial class SettingsWindow : Window
     public SettingsWindow(MainViewModel vm)
     {
         _vm = vm;
+        DataContext = vm;
         InitializeComponent();
         if (vm == null) return;
         _loading = true;
         var s = AppSettings.Current;
+        HelpContextLocation.SelectedIndex = s.HelpContextLocation == "bottom" ? 1 : 0;
+        AccentChoice.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "Blue", "Teal", "Purple", "Orange", "Rose" }, s.AccentColor));
         ThemeDark.IsChecked = s.Theme == "Dark"; ThemeLight.IsChecked = s.Theme == "Light"; ThemeSystem.IsChecked = s.Theme == "System";
         MarkingOn.IsChecked = s.MarkingMenu; HoldMs.Value = s.MarkingHoldMs; HoldLabel.Text = $"Hold time: {s.MarkingHoldMs} ms";
         ReverseScrollZoom.IsChecked = s.ReverseScrollZoom;
@@ -47,6 +50,12 @@ public partial class SettingsWindow : Window
     }
 
     void ShowWorkspace() => WsPath.Text = _vm.HasWorkspace ? _vm.WorkspaceFolder : "No workspace chosen yet";
+    void OnHelpContextLocation(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || HelpContextLocation.SelectedIndex < 0) return;
+        AppSettings.Current.HelpContextLocation = HelpContextLocation.SelectedIndex == 1 ? "bottom" : "viewport";
+        AppSettings.Save();
+    }
     void OnWsChange(object? s, RoutedEventArgs e) => _vm.ChooseWorkspaceFolder();
     void OnWsDefault(object? s, RoutedEventArgs e) => _vm.UseDefaultWorkspace();
     void OnWsShow(object? s, RoutedEventArgs e) => _vm.ShowWorkspaceInExplorer();
@@ -104,13 +113,20 @@ public partial class SettingsWindow : Window
     {
         if (PageAppearance == null) return;
         int i = Nav.SelectedIndex;
-        PageAppearance.IsVisible = i == 0; PageInteraction.IsVisible = i == 1; PageWorkspace.IsVisible = i == 2; PageToolbars.IsVisible = i == 3; PageRibbon.IsVisible = i == 4;
+        PageAppearance.IsVisible = i == 0; PageInteraction.IsVisible = i == 1; PageWorkspace.IsVisible = i == 2; PageToolbars.IsVisible = i == 3; PageRibbon.IsVisible = i == 4; PageAssistant.IsVisible = i == 5;
     }
 
     void OnTheme(object? sender, RoutedEventArgs e)
     {
         if (_loading) return;
         AppSettings.Current.Theme = ThemeLight.IsChecked == true ? "Light" : ThemeSystem.IsChecked == true ? "System" : "Dark";
+        AppSettings.Save();
+    }
+
+    void OnAccent(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || AccentChoice?.SelectedItem is not ComboBoxItem { Content: string color }) return;
+        AppSettings.Current.AccentColor = color;
         AppSettings.Save();
     }
 

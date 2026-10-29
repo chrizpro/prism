@@ -411,11 +411,11 @@ Check(offsetSketch.TryUndo(offsetSession)&&offsetSketch.Model.Entities.Count==2,
 
 var dockVm = new MainViewModel(); dockVm.Session.EnterSketch(Plane3.XY); var dockSketch = dockVm.Session.Sketch;
 dockVm.OpenRightPanel("references"); dockVm.OpenRightPanel("parameters");
-Check(dockVm.RightPanelTabs.Count == 3 && ReferenceEquals(dockVm.Session.Sketch,dockSketch), "multiple inspector tabs can open without leaving the sketch");
+Check(dockVm.RightPanelTabs.Count == 4 && ReferenceEquals(dockVm.Session.Sketch,dockSketch), "multiple inspector tabs can open without leaving the sketch");
 dockVm.SelectRightPanel("references"); Check(dockVm.ShowReferencesStudio && !dockVm.ShowSketchPanel, "selecting an inspector tab shows its own panel");
 dockVm.SelectRightPanel("context"); Check(dockVm.ShowSketchPanel && ReferenceEquals(dockVm.Session.Sketch,dockSketch), "the Sketch tab restores the same active sketch");
 dockVm.SetRightPanelEnabled("references",false);
-Check(dockVm.RightPanelTabs.Count == 2 && dockVm.IsRightPanelOpen("parameters"), "unchecking one panel preserves other selected tabs");
+Check(dockVm.RightPanelTabs.Count == 3 && dockVm.IsRightPanelOpen("parameters"), "unchecking one panel preserves other selected tabs");
 var spacePanel = new SketchSpacePanel { DataContext = vm };
 Check(!Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(spacePanel).OfType<Button>().Any(b => b.Content?.ToString() is "Line (L)" or "Circle (C)" or "Rectangle (R)" or "Spline (S)"), "3D options contain no duplicate sketch drawing tools");
 var window = new Window { Width = 340, Height = 1100, Background = SolidColorBrush.Parse("#1A1F27"), Content = new SketchPanel { DataContext = vm } };

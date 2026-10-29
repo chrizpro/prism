@@ -275,34 +275,38 @@ public sealed partial class SketchContext
 
     static Vec3 Rotate(Vec3 v, Vec3 axis, double angle) => v * Math.Cos(angle) + Vec3.Cross(axis, v) * Math.Sin(angle) + axis * (Vec3.Dot(axis, v) * (1 - Math.Cos(angle)));
     Vec3[] Basis => [_gizmoFrame.U, _gizmoFrame.V, _gizmoFrame.Normal];
-    double HandleLength(CadSession s) => s.Camera.PixelSizeAt(_gizmoFrame.Origin) * 96;
+    double HandleLength(CadSession s) => GizmoVisual.Length(s, _gizmoFrame.Origin);
+    int ActiveGizmoDisplayOperation => GizmoEditing || GeometryEditing ? (int)GizmoOperation : 0;
 
     // Handles: 0 center; 1..3 axes; 4..6 plane squares; 7..9 rotation rings; 10 display size.
     public int GizmoHit(CadSession s, double x, double y, bool editing)
     {
         if (!Is3DEnabled && !PlanarGizmoActive) return -1;
         var basis = Basis; var origin = _gizmoFrame.Origin; double length = HandleLength(s);
-        double best = 10; int handle = -1;
-        void Test(Vec3 p, int id, double tolerance = 10)
+        var display = GizmoSettings.Current; int active = ActiveGizmoDisplayOperation;
+        double best = display.Tolerance; int handle = -1;
+        void Test(Vec3 p, int id, double tolerance = 0)
         {
             var q = s.Camera.Project(p); if (q == null) return;
             double dist = Math.Sqrt(Math.Pow(q.Value.x - x, 2) + Math.Pow(q.Value.y - y, 2));
-            if (dist < tolerance && dist < best) { best = dist; handle = id; }
+            if (dist < (tolerance > 0 ? tolerance : display.Tolerance) && dist < best) { best = dist; handle = id; }
         }
         bool transforming = GeometryEditing && !GizmoEditing && HasGeometrySelection;
-        if (editing || transforming) Test(origin, 0);
+        if ((editing || transforming) && display.Allows((int)GizmoOperation, active)) Test(origin, 0);
         var projectedOrigin = s.Camera.Project(origin);
         for (int i = 0; i < 3; i++)
         {
+            if (!display.Allows(0, active) || PlanarGizmoActive && i == 2) continue;
             var tip = origin + basis[i] * length; var q = s.Camera.Project(tip);
             if (q != null && projectedOrigin != null && Math.Abs(q.Value.x - projectedOrigin.Value.x) + Math.Abs(q.Value.y - projectedOrigin.Value.y) > 20) Test(tip, i + 1);
         }
         // Translation arrows are draggable along the visible shaft, not just at their tips.
-        if(projectedOrigin is { } po && handle!=0)
+        if(display.Allows(0, active) && projectedOrigin is { } po && handle!=0)
         {
-            double nearest=7;int axisHit=-1;
+            double nearest=display.Tolerance*.8;int axisHit=-1;
             for(int i=0;i<3;i++)
             {
+                if (PlanarGizmoActive && i == 2) continue;
                 var tip=s.Camera.Project(origin+basis[i]*length);if(tip==null)continue;
                 double dx=tip.Value.x-po.x,dy=tip.Value.y-po.y;
                 if(dx*dx+dy*dy<400)continue;
@@ -312,14 +316,15 @@ public sealed partial class SketchContext
             if(axisHit>=0)return axisHit;
         }
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
-        if (editing)
-            for (int i = 0; i < 3; i++) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28), i + 4);
+        if ((GizmoEditing || GeometryEditing) && (editing || transforming) && display.PlaneHandles && display.Allows(0,active))
+            for (int i = 0; i < 3; i++)
+                if (!PlanarGizmoActive || i == GizmoPlaneIndex) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28), i + 4);
         // Position the gizmo in G mode; outside G, Edit Sketch handles transform its selected target.
         if (editing || transforming)
         {
             for (int axis = 0; axis < 3; axis++)
             {
-                if(PlanarGizmoActive&&axis!=2)continue;
+                if(!display.Allows(1,active) || PlanarGizmoActive&&axis!=2)continue;
                 var a = basis[(axis + 1) % 3]; var b = basis[(axis + 2) % 3];
                 for (int i = 0; i < 72; i++)
                 {
@@ -327,11 +332,10 @@ public sealed partial class SketchContext
                     var point = origin + (a * Math.Cos(angle) + b * Math.Sin(angle)) * length * .8;
                     var q = s.Camera.Project(point);
                     if (q != null && projectedOrigin != null && Math.Abs(q.Value.x - projectedOrigin.Value.x) + Math.Abs(q.Value.y - projectedOrigin.Value.y) > 20)
-                        Test(point, axis + 7, 7);
+                        Test(point, axis + 7, display.Tolerance*.8);
                 }
             }
-            var active = GizmoDrawingPlane;
-            Test(origin + (active.U + active.V) * length * 1.25 * GizmoSize, 10, 13);
+            if (display.Allows(2,active)) Test(GizmoVisual.UniformPoint(s, origin, length), 10);
         }
         return handle;
     }
@@ -388,6 +392,9 @@ public sealed partial class SketchContext
         { SelectPlane(s,other); return true; }
         if (hit < 0 && GizmoEditing && GeometryEditing) { _gizmoTargetPicker.PointerDown(s,p);PreviewGizmoTarget(s);return true; }
         if (hit < 0) return GizmoEditing;
+        if (hit is >= 1 and <= 6) GizmoOperation = SketchGizmoOperation.Move;
+        else if (hit is >= 7 and <= 9) GizmoOperation = SketchGizmoOperation.Rotate;
+        else if (hit == 10) GizmoOperation = SketchGizmoOperation.Size;
         if (hit is >= 1 and <= 3) SelectedGizmoAxis = hit - 1;
         _dragSnapshot = CaptureSpace();
         _geometryDrag=transforming; _geometryValid=true; _geometryError="";
@@ -433,16 +440,16 @@ public sealed partial class SketchContext
         _dragChanged = true;
         var axes = new[] { _dragPlane.U, _dragPlane.V, _dragPlane.Normal };
         if (_gizmoDrag == 10 || GizmoOperation == SketchGizmoOperation.Size && _gizmoDrag == 0)
-            GizmoSize = Math.Clamp(_dragSize * Math.Exp((dx - dy) / 180), .25, 8);
+            GizmoSize = Math.Clamp(_dragSize * GizmoVisual.SnapScale(Math.Exp((dx - dy) / 180), p.Alt), .25, 8);
         else if (_gizmoDrag == 0 && GizmoOperation == SketchGizmoOperation.Rotate)
         {
-            Vec3 Turn(Vec3 v) => PlanarGizmoActive?Rotate(v,Plane.Normal,(dx-dy)*.01):Rotate(Rotate(v, s.Camera.Up, dx * .01), s.Camera.Right, dy * .01);
+            Vec3 Turn(Vec3 v) => PlanarGizmoActive?Rotate(v,Plane.Normal,GizmoVisual.SnapAngle((dx-dy)*.01,p.Alt)):Rotate(Rotate(v, s.Camera.Up, GizmoVisual.SnapAngle(dx * .01,p.Alt)), s.Camera.Right, GizmoVisual.SnapAngle(dy * .01,p.Alt));
             _gizmoFrame = new(_dragPlane.Origin, Turn(_dragPlane.U).Normalized(), Turn(_dragPlane.V).Normalized());
         }
         else if (_gizmoDrag >= 7 || GizmoOperation == SketchGizmoOperation.Rotate && _gizmoDrag == 0)
         {
             int axis = _gizmoDrag >= 7 ? _gizmoDrag - 7 : Math.Clamp(_gizmoDrag - 1, 0, 2);
-            var a = axes[axis]; double angle = (dx - dy) * .01;
+            var a = axes[axis]; double angle = GizmoVisual.SnapAngle((dx - dy) * .01,p.Alt);
             _gizmoFrame = new(_dragPlane.Origin, Rotate(_dragPlane.U, a, angle).Normalized(), Rotate(_dragPlane.V, a, angle).Normalized());
         }
         else
@@ -470,6 +477,16 @@ public sealed partial class SketchContext
             {
                 var normal=pointSnapshot.Sections[pointSnapshot.Active].Plane.Normal;
                 delta-=normal*Vec3.Dot(delta,normal);
+            }
+                        // Quantize in the gizmo frame so an axis drag remains on its local axis.
+            if (GizmoSettings.Current.Snap && !p.Alt)
+            {
+                double step = GizmoSettings.Current.MoveStep;
+                if (double.IsFinite(step) && step > 1e-9)
+                {
+                    double Q(double value) => Math.Round(value / step, MidpointRounding.AwayFromZero) * step;
+                    delta = axes[0]*Q(Vec3.Dot(delta,axes[0])) + axes[1]*Q(Vec3.Dot(delta,axes[1])) + axes[2]*Q(Vec3.Dot(delta,axes[2]));
+                }
             }
             _gizmoFrame = new(_dragPlane.Origin + delta, _dragPlane.U, _dragPlane.V);
         }
@@ -653,40 +670,37 @@ public sealed partial class SketchContext
         }
         if (!Is3DEnabled && !PlanarGizmoActive) return;
         var axes = Basis; var origin = _gizmoFrame.Origin; double length = HandleLength(s);
+        var display = GizmoSettings.Current; int active = ActiveGizmoDisplayOperation;
         var selectedPlane = GizmoDrawingPlane;
         double half = length * 1.25 * GizmoSize;
         Vec3 P(double u, double v) => origin + selectedPlane.U * u + selectedPlane.V * v;
-        o.AddTri(P(-half, -half), P(half, -half), P(half, half), 0x084C94FF);
-        o.AddTri(P(-half, -half), P(half, half), P(-half, half), 0x084C94FF);
-        o.AddPolyline([P(-half, -half), P(half, -half), P(half, half), P(-half, half)], 0x607AA7E8, 1, true);
-        uint[] colors = [0xFFE05252, 0xFF4CAF50, 0xFF4C8DFF];
+        if (display.WorkPlane)
+        {
+            uint accent = GizmoVisual.Accent;
+            o.AddTri(P(-half, -half), P(half, -half), P(half, half), (accent & 0xFFFFFF) | 0x08000000);
+            o.AddTri(P(-half, -half), P(half, half), P(-half, half), (accent & 0xFFFFFF) | 0x08000000);
+            o.AddPolyline([P(-half, -half), P(half, -half), P(half, half), P(-half, half)], (accent & 0xFFFFFF) | 0x60000000, 1, true);
+        }
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
-        for (int i = 0; i < 3; i++)
+        if (display.PlaneHandles && display.Allows(0,active) && (GizmoEditing || GeometryEditing))
+            for (int i = 0; i < 3; i++)
+            {
+                if (PlanarGizmoActive && i != GizmoPlaneIndex) continue;
+                var pair = pairs[i]; var a = axes[pair[0]]; var b = axes[pair[1]];
+                var p0 = origin + (a + b) * length * .13; var p1 = p0 + a * length * .3;
+                var p2 = p1 + b * length * .3; var p3 = p0 + b * length * .3;
+                uint accent = GizmoVisual.Accent;
+                uint color = (accent & 0xFFFFFF) | (_gizmoHover == i + 4 ? 0xA0000000u : 0x30000000u);
+                o.AddTri(p0, p1, p2, color); o.AddTri(p0, p2, p3, color);
+                o.AddPolyline([p0, p1, p2, p3], (accent & 0xFFFFFF) | 0xA0000000, display.Stroke*.6f, true);
+            }
+        for (int operation = 0; operation < 3; operation++)
         {
-            var pair = pairs[i]; var a = axes[pair[0]]; var b = axes[pair[1]];
-            var p0 = origin + (a + b) * length * .13; var p1 = p0 + a * length * .3;
-            var p2 = p1 + b * length * .3; var p3 = p0 + b * length * .3;
-            uint color = _gizmoHover == i + 4 ? 0xB0FFFFFFu : i == GizmoPlaneIndex ? 0x80FFC53Du : 0x307AA7E8u;
-            o.AddTri(p0, p1, p2, color); o.AddTri(p0, p2, p3, color);
-            o.AddPolyline([p0, p1, p2, p3], i == GizmoPlaneIndex ? 0xFFFFC53D : 0x809BBAD7, 1.5f, true);
+            int hotAxis = operation == 0 && _gizmoHover is >= 1 and <= 3 ? _gizmoHover - 1 : operation == 1 && _gizmoHover is >= 7 and <= 9 ? _gizmoHover - 7 : -1;
+            GizmoVisual.DrawOperation(o, s, origin, axes, operation, active, hotAxis,
+                _gizmoHover == 0 && operation == (int)GizmoOperation || _gizmoHover == 10 && operation == 2, axisScale:false, planar:PlanarGizmoActive);
         }
-        for (int i = 0; i < 3; i++)
-        {
-            var tip = origin + axes[i] * length;
-            bool locked = DrawingAxis > 0 && pairs[GizmoPlaneIndex][DrawingAxis - 1] == i;
-            o.AddLine(origin, tip, locked || _inferredVisualAxis == i || _gizmoHover == i+1 ? 0xFFFFC53D : colors[i], _gizmoHover == i+1 ? 5f : 3f);
-            var side = axes[(i + 1) % 3] * length * .065;
-            var back = tip - axes[i] * length * .16;
-            o.AddTri(tip, back + side, back - side, colors[i]);
-            string label = axes[i].DistanceTo(Vec3.UnitX) < 1e-6 ? "X" : axes[i].DistanceTo(Vec3.UnitY) < 1e-6 ? "Y" : axes[i].DistanceTo(Vec3.UnitZ) < 1e-6 ? "Z" : i == 0 ? "U" : i == 1 ? "V" : "N";
-            // Rotation rings remain visible, so Ctrl-drag has discoverable targets even outside gizmo mode.
-            if(PlanarGizmoActive&&i!=2)continue;
-            var a = axes[(i + 1) % 3]; var b = axes[(i + 2) % 3];
-            o.AddPolyline(Enumerable.Range(0, 73).Select(k => origin + (a * Math.Cos(k * Math.PI / 36) + b * Math.Sin(k * Math.PI / 36)) * length * .8).ToList(), (colors[i] & 0xFFFFFF) | 0xB0000000, 1.6f);
-        }
-        o.AddDot(origin, 0xFFFFFFFF, GizmoEditing ? 11 : 6);
-        var extent = P(half, half); double marker = length * .055;
-        o.AddPolyline([extent - selectedPlane.U * marker - selectedPlane.V * marker, extent + selectedPlane.U * marker - selectedPlane.V * marker, extent + selectedPlane.U * marker + selectedPlane.V * marker, extent - selectedPlane.U * marker + selectedPlane.V * marker], 0xFFFFC53D, 2.5f, true);
+        var colors = GizmoVisual.AxisColors;
         if (_axisPreview is { } point && _inferredVisualAxis >= 0)
         {
             var axis=axes[_inferredVisualAxis];

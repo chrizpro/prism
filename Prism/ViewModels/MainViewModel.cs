@@ -316,8 +316,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
         // Groups every modeling tab needs, so nobody has to switch tabs for the everyday tools (each call builds fresh buttons).
         RibbonGroup SketchGrp() => G("Sketch",
-            Cmd("Create\nSketch", "sketch", () => new CreateSketchCommand(), "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal."),
-            Btn("Edit\nSketch", "sketch-edit", EditSelectedSketch, "Re-open the selected sketch for editing.", RibbonSize.Large, () => CanEditSketch));
+            Cmd("Create\nSketch", "sketch", () => new CreateSketchCommand(), "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal."));
         RibbonGroup PlanesGrp() => G("Planes",
             Cmd("Construction\nPlane", "origin-plane", () => new ConstructionPlaneCommand(), "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references."),
             Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces or bodies cross each other."),
@@ -384,8 +383,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 G("Sketch",
-                    Cmd("Create\nSketch", "sketch", () => new CreateSketchCommand(), "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal."),
-                    Btn("Edit\nSketch", "sketch-edit", EditSelectedSketch, "Re-open the selected sketch: its geometry, constraints and dimensions are all still editable.", RibbonSize.Large, () => CanEditSketch)),
+                    Cmd("Create\nSketch", "sketch", () => new CreateSketchCommand(), "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.")),
                 G("Planes",
                     Cmd("Construction\nPlane", "origin-plane", () => new ConstructionPlaneCommand(), "Make planes: offset (one or a whole stack), angled, midway, square to a curve, or through three points. Sketch on them or use them as references."),
                     Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces or bodies cross each other."),
@@ -393,8 +391,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Create", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid."),
-                    Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis."),
-                    EditFeatureBtn()),
+                    Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis.")),
                 G("Modify",
                     Cmd("Hole", "hole", () => new HoleCommand(), "Create plain or modeled threaded holes on a body or face, with blind or through-all depth."),
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
@@ -438,10 +435,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Primitives", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
-                    Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis."),
-                    Cmd("Sweep", "sweep", () => new SweepCommand(), "Drag a profile along a path."),
-                    Cmd("Loft", "loft", () => new LoftCommand(), "Blend between two or more profiles."),
-                    EditFeatureBtn()),
+                    Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis.")),
                 G("Modify",
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
                     Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges."),
@@ -479,7 +473,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Faces",
                     Cmd("Move\nFace", "moveface", () => new MoveFaceCommand(), "Slide and tilt flat faces; the body stretches to follow."),
                     Cmd("Replace\nFace", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face."),
-                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction.")),
+                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
+                    Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.")),
                 G("Modify",
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
                     Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges."),
@@ -514,7 +509,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
-                    Cmd("Boundary\nFill", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
+                    Cmd("Create Enclosed\nSolid", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
                     Cmd("Fill\nOpening", "patch", () => new FillOpeningCommand(), "Click an open edge and the whole opening is filled with a patch (and joined to the surface)."),
                     Cmd("Flatten", "flatten", () => new FlattenCommand(), "Unfold faces or a surface into a flat pattern (UV layout) you can sketch on, measure, or export as DXF. Bent sheet and cylinders unroll exactly; other surfaces show their stretch."),
                     Cmd("Refold", "warp", () => new RefoldCommand(), "Map drawings on a cylindrical flat pattern back onto its original curved face."),

@@ -4,6 +4,8 @@
              x:Class="Prism.Views.SelectionSlotView"
              IsVisible="{Binding IsVisible}" Margin="0,0,0,12">
     <UserControl.Styles>
+        <Style Selector="Border.selectionEditor"><Setter Property="BorderBrush" Value="{DynamicResource FieldLine}"/></Style>
+        <Style Selector="Border.selectionEditor.active"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
         <Style Selector="Button.pick">
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -30,16 +32,21 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
         </Style>
     </UserControl.Styles>
-    <StackPanel Spacing="5">
+    <StackPanel Spacing="6">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="6">
             <Button Name="ExpandButton" Classes="tool" Click="OnToggleExpanded" Padding="0" Width="18" Height="22" ToolTip.Tip="Expand or collapse selections"/>
-            <TextBlock Grid.Column="1" Text="{Binding DisplayLabel}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding PickerLabel}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="2" Text="{Binding CountText}" Classes="soft" VerticalAlignment="Center"/>
             <Button Grid.Column="3" Classes="tool" Content="×" Click="OnClear" Padding="3,0" Height="22" ToolTip.Tip="Clear all selections"/>
         </Grid>
         <Button Name="SummaryButton" Classes="pick" IsVisible="{Binding !IsExpanded}" Click="OnStartPicking" ToolTip.Tip="Expand and edit selections"><TextBlock Text="{Binding Summary}" TextTrimming="CharacterEllipsis"/></Button>
         <StackPanel IsVisible="{Binding IsExpanded}" Spacing="4">
-            <Border Name="SelectionBorder" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource FieldLine}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <StackPanel IsVisible="{Binding HasSelectionRules}" Spacing="5" Margin="0,0,0,4">
+                <TextBlock Text="Selection intent" Classes="soft" FontSize="11"/>
+                <ComboBox ItemsSource="{Binding SelectionRules}" SelectedIndex="{Binding SelectionRuleIndex}" SelectionChanged="OnIntentChanged" HorizontalAlignment="Stretch" MinHeight="32" ToolTip.Tip="Choose a whole profile, pick edges individually, or build a connected chain."/>
+                <CheckBox Content="Other path" IsChecked="{Binding OtherPath}" IsVisible="{Binding IsPartialLoop}" ToolTip.Tip="After picking the first and last edges, follow the other side of the loop."/>
+            </StackPanel>
+            <Border Name="SelectionBorder" Classes="selectionEditor" Classes.active="{Binding IsActive}" Background="{DynamicResource FieldBg}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                 <StackPanel>
                     <ListBox Name="Rows" Classes="picks" Focusable="True" MaxHeight="128" SelectionChanged="OnSelectionChanged" KeyDown="OnRowsKeyDown"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.IsScrollChainingEnabled="False">

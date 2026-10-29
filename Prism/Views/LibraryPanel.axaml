@@ -2,16 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Prism.ViewModels"
              xmlns:c="using:Prism.Controls"
-             x:Class="Prism.Views.LibraryPanel" Foreground="{DynamicResource StudioInk}">
+             x:Class="Prism.Views.LibraryPanel" Foreground="{DynamicResource Ink}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
-    <DockPanel Background="{DynamicResource StudioBg}">
-        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,0,0,1" Padding="14,11">
+    <DockPanel Background="{DynamicResource PanelBg}">
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,11">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Parts library" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button Grid.Column="1" Content="×" Classes="studioLink" Click="OnClose" ToolTip.Tip="Close the parts library"/>
             </Grid>
         </Border>
-        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0">
+        <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
             <StackPanel Spacing="5">
                 <TextBlock Text="{Binding LibraryStatus}" FontSize="11" Classes="meta" TextWrapping="Wrap"/>
                 <Button Content="Insert selected part…" Classes="studioAction" Click="OnInsert" IsEnabled="{Binding SelectedLibraryItem, Converter={x:Static ObjectConverters.IsNotNull}}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
@@ -36,11 +36,11 @@
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="vm:LibraryItem">
-                                        <Border Width="104" Margin="0,0,6,6" Padding="4" CornerRadius="6" Background="Transparent" BorderThickness="1" BorderBrush="{DynamicResource StudioLine}"
+                                        <Border Width="104" Margin="0,0,6,6" Padding="4" CornerRadius="6" Background="Transparent" BorderThickness="1" BorderBrush="{DynamicResource Line}"
                                                 Tag="{Binding}" PointerPressed="OnTilePressed" ToolTip.Tip="{Binding ToolTipText}">
                                             <StackPanel Spacing="3">
                                                 <Panel Width="94" Height="94">
-                                                    <Rectangle Fill="{DynamicResource StudioHeader}" RadiusX="4" RadiusY="4"/>
+                                                    <Rectangle Fill="{DynamicResource PanelAlt}" RadiusX="4" RadiusY="4"/>
                                                     <Image Source="{Binding Thumb}" IsVisible="{Binding HasThumb}" Stretch="Uniform"/>
                                                 </Panel>
                                                 <TextBlock Text="{Binding Name}" FontSize="11" TextAlignment="Center" TextWrapping="Wrap" MaxHeight="30"/>

@@ -524,7 +524,7 @@ public sealed partial class CadSession : ObservableObject
     {
         get
         {
-            if (ActiveCommand?.ActiveSlot is { } slot) return slot.Filter;
+            if (ActiveCommand?.ActiveSlot is { } slot) return slot.PickFilter;
             return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis };
         }
     }
@@ -535,7 +535,7 @@ public sealed partial class CadSession : ObservableObject
         if (OriginVisible[i]) return true;
         if (!ReferenceEquals(_suppCmd, ActiveCommand)) { _suppCmd = ActiveCommand; _originSuppressed.Clear(); }
         if (_originSuppressed.Contains(i)) return false;
-        var f = ActiveCommand?.ActiveSlot?.Filter ?? SelFilter.None;
+        var f = ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None;
         return (i < 3 && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
     }
 
@@ -935,6 +935,7 @@ public sealed partial class CadSession : ObservableObject
             {
                 int left = chain.Count - done;
                 RebuildIssue = new FeatureRebuildIssue(Current, step, why, failedInputs, attemptedRecipe, end, new(map));
+                TimelineChanged?.Invoke(); // Include checkpoint metadata copied after the last successful step.
                 Say($"{title} edited, but \"{step.Label}\" could not be repeated ({why}). {left} later step{(left == 1 ? "" : "s")} stayed on the old branch: open the History tree to get them back.", true);
                 return;
             }
@@ -1121,10 +1122,11 @@ public sealed partial class CadSession : ObservableObject
 
     bool HandleHit(HandleSpec h, double px, double py)
     {
+        if (!GizmoSettings.Current.Allows(0,0)) return false;
         var a = Camera.Project(h.Origin); var b = Camera.Project(HandleTip(h)); if (a == null || b == null) return false;
         var (_, d) = Picking.SegDist(px, py, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
         double dt = Math.Sqrt((b.Value.x - px) * (b.Value.x - px) + (b.Value.y - py) * (b.Value.y - py));
-        return dt < 18 || d < 7;
+        return dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8;
     }
 
     void DragHandle(HandleSpec h, PointerInfo p)
@@ -1137,7 +1139,9 @@ public sealed partial class CadSession : ObservableObject
         double v = t * h.Mul, step = Camera.PixelSizeAt(HandleTip(h)) * 4;
         double snap = step > 5 ? 5 : step > 1 ? 1 : step > 0.2 ? 0.5 : 0.1;       // coarse when zoomed out, fine when zoomed in
         if (p.Ctrl) snap = 0.01;
-        h.Param.Value = Math.Round(v / snap) * snap;
+        if (GizmoSettings.Current.Snap) snap = h.Param.Unit == "°" ? GizmoSettings.Current.AngleStep : GizmoSettings.Current.MoveStep;
+        if (!double.IsFinite(snap) || snap <= 0) snap = .1;
+        h.Param.Value = p.Alt ? v : Math.Round(v / snap) * snap;
         Invalidate();
     }
 
@@ -1192,13 +1196,15 @@ public sealed partial class CadSession : ObservableObject
 
     void BuildOneHandle(Overlay o, HandleSpec h, bool active)
     {
+        if (!GizmoSettings.Current.Allows(0,0)) return;
         var tip = HandleTip(h); var A = h.Dir.Normalized();
-        uint col = _handleDrag || _handleHover ? 0xFFFFC53D : 0xFFFF8A1F;
+        uint col = GizmoVisual.Accent;
         double ps = Camera.PixelSizeAt(tip);
         o.AddDot(h.Origin, col, 7);
-        o.AddLine(h.Origin, tip, col, 3.5f);
+        o.AddLine(h.Origin, tip, col, GizmoSettings.Current.Stroke + (_handleDrag || _handleHover ? 1.5f : 0));
         // arrow head: a small cone at the tip pointing the way the value grows
-        double len = ps * 22 * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 8;
+        double factor = GizmoSettings.Current.Pixels / 96;
+        double len = ps * 14 * factor * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 5 * factor;
         var u = Math.Abs(A.Z) < 0.9 ? Vec3.Cross(A, Vec3.UnitZ).Normalized() : Vec3.Cross(A, Vec3.UnitX).Normalized();
         var v = Vec3.Cross(A, u); var apex = tip + A * len; const int n = 14;
         for (int i = 0; i < n; i++)

@@ -10,7 +10,7 @@ public sealed record RightPanelTab(string Id, string Title, bool IsSelected);
 public sealed partial class MainViewModel
 {
     public ObservableCollection<RightPanelTab> RightPanelTabs { get; } = [];
-    readonly HashSet<string> _openRightPanels = [];
+    readonly HashSet<string> _openRightPanels = ["properties"];
     [ObservableProperty] public partial string SelectedRightPanel { get; set; } = "context";
     [ObservableProperty] public partial bool ShowCommandPanel { get; set; }
     bool _syncingRightPanels;
@@ -39,6 +39,7 @@ public sealed partial class MainViewModel
     public void SetRightPanelEnabled(string id, bool enabled)
     {
         if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "script" or "library")) return;
+        if (id == "properties" && !enabled) return;
         if (enabled) _openRightPanels.Add(id); else _openRightPanels.Remove(id);
         if (enabled) SelectedRightPanel = ContextPanelId == id ? "context" : id;
         else if (SelectedRightPanel == id) SelectedRightPanel = _openRightPanels.LastOrDefault() ?? "context";

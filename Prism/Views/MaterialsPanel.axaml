@@ -2,10 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Prism.ViewModels"
              xmlns:c="using:Prism.Controls"
-             x:Class="Prism.Views.MaterialsPanel" Foreground="{DynamicResource StudioInk}">
+             x:Class="Prism.Views.MaterialsPanel" Foreground="{DynamicResource Ink}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
-    <DockPanel Background="{DynamicResource StudioBg}">
-        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,0,0,1" Padding="14,11">
+    <DockPanel Background="{DynamicResource PanelBg}">
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1" Padding="14,11">
             <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="8">
                 <c:IconView Icon="materials" Width="22" Height="22"/>
                 <TextBlock Grid.Column="1" Text="Appearance studio" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -15,7 +15,7 @@
         <TabControl Name="StudioTabs">
             <TabItem Header="Appearance">
                 <DockPanel>
-                    <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0">
+                    <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
                         <StackPanel Spacing="5">
                             <TextBlock Text="Finishes update live · material data stays assigned." FontSize="11" Classes="meta" TextWrapping="Wrap"/>
                             <Button Name="ResetFinish" Content="Reset finish" Classes="studioAction" Click="OnResetFinish" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
@@ -23,8 +23,9 @@
                     </Border>
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="12,10" Spacing="9">
+                            <c:PanelStepHeader Step="1" Title="Selection and material" Margin="-12,-10,-12,0"/>
                             <TextBlock Text="{Binding MatTarget}" Classes="meta" TextWrapping="Wrap"/>
-                            <Border Background="{DynamicResource StudioHeader}" CornerRadius="6" Padding="10">
+                            <Border Background="{DynamicResource PanelAlt}" CornerRadius="4" Padding="10">
                                 <Grid ColumnDefinitions="54,*" ColumnSpacing="10">
                                     <c:FinishPreview Width="52" Height="52" Color="{Binding AppearanceColor}" Gloss="{Binding LookGloss}" Pattern="{Binding AppearancePattern}"/>
                                     <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
@@ -33,7 +34,7 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
-                            <Border Classes="sectionBar" Margin="-12,5,-12,0"><TextBlock Text="Finish library" Classes="section"/></Border>
+                            <c:PanelStepHeader Step="2" Title="Finish library" Margin="-12,5,-12,0"/>
                             
                             <ListBox Name="FinishLibrary" Classes="studioList finishes" ItemsSource="{Binding FinishPresets}" SelectedItem="{Binding ActiveFinishPreset, Mode=OneWay}" SelectionChanged="OnFinishPicked" Background="Transparent" Padding="0" IsEnabled="{Binding CanApplyAppearance}">
                                 <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ListBox.ItemsPanel>
@@ -47,7 +48,7 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <StackPanel IsEnabled="{Binding CanApplyAppearance}">
-                                <Border Classes="sectionBar" Margin="-12,6,-12,8"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Surface" Classes="section"/><TextBlock Grid.Column="1" Text="Live finish" Classes="meta" FontSize="10"/></Grid></Border>
+                                <c:PanelStepHeader Step="3" Title="Surface settings" Margin="-12,6,-12,8"/>
                                 <StackPanel Spacing="6">
 
                 <Button Content="Color palette ▾" Classes="studioLink" HorizontalAlignment="Left" Click="OnTogglePalette"/>
@@ -91,7 +92,7 @@
             </TabItem>
             <TabItem Header="Materials">
     <DockPanel>
-        <Border DockPanel.Dock="Bottom" Padding="14,10" BorderBrush="{DynamicResource StudioLine}" BorderThickness="0,1,0,0" Background="{DynamicResource StudioBg}">
+        <Border DockPanel.Dock="Bottom" Padding="14,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
             <StackPanel Spacing="6">
                 <TextBlock Text="{Binding MatTarget}" Classes="meta" TextWrapping="Wrap"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
@@ -150,7 +151,7 @@
 
                     <Expander Header="Library engineering data and sources" HorizontalAlignment="Stretch">
                       <StackPanel Spacing="6">
-                    <TextBlock Text="ENGINEERING DATA" Classes="panelTitle" Margin="0,8,0,2"/>
+                    <TextBlock Text="Engineering data" Classes="panelTitle" Margin="0,8,0,2"/>
                     <ItemsControl ItemsSource="{Binding MaterialProps}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:MatPropLine">
@@ -169,17 +170,17 @@
                     <TextBlock Text="Bars compare library values; strength measures may have different test bases." Classes="meta" TextWrapping="Wrap" FontSize="11"/>
                     <TextBlock Text="{Binding MatEvidence}" Classes="meta" TextWrapping="Wrap" FontSize="11"/>
 
-                    <TextBlock Text="GOOD FOR" Classes="panelTitle" Margin="0,10,0,2"/>
+                    <TextBlock Text="Good for" Classes="panelTitle" Margin="0,10,0,2"/>
                     <TextBlock Text="{Binding MatUses}" TextWrapping="Wrap"/>
-                    <TextBlock Text="WATCH OUT FOR" Classes="panelTitle" Margin="0,10,0,2"/>
-                    <TextBlock Text="{Binding MatWatch}" TextWrapping="Wrap" Foreground="#FFC53D"/>
+                    <TextBlock Text="Watch out for" Classes="panelTitle" Margin="0,10,0,2"/>
+                    <TextBlock Text="{Binding MatWatch}" TextWrapping="Wrap" Foreground="{DynamicResource Gold}"/>
                       </StackPanel>
                     </Expander>
                 </StackPanel>
 
                 <!-- compare -->
                 <StackPanel IsVisible="{Binding HasCompare}" Spacing="2" Margin="0,12,0,0">
-                    <TextBlock Text="COMPARE" Classes="panelTitle" Margin="0,0,0,4"/>
+                    <TextBlock Text="Compare" Classes="panelTitle" Margin="0,0,0,4"/>
                     <ItemsControl ItemsSource="{Binding CompareRows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:CompareRow">

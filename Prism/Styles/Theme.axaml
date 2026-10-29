@@ -11,7 +11,7 @@
                 <SolidColorBrush x:Key="LineSoft">#252C38</SolidColorBrush>
                 <SolidColorBrush x:Key="Ink">#E8EDF5</SolidColorBrush>
                 <SolidColorBrush x:Key="InkSoft">#9CA9BC</SolidColorBrush>
-                <SolidColorBrush x:Key="InkFaint">#68768A</SolidColorBrush>
+                <SolidColorBrush x:Key="InkFaint">#8A98AD</SolidColorBrush>
                 <SolidColorBrush x:Key="Accent">#4C94FF</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentDark">#3A7DE6</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentSoft">#1D3556</SolidColorBrush>
@@ -52,7 +52,7 @@
                 <SolidColorBrush x:Key="LineSoft">#DEE4EC</SolidColorBrush>
                 <SolidColorBrush x:Key="Ink">#1B2432</SolidColorBrush>
                 <SolidColorBrush x:Key="InkSoft">#4A576A</SolidColorBrush>
-                <SolidColorBrush x:Key="InkFaint">#788699</SolidColorBrush>
+                <SolidColorBrush x:Key="InkFaint">#58677C</SolidColorBrush>
                 <SolidColorBrush x:Key="Accent">#2F7BF0</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentDark">#1F63CC</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentSoft">#D5E4FA</SolidColorBrush>
@@ -211,7 +211,7 @@
     <Style Selector="Button.seg.on /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource SegOn}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
 
     <!-- ============ panels ============ -->
-    <Style Selector="TextBlock.panelTitle"><Setter Property="FontSize" Value="10.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource InkFaint}"/><Setter Property="LetterSpacing" Value="0.8"/></Style>
+    <Style Selector="TextBlock.panelTitle"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource InkFaint}"/><Setter Property="LetterSpacing" Value="0"/></Style>
     <Style Selector="TextBlock.soft"><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/></Style>
     <Style Selector="TextBlock.faint"><Setter Property="Foreground" Value="{DynamicResource InkFaint}"/><Setter Property="FontSize" Value="11.5"/></Style>
 
@@ -222,7 +222,7 @@
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
     </Style>
-    <Style Selector="TreeView.browser TreeViewItem /template/ Border#PART_LayoutRoot"><Setter Property="CornerRadius" Value="6"/><Setter Property="Margin" Value="0,1"/></Style>
+    <Style Selector="TreeView.browser TreeViewItem /template/ Border#PART_LayoutRoot"><Setter Property="CornerRadius" Value="3"/><Setter Property="Margin" Value="0,1"/></Style>
     <Style Selector="TreeView.browser TreeViewItem /template/ Border#PART_LayoutRoot:pointerover"><Setter Property="Background" Value="{DynamicResource HoverBg}"/></Style>
     <Style Selector="TreeView.browser TreeViewItem:selected /template/ Border#PART_LayoutRoot"><Setter Property="Background" Value="{DynamicResource CheckedBg}"/></Style>
     <Style Selector="TreeView.browser TreeViewItem:selected /template/ Border#PART_LayoutRoot:pointerover"><Setter Property="Background" Value="{DynamicResource SelHover}"/></Style>

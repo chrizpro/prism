@@ -16,6 +16,8 @@ public sealed class SketchPatternTool(bool circular) : SketchTool
     readonly List<SnapInfo> _clicks = [];
 
     public override string Name => "Pattern";
+    public override string PanelInputTitle => "Select source geometry";
+    public override string PanelSettingsTitle => "Pattern settings";
     public override string Mode => _curve ? "Along curve" : circular ? "Circular" : "Linear";
     static readonly ToolOption[] Opts = [new("Linear", "Copies spaced along a direction", "pattern-linear"), new("Circular", "Copies spread around a center", "pattern-circular"), new("Along a curve", "Copies spaced along a line, arc or spline, turning with it", "pattern-curve")];
     public override IReadOnlyList<ToolOption> Options => Opts;
@@ -57,7 +59,7 @@ public sealed class SketchPatternTool(bool circular) : SketchTool
     public override IReadOnlyList<ToolControl>? Panel =>
     [new(ToolControlKind.Info,"stage",_selecting?"Select source curves (Shift adds). Then choose Done selecting.":Prompt),
      new(ToolControlKind.Number,"count","Total copies",Number:_count),
-     new(ToolControlKind.Button,"selection",_selecting?"Done selecting (Enter)":"Change selection")];
+     new(ToolControlKind.Button,"selection",_selecting?"Done selecting (Enter)":"Change selection",Section:PanelInputTitle)];
     public override void PanelSet(CadSession s,string id,object? value)
     {
         if(id=="count"&&value is double count){_count=Math.Clamp((int)count,2,99);Remembered["SketchPatternCount"]=_count;s.Invalidate();return;}

@@ -16,6 +16,7 @@ public enum ArcMode { ThreePoint, CenterStartEnd, Tangent }
 /// </summary>
 public sealed class ArcTool(ArcMode mode) : ClickTool
 {
+    protected override string PlacementAction => mode != ArcMode.Tangent && Clicks.Count == 1 ? "Set start or end point" : "Create arc";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
         =>Shift&&Clicks.Count>0&&(Clicks.Count==1||mode==ArcMode.CenterStartEnd)?LockDirection(sn,Clicks[0]):sn;
     public override string Name => "Arc";
@@ -238,6 +239,8 @@ public enum EllipseMode { Center, TwoPoint, ThreePoint }
 /// </summary>
 public sealed class EllipseTool(EllipseMode mode, bool circleLock = false) : ClickTool
 {
+    protected override string PlacementAction => mode == EllipseMode.ThreePoint && Clicks.Count == 1 ? Locked ? "Set second point" : "Set major axis"
+        : mode == EllipseMode.Center && !Locked && Clicks.Count == 1 ? "Set major axis" : Locked ? "Create circle" : "Create ellipse";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)=>sn;
     public override string Name => "Ellipse";
     public override string Mode => mode switch { EllipseMode.Center => "Ellipse (center)", EllipseMode.TwoPoint => "Ellipse (2-point)", _ => "Ellipse (3-point)" };

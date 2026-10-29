@@ -30,6 +30,8 @@ public sealed class RibbonLayout
 /// <summary>Per-user preferences, kept in %LOCALAPPDATA%\Prism\settings.json.</summary>
 public sealed class AppSettings
 {
+    public GizmoSettings? Gizmo { get; set; } = new();
+    public string AccentColor { get; set; } = "Blue";
     public string Theme { get; set; } = "Dark";                 // Dark | Light | System
     public bool MarkingMenu { get; set; } = true;
     public bool ReverseScrollZoom { get; set; }
@@ -42,6 +44,8 @@ public sealed class AppSettings
     public string? PartsLibraryPath { get; set; }
     public List<string> RecentFiles { get; set; } = [];
     public bool ShowHomeOnStart { get; set; } = true;
+    /// <summary>Workspace IDs pinned to the top bar; null uses the default selection.</summary>
+    public List<string>? VisibleWorkspaces { get; set; }
     public int MarkingHoldMs { get; set; } = 260;
     /// <summary>The variant each split ribbon button showed last (by button id), so a button comes back as you left it.</summary>
     public Dictionary<string, string> LastPicks { get; set; } = [];
@@ -51,6 +55,7 @@ public sealed class AppSettings
     public bool ShowQuickBar { get; set; } = true;
     public bool HistoryExpanded { get; set; } = true;
     public double HistoryHeight { get; set; } = 210;
+    public string HelpContextLocation { get; set; } = "viewport";
     /// <summary>What the status bar shows on the right (see MainViewModel.StatusCatalog). Null means the shipped set.</summary>
     public List<string>? StatusBar { get; set; }
 

@@ -246,6 +246,8 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
 /// <summary>Pick the geometry a constraint applies to (or select it first and then press the button).</summary>
 public sealed class ConstraintTool(CType type) : SketchTool
 {
+    public override string PanelTitle => type + " constraint";
+    public override string PanelInputTitle => "Select geometry";
     readonly List<(bool pt, int id)> _picks = [];
     public override string Name => "Constrain";
     public override string Mode => type.ToString();
@@ -509,6 +511,9 @@ public enum DimMode { Smart, Horizontal, Vertical }
 /// <summary>Click geometry to dimension it, then type the value. The solver moves the sketch to match.</summary>
 public sealed class DimensionTool(DimMode mode) : SketchTool
 {
+    public override string PanelInputTitle => "Select geometry";
+    public override string PanelSettingsTitle => "Dimension value";
+    public override string PanelActionTitle => "Apply dimension";
     readonly List<(bool pt, int id)> _picks = [];
     bool _waiting,_dragging;
     double _downX,_downY,_value,_sign=1;

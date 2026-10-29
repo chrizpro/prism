@@ -1,0 +1,154 @@
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Styling;
+using Avalonia.Themes.Fluent;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Prism.Commands;
+using Prism.Controls;
+using Prism.Core;
+using Prism.Core.Sketching;
+using Prism.Kernel;
+using Prism.ViewModels;
+using Prism.Views;
+
+NativeSearch.Initialize();
+Environment.SetEnvironmentVariable("PRISM_NO_HOME", "1");
+AppBuilder.Configure<TestApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).UseSkia().SetupWithoutStarting();
+int checks = 0;
+void Check(bool condition, string message) { if (!condition) throw new Exception(message); Console.WriteLine("PASS " + message); checks++; }
+string output = Path.GetFullPath("docs/panel-workflows"); Directory.CreateDirectory(output);
+void Capture(Control control, string name)
+{
+    var deadline = DateTime.UtcNow.AddSeconds(10);
+    do { Dispatcher.UIThread.RunJobs(); if (control.GetVisualDescendants().OfType<GeometryPreview>().All(p => p.PendingRender.IsCompleted)) break; Thread.Sleep(10); } while (DateTime.UtcNow < deadline);
+    Dispatcher.UIThread.RunJobs();
+    using var bitmap = new RenderTargetBitmap(new PixelSize((int)Math.Ceiling(control.Bounds.Width), (int)Math.Ceiling(control.Bounds.Height)));
+    bitmap.Render(control); bitmap.Save(Path.Combine(output, name + ".png"));
+    Console.WriteLine("SCREENSHOT " + name);
+}
+void PanelShot(Control control, string name, int height = 960)
+{
+    var host = new Window { Width = 394, Height = height, Content = control }; host.Show(); Dispatcher.UIThread.RunJobs();
+    foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+    {
+        Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs();
+        Capture(control, name + "-" + theme.Key.ToString()!.ToLowerInvariant());
+    }
+    host.Close(); Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
+}
+var vm = new MainViewModel(); var s = vm.Session;
+var model = new SketchModel();
+var points = new[] { (10.0, 0.0), (50.0, 0.0), (50.0, 30.0), (10.0, 30.0) }.Select(p => model.AddPoint(p.Item1, p.Item2)).ToArray();
+for (int i = 0; i < 4; i++) model.AddLine(points[i], points[(i + 1) % 4]);
+s.EnterSketch(Plane3.XY, model); s.ExitSketch(true);
+var sketch = s.Objects.Single(); s.Update(sketch.Id, o => o.WithName("Mounting profile")); sketch = s.Find(sketch.Id)!;
+SelItem Edge(int index) => new(sketch.Id, SelKind.Edge, index);
+Check(SelectionChains.Expand(s, Edge(0), false).Count == 4, "connected chain includes all four rectangle edges");
+Check(SelectionChains.Expand(s, Edge(0), true).Count == 1, "tangent chain stops at rectangle corners");
+s.ClearSelection();
+s.StartCommand(() => new ExtrudeCommand(true));
+var surface = s.ActiveCommand!; var profile = surface.Slots[0]; profile.SelectionRuleIndex = 1;
+for (int i = 0; i < 3; i++) Check(surface.Pick(Edge(i), true), "single edge is accepted for surface extrusion");
+var surfaceOutput = surface.TryBuild();
+Check(surfaceOutput?.Add.Single().Shape?.Count(SubKind.Face) == 3, "three selected sides extrude as three surface faces");
+Check(s.ActiveFilter == SelFilter.Edge, "selection intent changes the viewport pick filter to edges");
+var surfaceRecipe = surface.Capture()!;
+var replay = new ExtrudeCommand(true); replay.Begin(s); replay.Restore(surfaceRecipe);
+Check(replay.Slots[0].SelectionRuleIndex == 1 && replay.TryBuild()?.Add.Single().Shape?.Count(SubKind.Face) == 3, "feature replay preserves the selected three edges and restores edge-picking intent");
+PanelShot(new CommandPanel { DataContext = vm }, "extrude-three-edges");
+profile.SelectionRuleIndex = 4;
+var first = Occ.EdgeInfoOf(sketch.Shape.Sub(SubKind.Edge, 0));
+int opposite = Enumerable.Range(1, 3).First(i => { var e = Occ.EdgeInfoOf(sketch.Shape.Sub(SubKind.Edge, i)); return (e.Start - first.Start).Length > 1e-5 && (e.Start - first.End).Length > 1e-5 && (e.End - first.Start).Length > 1e-5 && (e.End - first.End).Length > 1e-5; });
+surface.Pick(Edge(0), true); surface.Pick(Edge(opposite), true);
+Check(profile.Items.Count == 3, "partial loop picks exactly three sides between opposite anchor edges");
+var firstPath = profile.Items.ToArray(); profile.OtherPath = true;
+Check(profile.Items.Count == 3 && !profile.Items.SequenceEqual(firstPath), "Other path selects the alternative three-sided chain");
+PanelShot(new CommandPanel { DataContext = vm }, "partial-loop-selection", 780);
+s.CancelCommand();
+s.StartCommand(() => new ExtrudeCommand()); var extrude = s.ActiveCommand!;
+extrude.Slots[0].SelectionRuleIndex = 1; for (int i = 0; i < 3; i++) extrude.Pick(Edge(i), true);
+Check(extrude.TryBuild() == null && extrude.Error != null, "an open three-sided chain cannot silently create a solid");
+extrude.Pick(Edge(3), true);
+Check(extrude.TryBuild()?.Add.Single().Shape?.Count(SubKind.Solid) > 0, "adding the fourth edge creates a closed solid profile");
+s.CommitCommand();
+var body = s.Objects.Single(o => o.Kind == ObjKind.Solid); s.Update(body.Id, o => o.WithName("Bracket body"));
+vm.RebuildBrowser();
+var bodyNode = vm.AllBrowserNodes().Single(n => n.ObjectId == body.Id && n.IsObject);
+Check(bodyNode.Children.Any(n => n.Title == "Sketches" && n.Children.Any(c => c.ObjectId == sketch.Id)), "source sketch is nested under its real owning body");
+bodyNode.IsExpanded = false; vm.RebuildBrowser();
+Check(!vm.AllBrowserNodes().Single(n => n.ObjectId == body.Id && n.IsObject).IsExpanded, "body disclosure survives browser rebuilds");
+vm.BrowserFilter = "Mounting profile";
+Check(vm.AllBrowserNodes().Any(n => n.ObjectId == body.Id), "filtering a nested sketch retains the ancestor body");
+vm.BrowserFilter = ""; bodyNode = vm.AllBrowserNodes().Single(n => n.ObjectId == body.Id && n.IsObject); bodyNode.IsExpanded = true;
+s.SelectItems([SelItem.Of(sketch)]); s.StartCommand(() => new RevolveCommand());
+var revolve = s.ActiveCommand!;
+Check(revolve.WorkflowSections.Where(x => x.IsVisible).Select(x => x.Title).SequenceEqual(new[] { "Profile", "Axis", "Extent", "Result" }), "revolve reads Profile, Axis, Extent, Result from top to bottom");
+revolve.Params.OfType<ChoiceParam>().Single(p => p.Label == "Axis").Index = 3;
+var axisStep = revolve.WorkflowSections.Single(g => g.Title == "Axis");
+Check(axisStep.Items.OfType<SelectionSlot>().Single().Label == "Axis line", "picked axis stays inside step two after the axis-type selector");
+revolve.Pick(new SelItem(Guid.Empty, SelKind.Origin, 4), false);
+var commandPanel = new CommandPanel { DataContext = vm };
+var commandHost = new Window { Width = 394, Height = 960, Content = commandPanel }; commandHost.Show(); Dispatcher.UIThread.RunJobs();
+var profileExpander = commandPanel.GetVisualDescendants().OfType<Expander>().Single(e => e.DataContext is CommandSection { Title: "Profile" });
+var disclosure = profileExpander.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.ToggleButton>().First();
+disclosure.IsChecked = false; Dispatcher.UIThread.RunJobs();
+Check(!revolve.WorkflowSections.Single(g => g.Title == "Profile").IsExpanded && revolve.Slots[0].Items.Count == 1, "collapsing a command step preserves the selected profile");
+disclosure.IsChecked = true; Dispatcher.UIThread.RunJobs();
+Capture(commandPanel, "revolve-steps-dark");
+Application.Current!.RequestedThemeVariant = ThemeVariant.Light; Dispatcher.UIThread.RunJobs(); Capture(commandPanel, "revolve-steps-light");
+commandHost.Close(); Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
+s.CancelCommand();
+s.SelectItems([SelItem.Of(sketch)]); s.StartCommand(() => new ExtrudeCommand());
+PanelShot(new CommandPanel { DataContext = vm }, "extrude-steps");
+var workspace = new MainView { DataContext = vm }; var workspaceHost = new Window { Width = 1360, Height = 940, Content = workspace };
+workspaceHost.Show(); Dispatcher.UIThread.RunJobs();
+var tree = workspace.FindControl<TreeView>("Tree")!; var treePanel = tree.GetVisualAncestors().OfType<Border>().First(b => b.Bounds.Width >= 270 && b.Bounds.Width < 300 && b.Background != null);
+foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+{
+    Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs(); Capture(treePanel, "context-tree-" + theme.Key.ToString()!.ToLowerInvariant());
+}
+var lines = workspace.GetVisualDescendants().OfType<BrowserBranchLines>().Single();
+var liveBodyNode = vm.AllBrowserNodes().Single(n => n.ObjectId == body.Id && n.IsObject);
+liveBodyNode.IsExpanded = false; Dispatcher.UIThread.RunJobs();
+Check(tree.GetVisualDescendants().OfType<TreeViewItem>().Where(row => row.DataContext is BrowserNode n && n.ObjectId == sketch.Id).All(row => !row.IsEffectivelyVisible), "native body disclosure hides all descendant sketch rows");
+liveBodyNode.IsExpanded = true; Dispatcher.UIThread.RunJobs();
+var originalAccent = AppSettings.Current.AccentColor;
+AppSettings.Current.AccentColor = "Purple"; Prism.App.ApplyAccent(); Dispatcher.UIThread.RunJobs();
+Check(lines.BranchBrush is SolidColorBrush brush && brush.Color == ((SolidColorBrush)Application.Current!.Resources["Accent"]!).Color, "branch lines follow the accent selected in Preferences");
+Capture(treePanel, "context-tree-purple");
+AppSettings.Current.AccentColor = originalAccent; Prism.App.ApplyAccent();
+workspaceHost.Close(); s.CancelCommand();
+s.SelectItems([SelItem.Of(s.Find(body.Id)!)]); vm.ApplyMaterial(Materials.Find("6061")!); vm.OpenStudio("appearance");
+PanelShot(new MaterialsPanel { DataContext = vm }, "appearance");
+PanelShot(new PropertiesPanel { DataContext = vm }, "properties", 760);
+vm.NewStudy(); PanelShot(new SimulationPanel { DataContext = vm }, "simulation", 860);
+vm.OpenRightPanel("library"); PanelShot(new LibraryPanel { DataContext = vm }, "parts-library");
+s.ApplyDocumentParameters([new("width", "40 mm"), new("height", "30 mm"), new("wall", "3 mm", true), new("rib", "wall * 0.75")]);
+foreach (string studio in new[] { "diagnostics", "references", "parameters" })
+{
+    vm.OpenStudio(studio); if (studio == "diagnostics") vm.RunStudioChecks();
+    PanelShot(new StudiosPanel { DataContext = vm }, studio);
+}
+s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }, "sketch", 860); s.ExitSketch(false);
+Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
+sealed class TestApp : Application
+{
+    public override void Initialize()
+    {
+        Styles.Add(new FluentTheme());
+        Styles.Add(new StyleInclude(new Uri("avares://Prism/")) { Source = new Uri("avares://Prism/Styles/Theme.axaml") });
+    }
+}
+static class NativeSearch
+{
+    [DllImport("kernel32", CharSet = CharSet.Unicode)] static extern bool SetDllDirectory(string path);
+    public static void Initialize() => SetDllDirectory(Path.GetFullPath("native/bin"));
+}
+

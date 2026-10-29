@@ -55,7 +55,7 @@ int edge = Enumerable.Range(0, body.Shape.Count(SubKind.Edge)).First(i =>
     return Math.Abs(info.Start.X - 40) < .001 && Math.Abs(info.End.X - 40) < .001 && Math.Abs(info.Start.Y - 6) < .001 && Math.Abs(info.End.Y - 6) < .001;
 });
 s.SelectItems([new SelItem(body.Id, SelKind.Edge, edge)]); s.StartCommand(() => new FilletCommand());
-s.ActiveCommand!.Params.OfType<NumberParam>().Single().Value = 2; s.CommitCommand();
+s.ActiveCommand!.Params.OfType<NumberParam>().Single(p => p.Label == "Radius").Value = 2; s.CommitCommand();
 Check(!s.StatusIsError, "L-section fixture has a valid initial fillet");
 s.SelectItems([SelItem.Of(s.Objects.Single(o => o.Kind == ObjKind.Solid))]);
 s.StartCommand(() => new TransformCommand(TransformCommand.Kind.Move)); s.CommitCommand();
@@ -91,7 +91,7 @@ vm.EditStudioIssue(vm.SelectedStudioIssue!);
 Check(s.Current == failedState && s.ActiveCommand is FilletCommand, "repair opens the failed operation on its changed input state");
 s.CancelCommand(); Check(s.Current == failedState && s.RebuildIssue != null, "canceling repair preserves the failure and its input snapshot");
 vm.EditStudioIssue(vm.SelectedStudioIssue!);
-s.ActiveCommand!.Params.OfType<NumberParam>().Single().Value = .2; s.CommitCommand();
+s.ActiveCommand!.Params.OfType<NumberParam>().Single(p => p.Label == "Radius").Value = .2; s.CommitCommand();
 Check(s.RebuildIssue == null && !s.StatusIsError && s.HistoryPath().Past.Last(n => n.Recipe != null).Recipe!.Title == "Move", "repair resumes downstream operations with the preserved object map");
 Check(s.Find(sketch.Id)!.SketchData!.P(pointIds[2]).Y == .7 && Math.Abs(s.Objects.Single(o => o.Kind == ObjKind.Solid).Mesh.Min.X - 10) < .001, "repair retains the modified sketch and applies the later placement");
 vm.DiagnosticSearch = "not a real issue"; Check(vm.VisibleDiagnosticIssues.Count == 0 && vm.IssuePreview == null, "issue search clears a nonmatching preview");
@@ -108,7 +108,7 @@ Check(vm.IssuePreview != null && !ReferenceEquals(previousSketchPreview, vm.Issu
 s.ApplyDocumentParameters([new("width", "120 mm"), new("height", "80 mm"), new("wall", "3 mm", true), new("rib", "wall * 0.75"), new("hole_diameter", "6 mm", true)]);
 vm.OpenStudio("parameters"); vm.SelectedParameterDraft = vm.DocumentParameterRows.Single(p => p.Name == "rib");
 vm.SelectedStudioFeature = vm.StudioFeatures.Last(f => f.Node.Recipe?.Title == "Fillet");
-vm.FeatureValueRows.Single().Formula = "rib"; vm.ApplyStudioFeatureValues();
+vm.FeatureValueRows.Single(p => p.Label == "Radius").Formula = "rib"; vm.ApplyStudioFeatureValues();
 vm.SelectedParameterDraft = vm.DocumentParameterRows.Single(p => p.Name == "rib");
 Check(vm.PinnedParameterRows.Count == 2 && vm.VisibleParameterRows.Count == 5, "parameter table separates pinned values and document expressions");
 foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light }) Capture(panel, "parameters", theme);

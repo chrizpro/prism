@@ -81,7 +81,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     Vec3 _start, _c0; double _t0, _ang0, _d0;
     Plane3 _dragPlane, _ringPlane;
     static readonly Vec3[] Axes = [Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ];
-    static readonly uint[] AxisColors = [0xFFE5484D, 0xFF2EA043, 0xFF2F78E4];
+    int _hotMode = -1;
     public string Prompt => "Click a control point (Shift adds). Drag the point itself, or use the gizmo: arrows move, rings rotate (E), blocks scale (R), W for move. Set an influence radius for soft edits.";
 
     int Mode => cmd.TransformMode.Index;     // 0 move, 1 rotate, 2 scale
@@ -96,7 +96,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         return sum / Selected.Count;
     }
 
-    (Vec3 c, double len)? Gizmo(CadSession s) => GizmoCentre() is { } c ? (c, s.Camera.PixelSizeAt(c) * 95) : null;
+    (Vec3 c, double len)? Gizmo(CadSession s) => GizmoCentre() is { } c ? (c, GizmoVisual.Length(s,c)) : null;
 
     static (Vec3 u, Vec3 v) RingBasis(int axis) => axis == 0 ? (Vec3.UnitY, Vec3.UnitZ) : axis == 1 ? (Vec3.UnitZ, Vec3.UnitX) : (Vec3.UnitX, Vec3.UnitY);
 
@@ -123,28 +123,10 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         return (b * ee - dd) / den;
     }
 
-    (int axis, bool center) HitGizmo(CadSession s, double x, double y)
+    (int axis, bool center, int operation) HitGizmo(CadSession s, double x, double y)
     {
-        if (Gizmo(s) is not { } g) return (-1, false);
-        if (Mode == 1)
-        {
-            int bestRing = -1; double bestD = 8;
-            for (int i = 0; i < 3; i++)
-            {
-                var pts = RingPoints(g.c, g.len, i).ToList();
-                for (int k = 0; k + 1 < pts.Count; k++) { double dd = ToSeg(s, x, y, pts[k], pts[k + 1]); if (dd < bestD) { bestD = dd; bestRing = i; } }
-            }
-            return (bestRing, false);
-        }
-        var pc = s.Camera.Project(g.c);
-        if (pc != null && Math.Sqrt((pc.Value.x - x) * (pc.Value.x - x) + (pc.Value.y - y) * (pc.Value.y - y)) <= 11) return (-1, true);
-        int best = -1; double bd = 9;
-        for (int i = 0; i < 3; i++)
-        {
-            double d = ToSeg(s, x, y, g.c + Axes[i] * (g.len * 0.18), g.c + Axes[i] * g.len);
-            if (d < bd) { bd = d; best = i; }
-        }
-        return (best, false);
+        if (Gizmo(s) is not { } g) return (-1, false, Mode);
+        return GizmoVisual.Hit(s, x, y, _ => g.c, Axes, Mode);
     }
 
     // ---------------------------------------------------------------- weights and applying a transform
@@ -178,9 +160,11 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (m == null || !p.Left) return false;
 
         // Shift always means "add this point to the selection", even when the gizmo sits over it
-        var (axis, center) = p.Shift ? (-1, false) : HitGizmo(s, p.X, p.Y);
+        var (axis, center, operation) = p.Shift ? (-1, false, Mode) : HitGizmo(s, p.X, p.Y);
         if (axis >= 0 || center)
         {
+            _hotMode = operation; _hotAxis = axis; _hotCenter = center; s.Invalidate();
+            if (Mode != operation) cmd.TransformMode.Index = operation;
             BeginDrag(m.Points); _c0 = GizmoCentre()!.Value;
             var (o, d) = s.Camera.Ray(p.X, p.Y);
             if (Mode == 1)
@@ -228,8 +212,8 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (_drag == Drag.None)
         {
             int h = Picking.NearestPoint(s.Camera, m.Points, p.X, p.Y, 12);
-            var (ax, ce) = HitGizmo(s, p.X, p.Y);
-            if (h != _hot || ax != _hotAxis || ce != _hotCenter) { _hot = h; _hotAxis = ax; _hotCenter = ce; s.Invalidate(); }
+            var (ax, ce, operation) = HitGizmo(s, p.X, p.Y);
+            if (operation != _hotMode || h != _hot || ax != _hotAxis || ce != _hotCenter) { _hotMode = operation; _hot = h; _hotAxis = ax; _hotCenter = ce; s.Invalidate(); }
             return;
         }
         var (o, d) = s.Camera.Ray(p.X, p.Y);
@@ -237,10 +221,10 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         {
             case Drag.Point:
             case Drag.Free:
-                if (_dragPlane.Intersect(o, d) is { } hit) { var delta = hit - _start; Transform(s, FormTransform.MoveBy(delta)); }
+                if (_dragPlane.Intersect(o, d) is { } hit) { var delta = hit - _start; Transform(s, FormTransform.MoveBy(GizmoVisual.SnapMove(delta,p.Alt))); }
                 break;
             case Drag.Axis:
-                if (AxisParam(o, d, _c0, Axes[_axis]) is double t) Transform(s, FormTransform.MoveBy(Axes[_axis] * (t - _t0)));
+                if (AxisParam(o, d, _c0, Axes[_axis]) is double t) Transform(s, FormTransform.MoveBy(GizmoVisual.SnapMove(Axes[_axis] * (t - _t0),p.Alt)));
                 break;
             case Drag.Rotate:
             {
@@ -248,6 +232,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
                 var (ru, rv) = RingBasis(_axis);
                 double a = Math.Atan2(Vec3.Dot(rh - _c0, rv), Vec3.Dot(rh - _c0, ru));
                 double delta = a - _ang0; while (delta > Math.PI) delta -= 2 * Math.PI; while (delta < -Math.PI) delta += 2 * Math.PI;
+                delta = GizmoVisual.SnapAngle(delta, p.Alt);
                 Transform(s, FormTransform.RotateAbout(_c0, Axes[_axis], delta));
                 s.Say($"Rotate {delta * 180 / Math.PI:0.#}° about {(_axis == 0 ? "X" : _axis == 1 ? "Y" : "Z")}");
                 break;
@@ -255,7 +240,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
             case Drag.ScaleAxis:
             {
                 if (AxisParam(o, d, _c0, Axes[_axis]) is not double ts) break;
-                double f = Math.Clamp(ts / _t0, 0.02, 50);
+                double f = GizmoVisual.SnapScale(Math.Clamp(ts / _t0, 0.02, 50), p.Alt);
                 Transform(s, FormTransform.ScaleAbout(_c0, _axis == 0 ? f : 1, _axis == 1 ? f : 1, _axis == 2 ? f : 1));
                 s.Say($"Scale {f:0.###} along {(_axis == 0 ? "X" : _axis == 1 ? "Y" : "Z")}");
                 break;
@@ -264,7 +249,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
             {
                 var pc = s.Camera.Project(_c0); if (pc == null) break;
                 double dist = Math.Max(4, Math.Sqrt((pc.Value.x - p.X) * (pc.Value.x - p.X) + (pc.Value.y - p.Y) * (pc.Value.y - p.Y)));
-                double f = Math.Clamp(dist / _d0, 0.02, 50);
+                double f = GizmoVisual.SnapScale(Math.Clamp(dist / _d0, 0.02, 50), p.Alt);
                 Transform(s, FormTransform.ScaleAbout(_c0, f, f, f));
                 s.Say($"Scale {f:0.###}");
                 break;
@@ -299,26 +284,10 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
             o.AddDot(m.Points[i], sel ? 0xFFFF8A1F : i == _hot ? 0xFF00A8FF : 0xFF2F4A73, sel || i == _hot ? 11 : 8);
         }
         if (Gizmo(s) is not { } g) return;
-        if (Mode == 1)
-        {
-            for (int i = 0; i < 3; i++)
-            {
-                bool hot = _hotAxis == i || (_drag == Drag.Rotate && _axis == i);
-                o.AddPolyline(RingPoints(g.c, g.len, i).ToList(), hot ? 0xFFFFC53D : AxisColors[i], hot ? 4.5f : 3f);
-            }
-            o.AddDot(g.c, 0xFFFFFFFF, 9);
-        }
-        else
-        {
-            for (int i = 0; i < 3; i++)
-            {
-                bool hot = _hotAxis == i || ((_drag == Drag.Axis || _drag == Drag.ScaleAxis) && _axis == i);
-                var tip = g.c + Axes[i] * g.len;
-                o.AddLine(g.c, tip, hot ? 0xFFFFC53D : AxisColors[i], hot ? 4.5f : 3f);
-                o.AddDot(tip, hot ? 0xFFFFC53D : AxisColors[i], Mode == 2 ? 17 : 13);
-            }
-            o.AddDot(g.c, _hotCenter || _drag == Drag.Free || _drag == Drag.ScaleAll ? 0xFFFFC53D : 0xFFFFFFFF, Mode == 2 ? 16 : 12);
-        }
+        for (int operation = 0; operation < 3; operation++)
+            GizmoVisual.DrawOperation(o, s, g.c, Axes, operation, Mode,
+                _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter);
+
     }
 
     public void Deactivate(CadSession s) { }
