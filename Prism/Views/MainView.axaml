@@ -203,7 +203,7 @@
 
         <!-- ============ status bar ============ -->
 
-        <Border DockPanel.Dock="Bottom" Height="28" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Border DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
 

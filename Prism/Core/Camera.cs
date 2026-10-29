@@ -101,6 +101,31 @@ public sealed class Camera
         Pitch = Math.Clamp(Pitch + dyPx * 0.0065, -Math.PI / 2, Math.PI / 2);
     }
 
+    /// <summary>Rotate the view with the cube, including across the poles, without forcing the scene upright.</summary>
+    public void OrbitFree(double dxPx, double dyPx)
+    {
+        static Vec3 Rotate(Vec3 v, Vec3 axis, double angle) =>
+            v * Math.Cos(angle) + Vec3.Cross(axis, v) * Math.Sin(angle) + axis * (Vec3.Dot(axis, v) * (1 - Math.Cos(angle)));
+        var eye = EyeDirection;
+        var up = Up;
+        var right = Right;
+        eye = Rotate(eye, up, -dxPx * 0.0065);
+        right = Rotate(right, up, -dxPx * 0.0065);
+        eye = Rotate(eye, right, -dyPx * 0.0065);
+        up = Rotate(up, right, -dyPx * 0.0065);
+        SetOrientation(eye, up);
+    }
+
+    public void SetOrientation(Vec3 eyeDirection, Vec3 up)
+    {
+        var eye = eyeDirection.Normalized();
+        Pitch = Math.Asin(Math.Clamp(eye.Z, -1, 1));
+        if (Math.Abs(eye.Z) < 0.999999999) Yaw = Math.Atan2(eye.X, -eye.Y);
+        var upright = UprightUp;
+        var right = Vec3.Cross(-eye, upright).Normalized();
+        Roll = Math.Atan2(Vec3.Dot(up, right), Vec3.Dot(up, upright));
+    }
+
     public void Pan(double dxPx, double dyPx)
     {
         double k = PixelSize;

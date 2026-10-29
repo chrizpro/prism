@@ -1613,11 +1613,12 @@ public sealed partial class CadSession : ObservableObject
     Avalonia.Threading.DispatcherTimer? _anim;
     /// <summary>True while a view change is still easing in.</summary>
     public bool IsAnimating => _anim?.IsEnabled == true;
+    public void StopViewAnimation() => _anim?.Stop();
     public void AnimateView(double yaw, double pitch, double? roll = null)
     {
         _anim?.Stop();
         var cam = Camera;
-        double y0 = cam.Yaw, p0 = cam.Pitch, r0 = cam.Roll, dr = (roll ?? 0) - r0;
+        double y0 = cam.Yaw, p0 = cam.Pitch, r0 = cam.Roll, dr = Math.IEEERemainder((roll ?? 0) - r0, 2 * Math.PI);
         double dy = Math.IEEERemainder(yaw - y0, 2 * Math.PI), dp = pitch - p0;
         var start = DateTime.UtcNow;
         const double ms = 260;

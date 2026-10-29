@@ -23,6 +23,12 @@ Environment.SetEnvironmentVariable("PRISM_NO_HOME", "1");
 AppBuilder.Configure<TestApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).UseSkia().SetupWithoutStarting();
 int checks = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); Console.WriteLine("PASS " + message); checks++; }
+var orbitCamera = new Camera { Yaw = 0, Pitch = 0, Roll = 0 };
+orbitCamera.OrbitFree(0, 300);
+Check(orbitCamera.EyeDirection.Z > 0.8 && orbitCamera.Up.Z < 0, "cube free orbit crosses the top pole without stopping");
+Check(Math.Abs(Vec3.Dot(orbitCamera.EyeDirection, orbitCamera.Up)) < 1e-9, "cube orbit keeps the camera basis perpendicular");
+orbitCamera.OrbitFree(0, -300);
+Check(orbitCamera.EyeDirection.DistanceTo(new Vec3(0, -1, 0)) < 1e-8 && orbitCamera.Up.DistanceTo(Vec3.UnitZ) < 1e-8, "reversing a cube drag restores its view");
 string output = Path.GetFullPath("docs/panel-workflows"); Directory.CreateDirectory(output);
 void Capture(Control control, string name)
 {

@@ -138,6 +138,11 @@ public sealed class ViewCube : Control
     }
 
     static readonly Hit[] Arrows = [Hit.Up, Hit.Down, Hit.Left, Hit.Right];
+    static bool IsFaceView(Camera cam)
+    {
+        var d = cam.EyeDirection;
+        return Math.Max(Math.Abs(d.X), Math.Max(Math.Abs(d.Y), Math.Abs(d.Z))) > 0.99999;
+    }
 
     // ---- drawing
     static readonly IBrush Accent = new SolidColorBrush(Color.Parse("#2F7BF0"));
@@ -186,15 +191,18 @@ public sealed class ViewCube : Control
         }
 
         // rotate arrows
-        foreach (var a in Arrows)
+        foreach (var a in IsFaceView(cam) ? Arrows : [])
         {
             bool hot = _hit == a;
             ctx.DrawGeometry(hot ? Accent : new SolidColorBrush(Color.Parse("#A7B6CC")), null, Poly(Arrow(a)));
         }
 
         // roll: turn the picture about the line of sight
-        DrawButton(ctx, RollCcwRect, _hit == Hit.RollCcw, () => RollIcon(RollCcwRect, false));
-        DrawButton(ctx, RollCwRect, _hit == Hit.RollCw, () => RollIcon(RollCwRect, true));
+        if (IsFaceView(cam))
+        {
+            DrawButton(ctx, RollCcwRect, _hit == Hit.RollCcw, () => RollIcon(RollCcwRect, false));
+            DrawButton(ctx, RollCwRect, _hit == Hit.RollCw, () => RollIcon(RollCwRect, true));
+        }
 
         // home + projection buttons
         DrawButton(ctx, HomeRect, _hit == Hit.Home, () =>
@@ -263,9 +271,9 @@ public sealed class ViewCube : Control
         var s = Session; if (s == null) return (Hit.None, -1);
         if (Dist(pt, HomeRect.Center) <= 12) return (Hit.Home, -1);
         if (Dist(pt, ProjRect.Center) <= 12) return (Hit.Projection, -1);
-        if (Dist(pt, RollCcwRect.Center) <= 12) return (Hit.RollCcw, -1);
-        if (Dist(pt, RollCwRect.Center) <= 12) return (Hit.RollCw, -1);
-        foreach (var a in Arrows)
+        if (IsFaceView(Cam) && Dist(pt, RollCcwRect.Center) <= 12) return (Hit.RollCcw, -1);
+        if (IsFaceView(Cam) && Dist(pt, RollCwRect.Center) <= 12) return (Hit.RollCw, -1);
+        foreach (var a in IsFaceView(Cam) ? Arrows : [])
         {
             var tri = Arrow(a);
             var c = new Point(tri.Average(t => t.X), tri.Average(t => t.Y));
@@ -308,7 +316,7 @@ public sealed class ViewCube : Control
             if (!_dragging && Dist(pos, _down) > 4) _dragging = true;
             if (_dragging)
             {
-                s.Camera = Cam; s.Camera.Orbit(pos.X - _down.X, pos.Y - _down.Y);
+                s.StopViewAnimation(); s.Camera = Cam; s.Camera.OrbitFree(pos.X - _down.X, pos.Y - _down.Y);
                 _down = pos; s.Invalidate();
                 return;
             }
@@ -335,7 +343,7 @@ public sealed class ViewCube : Control
         e.Pointer.Capture(null);
         if (s == null || wasDrag) return;
         var (h, r) = HitTest(e.GetPosition(this));
-        if (h != _pressHit) return;
+        if (h != _pressHit || (h == Hit.Region && r != _pressRegion)) return;
         s.Camera = Cam;
         var cam = s.Camera;
         double q = Math.PI / 2;
@@ -346,10 +354,14 @@ public sealed class ViewCube : Control
             case Hit.Projection: s.Ortho = !s.Ortho; break;
             case Hit.RollCcw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q + q); break;
             case Hit.RollCw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q - q); break;
-            case Hit.Left: s.AnimateView(snapYaw + q, cam.Pitch); break;
-            case Hit.Right: s.AnimateView(snapYaw - q, cam.Pitch); break;
-            case Hit.Up: s.AnimateView(cam.Yaw, Math.Clamp(Math.Round(cam.Pitch / q) * q + q, -q, q)); break;
-            case Hit.Down: s.AnimateView(cam.Yaw, Math.Clamp(Math.Round(cam.Pitch / q) * q - q, -q, q)); break;
+            case Hit.Left: case Hit.Right: case Hit.Up: case Hit.Down:
+                var eye = cam.EyeDirection; var up = cam.Up; var right = cam.Right;
+                var target = h switch { Hit.Left => -right, Hit.Right => right, Hit.Up => up, _ => -up };
+                var targetUp = h switch { Hit.Up => -eye, Hit.Down => eye, _ => up };
+                var destination = new Camera { Yaw = cam.Yaw };
+                destination.SetOrientation(target, targetUp);
+                s.AnimateView(destination.Yaw, destination.Pitch, destination.Roll);
+                break;
             case Hit.Region:
                 var d = Regions[r].Dir.Normalized();
                 double pitch = Math.Asin(Math.Clamp(d.Z, -1, 1));
