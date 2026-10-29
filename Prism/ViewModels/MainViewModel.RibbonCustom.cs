@@ -19,44 +19,109 @@ public sealed partial class MainViewModel
         CanExecute = () => { foreach (var v in variants) { v.Refresh(); if (v.IsEnabled) return true; } return false; },
     };
 
-    void CompactModelingRibbon()
+    void OrganizeRibbons(Func<RibbonGroup> transform, Func<RibbonGroup> inspect,
+        Func<RibbonGroup> appearance, Func<RibbonGroup> select)
     {
-        foreach (var tab in Tabs.Where(t => t.Title is "Home" or "Solid" or "Surface" or "NURBS" or "Freeform"))
+        var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "ECAD" };
+        foreach (var tab in Tabs)
         {
-            var references = tab.Groups.Where(g => g.Title is "Sketch" or "Planes" or "Curves").ToList();
-            if (references.Count > 0)
+            // Shared sections come from fresh factories, never from a different tab's mutable buttons.
+            for (int i = 0; i < tab.Groups.Count; i++)
             {
-                var tools = references.SelectMany(g => g.Items).OfType<RibbonButton>().ToArray();
-                int at = tab.Groups.IndexOf(references[0]);
-                foreach (var group in references) tab.Groups.Remove(group);
-                tab.Groups.Insert(at, new RibbonGroup { Title = "References", Items =
-                    [tools[0], ToolMenu("Curves & planes", "origin-plane", "Sketch editing, spatial curves and construction references.", tools.Skip(1).ToArray())] });
+                var group = tab.Groups[i];
+                if (group.Title == "Transform") tab.Groups[i] = transform();
+                else if (group.Title == "Appearance") tab.Groups[i] = appearance();
+                else if (group.Title == "Select" && !tab.IsContextual) tab.Groups[i] = select();
+                else if (group.Title == "Inspect")
+                    tab.Groups[i] = tab.Title == "View" ? G("Section", group.Items.ToArray()) : inspect();
+                else if (group.Title == "Components" && tab.Title == "Freeform")
+                    tab.Groups[i] = G("Topology", group.Items.ToArray());
+            }
+            if (modeling.Contains(tab.Title))
+            {
+                if (tab.Groups.All(g => g.Title != "Inspect")) tab.Groups.Add(inspect());
+                if (tab.Groups.All(g => g.Title != "Select")) tab.Groups.Add(select());
+                var references = tab.Groups.Where(g => g.Title is "Sketch" or "Planes" or "Curves").ToList();
+                if (references.Count > 0)
+                {
+                    var tools = references.SelectMany(g => g.Items).OfType<RibbonButton>().ToArray();
+                    foreach (var group in references) tab.Groups.Remove(group);
+                    tab.Groups.Add(G("References", tools[0], ToolMenu("Curves & planes", "origin-plane",
+                        "Edit sketches, create spatial curves and work with construction references.", tools.Skip(1).ToArray())));
+                }
+            }
+            if (tab.Title is "Home" or "Solid")
+            {
+                var primitives = tab.Groups.Single(g => g.Title is "Create" or "Primitives");
+                var features = tab.Groups.Single(g => g.Title == "Features");
+                tab.Groups.Remove(primitives); tab.Groups.Remove(features);
+                tab.Groups.Add(G("Create", primitives.Items[0], ToolMenu("Features", "extrude",
+                    "Build solid features from sketches and edit existing features.", features.Items.OfType<RibbonButton>().ToArray())));
+            }
+            if (tab.Title == "Sketch")
+            {
+                var reference = tab.Groups.Single(g => g.Title == "Reference");
+                tab.Groups.Single(g => g.Title == "References").Items.AddRange(reference.Items);
+                tab.Groups.Remove(reference);
+            }
+            if (tab.Title == "ECAD")
+            {
+                // Geometry placement uses the same transform commands as the modeling ribbons.
+                tab.Groups.Single(g => g.Title == "Components").Items.RemoveAll(i => i is RibbonButton { HasMenu: true });
+                tab.Groups.Add(transform());
+            }
+            if (tab.Title == "Analyze")
+            {
+                var section = tab.Groups.Single(g => g.Title == "Section");
+                tab.Groups.Remove(section);
+                tab.Groups.Add(G("Bounds", section.Items.OfType<RibbonButton>().Where(b => b.Icon == "bbox").ToArray()));
+            }
+            if (tab.Title == "Render")
+            {
+                var look = tab.Groups.Single(g => g.Title == "Look");
+                tab.Groups.Remove(look);
+                tab.Groups.Add(appearance());
+                tab.Groups.Add(G("Orientation", look.Items.OfType<RibbonButton>().Where(b => b.Icon == "look-at").ToArray()));
+            }
+            if (tab.Title is "Thermal" or "Dynamics" or "Static")
+            {
+                foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
+                tab.Groups.Add(appearance());
             }
             foreach (var group in tab.Groups)
             {
-                if (group.Title == "Combine")
+                var buttons = group.Items.OfType<RibbonButton>().ToArray();
+                if (group.Title == "Combine" && buttons.Length > 1)
                 {
-                    var variants = group.Items.OfType<RibbonButton>().ToArray();
-                    if (variants.Length > 1) { group.Items.Clear(); group.Items.Add(ToolMenu("Combine", "union", "Union, subtract, or intersect bodies.", variants)); }
+                    group.Items.Clear();
+                    group.Items.Add(ToolMenu("Combine", "union", "Union, subtract, or intersect bodies.", buttons));
                     continue;
                 }
-                if (tab.Title is "Solid" or "Home" && group.Title == "Pattern")
+                if (group.Title == "Pattern" && buttons.Length == 5)
                 {
-                    var variants = group.Items.OfType<RibbonButton>().ToArray();
-                    if (variants.Length == 5) { group.Items.Clear(); group.Items.AddRange(variants.Take(2)); group.Items.Add(ToolMenu("More patterns", "pattern-curve", "Pattern along a curve, fill a region, or use a table.", variants.Skip(2).ToArray())); }
+                    group.Items.Clear();
+                    group.Items.Add(ToolMenu("Patterns", "pattern-linear", "Linear, circular, curve, fill and table patterns.", buttons));
                     continue;
                 }
-                int keep = group.Title is "Sketch" or "Modify" or "Inspect" ? 1 : 0;
-                if (group.Title is not ("Curves" or "Planes" or "Finish" or "Fill" or "Loops" or "Lock and align" or "Components" or "Transform" or "Inspect" or "Sketch" or "Modify" or "Surfaces" or "Detail" or "Analyze" or "Shape" or "Create")) continue;
-                // Existing dropdowns remain intact; menus stay one level deep for discovery and search.
-                var buttons = group.Items.OfType<RibbonButton>().ToList();
-                if (buttons.Count - keep < 2 || buttons.Any(b => b.HasMenu)) continue;
-                if (group.Title == "Surfaces") keep = 1; // keep NURBS Patch directly available
-                var nested = buttons.Skip(keep).ToArray();
+                if (group.Title == "Exchange" && tab.IsFile)
+                {
+                    group.Items.Clear();
+                    group.Items.Add(ToolMenu("Import", "import", "Import CAD geometry or meshes.", buttons.Where(b => b.Label.StartsWith("Import", StringComparison.Ordinal)).ToArray()));
+                    group.Items.Add(ToolMenu("Export", "export", "Export exact geometry, drawings or meshes.", buttons.Where(b => b.Label.StartsWith("Export", StringComparison.Ordinal)).ToArray()));
+                    continue;
+                }
+                // A primary action plus related variants. Existing menus stay flat and retain every command.
+                bool compact = group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display");
+                if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
+                int keep = group.Title is "Transform" or "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));
-                group.Items.Add(ToolMenu(group.Title == "Surfaces" ? "Build surface" : group.Title == "Sketch" ? "More sketches" : group.Title,
-                    nested[0].Icon, "Open related tools. Individual commands remain available in command search.", nested));
+                string label = group.Title == "Transform" ? "More transforms" : group.Title == "Inspect" ? "More inspection" : keep == 0 ? group.Title : "More";
+                var menu = ToolMenu(label, buttons[keep].Icon,
+                    "Related tools in this section. Every command is also available in command search.", buttons.Skip(keep).ToArray());
+                menu.Id = "menu:" + tab.Title + ":" + group.Title;
+                group.Items.Add(menu);
             }
+            RibbonLayoutPolicy.Order(tab);
         }
     }
 

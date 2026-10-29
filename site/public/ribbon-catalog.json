@@ -1,0 +1,4338 @@
+{
+  "sourceHash": "E7D3C1F227E5F2BCA0F0CC065CD2AD6BC4D64507980C1DE13D8246FC1839D5AB",
+  "workspaces": [
+    {
+      "Id": "design",
+      "Name": "Design",
+      "Tip": "Solid, surface, freeform, NURBS and sheet metal modeling.",
+      "Tabs": [
+        "Home",
+        "Solid",
+        "Surface",
+        "Freeform",
+        "NURBS",
+        "Direct Modeling",
+        "Sheet Metal",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "ecad",
+      "Name": "ECAD",
+      "Tip": "Electronic boards, component envelopes and enclosure integration.",
+      "Tabs": [
+        "Home",
+        "ECAD",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "scan",
+      "Name": "Scan",
+      "Tip": "Meshes and reverse engineering. Print preparation is in CAM.",
+      "Tabs": [
+        "Home",
+        "Mesh",
+        "Solid",
+        "Surface",
+        "Direct Modeling",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "simulate",
+      "Name": "CAE",
+      "Tip": "Static structures, thermal conduction, natural frequencies and pipe-flow calculations.",
+      "Tabs": [
+        "Home",
+        "Static",
+        "Thermal",
+        "Dynamics",
+        "Fluids",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "assemble",
+      "Name": "Assemble",
+      "Tip": "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.",
+      "Tabs": [
+        "Home",
+        "Assemble",
+        "Joints",
+        "Animate",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "render",
+      "Name": "Render",
+      "Tip": "Make realistic pictures: lighting, background and quality.",
+      "Tabs": [
+        "Home",
+        "Render",
+        "View"
+      ]
+    },
+    {
+      "Id": "make",
+      "Name": "CAM",
+      "Tip": "Stock and work zero, milling, toolpath playback, external slicer paths and tooling inspection.",
+      "Tabs": [
+        "Home",
+        "CAM",
+        "Additive",
+        "Tooling",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "script",
+      "Name": "Script",
+      "Tip": "Write Python that builds and changes models. The editor sits beside the model; everything a script makes is one undo step.",
+      "Tabs": [
+        "Home",
+        "Script",
+        "View"
+      ]
+    }
+  ],
+  "tabs": [
+    {
+      "title": "File",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Document",
+          "tools": [
+            {
+              "id": "home|Home",
+              "label": "Home",
+              "description": "The home screen: your workspace folder, recent parts, new part.",
+              "shortcut": ""
+            },
+            {
+              "id": "new|New",
+              "label": "New",
+              "description": "Start an empty document.",
+              "shortcut": "Ctrl\u002BN"
+            },
+            {
+              "id": "open|Open",
+              "label": "Open",
+              "description": "Open an Prism or STEP file.",
+              "shortcut": "Ctrl\u002BO"
+            },
+            {
+              "id": "save|Save",
+              "label": "Save",
+              "description": "Save the document.",
+              "shortcut": "Ctrl\u002BS"
+            },
+            {
+              "id": "saveas|Save As",
+              "label": "Save As",
+              "description": "Save under a new name.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Exchange",
+          "tools": [
+            {
+              "id": "import|Import File",
+              "label": "Import File",
+              "description": "Bring in a file by its type: STEP, IGES, BREP, DXF (as a sketch), STL, OBJ, PLY or 3MF.",
+              "shortcut": ""
+            },
+            {
+              "id": "import|Import STEP",
+              "label": "Import STEP",
+              "description": "Bring a STEP (.step/.stp) model into the document.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-import|Import Mesh",
+              "label": "Import Mesh",
+              "description": "Bring in a scan or print file: STL, OBJ, PLY or 3MF.",
+              "shortcut": ""
+            },
+            {
+              "id": "step|Export STEP",
+              "label": "Export STEP",
+              "description": "Write all visible objects as a STEP file.",
+              "shortcut": ""
+            },
+            {
+              "id": "step|Export IGES",
+              "label": "Export IGES",
+              "description": "Write all visible solids and surfaces as an IGES file (.iges).",
+              "shortcut": ""
+            },
+            {
+              "id": "step|Export BREP",
+              "label": "Export BREP",
+              "description": "Write the exact geometry as an Open CASCADE BREP file.",
+              "shortcut": ""
+            },
+            {
+              "id": "stl|Export glTF",
+              "label": "Export glTF",
+              "description": "Write a binary glTF (.glb) for viewers, games and the web: Y-up, metres, one colour per body. Exports the selection, or everything if nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "step|Export DXF",
+              "label": "Export DXF",
+              "description": "Write the selected sketches (or every visible one) as a DXF of lines, circles and arcs, for laser, waterjet and CNC.",
+              "shortcut": ""
+            },
+            {
+              "id": "stl|Export 3MF",
+              "label": "Export 3MF",
+              "description": "Write a 3MF file for printing: keeps each body separate, in millimetres. Exports the selection, or everything if nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "stl|Export STL",
+              "label": "Export STL",
+              "description": "Write a triangle mesh (STL). Exports the selection, or everything if nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "stl|Export OBJ",
+              "label": "Export OBJ",
+              "description": "Write a Wavefront OBJ mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "stl|Export PLY",
+              "label": "Export PLY",
+              "description": "Write a PLY mesh.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Home",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch: its geometry, constraints and dimensions are all still editable.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset (one or a whole stack), angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch (or the sketch you are drawing).",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Create",
+          "tools": [
+            {
+              "id": "box|Box",
+              "label": "Box",
+              "description": "Create a rectangular solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "cylinder|Cylinder",
+              "label": "Cylinder",
+              "description": "Create a cylinder.",
+              "shortcut": ""
+            },
+            {
+              "id": "sphere|Sphere",
+              "label": "Sphere",
+              "description": "Create a sphere.",
+              "shortcut": ""
+            },
+            {
+              "id": "cone|Cone",
+              "label": "Cone",
+              "description": "Create a cone or truncated cone.",
+              "shortcut": ""
+            },
+            {
+              "id": "torus|Torus",
+              "label": "Torus",
+              "description": "Create a torus.",
+              "shortcut": ""
+            },
+            {
+              "id": "extrude|Extrude",
+              "label": "Extrude",
+              "description": "Push a sketch profile or face into a solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "revolve|Revolve",
+              "label": "Revolve",
+              "description": "Spin a profile around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "feature-edit|Edit Feature",
+              "label": "Edit Feature",
+              "description": "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "hole|Hole",
+              "label": "Hole",
+              "description": "Create plain or modeled threaded holes on a body or face, with blind or through-all depth.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet",
+              "label": "Fillet",
+              "description": "Round off selected edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer",
+              "label": "Chamfer",
+              "description": "Bevel selected edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Pattern",
+          "tools": [
+            {
+              "id": "pattern-linear|Linear",
+              "label": "Linear",
+              "description": "Repeat objects along one, two or three directions.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-circular|Circular",
+              "label": "Circular",
+              "description": "Repeat objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-curve|Along Curve",
+              "label": "Along Curve",
+              "description": "Repeat objects along a curve or edge chain.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-fill|Fill",
+              "label": "Fill",
+              "description": "Fill a face or closed sketch with copies.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-table|Table",
+              "label": "Table",
+              "description": "Place copies at positions from a table.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Image",
+          "tools": [
+            {
+              "id": "image|Import Image",
+              "label": "Import Image",
+              "description": "Bring in a picture to trace or measure against (PNG, JPG, BMP, GIF). It sits behind the model.",
+              "shortcut": ""
+            },
+            {
+              "id": "image-edit|Edit Image",
+              "label": "Edit Image",
+              "description": "Change a picture\u0027s opacity, size, position, turn or mirroring.",
+              "shortcut": ""
+            },
+            {
+              "id": "image-scale|Set Scale",
+              "label": "Set Scale",
+              "description": "Make a picture true size: click two points on it and say how far apart they really are.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Share",
+          "tools": [
+            {
+              "id": "ar|AR Export",
+              "label": "AR Export",
+              "description": "Export GLB and USDZ, choose real or tabletop scale, and share to a phone on your Wi-Fi.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Stop Sharing",
+              "label": "Stop Sharing",
+              "description": "Stop serving the AR page to phones.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Solid",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch for editing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Create",
+          "tools": [
+            {
+              "id": "box|Box",
+              "label": "Box",
+              "description": "Create a rectangular solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "cylinder|Cylinder",
+              "label": "Cylinder",
+              "description": "Create a cylinder.",
+              "shortcut": ""
+            },
+            {
+              "id": "sphere|Sphere",
+              "label": "Sphere",
+              "description": "Create a sphere.",
+              "shortcut": ""
+            },
+            {
+              "id": "cone|Cone",
+              "label": "Cone",
+              "description": "Create a cone or truncated cone.",
+              "shortcut": ""
+            },
+            {
+              "id": "torus|Torus",
+              "label": "Torus",
+              "description": "Create a torus.",
+              "shortcut": ""
+            },
+            {
+              "id": "extrude|Extrude",
+              "label": "Extrude",
+              "description": "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body.",
+              "shortcut": ""
+            },
+            {
+              "id": "revolve|Revolve",
+              "label": "Revolve",
+              "description": "Spin a profile around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep|Sweep",
+              "label": "Sweep",
+              "description": "Drag a profile along a path.",
+              "shortcut": ""
+            },
+            {
+              "id": "loft|Loft",
+              "label": "Loft",
+              "description": "Blend between two or more profiles.",
+              "shortcut": ""
+            },
+            {
+              "id": "feature-edit|Edit Feature",
+              "label": "Edit Feature",
+              "description": "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "fillet|Fillet",
+              "label": "Fillet",
+              "description": "Round off selected edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer",
+              "label": "Chamfer",
+              "description": "Bevel selected edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "shell|Shell",
+              "label": "Shell",
+              "description": "Hollow out a body, optionally opening faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Direct",
+          "tools": [
+            {
+              "id": "hole|Hole",
+              "label": "Hole",
+              "description": "Create plain or modeled threaded holes on any exact body, including imported parts.",
+              "shortcut": ""
+            },
+            {
+              "id": "pushpull|Push / Pull",
+              "label": "Push / Pull",
+              "description": "Drag flat faces out or in by a distance. No history needed: works on imported parts too.",
+              "shortcut": ""
+            },
+            {
+              "id": "movehole|Move Hole / Boss",
+              "label": "Move Hole / Boss",
+              "description": "Slide a hole or boss to a new place (or change its diameter) in one step.",
+              "shortcut": ""
+            },
+            {
+              "id": "deleteface|Delete Face",
+              "label": "Delete Face",
+              "description": "Remove a hole, fillet, pocket or boss and let the neighbouring faces close the gap.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Pattern",
+          "tools": [
+            {
+              "id": "pattern-linear|Linear",
+              "label": "Linear",
+              "description": "Repeat objects along one, two or three directions (grids and blocks).",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-circular|Circular",
+              "label": "Circular",
+              "description": "Repeat objects around an axis, with optional concentric rings.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-curve|Along Curve",
+              "label": "Along Curve",
+              "description": "Repeat objects along a curve or edge chain, turning each copy to follow it.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-fill|Fill",
+              "label": "Fill",
+              "description": "Fill a face or closed sketch with copies: square, hex, ring or spiral layouts, with a margin from the edge.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-table|Table",
+              "label": "Table",
+              "description": "Place copies at positions you type: irregular layouts.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Surface",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch for editing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            },
+            {
+              "id": "section|Curve Intersect",
+              "label": "Curve Intersect",
+              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-cp|Control Curve",
+              "label": "Control Curve",
+              "description": "Place control points; the curve is pulled toward them.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Curve through Points",
+              "label": "Curve through Points",
+              "description": "Place points the curve must pass through.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Equation",
+              "label": "Curve from Equation",
+              "description": "Define a curve with formulas of t.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-table|Curve from Table",
+              "label": "Curve from Table",
+              "description": "Make a curve from a table of x,y,z points.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Create",
+          "tools": [
+            {
+              "id": "extrude-surface|Extrude",
+              "label": "Extrude",
+              "description": "Extrude a curve or sketch into a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "revolve-surface|Revolve",
+              "label": "Revolve",
+              "description": "Revolve a curve into a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep-surface|Sweep",
+              "label": "Sweep",
+              "description": "Sweep a curve along a path.",
+              "shortcut": ""
+            },
+            {
+              "id": "loft-surface|Loft",
+              "label": "Loft",
+              "description": "Blend a surface through several curves.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "offset|Offset",
+              "label": "Offset",
+              "description": "Create a parallel copy of a surface or face.",
+              "shortcut": ""
+            },
+            {
+              "id": "thicken|Thicken",
+              "label": "Thicken",
+              "description": "Give a surface thickness to make a solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Sew",
+              "label": "Sew",
+              "description": "Sew (stitch) surfaces together; closed shells become solids.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Unsew",
+              "label": "Unsew",
+              "description": "Take a sewn shell, or just some of its faces, apart into separate surfaces.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
+              "shortcut": ""
+            },
+            {
+              "id": "untrim|Untrim",
+              "label": "Untrim",
+              "description": "Undo a trim: restore the whole natural surface, or just fill the holes in a face.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend",
+              "label": "Extend",
+              "description": "Grow a surface past one of its edges, continuing its shape.",
+              "shortcut": ""
+            },
+            {
+              "id": "reverse-normal|Reverse Normal",
+              "label": "Reverse Normal",
+              "description": "Turn a surface around so its other side faces out.",
+              "shortcut": ""
+            },
+            {
+              "id": "fill|Boundary Fill",
+              "label": "Boundary Fill",
+              "description": "Make solids from the spaces enclosed by surfaces, planes and bodies.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Fill Opening",
+              "label": "Fill Opening",
+              "description": "Click an open edge and the whole opening is filled with a patch (and joined to the surface).",
+              "shortcut": ""
+            },
+            {
+              "id": "flatten|Flatten",
+              "label": "Flatten",
+              "description": "Unfold faces or a surface into a flat pattern (UV layout) you can sketch on, measure, or export as DXF. Bent sheet and cylinders unroll exactly; other surfaces show their stretch.",
+              "shortcut": ""
+            },
+            {
+              "id": "warp|Refold",
+              "label": "Refold",
+              "description": "Map drawings on a cylindrical flat pattern back onto its original curved face.",
+              "shortcut": ""
+            },
+            {
+              "id": "warp|Warp",
+              "label": "Warp",
+              "description": "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Fill",
+          "tools": [
+            {
+              "id": "planar|Planar",
+              "label": "Planar",
+              "description": "Fill closed sketches with a flat surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "ruled|Ruled",
+              "label": "Ruled",
+              "description": "Join two curves with straight rulings.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Patch",
+              "label": "Patch",
+              "description": "Fill a boundary loop with a smooth patch.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Continuity",
+          "tools": [
+            {
+              "id": "nurbs-patch|Match Surface",
+              "label": "Match Surface",
+              "description": "Match position, tangency or curvature to a fixed patch boundary.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Check Seam",
+              "label": "Check Seam",
+              "description": "Measure sampled seam gap, normal angle and cross-boundary curvature.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Convert",
+          "tools": [
+            {
+              "id": "to-nurbs|Convert to NURBS",
+              "label": "Convert to NURBS",
+              "description": "Convert the selection to editable NURBS geometry.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Freeform",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch for editing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            },
+            {
+              "id": "section|Curve Intersect",
+              "label": "Curve Intersect",
+              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-cp|Control Curve",
+              "label": "Control Curve",
+              "description": "Place control points; the curve is pulled toward them.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Curve through Points",
+              "label": "Curve through Points",
+              "description": "Place points the curve must pass through.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Equation",
+              "label": "Curve from Equation",
+              "description": "Define a curve with formulas of t.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-table|Curve from Table",
+              "label": "Curve from Table",
+              "description": "Make a curve from a table of x,y,z points.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Create",
+          "tools": [
+            {
+              "id": "form-plane|Plane",
+              "label": "Plane",
+              "description": "A flat grid of faces to push, pull and sculpt.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-box|Box",
+              "label": "Box",
+              "description": "A box cage that smooths into a rounded block.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-sphere|Sphere",
+              "label": "Sphere",
+              "description": "A quad-ball: a sphere made of evenly sized quads.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-cylinder|Cylinder",
+              "label": "Cylinder",
+              "description": "A cylinder cage with optional caps.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-torus|Torus",
+              "label": "Torus",
+              "description": "A ring-shaped cage.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-face|Create Face",
+              "label": "Create Face",
+              "description": "Draw a face corner by corner. Connect to an existing form by clicking its corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-loft|Loft",
+              "label": "Loft",
+              "description": "Build a form through two or more curves or sketches.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-sweep|Sweep",
+              "label": "Sweep",
+              "description": "Carry a profile along a path to build a form (pipes, handles, limbs).",
+              "shortcut": ""
+            },
+            {
+              "id": "form-sweep|Pipe",
+              "label": "Pipe",
+              "description": "A round, taperable tube along a path (limbs, tails, stems).",
+              "shortcut": ""
+            },
+            {
+              "id": "form-extrude|Extrude Profile",
+              "label": "Extrude Profile",
+              "description": "Pull a profile out into a form, optionally tapering.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-revolve|Revolve",
+              "label": "Revolve",
+              "description": "Spin a profile around an axis into a form (vases, knobs, domes).",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "form-edit|Edit Freeform",
+              "label": "Edit Freeform",
+              "description": "Select vertices, edges or faces and move them with the manipulator.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-extrude|Extrude",
+              "label": "Extrude",
+              "description": "Extrude the selected faces (or open edges), then drag the arrows.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-loop|Insert Edge",
+              "label": "Insert Edge",
+              "description": "Add an edge loop through the selected edge.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-subdivide|Subdivide",
+              "label": "Subdivide",
+              "description": "Split every face into smaller faces for finer control.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Loops",
+          "tools": [
+            {
+              "id": "form-loop|Select Loop",
+              "label": "Select Loop",
+              "description": "Select the whole edge loop that runs through the selected edge.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-loop|Select Ring",
+              "label": "Select Ring",
+              "description": "Select the ring of edges side by side across the quads.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-bridge|Bridge",
+              "label": "Bridge",
+              "description": "Join two selected groups of open edges with a strip of faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Lock and align",
+          "tools": [
+            {
+              "id": "form-freeze|Freeze",
+              "label": "Freeze",
+              "description": "Lock the selected faces, edges or points so they cannot move (shown in blue).",
+              "shortcut": ""
+            },
+            {
+              "id": "form-freeze|Unfreeze",
+              "label": "Unfreeze",
+              "description": "Release the selected points.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-align|Align to Curve",
+              "label": "Align to Curve",
+              "description": "Pull the selected points (or all) onto a curve: pick it in \u0027Curve to align to\u0027.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Topology",
+          "tools": [
+            {
+              "id": "form-weld|Weld",
+              "label": "Weld",
+              "description": "Merge the selected vertices into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-crease|Crease",
+              "label": "Crease",
+              "description": "Make the selected edges sharp.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-weld|Merge edges",
+              "label": "Merge edges",
+              "description": "Remove the selected inner edges, joining the faces on either side.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-weld|Unweld edges",
+              "label": "Unweld edges",
+              "description": "Split the form along the selected edges so each side can move on its own.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-flip|Pull",
+              "label": "Pull",
+              "description": "Pull the selected points (or all) onto the smooth surface the cage produces.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-flip|Flip normals",
+              "label": "Flip normals",
+              "description": "Reverse which side of the form is the outside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Symmetry",
+          "tools": [
+            {
+              "id": "form-mirror|Mirror and weld",
+              "label": "Mirror and weld",
+              "description": "Reflect the form across a plane and join the halves at the seam.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Finish",
+          "tools": [
+            {
+              "id": "form-nurbs|Convert fewer faces",
+              "label": "Convert fewer faces",
+              "description": "Like Convert to NURBS, but each irregular face becomes one fitted patch instead of four: a lighter solid that is quicker for booleans and fillets, a little less exact near poles.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-nurbs|Convert to NURBS",
+              "label": "Convert to NURBS",
+              "description": "Turn the selected form into exact NURBS surfaces / a solid for CAD operations.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Quality",
+          "tools": [
+            {
+              "id": "form-edit|Check Quality",
+              "label": "Check Quality",
+              "description": "Mark poles, triangles and n-gons, see how stretched the quads are and how the curvature varies, and color the surface by its distance to a reference.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Validate",
+          "tools": [
+            {
+              "id": "check|Check Cage",
+              "label": "Check Cage",
+              "description": "Check manifold topology, winding, degenerate faces and extraordinary points.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "NURBS",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch for editing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            },
+            {
+              "id": "section|Curve Intersect",
+              "label": "Curve Intersect",
+              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-cp|Control Curve",
+              "label": "Control Curve",
+              "description": "Place control points; the curve is pulled toward them.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Curve through Points",
+              "label": "Curve through Points",
+              "description": "Place points the curve must pass through.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Equation",
+              "label": "Curve from Equation",
+              "description": "Define a curve with formulas of t: Cartesian, cylindrical or spherical. Springs, spirals, cams, wave profiles.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-table|Curve from Table",
+              "label": "Curve from Table",
+              "description": "Make a curve from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Edit curves",
+          "tools": [
+            {
+              "id": "fillet|Fillet Curve",
+              "label": "Fillet Curve",
+              "description": "Round the corners of a flat curve or sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer Curve",
+              "label": "Chamfer Curve",
+              "description": "Cut the corners of a flat curve or sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve in several pieces.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Divide",
+              "label": "Divide",
+              "description": "Points at equal distances along a curve; reports the length.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves from surfaces",
+          "tools": [
+            {
+              "id": "section|Project",
+              "label": "Project",
+              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Isocurves",
+              "label": "Isocurves",
+              "description": "Pull curves of constant U or V out of a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersect",
+              "label": "Intersect",
+              "description": "Curves where two surfaces or bodies cross.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Contour",
+              "label": "Contour",
+              "description": "Slice a body into evenly spaced section curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Duplicate Edge",
+              "description": "Copy the edges you click as curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Graph",
+              "label": "Curvature Graph",
+              "description": "Show a comb of hairs along a curve to judge how smooth it is.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Surfaces",
+          "tools": [
+            {
+              "id": "patch|Edge Surface",
+              "label": "Edge Surface",
+              "description": "A surface across two, three or four boundary curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Blend Surface",
+              "label": "Blend Surface",
+              "description": "A surface between two surface edges with tangent or curvature continuity.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep-surface|Pipe",
+              "label": "Pipe",
+              "description": "A round, optionally tapered pipe along a curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep-surface|Sweep 2 rails",
+              "label": "Sweep 2 rails",
+              "description": "Carry a profile along two rails.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Surface",
+              "label": "Rebuild Surface",
+              "description": "Redraw a surface as one patch with a chosen grid of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Network Surface",
+              "label": "Network Surface",
+              "description": "A surface inside a closed outline that also passes through curves running across it.",
+              "shortcut": ""
+            },
+            {
+              "id": "nurbs-patch|NURBS Patch",
+              "label": "NURBS Patch",
+              "description": "Create a grid of control points to shape freely.",
+              "shortcut": ""
+            },
+            {
+              "id": "extrude-surface|Extrude",
+              "label": "Extrude",
+              "description": "Extrude a curve or sketch into a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "revolve-surface|Revolve",
+              "label": "Revolve",
+              "description": "Revolve a curve into a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep-surface|Sweep",
+              "label": "Sweep",
+              "description": "Sweep a curve along a path.",
+              "shortcut": ""
+            },
+            {
+              "id": "loft-surface|Loft",
+              "label": "Loft",
+              "description": "Blend a surface through curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Patch",
+              "label": "Patch",
+              "description": "Fill a boundary loop with a smooth patch.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Shape",
+          "tools": [
+            {
+              "id": "edit-points|Edit Points",
+              "label": "Edit Points",
+              "description": "Drag NURBS control points, with soft influence on neighbours.",
+              "shortcut": ""
+            },
+            {
+              "id": "sculpt|Sculpt",
+              "label": "Sculpt",
+              "description": "Brush the surface: pull, push, move or smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "sculpt|Deform",
+              "label": "Deform",
+              "description": "Bend, twist, taper or stretch curves and surfaces along an axis.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Detail",
+          "tools": [
+            {
+              "id": "add-detail|Add Detail",
+              "label": "Add Detail",
+              "description": "Insert knots so the selected curve/surface has more control points without changing its shape.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Raise Degree",
+              "label": "Raise Degree",
+              "description": "Increase the polynomial degree for smoother, more flexible surfaces.",
+              "shortcut": ""
+            },
+            {
+              "id": "to-nurbs|Convert to NURBS",
+              "label": "Convert to NURBS",
+              "description": "Convert the selection to editable NURBS geometry.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Continuity",
+          "tools": [
+            {
+              "id": "nurbs-patch|Match Surface",
+              "label": "Match Surface",
+              "description": "Match compatible natural patch boundaries with G0, G1 or G2 constraints.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Check Seam",
+              "label": "Check Seam",
+              "description": "Inspect sampled continuity between two natural patch boundaries.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Finish",
+          "tools": [
+            {
+              "id": "knit|Sew",
+              "label": "Sew",
+              "description": "Sew (stitch) surfaces together; closed shells become solids.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Unsew",
+              "label": "Unsew",
+              "description": "Take a sewn shell, or just some of its faces, apart into separate surfaces.",
+              "shortcut": ""
+            },
+            {
+              "id": "thicken|Thicken",
+              "label": "Thicken",
+              "description": "Give a surface thickness to make a solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
+              "shortcut": ""
+            },
+            {
+              "id": "untrim|Untrim",
+              "label": "Untrim",
+              "description": "Undo a trim: restore the whole natural surface, or just fill the holes in a face.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend",
+              "label": "Extend",
+              "description": "Grow a surface past one of its edges, continuing its shape.",
+              "shortcut": ""
+            },
+            {
+              "id": "reverse-normal|Reverse Normal",
+              "label": "Reverse Normal",
+              "description": "Turn a surface around so its other side faces out.",
+              "shortcut": ""
+            },
+            {
+              "id": "patch|Fill Opening",
+              "label": "Fill Opening",
+              "description": "Click an open edge and the whole opening is filled with a patch.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset",
+              "label": "Offset",
+              "description": "Create a parallel copy of a surface or face.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Analyze",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Show reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Direct Modeling",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "fillet|Fillet",
+              "label": "Fillet",
+              "description": "Round off selected edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer",
+              "label": "Chamfer",
+              "description": "Bevel selected edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "shell|Shell",
+              "label": "Shell",
+              "description": "Hollow out a body, optionally opening faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "splitbody|Split Body",
+              "label": "Split Body",
+              "description": "Cut a body into separate pieces with a plane, face or surface.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Direct",
+          "tools": [
+            {
+              "id": "hole|Hole",
+              "label": "Hole",
+              "description": "Create holes on exact bodies.",
+              "shortcut": ""
+            },
+            {
+              "id": "pushpull|Push / Pull",
+              "label": "Push / Pull",
+              "description": "Move planar faces on solid bodies.",
+              "shortcut": ""
+            },
+            {
+              "id": "movehole|Move Hole / Boss",
+              "label": "Move Hole / Boss",
+              "description": "Move a hole or boss on a solid.",
+              "shortcut": ""
+            },
+            {
+              "id": "deleteface|Delete Face",
+              "label": "Delete Face",
+              "description": "Remove a face and heal its neighbors.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Faces",
+          "tools": [
+            {
+              "id": "moveface|Move Face",
+              "label": "Move Face",
+              "description": "Slide and tilt flat faces; the body stretches to follow.",
+              "shortcut": ""
+            },
+            {
+              "id": "replaceface|Replace Face",
+              "label": "Replace Face",
+              "description": "Make faces lie on another plane or face.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft",
+              "label": "Draft",
+              "description": "Lean walls away from a pull direction.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sheet Metal",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-edit|Edit Sketch",
+              "label": "Edit Sketch",
+              "description": "Re-open the selected sketch for editing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Intersection Curve",
+              "label": "Intersection Curve",
+              "description": "The curve where two planes, faces or bodies cross each other.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Turn the view to look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Sheet metal",
+          "tools": [
+            {
+              "id": "flange|Flange",
+              "label": "Flange",
+              "description": "Make bent sheet metal from a sketch of its cross-section: set thickness, bend radius and width. Corners become bends.",
+              "shortcut": ""
+            },
+            {
+              "id": "flat-pattern|Flat Pattern",
+              "label": "Flat Pattern",
+              "description": "Unfold a bent body into its flat pattern with bend lines; save it as DXF for laser or waterjet cutting.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Cut-outs",
+          "tools": [
+            {
+              "id": "extrude|Extrude",
+              "label": "Extrude",
+              "description": "Extrude a sketch, and set Operation to Cut to make holes and slots through the metal. Use Through all to go through every layer.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet",
+              "label": "Fillet",
+              "description": "Round the corners of flanges and cut-outs.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer",
+              "label": "Chamfer",
+              "description": "Bevel selected edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "ECAD",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Board",
+          "tools": [
+            {
+              "id": "pcb|Rectangular board",
+              "label": "Rectangular board",
+              "description": "Board thickness, elevation and four optional mounting holes.",
+              "shortcut": ""
+            },
+            {
+              "id": "pcb|Board from outline",
+              "label": "Board from outline",
+              "description": "Extrude a closed planar sketch, curve or face into a board.",
+              "shortcut": ""
+            },
+            {
+              "id": "pcb-hole|Mounting Hole",
+              "label": "Mounting Hole",
+              "description": "Cut a mechanical mounting hole along world Z.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Components",
+          "tools": [
+            {
+              "id": "component|Component Envelope",
+              "label": "Component Envelope",
+              "description": "Place a package envelope or mechanical keepout, with top/bottom side and rotation.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Mechanical checks",
+          "tools": [
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find overlapping components or enclosure bodies.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure board size, connector positions and gaps.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section analysis",
+              "label": "Section analysis",
+              "description": "Inspect internal component clearances.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Exchange",
+          "tools": [
+            {
+              "id": "import|Import STEP",
+              "label": "Import STEP",
+              "description": "Import board/component models exported by an ECAD application.",
+              "shortcut": ""
+            },
+            {
+              "id": "export|Export STEP",
+              "label": "Export STEP",
+              "description": "Export visible board and component geometry for mechanical exchange.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Script",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Write",
+          "tools": [
+            {
+              "id": "script-new|New Script",
+              "label": "New Script",
+              "description": "Start a new script from a small example.",
+              "shortcut": ""
+            },
+            {
+              "id": "script-run|Run Script...",
+              "label": "Run Script...",
+              "description": "Pick a script file and run it.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Your own editor",
+          "tools": [
+            {
+              "id": "script|VS Code",
+              "label": "VS Code",
+              "description": "Open the current script in Visual Studio Code. The scripting library sits next to your scripts so it just works there.",
+              "shortcut": ""
+            },
+            {
+              "id": "script|PyCharm",
+              "label": "PyCharm",
+              "description": "Open the current script in PyCharm.",
+              "shortcut": ""
+            },
+            {
+              "id": "open|Scripts Folder",
+              "label": "Scripts Folder",
+              "description": "Open the folder that holds your scripts and the examples.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Analyze",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Bounds",
+          "tools": [
+            {
+              "id": "bbox|Bounding Box",
+              "label": "Bounding Box",
+              "description": "Show the overall size box of the selection (or everything).",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Check",
+          "tools": [
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find where solids overlap.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Check Geometry",
+              "label": "Check Geometry",
+              "description": "Test for invalid geometry and open edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Surface quality",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft Analysis",
+              "label": "Draft Analysis",
+              "description": "Check faces for mold release in a pull direction.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Display",
+          "tools": [
+            {
+              "id": "clear-analysis|Clear Analysis",
+              "label": "Clear Analysis",
+              "description": "Remove section, curvature, draft, zebra and bounding box displays.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Drawing",
+          "tools": [
+            {
+              "id": "drawing|Make Drawing",
+              "label": "Make Drawing",
+              "description": "Make an engineering drawing (PDF, SVG or DXF): views, dimensions, hole callouts, sections, title block and bill of materials.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Mesh",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Get a mesh",
+          "tools": [
+            {
+              "id": "mesh-import|Import Mesh",
+              "label": "Import Mesh",
+              "description": "Bring in a scan or print file: STL, OBJ, PLY or 3MF.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-from-solid|Solid to Mesh",
+              "label": "Solid to Mesh",
+              "description": "Turn CAD bodies into triangle meshes.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Edit",
+          "tools": [
+            {
+              "id": "mesh-reduce|Reduce",
+              "label": "Reduce",
+              "description": "Simplify a dense mesh while keeping its shape.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-smooth|Smooth",
+              "label": "Smooth",
+              "description": "Remove scanner noise without shrinking the part.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-offset|Offset",
+              "label": "Offset",
+              "description": "Grow or shrink the surface (tolerances, clearances).",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-cut|Split",
+              "label": "Split",
+              "description": "Cut with a plane and cap the halves.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Repair",
+          "tools": [
+            {
+              "id": "mesh-repair|Repair",
+              "label": "Repair",
+              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-holes|Fill Holes",
+              "label": "Fill Holes",
+              "description": "Close the open holes in a mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Print analysis",
+          "tools": [
+            {
+              "id": "mesh-thickness|Wall Thickness",
+              "label": "Wall Thickness",
+              "description": "Color the part by wall thickness.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-overhang|Overhang \u0026 Orientation",
+              "label": "Overhang \u0026 Orientation",
+              "description": "Find what needs supports and the best way to lay the part down.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Select \u0026 trace",
+          "tools": [
+            {
+              "id": "mesh-select|Select Region",
+              "label": "Select Region",
+              "description": "Pick triangles on a scan: smart patch, brush, rectangle or lasso.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-patch|Fit Surface to Region",
+              "label": "Fit Surface to Region",
+              "description": "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-scan|Freeform from Scan",
+              "label": "Freeform from Scan",
+              "description": "Wrap an editable quad cage around the scan.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Reverse engineering",
+          "tools": [
+            {
+              "id": "mesh-fit|Segment \u0026 Fit",
+              "label": "Segment \u0026 Fit",
+              "description": "Find planes, cylinders, spheres and cones in a scan and create CAD geometry from them.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-section|Section Curves",
+              "label": "Section Curves",
+              "description": "Slice the mesh into curves to rebuild with extrude, loft or sweep.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-align|Align",
+              "label": "Align",
+              "description": "Drop on the bed, lay a face flat, or best-fit onto a CAD body.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-deviation|Deviation",
+              "label": "Deviation",
+              "description": "Compare a scan with its CAD model and show the error as colors.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-solid|Mesh to Solid",
+              "label": "Mesh to Solid",
+              "description": "Convert a mesh into a CAD body (one face per triangle).",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Display",
+          "tools": [
+            {
+              "id": "clear-analysis|Clear Colors",
+              "label": "Clear Colors",
+              "description": "Remove analysis colors from meshes.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Static",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Study",
+          "tools": [
+            {
+              "id": "sim-study|New Study",
+              "label": "New Study",
+              "description": "Start a static stress study on the selected solid body.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Supports",
+          "tools": [
+            {
+              "id": "sim-fixed|Fixed Support",
+              "label": "Fixed Support",
+              "description": "Faces that cannot move at all.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-roller|Roller / Symmetry",
+              "label": "Roller / Symmetry",
+              "description": "Faces that slide in their plane but cannot move through it.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-directional|Fixed Directions",
+              "label": "Fixed Directions",
+              "description": "Lock only chosen global directions on faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Loads",
+          "tools": [
+            {
+              "id": "sim-force|Force",
+              "label": "Force",
+              "description": "A force spread over faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-pressure|Pressure",
+              "label": "Pressure",
+              "description": "Pressure acting on faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-torque|Torque",
+              "label": "Torque",
+              "description": "A twisting moment on a flat face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-gravity|Gravity",
+              "label": "Gravity",
+              "description": "The part\u0027s own weight.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Solve",
+          "tools": [
+            {
+              "id": "sim-mesh|Create Mesh",
+              "label": "Create Mesh",
+              "description": "Generate the tetrahedral mesh and look at it.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-run|Run Study",
+              "label": "Run Study",
+              "description": "Mesh (if needed) and solve.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Generative",
+          "tools": [
+            {
+              "id": "generative|Generative Design",
+              "label": "Generative Design",
+              "description": "Let the software find the lightest stiff shape for the supports and loads you set: it removes the material that carries the least. The result is a new mesh body.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Study workflow",
+          "tools": [
+            {
+              "id": "sim-new|Select static study",
+              "label": "Select static study",
+              "description": "Select a saved static study.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-fixed|Save face selection",
+              "label": "Save face selection",
+              "description": "Name selected boundary faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-fixed|Recall face selection",
+              "label": "Recall face selection",
+              "description": "Recall a named face group.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-run|Saved CAE setups",
+              "label": "Saved CAE setups",
+              "description": "Rerun saved thermal/modal setups.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-mesh|Mesh refinement",
+              "label": "Mesh refinement",
+              "description": "Compare three meshes using displacement.",
+              "shortcut": ""
+            },
+            {
+              "id": "export|Export results",
+              "label": "Export results",
+              "description": "Export static nodal results and metadata.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Results",
+          "tools": [
+            {
+              "id": "sim-stress|von Mises Stress",
+              "label": "von Mises Stress",
+              "description": "Color by equivalent stress.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-displacement|Displace- ment",
+              "label": "Displace- ment",
+              "description": "Color by how far each point moves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-safety|Factor of Safety",
+              "label": "Factor of Safety",
+              "description": "Yield strength divided by stress: below 1 means yielding.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-probe|Probe",
+              "label": "Probe",
+              "description": "Click the result to read values.",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Show the normal model again.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Thermal",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Conduction",
+          "tools": [
+            {
+              "id": "cae-thermal|Thermal Analysis",
+              "label": "Thermal Analysis",
+              "description": "Steady or transient conduction with prescribed temperatures in one homogeneous solid.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Saved workflow",
+          "tools": [
+            {
+              "id": "sim-run|Saved setups",
+              "label": "Saved setups",
+              "description": "Run a saved thermal or modal case.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-fixed|Recall faces",
+              "label": "Recall faces",
+              "description": "Recall named boundary faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Return to normal model shading.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Dynamics",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Vibration",
+          "tools": [
+            {
+              "id": "cae-modal|Natural Frequencies",
+              "label": "Natural Frequencies",
+              "description": "Linear modal frequencies and arbitrary-amplitude mode shapes; fixed faces on one homogeneous solid.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Saved workflow",
+          "tools": [
+            {
+              "id": "sim-run|Saved setups",
+              "label": "Saved setups",
+              "description": "Run a saved thermal or modal case.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-fixed|Recall faces",
+              "label": "Recall faces",
+              "description": "Recall named boundary faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Return to normal model shading.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Fluids",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Pipe flow",
+          "tools": [
+            {
+              "id": "cae-fluid|Pipe Flow",
+              "label": "Pipe Flow",
+              "description": "Incompressible circular-pipe pressure drop and Reynolds number. This is a reduced-order calculation, not general 3D CFD.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Assemble",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Components",
+          "tools": [
+            {
+              "id": "component|Parts Library",
+              "label": "Parts Library",
+              "description": "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.",
+              "shortcut": ""
+            },
+            {
+              "id": "component|Insert Component",
+              "label": "Insert Component",
+              "description": "Place a part from another open document or a part file. Model each part on its own first (bottom-up).",
+              "shortcut": ""
+            },
+            {
+              "id": "move|Move Component",
+              "label": "Move Component",
+              "description": "Position a free component: move it or turn it about its centre.",
+              "shortcut": ""
+            },
+            {
+              "id": "ground|Ground",
+              "label": "Ground",
+              "description": "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.",
+              "shortcut": ""
+            },
+            {
+              "id": "refresh|Refresh",
+              "label": "Refresh",
+              "description": "Reload components from the part files they were inserted from, keeping their positions.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "explode|Exploded View",
+              "label": "Exploded View",
+              "description": "Pull the parts apart to see how they fit. The real positions are untouched.",
+              "shortcut": ""
+            },
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find where components overlap.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia of the selection.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure distances and angles between components.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Share",
+          "tools": [
+            {
+              "id": "ar|AR Export",
+              "label": "AR Export",
+              "description": "Export GLB and USDZ, choose real or tabletop scale, and share to a phone on your Wi-Fi.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Stop Sharing",
+              "label": "Stop Sharing",
+              "description": "Stop serving the AR page to phones.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Joints",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Joint",
+          "tools": [
+            {
+              "id": "joint-rigid|Rigid",
+              "label": "Rigid",
+              "description": "Lock one component to another: no motion.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-revolute|Revolute",
+              "label": "Revolute",
+              "description": "A hinge or pin: the second component turns about the axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-slider|Slider",
+              "label": "Slider",
+              "description": "The second component slides along one direction.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-cyl|Cylindrical",
+              "label": "Cylindrical",
+              "description": "Turns about an axis and slides along it (a bolt in a hole).",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Motion",
+          "tools": [
+            {
+              "id": "joint-revolute|Drive Joints",
+              "label": "Drive Joints",
+              "description": "Move joints and watch the assembly follow, within their limits.",
+              "shortcut": ""
+            },
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Check the current pose for overlapping parts.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Animate",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Animation",
+          "tools": [
+            {
+              "id": "animation|New Animation",
+              "label": "New Animation",
+              "description": "Create an empty animation (5 seconds).",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Edit / Play",
+              "label": "Edit / Play",
+              "description": "Scrub the timeline, key joint values and play the motion.",
+              "shortcut": ""
+            },
+            {
+              "id": "explode|Exploded View",
+              "label": "Exploded View",
+              "description": "Pull the parts apart.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Output",
+          "tools": [
+            {
+              "id": "render|Render Animation",
+              "label": "Render Animation",
+              "description": "Turn the animation into pictures, a GIF and (with ffmpeg) an MP4, optionally with the camera circling the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Share",
+          "tools": [
+            {
+              "id": "ar|AR Export",
+              "label": "AR Export",
+              "description": "Export GLB and USDZ, choose real or tabletop scale, and share to a phone on your Wi-Fi.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Stop Sharing",
+              "label": "Stop Sharing",
+              "description": "Stop serving the AR page to phones.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Render",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Render",
+          "tools": [
+            {
+              "id": "render|Render Image",
+              "label": "Render Image",
+              "description": "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install.",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Render Animation",
+              "label": "Render Animation",
+              "description": "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.",
+              "shortcut": ""
+            },
+            {
+              "id": "save|Save Picture",
+              "label": "Save Picture",
+              "description": "Save the last render as a PNG in Documents\\Prism\\Renders.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Close Picture",
+              "label": "Close Picture",
+              "description": "Hide the rendered picture and return to the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Orientation",
+          "tools": [
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Look straight at the selected plane, face or sketch (N).",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Share",
+          "tools": [
+            {
+              "id": "ar|AR Export",
+              "label": "AR Export",
+              "description": "Export GLB and USDZ, choose real or tabletop scale, and share to a phone on your Wi-Fi.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Stop Sharing",
+              "label": "Stop Sharing",
+              "description": "Stop serving the AR page to phones.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "CAM",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Setup",
+          "tools": [
+            {
+              "id": "cnc|CAM setup",
+              "label": "CAM setup",
+              "description": "Stock, G54 work zero and shared tool settings.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "CNC",
+          "tools": [
+            {
+              "id": "cnc-profile|Profile",
+              "label": "Profile",
+              "description": "Profile milling with depth passes and holding tabs.",
+              "shortcut": ""
+            },
+            {
+              "id": "cnc-pocket|Pocket",
+              "label": "Pocket",
+              "description": "Pocket milling with islands.",
+              "shortcut": ""
+            },
+            {
+              "id": "cnc-drill|Drill",
+              "label": "Drill",
+              "description": "Drilling and peck cycles.",
+              "shortcut": ""
+            },
+            {
+              "id": "cnc-face|Face",
+              "label": "Face",
+              "description": "Face the stock with zigzag passes.",
+              "shortcut": ""
+            },
+            {
+              "id": "gcode|Post G-code",
+              "label": "Post G-code",
+              "description": "Post existing CNC toolpaths for GRBL, Mach3 or LinuxCNC.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "animation|Playback",
+              "label": "Playback",
+              "description": "Animate a cutter or nozzle along a path.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Setup sheet",
+              "label": "Setup sheet",
+              "description": "Review operation sources and export a setup sheet.",
+              "shortcut": ""
+            },
+            {
+              "id": "toolpath|Pass view",
+              "label": "Pass view",
+              "description": "Inspect depth passes.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Additive",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Preparation",
+          "tools": [
+            {
+              "id": "print3d|Export 3MF",
+              "label": "Export 3MF",
+              "description": "Send geometry to an external slicer.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh|Export STL",
+              "label": "Export STL",
+              "description": "Export a mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Inspect model geometry.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Nozzle review",
+          "tools": [
+            {
+              "id": "gcode|Import nozzle path",
+              "label": "Import nozzle path",
+              "description": "Read linear G0/G1 output from an external slicer.",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Playback",
+              "label": "Playback",
+              "description": "Animate nozzle travel and extrusion paths.",
+              "shortcut": ""
+            },
+            {
+              "id": "toolpath|Layer view",
+              "label": "Layer view",
+              "description": "Inspect imported print layers.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Tooling",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Mold inspection",
+          "tools": [
+            {
+              "id": "draft|Draft analysis",
+              "label": "Draft analysis",
+              "description": "Check pull-direction draft.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section analysis",
+              "label": "Section analysis",
+              "description": "Inspect cavities and walls.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Check tooling geometry.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Materials",
+      "contextual": true,
+      "groups": [
+        {
+          "title": "Finish",
+          "tools": [
+            {
+              "id": "finish-matte|Matte",
+              "label": "Matte",
+              "description": "Flat, non-reflective surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "finish-satin|Satin",
+              "label": "Satin",
+              "description": "Soft sheen, like painted or molded plastic.",
+              "shortcut": ""
+            },
+            {
+              "id": "finish-glossy|Glossy",
+              "label": "Glossy",
+              "description": "Hard, shiny highlights, like polished plastic or glass.",
+              "shortcut": ""
+            },
+            {
+              "id": "finish-brushed|Brushed metal",
+              "label": "Brushed metal",
+              "description": "Metal with a soft, broad reflection.",
+              "shortcut": ""
+            },
+            {
+              "id": "finish-polished|Polished metal",
+              "label": "Polished metal",
+              "description": "Mirror-like metal.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Apply",
+          "tools": [
+            {
+              "id": "material-apply|Apply Material",
+              "label": "Apply Material",
+              "description": "Give the highlighted material to the selected bodies: sets color, finish and density for mass.",
+              "shortcut": ""
+            },
+            {
+              "id": "material-clear|Remove Material",
+              "label": "Remove Material",
+              "description": "Take the material off the selected bodies (their color stays).",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Library",
+          "tools": [
+            {
+              "id": "material-find|Find Assigned",
+              "label": "Find Assigned",
+              "description": "Jump the list to the material of the selected body.",
+              "shortcut": ""
+            },
+            {
+              "id": "material-compare|Compare",
+              "label": "Compare",
+              "description": "Add the highlighted material to the side-by-side comparison (up to three).",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Compare",
+              "label": "Clear Compare",
+              "description": "Empty the comparison table.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Close",
+          "tools": [
+            {
+              "id": "finish|Done",
+              "label": "Done",
+              "description": "Close the Materials tab and return to modeling.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sketch",
+      "contextual": true,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Select",
+              "label": "Select",
+              "description": "Select geometry and drag it. Points and curves move while every constraint stays satisfied.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch-point|Point",
+              "label": "Point",
+              "description": "Place reference points for sketch geometry.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Plane",
+              "label": "Plane",
+              "description": "Save a reusable datum plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-axis|Axis",
+              "label": "Axis",
+              "description": "Save the selected gizmo axis as a reusable datum.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Gizmo",
+              "label": "Gizmo",
+              "description": "Save another datum gizmo. Choose one active gizmo in the right panel.",
+              "shortcut": ""
+            },
+            {
+              "id": "project|Project / Include",
+              "label": "Project / Include",
+              "description": "Project edges or bodies, or intersect sketch curves with the active plane to create loft rail anchors. Choose As construction for references that stay out of profiles.",
+              "shortcut": ""
+            },
+            {
+              "id": "construction|To construction",
+              "label": "To construction",
+              "description": "Turn the selected curves into reference (construction) geometry, or back into normal curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "construction|Construction",
+              "label": "Construction",
+              "description": "Construction mode (X): while it is pressed, new curves are reference geometry. Click again to go back to normal drawing.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Draw",
+          "tools": [
+            {
+              "id": "line|Line",
+              "label": "Line",
+              "description": "Draw connected lines, or lines from their midpoint (options bar). Horizontal and vertical lines are detected and constrained automatically.",
+              "shortcut": ""
+            },
+            {
+              "id": "rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Draw rectangles. Choose 2-point, center or rotated 3-point in the options bar.",
+              "shortcut": ""
+            },
+            {
+              "id": "ellipse|Ellipse",
+              "label": "Ellipse",
+              "description": "Draw an ellipse. Choose center, 2-point (a box it fits in) or 3-point (long axis, then the other radius) in the options bar. Hold Shift (or press L) for a circle.",
+              "shortcut": ""
+            },
+            {
+              "id": "arc|Arc",
+              "label": "Arc",
+              "description": "Draw arcs. Choose 3-point, center or tangent in the options bar.",
+              "shortcut": ""
+            },
+            {
+              "id": "polygon|Polygon",
+              "label": "Polygon",
+              "description": "Draw regular polygons. Choose inscribed or circumscribed and the number of sides in the options bar.",
+              "shortcut": ""
+            },
+            {
+              "id": "slot|Slot",
+              "label": "Slot",
+              "description": "A slot: two arc centers, then the width.",
+              "shortcut": ""
+            },
+            {
+              "id": "spline|Spline",
+              "label": "Spline",
+              "description": "Draw splines through fit points or shaped by control points.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a line, arc or circle back to the curves that cross it. Click the part to remove.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend|Extend",
+              "label": "Extend",
+              "description": "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset",
+              "label": "Offset",
+              "description": "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet",
+              "label": "Fillet",
+              "description": "Round the corner where two lines meet. Type the radius, then click the two lines.",
+              "shortcut": ""
+            },
+            {
+              "id": "chamfer|Chamfer",
+              "label": "Chamfer",
+              "description": "Cut the corner where two lines meet with a straight edge. Type the distance, then click the two lines.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Mirror curves across a line. Pick the curves, press Enter, click the line. Live mode keeps both sides symmetric.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-linear|Pattern",
+              "label": "Pattern",
+              "description": "Repeat sketch curves along a direction or around a center. Choose linear or circular in the options bar.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Constrain",
+          "tools": [
+            {
+              "id": "c-horizontal|Horizontal",
+              "label": "Horizontal",
+              "description": "Make a line horizontal, or line two points up horizontally.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-vertical|Vertical",
+              "label": "Vertical",
+              "description": "Make a line vertical, or line two points up vertically.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-coincident|Coincident",
+              "label": "Coincident",
+              "description": "Join two points, or put a point on a curve.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-parallel|Parallel",
+              "label": "Parallel",
+              "description": "Make two lines parallel.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-perp|Perpendicular",
+              "label": "Perpendicular",
+              "description": "Make two lines meet at 90\u00B0.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-tangent|Tangent",
+              "label": "Tangent",
+              "description": "Make a line and circle/arc (or two circles) touch smoothly.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-equal|Equal",
+              "label": "Equal",
+              "description": "Make two lines the same length, or two circles/arcs the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-midpoint|Midpoint",
+              "label": "Midpoint",
+              "description": "Put a point at the middle of a line.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-concentric|Concentric",
+              "label": "Concentric",
+              "description": "Give two circles/arcs the same center.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-collinear|Collinear",
+              "label": "Collinear",
+              "description": "Put two lines on the same infinite line.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-symmetric|Symmetric",
+              "label": "Symmetric",
+              "description": "Mirror two points across a line.",
+              "shortcut": ""
+            },
+            {
+              "id": "c-fix|Fix",
+              "label": "Fix",
+              "description": "Lock a point or curve in place.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Dimension",
+          "tools": [
+            {
+              "id": "dimension|Dimension",
+              "label": "Dimension",
+              "description": "Drive sizes with numbers: lengths, diameters, radii, distances, angles. Options: smart, horizontal, vertical.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Display",
+          "tools": [
+            {
+              "id": "curvature|Curvature",
+              "label": "Curvature",
+              "description": "Curvature comb: hairs along splines, ellipses and arcs that show how sharply they bend. An even comb means a fair curve.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Exit",
+          "tools": [
+            {
+              "id": "finish|Finish Sketch",
+              "label": "Finish Sketch",
+              "description": "Keep the sketch and return to modeling.",
+              "shortcut": "Enter"
+            },
+            {
+              "id": "cancel|Cancel",
+              "label": "Cancel",
+              "description": "Discard the sketch.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "View",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Section",
+          "tools": [
+            {
+              "id": "section|Section View",
+              "label": "Section View",
+              "description": "Cut the model with a plane to look inside. Works in every view.",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Section",
+              "label": "Clear Section",
+              "description": "Remove the section cut.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Orientation",
+          "tools": [
+            {
+              "id": "view-front|Front",
+              "label": "Front",
+              "description": "Look at the model from the front.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-back|Back",
+              "label": "Back",
+              "description": "Look at the model from the back.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-left|Left",
+              "label": "Left",
+              "description": "Look at the model from the left.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-right|Right",
+              "label": "Right",
+              "description": "Look at the model from the right.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-top|Top",
+              "label": "Top",
+              "description": "Look at the model from the top.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-bottom|Bottom",
+              "label": "Bottom",
+              "description": "Look at the model from the bottom.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-iso|Isometric",
+              "label": "Isometric",
+              "description": "A three-quarter view.",
+              "shortcut": ""
+            },
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Look straight at the selected plane, face or sketch.",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Navigate",
+          "tools": [
+            {
+              "id": "zoom-extents|Zoom Extents",
+              "label": "Zoom Extents",
+              "description": "Fit everything in the window.",
+              "shortcut": "Home"
+            },
+            {
+              "id": "ortho|Orthographic",
+              "label": "Orthographic",
+              "description": "No perspective: parallel projection.",
+              "shortcut": ""
+            },
+            {
+              "id": "perspective|Perspective",
+              "label": "Perspective",
+              "description": "Natural perspective projection.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Layout",
+          "tools": [
+            {
+              "id": "view-single|Single",
+              "label": "Single",
+              "description": "One large view.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-dual|Two Views",
+              "label": "Two Views",
+              "description": "The model view next to a locked Top view.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-quad|Four Views",
+              "label": "Four Views",
+              "description": "Front, Right, Top and a free model view at once.",
+              "shortcut": ""
+            },
+            {
+              "id": "view-link|Link Views",
+              "label": "Link Views",
+              "description": "Panning or zooming one view moves them all.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Display",
+          "tools": [
+            {
+              "id": "shaded|Shaded",
+              "label": "Shaded",
+              "description": "Surfaces only.",
+              "shortcut": ""
+            },
+            {
+              "id": "shaded-edges|Shaded \u002B edges",
+              "label": "Shaded \u002B edges",
+              "description": "Surfaces with edge lines.",
+              "shortcut": ""
+            },
+            {
+              "id": "wireframe|Wireframe",
+              "label": "Wireframe",
+              "description": "Edges only.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|X-ray",
+              "label": "X-ray",
+              "description": "Toggle translucent faces in shaded styles to see geometry behind them. Wireframe already shows all edges without faces.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Show",
+          "tools": [
+            {
+              "id": "grid|Grid",
+              "label": "Grid",
+              "description": "Show the construction grid.",
+              "shortcut": ""
+            },
+            {
+              "id": "zebra|Zebra stripes",
+              "label": "Zebra stripes",
+              "description": "Reflection stripes for surface quality.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

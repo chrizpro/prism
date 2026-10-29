@@ -3,6 +3,12 @@ project(prism_kernel CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@loader_path")
+elseif(UNIX)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 find_package(OpenCASCADE CONFIG REQUIRED)
 
@@ -20,3 +26,4 @@ find_library(NGCORE_LIB ngcore REQUIRED)
 add_library(prism_sim SHARED sim.cpp sim_netgen.cpp topo.cpp)
 target_include_directories(prism_sim PRIVATE ${CMAKE_PREFIX_PATH}/include)
 target_link_libraries(prism_sim PRIVATE Eigen3::Eigen ${NGLIB_LIB} ${NGCORE_LIB})
+install(TARGETS prism_kernel prism_sim RUNTIME DESTINATION . LIBRARY DESTINATION .)

@@ -120,6 +120,8 @@ public sealed class AssistantService(AutomationApi api)
         var dir = AppContext.BaseDirectory;
         for (int up = 0; up < 8 && dir != null; up++, dir = Path.GetDirectoryName(dir))
         {
+            var packaged = Path.Combine(dir, "mcp", OperatingSystem.IsWindows() ? "Prism.Mcp.exe" : "Prism.Mcp");
+            if (File.Exists(packaged)) return (packaged, []);
             foreach (var cand in new[] { Path.Combine(dir, "mcp", "Prism.Mcp.dll"), Path.Combine(dir, "Prism.Mcp", "bin", "Release", "net10.0", "Prism.Mcp.dll"), Path.Combine(dir, "Prism.Mcp", "bin", "Debug", "net10.0", "Prism.Mcp.dll") })
                 if (File.Exists(cand)) return ("dotnet", [cand]);
         }

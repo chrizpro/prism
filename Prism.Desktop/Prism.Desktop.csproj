@@ -3,6 +3,7 @@
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <NativeLibraryDirectory Condition="'$(NativeLibraryDirectory)' == ''">$(MSBuildThisFileDirectory)..\native\bin</NativeLibraryDirectory>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -18,7 +19,8 @@
 
     <ItemGroup>
         <!-- Native Open CASCADE kernel (build with native/build.ps1) -->
-        <None Include="..\native\bin\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"/>
+        <None Include="$(NativeLibraryDirectory)\*.dll;$(NativeLibraryDirectory)\*.so*;$(NativeLibraryDirectory)\*.dylib" Exclude="$(NativeLibraryDirectory)\ourcad*" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+        <None Include="$(NativeLibraryDirectory)\licenses\**" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
     </ItemGroup>
 
     <ItemGroup>

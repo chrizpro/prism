@@ -8,7 +8,7 @@ using Prism.Ribbon;
 
 namespace Prism.ViewModels;
 
-/// <summary>A task-focused set of ribbon tabs (like Affinity's personas), so the ribbon stays short as the app grows.</summary>
+/// <summary>A task-focused set of ribbon tabs that keeps related workflows together.</summary>
 public sealed record WorkspaceDef(string Id, string Name, string Tip, string[] Tabs, string? MainTab = null);
 
 public sealed partial class WorkspaceItem : ObservableObject
@@ -31,7 +31,6 @@ public sealed partial class MainViewModel
         new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Fluids", "Analyze", "View"], "Static"),
         new("assemble", "Assemble", "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.", ["Home", "Assemble", "Joints", "Animate", "Analyze", "View"], "Assemble"),
         new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "View"], "Render"),
-        new("ar", "AR", "Look at the model in augmented reality on a phone or tablet.", ["Home", "AR", "View"], "AR"),
         new("make", "CAM", "Stock and work zero, milling, toolpath playback, external slicer paths and tooling inspection.", ["Home", "CAM", "Additive", "Tooling", "Analyze", "View"], "CAM"),
         new("script", "Script", "Write Python that builds and changes models. The editor sits beside the model; everything a script makes is one undo step.", ["Home", "Script", "View"], "Script"),
         new("all", "All tabs", "Show every tab.", []),
@@ -45,12 +44,13 @@ public sealed partial class MainViewModel
     void InitWorkspaces()
     {
         foreach (var d in WorkspaceDefs) Workspaces.Add(new WorkspaceItem { Def = d });
-        try { if (File.Exists(UiFile)) { var id = File.ReadAllText(UiFile).Trim(); if (WorkspaceDefs.Any(w => w.Id == id)) WorkspaceId = id; } } catch { }
+        try { if (File.Exists(UiFile)) { var id = File.ReadAllText(UiFile).Trim(); if (id == "ar") id = "design"; if (WorkspaceDefs.Any(w => w.Id == id)) WorkspaceId = id; } } catch { }
         ApplyWorkspace();
     }
 
     public void SetWorkspace(string id)
     {
+        if (id == "ar") id = "design"; // Existing automation links land on Home, where AR now lives.
         if (id == "cae") id = "simulate";
         if (id == "cam") id = "make";
         if (WorkspaceDefs.All(w => w.Id != id)) return;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Prism
+Comment=Solid, surface and freeform CAD
+Exec=prism
+Icon=prism
+Terminal=false
+Categories=Graphics;Engineering;3DGraphics;
+StartupWMClass=Prism

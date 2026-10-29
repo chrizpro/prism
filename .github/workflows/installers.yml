@@ -1,0 +1,85 @@
+name: Build Prism installers
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (major.minor.patch)
+        default: '0.1.0'
+        required: true
+      platform:
+        type: choice
+        description: Target to build and validate
+        options: [windows, macos, linux, all]
+        default: windows
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: windows, os: windows-2022, runtime: win-x64, triplet: x64-windows-release }
+          - { platform: macos, os: macos-14, runtime: osx-x64, triplet: x64-osx-dynamic }
+          - { platform: linux, os: ubuntu-24.04, runtime: linux-x64, triplet: x64-linux-dynamic }
+    runs-on: ${{ matrix.os }}
+    env:
+      PRISM_PACKAGE_VERSION: ${{ inputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+      - uses: actions/setup-dotnet@v4
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        with:
+          dotnet-version: '10.0.x'
+      - name: Linux build prerequisites
+        if: matrix.platform == 'linux' && (inputs.platform == 'linux' || inputs.platform == 'all')
+        run: sudo apt-get update; sudo apt-get install -y autoconf automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
+      - name: Native dependencies and shims
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        run: |
+          $nativeVcpkg = Join-Path $env:RUNNER_TEMP 'prism-vcpkg'
+          git clone https://github.com/microsoft/vcpkg.git $nativeVcpkg
+          if ($LASTEXITCODE -ne 0) { throw 'vcpkg clone failed' }
+          git -C $nativeVcpkg checkout 817892b0ecbc6af994dd6df999c73faf795adbf2
+          if ($LASTEXITCODE -ne 0) { throw 'vcpkg checkout failed' }
+          if ($IsWindows) { & "$nativeVcpkg/bootstrap-vcpkg.bat" -disableMetrics }
+          else { & "$nativeVcpkg/bootstrap-vcpkg.sh" -disableMetrics }
+          if ($LASTEXITCODE -ne 0) { throw 'vcpkg bootstrap failed' }
+          & "$nativeVcpkg/vcpkg" install opencascade eigen3 netgen --triplet '${{ matrix.triplet }}' --overlay-triplets="$PWD/native/triplets"
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency install failed' }
+          ./native/build.ps1 -Vcpkg $nativeVcpkg -Triplet '${{ matrix.triplet }}'
+      - name: NSIS compiler
+        if: matrix.platform == 'windows' && (inputs.platform == 'windows' || inputs.platform == 'all')
+        run: |
+          choco install nsis --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+          "C:/Program Files (x86)/NSIS" >> $env:GITHUB_PATH
+      - name: Publish and package
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        run: ./packaging/Build-Installer.ps1 -Runtime '${{ matrix.runtime }}' -Version $env:PRISM_PACKAGE_VERSION
+      - name: Verify native runtime in published app
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        run: |
+          $binary = if ($IsWindows) { 'Prism.Desktop.exe' } else { 'Prism.Desktop' }
+          $path = "./artifacts/installers/${{ matrix.runtime }}/publish/$binary"
+          if ($IsWindows) {
+            $probe = Start-Process -FilePath $path -ArgumentList '--verify-runtime' -WindowStyle Hidden -Wait -PassThru
+            if ($probe.ExitCode -ne 0) { throw 'Published native runtime verification failed' }
+          } else {
+            & $path --verify-runtime
+            if ($LASTEXITCODE -ne 0) { throw 'Published native runtime verification failed' }
+          }
+      - uses: actions/upload-artifact@v4
+        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        with:
+          name: prism-${{ matrix.runtime }}
+          path: |
+            artifacts/installers/*-Setup.exe
+            artifacts/installers/*.dmg
+            artifacts/installers/*.deb
+            artifacts/installers/*.sha256
+          if-no-files-found: error

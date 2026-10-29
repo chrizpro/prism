@@ -469,3 +469,8 @@ native/bin/
 
 # Generated native model studies stay local; their source scripts and notes are tracked.
 /docs/**/*.prism
+
+# VitePress build output
+/site/.vitepress/cache/
+/site/.vitepress/dist/
+/site/dist/

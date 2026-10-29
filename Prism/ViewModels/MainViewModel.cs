@@ -333,7 +333,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
             Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."));
         RibbonGroup TransformGrp() => G("Transform",
-            Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects.", small),
+            Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects."),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
             Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects uniformly.", small),
             Cmd("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror), "Reflect objects across a plane.", small),
@@ -344,6 +344,10 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Measure", "measure", () => new MeasureCommand(), "Measure sizes, distances and angles between faces, edges, bodies or points."),
             Cmd("Properties", "properties", () => new PropertiesCommand(), "Volume, mass, center of mass and moments of inertia."),
             Cmd("Section\nAnalysis", "section", () => new SectionCommand(), "Cut the model with a plane to see inside."));
+        RibbonGroup ShareGrp() => G("Share",
+            ToolMenu("AR & sharing", "ar", "Export a model for augmented reality or manage phone sharing.",
+                Cmd("AR\nExport", "ar", () => new ArCommand(), "Export GLB and USDZ, choose real or tabletop scale, and share to a phone on your Wi-Fi."),
+                Btn("Stop\nSharing", "cancel", () => { Core.Export.ArExport.StopShare(); Session.Say("Sharing stopped."); }, "Stop serving the AR page to phones.", can: () => Core.Export.ArExport.Sharing)));
 
         // ---- File
         var file = new RibbonTab
@@ -960,16 +964,6 @@ public sealed partial class MainViewModel : ViewModelBase
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch (N).", RibbonSize.Large, null, null, "N")),
             ],
         };
-        var ar = new RibbonTab
-        {
-            Title = "AR",
-            Groups =
-            [
-                G("Augmented reality",
-                    Cmd("AR\nExport", "ar", () => new ArCommand(), "Export the model for AR (GLB for Android and the web, USDZ for iPhone and iPad) and optionally share it to a phone on your Wi-Fi."),
-                    Btn("Stop\nSharing", "cancel", () => { Core.Export.ArExport.StopShare(); Session.Say("Sharing stopped."); }, "Stop serving the AR page to phones.", RibbonSize.Large, () => Core.Export.ArExport.Sharing)),
-            ],
-        };
         var cam = new RibbonTab
         {
             Title = "CAM",
@@ -1035,8 +1029,9 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, ar, cam, additive, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
-        CompactModelingRibbon();
+        foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, cam, additive, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        OrganizeRibbons(TransformGrp, InspectGrp, AppearanceGrp, SelectGrp);
         FinishRibbon();
     }
 }

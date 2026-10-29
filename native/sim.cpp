@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <chrono>
 
-#define SIM_API extern "C" __declspec(dllexport)
+#include "prism_exports.h"
 
 namespace {
 thread_local std::string g_err;

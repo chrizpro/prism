@@ -253,9 +253,12 @@ sealed class Bridge
         // Walk up from the bridge's folder to the solution root and look in the Desktop project's output.
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
+            string executable = OperatingSystem.IsWindows() ? "Prism.Desktop.exe" : "Prism.Desktop";
+            var packaged = Path.Combine(dir.FullName, executable);
+            if (File.Exists(packaged)) return packaged;
             foreach (var cfg in new[] { "Release", "Debug" })
             {
-                var cand = Path.Combine(dir.FullName, "Prism.Desktop", "bin", cfg, "net10.0", "Prism.Desktop.exe");
+                var cand = Path.Combine(dir.FullName, "Prism.Desktop", "bin", cfg, "net10.0", executable);
                 if (File.Exists(cand)) return cand;
             }
         }

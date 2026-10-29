@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define SIM_API extern "C" __declspec(dllexport)
+#include "prism_exports.h"
 
 // the finite element mesh type lives in sim.cpp; this file only needs its public layout through these accessors
 extern "C" int sim_mesh_counts_internal(void* h, int* nNodes, int* nCorner, int* nTets, int* nBtris);

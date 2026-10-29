@@ -9,7 +9,7 @@ using namespace nglib;
 #include <vector>
 #include <exception>
 
-#define SIM_API extern "C" __declspec(dllexport)
+#include "prism_exports.h"
 
 extern "C" void* sim_mesh_from_tets(const double* nodes, int nNodes, const int* tets, int nTets, const int* btris, int nBtris);
 extern thread_local std::string g_err_ng;

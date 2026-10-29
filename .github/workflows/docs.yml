@@ -1,0 +1,32 @@
+name: Prism documentation
+on:
+  push:
+    paths: ['site/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['site/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check reference catalog against the app
+        run: dotnet run --project tools/Prism.DocsCatalog -c Release -- . --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prism-documentation
+          path: site/dist

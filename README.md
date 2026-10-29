@@ -46,3 +46,21 @@ dotnet run --project tests/Prism.WorkflowTests -c Release
 ```
 
 Feature notes and current limitations are in [docs](docs). Generated review artifacts, native model studies under `docs`, local IDE state, and compiled binaries are excluded from source control.
+
+## Ribbons, installers, and the website
+
+Shared ribbon sections follow one workflow order across the app. Transform keeps Move visible and groups Rotate, Scale, Mirror, and Duplicate. AR Export and Stop Sharing are under Share on Home, Assemble, Render, and Animate. Existing customized layouts remain intact; reset a tab in Settings to adopt its shipped layout.
+
+See [packaging](packaging/README.md) for Windows setup, macOS DMG, and Linux DEB builds. Packaging defaults to a self-contained desktop app and requires matching native libraries. Windows is the locally verified target; Mac and Linux require validation on those systems.
+
+The [Prism documentation website](https://prism-cad-guide.christopherbfwilliam.chatgpt.site) is published privately from the VitePress source in `site`. Regenerate its tool reference after changing ribbon definitions:
+
+```powershell
+dotnet run --project tools/Prism.DocsCatalog -- .
+cd site
+npm ci
+npm run dev
+npm run build
+```
+
+The docs workflow checks catalog freshness and builds the site. Narrative guides and the changelog should change with the app. The installer workflow builds target-specific packages when manually dispatched; it does not publish a public release.

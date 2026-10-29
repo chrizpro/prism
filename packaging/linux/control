@@ -1,0 +1,7 @@
+Package: prism
+Version: @VERSION@
+Architecture: amd64
+Maintainer: Prism developers
+Depends: libc6, libstdc++6, libgcc-s1, libx11-6, libice6, libsm6, libfontconfig1, libfreetype6, libgl1, libgomp1
+Description: Prism CAD development preview
+ Solid, surface, freeform and sketch-based modeling.

@@ -9,16 +9,43 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Prism.Ribbon;
 using Prism.ViewModels;
+using Prism.Core;
 
 AppBuilder.Configure<TestApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).UseSkia().SetupWithoutStarting();
 int checks = 0;
 void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; Console.WriteLine("PASS " + message); }
+AppSettings.Current.Ribbon = new RibbonLayout();
+AppSettings.Current.LastPicks.Clear();
 var vm = new MainViewModel();
+Check(MainViewModel.WorkspaceDefs.All(w => w.Id != "ar") && vm.Tabs.All(t => t.Title != "AR"), "AR has no standalone workspace or tab");
+foreach (var title in new[] { "Home", "Assemble", "Render", "Animate" })
+{
+    var share = vm.Tabs.Single(t => t.Title == title).Groups.Single(g => g.Title == "Share");
+    Check(share.Items.OfType<RibbonButton>().Single().Menu!.Select(b => b.Icon).SequenceEqual(new[] { "ar", "cancel" }), title + " exposes AR export and stop sharing together");
+}
+string Signature(RibbonGroup group) => string.Join(";", group.Items.OfType<RibbonButton>().Select(b => b.Label + ":" + b.Size + ":" + string.Join(",", b.Menu?.Select(v => v.Label) ?? [])));
+foreach (var name in new[] { "Transform", "Inspect", "Appearance", "Select" })
+{
+    var groups = vm.Tabs.Where(t => !t.IsContextual).SelectMany(t => t.Groups).Where(g => g.Title == name).ToArray();
+    Check(groups.Select(Signature).Distinct().Count() == 1, name + " uses the same tools, order and grouping across ribbons");
+}
+foreach (var tab in vm.Tabs)
+{
+    Check(tab.Groups.Select(g => RibbonLayoutPolicy.Rank(g.Title)).SequenceEqual(tab.Groups.Select(g => RibbonLayoutPolicy.Rank(g.Title)).Order()), tab.Title + " follows the shared section order");
+    Check(tab.Groups.Select(g => g.Title).Distinct().Count() == tab.Groups.Count, tab.Title + " has no duplicate section captions");
+    Check(tab.Buttons.All(b => b.Menu == null || b.Menu.All(v => !v.HasMenu)), tab.Title + " keeps menus one level deep");
+}
+foreach (var tab in vm.Tabs.Where(t => t.Groups.Any(g => g.Title == "Transform")))
+{
+    var group = tab.Groups.Single(g => g.Title == "Transform");
+    var buttons = group.Items.OfType<RibbonButton>().ToArray();
+    Check(buttons.Length == 2 && buttons[0].Label == "Move" && buttons[1].Menu!.Select(b => b.Label).SequenceEqual(new[] { "Rotate", "Scale", "Mirror", "Duplicate" }), tab.Title + " keeps Move visible with four transform variants");
+}
 var solidTab=vm.Tabs.Single(t=>t.Title=="Solid");
 var combine=solidTab.Groups.Single(g=>g.Title=="Combine").Items.OfType<RibbonButton>().Single();
 Check(combine.Menu.Select(b=>b.Label).SequenceEqual(new[]{"Union","Subtract","Intersect"}),"Solid combines boolean commands into one menu");
 var patterns=solidTab.Groups.Single(g=>g.Title=="Pattern").Items.OfType<RibbonButton>().ToList();
-Check(patterns.Count==3&&patterns[2].Menu.Count==3,"Solid exposes linear, circular and a menu of three other pattern methods");
+Check(patterns.Count==1&&patterns[0].Menu!.Select(b => b.Icon).SequenceEqual(new[]{"pattern-linear","pattern-circular","pattern-curve","pattern-fill","pattern-table"}),"Solid groups all five pattern methods in one menu");
 Check(solidTab.Buttons.Any(b=>b.Label=="Sweep")&&solidTab.Buttons.Any(b=>b.Label=="Loft"),"Solid retains sweep and loft creation");
 Check(vm.Tabs.Any(t=>t.Title=="Direct Modeling")&&MainViewModel.WorkspaceDefs.Single(w=>w.Id=="design").Tabs.Contains("Direct Modeling"),"Direct Modeling is available in the Design workspace");
 Check(vm.Tabs.Any(t => t.Title == "CAM") && vm.Tabs.All(t => t.Title is not ("CNC" or "3D Print")), "CNC and print tools share one CAM tab");
@@ -34,8 +61,8 @@ foreach (var title in new[] { "Surface", "NURBS", "Freeform" })
     Check(tab.Groups.SelectMany(g => g.Items).OfType<RibbonButton>().Any(b => b.HasMenu), title + " groups related tools");
     Check(tab.Buttons.Where(b => b.Menu == null).All(b => b.Id.Length > 0), title + " nested tools retain command identities");
 }
-var output = Path.GetFullPath("docs/surfacing-enhancements"); Directory.CreateDirectory(output);
-foreach (var title in new[] { "Solid", "Direct Modeling", "NURBS", "Freeform", "CAM", "Additive", "Tooling", "ECAD", "Thermal", "Dynamics", "Fluids" })
+var output = Path.GetFullPath(Environment.GetEnvironmentVariable("PRISM_REVIEW_OUTPUT") ?? "artifacts/ribbon-review"); Directory.CreateDirectory(output);
+foreach (var title in vm.Tabs.Where(t => !t.IsFile).Select(t => t.Title).ToArray())
 {
     var tab = vm.Tabs.Single(t => t.Title == title); tab.IsVisible = true; vm.SelectTab(tab);
     var view = new RibbonView { DataContext = vm };
