@@ -841,7 +841,7 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         var s = Session; if (s == null) return;
         if (Cam is { } mine) s.Camera = mine;
         var p = e.GetPosition(this);
-        s.Camera.ZoomAt(p.X, p.Y, Math.Pow(0.86, e.Delta.Y));
+        s.Camera.ZoomAt(p.X, p.Y, Math.Pow(0.86, AppSettings.Current.ReverseScrollZoom ? -e.Delta.Y : e.Delta.Y));
         s.SyncViews(s.Camera);
         s.Invalidate();
         e.Handled = true;

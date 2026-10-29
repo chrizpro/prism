@@ -41,6 +41,9 @@
             <ScrollViewer Name="PageInteraction" IsVisible="False">
                 <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
                     <TextBlock Text="Interaction" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="Navigation" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                    <CheckBox Name="ReverseScrollZoom" Content="Reverse scroll-wheel zoom" Click="OnReverseScrollZoom"/>
+                    <TextBlock Text="Reverse the direction the mouse wheel zooms in the 3D view." Classes="soft" TextWrapping="Wrap"/>
                     <TextBlock Text="Right-click menu" FontWeight="SemiBold" Margin="0,8,0,0"/>
                     <TextBlock Text="Hold the right mouse button still and a ring of tools for what you are looking at appears: drag toward one and let go. A quick right click opens the same ring. Moving first orbits as usual." Classes="soft" TextWrapping="Wrap"/>
                     <CheckBox Name="MarkingOn" Content="Use the right-click menu" Click="OnMarking"/>
