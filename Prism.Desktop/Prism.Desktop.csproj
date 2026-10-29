@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
+        <!-- This executable is not referenced by other projects. Avoid Avalonia rewriting its intermediate reference assembly. -->
+        <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <NativeLibraryDirectory Condition="'$(NativeLibraryDirectory)' == ''">$(MSBuildThisFileDirectory)..\native\bin</NativeLibraryDirectory>
@@ -19,7 +21,7 @@
 
     <ItemGroup>
         <!-- Native Open CASCADE kernel (build with native/build.ps1) -->
-        <None Include="$(NativeLibraryDirectory)\*.dll;$(NativeLibraryDirectory)\*.so*;$(NativeLibraryDirectory)\*.dylib" Exclude="$(NativeLibraryDirectory)\ourcad*" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
+        <None Include="$(NativeLibraryDirectory)\*.dll;$(NativeLibraryDirectory)\*.so*;$(NativeLibraryDirectory)\*.dylib" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
         <None Include="$(NativeLibraryDirectory)\licenses\**" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
     </ItemGroup>
 

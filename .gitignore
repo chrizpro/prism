@@ -463,10 +463,6 @@ native/bin/
 *.pem
 *.key
 
-# Retired build folders can remain locked by an older running instance.
-/OurCAD.Desktop/
-/OurCAD.Mcp/
-
 # Generated native model studies stay local; their source scripts and notes are tracked.
 /docs/**/*.prism
 
