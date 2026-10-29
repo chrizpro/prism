@@ -483,6 +483,28 @@ CK_API void* ck_patch(void** edges, int n) {
     CATCH(nullptr)
 }
 
+// Fill an opening while constraining its edges to their supporting faces.
+CK_API void* ck_patch_supported(void* source, const int* edgeIds, int n, int order) {
+    TRY
+        if (order != 1 || n < 1) { fail("Opening fill supports tangent continuity only."); return nullptr; }
+        TopTools_IndexedMapOfShape edges; TopExp::MapShapes(get(source), TopAbs_EDGE, edges);
+        TopTools_IndexedDataMapOfShapeListOfShape faces;
+        TopExp::MapShapesAndAncestors(get(source), TopAbs_EDGE, TopAbs_FACE, faces);
+        BRepFill_Filling f(3, 15, 3, Standard_False, 1e-5, 1e-4, 0.01, 0.1, 8, 9);
+        for (int i = 0; i < n; ++i) {
+            if (edgeIds[i] < 0 || edgeIds[i] >= edges.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge edge = TopoDS::Edge(edges(edgeIds[i] + 1));
+            if (!faces.Contains(edge) || faces.FindFromKey(edge).Extent() != 1) {
+                fail("Each opening edge must have exactly one supporting face."); return nullptr;
+            }
+            f.Add(edge, TopoDS::Face(faces.FindFromKey(edge).First()), GeomAbs_G1);
+        }
+        f.Build();
+        if (!f.IsDone() || !BRepCheck_Analyzer(f.Face()).IsValid()) { fail("Could not fill the opening with the requested continuity."); return nullptr; }
+        return wrap(f.Face());
+    CATCH(nullptr)
+}
+
 
 // Plate surface bounded by the given edges and pulled through extra points (a smooth fit to scanned data).
 CK_API void* ck_patch_points(void** edges, int n, const double* pts, int m, int degree, int nbPtsOnCur, int nbIter, double tol3d) {
@@ -1921,7 +1943,8 @@ CK_API void* ck_blend_surface(void* a, int edgeA, void* b, int edgeB, int order)
         TopExp::MapShapesAndAncestors(get(a), TopAbs_EDGE, TopAbs_FACE, fa); TopExp::MapShapesAndAncestors(get(b), TopAbs_EDGE, TopAbs_FACE, fb);
         GeomAbs_Shape cont = order <= 0 ? GeomAbs_C0 : order == 1 ? GeomAbs_G1 : GeomAbs_G2;
         BRepFill_Filling f(3, 15, 3, Standard_False, 1e-5, 1e-4, 0.01, 0.1, 8, 9);
-        if (cont == GeomAbs_C0 || !fa.Contains(ea) || !fb.Contains(eb)) { f.Add(ea, GeomAbs_C0); f.Add(eb, GeomAbs_C0); }
+        if (cont != GeomAbs_C0 && (!fa.Contains(ea) || !fb.Contains(eb))) { fail("Tangent or curvature continuity requires a supporting face at each edge."); return nullptr; }
+        if (cont == GeomAbs_C0) { f.Add(ea, GeomAbs_C0); f.Add(eb, GeomAbs_C0); }
         else {
             f.Add(ea, TopoDS::Face(fa.FindFromKey(ea).First()), cont);
             f.Add(eb, TopoDS::Face(fb.FindFromKey(eb).First()), cont);

@@ -132,10 +132,13 @@ public sealed class FillOpeningCommand : Command
     readonly SelectionSlot _src;
     readonly BoolParam _join;
     readonly NumberParam _tol;
+    readonly ChoiceParam _continuity;
 
     public FillOpeningCommand()
     {
         _src = Slot(new SelectionSlot { Label = "An open edge (or the whole surface to fill every opening)", Filter = SelFilter.Edge | SelFilter.SurfaceObj });
+        _continuity = Choice("Continuity", 0, "Position (G0)", "Tangent (G1)");
+        _continuity.HelpText = "Match the patch to the adjacent surface along the opening. Tangency may fail for incompatible boundaries.";
         _join = Check("Join the patch to the surface (closes it into a solid when it can)", true);
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01);
     }
@@ -180,10 +183,10 @@ public sealed class FillOpeningCommand : Command
         var patches = new List<Shape>();
         foreach (var loop in loops)
         {
-            try { patches.Add(Occ.Patch(loop.Select(i => shape.Sub(SubKind.Edge, i)).ToList())); }
+            try { patches.Add(_continuity.Index == 0 ? Occ.Patch(loop.Select(i => shape.Sub(SubKind.Edge, i)).ToList()) : Occ.PatchSupported(shape, loop.ToArray(), _continuity.Index)); }
             catch (KernelException e) { Results.Add(new ResultLine("Opening", "could not be filled: " + e.Message, 2)); }
         }
-        if (patches.Count == 0) throw new FormatException("The opening could not be filled. Try Patch with hand-picked boundary curves.");
+        if (patches.Count == 0) throw new FormatException("The opening could not be filled with the selected continuity. Try a different continuity or boundary.");
         Results.Add(new ResultLine("Openings filled", $"{patches.Count} of {loops.Count}"));
         var o = new CommandOutput { Label = "Fill opening", Icon = "patch" };
         if (_join.Value)

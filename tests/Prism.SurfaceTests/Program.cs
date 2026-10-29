@@ -52,6 +52,15 @@ using (var reference = Occ.NurbsSurface(Net(true, 0), 4, 4))
     using var elevatedMatch = Occ.MatchSurface(elevated, 0, elevatedRef, 0, 2);
     Check(Occ.SurfaceContinuity(elevatedMatch, 0, elevatedRef, 0).NormalAngle < 1e-4, "G2 works after degree elevation");
 }
+using (var plane = Occ.NurbsSurface(Enumerable.Range(0, 16).Select(i => new Vec3(i / 4 * 10, i % 4 * 10, 0)).ToArray(), 4, 4))
+{
+    var edges = Occ.FreeEdges(plane);
+    using var patch = Occ.PatchSupported(plane, edges, 1);
+    Check(patch.IsValid && Occ.Distance(plane, patch).Distance < 1e-4, "opening fill builds a valid G1 patch on a planar boundary");
+    bool invalidEdgeRejected = false;
+    try { using var invalidPatch = Occ.PatchSupported(plane, [-1], 1); } catch (KernelException) { invalidEdgeRejected = true; }
+    Check(invalidEdgeRejected, "opening fill rejects invalid supporting edges");
+}
 SubdMesh Quad() { var m = new SubdMesh(); m.V.AddRange([new(0,0,0),new(10,0,0),new(10,10,0),new(0,10,0)]); m.F.Add([0,1,2,3]); return m; }
 var open = Quad(); var r = CageReport.Inspect(open);
 Check(r.Valid && r.BoundaryEdges == 4 && r.Components == 1, "an open manifold cage is valid for surface conversion");
@@ -66,6 +75,24 @@ Check(blocked, "non-manifold cages cannot be silently converted to CAD geometry"
 var degenerate = Quad(); degenerate.V[2] = degenerate.V[1]; degenerate.V[3] = degenerate.V[0];
 Check(CageReport.Inspect(degenerate).DegenerateFaces == 1, "zero-area faces are detected");
 Check(!CageReport.Inspect(new SubdMesh()).Valid, "an empty cage does not pass validation");
+var ribSession = new CadSession();
+var ribBody = ribSession.AddObject(Occ.Box(20, 20, 10), "Rib target", ObjKind.Solid);
+var ribSketch = ribSession.AddObject(Occ.Line(new(-5, 0, 10), new(5, 0, 10)), "Rib sketch", ObjKind.Sketch, plane: Plane3.XZ);
+var ribCommand = new RibCommand(); ribSession.StartCommand(ribCommand);
+ribCommand.ConfigureInputs(() => { ribCommand.Slots[0].Items.Add(SelItem.Of(ribSketch)); ribCommand.Slots[1].Items.Add(SelItem.Of(ribBody)); });
+ribCommand.OnChanged();
+Check(ribCommand.Error == null && ribSession.Preview.Count > 0, "rib command previews a rib attached to a solid");
+ribSession.CommitCommand();
+Check(ribSession.Find(ribBody.Id)!.Shape.Props().Volume > ribBody.Shape.Props().Volume + 100, "rib adds material to the target body");
+ribSession.Undo(); Check(Math.Abs(ribSession.Find(ribBody.Id)!.Shape.Props().Volume - ribBody.Shape.Props().Volume) < 1e-6, "rib undo restores the body");
+ribSession.Redo(); Check(ribSession.Find(ribBody.Id)!.Shape.Props().Volume > ribBody.Shape.Props().Volume + 100, "rib redo restores the feature");
+var detachedSession = new CadSession();
+var detachedBody = detachedSession.AddObject(Occ.Box(20, 20, 10), "Target", ObjKind.Solid);
+var detachedSketch = detachedSession.AddObject(Occ.Line(new(-5, 0, 30), new(5, 0, 30)), "Sketch", ObjKind.Sketch, plane: Plane3.XZ);
+var detachedRib = new RibCommand(); detachedSession.StartCommand(detachedRib);
+detachedRib.ConfigureInputs(() => { detachedRib.Slots[0].Items.Add(SelItem.Of(detachedSketch)); detachedRib.Slots[1].Items.Add(SelItem.Of(detachedBody)); });
+detachedRib.OnChanged();
+Check(detachedRib.Error != null && detachedSession.Preview.Count == 0, "a disconnected rib is rejected");
 var session = new CadSession();
 var changing = session.AddObject(Occ.NurbsSurface(Net(false, 0), 4, 4), "Changing", ObjKind.Surface);
 var fixedPatch = session.AddObject(Occ.NurbsSurface(Net(true, 0), 4, 4), "Reference", ObjKind.Surface);

@@ -257,6 +257,7 @@ public static unsafe class Occ
     }
 
     public static Shape Patch(IReadOnlyList<Shape> edges) { fixed (IntPtr* p = H(edges)) return Wrap(Native.ck_patch(p, edges.Count)); }
+    public static Shape PatchSupported(Shape source, int[] edges, int order) { fixed (int* p = edges) return Wrap(Native.ck_patch_supported(source.Handle, p, edges.Length, order)); }
 
     // ---- booleans & modification
     public static Shape Fuse(Shape a, Shape b) => Wrap(Native.ck_fuse(a.Handle, b.Handle));
