@@ -409,7 +409,7 @@ public sealed class AutomationApi
         ["box"] = () => new BoxCommand(), ["cylinder"] = () => new CylinderCommand(), ["sphere"] = () => new SphereCommand(),
         ["cone"] = () => new ConeCommand(), ["torus"] = () => new TorusCommand(),
         ["hole"] = () => new HoleCommand(),
-        ["extrude"] = () => new ExtrudeCommand(), ["extrude_surface"] = () => new ExtrudeCommand(true),
+        ["extrude"] = () => new ExtrudeCommand(), ["extrude_surface"] = () => new ExtrudeCommand(true), ["rib"] = () => new RibCommand(),
         ["revolve"] = () => new RevolveCommand(), ["revolve_surface"] = () => new RevolveCommand(true),
         ["sweep"] = () => new SweepCommand(), ["sweep_surface"] = () => new SweepCommand(true),
         ["loft"] = () => new LoftCommand(), ["loft_surface"] = () => new LoftCommand(true),

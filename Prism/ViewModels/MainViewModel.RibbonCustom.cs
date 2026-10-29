@@ -56,7 +56,7 @@ public sealed partial class MainViewModel
                 var primitives = tab.Groups.Single(g => g.Title is "Create" or "Primitives");
                 var features = tab.Groups.Single(g => g.Title == "Features");
                 tab.Groups.Remove(primitives); tab.Groups.Remove(features);
-                tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" })).ToArray()));
+                tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" or "rib" })).ToArray()));
             }
             if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
             if (tab.Title == "Sketch")

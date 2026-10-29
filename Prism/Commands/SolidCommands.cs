@@ -239,6 +239,57 @@ static class ProfileUtil
 }
 
 // ---------------------------------------------------------------- extrude / revolve / sweep / loft
+/// <summary>Build a finite rib from a planar sketch and join it to a solid.</summary>
+public sealed class RibCommand : Command
+{
+    readonly SelectionSlot _profile, _body;
+    readonly NumberParam _thickness, _height;
+    readonly ChoiceParam _direction, _placement;
+    readonly BoolParam _reverse;
+
+    public RibCommand()
+    {
+        _profile = Slot(new SelectionSlot { Label = "Rib sketch", Filter = SelFilter.SketchObj });
+        _body = Slot(new SelectionSlot { Label = "Target body", Filter = SelFilter.Solid });
+        _thickness = Num("Thickness", 2, 0.001, 1e5);
+        _height = Num("Height", 10, 0.001, 1e5);
+        _direction = Choice("Height direction", 0, "Sketch vertical", "Sketch horizontal");
+        _placement = Choice("Thickness placement", 0, "Centered on sketch", "Positive side", "Negative side");
+        _reverse = Check("Reverse height direction", false);
+    }
+    public override string Title => "Rib";
+    public override string Icon => "rib";
+    public override string Hint => "Select a planar sketch of open rib lines and a solid body. The lines grow in the sketch plane by the chosen height, then gain thickness across the plane. The rib must touch the body; reverse the height direction if needed.";
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        var sketch = S.Find(_profile.Items[0].Obj) ?? throw new KernelException("The rib sketch no longer exists.");
+        if (sketch.SketchPlane is not { } plane || sketch.SketchData is { Sections.Count: > 0 })
+            throw new KernelException("Choose a sketch on one plane for the rib.");
+        var body = S.Find(_body.Items[0].Obj) ?? throw new KernelException("The target body no longer exists.");
+        if (body.Kind != ObjKind.Solid) throw new KernelException("Choose a solid target body.");
+        var (profile, _) = ProfileUtil.Resolve(S, _profile, false);
+        var dir = (_direction.Index == 0 ? plane.V : plane.U).Normalized() * (_reverse.Value ? -1 : 1);
+        var normal = plane.Normal;
+        double shift = _placement.Index == 0 ? -_thickness.Value / 2 : _placement.Index == 2 ? -_thickness.Value : 0;
+        using var shifted = Occ.Translate(profile, normal * shift);
+        using var wall = Occ.Extrude(shifted, dir * _height.Value);
+        if (!wall.HasFaces) throw new KernelException("The sketch must contain lines that are not parallel to the height direction.");
+        using var rib = Occ.Extrude(wall, normal * _thickness.Value);
+        if (!rib.HasSolids || !rib.IsValid) throw new KernelException("Could not create a valid rib. Use non-intersecting open sketch lines and a different height direction.");
+        var result = Occ.Fuse(body.Shape, rib);
+        if (!result.IsValid || result.Count(SubKind.Solid) != 1 || result.Props().Volume <= body.Shape.Props().Volume + 1e-8)
+        {
+            result.Dispose();
+            throw new KernelException("The rib must add material and join the target into one solid. Adjust the sketch, height or direction.");
+        }
+        var output = new CommandOutput { Label = "Rib", Icon = "rib" };
+        output.Replace.Add((body, result));
+        return output;
+    }
+}
+
 public sealed class ExtrudeCommand : BodyCommand
 {
     readonly bool _surface;

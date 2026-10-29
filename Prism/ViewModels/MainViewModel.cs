@@ -435,6 +435,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Primitives", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
+                    Cmd("Rib", "rib", () => new RibCommand(), "Add a reinforcing rib from a planar sketch to a solid body."),
                     Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis.")),
                 G("Modify",
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
