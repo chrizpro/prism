@@ -112,6 +112,7 @@ public sealed partial class CadSession
                     foreach (var (k, v) in pose) if (k != "@explode") values[k] = v;
                     SetJointValues(values);
                     SetExplode(pose.TryGetValue("@explode", out var ex) ? ex.v1 : originalExplode);
+                    SetPartPose(PartPoseFrom(pose));
                 }
                 var tracer = new PathTracer(settings);
                 if (!tracer.LoadScene(this)) throw new InvalidOperationException("There is nothing visible to render.");
@@ -150,7 +151,7 @@ public sealed partial class CadSession
         finally
         {
             job.Running = false; job.Finished = true;
-            try { SetJointValues(original); SetExplode(originalExplode); } catch (Exception e) { Say($"Could not restore the pose: {e.Message}", true); }
+            try { SetPartPose(null); SetJointValues(original); SetExplode(originalExplode); } catch (Exception e) { Say($"Could not restore the pose: {e.Message}", true); }
             RenderChanged?.Invoke();
         }
     }

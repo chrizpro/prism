@@ -19,6 +19,7 @@ public sealed class AnimationCommand : Command
     SceneObject? _animObj;
     AnimInfo _anim = new(5, [], false);
     readonly List<(JointInfo joint, NumberParam v1, NumberParam? v2)> _rows = [];
+    readonly List<(string key, string label, NumberParam p)> _partRows = [];
     NumberParam _time = null!, _duration = null!, _explode = null!;
     BoolParam _loop = null!, _ease = null!;
     ActionParam _play = null!;
@@ -61,6 +62,16 @@ public sealed class AnimationCommand : Command
             }
             _rows.Add((j, p1, p2));
         }
+        // free parts (no joint, not grounded) can be moved and turned directly
+        foreach (var comp in S.FreeComponents)
+        {
+            string ck = comp.Component!.Key;
+            foreach (var (channel, what, unit, step, lim) in new[] { ("x", "move X", "mm", 5.0, 2000.0), ("y", "move Y", "mm", 5.0, 2000.0), ("z", "move Z", "mm", 5.0, 2000.0), ("rz", "turn", "°", 5.0, 360.0) })
+            {
+                string key = CadSession.PartKey(ck, channel); _rest[key] = (0, 0);
+                _partRows.Add((key, $"{comp.Name}  ({what})", Add(new NumberParam { Label = $"{comp.Name}  ({what})", Value = 0, Min = -lim, Max = lim, Step = step, Unit = unit })));
+            }
+        }
         _explode = Add(new NumberParam { Label = "Exploded view", Value = S.ExplodeFactor, Min = 0, Max = 1, Step = 0.05, Unit = "" });
         Add(new ActionParam { Label = "Key the changed values at this time", Run = KeyChanged });
         Add(new ActionParam { Label = "Remove keys at this time", Run = RemoveKeys });
@@ -82,6 +93,7 @@ public sealed class AnimationCommand : Command
             r.v1.Value = Math.Clamp(v.v1, r.v1.Min, r.v1.Max);
             if (r.v2 != null) r.v2.Value = Math.Clamp(v.v2, r.v2.Min, r.v2.Max);
         }
+        foreach (var pr in _partRows) pr.p.Value = Math.Clamp((pose.TryGetValue(pr.key, out var pv) ? pv : (0, 0)).v1, pr.p.Min, pr.p.Max);
         _explode.Value = Math.Clamp((pose.TryGetValue(ExplodeKey, out var e) ? e : _rest[ExplodeKey]).v1, 0, 1);
         _syncing = false;
     }
@@ -111,6 +123,7 @@ public sealed class AnimationCommand : Command
             Key(r.joint.Key, false, r.v1.Value, now.v1);
             if (r.v2 != null) Key(r.joint.Key, true, r.v2.Value, now.v2);
         }
+        foreach (var pr in _partRows) Key(pr.key, false, pr.p.Value, (pose.TryGetValue(pr.key, out var pv) ? pv : (0, 0)).v1);
         var ex = pose.TryGetValue(ExplodeKey, out var ev) ? ev : _rest[ExplodeKey];
         Key(ExplodeKey, false, _explode.Value, ex.v1);
         S.Say(keyed == 0 ? "Nothing changed at this time, so nothing was keyed." : $"Keyed {keyed} value(s) at {t:0.##} s.");
@@ -149,6 +162,7 @@ public sealed class AnimationCommand : Command
             rows.Add(new(r.v2 == null ? name : $"{name} ({r.joint.FirstLabel})", r.joint.Key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && !t.SecondValue)));
             if (r.v2 != null) rows.Add(new($"{name} ({r.joint.SecondLabel})", r.joint.Key, true, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && t.SecondValue)));
         }
+        foreach (var pr in _partRows) rows.Add(new(pr.label, pr.key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == pr.key && !t.SecondValue)));
         rows.Add(new("Exploded view", ExplodeKey, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == ExplodeKey && !t.SecondValue)));
         return rows;
     }
@@ -161,6 +175,8 @@ public sealed class AnimationCommand : Command
         double Current()
         {
             if (row.JointKey == ExplodeKey) return _anim.Tracks.Any(x => x.JointKey == ExplodeKey) ? (pose.TryGetValue(ExplodeKey, out var e) ? e.v1 : _explode.Value) : _explode.Value;
+            if (_partRows.FirstOrDefault(x => x.key == row.JointKey) is { key: not null } part)
+                return _anim.Tracks.Any(x => x.JointKey == part.key) && pose.TryGetValue(part.key, out var pp) ? pp.v1 : part.p.Value;
             var box = _rows.First(r => r.joint.Key == row.JointKey);
             bool hasTrack = _anim.Tracks.Any(x => x.JointKey == row.JointKey && x.SecondValue == row.Second);
             if (hasTrack && pose.TryGetValue(row.JointKey, out var p)) return row.Second ? p.v2 : p.v1;
@@ -230,7 +246,8 @@ public sealed class AnimationCommand : Command
         Results.Clear();
         if (_rows.Count == 0 && !S.Components.Any()) { Results.Add(new ResultLine("Joints", "none yet. Create revolute, slider or cylindrical joints first (Joints tab).")); return null; }
         var over = _rows.ToDictionary(r => r.joint.Key, r => r.joint with { Value = r.v1.Value, Value2 = r.v2?.Value ?? r.joint.Value2 });
-        var shapes = S.PoseShapes(over, _explode.Value, out var notes);
+        var partPose = CadSession.PartPoseFrom(_partRows.ToDictionary(r => r.key, r => (r.p.Value, 0.0)));
+        var shapes = S.PoseShapes(over, _explode.Value, out var notes, partPose);
         var o = new CommandOutput { Label = "Animation", Icon = "animation", ReplaceIsMove = true };
         foreach (var (id, shape) in shapes) if (S.Find(id) is { } comp) o.Replace.Add((comp, shape));
         var values = _rows.ToDictionary(r => r.joint.Key, r => (r.v1.Value, r.v2?.Value ?? r.joint.Value2));
@@ -243,6 +260,7 @@ public sealed class AnimationCommand : Command
             else s.Update(existing!.Id, x => x.WithAsm(final), false);
             s.SetJointValues(values);
             s.SetExplode(explode);
+            s.SetPartPose(null);              // the parts go back to where they are placed; the animation carries their motion
         };
         var keys = _anim.Tracks.Sum(t => t.Keys.Count);
         Results.Add(new ResultLine("Keys", $"{keys} on {_anim.Tracks.Count} value(s)"));

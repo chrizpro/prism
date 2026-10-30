@@ -128,6 +128,43 @@ public sealed partial class CadSession
         return res;
     }
 
+    // ---------------------------------------------------------------- animated pose of free parts
+    /// <summary>How far a free part is moved (mm) and turned about its vertical axis (degrees) away from where it is placed. Used by animations; never stored with the part.</summary>
+    public readonly record struct PartOffset(double X, double Y, double Z, double Turn);
+
+    Dictionary<string, PartOffset> _partPose = [];
+    bool _wasPosed;
+
+    /// <summary>A part that no joint holds and that is not grounded: the parts an animation can move directly.</summary>
+    public IEnumerable<SceneObject> FreeComponents => Components.Where(o => !o.Component!.Grounded && !JointObjects.Any(j => j.joint.ChildKey == o.Component.Key || j.joint.ParentKey == o.Component.Key));
+
+    public static string PartKey(string componentKey, string channel) => $"@part:{componentKey}:{channel}";
+
+    /// <summary>Part offsets from animation values keyed "@part:{component}:x|y|z|rz".</summary>
+    public static Dictionary<string, PartOffset> PartPoseFrom(IReadOnlyDictionary<string, (double v1, double v2)> pose)
+    {
+        var res = new Dictionary<string, PartOffset>();
+        foreach (var (key, v) in pose)
+        {
+            if (!key.StartsWith("@part:", StringComparison.Ordinal)) continue;
+            int cut = key.LastIndexOf(':'); if (cut < 7) continue;
+            string comp = key[6..cut]; var o = res.GetValueOrDefault(comp);
+            res[comp] = key[(cut + 1)..] switch { "x" => o with { X = v.v1 }, "y" => o with { Y = v.v1 }, "z" => o with { Z = v.v1 }, "rz" => o with { Turn = v.v1 }, _ => o };
+        }
+        return res;
+    }
+
+    static Xform PartDelta(PartOffset o, Vec3 center) =>
+        Xform.Translation(new Vec3(o.X, o.Y, o.Z)) * Xform.Translation(center) * Xform.RotZ(o.Turn * Math.PI / 180) * Xform.Translation(-center);
+
+    /// <summary>Show free parts moved by these offsets (null puts them back).</summary>
+    public void SetPartPose(IReadOnlyDictionary<string, PartOffset>? pose)
+    {
+        _partPose = pose == null ? [] : new(pose);
+        if (_partPose.Count == 0) _wasPosed = true;          // put every part back where it belongs
+        SolveAssembly();
+    }
+
     void ApplyPlacements(Dictionary<string, Xform> placement)
     {
         var offsets = ExplodeOffsets(placement, ExplodeFactor);
@@ -136,9 +173,10 @@ public sealed partial class CadSession
         {
             var ci = o.Component!; var p = placement[ci.Key];
             var off = offsets.GetValueOrDefault(ci.Key, Vec3.Zero);
-            if (ExplodeFactor < 1e-9 && !_wasExploded && p.DistanceTo(ci.Placement) < 1e-9) continue;       // nothing moved
+            if (ExplodeFactor < 1e-9 && !_wasExploded && _partPose.Count == 0 && !_wasPosed && p.DistanceTo(ci.Placement) < 1e-9) continue;       // nothing moved
             var local = LocalShapeOf(o);
-            var target = off.Length < 1e-9 ? p : Xform.Translation(off) * p;
+            var posed = _partPose.TryGetValue(ci.Key, out var po) ? PartDelta(po, p.Apply(LocalCenter(o))) * p : p;
+            var target = off.Length < 1e-9 ? posed : Xform.Translation(off) * posed;
             var world = target.Apply(local);
             int i = list.FindIndex(x => x.Id == o.Id);
             var next = o.WithAsm(ci.WithPlacement(p), world);
@@ -146,6 +184,7 @@ public sealed partial class CadSession
             _locals[ci.Key] = new LocalCache(world, local, _locals[ci.Key].Center);
         }
         _wasExploded = ExplodeFactor > 1e-9;
+        _wasPosed = _partPose.Count > 0;
         if (!changed) return;
         Objects = list;
         RaiseScene();
@@ -239,7 +278,7 @@ public sealed partial class CadSession
     }
 
     /// <summary>The world shape every component would have for these joint values and this exploded-view factor (used to preview poses without changing the document).</summary>
-    public Dictionary<Guid, Shape> PoseShapes(IReadOnlyDictionary<string, JointInfo>? overrides, double explode, out List<string> notes)
+    public Dictionary<Guid, Shape> PoseShapes(IReadOnlyDictionary<string, JointInfo>? overrides, double explode, out List<string> notes, IReadOnlyDictionary<string, PartOffset>? partPose = null)
     {
         var placement = SolvePlacements(overrides, out notes);
         var offsets = ExplodeOffsets(placement, explode);
@@ -247,9 +286,11 @@ public sealed partial class CadSession
         foreach (var o in Components)
         {
             var ci = o.Component!; var p = placement[ci.Key]; var off = offsets.GetValueOrDefault(ci.Key, Vec3.Zero);
-            bool unchanged = off.Length < 1e-9 && ExplodeFactor < 1e-9 && !_wasExploded && p.DistanceTo(ci.Placement) < 1e-9;
+            bool posed = partPose != null && partPose.TryGetValue(ci.Key, out var asked) && asked != default;
+            bool unchanged = off.Length < 1e-9 && ExplodeFactor < 1e-9 && !_wasExploded && !posed && _partPose.Count == 0 && !_wasPosed && p.DistanceTo(ci.Placement) < 1e-9;
             if (unchanged) continue;
-            res[o.Id] = (off.Length < 1e-9 ? p : Xform.Translation(off) * p).Apply(LocalShapeOf(o));
+            var at = posed ? PartDelta(partPose![ci.Key], p.Apply(LocalCenter(o))) * p : p;
+            res[o.Id] = (off.Length < 1e-9 ? at : Xform.Translation(off) * at).Apply(LocalShapeOf(o));
         }
         return res;
     }

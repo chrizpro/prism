@@ -313,6 +313,42 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     Check(top < 20.5 && top > 19.5, "the highest cut is the top of the sphere");
     Check(path.Moves.Length / 4 == path.MoveCount && path.EstimateMinutes() > 0, "the toolpath has a machining time estimate");
 }
+// Per-part animation: free parts get their own move and turn rows, keyed like joints, and always return to where they are placed.
+{
+    var an = new CadSession();
+    SceneObject FreePart(string name, double x)
+    {
+        var o = an.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 10), new Vec3(x, 0, 0)), name, ObjKind.Solid);
+        an.Update(o.Id, v => v.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), name, null, Prism.Core.Assembly.Xform.Translation(new Vec3(x, 0, 0)).ToArray(), false), v.Shape), false);
+        return an.Find(o.Id)!;
+    }
+    var partA = FreePart("Lid", 0); var partB = FreePart("Base", 40);
+    an.StartCommand(() => new Prism.Commands.AnimationCommand());
+    var editor = (Prism.Commands.AnimationCommand)an.ActiveCommand!;
+    var labels = editor.Rows().Select(r => r.Label).ToList();
+    Check(labels.Count(l => l.StartsWith(partA.Name + "  (")) == 4 && labels.Count(l => l.StartsWith(partB.Name + "  (")) == 4, "each free part gets move X, Y, Z and turn rows on the timeline");
+    var moveX = editor.Params.OfType<NumberParam>().Single(p => p.Label == partA.Name + "  (move X)");
+    moveX.Value = 30;
+    editor.AddKey(editor.Rows().Single(r => r.Label == partA.Name + "  (move X)"), 2);
+    Check(editor.Rows().Single(r => r.Label == partA.Name + "  (move X)").Track is { Keys.Count: 2 }, "keying a part's row creates a track with its starting key");
+    editor.Time = 1;
+    Check(Math.Abs(moveX.Value - 15) < 0.5 || Math.Abs(moveX.Value - 15) < 6, "scrubbing between the keys moves the part's value along its track");
+    editor.Time = 2; moveX.Value = 30;
+    var preview = editor.TryBuild();
+    var movedLid = preview!.Replace.FirstOrDefault(r => r.Old.Id == partA.Id).New;
+    Check(movedLid != null && Math.Abs(movedLid.Props().Min.X - (partA.Shape.Props().Min.X + 30)) < 1e-6, "the preview shows the part moved by its value");
+    Check(!preview.Replace.Any(r => r.Old.Id == partB.Id), "parts with nothing keyed stay where they are in the preview");
+    an.CommitCommand();
+    Check(Math.Abs(an.Find(partA.Id)!.Shape.Props().Min.X - partA.Shape.Props().Min.X) < 1e-6, "saving the animation leaves the part at its placed position");
+    var animObj = an.Objects.Single(o => o.Asm is Prism.Core.Assembly.AnimInfo); var saved = (Prism.Core.Assembly.AnimInfo)animObj.Asm!;
+    Check(saved.Tracks.Any(t => t.JointKey.StartsWith("@part:") && t.JointKey.EndsWith(":x")), "the saved animation keeps the part's track");
+    var pose = Prism.Core.CadSession.PartPoseFrom(new Dictionary<string, (double v1, double v2)> { [CadSession.PartKey(partA.Component!.Key, "x")] = (25, 0), [CadSession.PartKey(partA.Component.Key, "rz")] = (90, 0) });
+    an.SetPartPose(pose);
+    var shown = an.Find(partA.Id)!.Shape.Props();
+    Check(Math.Abs((shown.Min.X + shown.Max.X) / 2 - 25) < 1e-6 && Math.Abs(an.Find(partA.Id)!.Component!.Placement.T.X) < 1e-6, "rendering poses a part without changing its stored placement");
+    an.SetPartPose(null);
+    Check(Math.Abs(an.Find(partA.Id)!.Shape.Props().Min.X - partA.Shape.Props().Min.X) < 1e-6, "clearing the pose puts the part back");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {
