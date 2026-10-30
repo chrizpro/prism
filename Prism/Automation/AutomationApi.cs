@@ -22,7 +22,7 @@ namespace Prism.Automation;
 /// as the mouse, so scripted work is undoable and looks identical to interactive work. Indices that refer to faces and
 /// edges are 1-based, matching the labels shown in the UI ("Face 3 of Box 1").
 /// </summary>
-public sealed class AutomationApi
+public sealed partial class AutomationApi
 {
     // the commands the tools can start are found again by name when a file with history is opened
     static AutomationApi() { foreach (var make in Registry.Values) CommandCatalog.Register(make); }
@@ -165,6 +165,21 @@ public sealed class AutomationApi
             var md = obj.Mesh; var tm = new Meshing.TriMesh((float[])md.Positions.Clone(), (int[])md.Indices.Clone());
             var hit = tm.Bvh.ClosestPoint(new Vec3(fa[0]!.GetValue<double>(), fa[1]!.GetValue<double>(), fa[2]!.GetValue<double>())) ?? throw new ArgumentException("No face near that point.");
             return new SelItem(obj.Id, SelKind.Face, md.TriFace[hit.Tri]);
+        }
+        if (o["edge_at"] is JsonArray ea)
+        {
+            // the edge passing closest to this point
+            var md = obj.Mesh; var E = md.EdgePoints; var q = new Vec3(ea[0]!.GetValue<double>(), ea[1]!.GetValue<double>(), ea[2]!.GetValue<double>());
+            int best = -1; double bd = double.MaxValue;
+            for (int s = 0; s < md.SegEdge.Length; s++)
+            {
+                var p0 = new Vec3(E[6 * s], E[6 * s + 1], E[6 * s + 2]); var p1 = new Vec3(E[6 * s + 3], E[6 * s + 4], E[6 * s + 5]);
+                var d = p1 - p0; double l2 = Vec3.Dot(d, d), t = l2 < 1e-18 ? 0 : Math.Clamp(Vec3.Dot(q - p0, d) / l2, 0, 1);
+                double dist = (p0 + d * t - q).Length;
+                if (dist < bd) { bd = dist; best = md.SegEdge[s]; }
+            }
+            if (best < 0) throw new ArgumentException("No edge near that point.");
+            return new SelItem(obj.Id, SelKind.Edge, best);
         }
         if (o["edge"] is JsonNode e) return new SelItem(obj.Id, SelKind.Edge, e.GetValue<int>() - 1);
         return SelItem.Of(obj);
@@ -488,15 +503,51 @@ public sealed class AutomationApi
         }
     }
 
-    JsonObject CommandResult(int objectsBefore, HashSet<Guid> before)
+    sealed record BodySnap(string Name, Shape? Shape, double Volume, double Area, int Faces, int Edges, Vec3 Size);
+
+    Dictionary<Guid, BodySnap> Snapshot()
     {
-        var created = S.Objects.Where(o => !before.Contains(o.Id)).Select(o => (JsonNode)Describe(o, true)).ToArray();
-        return new JsonObject { ["status"] = S.Status, ["statusIsError"] = S.StatusIsError, ["created"] = new JsonArray(created), ["objectCount"] = S.Objects.Count };
+        var d = new Dictionary<Guid, BodySnap>();
+        foreach (var o in S.Objects)
+        {
+            if (!IsBody(o)) { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); continue; }
+            try { var sh = o.Shape; var p = sh.Props(); d[o.Id] = new(o.Name, sh, sh.HasSolids ? p.Volume : 0, p.Area, sh.Count(SubKind.Face), sh.Count(SubKind.Edge), p.Size); }
+            catch { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); }
+        }
+        return d;
+    }
+
+    JsonObject CommandResult(Dictionary<Guid, BodySnap> before)
+    {
+        var created = S.Objects.Where(o => !before.ContainsKey(o.Id)).Select(o => (JsonNode)Describe(o, true)).ToArray();
+        var res = new JsonObject { ["status"] = S.Status, ["statusIsError"] = S.StatusIsError, ["created"] = new JsonArray(created), ["objectCount"] = S.Objects.Count };
+        var changed = new JsonArray();
+        foreach (var o in S.Objects)
+        {
+            if (!before.TryGetValue(o.Id, out var b) || b.Shape == null || !IsBody(o)) continue;
+            Shape sh; try { sh = o.Shape; } catch { continue; }
+            if (ReferenceEquals(sh, b.Shape)) continue;
+            var p = sh.Props(); double vol = sh.HasSolids ? p.Volume : 0; int nf = sh.Count(SubKind.Face), ne = sh.Count(SubKind.Edge);
+            var c = new JsonObject
+            {
+                ["name"] = o.Name, ["volume"] = Math.Round(vol, 4), ["volumeDelta"] = Math.Round(vol - b.Volume, 4),
+                ["areaDelta"] = Math.Round(p.Area - b.Area, 4), ["faces"] = $"{b.Faces}->{nf}", ["edges"] = $"{b.Edges}->{ne}",
+                ["size"] = Arr(p.Size), ["valid"] = sh.IsValid,
+            };
+            if (!Arr(b.Size).ToJsonString().Equals(Arr(p.Size).ToJsonString())) c["sizeBefore"] = Arr(b.Size);
+            changed.Add(c);
+        }
+        if (changed.Count > 0) res["changed"] = changed;
+        var removed = before.Where(kv => S.Find(kv.Key) == null).Select(kv => (JsonNode)kv.Value.Name).ToArray();
+        if (removed.Length > 0) res["removed"] = new JsonArray(removed);
+        foreach (var n in created) if (n is JsonObject cj && cj["valid"] is { } v && !v.GetValue<bool>()) res["warning"] = $"'{cj["name"]}' is not a valid shape (run solid_check).";
+        return res;
     }
 
     // ================================================================= tools
     void Register()
     {
+        RegisterSolid();
         Add("get_state", "Full snapshot: objects (with bounding boxes), selection, active command and its parameters/slots, sketch, camera, display flags, status line.",
             Schema(null), _ => State());
 
@@ -569,7 +620,7 @@ public sealed class AutomationApi
             {
                 var name = Str(a, "name");
                 if (!Registry.TryGetValue(name, out var make)) throw new ArgumentException($"Unknown command '{name}'. Names: {string.Join(", ", Registry.Keys)}");
-                var before = S.Objects.Select(o => o.Id).ToHashSet();
+                var before = Snapshot();
                 var cmd = make(); cmd.Factory = make;
                 _vm.CloseHome();
                 S.StartCommand(cmd);
@@ -589,12 +640,12 @@ public sealed class AutomationApi
                         if (S.ActiveCommand == cmd)
                         {
                             var err = cmd.Error ?? S.Status; S.CancelCommand();
-                            throw new InvalidOperationException($"{cmd.Title} failed: {err}");
+                            throw new InvalidOperationException($"{cmd.Title} failed: {err}. Slots: {string.Join("; ", cmd.Slots.Where(x => x.IsVisible).Select(x => $"{x.Label} ({x.Items.Count} picked)"))}. Params: {string.Join(", ", cmd.Params.Where(x => x.IsVisible).Select(x => x.Label))}. Check that slots hold the right kind of item (solid_find returns face/edge indices) and values are in range.");
                         }
                     }
                 }
                 catch { if (S.ActiveCommand == cmd) S.CancelCommand(); throw; }
-                var res = CommandResult(before.Count, before);
+                var res = CommandResult(before);
                 if (S.ActiveCommand != null) res["activeCommand"] = CommandJson(S.ActiveCommand);
                 return res;
             });
@@ -611,11 +662,11 @@ public sealed class AutomationApi
         Add("command_commit", "Press OK on the active command.", Schema(null), _ =>
         {
             var c = S.ActiveCommand ?? throw new InvalidOperationException("No command is active.");
-            var before = S.Objects.Select(o => o.Id).ToHashSet();
+            var before = Snapshot();
             bool panelStep=c.HasPanelStep;
             S.AcceptCommandPanel();
             if (!panelStep && S.ActiveCommand == c) throw new InvalidOperationException(c.Error ?? S.Status);
-            return CommandResult(before.Count, before);
+            return CommandResult(before);
         });
 
         Add("command_cancel", "Cancel the active command (or the sketch if one is open and no command is active).", Schema(null), _ =>

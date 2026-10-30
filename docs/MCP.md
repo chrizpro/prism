@@ -28,10 +28,14 @@ For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same se
 | `list_ribbon`, `ribbon_click` | Click any ribbon button by label (optionally `tab`) |
 | `run_command` | Start + fill + commit any modeling command (box … loft, fillet, booleans, transforms, surfaces, nurbs_patch, curves) |
 | `command_set`, `command_commit`, `command_cancel` | Work with a command left open for preview |
+| `solid_find` | Find faces or edges of a solid by geometry rather than by index: `type` (Plane, Cylinder, Line, Circle…), `facing`+`angle`, `direction`+`angle`, `radius`, `box`, `near`+`distance`, `of_face` (edges bounding a face), `min_size`/`max_size`, `sort` (`size`, `x`, `y`, `z`, prefix `-` for descending), `limit`. `select:true` selects the hits; `summary:true` returns only counts per type. Hits are 1-based and can be used directly in `run_command` slots. |
+| `solid_check` | Cheap verification: validity, volume, area, bounding box, centre of mass, face/edge/shell counts and open edges for one object; or the minimum distance and closest points between `a` and `b` (objects, faces or edges), plus overlap volume for intersecting solids. |
 | `sketch_begin`, `sketch_add`, `sketch_finish` | Programmatic sketching (line, polyline, rect, circle, arc, spline) on XY/XZ/YZ or a planar face |
 | `get_control_points`, `set_control_points` | Read/write NURBS control nets for freeform edits |
 | `select`, `object_update`, `delete_objects` | Selection, rename/recolor/hide, delete |
 | `view`, `history`, `file`, `batch` | Camera/display, undo/redo, new/open/save/import/export, multi-step calls in one round trip |
+
+`run_command` and `command_commit` report what the command did: `created` bodies, `changed` bodies (`volumeDelta`, `areaDelta`, `faces`/`edges` as `before->after`, `size`, `valid`), `removed` names and a `warning` if a result is invalid. A failure names the command, the reason, its slots (with how many items each holds) and its parameters. Items in `select` and slots can also be found by position: `{object, face_at:[x,y,z]}` / `{object, edge_at:[x,y,z]}` pick the face or edge nearest a point, so they survive index changes after booleans.
 
 `view` accepts `display` as `shaded`, `shaded_edges`, or `wireframe`, and `xray` as a separate boolean. `get_state` reports both settings. Shaded + edges adds edges to shaded faces; X-ray makes shaded faces translucent and can be combined with either shaded style. Wireframe shows edges without faces.
 
