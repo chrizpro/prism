@@ -1,13 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" VerticalAlignment="Top" Background="{DynamicResource PanelBg}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
-    <Expander Name="GizmoOptionsExpander" Header="Gizmo" IsExpanded="True" HorizontalAlignment="Stretch">
+    <Expander Name="GizmoOptionsExpander" Header="Edit Gizmo" IsExpanded="True" HorizontalAlignment="Stretch">
         <StackPanel Spacing="9" Margin="12,0">
             <TextBlock Text="{Binding GizmoBindingStatus}" Classes="soft" TextWrapping="Wrap"/>
             <StackPanel IsEnabled="{Binding CanPlaceGizmo}" Spacing="8">
                 <TextBlock Text="Operation" Classes="section"/>
                 <ComboBox ItemsSource="{Binding GizmoOperations}" SelectedIndex="{Binding GizmoActiveOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
                 <Button Classes="studioAction" Content="Place gizmo without moving geometry" IsVisible="{Binding !GizmoPositioning}" Click="OnPlace" HorizontalAlignment="Stretch"/>
-                <StackPanel IsEnabled="{Binding GizmoPositioning}" Spacing="8">
+                <StackPanel Spacing="8">
                     <TextBlock Text="Location (mm)" Classes="section"/>
                     <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
                         <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="Z" Classes="meta"/>

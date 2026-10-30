@@ -51,19 +51,25 @@ public sealed partial class MainViewModel
     public double GizmoRotationZ {get=>GizmoRotation.Z;set=>SetGizmoRotation(new(GizmoRotation.X,GizmoRotation.Y,value));}
     void SetGizmoRotation(Vec3 rotation)
     {
-        if(!GizmoPositioning)return;
+        if(!EnsurePlacement())return;
         if(ActiveBinding is {} binding)binding.SetRotation(rotation);
         else Session.Sketch?.SetGizmoTransform(Session,GizmoOrigin,rotation);
         Session.Invalidate();
     }
     public bool HasGizmoPlanes=>Session.Sketch!=null;
-    public double GizmoPlaneSize {get=>Session.Sketch?.GizmoSize??1;set {if(Session.Sketch is {} sketch && GizmoPositioning)sketch.SetGizmoSize(Session,value);}}
+    public double GizmoPlaneSize {get=>Session.Sketch?.GizmoSize??1;set {if(Session.Sketch is {} sketch && EnsurePlacement())sketch.SetGizmoSize(Session,value);}}
     void SetGizmoOrigin(Vec3 origin)
     {
-        if(!GizmoPositioning || origin==GizmoOrigin)return;
+        if(origin==GizmoOrigin||!EnsurePlacement())return;
         if(ActiveBinding is {} binding)binding.SetOrigin(origin);
         else Session.Sketch?.SetPlacementOrigin(Session,origin);
         Session.Invalidate();
+    }
+    // typing a location or angle edits the gizmo itself, so it enters placement mode on demand
+    bool EnsurePlacement()
+    {
+        if(!GizmoPositioning&&CanPlaceGizmo)BeginGizmoPlacement();
+        return GizmoPositioning;
     }
     public void OpenGizmoPanel()
     {
