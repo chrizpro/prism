@@ -292,6 +292,70 @@ public sealed class MoveComponentCommand : Command
     }
 }
 
+// =================================================================== Pattern a component
+/// <summary>Copies of a component in a line or around an axis. Each copy is its own free component of the same part.</summary>
+public sealed class ComponentPatternCommand : Command
+{
+    readonly SelectionSlot _comp;
+    readonly ChoiceParam _kind, _axis;
+    readonly NumberParam _count, _dx, _dy, _dz, _angle, _cx, _cy, _cz;
+
+    public ComponentPatternCommand()
+    {
+        _comp = Slot(new SelectionSlot { Label = "Component to repeat", Filter = SelFilter.Solid });
+        _kind = Choice("Pattern", 0, "Linear", "Circular");
+        _count = Num("Number of copies", 3, 1, 500, 1, "");
+        _dx = Num("Spacing X", 20); _dy = Num("Spacing Y", 0); _dz = Num("Spacing Z", 0);
+        _axis = Choice("Turn about", 2, "X axis", "Y axis", "Z axis");
+        _angle = Num("Angle between copies", 90, -360, 360, 5, "°");
+        _cx = Num("Axis passes through X", 0); _cy = Num("Axis passes through Y", 0); _cz = Num("Axis passes through Z", 0);
+        UpdateVisibility();
+    }
+
+    public override string Title => "Component Pattern";
+    public override string Icon => "pattern-linear";
+    public override string OkText => "Create copies";
+    public override string Hint => "Pick a component and repeat it in a line (spacing in X, Y, Z) or around an axis. Each copy is a free component of the same part, so it can be jointed or animated on its own.";
+
+    protected override void UpdateVisibility()
+    {
+        if (_kind == null) return;
+        bool lin = _kind.Index == 0;
+        _dx.IsVisible = _dy.IsVisible = _dz.IsVisible = lin;
+        _axis.IsVisible = _angle.IsVisible = _cx.IsVisible = _cy.IsVisible = _cz.IsVisible = !lin;
+    }
+
+    static Xform Turn(Vec3 axis, double deg)
+    {
+        double a = deg * Math.PI / 180, c = Math.Cos(a), s = Math.Sin(a); var k = axis.Normalized();
+        double x = k.X, y = k.Y, z = k.Z, t = 1 - c;
+        return new([t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c], Vec3.Zero);
+    }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_comp.Items.Count == 0) return null;
+        var obj = S.Find(_comp.Items[0].Obj);
+        if (obj?.Component is not { } ci) throw new FormatException("Pick a component (a part inserted into this assembly).");
+        int n = (int)Math.Round(_count.Value);
+        var o = new CommandOutput { Label = $"Pattern {obj.Name}", Icon = "pattern-linear" };
+        var axis = _axis.Index switch { 0 => Vec3.UnitX, 1 => Vec3.UnitY, _ => Vec3.UnitZ };
+        var through = new Vec3(_cx.Value, _cy.Value, _cz.Value);
+        for (int i = 1; i <= n; i++)
+        {
+            Xform move = _kind.Index == 0
+                ? Xform.Translation(new Vec3(_dx.Value, _dy.Value, _dz.Value) * i)
+                : Xform.Translation(through) * Turn(axis, _angle.Value * i) * Xform.Translation(-through);
+            var placed = move * ci.Placement;
+            var info = new ComponentInfo(CadSession.NewKey(), ci.PartName, ci.SourcePath, placed.ToArray(), false);
+            o.Add.Add(new(move.Apply(obj.Shape), obj.Name, ObjKind.Solid, obj.Color, Look: obj.Look, Asm: info));
+        }
+        Results.Add(new ResultLine("Copies", n.ToString()));
+        return o;
+    }
+}
+
 // =================================================================== Exploded view
 public sealed class ExplodeCommand : Command
 {

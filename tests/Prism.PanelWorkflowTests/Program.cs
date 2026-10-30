@@ -220,6 +220,30 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     double plain = FlangeVolume(0), hemmed = FlangeVolume(8);
     Check(hemmed - plain > 600 && hemmed - plain < 800, "the hem adds a half-turn bend and an 8 mm return layer of metal");
 }
+// Component Pattern: linear and circular copies are free components of the same part.
+{
+    var ps = new CadSession();
+    var box = ps.AddObject(Prism.Kernel.Occ.Box(10, 10, 10), "Box", ObjKind.Solid);
+    var boxInfo = new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), "Box", null, Prism.Core.Assembly.Xform.Identity.ToArray(), false);
+    ps.Update(box.Id, x => x.WithAsm(boxInfo, x.Shape), false);
+    ps.SelectItems([SelItem.Of(ps.Find(box.Id)!)]); ps.StartCommand(() => new ComponentPatternCommand());
+    var patternCmd = ps.ActiveCommand!; patternCmd.Pick(SelItem.Of(ps.Find(box.Id)!), false);
+    patternCmd.Params.OfType<NumberParam>().Single(p => p.Label == "Number of copies").Value = 3;
+    patternCmd.Params.OfType<NumberParam>().Single(p => p.Label == "Spacing X").Value = 25;
+    ps.CommitCommand();
+    var comps = ps.Components.ToList();
+    Check(comps.Count == 4 && comps.Select(c => c.Component!.Key).Distinct().Count() == 4, "a linear component pattern adds three separate components");
+    Check(comps.Skip(1).Select(c => Math.Round(c.Component!.Placement.T.X)).OrderBy(v => v).SequenceEqual(new[] { 25.0, 50.0, 75.0 }) && comps.All(c => !c.Component!.Grounded), "linear copies step by the spacing and are free to move");
+    var circ = new CadSession();
+    var cb = circ.AddObject(Prism.Kernel.Occ.Box(10, 10, 10), "Box", ObjKind.Solid);
+    circ.Update(cb.Id, x => x.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), "Box", null, Prism.Core.Assembly.Xform.Identity.ToArray(), false), x.Shape), false);
+    circ.StartCommand(() => new ComponentPatternCommand()); var circCmd = circ.ActiveCommand!; circCmd.Pick(SelItem.Of(circ.Find(cb.Id)!), false);
+    circCmd.Params.OfType<ChoiceParam>().Single(p => p.Label == "Pattern").Index = 1;
+    circCmd.Params.OfType<NumberParam>().Single(p => p.Label == "Number of copies").Value = 3;
+    circ.CommitCommand();
+    var turns = circ.Components.Select(c => c.Component!.Placement.AxisX).OrderBy(v => Math.Atan2(v.Y, v.X)).ToList();
+    Check(turns.Count == 4 && turns.Select(v => (Math.Round(v.X), Math.Round(v.Y))).Distinct().Count() == 4, "circular copies turn by the angle between copies about the axis (0, 90, 180 and 270 degrees)");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {
