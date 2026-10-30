@@ -696,6 +696,78 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     ps.RestoreParameterShapes();
     Check(Math.Abs(Volume(ps) - v12) < 0.5, "afterwards the model is put back as it was");
 }
+// History survives saving: a reopened part keeps its feature steps, can roll back, and is still driven by its parameters.
+{
+    var hdir = Path.Combine(Path.GetTempPath(), "prism-history-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(hdir);
+    try
+    {
+        var hv = new MainViewModel { HomeOpen = false }; var hs = hv.Session;
+        Check(Prism.Commands.CommandCatalog.Ambiguous().Count == 0, "no two different commands share the name a history step is saved under");
+        var hm = new SketchModel(); hm.AddCircle(hm.AddPoint(0, 0), 10);
+        hs.EnterSketch(Plane3.XY, hm); hs.ExitSketch(true);
+        var hsk = hs.Objects.Single(o => o.Kind == ObjKind.Sketch);
+        hs.SelectItems([SelItem.Of(hsk)]); hs.StartCommand(() => new ExtrudeCommand()); hs.CommitCommand();
+        hv.OpenStudio("parameters");
+        hv.NewParameterName = "depth"; hv.NewParameterFormula = "12 mm"; hv.AddStudioParameter(); hv.ApplyStudioParameters();
+        hv.SelectedStudioFeature = hv.StudioFeatures.Single(f => f.Node.Recipe?.Title == "Extrude");
+        hv.FeatureValueRows.Single(r => r.Label == "Distance").Formula = "depth"; hv.ApplyStudioFeatureValues();
+        double Vol(CadSession s) => s.Objects.Single(o => o.Kind == ObjKind.Solid).Shape.Props().Volume;
+        double v12 = Math.PI * 100 * 12;
+        string file = Path.Combine(hdir, "post.prism"); hs.Save(file);
+        int savedSteps = hs.HistoryPath().Past.Count;
+
+        var re = new CadSession(); re.Open(file);
+        var past = re.HistoryPath().Past;
+        Check(past.Count == savedSteps && past.Count(n => n.Recipe != null) == hs.HistoryPath().Past.Count(n => n.Recipe != null) && Math.Abs(Vol(re) - v12) < 0.5, "a reopened part has the same feature steps as when it was saved");
+        var extrudeStep = past.Last(n => n.Recipe?.Title == "Extrude");
+        Check(extrudeStep.Recipe!.Expressions!.Values.Contains("depth") && re.DocumentParameters.Single().Name == "depth", "steps keep the parameter they were bound to");
+        re.GoTo(extrudeStep.Parent!);
+        Check(!re.Objects.Any(o => o.Kind == ObjKind.Solid) && re.Objects.Any(o => o.Kind == ObjKind.Sketch), "rolling back to before a step shows the model as it was then");
+        re.GoTo(extrudeStep);
+        Check(Math.Abs(Vol(re) - v12) < 0.5, "and forward again");
+        Check(re.ApplyDocumentParameters([new("depth", "24 mm")]) && Math.Abs(Vol(re) - 2 * v12) < 1, "changing a parameter in the reopened part rebuilds the features");
+        re.ApplyDocumentParameters([new("depth", "12 mm")]);
+        Check(re.ParameterPoseShapes(new Dictionary<string, double> { ["depth"] = 30 }) is { Count: 1 } pose && Math.Abs(pose.Values.Single().Props().Volume - Math.PI * 100 * 30) < 1, "a reopened part can be driven by its parameters (animation)");
+
+        // a second generation: saving the reopened part keeps the history too
+        string file2 = Path.Combine(hdir, "post2.prism"); re.Save(file2);
+        var again = new CadSession(); again.Open(file2);
+        Check(again.HistoryPath().Past.Count(n => n.Recipe != null) == 1 && again.ApplyDocumentParameters([new("depth", "6 mm")]) && Math.Abs(Vol(again) - v12 / 2) < 1, "a part saved again after reopening still has its history");
+
+        // a file with no history (older files, imports) still opens
+        var bare = new CadSession(); bare.AddObject(Prism.Kernel.Occ.Box(5, 5, 5), "Block", ObjKind.Solid); bare.Save(Path.Combine(hdir, "bare.prism"));
+        var bareOpen = new CadSession(); bareOpen.Open(Path.Combine(hdir, "bare.prism"));
+        Check(bareOpen.Objects.Count == 1 && bareOpen.HistoryPath().Past.Count >= 1, "a part with a single ad hoc step opens normally");
+        Check(new FileInfo(file).Length < 4 * new FileInfo(Path.Combine(hdir, "bare.prism")).Length + 200_000, "the history adds only what each step changed, so the file stays small");
+    }
+    finally { try { Directory.Delete(hdir, true); } catch (Exception) { } }
+}
+// History with steps that remove and replace objects (a boolean): rolling back after reopening restores the originals.
+{
+    var bdir = Path.Combine(Path.GetTempPath(), "prism-history-bool-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(bdir);
+    try
+    {
+        var bs = new CadSession();
+        var plate = bs.AddObject(Prism.Kernel.Occ.Box(40, 40, 10), "Plate", ObjKind.Solid);
+        var pin = bs.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Cylinder(5, 30), new Vec3(0, 0, -10)), "Pin", ObjKind.Solid);
+        double plateVolume = bs.Find(plate.Id)!.Shape.Props().Volume, pinVolume = bs.Find(pin.Id)!.Shape.Props().Volume;
+        bs.SelectItems([]); bs.StartCommand(() => new BooleanCommand(BooleanCommand.Kind.Subtract)); var subtract = bs.ActiveCommand!;
+        subtract.Pick(SelItem.Of(bs.Find(plate.Id)!), false); subtract.Pick(SelItem.Of(bs.Find(pin.Id)!), false);
+        bs.CommitCommand();
+        var bodies = bs.Objects.Where(o => o.Kind == ObjKind.Solid).ToList();
+        Check(bodies.Count == 1 && bodies[0].Shape.Props().Volume < plateVolume - 100, "the boolean fixture leaves one body with a hole");
+        string bfile = Path.Combine(bdir, "holed.prism"); bs.Save(bfile);
+        var reopenedBool = new CadSession(); reopenedBool.Open(bfile);
+        var step = reopenedBool.HistoryPath().Past.Last(n => n.Recipe?.Title == "Subtract" || n.Label.Contains("Subtract"));
+        Check(reopenedBool.Objects.Count(o => o.Kind == ObjKind.Solid) == 1 && step.Recipe != null, "the boolean step comes back with its recipe");
+        reopenedBool.GoTo(step.Parent!);
+        var before = reopenedBool.Objects.Where(o => o.Kind == ObjKind.Solid).Select(o => o.Shape.Props().Volume).OrderBy(v => v).ToList();
+        Check(before.Count == 2 && Math.Abs(before[0] - pinVolume) < 1 && Math.Abs(before[1] - plateVolume) < 1, "rolling back past a boolean brings both original bodies back, as they were");
+        reopenedBool.GoTo(step);
+        Check(reopenedBool.Objects.Count(o => o.Kind == ObjKind.Solid) == 1, "and forward again");
+    }
+    finally { try { Directory.Delete(bdir, true); } catch (Exception) { } }
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

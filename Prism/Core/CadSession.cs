@@ -764,7 +764,7 @@ public sealed partial class CadSession : ObservableObject
     public HashSet<Guid> HiddenIds { get; } = [];
     [ObservableProperty] public partial string? CommandError { get; set; }
 
-    public void StartCommand(Func<Command> make) { var c = make(); c.Factory = make; StartCommand(c); }
+    public void StartCommand(Func<Command> make) { var c = make(); c.Factory = make; CommandCatalog.Register(make); StartCommand(c); }
 
     /// <summary>
     /// Set by the app. A command that is showing a preview is work not yet made: starting something else would silently throw it away,
@@ -1456,7 +1456,7 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -1490,27 +1490,48 @@ public sealed partial class CadSession : ObservableObject
         PartInfoChanged?.Invoke();
     }
 
+    static ObjDto ToDto(SceneObject o) =>
+        new ObjDto(o.Name, o.Kind.ToString(), o.Color, o.Visible,
+            o.SketchPlane is { } p ? [p.Origin.X, p.Origin.Y, p.Origin.Z, p.U.X, p.U.Y, p.U.Z, p.V.X, p.V.Y, p.V.Z] : null,
+            o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
+            o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
+            o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap);
+
     public void Save(string path)
     {
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
-        var dto = new FileDto(version, Objects.Where(o => o.Asm is not Cam.ToolpathInfo { Transient: true }).Select(o => new ObjDto(o.Name, o.Kind.ToString(), o.Color, o.Visible,
-            o.SketchPlane is { } p ? [p.Origin.X, p.Origin.Y, p.Origin.Z, p.U.X, p.U.Y, p.U.Z, p.V.X, p.V.Y, p.V.Z] : null,
-            o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
-            o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
-            o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap)).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo);
+        var history = BuildHistoryDto();
+        if (history != null) version = 5;
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history);
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
 
     static Appearance Look(ObjDto d) => new(d.Material, d.Metal, d.Gloss, d.Pattern, d.PatternScale, d.PatternAngle, d.PhysicalMaterial);
 
+    static SceneObject FromDto(ObjDto d)
+    {
+        Plane3? plane = d.Plane is { Length: 9 } q ? new(new(q[0], q[1], q[2]), new(q[3], q[4], q[5]), new(q[6], q[7], q[8])) : null;
+        if (d.Mesh is { } mb) return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb));
+        if (d.Form is { } fd)
+        {
+            var sm = new Form.SubdMesh { Level = fd.Level, Sym = fd.Sym ?? "off" };
+            for (int i = 0; i + 2 < fd.V.Length; i += 3) sm.V.Add(new(fd.V[i], fd.V[i + 1], fd.V[i + 2]));
+            foreach (var face in fd.F) sm.F.Add(face);
+            for (int i = 0; i < fd.CreaseKeys.Length; i++) sm.Crease[fd.CreaseKeys[i]] = fd.CreaseVals[i];
+            if (fd.Frozen is { } fz) for (int i = 0; i + 2 < fz.Length; i += 3) sm.Frozen.Add((fz[i], fz[i + 1], fz[i + 2]));
+            return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d));
+        }
+        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, Occ.FromBrep(d.Brep!), Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap };
+    }
+
     public void Open(string path)
     {
         var dto = JsonSerializer.Deserialize<FileDto>(File.ReadAllText(path)) ?? throw new InvalidDataException("Not an Prism file.");
-        if(dto.Version is not (1 or 2 or 3 or 4))throw new InvalidDataException("Unsupported Prism document version.");
+        if(dto.Version is not (1 or 2 or 3 or 4 or 5))throw new InvalidDataException("Unsupported Prism document version.");
         var ids=dto.Objects.Where(o=>o.Id.HasValue).Select(o=>o.Id!.Value).ToList();
         if(ids.Any(i=>i==Guid.Empty)||ids.Distinct().Count()!=ids.Count)throw new InvalidDataException("Duplicate or empty object identities in document.");
         if (dto.Parameters != null) ParameterValues.Evaluate(dto.Parameters);
@@ -1519,21 +1540,11 @@ public sealed partial class CadSession : ObservableObject
         var list = ImmutableList.CreateBuilder<SceneObject>();
         foreach (var d in dto.Objects)
         {
-            Plane3? plane = d.Plane is { Length: 9 } q ? new(new(q[0], q[1], q[2]), new(q[3], q[4], q[5]), new(q[6], q[7], q[8])) : null;
-            if (d.Mesh is { } mb) list.Add(new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb)));
-            else if (d.Form is { } fd)
-            {
-                var sm = new Form.SubdMesh { Level = fd.Level, Sym = fd.Sym ?? "off" };
-                for (int i = 0; i + 2 < fd.V.Length; i += 3) sm.V.Add(new(fd.V[i], fd.V[i + 1], fd.V[i + 2]));
-                foreach (var face in fd.F) sm.F.Add(face);
-                for (int i = 0; i < fd.CreaseKeys.Length; i++) sm.Crease[fd.CreaseKeys[i]] = fd.CreaseVals[i];
-                if (fd.Frozen is { } fz) for (int i = 0; i + 2 < fz.Length; i += 3) sm.Frozen.Add((fz[i], fz[i + 1], fz[i + 2]));
-                list.Add(new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d)));
-            }
-            else list.Add(new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, Occ.FromBrep(d.Brep!), Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap=d.FlatMap });
+            list.Add(FromDto(d));
             _counters[StripNumber(d.Name)] = Math.Max(_counters.GetValueOrDefault(StripNumber(d.Name)), int.TryParse(d.Name[(d.Name.LastIndexOf(' ') + 1)..], out var n) ? n : 0);
         }
         Objects = list.ToImmutable();
+        if (dto.History is { Steps.Count: > 0 } saved) { try { LoadHistory(saved); } catch (Exception) { Root.After = []; Current = Root; } }
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);

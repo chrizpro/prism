@@ -13,7 +13,7 @@ public sealed partial class MainViewModel
     MarkItem Act(string label, string icon, Action run, bool enabled = true) =>
         new(label, icon, () => { try { run(); } catch (Exception e) when (e is not OutOfMemoryException) { Session.Say(e.Message, true); } }, enabled);
 
-    MarkItem Cm(string label, string icon, Func<Command> make) => Act(label, icon, () => Session.StartCommand(make));
+    MarkItem Cm(string label, string icon, Func<Command> make) { CommandCatalog.Register(make); return Act(label, icon, () => Session.StartCommand(make)); }
 
     /// <summary>The eight entries of the right-click marking menu, from the context: top = most likely, bottom = leave or destroy.</summary>
     /// <summary>

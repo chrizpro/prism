@@ -24,6 +24,9 @@ namespace Prism.Automation;
 /// </summary>
 public sealed class AutomationApi
 {
+    // the commands the tools can start are found again by name when a file with history is opened
+    static AutomationApi() { foreach (var make in Registry.Values) CommandCatalog.Register(make); }
+
     readonly MainViewModel _vm;
     readonly Window? _window;
     CadSession S => _vm.Session;

@@ -280,8 +280,11 @@ public sealed partial class MainViewModel : ViewModelBase
         IsToggle = chk != null, Shortcut = shortcut,
     };
 
-    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large) =>
-        Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching);
+    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
+    {
+        CommandCatalog.Register(make);
+        return Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching);
+    }
 
     /// <summary>A sketch tool button (shows as pressed while any mode of that tool family is active).</summary>
     RibbonButton Tool(string label, string icon, string family, Func<SketchTool> make, string desc, RibbonSize size = RibbonSize.Large) =>
@@ -775,8 +778,11 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
         // ---- Simulate
-        RibbonButton SimCmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large) =>
-            Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && Session.ActiveStudy != null);
+        RibbonButton SimCmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
+        {
+            CommandCatalog.Register(make);
+            return Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && Session.ActiveStudy != null);
+        }
         var simulate = new RibbonTab
         {
             Title = "Static",
@@ -910,8 +916,11 @@ public sealed partial class MainViewModel : ViewModelBase
         };
 
         // ---- Assemble / Joints / Animate
-        RibbonButton AsmCmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large, Func<bool>? enabled = null) =>
-            Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && (enabled?.Invoke() ?? true));
+        RibbonButton AsmCmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large, Func<bool>? enabled = null)
+        {
+            CommandCatalog.Register(make);
+            return Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && (enabled?.Invoke() ?? true));
+        }
         bool HasComponents() => Session.Components.Any();
         bool HasJoints() => Session.JointObjects.Any();
         var assemble = new RibbonTab
