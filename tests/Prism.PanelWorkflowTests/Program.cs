@@ -537,6 +537,64 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     }
     finally { try { Directory.Delete(infoDir, true); } catch (Exception) { } }
 }
+// Hybrid assembly workflow: create or edit a part from inside the assembly, in the Design workspace, and come back.
+{
+    var hv = new MainViewModel { HomeOpen = false };
+    string startWorkspace = hv.WorkspaceId;
+    var hostView = new MainView { DataContext = hv }; var hostWindow = new Window { Width = 1360, Height = 900, Content = hostView }; hostWindow.Show(); Dispatcher.UIThread.RunJobs();
+    try
+    {
+        hv.SetWorkspace("assemble");
+        var assemblyTab = hv.ActiveDocument!; var asmSession = assemblyTab.Session;
+        var baseBox = asmSession.AddObject(Prism.Kernel.Occ.Box(40, 40, 10), "Base", ObjKind.Solid);
+        asmSession.Update(baseBox.Id, v => v.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), "Base", null, Prism.Core.Assembly.Xform.Identity.ToArray(), true), v.Shape), false);
+        var banner = hostView.FindControl<Border>("PartEditBanner")!;
+        Check(hv.Tabs.Single(t => t.Title == "Assemble").Buttons.Any(b => b.Label.StartsWith("Create")) && hv.Tabs.Single(t => t.Title == "Assemble").Buttons.Any(b => b.Label.StartsWith("Edit")), "the Assemble tab offers Create Part and Edit Part");
+        Check(!banner.IsEffectivelyVisible && hv.EditingPart == null, "no editing banner while you are just working in the assembly");
+
+        // create a part from the assembly
+        asmSession.StartCommand(() => new CreatePartCommand());
+        var create = asmSession.ActiveCommand!;
+        create.Params.OfType<TextParam>().Single(p => p.Label == "Part name").Value = "Bracket";
+        asmSession.CommitCommand(); Dispatcher.UIThread.RunJobs();
+        Check(hv.Documents.Count == 2 && hv.ActiveDocument!.Title == "Bracket" && hv.EditingPart is { ComponentKey: null, Name: "Bracket" } && hv.ShowEditBanner, "Create Part opens a new tab for the part and starts editing it");
+        Check(hv.WorkspaceId == "design" && hv.SelectedTab.Title == "Solid", "a solid part lands in the Design workspace on the Solid tab");
+        Check(banner.IsEffectivelyVisible && hostView.FindControl<Button>("BackToAssembly")!.IsEffectivelyVisible && hv.EditBannerText.Contains("Bracket") && hv.EditBannerText.Contains(assemblyTab.Title), "a banner says which part is being edited and offers Back to assembly");
+        Check(hv.Tabs.Any(t => t.Title == "Surface" && t.IsVisible) && hv.Tabs.Any(t => t.Title == "Freeform" && t.IsVisible) && hv.Tabs.Any(t => t.Title == "NURBS" && t.IsVisible), "Surface, Freeform and NURBS are all one click away while editing the part");
+        foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+        {
+            Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs(); Capture(hostView, "editing-part-banner-" + theme.Key.ToString()!.ToLowerInvariant());
+        }
+        Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
+        var partSession = hv.Session;
+        partSession.AddObject(Prism.Kernel.Occ.Box(10, 10, 20), "Post", ObjKind.Solid);
+        hv.ActivateDocument(assemblyTab); Dispatcher.UIThread.RunJobs();
+        Check(!hv.ShowEditBanner && !banner.IsEffectivelyVisible, "the banner hides while another tab is in front");
+        hv.ActivateDocument(hv.Documents[1]); Dispatcher.UIThread.RunJobs();
+        hostView.FindControl<Button>("BackToAssembly")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(ReferenceEquals(hv.ActiveDocument, assemblyTab) && hv.EditingPart == null && hv.WorkspaceId == "assemble", "Back to assembly returns to the assembly tab and the workspace you came from");
+        var placed = asmSession.Components.SingleOrDefault(c => c.Component!.PartName == "Bracket");
+        Check(placed != null && placed.Component!.SourceDoc == partSession.DocId && !placed.Component.Grounded && asmSession.Components.Count() == 2, "the finished part is placed in the assembly as a new component");
+
+        // edit it again
+        asmSession.SelectItems([SelItem.Of(placed!)]);
+        double before = asmSession.Find(placed!.Id)!.Shape.Props().Volume;
+        hv.EditComponentPart(); Dispatcher.UIThread.RunJobs();
+        Check(ReferenceEquals(hv.ActiveDocument, hv.Documents[1]) && hv.EditingPart is { ComponentKey: not null } && hv.WorkspaceId == "design", "Edit Part opens the component's part in the Design workspace");
+        hv.Session.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 20), new Vec3(30, 0, 0)), "Second post", ObjKind.Solid);
+        hv.BackToAssembly(); Dispatcher.UIThread.RunJobs();
+        Check(asmSession.Find(placed.Id)!.Shape.Props().Volume > before + 1000 && asmSession.Components.Count() == 2, "Back to assembly brings the edited part's new shape into the same component");
+
+        // another kind starts on another tab
+        asmSession.StartCommand(() => new CreatePartCommand());
+        asmSession.ActiveCommand!.Params.OfType<ChoiceParam>().Single(p => p.Label == "What kind of part").Index = 3;
+        asmSession.CommitCommand(); Dispatcher.UIThread.RunJobs();
+        Check(hv.SelectedTab.Title == "Freeform" && hv.WorkspaceId == "design", "a freeform part starts on the Freeform tab");
+        var closing = hv.ActiveDocument!; hv.CloseDocument(closing); hv.CloseDocument(closing); Dispatcher.UIThread.RunJobs();   // an unsaved tab asks twice
+        Check(hv.EditingPart == null, "closing the part's tab ends the editing state");
+    }
+    finally { hostWindow.Close(); hv.SetWorkspace(startWorkspace); }
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

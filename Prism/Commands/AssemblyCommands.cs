@@ -19,6 +19,11 @@ public sealed class InsertComponentCommand : Command
     readonly List<(string Title, CadSession Session)> _docs;
 
     LibraryPart? _library;
+    CadSession? _fromDoc;
+    string _fromName = "";
+
+    /// <summary>Insert the part that is open in another tab (used when you finish modeling a part from inside the assembly).</summary>
+    public static InsertComponentCommand ForDocument(CadSession doc, string name) => new() { _fromDoc = doc, _fromName = name };
 
     /// <summary>Insert a part chosen in the parts library (a file in the library folder, or a built-in part).</summary>
     public static InsertComponentCommand ForLibrary(LibraryPart part) => new() { _library = part };
@@ -41,7 +46,7 @@ public sealed class InsertComponentCommand : Command
     protected override void OnBegin()
     {
         _ground.Value = !S.Components.Any();
-        if (_library != null) _doc.IsVisible = _file.IsVisible = _link.IsVisible = false;
+        if (_library != null || _fromDoc != null) _doc.IsVisible = _file.IsVisible = _link.IsVisible = false;
     }
 
     protected override CommandOutput? Build()
@@ -60,7 +65,11 @@ public sealed class InsertComponentCommand : Command
             libOut.Add.Add(new(libPlace.Apply(libShape), _library.Name, ObjKind.Solid, libColor, Look: libLook, Asm: libInfo));
             return libOut;
         }
-        if (!string.IsNullOrWhiteSpace(_file.Value))
+        if (_fromDoc != null)
+        {
+            src = _fromDoc; name = _fromName; fromDoc = _fromDoc.DocId; path = _fromDoc.FilePath;
+        }
+        else if (!string.IsNullOrWhiteSpace(_file.Value))
         {
             if (!File.Exists(_file.Value)) throw new FormatException($"Cannot find {_file.Value}.");
             src = new CadSession(); src.Open(_file.Value); name = Path.GetFileNameWithoutExtension(_file.Value); path = _file.Value;
@@ -414,6 +423,37 @@ public sealed class MateCommand : Command
         o.After = s => s.Update(objB.Id, x => x.WithAsm(ci.WithPlacement(np), np.Apply(s.LocalShapeOf(x))), false);
         Results.Add(new ResultLine("Moves", objB.Name));
         return o;
+    }
+}
+
+// =================================================================== Create a part from inside the assembly
+/// <summary>Start a new part for this assembly: it opens in its own tab in the Design workspace, and comes back into the assembly when you are done.</summary>
+public sealed class CreatePartCommand : Command
+{
+    public static readonly string[] Kinds = ["Solid", "Sheet metal", "Surface", "Freeform", "NURBS", "Mesh or scan"];
+    readonly TextParam _name;
+    readonly ChoiceParam _kind;
+
+    public CreatePartCommand()
+    {
+        _name = Add(new TextParam { Label = "Part name", Hint = "for example Bracket" });
+        _kind = Choice("What kind of part", 0, Kinds);
+    }
+
+    public override string Title => "Create Part";
+    public override string Icon => "component";
+    public override string OkText => "Create and model it";
+    public override string Hint => "Make a new part for this assembly. It opens in the Design workspace on the right tab (Solid, Sheet Metal, Surface, Freeform, NURBS or Scan) with the rest of the assembly left behind. Press Back to assembly when you are done and the part is placed here. You can switch tabs later: all the modeling tabs stay available.";
+
+    protected override void OnBegin() { if (_name.Value.Length == 0) _name.Value = $"Part {S.Components.Count() + 1}"; }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        string name = _name.Value.Trim().Length > 0 ? _name.Value.Trim() : $"Part {S.Components.Count() + 1}";
+        int kind = _kind.Index;
+        Results.Add(new ResultLine("Part", name)); Results.Add(new ResultLine("Starts in", Kinds[kind]));
+        return new CommandOutput { NoOp = true, After = s => CadSession.CreatePartHandler?.Invoke(name, kind) };
     }
 }
 

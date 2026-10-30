@@ -161,6 +161,7 @@ public partial class MainView : UserControl
         catch { /* a missing preview is fine */ }
     }
 
+    void OnBackToAssembly(object? s, RoutedEventArgs e) => Vm?.BackToAssembly();
     void OnTimelineStart(object? s, RoutedEventArgs e) => Vm?.TimelineToStart();
     void OnTimelinePlay(object? s, RoutedEventArgs e) => Vm?.TimelineTogglePlay();
     void OnTimelineKey(object? s, RoutedEventArgs e) => Vm?.TimelineKeyChanged();

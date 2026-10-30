@@ -323,6 +323,22 @@ public sealed partial class CadSession
         Update(o.Id, x => x.WithAsm(x.Component!.WithPlacementKeep(grounded)), false);
     }
 
+    /// <summary>Asked to start a new part for the assembly (name, kind). The window answers by opening a new tab in the Design workspace.</summary>
+    public static Action<string, int>? CreatePartHandler { get; set; }
+
+    /// <summary>Bring one component up to date with the part document it was made from (the part is open in another tab).</summary>
+    public bool RefreshComponentFromDocument(string key, CadSession doc)
+    {
+        var o = ComponentByKey(key); if (o?.Component is not { } ci) return false;
+        if (PartGeometry(doc) is not { } part) return false;
+        var world = ci.Placement.Apply(part.shape);
+        var m = part.shape.Tessellate();
+        _locals[ci.Key] = new LocalCache(world, part.shape, (m.Min + m.Max) * 0.5);
+        Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.IsEmpty ? ci.Info : doc.PartInfo, SourcePath = doc.FilePath ?? ci.SourcePath, SourceDoc = doc.DocId }, world), false);
+        SolveAssembly();
+        return true;
+    }
+
     /// <summary>Reload components from the part files they came from.</summary>
     public int RefreshComponentsFromSource()
     {

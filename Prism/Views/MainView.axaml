@@ -295,6 +295,15 @@
 
 
 
+        <!-- ============ editing a part from inside an assembly ============ -->
+
+        <Border Name="PartEditBanner" DockPanel.Dock="Top" Background="{DynamicResource Accent}" Padding="14,6" IsVisible="{Binding ShowEditBanner}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding EditBannerText}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Button Name="BackToAssembly" Grid.Column="1" Content="Back to assembly" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,4"/>
+            </Grid>
+        </Border>
+
         <!-- ============ workspace ============ -->
 
         <Grid Name="WorkGrid" ColumnDefinitions="272,Auto,*,Auto,312">

@@ -15,6 +15,8 @@ public sealed partial class DocumentTab : ObservableObject
     public int Number { get; }
     [ObservableProperty] public partial string Title { get; set; } = "Untitled";
     [ObservableProperty] public partial bool IsActive { get; set; }
+    /// <summary>The name shown while the part has not been saved (a part made from inside an assembly starts with the name you gave it).</summary>
+    public string? DisplayName { get; set; }
     [ObservableProperty] public partial bool IsDirty { get; set; }
     /// <summary>The tab has unsaved changes and the close button was pressed once.</summary>
     [ObservableProperty] public partial bool ConfirmClose { get; set; }
@@ -33,7 +35,7 @@ public sealed partial class DocumentTab : ObservableObject
 
     public void Refresh()
     {
-        Title = Session.FilePath is { } p ? Path.GetFileNameWithoutExtension(p) : Number <= 1 ? "Untitled" : $"Untitled {Number}";
+        Title = Session.FilePath is { } p ? Path.GetFileNameWithoutExtension(p) : DisplayName ?? (Number <= 1 ? "Untitled" : $"Untitled {Number}");
         IsDirty = Session.Dirty;
         if (!IsDirty) ConfirmClose = false;
     }
@@ -67,6 +69,7 @@ public sealed partial class MainViewModel
     void InitDocuments()
     {
         CadSession.DocumentProvider = () => Documents.Select(d => (d.Title, d.Session)).ToList();
+        CadSession.CreatePartHandler = CreatePartInAssembly;
         var t = new DocumentTab(Session, ++_docCounter) { IsActive = true };
         Documents.Add(t); _activeDocField = t; ActiveDocument = t;
     }
@@ -82,6 +85,7 @@ public sealed partial class MainViewModel
         if (oldValue != null) oldValue.IsActive = false;
         if (newValue == null) return;
         newValue.IsActive = true; newValue.ConfirmClose = false;
+        OnPropertyChanged(nameof(ShowEditBanner));
         if (!ReferenceEquals(newValue.Session, Session)) SwapSession(newValue.Session);
     }
 
@@ -174,6 +178,7 @@ public sealed partial class MainViewModel
             Session.Say($"'{t.Title}' has unsaved changes. Save it first (Ctrl+S), or press × again to discard them.", true);
             return;
         }
+        if (EditingPart != null && (ReferenceEquals(EditingPart.PartTab, t) || ReferenceEquals(EditingPart.AssemblyTab, t))) EditingPart = null;
         int i = Documents.IndexOf(t);
         bool wasActive = ReferenceEquals(t, ActiveDocument);
         if (Documents.Count == 1)
