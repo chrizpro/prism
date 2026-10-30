@@ -244,6 +244,23 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     var turns = circ.Components.Select(c => c.Component!.Placement.AxisX).OrderBy(v => Math.Atan2(v.Y, v.X)).ToList();
     Check(turns.Count == 4 && turns.Select(v => (Math.Round(v.X), Math.Round(v.Y))).Distinct().Count() == 4, "circular copies turn by the angle between copies about the axis (0, 90, 180 and 270 degrees)");
 }
+// Starting a sketch shows the origin planes; the one under the pointer swells. Orthographic views show both axes of the plane.
+{
+    var sk = new CadSession();
+    sk.StartCommand(() => new CreateSketchCommand());
+    Check(sk.OriginShown(0) && sk.OriginShown(1) && sk.OriginShown(2), "starting a sketch shows the XY, XZ and YZ planes to choose from");
+    double Extent(CadSession session) { var ov = new Overlay(); session.BuildOverlay(ov); return ov.Tris.SelectMany(t => new[] { t.A, t.B, t.C }).Max(p => Math.Max(Math.Abs(p.X), Math.Max(Math.Abs(p.Y), Math.Abs(p.Z)))); }
+    double normal = Extent(sk);
+    sk.Hover = new SelItem(Guid.Empty, SelKind.Origin, 0);
+    double hovered = Extent(sk);
+    Check(hovered > normal * 1.1, "the plane under the pointer grows so it is clear which one a click will pick");
+    sk.CancelCommand();
+    var ortho = new CadSession(); ortho.Ortho = true;
+    var axes = new Overlay(); ortho.BuildOverlay(axes);
+    Check(axes.Lines.Any(l => l.Color == 0xFFE5484D && Math.Abs(l.A.Y) < 1e-6 && Math.Abs(l.A.Z) < 1e-6) && axes.Lines.Any(l => l.Color == 0xFF3FCF8E && Math.Abs(l.A.X) < 1e-6 && Math.Abs(l.A.Z) < 1e-6), "orthographic mode on the XY plane shows a red X axis and a green Y axis");
+    var persp = new CadSession(); var none = new Overlay(); persp.BuildOverlay(none);
+    Check(none.Lines.Count == 0, "the perspective view keeps its clean look without the extra axis lines");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

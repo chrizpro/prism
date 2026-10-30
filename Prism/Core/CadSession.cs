@@ -1322,11 +1322,12 @@ public sealed partial class CadSession : ObservableObject
             bool sel = _selection.Contains(it), hov = Hover == it;
             uint a = sel ? 0x66u : hov ? 0x55u : 0x26u;
             var pl = OriginPlane(i);
-            Vec3 P(double u, double v) => pl.PointAt(u * size, v * size);
+            double grow = hov ? 1.15 : 1;                                     // the plane under the pointer swells so the pick is obvious
+            Vec3 P(double u, double v) => pl.PointAt(u * size * grow, v * size * grow);
             uint fill = (a << 24) | tint[i];
             o.AddTri(P(-1, -1), P(1, -1), P(1, 1), fill); o.AddTri(P(-1, -1), P(1, 1), P(-1, 1), fill);
-            uint edge = (sel ? 0xFFu : 0xB0u) << 24 | tint[i];
-            o.AddPolyline([P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)], edge, sel ? 3f : 1.6f, true);
+            uint edge = (sel || hov ? 0xFFu : 0xB0u) << 24 | tint[i];
+            o.AddPolyline([P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)], edge, sel ? 3f : hov ? 3.2f : 1.6f, true);
             o.AddLabel(P(0.92, 0.92), label[i], true);
         }
         uint[] ac = [0xFFE5484D, 0xFF3FCF8E, 0xFF4C94FF];
@@ -1360,8 +1361,30 @@ public sealed partial class CadSession : ObservableObject
         }
     }
 
+    /// <summary>The principal plane facing the camera when the view is (nearly) axis-aligned, else the ground plane (the same rule the grid uses).</summary>
+    Plane3 ViewPlane()
+    {
+        var e = Camera.EyeDirection; double ax = Math.Abs(e.X), ay = Math.Abs(e.Y), az = Math.Abs(e.Z);
+        const double near = 0.95;
+        if (ax >= near && ax >= ay && ax >= az) return Plane3.YZ;
+        if (ay >= near && ay >= ax && ay >= az) return Plane3.XZ;
+        return Plane3.XY;
+    }
+
+    /// <summary>In orthographic mode, and while sketching, both axes of the plane being looked at are drawn: X red, Y green, Z blue.</summary>
+    void BuildPlaneAxesOverlay(Overlay o)
+    {
+        if (!Ortho && !Camera.Orthographic && Sketch == null) return;
+        var pl = Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+        double ext = Math.Max(Camera.Distance * 30, 400);
+        uint ColorOf(Vec3 a) => Math.Abs(a.X) > 0.9 ? 0xFFE5484D : Math.Abs(a.Y) > 0.9 ? 0xFF3FCF8E : 0xFF4C94FF;
+        o.AddLine(pl.Origin - pl.U * ext, pl.Origin + pl.U * ext, ColorOf(pl.U), 1.8f);
+        o.AddLine(pl.Origin - pl.V * ext, pl.Origin + pl.V * ext, ColorOf(pl.V), 1.8f);
+    }
+
     public void BuildOverlay(Overlay o)
     {
+        BuildPlaneAxesOverlay(o);
         BuildOriginOverlay(o);
         BuildPlaneObjectsOverlay(o);
         BuildAssemblyOverlay(o);
