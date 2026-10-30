@@ -11,7 +11,7 @@ public static class RibbonLayoutPolicy
     {
         "Document", "Select", "References", "Setup", "Study", "Board", "Get a mesh", "Write",
         "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Joint",
-        "Animation", "Render", "Conduction", "Vibration", "Pipe flow", "CNC", "Preparation",
+        "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "CNC", "Preparation",
         "Modify", "Direct", "Faces", "Edit", "Repair", "Cut-outs", "Edit curves",
         "Curves from surfaces", "Surfaces", "Fill", "Shape", "Detail", "Loops", "Lock and align",
         "Topology", "Symmetry", "Continuity", "Finish", "Convert", "Combine", "Transform", "Pattern",

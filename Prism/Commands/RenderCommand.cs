@@ -16,6 +16,8 @@ public sealed class RenderCommand : Command
     readonly BoolParam _ground;
     readonly NumberParam _exposure;
     readonly TextParam _save;
+    public static readonly string[] Backgrounds = ["Environment (studio or sky)", "White", "Transparent", "Green screen (chroma key)", "Black", "Studio gradient"];
+    public static readonly string[] Lightings = ["Studio (soft white boxes)", "Sky and sun", "Dark studio", "Only my lights"];
 
     static readonly (string name, int w, int h)[] Sizes =
     [("Draft  960 × 540", 960, 540), ("HD  1280 × 720", 1280, 720), ("Full HD  1920 × 1080", 1920, 1080), ("4K  3840 × 2160", 3840, 2160), ("Square  1500 × 1500", 1500, 1500)];
@@ -25,11 +27,12 @@ public sealed class RenderCommand : Command
         _size = Choice("Picture size", 1, [.. Array.ConvertAll(Sizes, s => s.name)]);
         _samples = Add(new IntParam { Label = "Quality (samples per pixel)", Min = 1, Max = 4096, Value = 64 });
         _bounces = Add(new IntParam { Label = "Light bounces", Min = 1, Max = 12, Value = 5 });
-        _env = Choice("Lighting", 0, "Studio (soft white boxes)", "Sky and sun", "Dark studio");
-        _bg = Choice("Background", 0, "Environment", "White", "Transparent");
+        _env = Choice("Lighting", 0, Lightings);
+        _bg = Choice("Background", 0, Backgrounds);
         _ground = Check("Ground plane with shadows", true);
         _exposure = Num("Exposure", 1, 0.1, 10, 0.1, "×");
         _save = Text("Save to (blank = Documents\\Prism\\Renders)", "", "full path of a .png file");
+        Add(new ActionParam { Label = "Edit lights (sun, lamps)…", Run = () => S.StartCommand(() => new LightsCommand()) });
         Add(new ActionParam { Label = "Start render", Run = Start });
         Add(new ActionParam { Label = "Stop", Run = () => S.StopRender() });
         Add(new ActionParam { Label = "Save picture", Run = () => S.SaveRender(string.IsNullOrWhiteSpace(_save.Value) ? null : _save.Value) });
@@ -39,7 +42,23 @@ public sealed class RenderCommand : Command
     public override bool SupportsPreview => false;
     public override string Icon => "render";
     public override string OkText => "Done";
-    public override string Hint => "Orbit to the view you want, choose size, quality and lighting, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.";
+    public override string Hint => "Orbit to the view you want, choose size, quality, lighting and background (white, black, green screen, studio gradient or transparent), add your own sun or lamps, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.";
+
+    protected override void OnBegin()
+    {
+        var setup = S.RenderSetup;
+        _env.SetSilently((int)setup.Env); _bg.SetSilently((int)setup.Background); _ground.Value = setup.Ground; _exposure.Value = setup.Exposure;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        var setup = new RenderSetup { Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, Ground = _ground.Value, Exposure = _exposure.Value };
+        if (!setup.Equals(S.RenderSetup)) { S.RenderSetup = setup; S.Dirty = true; }
+        Results.Clear();
+        int on = S.Lights.Count(l => l.Enabled);
+        Results.Add(new ResultLine("Your lights", S.Lights.Count == 0 ? "none: add a sun or lamp from the ribbon" : $"{on} of {S.Lights.Count} on"));
+        return new CommandOutput { NoOp = true };
+    }
 
     void Start()
     {
@@ -52,7 +71,6 @@ public sealed class RenderCommand : Command
         try { S.StartRender(s); S.Say($"Rendering {w}×{h}…"); } catch (Exception e) { S.Say(e.Message, true); }
     }
 
-    protected override CommandOutput? Build() => new CommandOutput { NoOp = true };
 }
 
 /// <summary>Render the animation (and/or a turntable) as a folder of pictures, a GIF and, when ffmpeg is installed, an MP4.</summary>
@@ -84,8 +102,8 @@ public sealed class RenderAnimationCommand : Command
         _fps = Choice("Frames per second", 1, "12", "24", "30", "60");
         _size = Choice("Picture size", 0, [.. Array.ConvertAll(Sizes, s => s.name)]);
         _samples = Add(new IntParam { Label = "Quality (samples per pixel)", Min = 1, Max = 1024, Value = 12 });
-        _env = Choice("Lighting", 0, "Studio (soft white boxes)", "Sky and sun", "Dark studio");
-        _bg = Choice("Background", 0, "Environment", "White", "Transparent (PNG only)");
+        _env = Choice("Lighting", (int)S.RenderSetup.Env, RenderCommand.Lightings);
+        _bg = Choice("Background", (int)S.RenderSetup.Background, RenderCommand.Backgrounds);
         _ground = Check("Ground plane with shadows", true);
         _exposure = Num("Exposure", 1, 0.1, 10, 0.1, "×");
         _gif = Check("Also make a GIF", true);
