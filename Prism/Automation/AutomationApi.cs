@@ -25,7 +25,40 @@ namespace Prism.Automation;
 public sealed partial class AutomationApi
 {
     // the commands the tools can start are found again by name when a file with history is opened
-    static AutomationApi() { foreach (var make in Registry.Values) CommandCatalog.Register(make); }
+    static AutomationApi() { AutoRegister(); foreach (var make in Registry.Values) CommandCatalog.Register(make); }
+
+    /// <summary>Every command class that no hand-written entry already starts gets a name from its class (SketchFilletCommand becomes sketch_fillet), so a new command is reachable without touching this file.</summary>
+    static void AutoRegister()
+    {
+        var known = new HashSet<Type>();
+        foreach (var make in Registry.Values) { try { known.Add(make().GetType()); } catch { } }
+        foreach (var type in typeof(Command).Assembly.GetTypes())
+        {
+            if (type.IsAbstract || !type.IsSubclassOf(typeof(Command)) || known.Contains(type) || type.GetConstructor(Type.EmptyTypes) == null) continue;
+            var key = System.Text.RegularExpressions.Regex.Replace(type.Name.EndsWith("Command") ? type.Name[..^7] : type.Name, "(?<=[a-z0-9])(?=[A-Z])", "_").ToLowerInvariant();
+            if (key.Length == 0 || Registry.ContainsKey(key)) continue;
+            var t = type;
+            Registry[key] = () => (Command)Activator.CreateInstance(t)!;
+        }
+        // commands whose constructor takes an optional argument, or that come in several variants
+        Registry.TryAdd("create_sketch", () => new CreateSketchCommand());
+        Registry.TryAdd("lights", () => new LightsCommand());
+        foreach (var joint in Enum.GetValues<Prism.Core.Assembly.JointType>()) Registry.TryAdd("joint_" + joint.ToString().ToLowerInvariant(), () => new JointCommand(joint));
+    }
+
+    /// <summary>Identity of every command run_command can start, in the same form the command catalogue uses.</summary>
+    public static IReadOnlyList<string> CommandKeys()
+    {
+        var keys = new List<string>();
+        foreach (var make in Registry.Values) { try { keys.Add(CommandCatalog.KeyOf(make())); } catch { } }
+        return keys;
+    }
+
+    static string CommandHint(string name)
+    {
+        var close = Registry.Keys.Where(k => k.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(k, StringComparison.OrdinalIgnoreCase)).Take(8).ToList();
+        return close.Count > 0 ? $" Did you mean: {string.Join(", ", close)}?" : " Use list_commands(query) to search the names.";
+    }
 
     readonly MainViewModel _vm;
     readonly Window? _window;
@@ -55,7 +88,7 @@ public sealed partial class AutomationApi
             if (!_tools.TryGetValue(name, out var t))
             {
                 var close = _tools.Keys.Where(k => k.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(k, StringComparison.OrdinalIgnoreCase)).Take(5).ToList();
-                throw new ArgumentException($"Unknown tool '{name}'." + (close.Count > 0 ? $" Did you mean: {string.Join(", ", close)}?" : "") + $" All tools: {string.Join(", ", _tools.Keys)}");
+                throw new ArgumentException($"Unknown tool '{name}'." + (close.Count > 0 ? $" Did you mean: {string.Join(", ", close)}?" : " Call describe_api for the tool names.") + "");
             }
             if (t.Schema["required"] is JsonArray req)
             {
@@ -612,14 +645,55 @@ public sealed partial class AutomationApi
                 return State();
             });
 
+        Add("list_commands", "List the command names run_command accepts, optionally only those containing 'query' (case-insensitive). Without a query returns the count and the first 60.",
+            Schema(null, ("query", "string", "Text the name contains, e.g. 'fillet' or 'cam'."), ("limit", "integer", "Most names to return (default 60).")), a =>
+            {
+                var query = Str(a, "query", "");
+                var limit = a["limit"] != null ? Math.Clamp(a["limit"]!.GetValue<int>(), 1, 500) : 60;
+                var names = Registry.Keys.Where(k => query.Length == 0 || k.Contains(query, StringComparison.OrdinalIgnoreCase)).Order().ToList();
+                return new JsonObject { ["count"] = names.Count, ["names"] = new JsonArray(names.Take(limit).Select(n => (JsonNode)n).ToArray()) };
+            });
+
+        Add("describe_command", "What a command needs before you run it: its selection slots (what each accepts, whether it is optional or takes several) and its parameters (type, default, unit, range, options). Nothing is started or changed. Then pass slots and params to run_command using these labels.",
+            Schema(["name"], ("name", "string", "Command name from list_commands.")), a =>
+            {
+                var name = Str(a, "name");
+                if (!Registry.TryGetValue(name, out var make)) throw new ArgumentException($"Unknown command '{name}'." + CommandHint(name));
+                var c = make();
+                var slots = new JsonArray(c.Slots.Select(s => (JsonNode)new JsonObject { ["label"] = s.Label, ["accepts"] = s.Filter.ToString(), ["multi"] = s.Multi, ["optional"] = s.Optional }).ToArray());
+                var ps = new JsonArray();
+                foreach (var p in c.Params)
+                {
+                    var j = new JsonObject { ["label"] = p.Label };
+                    switch (p)
+                    {
+                        case NumberParam n:
+                            j["type"] = "number"; j["default"] = n.Value; j["unit"] = n.Unit;
+                            if (n.Min > double.MinValue / 2) j["min"] = n.Min;
+                            if (n.Max < double.MaxValue / 2) j["max"] = n.Max;
+                            break;
+                        case IntParam i: j["type"] = "integer"; j["default"] = i.Value; j["min"] = i.Min; j["max"] = i.Max; break;
+                        case BoolParam b: j["type"] = "boolean"; j["default"] = b.Value; break;
+                        case ChoiceParam ch: j["type"] = "choice"; j["default"] = ch.Selected; j["options"] = new JsonArray(ch.Options.Select(o => (JsonNode)o).ToArray()); break;
+                        case TextParam tp: j["type"] = "text"; j["default"] = tp.Value; break;
+                        case ActionParam: j["type"] = "action"; break;
+                    }
+                    if (p.IsAdvanced) j["advanced"] = true;
+                    if (p.HelpText.Length > 0) j["help"] = p.HelpText;
+                    ps.Add(j);
+                }
+                return new JsonObject { ["name"] = name, ["title"] = c.Title, ["hint"] = c.Hint, ["slots"] = slots, ["params"] = ps,
+                    ["note"] = "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them." };
+            });
+
         Add("run_command", "Run a modeling command end-to-end: start it, fill selection slots and parameters, then (by default) commit. " +
-            "Names: " + string.Join(", ", Registry.Keys) + ". 'slots' maps a slot label to an object name, {object,face|edge} or an array of those; 'params' maps parameter labels to values. " +
+            "Find names with list_commands(query). 'slots' maps a slot label to an object name, {object,face|edge} or an array of those; 'params' maps parameter labels to values. " +
             "For curve_control/curve_through pass 'points' as [[x,y,z],...]. Use get_state afterwards, or call with commit=false to preview first.",
             Schema(["name"], ("name", "string", "Command name."), ("slots", "object", "Slot label -> selection."), ("params", "object", "Parameter label -> value."),
                 ("points", "array", "Curve points for curve_control / curve_through."), ("commit", "boolean", "Commit immediately (default true).")), a =>
             {
                 var name = Str(a, "name");
-                if (!Registry.TryGetValue(name, out var make)) throw new ArgumentException($"Unknown command '{name}'. Names: {string.Join(", ", Registry.Keys)}");
+                if (!Registry.TryGetValue(name, out var make)) throw new ArgumentException($"Unknown command '{name}'." + CommandHint(name));
                 var before = Snapshot();
                 var cmd = make(); cmd.Factory = make;
                 _vm.CloseHome();

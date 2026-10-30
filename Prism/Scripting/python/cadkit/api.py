@@ -4,6 +4,7 @@ Parameters are written in snake_case and matched to the on-screen labels by part
 ``cad.box(width=40)`` sets "Width" and ``cad.flange(bend_radius=3)`` sets "Bend radius (inside)".
 Objects can be given by name ("Box 1"), or as the Obj that a call returned.
 """
+import json
 from contextlib import contextmanager
 
 from ._conn import call, CadError
@@ -18,10 +19,27 @@ class Obj:
         self.kind = info.get("kind")
 
     def __str__(self):
-        return self.name
+        """One descriptive line, so print(obj) tells an agent what it made, not only its name."""
+        i, parts = self.info, [self.name + " [" + str(self.kind) + "]"]
+        if i.get("size"):
+            parts.append("size " + " x ".join("%g" % round(v, 3) for v in i["size"]) + " mm")
+        if i.get("volume") is not None:
+            parts.append("volume %g mm3" % i["volume"])
+        if i.get("faces") is not None:
+            parts.append("%s faces" % i["faces"] + (", %s edges" % i["edges"] if i.get("edges") is not None else ""))
+        if i.get("valid") is False:
+            parts.append("INVALID")
+        return ", ".join(parts)
 
     def __repr__(self):
         return "Obj(%r, %s)" % (self.name, self.kind)
+
+    def to_dict(self):
+        """Everything the application reported about this object (bounds, size, volume, faces ...)."""
+        return self.info
+
+    def json(self):
+        return json.dumps(self.info, separators=(",", ":"))
 
     @property
     def size(self):
@@ -404,3 +422,62 @@ def form_op(obj, op, **options):
 def form_to_nurbs(obj):
     """Convert a cage to NURBS in place; save the editable form first if needed."""
     return Obj(call("form_to_nurbs", object=_name(obj)))
+
+
+# ---------------------------------------------------------------- looking at the model and finding things
+def _plain(x):
+    if isinstance(x, Obj):
+        return x.info
+    if isinstance(x, (list, tuple)):
+        return [_plain(i) for i in x]
+    if isinstance(x, dict):
+        return {k: _plain(v) for k, v in x.items()}
+    return x
+
+
+def show(*things):
+    """Print objects or results as compact JSON: the most complete thing an agent can read back."""
+    for thing in things:
+        print(json.dumps(_plain(thing), separators=(",", ":"), default=str))
+
+
+def faces(obj, **filters):
+    """Find faces by geometry instead of index: faces(b, type="Plane", facing=(0, 0, 1)). Returns the tool's JSON
+    (indices are 1-based, ready for fillet/chamfer/shell/hole slots). See help("solid_find") for every filter."""
+    return call("solid_find", object=_name(obj), kind="faces", **filters)
+
+
+def edges(obj, **filters):
+    """Find edges by geometry: edges(b, direction=(0, 0, 1), min_size=10). Same filters as faces()."""
+    return call("solid_find", object=_name(obj), kind="edges", **filters)
+
+
+def check(obj, other=None, **kw):
+    """Verify a body (validity, volume, closed, thin walls ...), or measure between obj and other. Returns JSON."""
+    if other is not None:
+        kw["a"], kw["b"] = _name(obj), _name(other)
+        return call("solid_check", object=_name(obj), **kw)
+    return call("solid_check", object=_name(obj), **kw)
+
+
+# ---------------------------------------------------------------- discovering what exists
+def commands(query=""):
+    """Names run() accepts, optionally those containing query."""
+    return call("list_commands", query=query)
+
+
+def describe(command):
+    """The slots (what to select) and parameters (name, type, default, range, options) of a command, as JSON."""
+    return call("describe_command", name=command)
+
+
+def help(query=""):
+    """Search the commands and the cadkit functions for query and print a short answer."""
+    q = query.lower()
+    names = commands(query)
+    print("commands (%d): %s" % (names["count"], ", ".join(names["names"][:40])))
+    funcs = [(n, (f.__doc__ or "").strip().splitlines()[0] if (f.__doc__ or "").strip() else "") for n, f in sorted(globals().items())
+             if callable(f) and not n.startswith("_") and getattr(f, "__module__", "") == __name__ and (not q or q in n.lower())]
+    for n, d in funcs:
+        print("cad.%s: %s" % (n, d))
+    print("details: cad.describe(<command>) | cad.call(<tool>, ...) | describe_api(names=[...]) for tool schemas")

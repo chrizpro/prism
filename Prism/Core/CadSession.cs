@@ -1634,10 +1634,10 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Triangle mesh of an object for printing or comparing: meshes as they are, solids and surfaces tessellated finely.</summary>
-    public Meshing.TriMesh? PrintMesh(SceneObject o)
+    public Meshing.TriMesh? PrintMesh(SceneObject o, double toleranceScale = 1)
     {
         if (o.Tri != null) return o.Tri;
-        if (o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form) return Meshing.MeshAnalysis.FromMeshData(o.Shape.Tessellate(Math.Max(o.Mesh.Max.DistanceTo(o.Mesh.Min) * 0.0002, 1e-4)));
+        if (o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form) return Meshing.MeshAnalysis.FromMeshData(o.Shape.Tessellate(Math.Max(o.Mesh.Max.DistanceTo(o.Mesh.Min) * 0.0002 * toleranceScale, 1e-4)));
         return null;
     }
 

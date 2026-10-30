@@ -1045,7 +1045,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         var cam = new RibbonTab
         {
-            Title = "CAM",
+            Title = "Subtractive",
             Groups =
             [
                 G("Setup", Cmd("CAM setup", "cnc", () => new CamSetupCommand(), "Stock, G54 work zero and shared tool settings.")),
@@ -1071,7 +1071,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
         form.Groups.Insert(3, G("Validate", Cmd("Check\nCage", "check", () => new CheckCageCommand(), "Check manifold topology, winding, degenerate faces and extraordinary points.")));
         var additive = new RibbonTab {Title="Additive",Groups=[
-            G("Preparation",Btn("Export 3MF","print3d",()=>Export("3mf"),"Send geometry to an external slicer."),Btn("Export STL","mesh",()=>Export("stl"),"Export a mesh."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
+            G("Preparation",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY to a folder and open it in your slicer."),Btn("Export 3MF","print3d",()=>Export("3mf"),"Save a 3MF to a place you choose."),Btn("Export STL","mesh",()=>Export("stl"),"Save an STL to a place you choose."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
             G("Nozzle review",Cmd("Import nozzle path","gcode",()=>new ImportGcodeCommand(),"Read linear G0/G1 output from an external slicer."),Cmd("Playback","animation",()=>new CamPlaybackCommand(),"Animate nozzle travel and extrusion paths."),Cmd("Layer view","toolpath",()=>new ToolpathViewCommand(),"Inspect imported print layers."))]};
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",

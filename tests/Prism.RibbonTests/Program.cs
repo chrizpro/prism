@@ -96,13 +96,13 @@ Check(new[] { "Extrude", "Revolve", "Sweep", "Loft" }.All(n => surfaceCreate.Any
 Check(surfaceCreate.Any(b => b.Label.Replace("\n", " ") == "Fill Opening" && !b.HasMenu), "Surface exposes Fill Opening beside the creation tools");
 Check(vm.Tabs.Single(t=>t.Title=="Surface").Buttons.Count(b=>b.Label.Replace("\n", " ")=="Flatten / Refold")==1 && vm.Tabs.Single(t=>t.Title=="Surface").Buttons.All(b=>b.Label!="Refold"), "Surface combines Flatten and Refold into one entry");
 Check(vm.Tabs.Any(t=>t.Title=="Direct Modeling")&&MainViewModel.WorkspaceDefs.Single(w=>w.Id=="design").Tabs.Contains("Direct Modeling"),"Direct Modeling is available in the Design workspace");
-Check(vm.Tabs.Any(t => t.Title == "CAM") && vm.Tabs.All(t => t.Title is not ("CNC" or "3D Print")), "CNC and print tools share one CAM tab");
-var cam = vm.Tabs.Single(t => t.Title == "CAM");
+Check(vm.Tabs.Any(t => t.Title == "Subtractive") && vm.Tabs.All(t => t.Title is not ("CNC" or "3D Print" or "CAM")), "CNC tools live on the Subtractive tab");
+var cam = vm.Tabs.Single(t => t.Title == "Subtractive");
 foreach (var name in new[] { "Profile", "Pocket", "Drill", "Face", "Post G-code", "CAM setup", "Playback", "Setup sheet" })
-    Check(cam.Buttons.Any(b => b.Label.Replace("\n", " ") == name), "CAM retains " + name);
+    Check(cam.Buttons.Any(b => b.Label.Replace("\n", " ") == name), "Subtractive retains " + name);
 Check(MainViewModel.WorkspaceDefs.Single(w=>w.Id=="make").Name=="CAM","CAM has a dedicated named workspace");
 var additive=vm.Tabs.Single(t=>t.Title=="Additive");
-Check(additive.Buttons.Any(b=>b.Label=="Import nozzle path")&&additive.Buttons.All(b=>!b.Label.Contains("slice")),"additive workflow imports external slicer paths without promoting built-in slicing");
+Check(additive.Buttons.Any(b=>b.Label=="Import nozzle path")&&additive.Buttons.Any(b=>b.Label=="Export for printing")&&additive.Buttons.All(b=>!b.Label.Contains("slice")),"additive workflow imports external slicer paths without promoting built-in slicing");
 foreach (var title in new[] { "Surface", "NURBS", "Freeform" })
 {
     var tab = vm.Tabs.Single(t => t.Title == title);

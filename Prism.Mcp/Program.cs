@@ -17,12 +17,11 @@ sealed class Bridge
     string? _baseUrl, _token;
 
     const string Instructions =
-        "Prism is a desktop CAD application (Open CASCADE kernel). These tools drive the live app: build solids/surfaces/NURBS, sketch, edit control points, " +
-        "change the view, and take screenshots. Use run_script to execute Python with `import cadkit as cad`; use describe_api to discover the full automation catalogue and call_api for individual calls. " +
-        "Face and edge indices are 1-based (as shown in the UI); form_info / form_op use 0-based cage indices. Units are millimetres, Z up. If the app is not running, any tool call launches it. " +
-        "Tips: slot and parameter labels in run_command match by partial, case-insensitive text ('Profile' finds 'Profile (curve or sketch)'); objects can be named by name or by id prefix; " +
-        "commands seed empty slots from the current selection; after view changes or Tab in 3D sketch call wait_idle before pointer events or screenshots; " +
-        "sketch_input and pointer send real mouse/keyboard events to the tools, so you can test interaction, not just results. Use the prompts (build_*, test_*, bug_hunt) for ready-made test scenarios.";
+        "Prism is a desktop CAD application. Prefer run_script (Python: `import cadkit as cad`) and batch many operations in one script, printing only what you need. " +
+        "Use describe_api (no arguments lists tools one per line; names=[...] gives schemas) and call_api for single calls; run_command takes command names found with list_commands(query). " +
+        "Face and edge indices are 1-based; form_info / form_op use 0-based cage indices. Units are millimetres, Z up. Any tool call launches the app if needed. " +
+        "Slot and parameter labels match by partial, case-insensitive text; objects can be named by name or id prefix; commands seed empty slots from the selection; " +
+        "call wait_idle after view changes before pointer events or screenshots. Prompts build_*, test_* and bug_hunt are ready-made scenarios.";
 
     // ------------------------------------------------------------ prompts: ready-made test scenarios
     static readonly (string name, string desc, string text)[] Prompts =
@@ -117,7 +116,11 @@ sealed class Bridge
             LocalTool("app_launch", "Start the Prism desktop app if it is not already running (other tools do this automatically)."),
             LocalTool("app_close", "Politely stop the Prism process that this bridge launched or is connected to."),
             new JsonObject { ["name"] = "run_script", ["description"] = "Execute Python 3 against the live Prism document. import cadkit as cad; print results for the response. The script has the user's local process permissions. Use cad.history(name) to group edits into one undo step. Returns stdout, stderr and exit code; timeout is 1–300 seconds.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["code"] = new JsonObject { ["type"] = "string" }, ["timeout_seconds"] = new JsonObject { ["type"] = "integer" } }, ["required"] = new JsonArray("code") } },
-            LocalTool("describe_api", "Return the full application automation tool catalogue and schemas."),
+            LocalTool("describe_api", "Discover the application automation tools. No arguments: one line per tool (name, summary, argument names; * = required). query: only tools whose name or description contains it. names: full description and argument schema for just those tools. Then call them with call_api.", new JsonObject
+            {
+                ["query"] = new JsonObject { ["type"] = "string" },
+                ["names"] = new JsonObject { ["type"] = "array", ["items"] = new JsonObject { ["type"] = "string" } },
+            }),
             new JsonObject { ["name"] = "call_api", ["description"] = "Call one application automation tool by name; use describe_api for names and arguments.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["name"] = new JsonObject { ["type"] = "string" }, ["arguments"] = new JsonObject { ["type"] = "object" } }, ["required"] = new JsonArray("name") } },
         };
         // The full catalogue remains available on demand, and old direct calls remain supported.
@@ -155,13 +158,15 @@ sealed class Bridge
             }
             if (!await ConnectAsync(launch: true)) return Error("Prism is not running and could not be launched. Set PRISM_EXE or build Prism.Desktop.");
 
-            if (name == "describe_api") return Text((await FetchToolsAsync())!.ToJsonString());
+            if (name == "describe_api") return Text(Describe((await FetchToolsAsync())!, args));
             if (name == "run_script")
             {
                 var scriptResult = await Post("/script", args);
                 if (scriptResult["ok"]?.GetValue<bool>() != true) return Error(scriptResult["error"]?.ToString() ?? "Script failed to start.");
                 var scriptOutput = scriptResult["result"]!;
-                var response = Text(scriptOutput.ToJsonString());
+                foreach (var stream in new[] { "stdout", "stderr" })
+                    if (scriptOutput[stream]?.ToString() is { } streamText) scriptOutput[stream] = Shorten(streamText);
+                var response = Text(ScriptText(scriptOutput));
                 if (scriptOutput["exit_code"]?.GetValue<int>() != 0) response["isError"] = true;
                 return response;
             }
@@ -179,10 +184,58 @@ sealed class Bridge
                 ro.Remove("_image");
                 if (ro.Count == 0) result = null;
             }
-            if (result != null) content.Insert(0, new JsonObject { ["type"] = "text", ["text"] = result.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) });
+            if (result != null) content.Insert(0, new JsonObject { ["type"] = "text", ["text"] = result.ToJsonString(Compact) });
             return new JsonObject { ["content"] = content };
         }
         catch (Exception e) { return Error(e.Message); }
+    }
+
+    // Quotes and apostrophes stay as they are: the default escaping turns each into six characters ("), which costs tokens and reads badly.
+    static readonly JsonSerializerOptions Compact = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    /// <summary>Script output as plain text: what the script printed, then anything that went wrong. No JSON wrapper to unescape.</summary>
+    static string ScriptText(JsonNode r)
+    {
+        var sb = new StringBuilder(r["stdout"]?.ToString().TrimEnd() ?? "");
+        if (r["stderr"]?.ToString().Trim() is { Length: > 0 } err) sb.Append(sb.Length > 0 ? "\n" : "").Append("[stderr]").Append('\n').Append(err);
+        if (r["timed_out"]?.GetValue<bool>() == true) sb.Append('\n').Append("[timed out]");
+        if (r["exit_code"]?.GetValue<int>() is int code and not 0) sb.Append('\n').Append("[exit code ").Append(code).Append(']');
+        return sb.Length == 0 ? "(no output)" : sb.ToString();
+    }
+
+    const int MaxScriptChars = 8000;
+
+    /// <summary>Keeps the start and end of long script output (the end usually holds the error or the answer) and says what was dropped.</summary>
+    static string Shorten(string s)
+    {
+        if (s.Length <= MaxScriptChars) return s;
+        int head = MaxScriptChars / 3, tail = MaxScriptChars - head;
+        return s[..head] + $"\n[... {s.Length - MaxScriptChars:N0} characters omitted: print less, or print a summary ...]\n" + s[^tail..];
+    }
+
+    /// <summary>The tool catalogue at the level asked for: a line per tool by default, full schemas only for named tools.</summary>
+    static string Describe(JsonArray tools, JsonObject args)
+    {
+        var wanted = (args["names"] as JsonArray)?.Select(n => n!.ToString()).ToList();
+        if (wanted is { Count: > 0 })
+        {
+            var picked = new JsonArray(tools.Where(t => wanted.Contains(t!["name"]!.ToString(), StringComparer.OrdinalIgnoreCase)).Select(t => t!.DeepClone()).ToArray());
+            var missing = wanted.Where(w => !tools.Any(t => string.Equals(t!["name"]!.ToString(), w, StringComparison.OrdinalIgnoreCase))).ToList();
+            return picked.ToJsonString(Compact) + (missing.Count > 0 ? $"\nUnknown: {string.Join(", ", missing)}. Call describe_api with no arguments for all names." : "");
+        }
+        var query = args["query"]?.ToString() ?? "";
+        var lines = new List<string>();
+        foreach (var t in tools)
+        {
+            string name = t!["name"]!.ToString(), desc = t["description"]?.ToString() ?? "";
+            if (query.Length > 0 && !name.Contains(query, StringComparison.OrdinalIgnoreCase) && !desc.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+            int end = desc.IndexOfAny(['.', '\n']); var summary = end > 0 && end < 140 ? desc[..end] : desc.Length > 140 ? desc[..140] + "…" : desc;
+            var required = (t["inputSchema"]?["required"] as JsonArray)?.Select(r => r!.ToString()).ToHashSet() ?? [];
+            var argNames = (t["inputSchema"]?["properties"] as JsonObject)?.Select(p => p.Key + (required.Contains(p.Key) ? "*" : "")) ?? [];
+            lines.Add($"{name}: {summary} ({string.Join(", ", argNames)})");
+        }
+        return lines.Count == 0 ? $"No tools match '{query}'. Call describe_api with no arguments for all names."
+            : string.Join("\n", lines) + "\nFull schema: describe_api(names=[...]).";
     }
 
     static JsonObject Text(string t) => new() { ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = t }) };

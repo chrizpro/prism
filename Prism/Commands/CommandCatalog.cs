@@ -41,6 +41,12 @@ public static class CommandCatalog
         }
     }
 
+    /// <summary>The name of every command made so far (used to check that scripting reaches everything the ribbon offers).</summary>
+    public static IReadOnlyList<string> Keys()
+    {
+        lock (Gate) { _map ??= Build(); return [.. _map.Keys]; }
+    }
+
     /// <summary>Names that more than one different command answers to. Those steps cannot be restored, so there should be none.</summary>
     public static IReadOnlyList<string> Ambiguous()
     {
