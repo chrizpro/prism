@@ -15,6 +15,8 @@ public sealed class LibraryPart
     /// <summary>The STEP / .prism file, or null for a built-in part.</summary>
     public string? Path { get; init; }
     public Func<Shape>? Builder { get; init; }
+    /// <summary>What the part file says about itself (number, material, tags...), if it is a Prism file that carries it.</summary>
+    public PartInfo? Info { get; init; }
     public bool IsBuiltIn => Builder != null;
     public string Source => Path != null ? System.IO.Path.GetFileName(Path) : "Built-in";
 }
@@ -40,7 +42,8 @@ public static class PartsLibrary
             if (!Extensions.Contains(System.IO.Path.GetExtension(file).ToLowerInvariant())) continue;
             var dir = System.IO.Path.GetDirectoryName(file) ?? folder;
             string category = System.IO.Path.GetRelativePath(folder, dir) is { } rel && rel != "." ? rel.Replace('\\', '/') : "Library";
-            list.Add(new LibraryPart { Name = System.IO.Path.GetFileNameWithoutExtension(file), Category = category, Path = file });
+            string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+            list.Add(new LibraryPart { Name = System.IO.Path.GetFileNameWithoutExtension(file), Category = category, Path = file, Info = ext is ".prism" or ".ourcad" ? PartInfo.ReadFile(file) : null });
             if (list.Count >= MaxFiles) break;
         }
         return [.. list.OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)];

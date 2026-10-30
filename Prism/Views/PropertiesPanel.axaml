@@ -37,7 +37,26 @@
                 </ItemsControl>
             </StackPanel>
 
-            <c:PanelStepHeader Step="4" Title="Animation" Margin="-14,16,-14,6"/>
+            <c:PanelStepHeader Step="4" Title="Part info" Margin="-14,16,-14,6"/>
+            <TextBlock Text="Saved inside this file. The parts library, drawings and assembly parts lists use it." Classes="faint" TextWrapping="Wrap"/>
+            <TextBlock Text="Part number" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Name="PartNumberBox" Text="{Binding PartNumber}" Padding="8,6" CornerRadius="4"/>
+            <TextBlock Text="Description" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PartDescription}" Padding="8,6" CornerRadius="4" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"/>
+            <Grid ColumnDefinitions="*,8,*" Margin="0,6,0,0">
+                <StackPanel><TextBlock Text="Revision" Classes="meta"/><TextBox Text="{Binding PartRevision}" Padding="8,6" CornerRadius="4"/></StackPanel>
+                <StackPanel Grid.Column="2"><TextBlock Text="Cost each" Classes="meta"/><TextBox Text="{Binding PartCost}" Padding="8,6" CornerRadius="4"/></StackPanel>
+            </Grid>
+            <TextBlock Text="Material" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PartMaterial}" Padding="8,6" CornerRadius="4"/>
+            <TextBlock Text="Supplier" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PartSupplier}" Padding="8,6" CornerRadius="4"/>
+            <TextBlock Text="Tags (separate with commas)" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PartTags}" Padding="8,6" CornerRadius="4"/>
+            <TextBlock Text="Other fields (one per line, name: value)" Classes="meta" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PartCustom}" Padding="8,6" CornerRadius="4" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"/>
+
+            <c:PanelStepHeader Step="5" Title="Animation" Margin="-14,16,-14,6"/>
             <TextBlock Text="{Binding AnimationSummary}" TextWrapping="Wrap" Classes="soft" Margin="0,2,0,6"/>
             <Button Name="OpenTimelineButton" Content="Open animation timeline" Click="OnOpenTimeline" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,7"/>
         </StackPanel>

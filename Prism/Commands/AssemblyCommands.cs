@@ -47,13 +47,13 @@ public sealed class InsertComponentCommand : Command
     protected override CommandOutput? Build()
     {
         Results.Clear();
-        CadSession src; string name; string? path = null;
+        CadSession src; string name; string? path = null; Guid? fromDoc = null;
         if (_library != null)
         {
             var (libShape, libColor, libLook) = PartsLibrary.Load(_library);
             string? linked = _library.Path != null && _link.Value && Path.GetExtension(_library.Path).ToLowerInvariant() is ".prism" or ".ourcad" ? _library.Path : null;
             var libPlace = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
-            var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value);
+            var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value, _library.Info);
             Results.Add(new ResultLine("Part", _library.Name));
             Results.Add(new ResultLine("From", _library.Source));
             var libOut = new CommandOutput { Label = $"Insert {_library.Name}", Icon = "component" };
@@ -70,14 +70,14 @@ public sealed class InsertComponentCommand : Command
             if (_docs.Count == 0) throw new FormatException("There are no other open documents. Open or create the part in another tab first, or type a file path.");
             var d = _docs[Math.Clamp(_doc.Index, 0, _docs.Count - 1)];
             if (ReferenceEquals(d.Session, S)) throw new FormatException("That is this assembly itself. Pick a different document.");
-            src = d.Session; name = d.Title;
+            src = d.Session; name = d.Title; fromDoc = d.Session.DocId;
             if (src.FilePath != null && _link.Value) path = src.FilePath;
         }
         if (!_link.Value) path = null;
         var part = CadSession.PartGeometry(src) ?? throw new FormatException($"{name} has no solid bodies to insert.");
         var place = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
         var world = place.Apply(part.shape);
-        var info = new ComponentInfo(CadSession.NewKey(), name, path, place.ToArray(), _ground.Value);
+        var info = new ComponentInfo(CadSession.NewKey(), name, path, place.ToArray(), _ground.Value, src.PartInfo.IsEmpty ? null : src.PartInfo) { SourceDoc = fromDoc };
         Results.Add(new ResultLine("Part", name));
         Results.Add(new ResultLine("Link", path == null ? "embedded copy" : Path.GetFileName(path)));
         var o = new CommandOutput { Label = $"Insert {name}", Icon = "component" };
@@ -414,6 +414,57 @@ public sealed class MateCommand : Command
         o.After = s => s.Update(objB.Id, x => x.WithAsm(ci.WithPlacement(np), np.Apply(s.LocalShapeOf(x))), false);
         Results.Add(new ResultLine("Moves", objB.Name));
         return o;
+    }
+}
+
+// =================================================================== Parts list
+/// <summary>The assembly's parts list: each distinct part with its quantity, material, mass and cost, from the part info saved with every part.</summary>
+public sealed class PartsListCommand : Command
+{
+    readonly TextParam _path;
+
+    public PartsListCommand()
+    {
+        _path = Add(new TextParam { Label = "Save to (blank = Documents\\Prism\\Reports)", Hint = "full path of the .csv file" });
+        Add(new ActionParam { Label = "Save parts list (CSV)", Run = Save });
+    }
+
+    public override string Title => "Parts List";
+    public override string Icon => "component";
+    public override string OkText => "Done";
+    public override string Hint => "Every part in the assembly, counted. Parts with the same part number are one line. Fill in part number, material, supplier and cost in each part's Part info (Properties panel) and they appear here. Mass needs a material applied to the part.";
+
+    void Save()
+    {
+        try
+        {
+            var rows = PartsList.Build(S);
+            if (rows.Count == 0) { S.Say("There are no components in this assembly yet.", true); return; }
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Reports"); Directory.CreateDirectory(dir);
+            string name = S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "assembly";
+            string file = string.IsNullOrWhiteSpace(_path.Value) ? Path.Combine(dir, $"parts_list_{name}_{DateTime.Now:yyyyMMdd_HHmmss}.csv") : _path.Value;
+            File.WriteAllText(file, PartsList.ToCsv(rows));
+            S.Say($"Saved {file}");
+        }
+        catch (Exception e) { S.Say(e.Message, true); }
+    }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        var rows = PartsList.Build(S);
+        if (rows.Count == 0) { Results.Add(new ResultLine("Parts", "none yet. Insert components first (Assemble tab).")); return new CommandOutput { NoOp = true }; }
+        foreach (var r in rows)
+        {
+            string detail = string.Join("   ", new[] { r.PartNumber, r.Material, r.TotalMassGrams is { } g ? $"{g:0.##} g" : "", r.TotalCost is { } c ? $"cost {c:0.##}" : "" }.Where(x => x.Length > 0));
+            Results.Add(new ResultLine($"{r.Quantity} ×  {r.Name}", detail.Length > 0 ? detail : "no part info yet"));
+        }
+        Results.Add(new ResultLine("Distinct parts", rows.Count.ToString()));
+        Results.Add(new ResultLine("Total components", rows.Sum(r => r.Quantity).ToString()));
+        double mass = rows.Sum(r => r.TotalMassGrams ?? 0); double cost = rows.Sum(r => r.TotalCost ?? 0);
+        if (mass > 0) Results.Add(new ResultLine("Total mass", mass >= 1000 ? $"{mass / 1000:0.###} kg" : $"{mass:0.##} g"));
+        if (cost > 0) Results.Add(new ResultLine("Total cost", $"{cost:0.##}"));
+        return new CommandOutput { NoOp = true };
     }
 }
 

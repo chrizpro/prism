@@ -317,7 +317,7 @@ public sealed partial class CadSession : ObservableObject
     public void NewDocument()
     {
         CancelCommand(); ExitSketch(false);
-        DocumentParameters = []; RebuildIssue = null;
+        DocumentParameters = []; RebuildIssue = null; PartInfo = new();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
         FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
@@ -1418,7 +1418,20 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null);
+
+    /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
+    public PartInfo PartInfo { get; private set; } = new();
+
+    /// <summary>Identifies this open document, so an assembly can find the part it was made from while that part is still open.</summary>
+    public Guid DocId { get; } = Guid.NewGuid();
+
+    public void SetPartInfo(PartInfo info)
+    {
+        if (info.Equals(PartInfo)) return;
+        PartInfo = info; Dirty = true;
+        TimelineChanged?.Invoke();
+    }
 
     public void Save(string path)
     {
@@ -1429,7 +1442,7 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap)).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap)).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty ? null : PartInfo);
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
@@ -1469,6 +1482,7 @@ public sealed partial class CadSession : ObservableObject
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
+        PartInfo = dto.Info ?? new();
         FilePath = path; Dirty = false;
         RaiseScene(); ZoomExtents(); Say($"Opened {Path.GetFileName(path)}");
     }

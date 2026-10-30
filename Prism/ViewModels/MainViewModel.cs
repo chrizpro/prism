@@ -115,6 +115,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public void UpdateSelectionInfo()
     {
+        SyncPartInfo();
         Properties.Clear();
         var objs = Session.SelectedObjects.ToList();
         HasSelection = objs.Count > 0;
@@ -925,6 +926,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     AsmCmd("Move\nComponent", "move", () => new MoveComponentCommand(), "Position a free component: move it or turn it about its centre.", RibbonSize.Large, HasComponents),
                     AsmCmd("Mate", "joint-rigid", () => new MateCommand(), "Snap a free component onto another by two faces: touching, flush or a set distance apart.", RibbonSize.Large, HasComponents),
                     AsmCmd("Component\nPattern", "pattern-linear", () => new ComponentPatternCommand(), "Repeat a component in a line or around an axis.", RibbonSize.Large, HasComponents),
+                    AsmCmd("Parts\nList", "component", () => new PartsListCommand(), "Count every part, with material, mass and cost from each part's info. Save it as a CSV.", RibbonSize.Large, HasComponents),
                     Btn("Ground", "ground", ToggleGround, "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.", RibbonSize.Large, () => HasComponents() && !IsSketching, () => SelectedComponent?.Component?.Grounded == true),
                     Btn("Refresh", "refresh", () => { int n = Session.RefreshComponentsFromSource(); Session.Say(n == 0 ? "Nothing to refresh: no linked part files changed." : $"Refreshed {n} component(s) from their files."); }, "Reload components from the part files they were inserted from, keeping their positions.", RibbonSize.Large, () => HasComponents() && !IsSketching)),
                 G("Review",

@@ -18,8 +18,11 @@ public enum JointType { Rigid, Revolute, Slider, Cylindrical, Ball, Planar }
 public abstract record AssemblyData;
 
 /// <summary>A part placed in the assembly. P is its placement (12 numbers: rotation row-major, then translation).</summary>
-public sealed record ComponentInfo(string Key, string PartName, string? SourcePath, double[] P, bool Grounded) : AssemblyData
+public sealed record ComponentInfo(string Key, string PartName, string? SourcePath, double[] P, bool Grounded, PartInfo? Info = null) : AssemblyData
 {
+    /// <summary>The open document this part came from, while it is open. Not saved: a saved assembly relies on SourcePath.</summary>
+    [JsonIgnore] public Guid? SourceDoc { get; init; }
+
     [JsonIgnore] public Xform Placement => Xform.FromArray(P);
     public ComponentInfo WithPlacement(Xform x) => this with { P = x.ToArray() };
 }

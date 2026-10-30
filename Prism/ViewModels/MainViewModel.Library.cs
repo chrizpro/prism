@@ -24,7 +24,17 @@ public sealed partial class LibraryItem : ObservableObject
     public string Source => Part.Source;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasThumb))] public partial Bitmap? Thumb { get; set; }
     public bool HasThumb => Thumb != null;
-    public string ToolTipText => Part.IsBuiltIn ? $"{Part.Name}\nBuilt-in parametric part. Double-click to insert." : $"{Part.Name}\n{Part.Path}\nDouble-click to insert.";
+    /// <summary>The part number, shown under the name when the part file carries one.</summary>
+    public string Subtitle => Part.Info?.PartNumber ?? "";
+    public bool HasSubtitle => Subtitle.Length > 0;
+    public string ToolTipText
+    {
+        get
+        {
+            string info = Part.Info is { IsEmpty: false } i ? "\n" + i.Summary() : "";
+            return Part.IsBuiltIn ? $"{Part.Name}\nBuilt-in parametric part. Double-click to insert." : $"{Part.Name}{info}\n{Part.Path}\nDouble-click to insert.";
+        }
+    }
 }
 
 public sealed class LibraryGroup
@@ -82,7 +92,7 @@ public sealed partial class MainViewModel
     {
         string filter = LibraryFilter.Trim();
         LibraryGroups.Clear();
-        var shown = _libraryItems.Where(i => (LibraryShowBuiltIn || !i.Part.IsBuiltIn) && (filter.Length == 0 || i.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) || i.Category.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+        var shown = _libraryItems.Where(i => (LibraryShowBuiltIn || !i.Part.IsBuiltIn) && (filter.Length == 0 || i.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) || i.Category.Contains(filter, StringComparison.OrdinalIgnoreCase) || i.Part.Info?.Matches(filter) == true));
         foreach (var g in shown.GroupBy(i => i.Part.IsBuiltIn ? "Built-in · " + i.Category : i.Category))
         {
             var group = new LibraryGroup { Title = g.Key };

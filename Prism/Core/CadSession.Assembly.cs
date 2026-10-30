@@ -338,7 +338,7 @@ public sealed partial class CadSession
                 var world = ci.Placement.Apply(part.shape);
                 var m = part.shape.Tessellate();
                 _locals[ci.Key] = new LocalCache(world, part.shape, (m.Min + m.Max) * 0.5);
-                Update(o.Id, x => x.WithAsm(ci, world), false);
+                Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.IsEmpty ? ci.Info : doc.PartInfo }, world), false);
                 n++;
             }
             catch (Exception e) { Say($"Could not refresh {ci.PartName}: {e.Message}", true); }

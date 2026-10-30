@@ -23,7 +23,7 @@
                 <Button Grid.Column="1" Content="Choose folder…" Classes="studioAction" Click="OnChooseFolder"/>
                 <Button Grid.Column="2" Content="↻" Classes="studioLink" Click="OnRescan" ToolTip.Tip="Scan the folder again"/>
             </Grid>
-            <TextBox Text="{Binding LibraryFilter}" Watermark="Search parts"/>
+            <TextBox Text="{Binding LibraryFilter}" Watermark="Search name, part number, material, tags…"/>
             <CheckBox Content="Show built-in common parts" IsChecked="{Binding LibraryShowBuiltIn}"/>
         </StackPanel>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -44,6 +44,7 @@
                                                     <Image Source="{Binding Thumb}" IsVisible="{Binding HasThumb}" Stretch="Uniform"/>
                                                 </Panel>
                                                 <TextBlock Text="{Binding Name}" FontSize="11" TextAlignment="Center" TextWrapping="Wrap" MaxHeight="30"/>
+                                                <TextBlock Text="{Binding Subtitle}" IsVisible="{Binding HasSubtitle}" FontSize="10" Classes="faint" TextAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>

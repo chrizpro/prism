@@ -479,6 +479,64 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     }
     finally { Prism.Core.Hotkeys.ResetAll(); }
 }
+// Part info: saved in the file, searchable in the library, used by drawings and the assembly parts list.
+{
+    var infoDir = Path.Combine(Path.GetTempPath(), "prism-partinfo-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(infoDir);
+    try
+    {
+        var infoVm = new MainViewModel { HomeOpen = false };
+        infoVm.Session.AddObject(Prism.Kernel.Occ.Box(20, 10, 5), "Plate", ObjKind.Solid);
+        infoVm.PartNumber = "BR-1042"; infoVm.PartDescription = "Mounting bracket"; infoVm.PartMaterial = "6061-T6"; infoVm.PartSupplier = "Acme Metals"; infoVm.PartCost = "3.5"; infoVm.PartTags = "bracket, aluminium"; infoVm.PartCustom = "Finish: anodised";
+        var typed = infoVm.Session.PartInfo;
+        Check(typed.PartNumber == "BR-1042" && typed.Cost == 3.5 && typed.Tags!.SequenceEqual(["bracket", "aluminium"]) && typed.Custom!["Finish"] == "anodised" && infoVm.Session.Dirty, "typing in the Part info panel updates the document");
+        string bracketFile = Path.Combine(infoDir, "bracket.prism"); infoVm.Session.Save(bracketFile);
+        var reopened = new CadSession(); reopened.Open(bracketFile);
+        Check(reopened.PartInfo.Equals(typed) || (reopened.PartInfo.PartNumber == "BR-1042" && reopened.PartInfo.Tags!.Count == 2 && reopened.PartInfo.Custom!.Count == 1 && reopened.PartInfo.Cost == 3.5), "part info is saved in the file and comes back when it is opened");
+        Check(Prism.Core.PartInfo.ReadFile(bracketFile) is { PartNumber: "BR-1042", Supplier: "Acme Metals" }, "part info can be read from a file without opening the part");
+        var plain = new CadSession(); plain.AddObject(Prism.Kernel.Occ.Box(5, 5, 5), "Block", ObjKind.Solid); string plainFile = Path.Combine(infoDir, "plain.prism"); plain.Save(plainFile);
+        Check(Prism.Core.PartInfo.ReadFile(plainFile) == null && new CadSession().PartInfo.IsEmpty, "a part with no info has none, and old files open without it");
+
+        // the library shows and searches it
+        var libOld = AppSettings.Current.PartsLibraryPath;
+        try
+        {
+            AppSettings.Current.PartsLibraryPath = infoDir;
+            var found = Prism.Core.PartsLibrary.Scan(infoDir);
+            Check(found.Count == 2 && found.Single(p => p.Name == "bracket").Info is { PartNumber: "BR-1042" } && found.Single(p => p.Name == "plain").Info == null, "the parts library reads part info from the files it scans");
+            infoVm.RescanLibrary(); infoVm.LibraryShowBuiltIn = false;
+            infoVm.LibraryFilter = "anodised"; Check(infoVm.LibraryGroups.Sum(g => g.Items.Count) == 1, "the library searches custom fields");
+            infoVm.LibraryFilter = "acme aluminium"; Check(infoVm.LibraryGroups.Sum(g => g.Items.Count) == 1 && infoVm.LibraryGroups[0].Items[0].Subtitle == "BR-1042", "the library finds parts by supplier and tags and shows the part number");
+            infoVm.LibraryFilter = "titanium"; Check(infoVm.LibraryGroups.Sum(g => g.Items.Count) == 0, "a search that matches nothing shows nothing");
+        }
+        finally { AppSettings.Current.PartsLibraryPath = libOld; }
+
+        // drawings start from the part info
+        infoVm.Session.StartCommand(() => new DrawingCommand()); var drawing = infoVm.Session.ActiveCommand!;
+        Check(drawing.Params.OfType<TextParam>().Single(p => p.Label == "Part number").Value == "BR-1042" && drawing.Params.OfType<TextParam>().Single(p => p.Label == "Material").Value == "6061-T6" && drawing.Params.OfType<TextParam>().Single(p => p.Label == "Title").Value == "Mounting bracket", "the drawing's title block starts from the part info");
+        infoVm.Session.CancelCommand();
+
+        // assembly parts list
+        var asm = new CadSession();
+        SceneObject Comp(string name, double x, PartInfo? info)
+        {
+            var o = asm.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 10), new Vec3(x, 0, 0)), name, ObjKind.Solid);
+            asm.Update(o.Id, v => v.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), name, null, Prism.Core.Assembly.Xform.Translation(new Vec3(x, 0, 0)).ToArray(), false, info), v.Shape), false);
+            return asm.Find(o.Id)!;
+        }
+        var bracketInfo = new PartInfo("BR-1042", "Mounting bracket", "A", "6061-T6", "Acme Metals", 3.5);
+        var one = Comp("Bracket", 0, bracketInfo); Comp("Bracket", 30, bracketInfo); Comp("Bracket (copy)", 60, bracketInfo); Comp("Cover", 90, null);
+        asm.Update(one.Id, v => v.WithMaterial(Materials.Find("6061")!), false);
+        var rows = Prism.Core.Assembly.PartsList.Build(asm);
+        Check(rows.Count == 2 && rows[0].PartNumber == "BR-1042" && rows[0].Quantity == 3 && rows[1].Name == "Cover" && rows[1].Quantity == 1, "the parts list counts components with the same part number as one line");
+        Check(Math.Abs(rows[0].TotalCost!.Value - 10.5) < 1e-9 && rows[0].UnitMassGrams > 0 && rows[0].Material.Length > 0, "the parts list carries cost and, with a material applied, mass");
+        var csv = Prism.Core.Assembly.PartsList.ToCsv(rows);
+        Check(csv.StartsWith("Item,Part number,Name") && csv.Contains("BR-1042") && csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length == 3, "the parts list exports as CSV");
+        asm.StartCommand(() => new PartsListCommand()); var listCmd = asm.ActiveCommand!; listCmd.TryBuild();
+        Check(listCmd.Results.Any(r => r.Label.StartsWith("3 ×")) && listCmd.Results.Any(r => r.Label == "Total components" && r.Value == "4"), "the Parts List command shows each part and the totals");
+        asm.CancelCommand();
+    }
+    finally { try { Directory.Delete(infoDir, true); } catch (Exception) { } }
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

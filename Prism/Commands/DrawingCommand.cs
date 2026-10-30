@@ -38,6 +38,15 @@ public sealed class DrawingCommand : Command
         Add(new ActionParam { Label = "Create drawing", Run = Create });
     }
 
+    protected override void OnBegin()
+    {
+        // the title block starts from what the part says about itself
+        var info = S.PartInfo;
+        if (_number.Value.Length == 0) _number.Value = info.PartNumber;
+        if (_material.Value.Length == 0) _material.Value = info.Material;
+        if (_title.Value.Length == 0) _title.Value = info.Description;
+    }
+
     public override string Title => "Drawing";
     public override string OkText => "Close";
     public override string Hint => "Pick the sheet, views and options, then press Create drawing. The drawing is saved and opened, with hidden lines, dimensions, hole callouts, centerlines and a title block. Sections, details, balloons, GD&T frames and notes can be added through the MCP drawing_export tool.";
