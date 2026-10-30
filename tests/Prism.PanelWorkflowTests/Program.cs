@@ -349,6 +349,44 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     an.SetPartPose(null);
     Check(Math.Abs(an.Find(partA.Id)!.Shape.Props().Min.X - partA.Shape.Props().Min.X) < 1e-6, "clearing the pose puts the part back");
 }
+// CAM: adaptive clearing covers a pocket, stays inside the walls and keeps the tool load near its target.
+{
+    var ac = new CadSession();
+    var am = new SketchModel(); var ap = new[] { (-30.0, -20.0), (30.0, -20.0), (30.0, 20.0), (-30.0, 20.0) }.Select(q => am.AddPoint(q.Item1, q.Item2)).ToArray();
+    for (int i = 0; i < 4; i++) am.AddLine(ap[i], ap[(i + 1) % 4]);
+    ac.EnterSketch(Plane3.XY, am); ac.ExitSketch(true);
+    var pocketSketch = ac.Objects.Single(o => o.Kind == ObjKind.Sketch);
+    ac.StartCommand(() => new AdaptiveClearCommand()); var adaptive = ac.ActiveCommand!; if (ac.SelectedObjects.All(o => o.Id != pocketSketch.Id)) adaptive.Pick(SelItem.Of(pocketSketch), false);
+    var watch = System.Diagnostics.Stopwatch.StartNew();
+    var adaptiveOut = adaptive.TryBuild(); watch.Stop();
+    var adaptivePath = adaptiveOut?.Add.SingleOrDefault()?.Asm as Prism.Core.Cam.ToolpathInfo;
+    Check(adaptivePath != null && adaptivePath.MoveCount > 200 && adaptivePath.Operation.StartsWith("Adaptive"), "adaptive clearing builds a toolpath for a rectangular pocket");
+    var cutPts = new List<(double x, double y)>(); double outside = 0;
+    for (int i = 1; i < adaptivePath!.MoveCount; i++)
+    {
+        var (x, y, z, kind) = adaptivePath.Move(i); var (px, py, _, _) = adaptivePath.Move(i - 1);
+        if (kind != Prism.Core.Cam.MoveKind.Cut) continue;
+        outside = Math.Max(outside, Math.Max(Math.Abs(x) - 27, Math.Abs(y) - 17));
+        int n = Math.Max(1, (int)(Math.Sqrt((x - px) * (x - px) + (y - py) * (y - py)) / 0.5));
+        for (int k = 0; k <= n; k++) cutPts.Add((px + (x - px) * k / n, py + (y - py) * k / n));
+    }
+    Check(outside < 0.05, "the tool centre never goes past the walls (tool radius kept clear)");
+    // every cell the 6 mm tool can reach must be within 3 mm of the path
+    int reachable = 0, missed = 0;
+    for (double gx = -30; gx <= 30; gx += 1) for (double gy = -20; gy <= 20; gy += 1)
+    {
+        double dx = Math.Max(Math.Abs(gx) - 27, 0), dy = Math.Max(Math.Abs(gy) - 17, 0);
+        if (Math.Sqrt(dx * dx + dy * dy) > 2.9) continue;
+        reachable++;
+        if (!cutPts.Any(c => (c.x - gx) * (c.x - gx) + (c.y - gy) * (c.y - gy) <= 3.15 * 3.15)) missed++;
+    }
+    Check(reachable > 1500 && missed <= reachable * 0.01, "the path clears at least 99 percent of the pocket the tool can reach");
+    var plan = Prism.Core.Cam.AdaptiveClearing.Plan(new List<List<Vec3>> { new() { new(-30, -20, 0), new(30, -20, 0), new(30, 20, 0), new(-30, 20, 0) } }, new List<List<Vec3>> { new() { new(-27, -17, 0), new(27, -17, 0), new(27, 17, 0), new(-27, 17, 0) } }, 3, 0.72);
+    Check(plan.Count(p => p.Op == Prism.Core.Cam.AdaptiveClearing.Op.Start) <= 15, "the path stays connected: only a handful of plunges are needed");
+    double fullSlot = Prism.Core.Cam.AdaptiveClearing.LoadFraction(3, 3), light = Prism.Core.Cam.AdaptiveClearing.LoadFraction(3, 0.72);
+    Check(Math.Abs(fullSlot - 0.5) < 0.01 && light < 0.1, "a 12 percent bite buries far less of the cutter than a full slot");
+    Check(watch.Elapsed.TotalSeconds < 20, "the adaptive path is planned in reasonable time");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

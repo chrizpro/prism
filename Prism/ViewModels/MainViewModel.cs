@@ -996,6 +996,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("CNC", ToolMenu("Toolpaths", "cnc-profile", "Create a milling or drilling operation.",
                     Cmd("Profile", "cnc-profile", () => new ProfileCommand(), "Profile milling with depth passes and holding tabs."),
                     Cmd("Pocket", "cnc-pocket", () => new PocketCommand(), "Pocket milling with islands."),
+                    Cmd("Adaptive", "cnc-pocket", () => new AdaptiveClearCommand(), "Clear a pocket with even cutter load: deeper and faster, no slotting."),
                     Cmd("Drill", "cnc-drill", () => new DrillCommand(), "Drilling and peck cycles."),
                     Cmd("Face", "cnc-face", () => new FaceMillCommand(), "Face the stock with zigzag passes."),
                     Cmd("3D\nFinish", "cnc", () => new ParallelFinishCommand(), "Finish a 3D shape with parallel passes that follow its surface (ball nose or flat end mill).")),

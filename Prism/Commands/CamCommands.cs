@@ -239,6 +239,65 @@ public sealed class PocketCommand : CncOperationCommand
     }
 }
 
+/// <summary>Clear a pocket with a path that keeps the cutter's load even: gentle sideways bites at the full depth of the flutes, with no slots and no sharp corners.</summary>
+public sealed class AdaptiveClearCommand : CncOperationCommand
+{
+    readonly SelectionSlot _src;
+    readonly NumberParam _load;
+    readonly BoolParam _finish;
+
+    public AdaptiveClearCommand()
+    {
+        _src = Slot(new SelectionSlot { Label = "Outlines of the pocket (islands inside are left)", Filter = SelFilter.CurveObj | SelFilter.SketchObj | SelFilter.Edge | SelFilter.Face, Multi = true });
+        _load = Num("Sideways cut (load)", 12, 2, 40, 1, "% of tool");
+        _finish = Check("Finish the walls with one pass", true);
+        StepDown.Value = 6; Depth.Value = 12;
+    }
+
+    public override string Title => "CNC Adaptive Clearing";
+    public override string Hint => "Pick the closed outlines of the area to clear (loops inside another loop are islands). The tool follows a path that keeps its sideways cut small and even, so you can cut deeper and faster without overloading the cutter. Pre-drill or ramp in at the start points: the tool plunges straight down. Use a cutter with flutes long enough for the depth per pass.";
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_src.Items.Count == 0) return null;
+        var loops = CamGeom.LoopsFromItems(S, _src.Items, out double z0);
+        if (loops.Count == 0) throw new FormatException("Pick closed outlines.");
+        var region = CamGeom.FaceFromLoops(loops) ?? throw new FormatException("Those outlines cannot be made into a pocket.");
+        var reach = CamGeom.Offset(region, -Radius, z0);
+        if (reach.Count == 0) throw new FormatException("The pocket is too narrow for this tool. Use a smaller tool.");
+        double bite = Dia.Value * _load.Value / 100;
+        var plan = AdaptiveClearing.Plan(loops, reach, Radius, bite);
+        if (plan.Count == 0) throw new FormatException("Nothing to clear.");
+        Start();
+        foreach (var z in Levels())
+        {
+            Pass();
+            foreach (var st in plan)
+            {
+                if (st.Op == AdaptiveClearing.Op.Start)
+                {
+                    if (Last.z < SafeZ - 1e-9) Go(Last.x, Last.y, SafeZ, MoveKind.Rapid);
+                    Go(st.X, st.Y, SafeZ, MoveKind.Rapid);
+                    Go(st.X, st.Y, z, MoveKind.Plunge);
+                }
+                else Go(st.X, st.Y, z, MoveKind.Cut);
+            }
+            if (_finish.Value)
+                foreach (var ring in reach)
+                {
+                    var l = CamGeom.SignedArea(ring) < 0 ? ring : ring.AsEnumerable().Reverse().ToList();
+                    CutLoop(l, z, 0, 0, 0, false);
+                }
+            Go(Last.x, Last.y, SafeZ, MoveKind.Rapid);
+        }
+        int starts = plan.Count(p => p.Op == AdaptiveClearing.Op.Start);
+        Results.Add(new ResultLine("Path steps", plan.Count.ToString("#,0")));
+        Results.Add(new ResultLine("Plunges per depth", starts.ToString(), starts > 3 ? 1 : 0));
+        return Output("CNC adaptive clearing", Seal("Adaptive clearing"));
+    }
+}
+
 /// <summary>Finish a 3D shape with parallel passes that follow its top surface (a 3-axis raster finish).</summary>
 public sealed class ParallelFinishCommand : CncOperationCommand
 {
