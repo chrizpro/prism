@@ -46,7 +46,85 @@ public partial class SettingsWindow : Window
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.WorkspaceFolder)) ShowWorkspace(); };
         BuildRibbonEditor();
         BuildToolbarEditors();
+        BuildKeyboardPage();
         _loading = false;
+    }
+
+    // ------------------------------------------------------------ keyboard shortcuts
+    string? _capturing;            // the action waiting for a key press
+    string _keyNote = "";
+
+    /// <summary>Press a key while an action is waiting for one: set it, clear it (Backspace or Delete) or give up (Escape).</summary>
+    protected override void OnKeyDown(Avalonia.Input.KeyEventArgs e)
+    {
+        if (_capturing == null) { base.OnKeyDown(e); return; }
+        e.Handled = true;
+        if (HotkeyInput.Gesture(e) is not { } gesture) return;             // only a modifier so far
+        var action = Hotkeys.Find(_capturing)!;
+        if (e.Key == Avalonia.Input.Key.Escape && e.KeyModifiers == Avalonia.Input.KeyModifiers.None) _keyNote = "";
+        else if (e.Key is Avalonia.Input.Key.Back or Avalonia.Input.Key.Delete && e.KeyModifiers == Avalonia.Input.KeyModifiers.None) { Hotkeys.Set(action.Id, ""); _keyNote = $"“{action.Name}” has no shortcut now."; }
+        else
+        {
+            var clash = Hotkeys.FindConflict(action.Id, gesture, Hotkeys.Effective(action).Scope);
+            if (clash != null) _keyNote = $"{Hotkeys.Display(gesture)} is already used by “{clash.Name}” in this scope. Clear that one first, or choose another key.";
+            else { Hotkeys.Set(action.Id, gesture); _keyNote = $"“{action.Name}” is now {Hotkeys.Display(gesture)}."; }
+        }
+        _capturing = null; BuildKeyboardPage();
+    }
+
+    void BuildKeyboardPage()
+    {
+        var host = KeyboardHost; host.Children.Clear();
+        host.Children.Add(new TextBlock { Text = "Keyboard", FontSize = 20, FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        host.Children.Add(new TextBlock { Text = "Every shortcut, and where it works. Click a key to change it, then press the new combination. Escape gives up; Backspace or Delete clears it. A key can mean different things in different places: while a command is open or while sketching, that meaning wins over the everyday one. Everyday shortcuts can also be limited to one workspace.", Classes = { "soft" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Avalonia.Thickness(0, 4, 0, 6) });
+        var tools = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10, Margin = new Avalonia.Thickness(0, 0, 0, 8) };
+        var resetAll = new Button { Content = "Reset all shortcuts" };
+        resetAll.Click += (_, _) => { Hotkeys.ResetAll(); _capturing = null; _keyNote = "All shortcuts are back to their shipped keys."; BuildKeyboardPage(); };
+        tools.Children.Add(resetAll);
+        tools.Children.Add(new TextBlock { Text = _keyNote, Classes = { "faint" }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 460 });
+        host.Children.Add(tools);
+        foreach (var group in Hotkeys.Actions.GroupBy(a => a.Category))
+        {
+            host.Children.Add(new TextBlock { Text = group.Key, FontWeight = Avalonia.Media.FontWeight.SemiBold, Margin = new Avalonia.Thickness(0, 12, 0, 2) });
+            foreach (var action in group)
+            {
+                var (gesture, scope) = Hotkeys.Effective(action);
+                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,200,150,64"), Margin = new Avalonia.Thickness(0, 2) };
+                var label = new StackPanel { VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+                label.Children.Add(new TextBlock { Text = action.Name, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+                if (action.Note.Length > 0) label.Children.Add(new TextBlock { Text = action.Note, Classes = { "faint" } });
+                row.Children.Add(label);
+                Control where;
+                if (Hotkeys.CanChangeScope(action))
+                {
+                    var box = new ComboBox { Width = 190, Tag = action.Id };
+                    box.Items.Add(new ComboBoxItem { Content = Hotkeys.ScopeName(Hotkeys.Global), Tag = Hotkeys.Global });
+                    foreach (var w in Hotkeys.WorkspaceIds) box.Items.Add(new ComboBoxItem { Content = Hotkeys.ScopeName(Hotkeys.Workspace(w)), Tag = Hotkeys.Workspace(w) });
+                    box.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { Hotkeys.Global }.Concat(Hotkeys.WorkspaceIds.Select(Hotkeys.Workspace)).ToArray(), scope));
+                    box.SelectionChanged += (_, _) =>
+                    {
+                        if (_loading || box.SelectedItem is not ComboBoxItem { Tag: string chosen } || chosen == Hotkeys.Effective(action).Scope) return;
+                        var clash = Hotkeys.FindConflict(action.Id, Hotkeys.Effective(action).Gesture, chosen);
+                        if (clash != null) _keyNote = $"{Hotkeys.Display(Hotkeys.Effective(action).Gesture)} is already used by “{clash.Name}” {Hotkeys.ScopeName(chosen).ToLowerInvariant()}. Change one of them first.";
+                        else Hotkeys.Set(action.Id, Hotkeys.Effective(action).Gesture, chosen);
+                        BuildKeyboardPage();
+                    };
+                    where = box;
+                }
+                else where = new TextBlock { Text = Hotkeys.ScopeName(scope), Classes = { "soft" }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+                Grid.SetColumn(where, 1); row.Children.Add(where);
+                bool waiting = _capturing == action.Id;
+                var key = new Button { Content = waiting ? "Press the keys…" : Hotkeys.Display(gesture), Width = 140, HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center, Tag = action.Id };
+                if (waiting) key.Classes.Add("accent");
+                key.Click += (_, _) => { _capturing = action.Id; _keyNote = ""; BuildKeyboardPage(); Focus(); };
+                Grid.SetColumn(key, 2); row.Children.Add(key);
+                var reset = new Button { Content = "Reset", IsEnabled = Hotkeys.IsChanged(action) };
+                reset.Click += (_, _) => { Hotkeys.Reset(action.Id); _capturing = null; _keyNote = ""; BuildKeyboardPage(); };
+                Grid.SetColumn(reset, 3); row.Children.Add(reset);
+                host.Children.Add(row);
+            }
+        }
+        host.Children.Add(new TextBlock { Text = "Typing numbers into a command or sketch, Tab to the next field and + / - are not shortcuts and cannot be changed.", Classes = { "faint" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Avalonia.Thickness(0, 14, 0, 0) });
     }
 
     void ShowWorkspace() => WsPath.Text = _vm.HasWorkspace ? _vm.WorkspaceFolder : "No workspace chosen yet";
@@ -113,7 +191,7 @@ public partial class SettingsWindow : Window
     {
         if (PageAppearance == null) return;
         int i = Nav.SelectedIndex;
-        PageAppearance.IsVisible = i == 0; PageInteraction.IsVisible = i == 1; PageWorkspace.IsVisible = i == 2; PageToolbars.IsVisible = i == 3; PageRibbon.IsVisible = i == 4; PageAssistant.IsVisible = i == 5;
+        PageAppearance.IsVisible = i == 0; PageInteraction.IsVisible = i == 1; PageWorkspace.IsVisible = i == 2; PageToolbars.IsVisible = i == 3; PageRibbon.IsVisible = i == 4; PageAssistant.IsVisible = i == 5; PageKeyboard.IsVisible = i == 6;
     }
 
     void OnTheme(object? sender, RoutedEventArgs e)

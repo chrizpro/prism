@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
@@ -417,6 +418,66 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     Check(program.Contains("G18") && program.Contains("G7") && program.Contains("X24") && program.Contains("X16") && program.Contains("Z-40"), "the lathe program writes X as a diameter and Z from the front face");
     bool grblRefused = false; try { Prism.Core.Cam.Post.Lathe([turnPath], Prism.Core.Cam.Controller.GRBL, "Shaft"); } catch (InvalidOperationException) { grblRefused = true; }
     Check(grblRefused, "GRBL is refused for lathe programs with a clear message");
+}
+// Keyboard shortcuts: a catalogue with scopes, changeable in Preferences, applied by the main window.
+{
+    Prism.Core.Hotkeys.ResetAll();
+    try
+    {
+        var everywhere = Prism.Core.Hotkeys.ActiveScopes(false, false, "design");
+        Check(Prism.Core.Hotkeys.Resolve("Ctrl+Z", everywhere).Select(a => a.Id).SequenceEqual(["edit.undo"]), "the shipped shortcuts are in the catalogue (Ctrl+Z is Undo)");
+        var withCommand = Prism.Core.Hotkeys.ActiveScopes(true, false, "design");
+        Check(Prism.Core.Hotkeys.Resolve("Home", withCommand).Select(a => a.Id).SequenceEqual(["animation.start", "view.extents"]) && Prism.Core.Hotkeys.Resolve("Home", everywhere).Select(a => a.Id).SequenceEqual(["view.extents"]), "the same key means something more specific while a command is open (Home)");
+        var sketching = Prism.Core.Hotkeys.ActiveScopes(false, true, "design");
+        Check(Prism.Core.Hotkeys.Resolve("R", sketching).Select(a => a.Id).SequenceEqual(["sketch.gizmo.rotate", "sketch.rect"]) && !Prism.Core.Hotkeys.Resolve("L", everywhere).Any() && Prism.Core.Hotkeys.Resolve("L", sketching).Any(a => a.Id == "sketch.line"), "sketch tool keys only exist while sketching, and gizmo keys are tried before tools");
+
+        Prism.Core.Hotkeys.Set("edit.undo", "Ctrl+U");
+        Check(Prism.Core.Hotkeys.Resolve("Ctrl+U", everywhere).Any(a => a.Id == "edit.undo") && !Prism.Core.Hotkeys.Resolve("Ctrl+Z", everywhere).Any(), "changing a shortcut moves it: the new key works and the old one no longer does");
+        Check(Prism.Core.Hotkeys.FindConflict("edit.redo", "Ctrl+U", Prism.Core.Hotkeys.Global)?.Id == "edit.undo" && Prism.Core.Hotkeys.FindConflict("edit.redo", "Ctrl+U", Prism.Core.Hotkeys.Sketch) == null, "a key already taken in the same scope is reported, but the same key in another scope is fine");
+        Prism.Core.Hotkeys.Set("file.save", "Ctrl+S", Prism.Core.Hotkeys.Workspace("make"));
+        Check(!Prism.Core.Hotkeys.Resolve("Ctrl+S", everywhere).Any() && !Prism.Core.Hotkeys.Resolve("Ctrl+S", Prism.Core.Hotkeys.ActiveScopes(false, false, "design")).Any() && Prism.Core.Hotkeys.Resolve("Ctrl+S", Prism.Core.Hotkeys.ActiveScopes(false, false, "make")).Any(a => a.Id == "file.save"), "a shortcut can be limited to one workspace");
+        Prism.Core.Hotkeys.Set("file.save", "");
+        Check(Prism.Core.Hotkeys.Effective(Prism.Core.Hotkeys.Find("file.save")!).Gesture == "" && Prism.Core.Hotkeys.Display("") == "Not set", "a shortcut can be cleared");
+        Prism.Core.Hotkeys.ResetAll();
+        Check(Prism.Core.Hotkeys.Resolve("Ctrl+Z", everywhere).Any(a => a.Id == "edit.undo") && Prism.Core.Hotkeys.Display("Ctrl+Shift+D1") == "Ctrl+Shift+1", "Reset all restores the shipped keys");
+
+        // the main window obeys the catalogue
+        var keyVm = new MainViewModel { HomeOpen = false };
+        var keyWindow = new MainWindow { DataContext = keyVm, Content = new MainView { DataContext = keyVm } }; keyWindow.Show(); Dispatcher.UIThread.RunJobs();
+        var item = keyVm.Session.AddObject(Prism.Kernel.Occ.Box(5, 5, 5), "Box", ObjKind.Solid);
+        keyWindow.KeyPress(Key.Z, RawInputModifiers.Control, PhysicalKey.Z, "z"); Dispatcher.UIThread.RunJobs();
+        Check(keyVm.Session.Objects.Count == 0, "Ctrl+Z undoes in the main window");
+        keyVm.Session.Redo(); Dispatcher.UIThread.RunJobs();
+        Prism.Core.Hotkeys.Set("edit.undo", "Ctrl+U");
+        keyWindow.KeyPress(Key.Z, RawInputModifiers.Control, PhysicalKey.Z, "z"); Dispatcher.UIThread.RunJobs();
+        Check(keyVm.Session.Objects.Count == 1, "after rebinding, the old key does nothing");
+        keyWindow.KeyPress(Key.U, RawInputModifiers.Control, PhysicalKey.U, "u"); Dispatcher.UIThread.RunJobs();
+        Check(keyVm.Session.Objects.Count == 0, "after rebinding, the new key undoes");
+        Prism.Core.Hotkeys.ResetAll();
+        keyWindow.Close();
+
+        // Preferences lists every shortcut and captures a new key
+        var prefs = new SettingsWindow(keyVm); prefs.Show(); Dispatcher.UIThread.RunJobs();
+        prefs.FindControl<ListBox>("Nav")!.SelectedIndex = 6; Dispatcher.UIThread.RunJobs();
+        List<Button> KeyButtons() => prefs.FindControl<StackPanel>("KeyboardHost")!.GetVisualDescendants().OfType<Button>().Where(b => b.Tag is string).ToList();
+        Check(prefs.FindControl<ScrollViewer>("PageKeyboard")!.IsVisible && KeyButtons().Count == Prism.Core.Hotkeys.Actions.Count && KeyButtons().Any(b => Equals(b.Content, "Ctrl+Z")), "Preferences has a Keyboard page listing every shortcut with its current key");
+        foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+        {
+            Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs();
+            using var shot = new RenderTargetBitmap(new PixelSize((int)prefs.Bounds.Width, (int)prefs.Bounds.Height)); shot.Render(prefs); shot.Save(Path.Combine(output, "keyboard-preferences-" + theme.Key.ToString()!.ToLowerInvariant() + ".png"));
+        }
+        Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
+        KeyButtons().Single(b => (string)b.Tag! == "edit.undo").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(Equals(KeyButtons().Single(b => (string)b.Tag! == "edit.undo").Content, "Press the keys…"), "clicking a key asks for the new combination");
+        prefs.KeyPress(Key.K, RawInputModifiers.Control, PhysicalKey.K, "k"); Dispatcher.UIThread.RunJobs();
+        Check(prefs.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text != null && t.Text.Contains("already used by")), "a key that is already taken is refused with an explanation");
+        Check(Prism.Core.Hotkeys.Effective(Prism.Core.Hotkeys.Find("edit.undo")!).Gesture == "Ctrl+Z", "the refused key leaves the old shortcut in place");
+        KeyButtons().Single(b => (string)b.Tag! == "edit.undo").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        prefs.KeyPress(Key.U, RawInputModifiers.Control, PhysicalKey.U, "u"); Dispatcher.UIThread.RunJobs();
+        Check(Prism.Core.Hotkeys.Effective(Prism.Core.Hotkeys.Find("edit.undo")!).Gesture == "Ctrl+U" && KeyButtons().Any(b => Equals(b.Content, "Ctrl+U")), "pressing a free combination in Preferences sets it and shows it");
+        prefs.Close();
+    }
+    finally { Prism.Core.Hotkeys.ResetAll(); }
 }
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
