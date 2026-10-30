@@ -160,6 +160,10 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     var timelineDock = animView.FindControl<Border>("TimelineDock")!;
     Check(!timelineDock.IsEffectivelyVisible && !animVm.ShowAnimationTimeline, "the timeline stays out of the way until animation is opened");
     var openTimeline = propsPanel.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Open animation timeline"));
+    Check(!openTimeline.IsEffectivelyVisible, "animation action stays out of Properties when no animation is selected");
+    animVm.Session.AddAnimation(new Prism.Core.Assembly.AnimInfo(8, [], true), false);
+    animVm.Session.SelectItems([SelItem.Of(animVm.Session.Objects.Single(o => o.Kind == ObjKind.Animation))]); Dispatcher.UIThread.RunJobs();
+    Check(openTimeline.IsEffectivelyVisible, "selecting an animation exposes its timeline action");
     openTimeline.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
     var timelineView = animView.GetVisualDescendants().OfType<AnimationTimelineView>().Single();
     Check(animVm.ShowAnimationTimeline && timelineDock.IsEffectivelyVisible && timelineView.Bounds.Width > 400 && timelineView.Bounds.Height > 20, "Open animation timeline from the right panel shows the timeline dock");
@@ -171,7 +175,6 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     }
     animVm.Session.CancelCommand(); Dispatcher.UIThread.RunJobs();
     Check(!animVm.ShowAnimationTimeline && propsPanel.IsEffectivelyVisible, "closing the animation returns the right panel to Properties");
-    animVm.Session.AddAnimation(new Prism.Core.Assembly.AnimInfo(8, [], true), false); Dispatcher.UIThread.RunJobs();
     animVm.Session.SelectItems([SelItem.Of(animVm.Session.Objects.Single(o => o.Kind == ObjKind.Animation))]); Dispatcher.UIThread.RunJobs();
     Check(animVm.Properties.Any(p => p.Label == "Length" && p.Value == "8 s") && animVm.AnimationSummary.Contains("8 s"), "a selected animation lists its length, loop and keys in the right panel");
     animHost.Close(); Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;

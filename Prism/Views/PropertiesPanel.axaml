@@ -15,11 +15,11 @@
             </StackPanel>
 
             <StackPanel IsVisible="{Binding HasSelection}" Spacing="4">
-                <c:PanelStepHeader Step="1" Title="Selection" Margin="-14,-14,-14,10"/>
+                <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1" Padding="12,8" Margin="-14,-14,-14,10"><TextBlock Text="Selection" FontWeight="SemiBold"/></Border>
                 <TextBlock Text="{Binding SelectionTitle}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <TextBlock Text="Object name" Classes="meta" Margin="0,6,0,0"/>
                 <TextBox Name="RenameBox" Text="{Binding RenameText}" Watermark="Name" Padding="8,6" CornerRadius="4" KeyDown="OnRenameKey" LostFocus="OnRenameLostFocus"/>
-                <c:PanelStepHeader Step="2" Title="Geometry" Margin="-14,12,-14,6"/>
+                <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1" Padding="12,8" Margin="-14,12,-14,6"><TextBlock Text="Properties" FontWeight="SemiBold"/></Border>
                 <ItemsControl ItemsSource="{Binding Properties}" Margin="0,4,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="vm:PropertyLine">
@@ -31,13 +31,14 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <c:PanelStepHeader Step="3" Title="Display color" Margin="-14,12,-14,10"/>
+                <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1" Padding="12,8" Margin="-14,12,-14,10"><TextBlock Text="Display color" FontWeight="SemiBold"/></Border>
                 <ItemsControl Name="Swatches">
                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 </ItemsControl>
+                <Button Name="OpenTimelineButton" IsVisible="{Binding IsAnimationSelected}" Content="Open animation timeline" Click="OnOpenTimeline" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,7" Margin="0,8,0,0"/>
             </StackPanel>
 
-            <c:PanelStepHeader Step="4" Title="Part info" Margin="-14,16,-14,6"/>
+            <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1" Padding="12,8" Margin="-14,16,-14,6"><TextBlock Text="Part info" FontWeight="SemiBold"/></Border>
             <TextBlock Text="Saved inside this file. The parts library, drawings and assembly parts lists use it." Classes="faint" TextWrapping="Wrap"/>
             <Border IsVisible="{Binding HasPartThumb}" Width="112" Height="112" HorizontalAlignment="Left" CornerRadius="6" ClipToBounds="True" Margin="0,6,0,0" BorderBrush="{DynamicResource Line}" BorderThickness="1" ToolTip.Tip="A picture of the part, saved with it and refreshed every time you save. The parts library shows it.">
                 <Image Source="{Binding PartThumb}" Stretch="Uniform"/>
@@ -59,9 +60,6 @@
             <TextBlock Text="Other fields (one per line, name: value)" Classes="meta" Margin="0,6,0,0"/>
             <TextBox Text="{Binding PartCustom}" Padding="8,6" CornerRadius="4" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"/>
 
-            <c:PanelStepHeader Step="5" Title="Animation" Margin="-14,16,-14,6"/>
-            <TextBlock Text="{Binding AnimationSummary}" TextWrapping="Wrap" Classes="soft" Margin="0,2,0,6"/>
-            <Button Name="OpenTimelineButton" Content="Open animation timeline" Click="OnOpenTimeline" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,7"/>
         </StackPanel>
     </ScrollViewer>
     </DockPanel>
