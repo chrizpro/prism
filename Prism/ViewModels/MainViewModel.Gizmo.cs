@@ -96,6 +96,16 @@ public sealed partial class MainViewModel
         // an existing binding keeps its pivot so its targets can be edited; a new gizmo starts at the cursor
         if(GizmoPositioning&&!bound)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
     }
+    // Done keeps what was edited: pending placement is bound to the selection, or discarded if nothing is selected
+    public void FinishGizmoPanel()
+    {
+        if(GizmoPositioning&&!GizmoIsDatum)
+        {
+            BindGizmoSelection();
+            if(!GizmoPositioning)return;
+        }
+        CloseGizmoPanel();
+    }
     public void CloseGizmoPanel()
     {
         if(GizmoPositioning&&!GizmoIsDatum)CancelGizmoPlacement();

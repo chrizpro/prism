@@ -12,5 +12,5 @@ public partial class GizmoOptionsPanel : UserControl
     void OnBind(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.BindGizmoSelection();
     void OnCancelPlacement(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.CancelGizmoPlacement();
     void OnResetPivot(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.ResetGizmoBinding();
-    void OnReturn(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.CloseGizmoPanel();
+    void OnReturn(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.FinishGizmoPanel();
 }
