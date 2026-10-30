@@ -9,8 +9,9 @@ using Prism.Kernel;
 
 namespace Prism.Rendering;
 
-public enum RenderEnv { Studio, Sky, DarkStudio }
-public enum RenderBg { Environment, White, Transparent }
+public enum RenderEnv { Studio, Sky, DarkStudio, LightsOnly }
+/// <summary>What is seen behind the model. Everything but Environment is composited in the picture: the ground then only catches shadows.</summary>
+public enum RenderBg { Environment, White, Transparent, Green, Black, Gradient }
 
 public sealed class RenderSettings
 {
@@ -21,6 +22,8 @@ public sealed class RenderSettings
     public RenderBg Background = RenderBg.Environment;
     public bool Ground = true;
     public double Exposure = 1.0;
+    /// <summary>Lights dropped into the scene (null: none).</summary>
+    public List<RenderLight>? Lights;
 }
 
 /// <summary>
@@ -49,6 +52,11 @@ public sealed class PathTracer
     // lights: caps of the sky sphere
     readonly List<(Vector3 dir, float cosMax, Vector3 rad)> _lights = [];
     Vector3 _skyZenith, _skyHorizon;
+
+    // user lights, converted to the tracer's units
+    struct Lamp { public LightKind Kind; public Vector3 Pos, Dir, Color; public float Radius, CosOuter, CosInner, CosSun; }
+    readonly List<Lamp> _lamps = [];
+    bool Catcher => _s.Ground && _s.Background != RenderBg.Environment;
 
     readonly RenderSettings _s;
     public PathTracer(RenderSettings s) { _s = s; }
@@ -90,6 +98,7 @@ public sealed class PathTracer
         _groundZ = _sceneMin.Z - 0.0005f * (_sceneMax - _sceneMin).Length();
         BuildBvh();
         SetupEnvironment();
+        SetupLamps();
         return true;
     }
 
@@ -177,11 +186,43 @@ public sealed class PathTracer
                 _lights.Add((Vector3.Normalize(new Vector3(-0.6f, -0.5f, 0.6f)), MathF.Cos(0.45f), new Vector3(7, 7, 7.5f)));
                 _lights.Add((Vector3.Normalize(new Vector3(0.7f, 0.6f, 0.4f)), MathF.Cos(0.35f), new Vector3(5, 5.5f, 7)));
                 break;
+            case RenderEnv.LightsOnly:
+                _skyZenith = _skyHorizon = Vector3.Zero;
+                break;
             default:
                 _skyZenith = new Vector3(0.42f, 0.44f, 0.48f); _skyHorizon = new Vector3(0.26f, 0.27f, 0.30f);
                 _lights.Add((Vector3.Normalize(new Vector3(-0.5f, -0.6f, 0.75f)), MathF.Cos(0.5f), new Vector3(3.0f, 2.95f, 2.85f)));
                 _lights.Add((Vector3.Normalize(new Vector3(0.8f, 0.3f, 0.35f)), MathF.Cos(0.35f), new Vector3(1.0f, 1.05f, 1.2f)));
                 break;
+        }
+    }
+
+    void SetupLamps()
+    {
+        _lamps.Clear();
+        foreach (var l in _s.Lights ?? [])
+        {
+            if (!l.Enabled || l.Intensity <= 0) continue;
+            static Vector3 V3(Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
+            var rgb = Photometry.KelvinToRgb(l.Kelvin);
+            var lamp = new Lamp { Kind = l.Kind, Pos = V3(l.Position) };
+            if (l.Kind == LightKind.Sun)
+            {
+                lamp.Dir = V3(l.TowardLight);
+                lamp.Color = rgb * (float)(l.Intensity / Photometry.LuxPerUnit);
+                lamp.CosSun = MathF.Cos((float)(Math.Clamp(l.Size, 0, 20) * Math.PI / 360));
+            }
+            else
+            {
+                lamp.Dir = V3(l.Axis);
+                lamp.Radius = (float)Math.Max(l.Size, 0);
+                double candela = l.Kind == LightKind.Spot ? Photometry.SpotCandela(l.Intensity, l.ConeAngle) : Photometry.PointCandela(l.Intensity);
+                lamp.Color = rgb * (float)(candela / Photometry.LuxPerUnit);     // candela as tracer units; divided by distance² in metres when shading
+                double half = Math.Clamp(l.ConeAngle, 1, 175) * Math.PI / 360;
+                lamp.CosOuter = (float)Math.Cos(half);
+                lamp.CosInner = (float)Math.Cos(half * (1 - Math.Clamp(l.Softness, 0, 1)));
+            }
+            _lamps.Add(lamp);
         }
     }
 
@@ -299,13 +340,17 @@ public sealed class PathTracer
     }
     static float PowerWeight(float first,float second) => first*first/(first*first+second*second+1e-30f);
 
-    Vector3 Trace(Vector3 o, Vector3 d, ref Rng rng, out float alpha)
+    static float Luma(Vector3 c) => .2126f*c.X+.7152f*c.Y+.0722f*c.Z;
+
+    // mode 0: normal. 1: the lit ground only (shadow catcher). 2: the same ground with the model removed, i.e. what it would look like unshadowed.
+    Vector3 Trace(Vector3 o, Vector3 d, ref Rng rng, out float alpha, int mode = 0)
     {
         alpha=1;var throughput=Vector3.One;var radiance=Vector3.Zero;float previousPdf=0;
         float size=(_sceneMax-_sceneMin).Length();
         for(int depth=0;depth<=_s.Bounces;depth++)
         {
-            bool hit=Hit(o,d,float.MaxValue,out float distance,out int triangle,out float u,out float v,false);
+            float distance=0,u=0,v=0;int triangle=-1;
+            bool hit=mode!=2&&Hit(o,d,float.MaxValue,out distance,out triangle,out u,out v,false);
             float groundDistance=float.MaxValue;
             if(_s.Ground&&d.Z< -1e-5f){groundDistance=(_groundZ-o.Z)/d.Z;if(groundDistance<=1e-4f)groundDistance=float.MaxValue;}
             bool ground=groundDistance<(hit?distance:float.MaxValue);
@@ -313,7 +358,7 @@ public sealed class PathTracer
             {
                 if(depth==0)
                 {
-                    if(_s.Background is RenderBg.White or RenderBg.Transparent){alpha=0;return Vector3.Zero;}
+                    if(_s.Background!=RenderBg.Environment){alpha=0;return Vector3.Zero;}
                     return Sky(d)*(_s.Env==RenderEnv.Studio?1.5f:1f);
                 }
                 radiance+=throughput*Sky(d);
@@ -339,6 +384,15 @@ public sealed class PathTracer
                 albedo=material.Pattern==SurfacePattern.Plain?material.Albedo:MaterialSurface.LinearColor(material.Color,variation);
                 if(material.Pattern==SurfacePattern.Cast)rough=MathF.Max(rough,.65f);
             }
+            if(depth==0&&ground&&mode==0&&Catcher)
+            {
+                // Shadow catcher: the ground is not drawn, it only darkens the background by as much as the model shadows it.
+                var lit=rng;var unlit=rng;
+                float shadowed=Luma(Trace(o,d,ref lit,out _,1)),open=Luma(Trace(o,d,ref unlit,out _,2));
+                rng=lit;
+                alpha=open>1e-6f?1-Math.Clamp(shadowed/open,0,1):0;
+                return Vector3.Zero;
+            }
             if(Vector3.Dot(n,d)>0)n=-n;
             var view=-d;var origin=position+n*(1e-5f*MathF.Max(size,1)+.001f);
             // Sample the softboxes/sun for both dielectric and metal BRDFs. MIS also
@@ -351,6 +405,31 @@ public sealed class PathTracer
                 float lightPdf=1/(2*MathF.PI*(1-cosMax));
                 radiance+=throughput*f*light*(nl/lightPdf*PowerWeight(lightPdf,bsdfPdf));
             }
+            foreach(var lamp in _lamps)
+            {
+                Vector3 wi,irradiance;float reach=float.MaxValue;
+                if(lamp.Kind==LightKind.Sun){wi=RandomInCap(lamp.Dir,lamp.CosSun,ref rng);irradiance=lamp.Color;}
+                else
+                {
+                    // a glowing sphere: pick a point on it so the shadow edge softens with its size
+                    float zc=2*rng.Next()-1,az=2*MathF.PI*rng.Next(),rr=MathF.Sqrt(MathF.Max(0,1-zc*zc));
+                    var toLamp=lamp.Pos+new Vector3(rr*MathF.Cos(az),rr*MathF.Sin(az),zc)*lamp.Radius-origin;
+                    float dist=toLamp.Length();if(dist<1e-6f)continue;
+                    wi=toLamp/dist;reach=dist-1e-3f;
+                    // inverse-square law, distance in metres (model units are millimetres); clamped inside the lamp's own radius
+                    float metres=MathF.Max(dist,lamp.Radius)*(float)Photometry.MetresPerModelUnit;
+                    irradiance=lamp.Color/(metres*metres);
+                    if(lamp.Kind==LightKind.Spot)
+                    {
+                        float spot=Photometry.SpotFalloff(Vector3.Dot(-wi,lamp.Dir),lamp.CosOuter,lamp.CosInner);
+                        if(spot<=0)continue;irradiance*=spot;
+                    }
+                }
+                float nl=Vector3.Dot(n,wi);
+                if(nl<=0||mode!=2&&Hit(origin,wi,reach,out _,out _,out _,out _,true))continue;
+                // delta-like lights have no MIS partner: reflected radiance = f * E * cos
+                radiance+=throughput*Bsdf(n,view,wi,albedo,metal,rough,out _)*irradiance*nl;
+            }
             var next=rng.Next()<.2f+.8f*metal?SampleGgx(n,view,rough,ref rng):CosineHemisphere(n,ref rng);
             float cosine=Vector3.Dot(n,next);if(cosine<=0)break;
             var bsdf=Bsdf(n,view,next,albedo,metal,rough,out float pdf);if(pdf<1e-15f)break;
@@ -360,6 +439,14 @@ public sealed class PathTracer
             o=origin;d=Vector3.Normalize(next);
         }
         return radiance;
+    }
+
+    /// <summary>Mean linear radiance (before tone mapping and exposure) along one ray. Used to check the lighting numerically.</summary>
+    public Vector3 ProbeRadiance(Vector3 origin, Vector3 direction, int samples)
+    {
+        var rng = new Rng(12345); var sum = Vector3.Zero;
+        for (int i = 0; i < samples; i++) sum += Trace(origin, Vector3.Normalize(direction), ref rng, out _);
+        return sum / samples;
     }
 
     // ---------------------------------------------------------------- the render loop
@@ -420,10 +507,29 @@ public sealed class PathTracer
             // ACES-like filmic curve, then sRGB
             c = new Vector3(Aces(c.X), Aces(c.Y), Aces(c.Z));
             byte B(float v) => (byte)Math.Clamp((int)(MathF.Pow(Math.Clamp(v, 0, 1), 1f / 2.2f) * 255f + 0.5f), 0, 255);
-            // premultiplied alpha, as the bitmap expects
-            float white = _s.Background == RenderBg.White ? 255 * (1 - a) : 0;
-            pix[4 * i] = (byte)(B(c.Z) * a + white); pix[4 * i + 1] = (byte)(B(c.Y) * a + white); pix[4 * i + 2] = (byte)(B(c.X) * a + white);
-            pix[4 * i + 3] = _s.Background == RenderBg.White ? (byte)255 : (byte)(a * 255f + 0.5f);
+            // premultiplied alpha, as the bitmap expects; every backdrop except Transparent is composited here
+            var (br, bgn, bb) = Backdrop(i % W, i / W, W, H);
+            float behind = 1 - a;
+            pix[4 * i] = (byte)(B(c.Z) * a + bb * behind + .5f); pix[4 * i + 1] = (byte)(B(c.Y) * a + bgn * behind + .5f); pix[4 * i + 2] = (byte)(B(c.X) * a + br * behind + .5f);
+            pix[4 * i + 3] = _s.Background == RenderBg.Transparent ? (byte)(a * 255f + 0.5f) : (byte)255;
+        }
+    }
+
+    /// <summary>sRGB colour (0-255) behind the model at a pixel. Green is chroma-key green; the gradient is a soft studio sweep, lighter in the middle.</summary>
+    (float r, float g, float b) Backdrop(int x, int y, int W, int H)
+    {
+        switch (_s.Background)
+        {
+            case RenderBg.White: return (255, 255, 255);
+            case RenderBg.Green: return (0, 177, 64);
+            case RenderBg.Gradient:
+            {
+                float u = (x + .5f) / W - .5f, v = (y + .5f) / H - .5f;
+                float t = Math.Clamp(MathF.Sqrt(u * u * (float)W / H + v * v * (float)H / W) * 1.15f, 0, 1);
+                t = t * t * (3 - 2 * t);
+                return (222 + (60 - 222) * t, 226 + (64 - 226) * t, 232 + (74 - 232) * t);
+            }
+            default: return (0, 0, 0);       // black, or transparent where the colour does not matter
         }
     }
 

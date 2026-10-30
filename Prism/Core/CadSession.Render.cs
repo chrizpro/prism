@@ -40,6 +40,7 @@ public sealed partial class CadSession
     public RenderJob StartRender(RenderSettings settings)
     {
         StopRender();
+        settings.Lights ??= [.. Lights.Select(l => l.Clone())];
         var tracer = new PathTracer(settings);
         if (!tracer.LoadScene(this)) throw new InvalidOperationException("There is nothing visible to render yet.");
         var cam = Cameras[0];
@@ -86,6 +87,7 @@ public sealed partial class CadSession
         int frames = Math.Max(2, (int)Math.Round(duration * o.Fps) + (o.Turntable ? 0 : 1));
         System.IO.Directory.CreateDirectory(o.Folder);
         var settings = o.Settings;
+        settings.Lights ??= [.. Lights.Select(l => l.Clone())];
         var job = new RenderJob { Width = settings.Width, Height = settings.Height, TotalSamples = settings.Samples, Running = true, Pixels = new byte[settings.Width * settings.Height * 4] };
         Render = job; RenderChanged?.Invoke();
         // remember how things were, so the document is put back afterwards

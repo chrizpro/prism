@@ -34,6 +34,9 @@ foreach (var title in new[] { "Home", "Assemble", "Render", "Animate" })
     var share = vm.Tabs.Single(t => t.Title == title).Groups.Single(g => g.Title == "Share");
     Check(share.Items.OfType<RibbonButton>().Single().Menu!.Select(b => b.Icon).SequenceEqual(new[] { "ar", "cancel" }), title + " exposes AR export and stop sharing together");
 }
+var renderTab = vm.Tabs.Single(t => t.Title == "Render");
+Check(renderTab.Buttons.Select(b => b.Icon).Where(i => i.StartsWith("light-")).Distinct().Order().SequenceEqual(new[] { "light-edit", "light-lamp", "light-spot", "light-sun" }), "Render ribbon offers Sun, Lamp, Spot and Edit Lights");
+Check(vm.Tabs.Single(t => t.Title == "Render").Groups.Select(g => g.Title).ToList() is var renderGroups && renderGroups.IndexOf("Lighting") == renderGroups.IndexOf("Render") + 1, "Lighting sits right after the Render section");
 string Signature(RibbonGroup group) => string.Join(";", group.Items.OfType<RibbonButton>().Select(b => b.Label + ":" + b.Size + ":" + string.Join(",", b.Menu?.Select(v => v.Label) ?? [])));
 foreach (var name in new[] { "Transform", "Inspect", "Appearance", "Select" })
 {

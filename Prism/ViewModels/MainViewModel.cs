@@ -8,6 +8,7 @@ using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.Core.Sketching;
 using Prism.Kernel;
+using Prism.Rendering;
 using Prism.Ribbon;
 using Prism.Simulation;
 
@@ -955,6 +956,12 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Render\nAnimation", "animation", () => new RenderAnimationCommand(), "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4."),
                     Btn("Save\nPicture", "save", () => { Session.SaveRender(); }, "Save the last render as a PNG in Documents\\Prism\\Renders.", RibbonSize.Large, () => Session.Render != null),
                     Btn("Close\nPicture", "cancel", () => Session.CloseRender(), "Hide the rendered picture and return to the model.", RibbonSize.Large, () => Session.Render != null)),
+                G("Lighting",
+                    Cmd("Sun", "light-sun", () => new LightsCommand(LightKind.Sun), "Drop in a global sun: direction, illuminance in lux and colour temperature. Drag it in the viewport."),
+                    Cmd("Lamp", "light-lamp", () => new LightsCommand(LightKind.Point), "Drop in a point lamp in lumens with real inverse-square falloff and soft shadows. Drag it anywhere."),
+                    Cmd("Spot", "light-spot", () => new LightsCommand(LightKind.Spot), "Drop in a spotlight: lumens, cone angle and soft edge. Drag the lamp and its aim point."),
+                    Cmd("Edit\nLights", "light-edit", () => new LightsCommand(), "Select, drag, tune or delete the lights in this document."),
+                    Btn("Show\nLights", "light-lamp", () => { Session.ShowLights = !Session.ShowLights; Session.Invalidate(); }, "Show or hide the light markers in the viewport.", RibbonSize.Large, null, () => Session.ShowLights)),
                 G("Look",
                     Btn("Materials", "materials", () => OpenMaterials(), "Colours and finishes: metals and glossy plastics reflect in the render.", RibbonSize.Large),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch (N).", RibbonSize.Large, null, null, "N")),
