@@ -84,9 +84,11 @@ public sealed partial class MainViewModel
     public void OpenGizmoFromHotkey()
     {
         if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Session.ViewportCursor??Vec3.Zero);OpenGizmoPanel();return;}
+        bool bound=ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true;
         OpenGizmoPanel();
         if(!GizmoPositioning)BeginGizmoPlacement();
-        if(GizmoPositioning)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
+        // an existing binding keeps its pivot so its targets can be edited; a new gizmo starts at the cursor
+        if(GizmoPositioning&&!bound)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
     }
     public void CloseGizmoPanel()
     {

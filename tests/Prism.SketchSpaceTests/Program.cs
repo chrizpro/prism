@@ -172,11 +172,10 @@ Check(vm.Session.Sketch.Tool is DimensionTool, "right panel exposes the same edi
 var keyWindow = new MainWindow { DataContext = vm };
 keyWindow.Show();
 keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.G });
-Check(vm.Session.Sketch.GizmoEditing, "window key routing recognizes G without requiring a legacy 3D command");
-keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.E });
+Check(vm.ShowGizmoPanel, "window key routing opens the Gizmo panel on G in a sketch");vm.CloseGizmoPanel();vm.Session.Key(SketchShortcuts.GizmoCommand);
 keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Z, KeyModifiers = KeyModifiers.Shift });
-keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.G });
-Check(vm.Session.Sketch.GizmoDrawingPlane.Normal == Vec3.UnitZ && !vm.Session.Sketch.GizmoEditing, "Shift-Z selects the gizmo XY plane through the window key route and G leaves setup");
+vm.Session.Key(SketchShortcuts.GizmoCommand);
+Check(vm.Session.Sketch.GizmoDrawingPlane.Normal == Vec3.UnitZ && !vm.Session.Sketch.GizmoEditing, "Shift-Z selects the gizmo XY plane through the window key route and setup toggles off");
 keyWindow.Close();
 var followSession = new CadSession(); followSession.EnterSketch(Plane3.XY, alignView:false);
 var follow = followSession.Sketch!; follow.Set3DEnabled(followSession,true);
@@ -384,8 +383,8 @@ var deleteSession=EditableRectangle(true);foreach(var entity in deleteSession.Sk
 deleteSession.Key("SketchGizmo");deleteSession.Key("Enter");deleteSession.Key("Delete");Check(deleteSession.Sketch.Model.Entities.Count==0&&!deleteSession.Sketch.GizmoTargetConfirmed,"Delete key still removes selected sketch geometry after ribbon cleanup");
 var graphicsVm=new MainViewModel{HomeOpen=false};graphicsVm.Session.EnterSketch(Plane3.XY);
 var sketchRibbon=graphicsVm.Tabs.Single(t=>t.Title=="Sketch");var mainSketchButtons=sketchRibbon.Groups.SelectMany(g=>g.Items).OfType<Prism.Ribbon.RibbonButton>().ToList();
-var datumDropdown=mainSketchButtons.Single(b=>b.Menu?.Any(item=>item.Label=="Point")==true);
-Check(datumDropdown.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Point","Plane","Axis","Gizmo"}),"Datum groups Point, Plane, Axis and Gizmo in one ribbon dropdown");
+var datumDropdown=mainSketchButtons.Single(b=>b.Menu?.Any(item=>item.Label=="Save gizmo")==true);
+Check(datumDropdown.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Gizmo","Point","Axis","Plane","Save gizmo"}),"Datum groups gizmo options with sketch point, axis and saved references");
 Check(!sketchRibbon.Buttons.Any(b=>b.Label is "Save plane" or "Grid Snap" or "Delete"),"Save Plane, Grid Snap and Delete are absent from the sketch ribbon");
 Check(!graphicsVm.Tabs.SelectMany(t=>t.Buttons).Any(b=>b.Label=="Delete"),"modeling ribbon also leaves Delete to the keyboard and contextual menus");
 Check(!SketchContext.ShowCurvature,"curvature comb starts disabled");

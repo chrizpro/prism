@@ -97,7 +97,7 @@ public partial class MainWindow : Window
             case "sketch.gizmo.move": return free && gizmoTarget && s.Key("GizmoMove");
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");
             case "sketch.gizmo.size": return free && gizmoTarget && s.Key("GizmoSize");
-            case "sketch.gizmo": if(free && s.Sketch?.GeometryEditing==true && vm.CanPlaceGizmo){vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
+            case "sketch.gizmo": if(free && vm.CanPlaceGizmo){vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
             case "datum.gizmo": if(s.Sketch!=null||(s.ActiveCommand!=null&&!vm.CanPlaceGizmo))return false;vm.OpenGizmoFromHotkey();return true;
             case "sketch.edit": return free && s.Key(SketchShortcuts.EditCommand);
             case "sketch.plane.yz": return free && s.Key("PlaneYZ");
