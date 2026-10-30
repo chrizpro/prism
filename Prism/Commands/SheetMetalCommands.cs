@@ -17,7 +17,7 @@ namespace Prism.Commands;
 public sealed class ContourFlangeCommand : Command
 {
     readonly SelectionSlot _profile;
-    readonly NumberParam _t, _r, _w;
+    readonly NumberParam _t, _r, _w, _hemLen, _hemGap;
     readonly ChoiceParam _side;
     readonly BoolParam _sym, _flip;
 
@@ -32,6 +32,8 @@ public sealed class ContourFlangeCommand : Command
         _w = Num("Width", 30, 0.01, 1e5, 5);
         _sym = Check("Centred on the sketch plane", false);
         _flip = Check("Reverse width direction", false);
+        _hemLen = Num("Hem length at the end (0 = no hem)", 0, 0, 1000, 1);
+        _hemGap = Num("Hem gap", 0.5, 0.05, 100, 0.25);
     }
 
     public override string Title => "Flange";
@@ -120,7 +122,20 @@ public sealed class ContourFlangeCommand : Command
         var endA = P[n]; var endB = Shift(P[n], dirs[n - 1]);
         prof.Add(Occ.Line(prevA, endA)); off.Add(Occ.Line(prevB, endB));
         var edges = new List<Shape>(prof); edges.AddRange(off);
-        edges.Add(Occ.Line(endA, endB)); edges.Add(Occ.Line(P[0], Shift(P[0], dirs[0])));
+        if (_hemLen.Value > 1e-9)
+        {
+            // fold the end back over the metal: a half-turn bend, then a straight return of the hem length
+            var d = dirs[n - 1]; var m = Left(d) * s; double gap = _hemGap.Value, ri = gap / 2, Ro = ri + t;
+            Vec3 At(double along, double up) => endA + d * along + m * up;
+            edges.Add(Occ.Arc3(endA, At(Ro, t + ri), At(0, 2 * t + gap)));
+            edges.Add(Occ.Line(At(0, 2 * t + gap), At(-_hemLen.Value, 2 * t + gap)));
+            edges.Add(Occ.Line(At(-_hemLen.Value, 2 * t + gap), At(-_hemLen.Value, t + gap)));
+            edges.Add(Occ.Line(At(-_hemLen.Value, t + gap), At(0, t + gap)));
+            edges.Add(Occ.Arc3(At(0, t + gap), At(ri, t + ri), endB));
+            Results.Add(new ResultLine("Hem", $"{_hemLen.Value:0.##} long, {gap:0.##} gap"));
+        }
+        else edges.Add(Occ.Line(endA, endB));
+        edges.Add(Occ.Line(P[0], Shift(P[0], dirs[0])));
         var face = Occ.Profile(edges, true);
         double w = _w.Value * (_flip.Value ? -1 : 1);
         if (_sym.Value) face = Occ.Translate(face, -nrm * (w / 2));

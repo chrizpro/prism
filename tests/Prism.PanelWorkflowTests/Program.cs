@@ -202,6 +202,24 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     var jointLabels = new MainViewModel { HomeOpen = false }.Tabs.Single(t => t.Title == "Joints").Buttons.Select(b => b.Label).ToList();
     Check(jointLabels.Contains("Ball") && jointLabels.Contains("Planar"), "the Joints tab offers Ball and Planar joints");
 }
+// Sheet metal flange: an optional hem folds the end back over the metal.
+{
+    var hs = new CadSession();
+    var hm = new SketchModel(); var hp = new[] { (0.0, 0.0), (40.0, 0.0), (40.0, 30.0) }.Select(q => hm.AddPoint(q.Item1, q.Item2)).ToArray();
+    hm.AddLine(hp[0], hp[1]); hm.AddLine(hp[1], hp[2]);
+    hs.EnterSketch(Plane3.XY, hm); hs.ExitSketch(true);
+    var flangeProfile = hs.Objects.Single(o => o.Kind == ObjKind.Sketch);
+    double FlangeVolume(double hem)
+    {
+        hs.SelectItems([SelItem.Of(flangeProfile)]); hs.StartCommand(() => new ContourFlangeCommand());
+        var cmd = hs.ActiveCommand!; cmd.Pick(SelItem.Of(flangeProfile), false);
+        cmd.Params.OfType<NumberParam>().Single(p => p.Label.StartsWith("Hem length")).Value = hem;
+        var built = cmd.TryBuild(); Check(built != null && built.Add.Count == 1 && built.Add[0].Shape!.IsValid, hem > 0 ? "a flange with a hem builds a valid solid" : "a plain flange builds a valid solid");
+        double v = built!.Add[0].Shape!.Props().Volume; hs.CancelCommand(); return v;
+    }
+    double plain = FlangeVolume(0), hemmed = FlangeVolume(8);
+    Check(hemmed - plain > 600 && hemmed - plain < 800, "the hem adds a half-turn bend and an 8 mm return layer of metal");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {
