@@ -284,6 +284,35 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     Check(Math.Abs(lidBounds.Min.Z - 12) < 1e-6 && Math.Abs(lidBounds.Min.X + 5) < 1e-6, "Mate brings the lid's bottom face to 2 mm above the base's top face, centred on it");
     Check(Math.Abs(lid.Component!.Placement.T.Z - 12) < 1e-6 && ms.Find(fixedPart.Id)!.Shape.Props().Min.Z == 0, "only the moving component moves, and its placement records the move");
 }
+// CAM: tool library presets and 3D parallel finishing that follows a sphere.
+{
+    var cs = new CadSession();
+    var ball = cs.AddObject(Prism.Kernel.Occ.Sphere(20), "Ball", ObjKind.Solid);
+    cs.StartCommand(() => new ParallelFinishCommand()); var fin = cs.ActiveCommand!; fin.Pick(SelItem.Of(cs.Find(ball.Id)!), false);
+    var tool = fin.Params.OfType<ChoiceParam>().Single(p => p.Label == "Tool from the library");
+    tool.Index = 8;                                                    // 6 mm ball nose, wood / MDF
+    var cutter = fin.Params.OfType<ChoiceParam>().Single(p => p.Label == "Cutter");
+    Check(fin.Params.OfType<NumberParam>().Single(p => p.Label == "Tool diameter").Value == 6 && fin.Params.OfType<NumberParam>().Single(p => p.Label == "Spindle speed").Value == 16000 && cutter.Index == 0, "picking a library tool fills in its diameter, speed and cutter shape");
+    tool.Index = 4;                                                    // 6 mm flat, wood / MDF
+    Check(cutter.Index == 1 && fin.Params.OfType<NumberParam>().Single(p => p.Label == "Cutting feed").Value == 1800, "a flat library tool switches the cutter to a flat end mill");
+    tool.Index = 8;
+    var built = fin.TryBuild();
+    var path = built?.Add.SingleOrDefault()?.Asm as Prism.Core.Cam.ToolpathInfo;
+    Check(path != null && path.MoveCount > 100 && path.Tool.Contains("ball nose"), "3D finish builds a toolpath for a ball nose tool");
+    double worst = 0; int checkedMoves = 0; double top = double.MinValue;
+    for (int i = 0; i < path!.MoveCount; i++)
+    {
+        var (x, y, z, kind) = path.Move(i);
+        if (kind != Prism.Core.Cam.MoveKind.Cut) continue;
+        double rho = Math.Sqrt(x * x + y * y); top = Math.Max(top, z);
+        if (rho > 15) continue;
+        double expected = Math.Sqrt(23 * 23 - rho * rho) - 3;      // the tip rides on a sphere 3 mm bigger, less the ball radius
+        worst = Math.Max(worst, Math.Abs(z - expected)); checkedMoves++;
+    }
+    Check(checkedMoves > 50 && worst < 0.5, "the tip follows the sphere's surface within half a millimetre");
+    Check(top < 20.5 && top > 19.5, "the highest cut is the top of the sphere");
+    Check(path.Moves.Length / 4 == path.MoveCount && path.EstimateMinutes() > 0, "the toolpath has a machining time estimate");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

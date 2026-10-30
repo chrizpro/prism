@@ -13,6 +13,7 @@ namespace Prism.Commands;
 public abstract class CncOperationCommand : Command
 {
     protected readonly NumberParam Dia, Rpm, Feed, Plunge, StepDown, Clear, TopZ, Depth;
+    protected readonly ChoiceParam ToolPreset;
     readonly List<double> _moves = [];
     readonly List<int> _starts = [];
     ToolpathInfo? _preview;
@@ -21,6 +22,9 @@ public abstract class CncOperationCommand : Command
 
     protected CncOperationCommand()
     {
+        ToolPreset = Choice("Tool from the library", 0, ["Custom (my own values)", .. CamToolLibrary.Tools.Select(t => t.Name)]);
+        var rebuild = ToolPreset.Changed;
+        ToolPreset.Changed = () => { if (ToolPreset.Index > 0) ApplyTool(CamToolLibrary.Tools[ToolPreset.Index - 1]); rebuild?.Invoke(); };
         Dia = Num("Tool diameter", 6, 0.1, 100, 0.5);
         Rpm = Num("Spindle speed", 12000, 100, 60000, 500, "rpm");
         Feed = Num("Cutting feed", 800, 1, 20000, 50, "mm/min");
@@ -40,6 +44,10 @@ public abstract class CncOperationCommand : Command
         if (top > double.MinValue) TopZ.Value = Math.Round(top, 3);
     }
 
+    /// <summary>Fill in the size and speeds of a library tool. Operations that care about the cutter shape override this.</summary>
+    protected virtual void ApplyTool(CamTool t) { Dia.Value = t.Diameter; Rpm.Value = t.Rpm; Feed.Value = t.Feed; Plunge.Value = t.Plunge; StepDown.Value = t.StepDown; }
+    protected virtual string ToolName => $"{Dia.Value:0.##} mm end mill";
+
     public override string Icon => "cnc";
     public override string OkText => "Create toolpath";
     protected double Radius => Dia.Value / 2;
@@ -57,7 +65,7 @@ public abstract class CncOperationCommand : Command
         var inputs=Slots.SelectMany(s=>s.Items).Select(i=>i.Obj).Distinct().Select(id=>S.Find(id)).Where(o=>o!=null).ToList();
         if(inputs.Count==0)inputs.AddRange(S.Objects.Where(o=>o.Visible&&!o.IsAnnotation&&o.Kind is ObjKind.Solid or ObjKind.Surface));
         var sources=inputs.ToDictionary(o=>o!.Id,o=>Simulation.StudySetup.Signature(o!));
-        return new ToolpathInfo(operation, $"{Dia.Value:0.##} mm end mill", Dia.Value, Feed.Value, Plunge.Value, Rpm.Value, SafeZ, [.. _moves], [.. _starts], false, false,
+        return new ToolpathInfo(operation, ToolName, Dia.Value, Feed.Value, Plunge.Value, Rpm.Value, SafeZ, [.. _moves], [.. _starts], false, false,
             SetupBody:S.CamSetup?.BodyId,SourceSignature:S.CamSetup?.ShapeSignature,Sources:sources,SetupSignature:S.CamSetup?.Signature());
     }
 
@@ -228,6 +236,85 @@ public sealed class PocketCommand : CncOperationCommand
         }
         Results.Add(new ResultLine("Rings", rings.Count.ToString()));
         return Output("CNC pocket", Seal("Pocket"));
+    }
+}
+
+/// <summary>Finish a 3D shape with parallel passes that follow its top surface (a 3-axis raster finish).</summary>
+public sealed class ParallelFinishCommand : CncOperationCommand
+{
+    readonly SelectionSlot _src;
+    readonly ChoiceParam _shape;
+    readonly NumberParam _step, _angle;
+
+    public ParallelFinishCommand()
+    {
+        _src = Slot(new SelectionSlot { Label = "Model to finish", Filter = SelFilter.Solid });
+        _shape = Choice("Cutter", 0, "Ball nose", "Flat end mill");
+        _step = Num("Stepover", 10, 1, 95, 1, "% of tool");
+        _angle = Num("Scan angle", 0, -90, 90, 5, "°");
+        Dia.Value = 6; StepDown.IsVisible = Depth.IsVisible = false;
+    }
+
+    public override string Title => "CNC 3D Finish";
+    public override string Hint => "Pick a solid. The tool runs back and forth in parallel lines over its top surface, following the shape down to its lowest point. A ball nose leaves a smooth surface at a small stepover; a flat end mill suits flatter shapes. Only surfaces the tool can reach from above are cut.";
+    protected override string ToolName => $"{Dia.Value:0.##} mm {(_shape.Index == 0 ? "ball nose" : "end mill")}";
+    protected override void ApplyTool(CamTool t) { base.ApplyTool(t); _shape.Index = t.Ball ? 0 : 1; }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_src.Items.Count == 0) return null;
+        var obj = S.Find(_src.Items[0].Obj) ?? throw new FormatException("Pick a solid.");
+        var mesh = obj.Mesh;
+        if (mesh.Indices.Length == 0) throw new FormatException("That object has no surface to machine.");
+        bool ball = _shape.Index == 0;
+        var map = HeightMap.FromMesh(mesh, Math.Max(Dia.Value / 8, 0.1));
+        map.Dilate(Radius, ball);
+        double floor = mesh.Min.Z;
+        if (mesh.Max.Z > SafeZ - 0.5) throw new FormatException("The top of the material is below the model. Raise 'Top of the material' so the tool can travel above the part.");
+        double a = _angle.Value * Math.PI / 180; var d = new Vec3(Math.Cos(a), Math.Sin(a), 0); var p = new Vec3(-Math.Sin(a), Math.Cos(a), 0);
+        double dmin = double.MaxValue, dmax = double.MinValue, pmin = double.MaxValue, pmax = double.MinValue;
+        foreach (var x in new[] { mesh.Min.X, mesh.Max.X }) foreach (var y in new[] { mesh.Min.Y, mesh.Max.Y })
+        {
+            var q = new Vec3(x, y, 0); double t = Vec3.Dot(q, d), u = Vec3.Dot(q, p);
+            dmin = Math.Min(dmin, t); dmax = Math.Max(dmax, t); pmin = Math.Min(pmin, u); pmax = Math.Max(pmax, u);
+        }
+        double step = Math.Max(0.05, Dia.Value * _step.Value / 100), sample = map.Cell;
+        int lines = (int)Math.Floor((pmax - pmin) / step) + 1, samples = (int)Math.Floor((dmax - dmin) / sample) + 1;
+        if ((long)lines * samples > 3_000_000) throw new FormatException("That would make too many moves. Use a larger stepover or a larger tool.");
+        Start();
+        int runs = 0;
+        for (int line = 0; line < lines; line++)
+        {
+            double off = pmin + line * step;
+            var run = new List<Vec3>(); var found = new List<List<Vec3>>();
+            for (int k = 0; k < samples; k++)
+            {
+                double t = dmin + k * sample; var pos = d * t + p * off; double tip = map.Tip(pos.X, pos.Y);
+                if (double.IsNaN(tip)) { if (run.Count > 0) { found.Add(run); run = []; } continue; }
+                run.Add(new Vec3(pos.X, pos.Y, Math.Max(tip, floor)));
+            }
+            if (run.Count > 0) found.Add(run);
+            if (line % 2 == 1) { found.Reverse(); foreach (var f in found) f.Reverse(); }       // zigzag: every other line runs back
+            foreach (var f in found)
+            {
+                if (f.Count < 2) continue;
+                Pass();
+                Go(f[0].X, f[0].Y, SafeZ, MoveKind.Rapid);
+                Go(f[0].X, f[0].Y, f[0].Z, MoveKind.Plunge);
+                for (int i = 1; i < f.Count; i++)
+                {
+                    // drop points that lie on a straight, level stretch
+                    bool keep = i == f.Count - 1 || Math.Abs(f[i].Z - f[i - 1].Z) > 0.002 || Math.Abs(f[i + 1].Z - f[i].Z) > 0.002;
+                    if (keep) Go(f[i].X, f[i].Y, f[i].Z, MoveKind.Cut);
+                }
+                Go(Last.x, Last.y, SafeZ, MoveKind.Rapid);
+                runs++;
+            }
+        }
+        if (runs == 0) throw new FormatException("Nothing to machine: the tool cannot reach the model from above.");
+        Results.Add(new ResultLine("Passes", runs.ToString()));
+        return Output("CNC 3D finish", Seal($"3D finish ({(ball ? "ball nose" : "flat")})"));
     }
 }
 
