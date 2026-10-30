@@ -85,12 +85,12 @@ public partial class MainWindow : Window
             case "file.open": vm.OpenFile(); return true;
             case "file.save": vm.SaveFile(false); return true;
             case "file.saveas": vm.SaveFile(true); return true;
-            case "edit.undo":if(vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.CancelGizmoPlacement();return true;}s.Undo(); return true;
+            case "edit.undo":if(vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();return true;}s.Undo(); return true;
             case "edit.redo": s.Redo(); return true;
             case "edit.duplicate": s.Duplicate(); return true;
             case "edit.delete": return s.Key("Delete");
-            case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
-            case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.BindGizmoSelection();return true;}return s.Key("Enter");
+            case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
+            case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");
             case "view.lookat": return s.Key("LookAt");
             case "view.extents": s.ZoomExtents(); return true;
             case "app.search": (Content as MainView)?.FocusSearch(); return true;
@@ -98,7 +98,7 @@ public partial class MainWindow : Window
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");
             case "sketch.gizmo.size": return free && gizmoTarget && s.Key("GizmoSize");
             case "sketch.gizmo": if(free && s.Sketch?.GeometryEditing==true && vm.CanPlaceGizmo){vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
-            case "datum.gizmo": if(!vm.CanPlaceGizmo || s.Sketch!=null)return false;vm.OpenGizmoFromHotkey();return true;
+            case "datum.gizmo": if(s.Sketch!=null||(s.ActiveCommand!=null&&!vm.CanPlaceGizmo))return false;vm.OpenGizmoFromHotkey();return true;
             case "sketch.edit": return free && s.Key(SketchShortcuts.EditCommand);
             case "sketch.plane.yz": return free && s.Key("PlaneYZ");
             case "sketch.plane.xz": return free && s.Key("PlaneXZ");

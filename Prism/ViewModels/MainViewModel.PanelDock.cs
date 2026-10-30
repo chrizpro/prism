@@ -28,7 +28,7 @@ public sealed partial class MainViewModel
 
     partial void OnSelectedRightPanelChanged(string value)
     {
-        if(!_syncingRightPanels&&value!="gizmo"&&GizmoPositioning)CancelGizmoPlacement();
+        if(!_syncingRightPanels&&value!="gizmo"&&GizmoPositioning&&!GizmoIsDatum)CancelGizmoPlacement();
         if (!_syncingRightPanels) { UpdatePanels(); RefreshStudios(); }
     }
 

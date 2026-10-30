@@ -14,30 +14,50 @@ public sealed partial class MainViewModel
     Plane3? _sketchPlacementBefore;
     SketchContext? _placementSketch;
     static readonly string[] AllGizmoOperations=["Move","Rotate","Scale"],PlacementOperations=["Move","Rotate"];
-    GizmoBinding? ActiveBinding=>Session.ActiveTool switch {FormEditTool tool=>tool.Binding,EditPointsTool tool=>tool.Binding,_=>null};
-    public bool CanPlaceGizmo=>Session.ActiveCommand?.HasPanelStep!=true && (Session.ActiveCommand is EditFormCommand {Work:not null} or EditPointsCommand {Model:not null} || Session.Sketch!=null);
+    GizmoBinding? ActiveBinding=>Session.ActiveTool switch {FormEditTool tool=>tool.Binding,EditPointsTool tool=>tool.Binding,_=>Session.DatumVisible?Session.Datum!.Binding:null};
+    public bool CanPlaceGizmo=>Session.ActiveCommand?.HasPanelStep!=true && (Session.ActiveCommand is EditFormCommand {Work:not null} or EditPointsCommand {Model:not null} || Session.Sketch!=null || Session.DatumVisible);
+    public bool GizmoIsDatum=>Session.DatumVisible;
+    public bool GizmoIsNotDatum=>!Session.DatumVisible;
     public bool GizmoPositioning=>ActiveBinding?.Positioning==true || _sketchPlacementBefore!=null;
     public string[] GizmoOperations=>GizmoPositioning?PlacementOperations:AllGizmoOperations;
     public int GizmoActiveOperation
     {
-        get=>Session.ActiveCommand switch {EditFormCommand form=>form.TransformMode.Index,EditPointsCommand points=>points.TransformMode.Index,_=> (int)(Session.Sketch?.GizmoOperation??Core.SketchGizmoOperation.Move)};
+        get=>Session.ActiveCommand switch {EditFormCommand form=>form.TransformMode.Index,EditPointsCommand points=>points.TransformMode.Index,_=>Session.DatumVisible?Session.Datum!.Mode:(int)(Session.Sketch?.GizmoOperation??Core.SketchGizmoOperation.Move)};
         set
         {
             if(value<0)return;
             value=Math.Clamp(value,0,2);
             if(value==GizmoActiveOperation)return;
             if(GizmoPositioning)value=Math.Min(value,1);
-            if(Session.ActiveCommand is EditFormCommand form)form.ForceMode(value);
+            if(Session.DatumVisible){Session.Datum!.Mode=Math.Min(value,1);Session.Invalidate();}
+            else if(Session.ActiveCommand is EditFormCommand form)form.ForceMode(value);
             else if(Session.ActiveCommand is EditPointsCommand points){points.TransformMode.Index=value;points.Touch();}
             else if(Session.Sketch is {} sketch){sketch.GizmoOperation=(SketchGizmoOperation)value;Session.Invalidate();}
             OnPropertyChanged();
         }
     }
-    public string GizmoBindingStatus=>!CanPlaceGizmo?"Open Edit Freeform, Edit Control Points or a sketch to place and bind a gizmo. Display and snapping settings are shared across editors.":GizmoPositioning?"Placement mode: handles move only the gizmo. Select geometry, position and orient the pivot, then bind it.":ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true?"Bound to the current selection. Handles transform geometry.":"Select geometry to transform, or enter placement mode to position its pivot first.";
+    public string GizmoBindingStatus=>GizmoIsDatum?"Datum gizmo: drag its arrows, blocks or rings, or type exact values. It does not change geometry. Press Esc or Hide to remove it.":!CanPlaceGizmo?"Open Edit Freeform, Edit Control Points or a sketch to place and bind a gizmo. Display and snapping settings are shared across editors.":GizmoPositioning?"Placement mode: handles move only the gizmo. Select geometry, position and orient the pivot, then bind it.":ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true?"Bound to the current selection. Handles transform geometry.":"Select geometry to transform, or enter placement mode to position its pivot first.";
     Vec3 GizmoOrigin=>ActiveBinding?.Frame?.Origin ?? Session.Sketch?.GizmoFrame.Origin ?? Session.ActiveCommand switch {EditFormCommand form=>form.SelectionCenter(),EditPointsCommand points when points.Tool is EditPointsTool tool=>tool.GizmoCentre()??Vec3.Zero,_=>Vec3.Zero};
     public double GizmoOriginX {get=>GizmoOrigin.X;set=>SetGizmoOrigin(new(value,GizmoOrigin.Y,GizmoOrigin.Z));}
     public double GizmoOriginY {get=>GizmoOrigin.Y;set=>SetGizmoOrigin(new(GizmoOrigin.X,value,GizmoOrigin.Z));}
     public double GizmoOriginZ {get=>GizmoOrigin.Z;set=>SetGizmoOrigin(new(GizmoOrigin.X,GizmoOrigin.Y,value));}
+    Plane3 GizmoFrame=>ActiveBinding?.Frame ?? Session.Sketch?.GizmoFrame ?? new Plane3(GizmoOrigin,Vec3.UnitX,Vec3.UnitY);
+    Vec3 GizmoRotation
+    {
+        get {var f=GizmoFrame;double p=Math.Asin(Math.Clamp(-f.U.Z,-1,1));double r=Math.Abs(Math.Cos(p))>1e-7?Math.Atan2(f.V.Z,f.Normal.Z):0;double y=Math.Abs(Math.Cos(p))>1e-7?Math.Atan2(f.U.Y,f.U.X):Math.Atan2(-f.V.X,f.V.Y);return new(r*180/Math.PI,p*180/Math.PI,y*180/Math.PI);}
+    }
+    public double GizmoRotationX {get=>GizmoRotation.X;set=>SetGizmoRotation(new(value,GizmoRotation.Y,GizmoRotation.Z));}
+    public double GizmoRotationY {get=>GizmoRotation.Y;set=>SetGizmoRotation(new(GizmoRotation.X,value,GizmoRotation.Z));}
+    public double GizmoRotationZ {get=>GizmoRotation.Z;set=>SetGizmoRotation(new(GizmoRotation.X,GizmoRotation.Y,value));}
+    void SetGizmoRotation(Vec3 rotation)
+    {
+        if(!GizmoPositioning)return;
+        if(ActiveBinding is {} binding)binding.SetRotation(rotation);
+        else Session.Sketch?.SetGizmoTransform(Session,GizmoOrigin,rotation);
+        Session.Invalidate();
+    }
+    public bool HasGizmoPlanes=>Session.Sketch!=null;
+    public double GizmoPlaneSize {get=>Session.Sketch?.GizmoSize??1;set {if(Session.Sketch is {} sketch && GizmoPositioning)sketch.SetGizmoSize(Session,value);}}
     void SetGizmoOrigin(Vec3 origin)
     {
         if(!GizmoPositioning || origin==GizmoOrigin)return;
@@ -50,9 +70,27 @@ public sealed partial class MainViewModel
         if(!ShowGizmoPanel)_beforeGizmoPanel=SelectedRightPanel;
         OpenRightPanel("gizmo");RefreshGizmoPanel();
     }
+    public void OpenGizmoFromRibbon()
+    {
+        if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Vec3.Zero);OpenGizmoPanel();return;}
+        bool existing=ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true;
+        OpenGizmoPanel();
+        if(!existing&&CanPlaceGizmo&&!GizmoPositioning)
+        {
+            BeginGizmoPlacement();
+            SetGizmoOrigin(Vec3.Zero);
+        }
+    }
+    public void OpenGizmoFromHotkey()
+    {
+        if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Session.ViewportCursor??Vec3.Zero);OpenGizmoPanel();return;}
+        OpenGizmoPanel();
+        if(!GizmoPositioning)BeginGizmoPlacement();
+        if(GizmoPositioning)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
+    }
     public void CloseGizmoPanel()
     {
-        if(GizmoPositioning)CancelGizmoPlacement();
+        if(GizmoPositioning&&!GizmoIsDatum)CancelGizmoPlacement();
         CloseRightPanel("gizmo");SelectedRightPanel=_beforeGizmoPanel;
     }
     public void BeginGizmoPlacement()
@@ -70,6 +108,7 @@ public sealed partial class MainViewModel
     }
     public void BindGizmoSelection()
     {
+        if(GizmoIsDatum){CloseGizmoPanel();return;}
         bool bound=Session.ActiveCommand switch
         {
             EditFormCommand form=>ActiveBinding?.Bind(form.MovingVertices())==true,
@@ -82,6 +121,7 @@ public sealed partial class MainViewModel
     }
     public void CancelGizmoPlacement()
     {
+        if(GizmoIsDatum){Session.HideDatumGizmo();RefreshGizmoPanel();return;}
         if(ActiveBinding?.Positioning==true)ActiveBinding.Cancel();
         if(_sketchPlacementBefore is {} frame){Session.Sketch?.CancelPlacement(Session,frame);_sketchPlacementBefore=null;}
         RefreshGizmoPanel();Session.Invalidate();
@@ -96,7 +136,7 @@ public sealed partial class MainViewModel
     {
         if(_placementSketch!=null && (!ReferenceEquals(_placementSketch,Session.Sketch)||!_placementSketch.IndependentGizmoPlacement)){_sketchPlacementBefore=null;_placementSketch=null;}
         if(!ShowGizmoPanel)return;
-        foreach(var property in new[]{nameof(CanPlaceGizmo),nameof(GizmoPositioning),nameof(GizmoBindingStatus),nameof(GizmoOperations),nameof(GizmoActiveOperation),nameof(GizmoOriginX),nameof(GizmoOriginY),nameof(GizmoOriginZ)})OnPropertyChanged(property);
+        foreach(var property in new[]{nameof(CanPlaceGizmo),nameof(GizmoIsDatum),nameof(GizmoIsNotDatum),nameof(GizmoPositioning),nameof(GizmoBindingStatus),nameof(GizmoOperations),nameof(GizmoActiveOperation),nameof(GizmoOriginX),nameof(GizmoOriginY),nameof(GizmoOriginZ),nameof(GizmoRotationX),nameof(GizmoRotationY),nameof(GizmoRotationZ),nameof(HasGizmoPlanes),nameof(GizmoPlaneSize)})OnPropertyChanged(property);
     }
     public string[] GizmoDisplayModes { get; } = ["Active tool only", "Combined handles", "Custom visibility"];
     public int GizmoDisplayMode { get => GizmoSettings.Current.DisplayMode; set => ChangeGizmo(g => g.DisplayMode = Math.Clamp(value, 0, 2)); }

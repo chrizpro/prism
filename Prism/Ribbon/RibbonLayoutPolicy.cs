@@ -9,7 +9,7 @@ public static class RibbonLayoutPolicy
 {
     public static readonly IReadOnlyList<string> SectionOrder = Array.AsReadOnly(new[]
     {
-        "Document", "Select", "Gizmo", "References", "Setup", "Study", "Board", "Get a mesh", "Write",
+        "Document", "Select", "Datum", "References", "Setup", "Study", "Board", "Get a mesh", "Write",
         "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Joint",
         "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "CNC", "Preparation",
         "Modify", "Direct", "Faces", "Edit", "Repair", "Cut-outs", "Edit curves",

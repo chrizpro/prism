@@ -8,7 +8,7 @@ namespace Prism.Core;
 public sealed partial class SketchContext
 {
     public bool IndependentGizmoPlacement {get;private set;}
-    Plane3 _independentGizmoBefore;int _independentUndoCount;
+    Plane3 _independentGizmoBefore;double _independentSizeBefore;int _independentUndoCount;
     bool _planarGizmoEnabled;
     public bool PlanarGizmoActive => !Is3DEnabled && GeometryEditing && _planarGizmoEnabled;
     public bool GeometryEditing { get; private set; }
@@ -50,7 +50,7 @@ public sealed partial class SketchContext
 
     void PreviewGizmoTarget(CadSession s)
     {
-        if(!GeometryEditing||!GizmoEditing||SelectionCenter() is not { } center)return;
+        if(!GeometryEditing||!GizmoEditing||IndependentGizmoPlacement||SelectionCenter() is not { } center)return;
         _gizmoFrame=new(center,_gizmoFrame.U,_gizmoFrame.V);
         s.NotifySketchChanged();s.Invalidate();
     }
@@ -92,7 +92,7 @@ public sealed partial class SketchContext
 
     public void BeginPlacement(CadSession session)
     {
-        _independentGizmoBefore=_gizmoFrame;_independentUndoCount=_undo.Count;IndependentGizmoPlacement=true;
+        _independentGizmoBefore=_gizmoFrame;_independentSizeBefore=GizmoSize;_independentUndoCount=_undo.Count;IndependentGizmoPlacement=true;
         if(!GeometryEditing)SetTool(session,new SketchGeometryEditTool());
         if(!Is3DEnabled)_planarGizmoEnabled=true;
         SetGizmoEditing(session,true);
@@ -107,7 +107,7 @@ public sealed partial class SketchContext
     {
         if(IndependentGizmoPlacement)while(_undo.Count>_independentUndoCount)_undo.Pop();
         IndependentGizmoPlacement=false;
-        _gizmoFrame=original;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
+        _gizmoFrame=original;GizmoSize=_independentSizeBefore;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
     }
 
     internal void BeginSelectionTranslation() { _selectionMoveSnapshot=CaptureSpace();_selectionMoveValid=true;_geometryError=""; }

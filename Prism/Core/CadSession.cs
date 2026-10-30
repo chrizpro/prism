@@ -152,6 +152,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial string? FilePath { get; set; }
     [ObservableProperty] public partial bool Dirty { get; set; }
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
+    public Vec3? ViewportCursor { get; set; }
 
     public CadSession() { Current = Root; }
 
@@ -1155,9 +1156,22 @@ public sealed partial class CadSession : ObservableObject
     public IViewportTool? ActiveTool => ActiveCommand?.Tool ?? Sketch?.Tool;
     public bool ToolOwnsPointer => ActiveTool != null;
 
+    /// <summary>Free-standing datum gizmo; visible only in plain model view.</summary>
+    public DatumGizmoTool? Datum { get; private set; }
+    public bool DatumVisible => Datum != null && ActiveCommand == null && Sketch == null;
+    public void ShowDatumGizmo(Vec3 at)
+    {
+        Datum ??= new DatumGizmoTool();
+        Datum.Place(at);
+        Say("Datum gizmo placed. Drag its handles, or set exact values in the Gizmo panel.");
+        RaiseState(); Invalidate();
+    }
+    public void HideDatumGizmo() { if (Datum == null) return; Datum = null; RaiseState(); Invalidate(); }
+
     public bool PointerDown(PointerInfo p)
     {
         if (ActiveCommand == null && Sketch?.SpacePointerDown(this, p) == true) return true;
+        if (DatumVisible && Datum!.PointerDown(this, p)) return true;
         if (ActiveTool is { } t && t.PointerDown(this, p)) return true;
         if (Sketch != null) return true; // never fall back to selection while sketching
         if (ActiveCommand != null)
@@ -1176,6 +1190,7 @@ public sealed partial class CadSession : ObservableObject
     public void PointerMove(PointerInfo p)
     {
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
+        if (DatumVisible) Datum!.PointerMove(this, p);
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
@@ -1184,7 +1199,7 @@ public sealed partial class CadSession : ObservableObject
         }
         ActiveTool?.PointerMove(this, p);
     }
-    public void PointerUp(PointerInfo p) { _handleDrag = false; if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
+    public void PointerUp(PointerInfo p) { _handleDrag = false; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
 
     // ------------------------------------------------------------ grab handle (pull an arrow to set a distance)
     bool _handleDrag, _handleHover;
@@ -1355,6 +1370,7 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand?.HasPanelStep == true && key is "Enter" or "Escape")
         { if (key == "Enter") AcceptCommandPanel(); else CancelCommandPanel(); return true; }
         if (ActiveCommand == null && Sketch?.SpaceKey(this, key) == true) return true;
+        if (DatumVisible && Datum!.Key(this, key)) return true;
         if (ActiveTool?.Key(this, key) == true) return true;
         if (ActiveCommand == null && Sketch?.DrawingKey(this, key) == true) return true;
         if (TypeIntoHandle(key)) return true;
@@ -1477,6 +1493,7 @@ public sealed partial class CadSession : ObservableObject
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
         ActiveTool?.BuildOverlay(this, o);
+        if (DatumVisible) Datum!.BuildOverlay(this, o);
         (ActiveTool as ClickTool)?.BuildHud(this, o);
         if (ActiveStudy != null && (Result == null || Result.Kind == Simulation.ResultKind.MeshOnly)) Simulation.StudyOverlay.Draw(this, o);
         if (ShowBounds) BuildBoundsOverlay(o);

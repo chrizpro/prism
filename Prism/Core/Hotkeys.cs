@@ -35,7 +35,7 @@ public static class Hotkeys
         new("view.extents", "Zoom to fit everything", "View", Global, "Home"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
         new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
-        new("datum.gizmo", "Place gizmo", "Modeling", Global, "G", "At the viewport cursor in an active editor"),
+        new("datum.gizmo", "Place gizmo", "Modeling", Global, "G", "At the viewport cursor (origin if the pointer is outside it)"),
         new("form.edit", "Edit selected Freeform (Modify)", "Freeform", Global, "M"),
         new("form.move", "Translate cage selection", "Freeform", Freeform, "T"),
         new("form.rotate", "Rotate cage selection", "Freeform", Freeform, "R"),

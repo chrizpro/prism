@@ -29,6 +29,13 @@ public sealed class GizmoBinding
     public void Reset(){Frame=null;Bound=false;Positioning=false;_targets.Clear();}
     public void CheckTargets(IEnumerable<int> targets){if(Bound&&!Positioning&&!_targets.SetEquals(targets))Reset();}
     public void SetOrigin(Vec3 origin){if(Positioning&&Finite(origin))Frame=new(origin,Frame!.Value.U,Frame.Value.V);}
+    public void SetRotation(Vec3 degrees)
+    {
+        if(!Positioning||!Finite(degrees)||Frame is not {} frame)return;
+        Vec3 Rotate(Vec3 v,Vec3 axis,double a)=>v*Math.Cos(a)+Vec3.Cross(axis,v)*Math.Sin(a)+axis*(Vec3.Dot(axis,v)*(1-Math.Cos(a)));
+        Vec3 Turn(Vec3 v)=>Rotate(Rotate(Rotate(v,Vec3.UnitX,degrees.X*Math.PI/180),Vec3.UnitY,degrees.Y*Math.PI/180),Vec3.UnitZ,degrees.Z*Math.PI/180);
+        Frame=new(frame.Origin,Turn(Vec3.UnitX),Turn(Vec3.UnitY));
+    }
     static bool Finite(Vec3 p)=>double.IsFinite(p.X)&&double.IsFinite(p.Y)&&double.IsFinite(p.Z);
     public void Transform(Plane3 start,Func<Vec3,Vec3> transform)
     {

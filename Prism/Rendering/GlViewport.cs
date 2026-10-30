@@ -807,6 +807,8 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         var s = Session; if (s == null) return;
         if (Cam is { } mine) s.Camera = mine;
         var pos = e.GetPosition(this);
+        var (cursorOrigin,cursorDirection)=s.Camera.Ray(pos.X,pos.Y);
+        s.ViewportCursor=s.WorkPlane.Intersect(cursorOrigin,cursorDirection);
         if (_menuHold) { MarkingMenu?.Invoke("move", pos); return; }
         if (_nav != Nav.None)
         {
@@ -867,6 +869,7 @@ public sealed unsafe class GlViewport : OpenGlControlBase
 
     void OnExited(object? _, PointerEventArgs e)
     {
+        if(Session is {} session)session.ViewportCursor=null;
         if (Session is { Hover: not null } s) { s.Hover = null; s.Invalidate(); }
     }
 }
