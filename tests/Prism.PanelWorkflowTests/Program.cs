@@ -261,6 +261,29 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     var persp = new CadSession(); var none = new Overlay(); persp.BuildOverlay(none);
     Check(none.Lines.Count == 0, "the perspective view keeps its clean look without the extra axis lines");
 }
+// Mate: a free component snaps onto another by two faces.
+{
+    var ms = new CadSession();
+    SceneObject Part(string name, double x)
+    {
+        var o = ms.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 10), new Vec3(x, 0, 0)), name, ObjKind.Solid);
+        ms.Update(o.Id, v => v.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), name, null, Prism.Core.Assembly.Xform.Identity.ToArray(), false), v.Shape), false);
+        return ms.Find(o.Id)!;
+    }
+    var fixedPart = Part("Base", 0); var moving = Part("Lid", 40);
+    SelItem FaceFacing(SceneObject o, Vec3 dir)
+    {
+        for (int i = 0; i < o.Mesh.FaceCount; i++) { var f = ms.FrameOf(new SelItem(o.Id, SelKind.Face, i)); if (f != null && Vec3.Dot(f.Value.z.Normalized(), dir) > 0.99) return new SelItem(o.Id, SelKind.Face, i); }
+        throw new Exception("no face facing " + dir);
+    }
+    ms.StartCommand(() => new MateCommand()); var mate = ms.ActiveCommand!;
+    mate.Pick(FaceFacing(fixedPart, Vec3.UnitZ), false); mate.Pick(FaceFacing(moving, -Vec3.UnitZ), false);
+    mate.Params.OfType<NumberParam>().Single(p => p.Label == "Distance between the faces").Value = 2;
+    ms.CommitCommand();
+    var lid = ms.Find(moving.Id)!; var lidBounds = lid.Shape.Props();
+    Check(Math.Abs(lidBounds.Min.Z - 12) < 1e-6 && Math.Abs(lidBounds.Min.X + 5) < 1e-6, "Mate brings the lid's bottom face to 2 mm above the base's top face, centred on it");
+    Check(Math.Abs(lid.Component!.Placement.T.Z - 12) < 1e-6 && ms.Find(fixedPart.Id)!.Shape.Props().Min.Z == 0, "only the moving component moves, and its placement records the move");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

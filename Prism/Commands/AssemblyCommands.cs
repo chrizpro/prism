@@ -356,6 +356,67 @@ public sealed class ComponentPatternCommand : Command
     }
 }
 
+// =================================================================== Mate two faces
+/// <summary>Snap one free component onto another by two faces: face to face (touching), flush (same direction) or at a distance.</summary>
+public sealed class MateCommand : Command
+{
+    readonly SelectionSlot _a, _b;
+    readonly ChoiceParam _kind;
+    readonly NumberParam _offset;
+
+    public MateCommand()
+    {
+        _a = Slot(new SelectionSlot { Label = "Face on the part that stays", Filter = SelFilter.Face });
+        _b = Slot(new SelectionSlot { Label = "Face on the part that moves", Filter = SelFilter.Face });
+        _kind = Choice("Mate", 0, "Face to face (touching)", "Flush (same direction)");
+        _offset = Num("Distance between the faces", 0);
+    }
+
+    public override string Title => "Mate";
+    public override string Icon => "joint-rigid";
+    public override string OkText => "Mate";
+    public override string Hint => "Pick a flat or round face on each of two components. The second component turns and slides so the faces meet, or sit a distance apart. It is a one-time positioning move: use a joint to keep parts connected.";
+
+    static Xform Turn(Vec3 axis, double rad)
+    {
+        double c = Math.Cos(rad), s = Math.Sin(rad); var k = axis.Normalized();
+        double x = k.X, y = k.Y, z = k.Z, t = 1 - c;
+        return new([t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c], Vec3.Zero);
+    }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_a.Items.Count == 0 || _b.Items.Count == 0) return null;
+        var objA = S.Find(_a.Items[0].Obj); var objB = S.Find(_b.Items[0].Obj);
+        if (objA?.Component == null || objB?.Component is not { } ci) throw new FormatException("Pick a face on each of two components (parts inserted into this assembly).");
+        if (objA.Id == objB.Id) throw new FormatException("Pick the two faces on two different components.");
+        if (ci.Grounded) throw new FormatException("The part that moves is grounded (fixed). Unground it, or swap the two picks.");
+        if (S.JointObjects.Any(j => j.joint.ChildKey == ci.Key || j.joint.ParentKey == ci.Key))
+            throw new FormatException("The part that moves is held by a joint. Drive the joint instead, or delete it.");
+        var fa = S.FrameOf(_a.Items[0]) ?? throw new FormatException("The first pick has no usable point or direction.");
+        var fb = S.FrameOf(_b.Items[0]) ?? throw new FormatException("The second pick has no usable point or direction.");
+        var na = fa.z.Normalized(); var nb = fb.z.Normalized();
+        var target = _kind.Index == 0 ? -na : na;                       // the direction the moving face ends up facing
+        double dot = Math.Clamp(Vec3.Dot(nb, target), -1, 1);
+        var axis = Vec3.Cross(nb, target);
+        Xform turn;
+        if (axis.Length > 1e-9) turn = Turn(axis, Math.Acos(dot));
+        else if (dot > 0) turn = Xform.Identity;
+        else turn = Turn(Xform.AnyPerpendicular(nb), Math.PI);
+        // turn about the picked point on the moving part, then bring that point to the other face (plus the gap)
+        var about = Xform.Translation(fb.origin) * turn * Xform.Translation(-fb.origin);
+        var landed = about.Apply(fb.origin);
+        var gap = na * _offset.Value;
+        var np = Xform.Translation(fa.origin + gap - landed) * about * ci.Placement;
+        var o = new CommandOutput { Label = $"Mate {objB.Name}", Icon = "joint-rigid", ReplaceIsMove = true };
+        o.Replace.Add((objB, np.Apply(S.LocalShapeOf(objB))));
+        o.After = s => s.Update(objB.Id, x => x.WithAsm(ci.WithPlacement(np), np.Apply(s.LocalShapeOf(x))), false);
+        Results.Add(new ResultLine("Moves", objB.Name));
+        return o;
+    }
+}
+
 // =================================================================== Exploded view
 public sealed class ExplodeCommand : Command
 {
