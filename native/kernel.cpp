@@ -7,6 +7,14 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <BRepTools_Modification.hxx>
+#include <BRepTools_Modifier.hxx>
+#include <GeomAPI_ProjectPointOnSurf.hxx>
+#include <GeomAPI_ProjectPointOnCurve.hxx>
+#include <gp_Quaternion.hxx>
+#include <Geom_RectangularTrimmedSurface.hxx>
+#include <TColStd_HArray1OfReal.hxx>
 
 #include <BRep_Builder.hxx>
 #include <GeomLib.hxx>
@@ -1500,6 +1508,8 @@ CK_API void* ck_cylinder_refold_face(void* flat, const double* frame, double fla
         return wrap(restored);
     CATCH(nullptr)
 }
+
+#include "surface_mapping.inc"
 
 // The part of a shape on the negative side of a plane (for section views).
 CK_API void* ck_halve(void* s, const double* o, const double* nrm) {

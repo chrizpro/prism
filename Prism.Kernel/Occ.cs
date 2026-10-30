@@ -219,6 +219,29 @@ public static unsafe class Occ
     {
         var data=new double[14];fixed(double* p=data)return Native.ck_cylinder_frame(face.Handle,p)==0?null:data;
     }
+    public static Shape UnwrapSurface(Shape face, double x, double y, out double width, out double height)
+    {
+        var dims = new double[2]; Shape flat;
+        fixed (double* p = dims) flat = Wrap(Native.ck_surface_unwrap(face.Handle, x, y, p));
+        width = dims[0]; height = dims[1]; return flat;
+    }
+    public static Shape WrapSurface(Shape geometry, Shape reference, Shape target, double[] settings)
+    {
+        if (settings.Length != 10) throw new ArgumentException("Surface mapping needs ten settings.");
+        fixed (double* p = settings) return Wrap(Native.ck_surface_wrap(geometry.Handle, reference.Handle, target.Handle, p));
+    }
+    public static Shape WrapAlongCurve(Shape geometry, Shape reference, Shape target, double[] settings)
+    {
+        if (settings.Length != 10) throw new ArgumentException("Curve mapping needs ten settings.");
+        fixed (double* p = settings) return Wrap(Native.ck_curve_wrap(geometry.Handle, reference.Handle, target.Handle, p));
+    }
+    public static Vec3[] WireSamples(Shape wire, double tolerance=.01)
+    {
+        int count=Native.ck_wire_sample(wire.Handle,tolerance,null,0);
+        if(count==0)throw new KernelException("Could not sample the flat outline.");
+        var data=new double[3*count];fixed(double* p=data)Native.ck_wire_sample(wire.Handle,tolerance,p,count);
+        return Enumerable.Range(0,count).Select(i=>new Vec3(data[3*i],data[3*i+1],data[3*i+2])).ToArray();
+    }
     public static Shape CylinderRefold(Shape curves,double[] frame,double flatX,double flatY,double tolerance=.00001)
     {if(frame.Length!=14)throw new ArgumentException("Invalid cylindrical flat pattern mapping.");fixed(double* p=frame)return Wrap(Native.ck_cylinder_refold(curves.Handle,p,flatX,flatY,tolerance));}
     public static Shape CylinderRefoldFace(Shape flat,double[] frame,double flatX,double flatY,double tolerance=.00001)

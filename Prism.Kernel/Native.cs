@@ -91,6 +91,10 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern int ck_cylinder_frame(IntPtr s, double* output);
     [DllImport(Lib)] public static extern IntPtr ck_cylinder_refold(IntPtr s, double* frame, double flatX, double flatY, double tolerance);
     [DllImport(Lib)] public static extern IntPtr ck_cylinder_refold_face(IntPtr s, double* frame, double flatX, double flatY, double tolerance);
+    [DllImport(Lib)] public static extern IntPtr ck_surface_unwrap(IntPtr s, double x, double y, double* dimensions);
+    [DllImport(Lib)] public static extern IntPtr ck_surface_wrap(IntPtr s, IntPtr reference, IntPtr target, double* settings);
+    [DllImport(Lib)] public static extern IntPtr ck_curve_wrap(IntPtr s, IntPtr reference, IntPtr target, double* settings);
+    [DllImport(Lib)] public static extern int ck_wire_sample(IntPtr s, double tolerance, double* output, int capacity);
     [DllImport(Lib)] public static extern IntPtr ck_halve(IntPtr s, double* o, double* n);
     [DllImport(Lib)] public static extern int ck_hlr(IntPtr s, double* dir, double* xdir, double defl, double* output, int maxDoubles);
     [DllImport(Lib)] public static extern IntPtr ck_vertex(double x, double y, double z);

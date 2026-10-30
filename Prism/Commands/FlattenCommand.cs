@@ -11,9 +11,10 @@ namespace Prism.Commands;
 
 /// <summary>
 /// Flatten: unfold faces or a surface into a flat pattern (a UV layout) that can be sketched on, dimensioned, exported to DXF or cut from sheet.
-/// Bent sheet, cylinders and cones unroll exactly; other surfaces are flattened with the least distortion and the stretch is reported.
+/// Cylinders retain an analytic unroll. General single faces retain a UV return map;
+/// connected multi-face layouts use the mesh flattener and report their stretch.
 /// </summary>
-public sealed class FlattenCommand : Command
+public sealed class FlattenCommand : RefoldCommand
 {
     readonly SelectionSlot _src;
     readonly BoolParam _join;
@@ -24,7 +25,7 @@ public sealed class FlattenCommand : Command
     List<List<(double x, double y)>> _laidOut = [];
     List<List<Vec3>> _overlay = [];
 
-    public FlattenCommand()
+    public FlattenCommand() : base(true)
     {
         _src = Slot(new SelectionSlot { Label = "Faces or a surface to flatten", Filter = SelFilter.Face | SelFilter.SurfaceObj, Multi = true });
         _join = Check("Join the picked faces into one piece", true);
@@ -36,12 +37,30 @@ public sealed class FlattenCommand : Command
         Add(new ActionParam { Label = "Export the outline as DXF", Run = ExportDxf });
     }
 
-    public override string Title => "Flatten";
+    public override string Title => "Flatten / Refold";
     public override string Icon => "flatten";
-    public override string OkText => "Create flat pattern";
-    public override string Hint => "Pick the faces (or a whole surface) to unfold. They open up into a flat pattern on the ground plane, with the stretch measured for you. Pick faces that form one open piece: a closed box or sphere has to be left open along one face. Sheet metal and developable surfaces flatten without any stretch.";
+    public override string OkText => IsRefold ? "Refold / wrap" : "Keep flat and exit";
+    public override string Hint => IsRefold ? base.Hint : "Flatten a face to draw, cut, measure or export. Keep flat and exit leaves the layout in the document. Select it and reopen this tool to refold your edits or wrap geometry onto its source or another face. General surface UV layouts can stretch; only developable layouts preserve lengths.";
 
-    protected override void UpdateVisibility() { }
+    protected override void UpdateVisibility()
+    {
+        base.UpdateVisibility();
+        if (_src == null) return;
+        _src.IsVisible=!IsRefold;
+        foreach(var p in new Param[] {_join,_place,_gap,_tol,_result,_dxf})p.IsVisible=!IsRefold;
+        foreach(var p in Params.OfType<ActionParam>())p.IsVisible=!IsRefold;
+    }
+
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (recipe.Title != "Flatten") return recipe;
+        int offset=Params.IndexOf(_join);
+        var values=Enumerable.Repeat<object?>(null,Params.Count).ToList();values[0]=0;
+        for(int i=0;i<recipe.Values.Count && offset+i<values.Count;i++)values[offset+i]=recipe.Values[i];
+        var slots=Slots.Select(_=>new List<SelItem>()).ToList();
+        if(recipe.Slots.Count>0)slots[Slots.IndexOf(_src)]=recipe.Slots[0];
+        return recipe with {Values=values,Slots=slots,Expressions=recipe.Expressions?.ToDictionary(p=>p.Key+offset,p=>p.Value)};
+    }
 
     // ------------------------------------------------------------ gather triangles of the picks
     (Vec3[] pos, int[] tri, Vec3 min, Vec3 max) Gather()
@@ -99,9 +118,11 @@ public sealed class FlattenCommand : Command
     // ------------------------------------------------------------ build
     protected override CommandOutput? Build()
     {
+        if (IsRefold) return base.Build();
         Results.Clear(); _laidOut = []; _overlay = [];
         if (_src.Items.Count == 0) return null;
         if (CylinderLayout() is { } cylinder) return cylinder;
+        if (SurfaceLayout() is { } surface) return surface;
         var (pos, tri, mn, mx) = Gather();
         if (tri.Length == 0) throw new FormatException("Those picks have no faces to flatten.");
         var res = Flattener.Flatten(pos, tri);
@@ -146,14 +167,35 @@ public sealed class FlattenCommand : Command
         List<Vec3> outline=[new(x,y,0),new(x+width,y,0),new(x+width,y+height,0),new(x,y+height,0)];
         _overlay.Add(outline);_laidOut.Add(outline.Select(p=>(p.X,p.Y)).ToList());
         var wire=Occ.Polyline(outline,true);
-        var map=new FlatPatternMap(source.Id,item.Kind==SelKind.Face?item.Index:0,cylinder,x,y);
+        var flatFace=Occ.Profile([wire],true);
+        var map=new FlatPatternMap(source.Id,item.Kind==SelKind.Face?item.Index:0,cylinder,x,y) {SourceFaceBrep=face.ToBrep(),ReferenceBrep=flatFace.ToBrep()};
         var output=new CommandOutput{Label="Flatten cylindrical face",Icon=Icon};
-        if(_result.Index!=2)output.Add.Add(new(Occ.Profile([wire],true),"Flat pattern",ObjKind.Surface,Plane:Plane3.XY,FlatMap:map));
+        if(_result.Index!=2)output.Add.Add(new(flatFace,"Flat pattern",ObjKind.Surface,Plane:Plane3.XY,FlatMap:map));
         if(_result.Index!=1)output.Add.Add(new(wire,"Flat outline",ObjKind.Curve,Plane:Plane3.XY,FlatMap:map));
         Results.Add(new ResultLine("Selected faces","1 (remaining body kept)",1));
         Results.Add(new ResultLine("Size",$"{width:0.###} × {height:0.###} mm"));
         Results.Add(new ResultLine("Stretch","none: analytic cylindrical unroll",1));
-        Results.Add(new ResultLine("Return workflow","Sketch on the flat face, then use Refold",1));
+        Results.Add(new ResultLine("Return workflow","Keep flat and exit. Select the pattern and reopen Flatten / Refold when ready.",1));
+        return output;
+    }
+
+    CommandOutput? SurfaceLayout()
+    {
+        if(_src.Items.Count!=1)return null;
+        var item=_src.Items[0];var obj=S.Find(item.Obj);if(obj==null)return null;
+        using var face=item.Kind==SelKind.Face?obj.Shape.Sub(SubKind.Face,item.Index):Occ.Compound([obj.Shape]);
+        if(face.Count(SubKind.Face)!=1)return null;
+        var bounds=face.Props();double x=_place.Index==0?bounds.Max.X+Math.Max(_gap.Value,1):0,y=_place.Index==0?bounds.Min.Y:0;
+        var flat=Occ.UnwrapSurface(face,x,y,out double width,out double height);
+        var map=new FlatPatternMap(obj.Id,item.Kind==SelKind.Face?item.Index:0,[],x,y) {SourceFaceBrep=face.ToBrep(),ReferenceBrep=flat.ToBrep(),LayoutWidth=width,LayoutHeight=height};
+        var output=new CommandOutput {Label="Flatten surface",Icon=Icon};
+        if(_result.Index!=2)output.Add.Add(new(flat,"Flat pattern",ObjKind.Surface,Plane:Plane3.XY,FlatMap:map));
+        var wires=Enumerable.Range(0,flat.Count(SubKind.Wire)).Select(i=>flat.Sub(SubKind.Wire,i)).ToList();
+        if(_result.Index!=1)foreach(var wire in wires)output.Add.Add(new(wire,"Flat outline",ObjKind.Curve,Plane:Plane3.XY,FlatMap:map));
+        foreach(var wire in wires) {var points=Occ.WireSamples(wire,Math.Max(.000001,_tol.Value)).ToList();_overlay.Add(points);_laidOut.Add(points.Select(p=>(p.X,p.Y)).ToList());}
+        Results.Add(new ResultLine("Layout size",$"{width:0.###} × {height:0.###} mm"));
+        Results.Add(new ResultLine("Mapping","Surface UV layout; lengths and area may stretch",2));
+        Results.Add(new ResultLine("Return workflow","Keep flat and exit; reopen this tool on the pattern to refold or wrap.",1));
         return output;
     }
 
