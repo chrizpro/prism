@@ -31,6 +31,15 @@ Check(Math.Abs(volume - blindShape.Props().Volume - Math.PI * 9 * 5) < .001, "bl
 var offset = Hole(s, SelItem.Of(block), c => Number(c, "Center offset U", 4));
 using var offsetShape = Result(offset);
 Check(offsetShape.IsValid && offsetShape.Props().Volume < volume, "offset placement cuts valid geometry");
+var bodyCenter = block.Shape.Props().Center;
+var atPoint = Hole(s, SelItem.Of(block), c => { Choice(c, "Position", 1); Number(c, "Point X", bodyCenter.X + 5); Number(c, "Point Y", bodyCenter.Y - 4); Number(c, "Point Z", bodyCenter.Z + 6); Number(c, "Diameter", 4); });
+using var atPointShape = Result(atPoint);
+// a probe cylinder where the hole should be finds nothing left to remove, and one 10 mm away finds a full cylinder
+double[] identity = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+using var probe = Occ.Cylinder(2, 12); using var probeAt = Occ.Transform(probe, identity, new Vec3(bodyCenter.X + 5, bodyCenter.Y - 4, bodyCenter.Z - 6));
+using var probeElsewhere = Occ.Transform(probe, identity, new Vec3(bodyCenter.X - 5, bodyCenter.Y + 4, bodyCenter.Z - 6));
+using var leftover = Occ.Common(atPointShape, probeAt); using var intact = Occ.Common(atPointShape, probeElsewhere);
+Check(Math.Abs(volume - atPointShape.Props().Volume - Math.PI * 4 * 12) < .001 && leftover.Props().Volume < .01 && Math.Abs(intact.Props().Volume - Math.PI * 4 * 12) < .01, "a hole can be placed at world coordinates");
 var miss = Hole(s, SelItem.Of(block), c => Number(c, "Center offset U", 100));
 Check(miss.TryBuild() == null && miss.Error!.Contains("intersect"), "a hole that misses the body is rejected");
 var reversed = Hole(s, SelItem.Of(block), c => { Choice(c, "Extent", 1); Number(c, "Hole depth", 3); c.Params.OfType<BoolParam>().Single(p => p.Label == "Reverse direction").Value = true; });

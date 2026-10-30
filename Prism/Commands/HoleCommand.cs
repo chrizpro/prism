@@ -9,7 +9,8 @@ public sealed class HoleCommand : Command
 {
     readonly SelectionSlot _target;
     readonly ChoiceParam _type, _size, _extent, _axis;
-    readonly NumberParam _diameter, _pitch, _depth, _threadDepth, _u, _v;
+    readonly NumberParam _diameter, _pitch, _depth, _threadDepth, _u, _v, _wx, _wy, _wz;
+    readonly ChoiceParam _position;
     readonly BoolParam _reverse, _leftHand;
     static readonly (double diameter, double pitch)[] Metric = [(3, .5), (4, .7), (5, .8), (6, 1), (8, 1.25), (10, 1.5), (12, 1.75)];
     (double d, double p, double h, bool left)? _grooveKey;
@@ -29,6 +30,10 @@ public sealed class HoleCommand : Command
         _axis = Choice("Direction", 0, "Automatic / face normal", "World Z", "World X", "World Y");
         _u = Num("Center offset U", 0, -100000, 100000, .5);
         _v = Num("Center offset V", 0, -100000, 100000, .5);
+        _position = Choice("Position", 0, "Face center + offset", "World point");
+        _wx = Num("Point X", 0, -100000, 100000, .5);
+        _wy = Num("Point Y", 0, -100000, 100000, .5);
+        _wz = Num("Point Z", 0, -100000, 100000, .5);
         _reverse = Check("Reverse direction", false);
         _leftHand = Check("Left-hand thread", false);
         _size.Changed = () =>
@@ -64,7 +69,11 @@ public sealed class HoleCommand : Command
         _size.IsVisible = _pitch.IsVisible = _threadDepth.IsVisible = _leftHand.IsVisible = thread;
         _depth.IsVisible = _extent.Index == 1;
         _diameter.Caption = thread ? "Nominal thread diameter" : "Hole diameter";
+        bool atPoint = _position.Index == 1;
+        _u.IsVisible = _v.IsVisible = !atPoint;
+        _wx.IsVisible = _wy.IsVisible = _wz.IsVisible = atPoint;
         _u.HelpText = "Offsets are measured in the entry plane, relative to its center.";
+        _wx.HelpText = "The hole is placed where this point, projected onto the entry plane, lies. Use it to drill at known coordinates.";
         _pitch.HelpText = "Truncated 60° geometry; no manufacturing allowance is added.";
     }
 
@@ -97,7 +106,13 @@ public sealed class HoleCommand : Command
         var reference = Math.Abs(outward.X) < .9 ? Vec3.UnitX : Vec3.UnitY;
         var x = (reference - outward * Vec3.Dot(reference, outward)).Normalized();
         var y = Vec3.Cross(outward, x).Normalized();
-        return (center + x * _u.Value + y * _v.Value, x, outward * (_reverse.Value ? 1 : -1));
+        var at = center + x * _u.Value + y * _v.Value;
+        if (_position.Index == 1)
+        {
+            var point = new Vec3(_wx.Value, _wy.Value, _wz.Value);
+            at = point - outward * Vec3.Dot(point - center, outward);
+        }
+        return (at, x, outward * (_reverse.Value ? 1 : -1));
     }
 
     protected override CommandOutput? Build()

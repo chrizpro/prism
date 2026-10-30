@@ -12,7 +12,7 @@ Everything is in this one package and needs nothing but the Python standard libr
 """
 from ._conn import CadError, connect, call, tools
 from .api import (
-    Obj, show, faces, edges, check, commands, describe, help, sketch, history, dialog, ask, run, objects, get, state, undo, redo, screenshot, view, save, delete, select,
+    Obj, holes, show, faces, edges, check, commands, describe, help, sketch, history, dialog, ask, run, objects, get, state, undo, redo, screenshot, view, save, delete, select,
     box, cylinder, sphere, cone, torus,
     flatten, refold, wrap, extrude, revolve, sweep, loft, fillet, chamfer, shell, union, subtract, intersect,
     move, rotate, scale, mirror,

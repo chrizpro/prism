@@ -481,3 +481,18 @@ def help(query=""):
     for n, d in funcs:
         print("cad.%s: %s" % (n, d))
     print("details: cad.describe(<command>) | cad.call(<tool>, ...) | describe_api(names=[...]) for tool schemas")
+
+
+def holes(target, points, diameter=6, depth=None, **params):
+    """Drill holes at world coordinates. ``target`` is a body (holes enter from the top, along world Z, by default) or a face;
+    ``points`` is a list of (x, y) or (x, y, z). Through all unless ``depth`` is given. Returns the body after the last hole.
+    Other command parameters pass through, e.g. ``direction="World X"``, ``hole_type="Threaded (modeled)"``, ``metric_size="M6"``."""
+    result = None
+    for point in points:
+        x, y, z = (tuple(point) + (0,))[:3]
+        args = dict(position="World point", point_x=x, point_y=y, point_z=z, diameter=diameter)
+        if depth is not None:
+            args.update(extent="Blind", hole_depth=depth)
+        args.update(params)
+        result = run("hole", slots={"Body or entry face": target}, **args) or result
+    return result
