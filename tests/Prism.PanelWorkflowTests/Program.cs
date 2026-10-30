@@ -648,6 +648,54 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     Prism.Core.Assembly.JointInfo J(Prism.Core.Assembly.JointType t) => new("k", "J", t, "a", "b", frameData, frameData, false, 0, 0, 0, true, -10, 10, -20, 20);
     Check(Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Slider), frame, 0, 0).Single() is { Ref: null } && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Cylindrical), frame, 0, 0) is [{ Ref: not null }, { Ref: null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Ball), frame, 0, 0) is [{ Ref: not null }, { Ref: not null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Planar), frame, 0, 0) is [{ Ref: null }, { Ref: null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Rigid), frame, 0, 0).Count == 0, "each joint type gets handles that match how it moves (turn, slide, or both)");
 }
+// Parameter animation: a document parameter ramps from one value to another over a time, and the model is rebuilt for each moment.
+{
+    var pv = new MainViewModel { HomeOpen = false }; var ps = pv.Session;
+    var pm = new SketchModel(); pm.AddCircle(pm.AddPoint(0, 0), 10);
+    ps.EnterSketch(Plane3.XY, pm); ps.ExitSketch(true);
+    var circle = ps.Objects.Single(o => o.Kind == ObjKind.Sketch);
+    ps.SelectItems([SelItem.Of(circle)]); ps.StartCommand(() => new ExtrudeCommand()); ps.CommitCommand();
+    pv.OpenStudio("parameters");
+    pv.NewParameterName = "depth"; pv.NewParameterFormula = "12 mm"; pv.AddStudioParameter(); pv.ApplyStudioParameters();
+    pv.NewParameterName = "double_depth"; pv.NewParameterFormula = "depth * 2"; pv.AddStudioParameter(); pv.ApplyStudioParameters();
+    pv.SelectedStudioFeature = pv.StudioFeatures.Single(f => f.Node.Recipe?.Title == "Extrude");
+    pv.FeatureValueRows.Single(r => r.Label == "Distance").Formula = "depth"; pv.ApplyStudioFeatureValues();
+    double Volume(CadSession s) => s.Objects.Single(o => o.Kind == ObjKind.Solid).Shape.Props().Volume;
+    double v12 = Math.PI * 100 * 12;
+    Check(Math.Abs(Volume(ps) - v12) < 0.5 && ps.AnimatableParameters().Select(a => a.Name).SequenceEqual(["depth"]), "only plain-number parameters can be animated (a formula of another parameter cannot)");
+    var historyBefore = ps.Current; int stepsBefore = ps.HistoryPath().Past.Count; var bodyBefore = ps.Objects.Single(o => o.Kind == ObjKind.Solid);
+
+    var shapes = ps.ParameterPoseShapes(new Dictionary<string, double> { ["depth"] = 30 });
+    Check(shapes != null && shapes.Count == 1 && Math.Abs(shapes[bodyBefore.Id].Props().Volume - Math.PI * 100 * 30) < 1, "the model can be rebuilt with another value of a parameter");
+    Check(ReferenceEquals(ps.Current, historyBefore) && ps.HistoryPath().Past.Count == stepsBefore && ReferenceEquals(ps.Objects.Single(o => o.Kind == ObjKind.Solid), bodyBefore) && Math.Abs(Volume(ps) - v12) < 0.5, "the real document and its history are not touched by the rebuild");
+    Check(ps.ParameterPoseShapes(new Dictionary<string, double> { ["depth"] = 5 }) is { } thin && Math.Abs(thin[bodyBefore.Id].Props().Volume - Math.PI * 100 * 5) < 1, "the same copy rebuilds again for the next moment");
+
+    ps.StartCommand(() => new AnimationCommand()); var anim = (AnimationCommand)ps.ActiveCommand!;
+    Check(anim.Rows().Any(r => r.Label == "depth  (parameter)") && !anim.Rows().Any(r => r.Label.StartsWith("double_depth")), "the timeline gets a row for each animatable parameter");
+    anim.Params.OfType<NumberParam>().Single(p => p.Label == "From").Value = 10;
+    anim.Params.OfType<NumberParam>().Single(p => p.Label == "To").Value = 40;
+    anim.Params.OfType<NumberParam>().Single(p => p.Label == "Takes").Value = 3;
+    anim.Params.OfType<NumberParam>().Single(p => p.Label == "Starts at").Value = 1;
+    anim.Params.OfType<ActionParam>().Single(p => p.Label.StartsWith("Animate the parameter")).Run!();
+    var row = anim.Rows().Single(r => r.Label == "depth  (parameter)");
+    Check(row.Track is { } t && t.Keys.Count == 3 && t.Keys[0].T == 0 && t.Keys[1].T == 1 && Math.Abs(t.Keys[2].T - 4) < 1e-9 && Math.Abs(anim.Duration - 5) < 1e-9, "'Animate from → to' makes a ramp that starts when asked and takes the time given (speed = change / time)");
+    anim.Time = 2.5;       // half way through the ramp
+    var depthBox = anim.Params.OfType<NumberParam>().Single(p => p.Label == "depth  (parameter)");
+    Check(Math.Abs(depthBox.Value - 25) < 1.6, "scrubbing along the ramp gives the value for that moment");
+    var preview = anim.TryBuild();
+    var shownBody = preview!.Replace.FirstOrDefault(r => r.Old.Id == bodyBefore.Id).New;
+    Check(shownBody != null && Math.Abs(shownBody.Props().Volume - Math.PI * 100 * depthBox.Value) < Math.PI * 100 * 0.5, "the preview shows the body rebuilt for that moment");
+    Check(preview.Replace.Count >= 1 && anim.Results.Any(r => r.Label == "depth" && r.Value.Contains("10 → 40") && r.Value.Contains("(10 mm/s)")), "the panel states the speed of the change");
+    ps.CommitCommand();
+    var animObject = ps.Objects.Single(o => o.Asm is Prism.Core.Assembly.AnimInfo);
+    Check(Math.Abs(Volume(ps) - v12) < 0.5 && ((Prism.Core.Assembly.AnimInfo)animObject.Asm!).Tracks.Any(tr => tr.JointKey == "@param:depth"), "saving the animation keeps the real parameter value and stores the ramp");
+
+    // rendering applies the pose and puts the model back
+    ps.ApplyParameterShapes(new Dictionary<string, (double v1, double v2)> { ["@param:depth"] = (40, 0) });
+    Check(Math.Abs(Volume(ps) - Math.PI * 100 * 40) < 1, "a rendered frame shows the model with the parameter's value at that time");
+    ps.RestoreParameterShapes();
+    Check(Math.Abs(Volume(ps) - v12) < 0.5, "afterwards the model is put back as it was");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {
