@@ -251,6 +251,31 @@ def torus(major_radius=20, minor_radius=5, **p):
 
 
 # ---------------------------------------------------------------- features
+def flatten(source, **params):
+    """Create a persistent flat layout. Select it later with refold() to return."""
+    return _one(run("flatten", slots={"Faces or a surface to flatten": source}, **params), "flatten")
+
+
+def refold(pattern, geometry=None, target=None, **params):
+    """Refold a saved layout; optionally wrap curves, sheets or solids onto it."""
+    slots = {"Original flat pattern": pattern}
+    if geometry is not None:
+        slots["Sketches or curves to refold"] = geometry
+    if target is not None:
+        slots["Target face (optional)"] = target
+    return _one(run("refold", slots=slots, **params), "refold")
+
+
+def wrap(geometry, reference, target, **params):
+    """Map geometry between a planar reference and a surface, or between curves.
+
+    U/V/normal scales and offsets, mirror_u, swap_uv, flip_normal,
+    keep_input_geometry and curve_tolerance are accepted keyword arguments.
+    """
+    params.setdefault("create_a_copy_of_the_curved_face", False)
+    return refold(reference, geometry=geometry, target=target, **params)
+
+
 def extrude(profile, distance=20, extent=None, operation=None, **p):
     """Extrude a sketch or face. ``extent`` can be "Two sides", "Symmetric", "To object", "Through all" ...; ``operation`` "Cut" etc."""
     if extent:

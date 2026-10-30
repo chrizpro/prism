@@ -2,6 +2,8 @@
 
 Scripts drive the running application through the same localhost tools the MCP bridge uses, so anything you can click you can script.
 
+The MCP bridge exposes `run_script` for Python source, returning stdout, stderr, exit code and timeout status. Scripts have the same local permissions as Prism; use `print` to return values and `with cad.history("name"):` to group document edits. Python 3 must be installed. `describe_api` lists the full automation catalogue, and `call_api` invokes an individual tool. `cad.tools()` also returns the catalogue from Python. To advertise every individual tool to older MCP clients, set `PRISM_MCP_FULL_TOOLS=1` on the bridge; existing direct tool calls remain supported.
+
 ## Three ways to run a script
 1. **Script workspace** (pick Script in the workspace bar). The editor sits to the right of the model, like a script persona: the model stays visible while you work. It has a code editor, line numbers, Run (F5) / Stop (Shift+F5), a console, and an Open menu with the examples. A failed script puts the cursor on the failing line.
 2. **Run Script...** (ribbon: Script). Pick any `.py` file and it runs, showing the console.
@@ -18,6 +20,9 @@ if answers is None: raise SystemExit("Cancelled")
 `cad.ask` shows a dialog and waits: the default you give picks the field (number, text, checkbox, or a list for a choice). `cad.dialog(title, fields)` gives full control. Example: `04_ask_for_a_plate.py`.
 
 ## Python API (`cadkit`, standard library only)
+
+`cad.flatten`, `cad.refold` and `cad.wrap` expose the combined surface layout and
+deformation workflow; see [Flatten / Refold](FlattenRefold.md) for controls and limits.
 ```python
 import cadkit as cad
 with cad.history("Bracket"):

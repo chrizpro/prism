@@ -14,7 +14,7 @@ from ._conn import CadError, connect, call, tools
 from .api import (
     Obj, sketch, history, dialog, ask, run, objects, get, state, undo, redo, screenshot, view, save, delete, select,
     box, cylinder, sphere, cone, torus,
-    extrude, revolve, sweep, loft, fillet, chamfer, shell, union, subtract, intersect,
+    flatten, refold, wrap, extrude, revolve, sweep, loft, fillet, chamfer, shell, union, subtract, intersect,
     move, rotate, scale, mirror,
     flange, flat_pattern, drawing, image, edit_image,
     form_box, form_cylinder, form_loft, form_pipe, form_info, form_op, form_to_nurbs,

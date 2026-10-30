@@ -56,6 +56,11 @@ def call(tool, **args):
 
 
 def tools():
-    """The names of the tools the application offers."""
-    r = call("get_state")
-    return r
+    """Return the application automation tools and their argument schemas."""
+    if _state["port"] is None:
+        connect()
+    req = urllib.request.Request(
+        "http://127.0.0.1:%d/tools" % _state["port"],
+        headers={"X-Prism-Token": _state["token"]})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        return json.load(response)["tools"]

@@ -13,12 +13,12 @@ sealed class Bridge
 {
     static readonly string Discovery = Environment.GetEnvironmentVariable("PRISM_AUTOMATION_DISCOVERY") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "automation.json");
     static readonly string CachePath = Path.Combine(Path.GetDirectoryName(Discovery)!, "mcp-tools-cache.json");
-    readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(3) };
+    readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(6) };
     string? _baseUrl, _token;
 
     const string Instructions =
         "Prism is a desktop CAD application (Open CASCADE kernel). These tools drive the live app: build solids/surfaces/NURBS, sketch, edit control points, " +
-        "change the view, and take screenshots. Start with get_state, use screenshot to see results, and prefer run_command/batch for modeling. " +
+        "change the view, and take screenshots. Use run_script to execute Python with `import cadkit as cad`; use describe_api to discover the full automation catalogue and call_api for individual calls. " +
         "Face and edge indices are 1-based (as shown in the UI); form_info / form_op use 0-based cage indices. Units are millimetres, Z up. If the app is not running, any tool call launches it. " +
         "Tips: slot and parameter labels in run_command match by partial, case-insensitive text ('Profile' finds 'Profile (curve or sketch)'); objects can be named by name or by id prefix; " +
         "commands seed empty slots from the current selection; after view changes or Tab in 3D sketch call wait_idle before pointer events or screenshots; " +
@@ -116,7 +116,12 @@ sealed class Bridge
             LocalTool("app_status", "Report whether the Prism app is running and reachable."),
             LocalTool("app_launch", "Start the Prism desktop app if it is not already running (other tools do this automatically)."),
             LocalTool("app_close", "Politely stop the Prism process that this bridge launched or is connected to."),
+            new JsonObject { ["name"] = "run_script", ["description"] = "Execute Python 3 against the live Prism document. import cadkit as cad; print results for the response. The script has the user's local process permissions. Use cad.history(name) to group edits into one undo step. Returns stdout, stderr and exit code; timeout is 1–300 seconds.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["code"] = new JsonObject { ["type"] = "string" }, ["timeout_seconds"] = new JsonObject { ["type"] = "integer" } }, ["required"] = new JsonArray("code") } },
+            LocalTool("describe_api", "Return the full application automation tool catalogue and schemas."),
+            new JsonObject { ["name"] = "call_api", ["description"] = "Call one application automation tool by name; use describe_api for names and arguments.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["name"] = new JsonObject { ["type"] = "string" }, ["arguments"] = new JsonObject { ["type"] = "object" } }, ["required"] = new JsonArray("name") } },
         };
+        // The full catalogue remains available on demand, and old direct calls remain supported.
+        if (Environment.GetEnvironmentVariable("PRISM_MCP_FULL_TOOLS") != "1") return tools;
         JsonArray? remote = null;
         try
         {
@@ -149,6 +154,18 @@ sealed class Bridge
                     return Text(CloseApp());
             }
             if (!await ConnectAsync(launch: true)) return Error("Prism is not running and could not be launched. Set PRISM_EXE or build Prism.Desktop.");
+
+            if (name == "describe_api") return Text((await FetchToolsAsync())!.ToJsonString());
+            if (name == "run_script")
+            {
+                var scriptResult = await Post("/script", args);
+                if (scriptResult["ok"]?.GetValue<bool>() != true) return Error(scriptResult["error"]?.ToString() ?? "Script failed to start.");
+                var scriptOutput = scriptResult["result"]!;
+                var response = Text(scriptOutput.ToJsonString());
+                if (scriptOutput["exit_code"]?.GetValue<int>() != 0) response["isError"] = true;
+                return response;
+            }
+            if (name == "call_api") { name = args["name"]?.ToString() ?? throw new ArgumentException("name is required"); args = args["arguments"] as JsonObject ?? []; }
 
             var body = new JsonObject { ["tool"] = name, ["args"] = args.DeepClone() };
             var rs = await Post("/call", body);

@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Prism.Core.Scripting;
 
 namespace Prism.Automation;
 
@@ -72,6 +73,29 @@ public sealed class AutomationServer : IDisposable
             var path = rq.Url!.AbsolutePath;
             if (path == "/ping") { Write(rs, new JsonObject { ["ok"] = true, ["pid"] = Environment.ProcessId }); return; }
             if (path == "/tools") { Write(rs, new JsonObject { ["ok"] = true, ["tools"] = _api.Describe() }); return; }
+            if (path == "/script" && rq.HttpMethod == "POST")
+            {
+                using var sr = new StreamReader(rq.InputStream, Encoding.UTF8);
+                var body = JsonNode.Parse(await sr.ReadToEndAsync())!.AsObject();
+                var code = body["code"]?.GetValue<string>() ?? throw new ArgumentException("code is required");
+                var seconds = Math.Clamp(body["timeout_seconds"]?.GetValue<int>() ?? 120, 1, 300);
+                var pathTemp = Path.Combine(Path.GetTempPath(), "prism-script-" + Guid.NewGuid().ToString("N") + ".py");
+                var stdout = new StringBuilder(); var stderr = new StringBuilder();
+                try
+                {
+                    await File.WriteAllTextAsync(pathTemp, code, Encoding.UTF8);
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
+                    var language = new PythonLanguage();
+                    int exitCode = await language.RunAsync(pathTemp, new ScriptEnvironment(Port, Token, ScriptPaths.PythonLibrary), (line, error) =>
+                    {
+                        var target = error ? stderr : stdout;
+                        lock (target) { if (target.Length < 100000) target.AppendLine(line); }
+                    }, timeout.Token);
+                    Write(rs, new JsonObject { ["ok"] = true, ["result"] = new JsonObject { ["exit_code"] = exitCode, ["timed_out"] = timeout.IsCancellationRequested, ["stdout"] = stdout.ToString(), ["stderr"] = stderr.ToString() } });
+                }
+                finally { try { File.Delete(pathTemp); } catch { } }
+                return;
+            }
             if (path == "/call" && rq.HttpMethod == "POST")
             {
                 using var sr = new StreamReader(rq.InputStream, Encoding.UTF8);
@@ -89,7 +113,7 @@ public sealed class AutomationServer : IDisposable
             }
             rs.StatusCode = 404; Write(rs, new JsonObject { ["ok"] = false, ["error"] = "not found" });
         }
-        catch { try { rs.Abort(); } catch { } }
+        catch (Exception e) { try { Write(rs, new JsonObject { ["ok"] = false, ["error"] = e.Message }); } catch { try { rs.Abort(); } catch { } } }
     }
 
     static void Write(HttpListenerResponse rs, JsonNode body)
