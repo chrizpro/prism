@@ -251,6 +251,18 @@ public sealed partial class MainViewModel
         foreach (var o in Session.Objects.ToList()) Session.Update(o.Id, x => x.WithVisible(keep.Contains(x.Id)), checkpoint: false);
     }
 
+    public void HideSelected()
+    {
+        foreach (var o in Session.SelectedObjects.ToList()) Session.Update(o.Id, x => x.WithVisible(false), checkpoint: false);
+    }
+
+    public void IsolateSelected()
+    {
+        var keep = Session.SelectedObjects.Select(o => o.Id).ToHashSet();
+        if (keep.Count == 0) return;
+        foreach (var o in Session.Objects.ToList()) Session.Update(o.Id, x => x.WithVisible(keep.Contains(x.Id)), checkpoint: false);
+    }
+
     public void ShowAll()
     {
         foreach (var o in Session.Objects.ToList()) if (!o.Visible) Session.Update(o.Id, x => x.WithVisible(true), checkpoint: false);

@@ -15,6 +15,7 @@ using Prism.Controls;
 using Prism.Core;
 using Prism.Core.Sketching;
 using Prism.Kernel;
+using Prism.Ribbon;
 using Prism.ViewModels;
 using Prism.Views;
 
@@ -173,6 +174,21 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     animVm.Session.SelectItems([SelItem.Of(animVm.Session.Objects.Single(o => o.Kind == ObjKind.Animation))]); Dispatcher.UIThread.RunJobs();
     Check(animVm.Properties.Any(p => p.Label == "Length" && p.Value == "8 s") && animVm.AnimationSummary.Contains("8 s"), "a selected animation lists its length, loop and keys in the right panel");
     animHost.Close(); Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
+}
+// Draft and Split Body are on the Solid tab; Hide / Isolate / Show All work from the View tab.
+{
+    var toolVm = new MainViewModel { HomeOpen = false };
+    var solidLabels = toolVm.Tabs.Single(t => t.Title == "Solid").Buttons.Select(b => b.Label.Replace((char)10, (char)32)).ToList();
+    Check(solidLabels.Contains("Draft") && solidLabels.Contains("Split Body"), "the Solid tab offers Draft and Split Body");
+    var ts = toolVm.Session; var a = ts.AddAnimation(new Prism.Core.Assembly.AnimInfo(1, [], false), false); var b = ts.AddAnimation(new Prism.Core.Assembly.AnimInfo(2, [], false), false);
+    var viewTab = toolVm.Tabs.Single(t => t.Title == "View");
+    RibbonButton ViewBtn(string label) => viewTab.Buttons.First(x => x.Label == label);
+    ts.SelectItems([SelItem.Of(ts.Find(a.Id)!)]); ViewBtn("Hide").Refresh(); ViewBtn("Hide").Invoke();
+    Check(!ts.Find(a.Id)!.Visible && ts.Find(b.Id)!.Visible, "Hide hides only the selected object");
+    ViewBtn("Show All").Refresh(); Check(ViewBtn("Show All").IsEnabled, "Show All is enabled while something is hidden");
+    ViewBtn("Show All").Invoke(); Check(ts.Find(a.Id)!.Visible, "Show All brings hidden objects back");
+    ts.SelectItems([SelItem.Of(ts.Find(b.Id)!)]); ViewBtn("Isolate").Invoke();
+    Check(ts.Find(b.Id)!.Visible && !ts.Find(a.Id)!.Visible, "Isolate hides everything except the selection");
 }
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
