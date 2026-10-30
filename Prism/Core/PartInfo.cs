@@ -12,8 +12,11 @@ namespace Prism.Core;
 /// so it travels with the part everywhere (email, cloud, another machine), and the parts library can search it.
 /// </summary>
 public sealed record PartInfo(string PartNumber = "", string Description = "", string Revision = "", string Material = "", string Supplier = "",
-    double? Cost = null, List<string>? Tags = null, Dictionary<string, string>? Custom = null)
+    double? Cost = null, List<string>? Tags = null, Dictionary<string, string>? Custom = null, string? Thumbnail = null)
 {
+    /// <summary>The same information without its picture (an assembly keeps what a parts list needs, not a copy of every picture).</summary>
+    public PartInfo? WithoutThumbnail() => IsEmpty ? null : this with { Thumbnail = null };
+
     [JsonIgnore] public bool IsEmpty => PartNumber.Length == 0 && Description.Length == 0 && Revision.Length == 0 && Material.Length == 0 && Supplier.Length == 0
         && Cost == null && (Tags == null || Tags.Count == 0) && (Custom == null || Custom.Count == 0);
 

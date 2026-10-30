@@ -16,6 +16,8 @@ public enum ViewLayout { Single, Dual, Quad }
 
 public sealed class PreviewItem
 {
+    /// <summary>Dimmed surroundings (the rest of the assembly while one part is being edited): drawn faintly, never picked.</summary>
+    public bool Context { get; init; }
     public PreviewItem(Shape shape, ObjKind kind, uint? solidColor = null) { Shape = shape; Kind = kind; SolidColor = solidColor; }
     public PreviewItem(Form.SubdMesh form, uint? solidColor = null) { FormCage = form; Kind = ObjKind.Form; SolidColor = solidColor; }
     public PreviewItem(Meshing.TriMesh tri, uint? solidColor = null) { Tri = tri; Kind = ObjKind.Mesh; SolidColor = solidColor; }
@@ -317,7 +319,7 @@ public sealed partial class CadSession : ObservableObject
     public void NewDocument()
     {
         CancelCommand(); ExitSketch(false);
-        DocumentParameters = []; RebuildIssue = null; PartInfo = new();
+        DocumentParameters = []; RebuildIssue = null; PartInfo = new(); PartInfoChanged?.Invoke();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
         FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
@@ -755,6 +757,10 @@ public sealed partial class CadSession : ObservableObject
     // ------------------------------------------------------------ commands
     public Command? ActiveCommand { get; private set; }
     public List<PreviewItem> Preview { get; } = [];
+
+    /// <summary>Dimmed, untouchable shapes shown with this document: the assembly around a part being edited from inside it.</summary>
+    public IReadOnlyList<PreviewItem> ContextItems { get; private set; } = [];
+    public void SetContext(IEnumerable<PreviewItem> items) { ContextItems = [.. items]; Invalidate(); }
     public HashSet<Guid> HiddenIds { get; } = [];
     [ObservableProperty] public partial string? CommandError { get; set; }
 
@@ -1426,15 +1432,35 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>Identifies this open document, so an assembly can find the part it was made from while that part is still open.</summary>
     public Guid DocId { get; } = Guid.NewGuid();
 
+    public event Action? PartInfoChanged;
+
     public void SetPartInfo(PartInfo info)
     {
         if (info.Equals(PartInfo)) return;
         PartInfo = info; Dirty = true;
-        TimelineChanged?.Invoke();
+        TimelineChanged?.Invoke(); PartInfoChanged?.Invoke();
+    }
+
+    const int PartThumbSize = 112;
+
+    /// <summary>A small picture of the part, saved with its info so the library can show it without opening the file.</summary>
+    void RefreshPartThumbnail()
+    {
+        string? picture = null;
+        try
+        {
+            if (PartGeometry(this) is { } part)
+                picture = Convert.ToBase64String(Rendering.PngWriter.Encode(PartsLibrary.RenderThumbnail(part.shape, PartThumbSize, color: 0xFFB4BCC8), PartThumbSize, PartThumbSize));
+        }
+        catch (Exception) { /* a part that cannot be drawn simply has no picture */ }
+        if (picture == PartInfo.Thumbnail) return;
+        PartInfo = PartInfo with { Thumbnail = picture };
+        PartInfoChanged?.Invoke();
     }
 
     public void Save(string path)
     {
+        RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var dto = new FileDto(version, Objects.Where(o => o.Asm is not Cam.ToolpathInfo { Transient: true }).Select(o => new ObjDto(o.Name, o.Kind.ToString(), o.Color, o.Visible,
@@ -1442,7 +1468,7 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap)).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty ? null : PartInfo);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap)).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo);
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
@@ -1482,7 +1508,7 @@ public sealed partial class CadSession : ObservableObject
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
-        PartInfo = dto.Info ?? new();
+        PartInfo = dto.Info ?? new(); PartInfoChanged?.Invoke();
         FilePath = path; Dirty = false;
         RaiseScene(); ZoomExtents(); Say($"Opened {Path.GetFileName(path)}");
     }

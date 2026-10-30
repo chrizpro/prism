@@ -295,15 +295,6 @@
 
 
 
-        <!-- ============ editing a part from inside an assembly ============ -->
-
-        <Border Name="PartEditBanner" DockPanel.Dock="Top" Background="{DynamicResource Accent}" Padding="14,6" IsVisible="{Binding ShowEditBanner}">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="{Binding EditBannerText}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <Button Name="BackToAssembly" Grid.Column="1" Content="Back to assembly" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,4"/>
-            </Grid>
-        </Border>
-
         <!-- ============ workspace ============ -->
 
         <Grid Name="WorkGrid" ColumnDefinitions="272,Auto,*,Auto,312">
@@ -778,6 +769,15 @@
                 </Border>
 
 
+
+                <Border Name="PartEditOutline" BorderBrush="{DynamicResource Accent}" BorderThickness="3" IsHitTestVisible="False" IsVisible="{Binding ShowEditBanner}"/>
+
+                <Border Name="PartEditBanner" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,46" Padding="6,5,16,5" CornerRadius="20" Background="{DynamicResource Accent}" IsVisible="{Binding ShowEditBanner}">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Name="BackToAssembly" Content="← Back to assembly" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,5" CornerRadius="15"/>
+                        <TextBlock Text="{Binding EditBannerText}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
                 <TextBlock Text="Right-drag: orbit    Shift + right-drag: pan    Wheel: zoom" Classes="faint" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14,0,0,10" IsHitTestVisible="False"/>
 

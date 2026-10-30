@@ -58,7 +58,7 @@ public sealed class InsertComponentCommand : Command
             var (libShape, libColor, libLook) = PartsLibrary.Load(_library);
             string? linked = _library.Path != null && _link.Value && Path.GetExtension(_library.Path).ToLowerInvariant() is ".prism" or ".ourcad" ? _library.Path : null;
             var libPlace = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
-            var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value, _library.Info);
+            var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value, _library.Info?.WithoutThumbnail());
             Results.Add(new ResultLine("Part", _library.Name));
             Results.Add(new ResultLine("From", _library.Source));
             var libOut = new CommandOutput { Label = $"Insert {_library.Name}", Icon = "component" };
@@ -86,7 +86,7 @@ public sealed class InsertComponentCommand : Command
         var part = CadSession.PartGeometry(src) ?? throw new FormatException($"{name} has no solid bodies to insert.");
         var place = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
         var world = place.Apply(part.shape);
-        var info = new ComponentInfo(CadSession.NewKey(), name, path, place.ToArray(), _ground.Value, src.PartInfo.IsEmpty ? null : src.PartInfo) { SourceDoc = fromDoc };
+        var info = new ComponentInfo(CadSession.NewKey(), name, path, place.ToArray(), _ground.Value, src.PartInfo.WithoutThumbnail()) { SourceDoc = fromDoc };
         Results.Add(new ResultLine("Part", name));
         Results.Add(new ResultLine("Link", path == null ? "embedded copy" : Path.GetFileName(path)));
         var o = new CommandOutput { Label = $"Insert {name}", Icon = "component" };

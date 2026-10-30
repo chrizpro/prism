@@ -39,6 +39,9 @@
 
             <c:PanelStepHeader Step="4" Title="Part info" Margin="-14,16,-14,6"/>
             <TextBlock Text="Saved inside this file. The parts library, drawings and assembly parts lists use it." Classes="faint" TextWrapping="Wrap"/>
+            <Border IsVisible="{Binding HasPartThumb}" Width="112" Height="112" HorizontalAlignment="Left" CornerRadius="6" ClipToBounds="True" Margin="0,6,0,0" BorderBrush="{DynamicResource Line}" BorderThickness="1" ToolTip.Tip="A picture of the part, saved with it and refreshed every time you save. The parts library shows it.">
+                <Image Source="{Binding PartThumb}" Stretch="Uniform"/>
+            </Border>
             <TextBlock Text="Part number" Classes="meta" Margin="0,6,0,0"/>
             <TextBox Name="PartNumberBox" Text="{Binding PartNumber}" Padding="8,6" CornerRadius="4"/>
             <TextBlock Text="Description" Classes="meta" Margin="0,6,0,0"/>

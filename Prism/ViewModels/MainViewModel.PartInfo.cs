@@ -16,7 +16,10 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial string PartCost { get; set; } = "";
     [ObservableProperty] public partial string PartTags { get; set; } = "";
     [ObservableProperty] public partial string PartCustom { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasPartThumb))] public partial Avalonia.Media.Imaging.Bitmap? PartThumb { get; set; }
+    public bool HasPartThumb => PartThumb != null;
     bool _syncingPartInfo;
+    string? _thumbShown;
 
     partial void OnPartNumberChanged(string value) => PushPartInfo();
     partial void OnPartDescriptionChanged(string value) => PushPartInfo();
@@ -44,6 +47,11 @@ public sealed partial class MainViewModel
             if (PartCost != cost) PartCost = cost;
             if (PartTags != info.TagText) PartTags = info.TagText;
             if (PartCustom != info.CustomText) PartCustom = info.CustomText;
+            if (_thumbShown != info.Thumbnail)
+            {
+                _thumbShown = info.Thumbnail;
+                PartThumb = info.Thumbnail == null ? null : new Avalonia.Media.Imaging.Bitmap(new System.IO.MemoryStream(Convert.FromBase64String(info.Thumbnail)));
+            }
         }
         finally { _syncingPartInfo = false; }
     }
@@ -54,6 +62,6 @@ public sealed partial class MainViewModel
         if (_syncingPartInfo) return;
         double? cost = double.TryParse(PartCost.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var c) ? c : double.TryParse(PartCost.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out c) ? c : null;
         var tags = PartInfo.ParseTags(PartTags); var custom = PartInfo.ParseCustom(PartCustom);
-        Session.SetPartInfo(new PartInfo(PartNumber.Trim(), PartDescription.Trim(), PartRevision.Trim(), PartMaterial.Trim(), PartSupplier.Trim(), cost, tags.Count == 0 ? null : tags, custom.Count == 0 ? null : custom));
+        Session.SetPartInfo(Session.PartInfo with { PartNumber = PartNumber.Trim(), Description = PartDescription.Trim(), Revision = PartRevision.Trim(), Material = PartMaterial.Trim(), Supplier = PartSupplier.Trim(), Cost = cost, Tags = tags.Count == 0 ? null : tags, Custom = custom.Count == 0 ? null : custom });
     }
 }

@@ -123,14 +123,14 @@ public sealed partial class MainViewModel
                 try
                 {
                     string cache = Path.Combine(CacheFolder, CacheKey(item.Part));
-                    byte[]? png = File.Exists(cache) ? File.ReadAllBytes(cache) : null;
+                    byte[]? png = item.Part.Info?.Thumbnail is { } embedded ? Convert.FromBase64String(embedded) : null;      // the picture saved with the part
+                    if (png == null && File.Exists(cache)) png = File.ReadAllBytes(cache);
                     if (png == null)
                     {
                         var (shape, color, _) = PartsLibrary.Load(item.Part);
                         var pixels = PartsLibrary.RenderThumbnail(shape, ThumbSize, color: 0xFFB4BCC8);
                         png = PngWriter.Encode(pixels, ThumbSize, ThumbSize);
-                        Directory.CreateDirectory(CacheFolder);
-                        File.WriteAllBytes(cache, png);
+                        try { Directory.CreateDirectory(CacheFolder); File.WriteAllBytes(cache, png); } catch (Exception) { }
                     }
                     var data = png;
                     Dispatcher.UIThread.Post(() => { if (scan == _libraryScanId) item.Thumb = new Bitmap(new MemoryStream(data)); });

@@ -52,7 +52,7 @@ public sealed partial class MainViewModel
     public event Action<CadSession?, CadSession>? SessionSwapped;
 
     // the subscriptions to a session, kept as fields so they can be removed again when another document takes over
-    Action? _onScene, _onSelection, _onView, _onStudy;
+    Action? _onScene, _onSelection, _onView, _onStudy, _onPartInfo;
     Action<CadSession.InputRequest>? _onInput;
     PropertyChangedEventHandler? _onProp;
 
@@ -112,6 +112,7 @@ public sealed partial class MainViewModel
         s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory;
         s.LogChanged += RefreshStudioActivity;
         HookRender(s);
+        _onPartInfo = SyncPartInfo; s.PartInfoChanged += _onPartInfo;
         s.ViewChanged += _onView; s.StudyChanged += _onStudy; s.InputRequested += _onInput; s.SketchChanged += RebuildSketchPanel; s.PropertyChanged += _onProp;
     }
 
@@ -122,6 +123,7 @@ public sealed partial class MainViewModel
         if (_onSelection != null) s.SelectionChanged -= _onSelection;
         if (_onView != null) s.ViewChanged -= _onView;
         if (_onStudy != null) s.StudyChanged -= _onStudy;
+        if (_onPartInfo != null) s.PartInfoChanged -= _onPartInfo;
         if (_onInput != null) s.InputRequested -= _onInput;
         if (_onProp != null) s.PropertyChanged -= _onProp;
         UnhookRender(s);
@@ -178,7 +180,7 @@ public sealed partial class MainViewModel
             Session.Say($"'{t.Title}' has unsaved changes. Save it first (Ctrl+S), or press × again to discard them.", true);
             return;
         }
-        if (EditingPart != null && (ReferenceEquals(EditingPart.PartTab, t) || ReferenceEquals(EditingPart.AssemblyTab, t))) EditingPart = null;
+        if (EditingPart != null && (ReferenceEquals(EditingPart.PartTab, t) || ReferenceEquals(EditingPart.AssemblyTab, t))) { EditingPart.PartTab.Session.SetContext([]); EditingPart = null; }
         int i = Documents.IndexOf(t);
         bool wasActive = ReferenceEquals(t, ActiveDocument);
         if (Documents.Count == 1)

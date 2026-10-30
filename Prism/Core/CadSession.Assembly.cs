@@ -323,6 +323,19 @@ public sealed partial class CadSession
         Update(o.Id, x => x.WithAsm(x.Component!.WithPlacementKeep(grounded)), false);
     }
 
+    /// <summary>The other components, as dimmed shapes in the coordinates of one of them (or the world, with no key): the surroundings for modeling a part in context.</summary>
+    public List<PreviewItem> ContextGhostsFor(string? excludeKey)
+    {
+        var inverse = excludeKey != null && ComponentByKey(excludeKey) is { Component: { } mine } ? mine.Placement.Inverse() : (Xform?)null;
+        var items = new List<PreviewItem>();
+        foreach (var o in Components)
+        {
+            if (o.Component!.Key == excludeKey || !o.Visible) continue;
+            items.Add(new PreviewItem(inverse is { } inv ? inv.Apply(o.Shape) : o.Shape, ObjKind.Solid) { Context = true });
+        }
+        return items;
+    }
+
     /// <summary>Asked to start a new part for the assembly (name, kind). The window answers by opening a new tab in the Design workspace.</summary>
     public static Action<string, int>? CreatePartHandler { get; set; }
 
@@ -334,7 +347,7 @@ public sealed partial class CadSession
         var world = ci.Placement.Apply(part.shape);
         var m = part.shape.Tessellate();
         _locals[ci.Key] = new LocalCache(world, part.shape, (m.Min + m.Max) * 0.5);
-        Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.IsEmpty ? ci.Info : doc.PartInfo, SourcePath = doc.FilePath ?? ci.SourcePath, SourceDoc = doc.DocId }, world), false);
+        Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.WithoutThumbnail() ?? ci.Info, SourcePath = doc.FilePath ?? ci.SourcePath, SourceDoc = doc.DocId }, world), false);
         SolveAssembly();
         return true;
     }
@@ -354,7 +367,7 @@ public sealed partial class CadSession
                 var world = ci.Placement.Apply(part.shape);
                 var m = part.shape.Tessellate();
                 _locals[ci.Key] = new LocalCache(world, part.shape, (m.Min + m.Max) * 0.5);
-                Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.IsEmpty ? ci.Info : doc.PartInfo }, world), false);
+                Update(o.Id, x => x.WithAsm(ci with { Info = doc.PartInfo.WithoutThumbnail() ?? ci.Info }, world), false);
                 n++;
             }
             catch (Exception e) { Say($"Could not refresh {ci.PartName}: {e.Message}", true); }

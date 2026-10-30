@@ -423,7 +423,7 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && o.Id != s.Result?.BodyId).ToList();
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
         foreach (var vo in visible) SyncCurvature(fineShading && vo.Kind is not (ObjKind.Curve or ObjKind.Sketch) ? vo.FineMesh : vo.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
-        foreach (var pv in s.Preview) SyncCurvature(pv.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
+        foreach (var pv in s.Preview.Concat(s.ContextItems)) SyncCurvature(pv.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
 
         // ---- opaque faces (or, in X-ray, translucent ones that do not hide what is behind)
         bool xray = s.XRay;
@@ -533,9 +533,22 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         }
 
         // ---- command preview
-        foreach (var p in s.Preview)
+        foreach (var p in s.Preview.Concat(s.ContextItems))
         {
             var g = Upload(p.Mesh);
+            if (p.Context)
+            {
+                // the rest of the assembly: faint and see-through, so the part can be modeled against it
+                gl.UseProgram(_mesh);
+                gl.Enable(EnableCap.PolygonOffsetFill); gl.PolygonOffset(1f, 1f);
+                _look = (0f, 0.35f);
+                gl.DepthMask(false);
+                DrawFaces(gl, g, 0xFF9AA4B5, 0xFF9AA4B5, 0.22f, (0, 0, 0, 0), 0, -1);
+                gl.Disable(EnableCap.PolygonOffsetFill);
+                gl.UseProgram(_line);
+                DrawEdges(gl, g, 0, g.SegCount, (0.60f, 0.65f, 0.72f, 0.45f), 1.1f * scale, 0.0003f);
+                continue;
+            }
             if (p.Ghost)
             {
                 gl.UseProgram(_mesh);

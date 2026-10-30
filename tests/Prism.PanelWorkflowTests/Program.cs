@@ -490,11 +490,14 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         var typed = infoVm.Session.PartInfo;
         Check(typed.PartNumber == "BR-1042" && typed.Cost == 3.5 && typed.Tags!.SequenceEqual(["bracket", "aluminium"]) && typed.Custom!["Finish"] == "anodised" && infoVm.Session.Dirty, "typing in the Part info panel updates the document");
         string bracketFile = Path.Combine(infoDir, "bracket.prism"); infoVm.Session.Save(bracketFile);
+        var picture = Convert.FromBase64String(infoVm.Session.PartInfo.Thumbnail ?? "");
+        Check(picture.Length > 100 && picture[1] == (byte)'P' && picture[2] == (byte)'N' && picture[3] == (byte)'G' && infoVm.PartThumb != null, "saving a part draws its picture (a PNG) into the part info and the panel shows it");
+        Check(infoVm.Session.PartInfo.PartNumber == "BR-1042" && infoVm.PartNumber == "BR-1042", "the picture is added without disturbing what was typed");
         var reopened = new CadSession(); reopened.Open(bracketFile);
         Check(reopened.PartInfo.Equals(typed) || (reopened.PartInfo.PartNumber == "BR-1042" && reopened.PartInfo.Tags!.Count == 2 && reopened.PartInfo.Custom!.Count == 1 && reopened.PartInfo.Cost == 3.5), "part info is saved in the file and comes back when it is opened");
         Check(Prism.Core.PartInfo.ReadFile(bracketFile) is { PartNumber: "BR-1042", Supplier: "Acme Metals" }, "part info can be read from a file without opening the part");
         var plain = new CadSession(); plain.AddObject(Prism.Kernel.Occ.Box(5, 5, 5), "Block", ObjKind.Solid); string plainFile = Path.Combine(infoDir, "plain.prism"); plain.Save(plainFile);
-        Check(Prism.Core.PartInfo.ReadFile(plainFile) == null && new CadSession().PartInfo.IsEmpty, "a part with no info has none, and old files open without it");
+        Check(Prism.Core.PartInfo.ReadFile(plainFile) is { PartNumber: "", Thumbnail: not null } && new CadSession().PartInfo.IsEmpty && new CadSession().PartInfo.Thumbnail == null, "a part with no details still carries its picture, and a new document has none");
 
         // the library shows and searches it
         var libOld = AppSettings.Current.PartsLibraryPath;
@@ -502,7 +505,7 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         {
             AppSettings.Current.PartsLibraryPath = infoDir;
             var found = Prism.Core.PartsLibrary.Scan(infoDir);
-            Check(found.Count == 2 && found.Single(p => p.Name == "bracket").Info is { PartNumber: "BR-1042" } && found.Single(p => p.Name == "plain").Info == null, "the parts library reads part info from the files it scans");
+            Check(found.Count == 2 && found.Single(p => p.Name == "bracket").Info is { PartNumber: "BR-1042", Thumbnail: not null } && found.Single(p => p.Name == "plain").Info is { PartNumber: "" }, "the parts library reads part info from the files it scans");
             infoVm.RescanLibrary(); infoVm.LibraryShowBuiltIn = false;
             infoVm.LibraryFilter = "anodised"; Check(infoVm.LibraryGroups.Sum(g => g.Items.Count) == 1, "the library searches custom fields");
             infoVm.LibraryFilter = "acme aluminium"; Check(infoVm.LibraryGroups.Sum(g => g.Items.Count) == 1 && infoVm.LibraryGroups[0].Items[0].Subtitle == "BR-1042", "the library finds parts by supplier and tags and shows the part number");
@@ -559,6 +562,8 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         asmSession.CommitCommand(); Dispatcher.UIThread.RunJobs();
         Check(hv.Documents.Count == 2 && hv.ActiveDocument!.Title == "Bracket" && hv.EditingPart is { ComponentKey: null, Name: "Bracket" } && hv.ShowEditBanner, "Create Part opens a new tab for the part and starts editing it");
         Check(hv.WorkspaceId == "design" && hv.SelectedTab.Title == "Solid", "a solid part lands in the Design workspace on the Solid tab");
+        Check(hv.Session.ContextItems.Count == 1 && hv.Session.ContextItems.All(i => i.Context) && asmSession.ContextItems.Count == 0, "the rest of the assembly is shown dimmed around the part being modeled");
+        Check(hostView.FindControl<Border>("PartEditOutline")!.IsEffectivelyVisible && !hostView.FindControl<Border>("PartEditOutline")!.IsHitTestVisible, "an outline marks the viewport of the part being edited");
         Check(banner.IsEffectivelyVisible && hostView.FindControl<Button>("BackToAssembly")!.IsEffectivelyVisible && hv.EditBannerText.Contains("Bracket") && hv.EditBannerText.Contains(assemblyTab.Title), "a banner says which part is being edited and offers Back to assembly");
         Check(hv.Tabs.Any(t => t.Title == "Surface" && t.IsVisible) && hv.Tabs.Any(t => t.Title == "Freeform" && t.IsVisible) && hv.Tabs.Any(t => t.Title == "NURBS" && t.IsVisible), "Surface, Freeform and NURBS are all one click away while editing the part");
         foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
@@ -572,6 +577,7 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         Check(!hv.ShowEditBanner && !banner.IsEffectivelyVisible, "the banner hides while another tab is in front");
         hv.ActivateDocument(hv.Documents[1]); Dispatcher.UIThread.RunJobs();
         hostView.FindControl<Button>("BackToAssembly")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(partSession.ContextItems.Count == 0, "the dimmed surroundings go away when you return");
         Check(ReferenceEquals(hv.ActiveDocument, assemblyTab) && hv.EditingPart == null && hv.WorkspaceId == "assemble", "Back to assembly returns to the assembly tab and the workspace you came from");
         var placed = asmSession.Components.SingleOrDefault(c => c.Component!.PartName == "Bracket");
         Check(placed != null && placed.Component!.SourceDoc == partSession.DocId && !placed.Component.Grounded && asmSession.Components.Count() == 2, "the finished part is placed in the assembly as a new component");
@@ -580,6 +586,7 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         asmSession.SelectItems([SelItem.Of(placed!)]);
         double before = asmSession.Find(placed!.Id)!.Shape.Props().Volume;
         hv.EditComponentPart(); Dispatcher.UIThread.RunJobs();
+        Check(hv.Documents[1].Session.ContextItems.Count == 1, "editing a component shows the other components dimmed, placed around it");
         Check(ReferenceEquals(hv.ActiveDocument, hv.Documents[1]) && hv.EditingPart is { ComponentKey: not null } && hv.WorkspaceId == "design", "Edit Part opens the component's part in the Design workspace");
         hv.Session.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 20), new Vec3(30, 0, 0)), "Second post", ObjKind.Solid);
         hv.BackToAssembly(); Dispatcher.UIThread.RunJobs();

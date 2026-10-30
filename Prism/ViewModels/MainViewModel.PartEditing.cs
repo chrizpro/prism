@@ -20,7 +20,7 @@ public sealed partial class MainViewModel
 
     /// <summary>Shown only while the part being edited is the one in front.</summary>
     public bool ShowEditBanner => EditingPart != null && ReferenceEquals(ActiveDocument, EditingPart.PartTab);
-    public string EditBannerText => EditingPart == null ? "" : $"Editing part: {EditingPart.Name}   (in {EditingPart.AssemblyTab.Title})";
+    public string EditBannerText => EditingPart == null ? "" : $"Editing {EditingPart.Name}  ·  in {EditingPart.AssemblyTab.Title}";
 
     /// <summary>Where each kind of new part starts: the workspace and the ribbon tab.</summary>
     static (string workspace, string tab) LandingFor(int kind) => kind switch
@@ -44,6 +44,7 @@ public sealed partial class MainViewModel
         part.Session.SetPartInfo(new PartInfo(Description: name)); SyncPartInfo();
         var (workspace, tab) = LandingFor(kind);
         GoTo(workspace, tab);
+        part.Session.SetContext(assembly.Session.ContextGhostsFor(null));
         EditingPart = new PartEdit(assembly, part, null, name, back);
         Session.Say($"Model {name} here. When you are done, press Back to assembly.");
     }
@@ -64,6 +65,7 @@ public sealed partial class MainViewModel
         ActivateDocument(part);
         var (workspace, tab) = LandingFor(part.Session.Objects.Any(o => o.Form != null) ? 3 : 0);
         GoTo(workspace, tab);
+        part.Session.SetContext(assembly.Session.ContextGhostsFor(ci.Key));
         EditingPart = new PartEdit(assembly, part, ci.Key, component.Name, back);
         Session.Say($"Editing {component.Name}. Press Back to assembly to bring the changes in.");
     }
@@ -73,6 +75,7 @@ public sealed partial class MainViewModel
     {
         if (EditingPart is not { } edit) return;
         EditingPart = null;
+        edit.PartTab.Session.SetContext([]);
         if (!Documents.Contains(edit.AssemblyTab)) { Session.Say("The assembly was closed, so there is nothing to go back to."); return; }
         var part = edit.PartTab.Session;
         ActivateDocument(edit.AssemblyTab);
