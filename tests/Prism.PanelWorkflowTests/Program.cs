@@ -387,6 +387,37 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     Check(Math.Abs(fullSlot - 0.5) < 0.01 && light < 0.1, "a 12 percent bite buries far less of the cutter than a full slot");
     Check(watch.Elapsed.TotalSeconds < 20, "the adaptive path is planned in reasonable time");
 }
+// CAM: lathe turning of a stepped shaft, posted with X as a diameter.
+{
+    var ls = new CadSession();
+    var lm = new SketchModel();
+    var lp = new[] { (0.0, 0.0), (8.0, 0.0), (8.0, -20.0), (12.0, -20.0), (12.0, -40.0), (0.0, -40.0) }.Select(q => lm.AddPoint(q.Item1, q.Item2)).ToArray();
+    for (int i = 0; i < lp.Length; i++) lm.AddLine(lp[i], lp[(i + 1) % lp.Length]);
+    ls.EnterSketch(Plane3.XZ, lm); ls.ExitSketch(true);
+    var shaft = ls.Objects.Single(o => o.Kind == ObjKind.Sketch);
+    ls.SelectItems([]);
+    ls.StartCommand(() => new TurnCommand()); var turn = ls.ActiveCommand!; turn.Pick(SelItem.Of(shaft), false);
+    turn.Params.OfType<NumberParam>().Single(p => p.Label.StartsWith("Stock diameter")).Value = 30;
+    var turned = turn.TryBuild();
+    var turnPath = turned?.Add.SingleOrDefault()?.Asm as Prism.Core.Cam.ToolpathInfo;
+    Check(turnPath != null && turnPath.Operation == "Turning" && turnPath.LayerCount == 3, "turning builds facing, roughing and finishing passes for a stepped shaft");
+    double Profile(double z) => z > -1e-9 ? 0 : z >= -20 + 0.05 ? 8 : z >= -20 - 0.05 ? 8 : 12;
+    double worst = 0;
+    for (int i = 0; i < turnPath!.MoveCount; i++)
+    {
+        var (x, y, z, kind) = turnPath.Move(i);
+        if (kind == Prism.Core.Cam.MoveKind.Rapid || z > 0) continue;
+        worst = Math.Min(worst, x - Profile(z));
+        if (Math.Abs(y) > 1e-9) throw new Exception("turning moves stay in the XZ plane");
+    }
+    Check(worst > -0.05, "no cutting move goes below the part's profile");
+    var cutRadii = Enumerable.Range(0, turnPath.MoveCount).Select(i => turnPath.Move(i)).Where(m => m.kind == Prism.Core.Cam.MoveKind.Cut && m.z < -30).Select(m => m.x).ToList();
+    Check(cutRadii.Any(r => Math.Abs(r - 12) < 0.01) && Enumerable.Range(0, turnPath.MoveCount).Select(i => turnPath.Move(i)).Any(m => m.kind == Prism.Core.Cam.MoveKind.Cut && Math.Abs(m.x - 8) < 0.01 && m.z < -10 && m.z > -20.5), "the finishing pass reaches the 12 mm and 8 mm radii of the two steps");
+    var program = Prism.Core.Cam.Post.Lathe([turnPath], Prism.Core.Cam.Controller.LinuxCNC, "Shaft");
+    Check(program.Contains("G18") && program.Contains("G7") && program.Contains("X24") && program.Contains("X16") && program.Contains("Z-40"), "the lathe program writes X as a diameter and Z from the front face");
+    bool grblRefused = false; try { Prism.Core.Cam.Post.Lathe([turnPath], Prism.Core.Cam.Controller.GRBL, "Shaft"); } catch (InvalidOperationException) { grblRefused = true; }
+    Check(grblRefused, "GRBL is refused for lathe programs with a clear message");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

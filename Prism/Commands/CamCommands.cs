@@ -298,6 +298,101 @@ public sealed class AdaptiveClearCommand : CncOperationCommand
     }
 }
 
+/// <summary>Turn a round part on a lathe: face the end, rough it down in passes, then take one finishing pass along the profile.</summary>
+public sealed class TurnCommand : CncOperationCommand
+{
+    readonly SelectionSlot _src;
+    readonly NumberParam _stock, _allow, _facing;
+    readonly BoolParam _face, _rough, _finish;
+
+    public TurnCommand()
+    {
+        _src = Slot(new SelectionSlot { Label = "Profile of the part (half section on the XZ plane)", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge, Multi = true });
+        _stock = Num("Stock diameter (0 = automatic)", 0, 0, 2000, 1);
+        _facing = Num("Extra length to face off", 1, 0, 100, 0.5);
+        _allow = Num("Finish allowance", 0.2, 0, 10, 0.1);
+        _face = Check("Face the end", true); _rough = Check("Rough turn", true); _finish = Check("Finish turn", true);
+        Dia.IsVisible = Depth.IsVisible = TopZ.IsVisible = false;
+        StepDown.Value = 1.5; Feed.Value = 200; Plunge.Value = 100; Rpm.Value = 1500; Clear.Value = 2;
+    }
+
+    public override string Title => "CNC Turning";
+    public override string Icon => "cnc";
+    protected override string ToolName => "Turning tool";
+    public override string Hint => "Sketch the half section of the part on the XZ plane: X is the radius, Z runs along the axis, and the end to be faced is at the highest Z. The tool starts at the front and cuts toward the chuck. Depth per pass is the radial depth of each roughing cut. Tool nose radius is not compensated: leave the allowance for it. Post the program for Mach3 or LinuxCNC; X is written as a diameter.";
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_src.Items.Count == 0) return null;
+        var loops = new List<List<Vec3>>(); var closed = new List<bool>();
+        foreach (var it in _src.Items)
+        {
+            var shape = it.Kind == SelKind.Object ? S.Find(it.Obj)?.Shape : S.ShapeOf(it);
+            if (shape == null) continue;
+            foreach (var (pts, isClosed) in CamGeom.Loops(shape)) { loops.Add(pts); closed.Add(isClosed); }
+        }
+        if (loops.Count == 0) throw new FormatException("Pick the profile sketch.");
+        var profile = TurningProfile.FromLoops(loops, [.. closed]);
+        double maxR = profile.MaxR, allow = _allow.Value, doc = StepDown.Value;
+        double rs = _stock.Value > 0 ? _stock.Value / 2 : maxR + 3;
+        if (rs < maxR + allow + 0.05) throw new FormatException("The stock is not bigger than the part. Increase the stock diameter.");
+        double zFront = profile.ZMax + _facing.Value;
+        TopZ.Value = zFront;
+        double rClear = rs + Clear.Value;
+        Start();
+        // 1. face the end: cut from the outside to the centre, a little deeper each time
+        if (_face.Value && _facing.Value > 1e-6)
+        {
+            Pass();
+            for (double z = zFront; ; )
+            {
+                z = Math.Max(profile.ZMax, z - doc);
+                Go(rClear, 0, z + Clear.Value, MoveKind.Rapid);
+                Go(rClear, 0, z, MoveKind.Rapid);
+                Go(0, 0, z, MoveKind.Cut);
+                Go(0, 0, z + 0.5, MoveKind.Cut);
+                if (z <= profile.ZMax + 1e-9) break;
+            }
+        }
+        // 2. rough turn: radial passes from the stock down toward the part, leaving the finish allowance
+        int roughCuts = 0;
+        if (_rough.Value)
+        {
+            Pass();
+            double minR = profile.Outline(0.01).Where(p => p.r > 0).Select(p => p.r).DefaultIfEmpty(0).Min();
+            for (double r = rs - doc; r > minR + allow - 1e-9 || roughCuts == 0 && r > 0; r -= doc)
+            {
+                double level = Math.Max(r, minR + allow);
+                foreach (var (front, back) in profile.StretchesBelow(level - allow + 1e-9))
+                {
+                    Go(rClear, 0, front, MoveKind.Rapid);
+                    Go(level, 0, front, MoveKind.Plunge);
+                    Go(level, 0, back, MoveKind.Cut);
+                    Go(level + 0.5, 0, back, MoveKind.Cut);
+                    Go(rClear, 0, back, MoveKind.Rapid);
+                    roughCuts++;
+                }
+                if (level <= minR + allow + 1e-9) break;
+            }
+        }
+        // 3. finish turn along the profile
+        if (_finish.Value)
+        {
+            Pass();
+            var line = profile.Outline(0.004);
+            Go(rClear, 0, line[0].z, MoveKind.Rapid);
+            Go(line[0].r, 0, line[0].z, MoveKind.Plunge);
+            for (int i = 1; i < line.Count; i++) Go(line[i].r, 0, line[i].z, MoveKind.Cut);
+            Go(line[^1].r + 0.5, 0, line[^1].z, MoveKind.Cut);
+            Go(rClear, 0, line[^1].z, MoveKind.Rapid);
+        }
+        Results.Add(new ResultLine("Largest diameter", $"{2 * maxR:0.###} mm"));
+        Results.Add(new ResultLine("Roughing cuts", roughCuts.ToString()));
+        return Output("CNC turning", Seal("Turning"));
+    }
+}
+
 /// <summary>Finish a 3D shape with parallel passes that follow its top surface (a 3-axis raster finish).</summary>
 public sealed class ParallelFinishCommand : CncOperationCommand
 {
@@ -532,7 +627,10 @@ public sealed class CncPostCommand : Command
             foreach(var tp in paths)CamValidation.Validate(S,tp);
             string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "GCode"); Directory.CreateDirectory(dir);
             string file = string.IsNullOrWhiteSpace(_path.Value) ? Path.Combine(dir, $"program_{DateTime.Now:yyyyMMdd_HHmmss}.nc") : _path.Value;
-            var text = Post.Cnc(paths, (Controller)_ctl.Index, Origin(), S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "Prism program");
+            string title = S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "Prism program";
+            bool lathe = paths.All(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal));
+            if (!lathe && paths.Any(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal))) { S.Say("Turning and milling toolpaths go to different machines. Hide one kind and post again.", true); return; }
+            var text = lathe ? Post.Lathe(paths, (Controller)_ctl.Index, title) : Post.Cnc(paths, (Controller)_ctl.Index, Origin(), title);
             File.WriteAllText(file, text);
             S.Say($"Saved {file}  ({text.Count(c => c == '\n')} lines)");
         }

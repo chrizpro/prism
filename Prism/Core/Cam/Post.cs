@@ -71,6 +71,44 @@ public static class Post
         return sb.ToString();
     }
 
+    /// <summary>Lathe program: X is written as a diameter and Z is measured from the front face of the stock. Needs a controller with lathe support.</summary>
+    public static string Lathe(IEnumerable<ToolpathInfo> paths, Controller controller, string title)
+    {
+        if (controller == Controller.GRBL) throw new InvalidOperationException("GRBL cannot run a lathe. Choose Mach3 or LinuxCNC for turning programs.");
+        var list = paths.ToList();
+        double front = list.SelectMany(p => Enumerable.Range(0, p.MoveCount).Where(i => (MoveKind)(int)p.Moves[4 * i + 3] != MoveKind.Rapid).Select(i => p.Moves[4 * i + 2])).DefaultIfEmpty(0).Max();
+        var sb = new StringBuilder();
+        sb.AppendLine($"({title})");
+        sb.AppendLine($"(Posted by Prism for {controller} lathe, {DateTime.Now:yyyy-MM-dd HH:mm})");
+        sb.AppendLine("(Z zero is the front face of the stock; X is a diameter)");
+        sb.AppendLine("G21 G90 G18 G94 G7 G54");
+        string? lastTool = null; int toolNo = 0;
+        foreach (var tp in list)
+        {
+            sb.AppendLine($"({tp.Operation})");
+            if (tp.Tool != lastTool) { toolNo++; lastTool = tp.Tool; sb.AppendLine("M5"); sb.AppendLine($"T{toolNo} M6 ({tp.Tool})"); }
+            sb.AppendLine($"G97 S{N(tp.Rpm)} M3");
+            double cx = double.NaN, cz = double.NaN, fx = double.NaN;
+            for (int i = 0; i < tp.MoveCount; i++)
+            {
+                var (x, _, z, k) = tp.Move(i); double dx = 2 * x, dz = z - front;
+                var line = new StringBuilder(k == MoveKind.Rapid ? "G0" : "G1"); bool moved = false;
+                if (!Same(dx, cx)) { line.Append($" X{N(dx)}"); moved = true; }
+                if (!Same(dz, cz)) { line.Append($" Z{N(dz)}"); moved = true; }
+                if (k != MoveKind.Rapid)
+                {
+                    double f = k == MoveKind.Plunge ? tp.Plunge : tp.Feed;
+                    if (!Same(f, fx)) { line.Append($" F{N(f)}"); fx = f; }
+                }
+                if (moved) sb.AppendLine(line.ToString());
+                cx = dx; cz = dz;
+            }
+        }
+        sb.AppendLine("M5");
+        sb.AppendLine("M30");
+        return sb.ToString();
+    }
+
     static bool Same(double a, double b) => !double.IsNaN(a) && !double.IsNaN(b) && Math.Abs(a - b) < 5e-4;
 
     /// <summary>FDM printer program (Marlin / RepRap flavour: relative extrusion, retraction on long travels).</summary>
