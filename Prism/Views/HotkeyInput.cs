@@ -13,6 +13,7 @@ public static class HotkeyInput
         if (key is Key.None or Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.System) return null;
         string name = key switch
         {
+            Key.Enter => "Enter",
             Key.Add => "OemPlus", Key.Subtract => "OemMinus", Key.Decimal => "OemPeriod",
             >= Key.NumPad0 and <= Key.NumPad9 => "D" + (key - Key.NumPad0),
             _ => key.ToString(),

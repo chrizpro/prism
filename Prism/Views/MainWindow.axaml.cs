@@ -20,7 +20,7 @@ public partial class MainWindow : Window
 
         // shortcuts: the most specific scope first (a command that is open, then sketching, then the workspace, then everywhere)
         if (HotkeyInput.Gesture(e) is { } gesture)
-            foreach (var action in Hotkeys.Resolve(gesture, Hotkeys.ActiveScopes(s.ActiveCommand != null, s.Sketch != null, vm.WorkspaceId)))
+            foreach (var action in Hotkeys.Resolve(gesture, Hotkeys.ActiveScopes(s.ActiveCommand != null, s.Sketch != null, vm.WorkspaceId, s.ActiveCommand is Prism.Commands.EditFormCommand)))
                 if (Run(action.Id, vm)) { e.Handled = true; return; }
 
         // keys that feed whatever is being typed: these are not shortcuts and stay as they are
@@ -41,6 +41,7 @@ public partial class MainWindow : Window
             };
             // a sketch tool whose key the user moved no longer answers to its old letter
             if (ch != null && char.IsLetter(ch.Value) && s.Sketch != null && LetterMoved(ch.Value)) ch = null;
+            if(ch!=null && s.ActiveCommand is Prism.Commands.EditFormCommand && Hotkeys.Actions.Any(a=>a.Scope==Hotkeys.Freeform && a.Default==ch.ToString()))ch=null;
             if (ch != null) key = "Char:" + ch;
         }
         if (key != null && s.Key(key)) e.Handled = true;
@@ -54,18 +55,42 @@ public partial class MainWindow : Window
         var s = vm.Session;
         bool free = s.Sketch != null && s.ActiveCommand == null;
         bool gizmoTarget = s.Sketch != null && (s.Sketch.GizmoEditing || (s.Sketch.Is3DEnabled || s.Sketch.PlanarGizmoActive) && s.Sketch.GeometryEditing && s.Sketch.HasGeometrySelection);
+        if(id.StartsWith("form.") && s.ActiveCommand is Prism.Commands.EditFormCommand form)
+        {
+            if(form.HasPanelStep)return true;
+            if(form.Tool is Prism.Commands.FormEditTool {Binding.Positioning:true} && id is not ("form.move" or "form.rotate" or "form.vertex" or "form.edge" or "form.face" or "form.object"))return true;
+            switch(id)
+            {
+                case "form.move":form.ForceMode(0);break;
+                case "form.rotate":form.ForceMode(1);break;
+                case "form.scale":form.ForceMode(2);break;
+                case "form.vertex":form.SetSelectionMode(Prism.Commands.FormMode.Vertex);break;
+                case "form.edge":form.SetSelectionMode(Prism.Commands.FormMode.Edge);break;
+                case "form.face":form.SetSelectionMode(Prism.Commands.FormMode.Face);break;
+                case "form.object":form.SetSelectionMode(Prism.Commands.FormMode.Object);break;
+                case "form.crease":form.OpenCrease();break;
+                case "form.selectall":form.SelectOp("all");break;
+                case "form.extrude":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Extrude selection").Run();break;
+                case "form.loop":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Select edge loop").Run();break;
+                case "form.ring":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Select edge ring").Run();break;
+                default:return false;
+            }
+            return true;
+        }
         switch (id)
         {
+            case "model.extrude":if(s.Sketch!=null || s.ActiveCommand?.Tool!=null)return false;s.StartCommand(()=>new Prism.Commands.ExtrudeCommand());return true;
+            case "form.edit":if(s.Sketch!=null || s.ActiveCommand!=null || !s.SelectedObjects.Any(o=>o.Form!=null))return false;s.StartCommand(()=>new Prism.Commands.EditFormCommand());return true;
             case "file.new": vm.NewFile(); return true;
             case "file.open": vm.OpenFile(); return true;
             case "file.save": vm.SaveFile(false); return true;
             case "file.saveas": vm.SaveFile(true); return true;
-            case "edit.undo": s.Undo(); return true;
+            case "edit.undo":if(vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.CancelGizmoPlacement();return true;}s.Undo(); return true;
             case "edit.redo": s.Redo(); return true;
             case "edit.duplicate": s.Duplicate(); return true;
             case "edit.delete": return s.Key("Delete");
-            case "edit.cancel": return s.Key("Escape");
-            case "edit.accept": return s.Key("Enter");
+            case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
+            case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning){vm.BindGizmoSelection();return true;}return s.Key("Enter");
             case "view.lookat": return s.Key("LookAt");
             case "view.extents": s.ZoomExtents(); return true;
             case "app.search": (Content as MainView)?.FocusSearch(); return true;

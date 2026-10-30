@@ -36,8 +36,8 @@ public sealed partial class MainViewModel
         var s = Session;
         if (s.Sketch != null) return SketchMarking();
         if (s.ActiveCommand != null)
-            return [Act("OK", "finish", () => s.CommitCommand()), null, Act("Look at", "look-at", () => s.LookAtSelection()), null,
-                    Act("Cancel", "cancel", () => s.CancelCommand()), null, Act("Fit view", "zoom-extents", () => s.ZoomExtents()), null];
+            return [Act("OK", "finish", () => s.AcceptCommandPanel()), null, Act("Look at", "look-at", () => s.LookAtSelection()), null,
+                    Act("Cancel", "cancel", () => s.CancelCommandPanel()), null, Act("Fit view", "zoom-extents", () => s.ZoomExtents()), null];
         var sel = s.Selection;
         if (sel.Count == 0) return EmptyMarking();
         if (sel[0].Kind == SelKind.Face) return FaceMarking();
@@ -110,7 +110,7 @@ public sealed partial class MainViewModel
     {
         var s = Session; var list = new List<MenuSpec>();
         if (s.Sketch != null) list.Add(new("Finish sketch", () => s.ExitSketch(true)));
-        if (s.ActiveCommand != null) { list.Add(new("OK", () => s.CommitCommand())); list.Add(new("Cancel", () => s.CancelCommand())); }
+        if (s.ActiveCommand != null) { list.Add(new("OK", () => s.AcceptCommandPanel())); list.Add(new("Cancel", () => s.CancelCommandPanel())); }
         if (list.Count > 0) list.Add(MenuSpec.Sep);
         list.Add(new("Undo", () => s.Undo(), Enabled: s.CanUndo, Gesture: "Ctrl+Z"));
         list.Add(new("Redo", () => s.Redo(), Gesture: "Ctrl+Y"));

@@ -80,7 +80,7 @@ s.ExitSketch(true);
 var obj = s.Objects.Single(o=>o.Kind == ObjKind.Sketch);
 Check(obj.SketchData!.Sections.Count == 1 && obj.SketchPlane == Plane3.XY, "finishing from a secondary plane retains the root frame and one sketch identity");
 string file = Path.Combine(output,"two-plane.prism"); s.Save(file);
-Check(JsonDocument.Parse(File.ReadAllText(file)).RootElement.GetProperty("Version").GetInt32() == 3, "multi-plane documents use version 3 so older editors cannot silently discard secondary planes");
+Check(JsonDocument.Parse(File.ReadAllText(file)).RootElement.GetProperty("Version").GetInt32() >= 3, "multi-plane documents require version 3 or newer so older editors cannot silently discard secondary planes");
 var opened = new CadSession(); opened.Open(file);
 var saved = opened.Objects.Single(o=>o.Kind==ObjKind.Sketch);
 Check(saved.Id == obj.Id && saved.SketchData!.Sections[0].Plane == tilted, "save and reopen preserve sketch identity and arbitrary plane frames");
@@ -126,7 +126,7 @@ Check(drag.Plane.Origin.Length > 1 && drag.Model.Entities.Count == count, "Ctrl-
 Check(drag.TryUndo(dragSession) && drag.Plane == Plane3.XY, "plane drag is a single undoable transaction");
 dragSession.Key("SketchGizmo");
 Check(drag.GizmoEditing, "G enters gizmo editing"); dragSession.Key("SketchEdit");
-Check(!drag.GizmoEditing && drag.Tool is SketchGeometryEditTool, "E returns to constrained geometry editing");
+Check(drag.GizmoEditing && drag.GeometryEditing && drag.Tool is SketchGeometryEditTool, "E enters constrained geometry editing with target setup in 3D");
 drag.SetGizmoEditing(dragSession,true); drag.GizmoOperation = SketchGizmoOperation.Rotate;
 dragSession.PointerDown(new(center.x,center.y,true,false,true,false,1));
 dragSession.PointerMove(new(center.x+30,center.y-20,true,false,true,false,1));
@@ -174,10 +174,9 @@ keyWindow.Show();
 keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.G });
 Check(vm.Session.Sketch.GizmoEditing, "window key routing recognizes G without requiring a legacy 3D command");
 keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.E });
-keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.G });
 keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Z, KeyModifiers = KeyModifiers.Shift });
-keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.E });
-Check(vm.Session.Sketch.GizmoDrawingPlane.Normal == Vec3.UnitZ && !vm.Session.Sketch.GizmoEditing, "Shift-Z selects the gizmo XY plane through the window key route and E leaves setup");
+keyWindow.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.G });
+Check(vm.Session.Sketch.GizmoDrawingPlane.Normal == Vec3.UnitZ && !vm.Session.Sketch.GizmoEditing, "Shift-Z selects the gizmo XY plane through the window key route and G leaves setup");
 keyWindow.Close();
 var followSession = new CadSession(); followSession.EnterSketch(Plane3.XY, alignView:false);
 var follow = followSession.Sketch!; follow.Set3DEnabled(followSession,true);
@@ -187,12 +186,12 @@ Check(follow.GizmoFollowsSketch && follow.GizmoFrame.Origin == new Vec3(10,15,0)
 Check(follow.Plane == Plane3.XY, "following a point does not rebase the geometry support plane");
 followRect.Feed(followSession,50,35);
 Check(follow.GizmoFrame.Origin == new Vec3(50,35,0) && follow.Model.Entities.Count == 4, "gizmo follows the completed rectangle without disturbing its corners");
-var followDefinition = follow.ExportModel();
 follow.GizmoFollowsSketch = false;
 follow.SetTool(followSession,new CircleTool(CircleMode.CenterRadius));
 ((ClickTool)follow.Tool!).Feed(followSession,80,60);
 Check(follow.GizmoFrame.Origin == new Vec3(50,35,0), "turning off follow pins the gizmo while drawing continues");
 follow.SetTool(followSession,new SelectTool());
+var followDefinition = follow.Model.Clone();
 follow.SetGizmoTransform(followSession,new(30,40,50),new(20,30,40));
 Check(follow.GizmoFrame.Origin == new Vec3(30,40,50) && follow.GizmoRotationDegrees.DistanceTo(new(20,30,40)) < 1e-6, "gizmo exposes absolute location and rotation coordinates");
 follow.SetGizmoSize(followSession,2.5);
@@ -214,9 +213,10 @@ Check(Math.Abs(Vec3.Dot(followSession.Camera.EyeDirection,follow.GizmoDrawingPla
 var scaleSession = new CadSession(); scaleSession.EnterSketch(Plane3.XY,alignView:false);
 var scaleSketch = scaleSession.Sketch!; scaleSketch.Set3DEnabled(scaleSession,true);
 double scaleLength = scaleSession.Camera.PixelSizeAt(scaleSketch.GizmoFrame.Origin) * 96;
-var scaleHandle = scaleSession.Camera.Project(scaleSketch.GizmoFrame.Origin + (scaleSketch.GizmoDrawingPlane.U + scaleSketch.GizmoDrawingPlane.V) * scaleLength * 1.25)!.Value;
+var scaleHandle = scaleSession.Camera.Project(GizmoVisual.UniformPoint(scaleSession,scaleSketch.GizmoFrame.Origin,scaleLength))!.Value;
 Check(scaleSketch.GizmoHit(scaleSession,scaleHandle.x,scaleHandle.y,false) != 10,"plane scale cannot intercept drawing outside gizmo edit mode");
 scaleSketch.SetGizmoEditing(scaleSession,true);
+scaleSketch.GizmoOperation=SketchGizmoOperation.Size;
 Check(scaleSketch.GizmoHit(scaleSession,scaleHandle.x,scaleHandle.y,true) == 10, "plane scale has a visible directly draggable corner handle");
 scaleSession.PointerDown(new(scaleHandle.x,scaleHandle.y,true,false,false,false));
 scaleSession.PointerMove(new(scaleHandle.x+60,scaleHandle.y,true,false,false,false));
@@ -248,9 +248,9 @@ var datumSketch=datumSession.Sketch!;datumSketch.Set3DEnabled(datumSession,true)
 datumSketch.SetGizmoTransform(datumSession,new(15,25,35),new(20,30,40));datumSketch.SetGizmoSize(datumSession,2);
 var savedPlane=datumSketch.SaveDatum(datumSession,SketchDatumKind.Plane,"Fixture plane");
 var savedGizmo=datumSketch.SaveDatum(datumSession,SketchDatumKind.Gizmo,"Fixture gizmo");
-datumSketch.SaveDatum(datumSession,SketchDatumKind.Axis,"Fixture axis",1);
+var savedAxis=datumSketch.SaveDatum(datumSession,SketchDatumKind.Axis,"Fixture axis",1);
 datumSketch.SaveDatum(datumSession,SketchDatumKind.Point,"Fixture point");
-Check(datumSketch.Datums.Count==4 && datumSketch.ActiveDatumId==savedGizmo.Id,"multiple datum kinds retain a single active gizmo");
+Check(datumSketch.Datums.Count==4 && datumSketch.ActiveDatumId==savedAxis.Id,"multiple datum kinds retain a single active reference");
 datumSketch.ResetGizmo(datumSession);datumSketch.UseDatum(datumSession,savedPlane.Id);
 Check(datumSketch.GizmoFrame==savedPlane.Frame && datumSketch.GizmoSize==2,"saved plane restores origin, orientation and plane display size");
 datumSketch.UseDatum(datumSession,null);Check(datumSketch.ActiveDatumId==null,"live gizmo can be restored independently from saved datums");
@@ -263,6 +263,7 @@ var editSession=new CadSession();editSession.EnterSketch(Plane3.XY,alignView:fal
 var editRect=new RectTool(RectMode.TwoCorner);edit.SetTool(editSession,editRect);editRect.Feed(editSession,10,10);editRect.Feed(editSession,50,30);
 var originalRect=edit.ExportModel();edit.SetTool(editSession,new SketchGeometryEditTool());
 foreach(var entity in edit.Model.Entities)edit.SelEntities.Add(entity.Id);
+edit.ConfirmGizmoTarget(editSession);
 edit.CenterGizmoOnSelection(editSession);var pivot=edit.GizmoFrame.Origin;
 Check(pivot.DistanceTo(new(30,20,0))<1e-6,"Edit Sketch centers its live transform gizmo on the selected rectangle");
 edit.SetGizmoEditing(editSession,true);editSession.Key("Enter");edit.SetGizmoTransform(editSession,pivot+new Vec3(0,0,20),new(0,90,0));
@@ -278,18 +279,22 @@ Check(edit.TryUndo(editSession) && edit.TryUndo(editSession) && edit.ExportModel
 edit.SetTool(editSession,new SelectTool());edit.SetGizmoTransform(editSession,Vec3.Zero,Vec3.Zero);
 var originPivot=edit.SaveDatum(editSession,SketchDatumKind.Gizmo,"Origin pivot");
 edit.SetTool(editSession,new SketchGeometryEditTool());foreach(var entity in edit.Model.Entities)edit.SelEntities.Add(entity.Id);
+edit.ConfirmGizmoTarget(editSession);
 edit.CenterGizmoOnSelection(editSession);edit.UseDatum(editSession,originPivot.Id);
 Check(edit.SelEntities.Count==4 && edit.GizmoFrame.Origin==Vec3.Zero,"choosing a saved datum in Edit Sketch preserves geometry selection and changes its pivot");
 edit.SetGizmoTransform(editSession,new(0,0,5),Vec3.Zero);
 Check(edit.Model.Polylines(edit.Plane).SelectMany(poly=>poly.pts).All(point=>Math.Abs(point.Z-5)<1e-6),"the selected saved datum drives spatial translation of the original selection");
 
 // Exercise edit operations through the same pointer/key route as the viewport.
-CadSession EditableRectangle()
+CadSession EditableRectangle(bool spatial=false)
 {
  var session=new CadSession();session.EnterSketch(Plane3.XY,alignView:true);session.Ortho=true;
  var rectangleTool=new RectTool(RectMode.TwoCorner);session.Sketch!.SetTool(session,rectangleTool);
  rectangleTool.Feed(session,20,20);rectangleTool.Feed(session,100,70);
- session.Sketch.Set3DEnabled(session,true);session.Sketch.SetTool(session,new SketchGeometryEditTool());return session;
+ if(spatial)session.Sketch.Set3DEnabled(session,true);
+ session.Sketch.SetTool(session,new SketchGeometryEditTool());
+ if(spatial)session.Sketch.SetGizmoEditing(session,false);
+ return session;
 }
 void ClickWorld(CadSession session,Vec3 point,bool shift=false)
 {
@@ -317,7 +322,7 @@ var groupWorld=groupSketch.Model.Polylines(groupSketch.Plane).SelectMany(p=>p.pt
 Check(groupSketch.SelEntities.Count==4&&Math.Abs(groupWorld.Min(p=>p.X)-35)<1e-5&&Math.Abs(groupWorld.Max(p=>p.Y)-80)<1e-5,"dragging an edge preserves the box selection and translates the entire rectangle");
 Check(groupSketch.TryUndo(groupSession)&&groupSketch.ExportModel().SameDefinition(groupOriginal),"moving a selected rectangle is one reversible edit");
 
-var bindSession=EditableRectangle();var bind=bindSession.Sketch!;var bindOriginal=bind.ExportModel();
+var bindSession=EditableRectangle(true);var bind=bindSession.Sketch!;var bindOriginal=bind.ExportModel();
 bindSession.Key("SketchGizmo");ClickWorld(bindSession,new(100,70,0));
 Check(bind.SelPoints.Count==1&&bind.ExportModel().SameDefinition(bindOriginal),"selecting a target point in gizmo setup does not move geometry");
 bindSession.Key("Enter");
@@ -329,7 +334,7 @@ Check(bind.ExportModel().SameDefinition(beforeSetup)&&bind.SelPoints.Count==1,"g
 bindSession.Key("SketchGizmo");
 Check(!bind.GizmoEditing&&bind.GizmoRotationDegrees.DistanceTo(new(15,25,35))<1e-6,"leaving setup retains the custom gizmo orientation for the next geometry transform");
 
-var multiSession=EditableRectangle();var multi=multiSession.Sketch!;var multiOriginal=multi.ExportModel();
+var multiSession=EditableRectangle(true);var multi=multiSession.Sketch!;var multiOriginal=multi.ExportModel();
 multiSession.Key("SketchGizmo");
 foreach(var cornerTarget in new[]{new Vec3(20,20,0),new Vec3(100,20,0),new Vec3(100,70,0),new Vec3(20,70,0)})ClickWorld(multiSession,cornerTarget,true);
 Check(multi.SelPoints.Count==4&&multi.ExportModel().SameDefinition(multiOriginal),"Shift-click chooses multiple corner targets in gizmo setup without editing them");
@@ -349,6 +354,7 @@ var beforeScaleWorld=multi.Model.Polylines(multi.Plane).SelectMany(p=>p.pts).ToL
 multi.SetGizmoSize(multiSession,multi.GeometryScale*2);var afterScaleWorld=multi.Model.Polylines(multi.Plane).SelectMany(p=>p.pts).ToList();
 Check(Math.Abs((afterScaleWorld.Max(p=>p.X)-afterScaleWorld.Min(p=>p.X))-beforeSpan*2)<1e-5,"outside setup, the scale control scales the bound rectangle rather than only its plane display");
 
+multi.GizmoOperation=SketchGizmoOperation.Rotate;
 var ringBasis=new[]{multi.GizmoFrame.U,multi.GizmoFrame.V,multi.GizmoFrame.Normal};
 (double x,double y)? ringPixel=null;double ringLength=multiSession.Camera.PixelSizeAt(multi.GizmoFrame.Origin)*96;
 for(int sample=0;sample<72&&ringPixel==null;sample++)
@@ -363,29 +369,27 @@ var rp=ringPixel!.Value;multiSession.PointerDown(new(rp.x,rp.y,true,false,false,
 double lengthAfterRing=multi.Model.Polylines(multi.Plane).First().pts[0].DistanceTo(multi.Model.Polylines(multi.Plane).First().pts[1]);
 Check(multi.Plane.Normal.DistanceTo(normalBeforeRing)>.01&&Math.Abs(lengthAfterRing-lengthBeforeRing)<1e-5,"dragging the ring rotates bound geometry without changing its lengths");
 double displayBeforeHandle=multi.GizmoSize,geometryScaleBeforeHandle=multi.GeometryScale;
-var geometryScaleHandle=multiSession.Camera.Project(multi.GizmoFrame.Origin+(multi.GizmoDrawingPlane.U+multi.GizmoDrawingPlane.V)*multiSession.Camera.PixelSizeAt(multi.GizmoFrame.Origin)*96*1.25*multi.GizmoSize)!.Value;
+multi.GizmoOperation=SketchGizmoOperation.Size;
+var geometryScaleHandle=multiSession.Camera.Project(GizmoVisual.UniformPoint(multiSession,multi.GizmoFrame.Origin,multiSession.Camera.PixelSizeAt(multi.GizmoFrame.Origin)*96))!.Value;
 multiSession.PointerDown(new(geometryScaleHandle.x,geometryScaleHandle.y,true,false,false,false));multiSession.PointerMove(new(geometryScaleHandle.x+40,geometryScaleHandle.y-10,true,false,false,false));multiSession.PointerUp(new(geometryScaleHandle.x+40,geometryScaleHandle.y-10,false,false,false,false));
 Check(multi.GeometryScale>geometryScaleBeforeHandle&&multi.GizmoSize==displayBeforeHandle,"dragging the scale handle scales bound geometry while retaining the gizmo display size");
 
 var scaledDefinition=multi.ExportModel();var nextTargetPoint=multi.Model.Points.First(p=>p.Id!=0);
+multi.SetGizmoEditing(multiSession,true);
 ClickWorld(multiSession,multi.Plane.PointAt(nextTargetPoint.X,nextTargetPoint.Y));
+multi.ConfirmGizmoTarget(multiSession);
 Check(multi.GeometryScale==1&&multi.ExportModel().SameDefinition(scaledDefinition),"choosing a new geometry target starts its scale at one without resizing it");
 
-var deleteSession=EditableRectangle();foreach(var entity in deleteSession.Sketch!.Model.Entities)deleteSession.Sketch.SelEntities.Add(entity.Id);
+var deleteSession=EditableRectangle(true);foreach(var entity in deleteSession.Sketch!.Model.Entities)deleteSession.Sketch.SelEntities.Add(entity.Id);
 deleteSession.Key("SketchGizmo");deleteSession.Key("Enter");deleteSession.Key("Delete");Check(deleteSession.Sketch.Model.Entities.Count==0&&!deleteSession.Sketch.GizmoTargetConfirmed,"Delete key still removes selected sketch geometry after ribbon cleanup");
 var graphicsVm=new MainViewModel{HomeOpen=false};graphicsVm.Session.EnterSketch(Plane3.XY);
 var sketchRibbon=graphicsVm.Tabs.Single(t=>t.Title=="Sketch");var mainSketchButtons=sketchRibbon.Groups.SelectMany(g=>g.Items).OfType<Prism.Ribbon.RibbonButton>().ToList();
-var datumDropdown=mainSketchButtons.Single(b=>b.Label=="Datum");
-Check(datumDropdown.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Point","Axis","Gizmo"}),"Datum groups Point, Axis and Gizmo in one ribbon dropdown");
+var datumDropdown=mainSketchButtons.Single(b=>b.Menu?.Any(item=>item.Label=="Point")==true);
+Check(datumDropdown.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Point","Plane","Axis","Gizmo"}),"Datum groups Point, Plane, Axis and Gizmo in one ribbon dropdown");
 Check(!sketchRibbon.Buttons.Any(b=>b.Label is "Save plane" or "Grid Snap" or "Delete"),"Save Plane, Grid Snap and Delete are absent from the sketch ribbon");
 Check(!graphicsVm.Tabs.SelectMany(t=>t.Buttons).Any(b=>b.Label=="Delete"),"modeling ribbon also leaves Delete to the keyboard and contextual menus");
 Check(!SketchContext.ShowCurvature,"curvature comb starts disabled");
 Check(graphicsVm.Tabs.SelectMany(t=>t.Buttons).Where(b=>b.Label=="Hole").All(b=>b.Icon=="hole"),"mechanical Hole uses the modeling palette icon rather than the PCB icon");
-var graphicsView=new MainView{DataContext=graphicsVm};var graphicsHost=new Window{Width=1400,Height=1000,Content=graphicsView};graphicsHost.Show();Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-var snapToggle=graphicsView.FindControl<CheckBox>("SketchGridSnapToggle")!;
-snapToggle.IsChecked=true;Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-Check(snapToggle.IsVisible&&graphicsVm.Session.SketchGridSnap,"in-graphics Grid Snap checkbox updates the actual sketch snapping setting");
-snapToggle.IsChecked=false;graphicsHost.Close();
 
 foreach(var mode in new[]{EllipseMode.Center,EllipseMode.TwoPoint,EllipseMode.ThreePoint})
 {

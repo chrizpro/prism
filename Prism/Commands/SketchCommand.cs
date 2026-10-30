@@ -48,7 +48,7 @@ public class CreateSketchCommand : Command
     protected override CommandOutput? Build()
     {
         var plane = ResolvePlane();
-        var o = new CommandOutput { After = s => s.EnterSketch(plane, alignView: _lookNormal.Value) };
+        var o = new CommandOutput { NoOp = true, After = s => s.EnterSketch(plane, alignView: _lookNormal.Value) };
         return o;
     }
 }

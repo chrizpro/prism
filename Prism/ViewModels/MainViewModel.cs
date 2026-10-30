@@ -95,7 +95,7 @@ public sealed partial class MainViewModel : ViewModelBase
         IsSketching = s.Sketch != null;
         RebuildQuickBar();
         UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions();
-        Prompt = s.ActiveTool?.Prompt ?? (s.ActiveCommand != null ? s.ActiveCommand.Hint : s.Sketch != null ? "Pick a sketch tool from the ribbon." : "");
+        Prompt = s.ActiveCommand?.HasPanelStep==true ? s.ActiveCommand.PanelHint : s.ActiveTool?.Prompt ?? (s.ActiveCommand != null ? s.ActiveCommand.Hint : s.Sketch != null ? "Pick a sketch tool from the ribbon." : "");
         if (IsSketching && !_sketchTab.IsVisible) { _sketchTab.IsVisible = true; _lastNormalTab = SelectedTab ?? _lastNormalTab; SelectedTab = _sketchTab; }
         else if (!IsSketching && _sketchTab.IsVisible)
         {
@@ -118,6 +118,7 @@ public sealed partial class MainViewModel : ViewModelBase
         SyncPartInfo();
         Properties.Clear();
         var objs = Session.SelectedObjects.ToList();
+        OnPropertyChanged(nameof(IsAnimationSelected));
         HasSelection = objs.Count > 0;
         UpdateAnimationSummary();
         if (objs.Count == 0) { SelectionTitle = "Nothing selected"; RenameText = ""; return; }
@@ -186,6 +187,8 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         catch (Exception e) { Properties.Add(new("Error", e.Message)); }
     }
+
+    public bool IsAnimationSelected => Session.SelectedObjects.Count() == 1 && Session.SelectedObjects.First().Kind == ObjKind.Animation;
 
     public void Rename(string text)
     {
@@ -304,7 +307,23 @@ public sealed partial class MainViewModel : ViewModelBase
         Btn(label, icon, () => Session.Sketch?.SetTool(Session, new ConstraintTool(type)), desc, RibbonSize.Small, () => IsSketching,
             () => Session.Sketch?.Tool is ConstraintTool ct && ct.Mode == type.ToString());
     RibbonButton Sel(string label, string icon, SelMode m, string desc) =>
-        Btn(label, icon, () => Session.Mode = m, desc, RibbonSize.Small, () => !IsSketching, () => Session.Mode == m);
+        Btn(label, icon, () => SetSelectionMode(m), desc, RibbonSize.Small, () => !IsSketching && Session.ActiveCommand?.HasPanelStep!=true,()=>IsSelectionMode(m));
+
+    public void SetSelectionMode(SelMode mode)
+    {
+        if(Session.ActiveCommand?.HasPanelStep==true)return;
+        if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face});
+        else Session.Mode=mode;
+    }
+    public bool IsSelectionMode(SelMode mode)=>Session.ActiveCommand is EditFormCommand form ? form.SelMode==(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face}) : Session.Mode==mode;
+
+    RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",()=>
+    {
+        if(Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null))Session.StartCommand(()=>new EditFormCommand());
+        if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(FormMode.Vertex);
+    },"Select cage vertices (1 while editing Freeform).",RibbonSize.Small,
+    ()=>!IsSketching && (Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null)),
+    ()=>Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex});
 
     RibbonButton View(string label, string icon, double yaw, double pitch) =>
         Btn(label, icon, () => { Session.Cameras[0].SetView(yaw, pitch); Session.Invalidate(); }, $"Look at the model from the {label.ToLower()}.", RibbonSize.Small);
@@ -316,8 +335,9 @@ public sealed partial class MainViewModel : ViewModelBase
     RibbonButton FormAct(string label, string icon, string paramLabel, string desc, RibbonSize size = RibbonSize.Large) =>
         Btn(label, icon, () =>
         {
+            if(paramLabel=="Apply crease" && Session.ActiveCommand is EditFormCommand crease){crease.OpenCrease();return;}
             if (Session.ActiveCommand is EditFormCommand e && e.Params.OfType<ActionParam>().FirstOrDefault(a => a.Label.StartsWith(paramLabel, StringComparison.OrdinalIgnoreCase)) is { } act) act.Run();
-        }, desc, size, () => Session.ActiveCommand is EditFormCommand { Work: not null });
+        }, desc, size, () => Session.ActiveCommand is EditFormCommand { Work: not null,HasPanelStep:false,Tool:FormEditTool {Binding.Positioning:false} });
 
     RibbonButton EditFeatureBtn() => Btn("Edit\nFeature", "feature-edit", EditSelectedFeature,
         "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
@@ -345,8 +365,10 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Curve from\nTable", "curve-table", () => new EquationCurveCommand(true), "Make a curve from a table of x,y,z points."));
         RibbonGroup SelectGrp() => G("Select",
             Sel("Object", "sel-object", SelMode.Object, "Pick whole bodies, surfaces and curves."),
-            Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
-            Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."));
+            Split(RibbonSize.Small, "split:selection-components", "Select faces, edges or Freeform vertices. Click the name to choose a mode.",
+                Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
+                Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."),
+                VertexSelection()));
         RibbonGroup TransformGrp() => G("Transform",
             Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects."),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
@@ -514,7 +536,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Extrude", "extrude-surface", () => new ExtrudeCommand(true), "Extrude a curve or sketch into a surface."),
                     Cmd("Revolve", "revolve-surface", () => new RevolveCommand(true), "Revolve a curve into a surface."),
                     Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Sweep a curve along a path."),
-                    Cmd("Loft", "loft-surface", () => new LoftCommand(true), "Blend a surface through several curves.")),
+                    Cmd("Loft", "loft-surface", () => new LoftCommand(true), "Blend a surface through several curves."),
+                    Cmd("Fill\nOpening", "patch", () => new FillOpeningCommand(), "Fill an open boundary and optionally join the patch to its surface.")),
                 G("Fill",
                     Cmd("Planar", "planar", () => new PlanarSurfaceCommand(), "Fill closed sketches with a flat surface."),
                     Cmd("Ruled", "ruled", () => new RuledSurfaceCommand(), "Join two curves with straight rulings."),
@@ -528,10 +551,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
-                    Cmd("Create Enclosed\nSolid", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
-                    Cmd("Fill\nOpening", "patch", () => new FillOpeningCommand(), "Click an open edge and the whole opening is filled with a patch (and joined to the surface)."),
-                    Cmd("Flatten", "flatten", () => new FlattenCommand(), "Unfold faces or a surface into a flat pattern (UV layout) you can sketch on, measure, or export as DXF. Bent sheet and cylinders unroll exactly; other surfaces show their stretch."),
-                    Cmd("Refold", "warp", () => new RefoldCommand(), "Map drawings on a cylindrical flat pattern back onto its original curved face."),
+                    Cmd("Enclosed\nBody", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
+                    Cmd("Flatten /\nRefold", "flatten", () => new FlattenCommand(), "Flatten a surface and keep the layout, or return to wrap curves, sheets and solids onto its source or another surface."),
                     Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.")),
                 G("Convert", Btn("Convert to\nNURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session), "Convert the selection to editable NURBS geometry.", RibbonSize.Large, hasSel)),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),

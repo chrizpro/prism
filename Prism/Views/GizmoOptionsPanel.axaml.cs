@@ -8,4 +8,9 @@ public partial class GizmoOptionsPanel : UserControl
 {
     public GizmoOptionsPanel() => InitializeComponent();
     void OnReset(object? sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.ResetGizmoDisplay();
+    void OnPlace(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.BeginGizmoPlacement();
+    void OnBind(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.BindGizmoSelection();
+    void OnCancelPlacement(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.CancelGizmoPlacement();
+    void OnResetPivot(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.ResetGizmoBinding();
+    void OnReturn(object? sender,RoutedEventArgs e)=>(DataContext as MainViewModel)?.CloseGizmoPanel();
 }

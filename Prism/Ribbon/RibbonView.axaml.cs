@@ -44,14 +44,14 @@ public partial class RibbonView : UserControl
     }
 
     /// <summary>Dropdown buttons open a menu of variants; picking one runs it and becomes the button's new face.</summary>
-    double _pressY, _pressH; bool _pressRight;
+    double _pressX, _pressY, _pressH; bool _pressRight;
     Button? _pressedButton;
 
     void OnRibbonPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
         if ((e.Source as Avalonia.Visual)?.FindAncestorOfType<Button>(true) is not { } c) return;
         _pressedButton = c;
-        _pressY = e.GetPosition(c).Y; _pressH = c.Bounds.Height; _pressRight = e.GetCurrentPoint(c).Properties.IsRightButtonPressed;
+        _pressX = e.GetPosition(c).X; _pressY = e.GetPosition(c).Y; _pressH = c.Bounds.Height; _pressRight = e.GetCurrentPoint(c).Properties.IsRightButtonPressed;
         // a split button: right-click opens its list straight away
         if (_pressRight && (c.DataContext as RibbonButton) is { IsSplit: true, IsEnabled: true }) { ShowMenu(c); e.Handled = true; }
     }
@@ -59,7 +59,7 @@ public partial class RibbonView : UserControl
     void OnRibbonButtonClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: RibbonButton rb } anchor) return;
-        bool icon = !ReferenceEquals(_pressedButton, anchor) || (_pressY < _pressH * 0.62 && !_pressRight);
+        bool icon = !ReferenceEquals(_pressedButton, anchor) || (!_pressRight && (rb.IsSmall ? _pressX < 30 : _pressY < _pressH * 0.62));
         _pressedButton = null;
         if (!rb.HasMenu || (rb.IsSplit && icon)) rb.Invoke();
         else ShowMenu(anchor);

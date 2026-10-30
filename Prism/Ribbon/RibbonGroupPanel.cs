@@ -6,7 +6,7 @@ using Avalonia.Controls;
 namespace Prism.Ribbon;
 
 /// <summary>
-/// Lays ribbon items out like Office: large buttons span the full height; small buttons stack three to a column.
+/// Large buttons span the full height; small buttons stack three to a column, or two by two for a four-button group.
 /// </summary>
 public sealed class RibbonGroupPanel : Panel
 {
@@ -15,6 +15,7 @@ public sealed class RibbonGroupPanel : Panel
     const double Gap = 2;
 
     static bool IsSmall(Control c) => c.DataContext is RibbonButton { Size: RibbonSize.Small };
+    bool FourSmall => Children.Count==4 && System.Linq.Enumerable.All(Children,c=>c.IsVisible && IsSmall(c));
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -43,7 +44,7 @@ public sealed class RibbonGroupPanel : Panel
                 column[0].Arrange(new Rect(x, 0, w, ContentHeight));
             else
             {
-                double y = 0;
+                double y = FourSmall ? RowHeight*.5 : 0;
                 foreach (var c in column) { c.Arrange(new Rect(x, y, w, RowHeight)); y += RowHeight; }
             }
             x += w + Gap;
@@ -60,7 +61,7 @@ public sealed class RibbonGroupPanel : Panel
             if (!child.IsVisible) continue;
             if (IsSmall(child))
             {
-                if (cur == null || cur.Count >= 3 || !IsSmall(cur[0])) { cur = []; cols.Add(cur); }
+                if (cur == null || cur.Count >= (FourSmall?2:3) || !IsSmall(cur[0])) { cur = []; cols.Add(cur); }
                 cur.Add(child);
             }
             else { cols.Add([child]); cur = null; }

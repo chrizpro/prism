@@ -616,17 +616,17 @@
 
                         <TextBlock Text="{Binding Session.PendingNotice}" TextWrapping="Wrap" FontWeight="SemiBold"/>
 
-                        <TextBlock Text="Create it to keep it in the model, or discard it. Then your next step carries on." Classes="soft" TextWrapping="Wrap"/>
+                        <TextBlock Text="Finishing keeps the current changes. Discarding removes its uncommitted changes. Your requested tool opens afterward." Classes="soft" TextWrapping="Wrap"/>
 
-                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
 
-                            <Button Classes="ghost" Content="Keep editing" Click="OnPendingKeep"/>
+                            <Button Grid.Row="1" Grid.Column="1" Classes="ghost" Content="Keep editing" Click="OnPendingKeep" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                            <Button Classes="ghost" Content="Discard" Click="OnPendingDiscard"/>
+                            <Button Grid.Row="1" Classes="ghost" Content="Discard and switch" Click="OnPendingDiscard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                            <Button Classes="primary" Content="{Binding Session.PendingTitle, StringFormat='Create {0}'}" Click="OnPendingCreate"/>
+                            <Button Grid.ColumnSpan="2" Classes="primary" Content="{Binding Session.PendingTitle, StringFormat='Finish {0} and switch'}" Click="OnPendingCreate" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                        </StackPanel>
+                        </Grid>
 
                     </StackPanel>
 
@@ -812,6 +812,7 @@
                 <Panel>
 
                     <v:CommandPanel IsVisible="{Binding ShowCommandPanel}"/>
+                    <ScrollViewer IsVisible="{Binding ShowGizmoPanel}" HorizontalScrollBarVisibility="Disabled"><v:GizmoOptionsPanel Margin="0,10"/></ScrollViewer>
 
                     <v:SketchPanel IsVisible="{Binding ShowSketchPanel}"/>
 

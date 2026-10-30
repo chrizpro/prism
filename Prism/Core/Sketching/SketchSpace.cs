@@ -198,6 +198,7 @@ public sealed partial class SketchContext
         if (_gizmoDrag >= 0) EndGizmoDrag(s);
         if (editing && Tool is not ClickTool) Tool?.Deactivate(s);
         if(!editing&&GizmoEditing)LockCurrentGizmoTarget();
+        if(!editing)IndependentGizmoPlacement=false;
         GizmoEditing = editing; DrawingAxis = 0;
         s.Say(editing ? GeometryEditing ? "Gizmo setup: handles move only the gizmo. Select points or curves (Shift adds); Enter locks the target at their center and returns to geometry editing." : "Gizmo: drag an axis or plane to move, a ring to rotate, or the size handle. G resumes drawing; E edits curves; N looks normal." : "Edit curves: select and drag geometry; constraints stay satisfied.");
         s.RaiseState(); s.Invalidate();
@@ -296,7 +297,7 @@ public sealed partial class SketchContext
         var projectedOrigin = s.Camera.Project(origin);
         for (int i = 0; i < 3; i++)
         {
-            if (!display.Allows(0, active) || PlanarGizmoActive && i == 2) continue;
+            if (!display.AxisVisible(i)||!display.Allows(0, active) || PlanarGizmoActive && i == 2) continue;
             var tip = origin + basis[i] * length; var q = s.Camera.Project(tip);
             if (q != null && projectedOrigin != null && Math.Abs(q.Value.x - projectedOrigin.Value.x) + Math.Abs(q.Value.y - projectedOrigin.Value.y) > 20) Test(tip, i + 1);
         }
@@ -306,7 +307,7 @@ public sealed partial class SketchContext
             double nearest=display.Tolerance*.8;int axisHit=-1;
             for(int i=0;i<3;i++)
             {
-                if (PlanarGizmoActive && i == 2) continue;
+                if (!display.AxisVisible(i)||PlanarGizmoActive && i == 2) continue;
                 var tip=s.Camera.Project(origin+basis[i]*length);if(tip==null)continue;
                 double dx=tip.Value.x-po.x,dy=tip.Value.y-po.y;
                 if(dx*dx+dy*dy<400)continue;
@@ -318,13 +319,13 @@ public sealed partial class SketchContext
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
         if ((GizmoEditing || GeometryEditing) && (editing || transforming) && display.PlaneHandles && display.Allows(0,active))
             for (int i = 0; i < 3; i++)
-                if (!PlanarGizmoActive || i == GizmoPlaneIndex) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28), i + 4);
+                if (display.AxisVisible(pairs[i][0])&&display.AxisVisible(pairs[i][1])&&(!PlanarGizmoActive || i == GizmoPlaneIndex)) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28), i + 4);
         // Position the gizmo in G mode; outside G, Edit Sketch handles transform its selected target.
         if (editing || transforming)
         {
             for (int axis = 0; axis < 3; axis++)
             {
-                if(!display.Allows(1,active) || PlanarGizmoActive&&axis!=2)continue;
+                if(!display.AxisVisible(axis)||!display.Allows(1,active) || PlanarGizmoActive&&axis!=2)continue;
                 var a = basis[(axis + 1) % 3]; var b = basis[(axis + 2) % 3];
                 for (int i = 0; i < 72; i++)
                 {
@@ -526,6 +527,7 @@ public sealed partial class SketchContext
 
     public bool SpaceKey(CadSession s, string key)
     {
+        if(IndependentGizmoPlacement&&key=="Escape"){CancelPlacement(s,_independentGizmoBefore);return true;}
         if (!Is3DEnabled && !PlanarGizmoActive && key is "SketchGizmo" or "PlaneXY" or "PlaneXZ" or "PlaneYZ" or "GizmoMove" or "GizmoRotate" or "GizmoSize")
         { s.Say("Enable 3D sketch to use spatial drawing controls."); return true; }
         switch (key)
@@ -534,7 +536,7 @@ public sealed partial class SketchContext
                 if (GizmoEditing)
                 {
                     if (_gizmoDrag>=0) EndGizmoDrag(s);
-                    LockCurrentGizmoTarget();GizmoEditing=false; _gizmoTargetPicker.Deactivate(s);s.Say(Tool?.Prompt??"Choose a sketch tool.");s.RaiseState();s.Invalidate();
+                    LockCurrentGizmoTarget();GizmoEditing=false;IndependentGizmoPlacement=false; _gizmoTargetPicker.Deactivate(s);s.Say(Tool?.Prompt??"Choose a sketch tool.");s.RaiseState();s.Invalidate();
                 }
                 else SetGizmoEditing(s,true);
                 return true;
@@ -740,7 +742,7 @@ public sealed partial class SketchContext
         if (display.PlaneHandles && display.Allows(0,active) && (GizmoEditing || GeometryEditing))
             for (int i = 0; i < 3; i++)
             {
-                if (PlanarGizmoActive && i != GizmoPlaneIndex) continue;
+                if (!display.AxisVisible(pairs[i][0])||!display.AxisVisible(pairs[i][1])||PlanarGizmoActive && i != GizmoPlaneIndex) continue;
                 var pair = pairs[i]; var a = axes[pair[0]]; var b = axes[pair[1]];
                 var p0 = origin + (a + b) * length * .13; var p1 = p0 + a * length * .3;
                 var p2 = p1 + b * length * .3; var p3 = p0 + b * length * .3;

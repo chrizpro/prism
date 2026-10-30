@@ -80,6 +80,7 @@ public static class Icons
         ["sel-object"] = [.. Cube(), "k|w|1.2|M19 15 L19 28 L22.5 24.5 L25.5 30 L27.5 29 L24.7 23.6 L29.5 23.4Z"],
         ["sel-face"] = ["m|k|1.2|" + CubeLeft, "b|k|1.2|" + CubeRight, "o|k|1.4|" + CubeTop, "-|k|1.2|M16 16.5 V28.5"],
         ["sel-edge"] = [.. Cube(), "-|o|3.6|M16 16.5 V28.5"],
+        ["sel-vertex"] = [.. Cube(), "o|k|1.4|M20 16.5 A4 4 0 1 1 12 16.5 A4 4 0 1 1 20 16.5Z"],
 
         // ------------------------------------------------ transforms
         ["move"] = ["-|k|2.2|M16 4 V28 M4 16 H28", Head("M16 2 L20.5 7.5 H11.5Z", 'b'), Head("M16 30 L20.5 24.5 H11.5Z", 'b'), Head("M2 16 L7.5 11.5 V20.5Z", 'b'), Head("M30 16 L24.5 11.5 V20.5Z", 'b')],

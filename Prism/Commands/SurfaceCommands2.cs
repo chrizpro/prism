@@ -99,7 +99,7 @@ public sealed class BoundaryFillCommand : Command
         _cells = Text("Spaces to keep (blank = all)", "", "numbers as listed below, e.g. 1, 3");
     }
 
-    public override string Title => "Create Enclosed Solid";
+    public override string Title => "Enclosed Body";
     public override string Icon => "fill";
     public override string OkText => "Create solids";
     public override string Hint => "Pick surfaces, planes or bodies that together close off a space (for example a surface that cuts a block in two, or planes around a shape). Each enclosed space becomes a solid; list the ones you want in 'Spaces to keep'.";

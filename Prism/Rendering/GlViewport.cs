@@ -485,6 +485,7 @@ public sealed unsafe class GlViewport : OpenGlControlBase
                     DrawEdges(gl, g, 0, g.SegCount, mode == DisplayMode.Wireframe ? (0.75f, 0.86f, 1f, 1f) : (0.10f, 0.12f, 0.16f, 0.95f), mode == DisplayMode.Wireframe ? 1.6f * scale : 1.45f * scale, 0.00025f);
                     break;
                 case ObjKind.Form or ObjKind.Mesh:
+                    if(o.Kind==ObjKind.Form && s.ActiveCommand is Prism.Commands.EditFormCommand {ShowTriangles:false})break;
                     if (mode == DisplayMode.Shaded) break;
                     EnsureTriangleEdges(gl,m,g);
                     DrawEdges(gl,g,0,g.TriangleSegments,mode==DisplayMode.Wireframe?(0.75f,0.86f,1f,1f):(0.10f,0.12f,0.16f,0.55f),mode==DisplayMode.Wireframe?1.2f*scale:0.85f*scale,0.00025f,g.TriangleEdgeVbo);
@@ -573,7 +574,8 @@ public sealed unsafe class GlViewport : OpenGlControlBase
                     gl.Disable(EnableCap.PolygonOffsetFill);
                 }
                 gl.UseProgram(_line);
-                if(p.Kind is ObjKind.Form or ObjKind.Mesh && mode!=DisplayMode.Shaded)
+                if(p.Kind==ObjKind.Form && s.ActiveCommand is Prism.Commands.EditFormCommand {ShowTriangles:false}) { }
+                else if(p.Kind is ObjKind.Form or ObjKind.Mesh && mode!=DisplayMode.Shaded)
                 { EnsureTriangleEdges(gl,p.Mesh,g);DrawEdges(gl,g,0,g.TriangleSegments,(0.75f,0.86f,1f,1f),1.2f*scale,0.0003f,g.TriangleEdgeVbo); }
                 else if(mode!=DisplayMode.Shaded) DrawEdges(gl, g, 0, g.SegCount, p.SolidColor != null ? (0.10f, 0.12f, 0.16f, 0.85f) : (0.05f, 0.30f, 0.75f, 1f), 1.5f * scale, 0.0003f);
             }
@@ -810,8 +812,11 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         {
             double dx = pos.X - _last.X, dy = pos.Y - _last.Y;
             if (Math.Abs(pos.X - _downPos.X) + Math.Abs(pos.Y - _downPos.Y) > 3) { _moved = true; StopHold(); }
+            // Allow Shift or Ctrl to be pressed after the mouse button, too.
+            bool pan = _nav == Nav.Pan || e.KeyModifiers.HasFlag(KeyModifiers.Shift) || e.KeyModifiers.HasFlag(KeyModifiers.Control);
+            if (pan) StopHold();
             // a Top/Front/Right view must stay what it says: dragging to orbit pans it instead
-            if (_nav == Nav.Orbit && !s.Camera.Locked) s.Camera.Orbit(dx, dy); else s.Camera.Pan(dx, dy);
+            if (!pan && !s.Camera.Locked) s.Camera.Orbit(dx, dy); else s.Camera.Pan(dx, dy);
             s.SyncViews(s.Camera);
             _last = pos; s.Invalidate();
             return;

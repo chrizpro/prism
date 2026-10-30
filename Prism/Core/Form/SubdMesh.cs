@@ -157,12 +157,13 @@ public sealed class SubdMesh
             }
             Crease.TryGetValue(Key(v, v), out double cornerS);                       // a crease on (v,v) is a sharp corner point
             if (cornerS >= 1) nvp[v] = V[v];
-            else if (sharp.Count >= 3) nvp[v] = V[v];
-            else if (sharp.Count == 2)
+            else if (sharp.Count >= 2)
             {
+                sharp.Sort((a,b)=>b.s.CompareTo(a.s));
                 var creaseP = V[v] * 0.75 + (V[sharp[0].other] + V[sharp[1].other]) * 0.125;
                 double s = Math.Min(sharp[0].s, sharp[1].s);
                 nvp[v] = s >= 1 ? creaseP : Vec3.Lerp(smoothP(), creaseP, s);
+                if(sharp.Count>=3)nvp[v]=Vec3.Lerp(nvp[v],V[v],Math.Clamp(sharp[2].s,0,1));
             }
             else nvp[v] = smoothP();
             if (cornerS > 0 && cornerS < 1) nvp[v] = Vec3.Lerp(nvp[v], V[v], cornerS);

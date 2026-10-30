@@ -37,7 +37,7 @@ foreach (var title in new[] { "Home", "Assemble", "Render", "Animate" })
 var renderTab = vm.Tabs.Single(t => t.Title == "Render");
 Check(renderTab.Buttons.Select(b => b.Icon).Where(i => i.StartsWith("light-")).Distinct().Order().SequenceEqual(new[] { "light-edit", "light-lamp", "light-spot", "light-sun" }), "Render ribbon offers Sun, Lamp, Spot and Edit Lights");
 Check(vm.Tabs.Single(t => t.Title == "Render").Groups.Select(g => g.Title).ToList() is var renderGroups && renderGroups.IndexOf("Lighting") == renderGroups.IndexOf("Render") + 1, "Lighting sits right after the Render section");
-string Signature(RibbonGroup group) => string.Join(";", group.Items.OfType<RibbonButton>().Select(b => b.Label + ":" + b.Size + ":" + string.Join(",", b.Menu?.Select(v => v.Label) ?? [])));
+string Signature(RibbonGroup group) => string.Join(";", group.Items.OfType<RibbonButton>().Where(b=>b.Icon!="sel-vertex").Select(b => b.Label + ":" + b.Size + ":" + string.Join(",", b.Menu?.Select(v => v.Label) ?? [])));
 foreach (var name in new[] { "Transform", "Inspect", "Appearance", "Select" })
 {
     var groups = vm.Tabs.Where(t => !t.IsContextual).SelectMany(t => t.Groups).Where(g => g.Title == name).ToArray();
@@ -66,7 +66,7 @@ Check(!Avalonia.Application.Current!.Resources.ContainsKey("Accent"), "blue rest
 Check(vm.Tabs.SelectMany(t => t.Buttons).All(b => b.Icon != "sketch-edit"), "Edit Sketch is absent from ribbon tabs");
 var sketchDraw = vm.Tabs.Single(t => t.Title == "Sketch").Groups.Single(g => g.Title == "Draw").Items.OfType<RibbonButton>().ToArray();
 Check(new[] { "Line", "Rectangle", "Ellipse", "Arc" }.All(n => sketchDraw.Any(b => b.Label == n && !b.HasMenu)), "common sketch shapes have separate buttons");
-Check(vm.Tabs.Single(t => t.Title == "Surface").Buttons.Any(b => b.Label.Replace("\n", " ") == "Create Enclosed Solid"), "enclosed solid has its new name");
+Check(vm.Tabs.Single(t => t.Title == "Surface").Buttons.Any(b => b.Label.Replace("\n", " ") == "Enclosed Body"), "enclosed body has its new name");
 var solidTab=vm.Tabs.Single(t=>t.Title=="Solid");
 Check(solidTab.Groups.All(g => g.Title != "Direct"), "Solid omits the Direct section");
 var combine=solidTab.Groups.Single(g=>g.Title=="Combine").Items.OfType<RibbonButton>().Single();
@@ -78,13 +78,18 @@ Check(new[] { "Extrude", "Revolve" }.All(n => solidCreate.Any(b => b.Label == n 
 Check(solidTab.Buttons.All(b => b.Label is not ("Sweep" or "Loft" or "Edit\nFeature")), "Solid omits Sweep, Loft and Edit Feature");
 var solidModify = solidTab.Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>().ToArray();
 var edge = solidModify.Single(b => b.Menu?.Any(v => v.Label == "Chamfer") == true);
-Check(edge.IsSplit && edge.Label == "Chamfer" && edge.Menu!.Select(v => v.Label).SequenceEqual(new[] { "Chamfer", "Fillet" }) && solidModify.Any(b => b.Label == "Shell" && !b.HasMenu), "Solid exposes Shell and defaults its edge tools to Chamfer");
+Check(edge.IsSplit && edge.Label == "Chamfer" && edge.Menu!.Select(v => v.Label).SequenceEqual(new[] { "Chamfer", "Fillet" }), "Solid defaults its edge tools to Chamfer");
+Check(solidModify.Any(b => b.Menu?.Select(v => v.Icon).SequenceEqual(new[] { "shell", "draft", "splitbody" }) == true), "Solid groups Shell, Draft and Split Body");
 AppSettings.Current.LastPicks["split:solid-edge"] = "Fillet";
 var restored = new MainViewModel().Tabs.Single(t => t.Title == "Solid").Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>().Single(b => b.Menu?.Any(v => v.Label == "Chamfer") == true);
 Check(restored.Label == "Fillet" && restored.Current?.Label == "Fillet", "last edge tool is restored for the next session");
 AppSettings.Current.LastPicks.Remove("split:solid-edge");
 var surfaceCreate = vm.Tabs.Single(t => t.Title == "Surface").Groups.Single(g => g.Title == "Create").Items.OfType<RibbonButton>().ToArray();
+var freeformSelect=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().ToArray();
+Check(freeformSelect.Length==2 && freeformSelect[0].Icon=="sel-object" && freeformSelect.All(b=>b.IsSmall) && freeformSelect[1].IsSplit && freeformSelect[1].Menu!.Select(b=>b.Icon).SequenceEqual(new[]{"sel-face","sel-edge","sel-vertex"}),"Freeform stacks Object and the component selector in one column");
 Check(new[] { "Extrude", "Revolve", "Sweep", "Loft" }.All(n => surfaceCreate.Any(b => b.Label == n && !b.HasMenu)), "Surface exposes its four creation tools");
+Check(surfaceCreate.Any(b => b.Label.Replace("\n", " ") == "Fill Opening" && !b.HasMenu), "Surface exposes Fill Opening beside the creation tools");
+Check(vm.Tabs.Single(t=>t.Title=="Surface").Buttons.Count(b=>b.Label.Replace("\n", " ")=="Flatten / Refold")==1 && vm.Tabs.Single(t=>t.Title=="Surface").Buttons.All(b=>b.Label!="Refold"), "Surface combines Flatten and Refold into one entry");
 Check(vm.Tabs.Any(t=>t.Title=="Direct Modeling")&&MainViewModel.WorkspaceDefs.Single(w=>w.Id=="design").Tabs.Contains("Direct Modeling"),"Direct Modeling is available in the Design workspace");
 Check(vm.Tabs.Any(t => t.Title == "CAM") && vm.Tabs.All(t => t.Title is not ("CNC" or "3D Print")), "CNC and print tools share one CAM tab");
 var cam = vm.Tabs.Single(t => t.Title == "CAM");

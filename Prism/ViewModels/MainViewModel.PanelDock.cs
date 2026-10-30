@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
     readonly HashSet<string> _openRightPanels = ["properties"];
     [ObservableProperty] public partial string SelectedRightPanel { get; set; } = "context";
     [ObservableProperty] public partial bool ShowCommandPanel { get; set; }
+    [ObservableProperty] public partial bool ShowGizmoPanel {get;set;}
     bool _syncingRightPanels;
     string? _lastPanelContext;
     string _panelBeforeOperation = "context";
@@ -22,11 +23,12 @@ public sealed partial class MainViewModel
     public static string PanelTitle(string id) => id switch
     {
         "command" => "Command", "sketch" => "Sketch", "appearance" => "Appearance", "diagnostics" => "Diagnostics",
-        "references" => "References", "parameters" => "Parameters", "script" => "Script", "simulation" => "Simulation", "library" => "Parts library", _ => "Properties",
+        "references" => "References", "parameters" => "Parameters", "script" => "Script", "simulation" => "Simulation", "library" => "Parts library", "gizmo"=>"Gizmo", _ => "Properties",
     };
 
     partial void OnSelectedRightPanelChanged(string value)
     {
+        if(!_syncingRightPanels&&value!="gizmo"&&GizmoPositioning)CancelGizmoPlacement();
         if (!_syncingRightPanels) { UpdatePanels(); RefreshStudios(); }
     }
 
@@ -38,7 +40,7 @@ public sealed partial class MainViewModel
 
     public void SetRightPanelEnabled(string id, bool enabled)
     {
-        if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "script" or "library")) return;
+        if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "script" or "library" or "gizmo")) return;
         if (id == "properties" && !enabled) return;
         if (enabled) _openRightPanels.Add(id); else _openRightPanels.Remove(id);
         if (enabled) SelectedRightPanel = ContextPanelId == id ? "context" : id;
@@ -68,6 +70,7 @@ public sealed partial class MainViewModel
             string content = RightPanelContentId;
             StudioPanel = content is "diagnostics" or "references" or "parameters" ? content : null;
             ShowCommandPanel = content == "command" && ActiveCommand != null;
+            ShowGizmoPanel=content=="gizmo";
             ShowSketchPanel = content == "sketch" && IsSketching;
             ShowMaterialsPanel = content == "appearance";
             ShowLibraryPanel = content == "library";
@@ -77,7 +80,7 @@ public sealed partial class MainViewModel
             ShowProperties = content == "properties";
             ShowSimPanel = content == "simulation";
             var tabs = new List<RightPanelTab> { new("context", PanelTitle(context), SelectedRightPanel == "context") };
-            foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script", "library" })
+            foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script", "library", "gizmo" })
                 if (_openRightPanels.Contains(id) && id != context) tabs.Add(new(id, PanelTitle(id), SelectedRightPanel == id));
             if (!RightPanelTabs.SequenceEqual(tabs)) { RightPanelTabs.Clear(); foreach (var tab in tabs) RightPanelTabs.Add(tab); }
             OnPropertyChanged(nameof(AnyStudioVisible)); OnPropertyChanged(nameof(ShowScriptEditor));

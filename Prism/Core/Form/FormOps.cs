@@ -306,15 +306,20 @@ public static class FormOps
             int prev = from, cur = to;
             while (true)
             {
-                if (!around.TryGetValue(cur, out var nb) || nb.Count is not (3 or 4)) break;
+                if (!around.TryGetValue(cur, out var nb)) break;
                 var inFaces = topo.EdgeFaces[SubdMesh.Key(prev, cur)]; int next = -1;
-                if (nb.Count == 4)
+                if(inFaces.Count==1)
+                {
+                    var boundary=nb.Where(w=>w!=prev && topo.EdgeFaces[SubdMesh.Key(cur,w)].Count==1).ToList();
+                    if(boundary.Count==1)next=boundary[0];
+                }
+                else if (nb.Count == 4)
                     foreach (int w in nb)
                     {
                         if (w == prev) continue;
                         if (!topo.EdgeFaces[SubdMesh.Key(cur, w)].Any(inFaces.Contains)) { next = w; break; }   // the edge on the far side, sharing no face with the one we came by
                     }
-                else
+                else if(nb.Count==3)
                 {
                     // the rim of a cap or other many-sided face: carry on around that face
                     foreach (int fi in inFaces)

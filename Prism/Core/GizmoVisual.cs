@@ -51,6 +51,7 @@ public static class GizmoVisual
         double length = Length(s, c); float width = settings.Stroke;
         for (int axis = 0; axis < 3; axis++)
         {
+            if(!settings.AxisVisible(axis))continue;
             if (planar && (operation == 1 ? axis != 2 : axis == 2) || operation == 2 && !axisScale) continue;
             uint color = hotAxis == axis ? Accent : AxisColors[axis];
             float stroke = hotAxis == axis ? width + 1.5f : width;
@@ -91,6 +92,7 @@ public static class GizmoVisual
             if (op == 2) Point(UniformPoint(s, c, length), 2);
             for (int axis = 0; axis < 3; axis++)
             {
+                if(!settings.AxisVisible(axis))continue;
                 if (op == 1)
                 {
                     var points = Ring(c, axes[(axis + 1) % 3], axes[(axis + 2) % 3], length);

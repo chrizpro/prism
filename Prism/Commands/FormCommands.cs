@@ -117,7 +117,7 @@ public sealed class FormTorusCommand : FormCreateCommand
 }
 
 // ================================================================= edit form
-public enum FormMode { Vertex, Edge, Face }
+public enum FormMode { Vertex, Edge, Face, Object }
 
 public sealed class EditFormCommand : Command
 {
@@ -126,6 +126,9 @@ public sealed class EditFormCommand : Command
     readonly NumberParam _dist, _crease, _px, _py, _pz;
     NumberParam _angleLimit = null!, _slideAmt = null!;
     BoolParam _showPoles = null!;
+    readonly BoolParam _showTriangles;
+    public bool ShowTriangles => _showTriangles.Value;
+    public bool ObjectSelected { get; private set; }
     public bool ShowPoles => _showPoles.Value;
     readonly IntParam _level;
     readonly ChoiceParam _mirror;
@@ -152,8 +155,8 @@ public sealed class EditFormCommand : Command
     public EditFormCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Freeform", Filter = SelFilter.Form });
-        Mode = Choice("Select", 2, "Vertices", "Edges", "Faces");
-        Mode.Changed = () => { ClearSelection(); OnChanged(); };
+        Mode = Choice("Select", 2, "Vertices", "Edges", "Faces", "Object");
+        Mode.Changed = SelectionModeChanged;
         _px = Num("Selection X", 0); _py = Num("Selection Y", 0); _pz = Num("Selection Z", 0);
         _px.IsVisible = _py.IsVisible = _pz.IsVisible = false;
         _px.Changed = _py.Changed = _pz.Changed = OnCenterField;
@@ -176,7 +179,9 @@ public sealed class EditFormCommand : Command
         _insetDepth = Num("Inset depth (push out +, in -)", 0, -1e4, 1e4, 0.5);
         _insetEach = Check("Inset each face on its own", false);
         _dist = Num("Extrude distance", 8);
-        _crease = Num("Crease sharpness", 1, 0, 5, 0.5, "");
+        _crease = Num("Crease sharpness", 1, 0, 5, 0.1, "");
+        _crease.Changed = PreviewCrease;
+        _crease.HelpText = "0 removes the crease. Fractional sharpness gives a soft crease; larger values retain a sharper edge through more subdivision levels.";
         _level = Add(new IntParam { Label = "Smoothness (levels)", Value = 3, Min = 1, Max = 4 });
         _mirror = Choice("Mirror plane", 1, "XY (Z = 0)", "XZ (Y = 0)", "YZ (X = 0)");
         _stick = Check("Keep moved points on the scan", false);
@@ -187,6 +192,7 @@ public sealed class EditFormCommand : Command
         _alignStrength = Num("Align strength", 100, 0, 100, 10, "%");
         _alignRange = Num("Only points within (0 = any distance)", 0, 0, 1e5, 1);
         _showPoles = Check("Mark poles, triangles and n-gons", false);
+        _showTriangles = Check("Show surface triangles", false);
         _angleLimit = Num("Flood-select angle limit", 30, 0, 180, 5, "°");
         Add(new ActionParam { Label = "Grow selection", Run = () => Do(() => SelectOp("grow"), undoable: false) });
         Add(new ActionParam { Label = "Shrink selection", Run = () => Do(() => SelectOp("shrink"), undoable: false) });
@@ -207,8 +213,8 @@ public sealed class EditFormCommand : Command
         Add(new ActionParam { Label = "Extrude selection", Run = () => Do(() => { MirrorSel(); ExtrudeSel(); }) });
         Add(new ActionParam { Label = "Inset selected faces", Run = () => Do(() => { MirrorSel(); InsetSel(); }) });
         Add(new ActionParam { Label = "Bevel selected edges (tighten them)", Run = () => Do(() => { MirrorSel(); BevelSel(); }) });
-        Add(new ActionParam { Label = "Rotate selection by the angle above", Run = () => Do(() => ApplyXf(Work!.V.ToArray(), FormTransform.RotateAbout(PivotPoint(), Axis(_rotAxis.Index), _rotAngle.Value * Math.PI / 180))) });
-        Add(new ActionParam { Label = "Scale selection by the factor above", Run = () => Do(() => ApplyXf(Work!.V.ToArray(), FormTransform.ScaleAbout(PivotPoint(), _scaleFactor.Value, _scaleFactor.Value, _scaleFactor.Value))) });
+        Add(new ActionParam { Label = "Rotate selection by the angle above", Run = () => Do(() => TransformNumeric(FormTransform.RotateAbout(PivotPoint(), Axis(_rotAxis.Index), _rotAngle.Value * Math.PI / 180))) });
+        Add(new ActionParam { Label = "Scale selection by the factor above", Run = () => Do(() => TransformNumeric(FormTransform.ScaleAbout(PivotPoint(), _scaleFactor.Value, _scaleFactor.Value, _scaleFactor.Value))) });
         Add(new ActionParam { Label = "Fill holes (cap open borders)", Run = () => Do(() => { int n = FormOps.FillHoles(Work!); if (n == 0) throw new InvalidOperationException("There are no open borders to fill."); ClearSelection(); S.Say($"Filled {n} hole(s)."); }) });
         Add(new ActionParam { Label = "Thicken (give the cage wall thickness: Bevel width)", Run = () => Do(() => { FormOps.Solidify(Work!, _bevelW.Value); ClearSelection(); S.Say($"Added a second skin {_bevelW.Value:0.##} mm inside the cage."); }) });
         Add(new ActionParam { Label = "Merge selected faces into one", Run = () => Do(() => { if (!FormOps.MergeFaces(Work!, Faces)) throw new InvalidOperationException("Select two or more touching faces (Select: Faces) that form one patch."); ClearSelection(); }) });
@@ -235,7 +241,8 @@ public sealed class EditFormCommand : Command
     }
 
     public override string Title => "Edit Freeform";
-    public override string Hint => "Pick a form, then click vertices, edges or faces. Drag the arrows to move; Shift-click adds to the selection.";
+    public override string OkText => "Done";
+    public override string Hint => "Pick a form, then click vertices, edges or faces. Double-click for a loop; Shift adds to the selection. Drag the gizmo to transform.";
     public override string Icon => "form-edit";
 
     // ---- source handling
@@ -244,7 +251,7 @@ public sealed class EditFormCommand : Command
         var item = _src.Items.Count > 0 ? S.Find(_src.Items[0].Obj) : null;
         if (item != Source)
         {
-            Source = item; Work = item?.Form?.Clone(); _undo.Clear(); ClearSelection();
+            Source = item; Work = item?.Form?.Clone(); _tool?.Binding.Reset();_undo.Clear(); ClearSelection();
             if (Work != null) { _level.Value = Work.Level; LoadSymmetry(); }
         }
         bool scan = ScanSurface.Any(S);
@@ -256,7 +263,7 @@ public sealed class EditFormCommand : Command
         // keep the panel short: only show the settings that belong to the current gizmo, symmetry and selection mode
         _rotAxis.IsVisible = _rotAngle.IsVisible = TransformMode.Index == 1;
         _scaleFactor.IsVisible = TransformMode.Index == 2;
-        PivotP.IsVisible = TransformMode.Index != 0;
+        PivotP.IsVisible = TransformMode.IsVisible = false;
         _radial.IsVisible = _sym.Index == 4;
         _fall.IsVisible = _soft.Value > 0;
         _insetAmt.IsVisible = _insetDepth.IsVisible = _insetEach.IsVisible = SelMode == FormMode.Face;
@@ -265,7 +272,9 @@ public sealed class EditFormCommand : Command
             if (a.Label.StartsWith("Rotate selection")) a.IsVisible = TransformMode.Index == 1;
             else if (a.Label.StartsWith("Scale selection")) a.IsVisible = TransformMode.Index == 2;
             else if (a.Label.StartsWith("Inset selected")) a.IsVisible = SelMode == FormMode.Face;
+            if (a.Label is "Apply crease to selected edges" or "Crease selected points (sharp corners)") a.IsVisible=false;
         }
+        _crease.IsVisible=false;
         if (Work != null && Work.Level != _level.Value) Work.Level = _level.Value;
     }
 
@@ -314,7 +323,43 @@ public sealed class EditFormCommand : Command
         SelectionNotify(); OnChanged();
     }
 
-    public void ClearSelection() { Verts.Clear(); Edges.Clear(); Faces.Clear(); _tool?.SelectionChanged(); }
+    public void ClearSelection() { ObjectSelected=false; Verts.Clear(); Edges.Clear(); Faces.Clear(); _tool?.SelectionChanged(); }
+    void SelectionModeChanged() { ClearSelection(); ObjectSelected=SelMode==FormMode.Object; OnChanged(); S?.RaiseState(); }
+    public void SetSelectionMode(FormMode mode) {if(mode==FormMode.Object && SelMode==mode)SelectWholeObject();else Mode.Index=(int)mode;}
+    public void SelectWholeObject() {ClearSelection();ObjectSelected=true;OnChanged();}
+    public void SelectComponentLoop(long seed,bool additive,double x,double y)
+    {
+        if(Work==null || HasPanelStep)return;
+        var m=Work;
+        double Distance((int a,int b) edge)
+        {
+            var p=S.Camera.Project((m.V[edge.a]+m.V[edge.b])*.5);
+            return p==null?double.MaxValue:Math.Pow(p.Value.x-x,2)+Math.Pow(p.Value.y-y,2);
+        }
+        if(SelMode==FormMode.Edge)
+        {
+            var(a,b)=SubdMesh.Unkey(seed);var loop=FormOps.EdgeLoop(m,a,b);
+            if(!additive)ClearSelection();Edges.UnionWith(loop);
+        }
+        else if(SelMode==FormMode.Vertex)
+        {
+            int vertex=(int)seed;
+            var incident=m.Edges().Where(e=>e.a==vertex || e.b==vertex).OrderBy(Distance).ToList();
+            if(incident.Count==0)return;
+            var edge=incident[0];var loop=FormOps.EdgeLoop(m,edge.a,edge.b);
+            if(!additive)ClearSelection();
+            foreach(var key in loop){var(a,b)=SubdMesh.Unkey(key);Verts.Add(a);Verts.Add(b);}
+        }
+        else if(SelMode==FormMode.Face)
+        {
+            var face=m.F[(int)seed];if(face.Length!=4){S.Say("Face loops need a strip of quads; this face is a pole or n-gon.");return;}
+            var edge=Enumerable.Range(0,4).Select(i=>(a:face[i],b:face[(i+1)%4])).OrderBy(Distance).First();
+            var ring=FormOps.EdgeRing(m,edge.a,edge.b);var topo=m.Topo();
+            if(!additive)ClearSelection();
+            foreach(var key in ring)foreach(var f in topo.EdgeFaces[key])if(m.F[f].Length==4)Faces.Add(f);
+        }
+        _tool.SelectionChanged();OnChanged();S.Say("Selected the component loop. Shift-double-click adds another loop.");
+    }
 
     /// <summary>The selected points, or every point when nothing is selected.</summary>
     List<int> MovingOrAll() { var m = MovingVertices().ToList(); return m.Count > 0 ? m : Enumerable.Range(0, Work!.V.Count).Where(v => !Work.IsFrozen(v)).ToList(); }
@@ -326,6 +371,7 @@ public sealed class EditFormCommand : Command
     {
         if (Work == null) return [];
         var set = new HashSet<int>(Verts);
+        if(SelMode==FormMode.Object && ObjectSelected)set.UnionWith(Enumerable.Range(0,Work.V.Count));
         foreach (var k in Edges) { var (a, b) = SubdMesh.Unkey(k); set.Add(a); set.Add(b); }
         foreach (var f in Faces) if (f < Work.F.Count) foreach (var v in Work.F[f]) set.Add(v);
         return set.Where(v => v < Work.V.Count && !Work.IsFrozen(v));      // frozen points never move
@@ -346,7 +392,7 @@ public sealed class EditFormCommand : Command
     }
 
     // ---- transform plumbing shared by the gizmo, the numeric actions and the API
-    static Vec3 Axis(int i) => i == 0 ? Vec3.UnitX : i == 1 ? Vec3.UnitY : Vec3.UnitZ;
+    Vec3 Axis(int i) => _tool.Binding.Axes[Math.Clamp(i,0,2)];
     string SymText() => _sym.Index switch { 1 => "x", 2 => "y", 3 => "z", 4 => $"radial:{_radial.Value}", _ => "off" };
     /// <summary>Show the form's own symmetry in the panel when a form is picked.</summary>
     void LoadSymmetry()
@@ -368,7 +414,7 @@ public sealed class EditFormCommand : Command
     public Symmetry Sym => _sym.Index switch { 1 => new Symmetry(SymMode.MirrorX), 2 => new Symmetry(SymMode.MirrorY), 3 => new Symmetry(SymMode.MirrorZ), 4 => new Symmetry(SymMode.Radial, _radial.Value), _ => new Symmetry(SymMode.Off) };
     public double SoftRadius => _soft.Value;
     public Falloff SoftFalloff => (Falloff)_fall.Index;
-    public Vec3 PivotPoint() => PivotP.Index == 1 ? Vec3.Zero : SelectionCenter();
+    public Vec3 PivotPoint() => _tool.Binding.Center(PivotP.Index == 1 ? Vec3.Zero : SelectionCenter());
     List<(int p, int k)>[]? _partners; int _pKey;
     public List<(int p, int k)>[]? Partners()
     {
@@ -403,7 +449,13 @@ public sealed class EditFormCommand : Command
         var d = new Vec3(_px.Value, _py.Value, _pz.Value) - SelectionCenter();
         if (d.Length < 1e-9) return;
         PushUndo();
-        ApplyXf(Work.V.ToArray(), FormTransform.MoveBy(d));
+        TransformNumeric(FormTransform.MoveBy(d));
+    }
+    void TransformNumeric(Func<Vec3,Vec3> transform)
+    {
+        var frame=_tool.Binding.Frame;ApplyXf(Work!.V.ToArray(),transform);
+        if(_tool.Binding.Bound&&frame is {} before)_tool.Binding.Transform(before,transform);
+        S.Invalidate();
     }
 
     // ---- editing helpers (all go through Do so they can be undone)
@@ -411,8 +463,12 @@ public sealed class EditFormCommand : Command
 
     public override bool TryUndo()
     {
+        if(HasPanelStep)return FinishPanelStep(false);
         if (_undo.Count == 0 || Work == null) return false;
-        Work = _undo.Pop(); ClearSelection(); OnChanged();
+        var previous=_undo.Pop();
+        bool sameTopology=Work.V.Count==previous.V.Count && Work.F.Count==previous.F.Count && Work.F.Zip(previous.F).All(p=>p.First.SequenceEqual(p.Second));
+        Work=previous;if(!sameTopology)ClearSelection();else _tool.SelectionChanged();OnChanged();
+        _tool.Binding.Reset();
         S.Say("Undid last form step");
         return true;
     }
@@ -557,7 +613,7 @@ public sealed class EditFormCommand : Command
         S.Say($"Added {n} support loops {_bevelW.Value:0.##} mm either side of the edges: the surface now turns a tighter corner there.");
     }
 
-    void SetMode(FormMode m) { Mode.Changed = null; Mode.Index = (int)m; Mode.Changed = () => { ClearSelection(); OnChanged(); }; }
+    void SetMode(FormMode m) { Mode.Changed = null; Mode.Index = (int)m; Mode.Changed = SelectionModeChanged; S.RaiseState(); }
 
     void DeleteSel()
     {
@@ -582,6 +638,29 @@ public sealed class EditFormCommand : Command
     // ---- API for the tool
     public void Moved() { OnChanged(); }
     public void SelectionNotify() { UpdateVisibility(); }
+
+    SubdMesh? _creaseBefore;
+    public void OpenCrease()
+    {
+        if(DeferPanelStep("Crease",OpenCrease) || Work==null)return;
+        if(SelMode==FormMode.Object || !MovingVertices().Any()){S.Say("Select edges, vertices or faces to crease first.",true);return;}
+        MirrorSel();
+        _creaseBefore=Work.Clone();
+        var keys=SelMode==FormMode.Vertex ? Verts.Select(v=>SubdMesh.Key(v,v)) : SelectedEdgeList().Select(e=>SubdMesh.Key(e.a,e.b));
+        var amounts=keys.Select(k=>Work.Crease.GetValueOrDefault(k)).ToList();
+        var changed=_crease.Changed;_crease.Changed=null;_crease.Value=amounts.Count>0?amounts.Average():1;_crease.Changed=changed;
+        OpenPanelStep("Crease", "Adjust sharpness with a live preview. Zero removes the crease. Apply or cancel returns to Edit Freeform with your selection intact.", [_crease],
+            () => {if(_creaseBefore!=null)_undo.Push(_creaseBefore);_creaseBefore=null;},
+            () => {if(_creaseBefore!=null)Work=_creaseBefore;_creaseBefore=null;});
+    }
+    void PreviewCrease()
+    {
+        if(_creaseBefore==null || Work==null){OnChanged();return;}
+        Work=_creaseBefore.Clone();
+        if(SelMode==FormMode.Vertex)FormOps.SetVertexCrease(Work,Verts,_crease.Value);
+        else FormOps.SetCrease(Work,SelectedEdgeList(),_crease.Value);
+        OnChanged();
+    }
 }
 
 // ================================================================= create face

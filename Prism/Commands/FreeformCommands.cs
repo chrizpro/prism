@@ -221,6 +221,7 @@ public sealed class EditPointsCommand : Command
             }
         }
         bool one = _tool.Selected.Count == 1 && Model != null;
+        TransformMode.IsVisible=false;
         _px.IsVisible = _py.IsVisible = _pz.IsVisible = one;
         if (one) SyncFields();
     }
@@ -244,7 +245,9 @@ public sealed class EditPointsCommand : Command
         var np = new Vec3(_px.Value, _py.Value, _pz.Value);
         if (np.DistanceTo(Model.Points[i]) < 1e-9) return;
         var pts = (Vec3[])Model.Points.Clone(); pts[i] = np;
+        var delta=np-Model.Points[i];var frame=_tool.Binding.Frame;
         ApplyPoints(pts);
+        if(_tool.Binding.Bound&&frame is {} before)_tool.Binding.Transform(before,FormTransform.MoveBy(delta));
         OnChanged();
     }
 

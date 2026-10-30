@@ -59,6 +59,15 @@ public sealed partial class MainViewModel
                 tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" or "rib" })).ToArray()));
             }
             if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
+            if(tab.Title is "Freeform" or "NURBS" or "Surface" or "Sketch")
+                tab.Groups.Add(G("Gizmo",Btn("Gizmo", "move",OpenGizmoPanel,"Open shared gizmo visibility, snapping, placement and binding controls.")));
+            if (tab.Title == "Solid")
+            {
+                var modify = tab.Groups.Single(g => g.Title == "Modify");
+                var secondary = modify.Items.OfType<RibbonButton>().Where(b => b.Icon is "shell" or "draft" or "splitbody").ToArray();
+                modify.Items.RemoveAll(i => i is RibbonButton { Icon: "shell" or "draft" or "splitbody" });
+                modify.Items.Add(ToolMenu("More solid tools", "shell", "Hollow, draft or split a body.", secondary));
+            }
             if (tab.Title == "Sketch")
             {
                 var draw = tab.Groups.Single(g => g.Title == "Draw");
@@ -139,13 +148,14 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>A button that shows (and runs) the variant you used last and keeps the others in a list: one slot instead of five.</summary>
-    RibbonButton Split(string id, string desc, params RibbonButton[] variants)
+    RibbonButton Split(string id, string desc, params RibbonButton[] variants) => Split(RibbonSize.Large, id, desc, variants);
+    RibbonButton Split(RibbonSize size, string id, string desc, params RibbonButton[] variants)
     {
         var picks = AppSettings.Current.LastPicks;
         var cur = picks.TryGetValue(id, out var last) ? variants.FirstOrDefault(v => v.Label.Replace("\n", " ") == last) ?? variants[0] : variants[0];
         return new RibbonButton
         {
-            Id = id, Label = cur.Label.Replace("\n", " "), Icon = cur.Icon, Description = desc, Size = RibbonSize.Large, Menu = [.. variants], IsSplit = true, Current = cur,
+            Id = id, Label = cur.Label.Replace("\n", " "), Icon = cur.Icon, Description = desc, Size = size, Menu = [.. variants], IsSplit = true, Current = cur,
             CanExecute = () => { foreach (var v in variants) { v.Refresh(); if (v.IsEnabled) return true; } return false; },
             Picked = v => { picks[id] = v.Label.Replace("\n", " "); AppSettings.Save(false); },
         };

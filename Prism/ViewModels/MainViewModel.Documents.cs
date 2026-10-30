@@ -95,7 +95,7 @@ public sealed partial class MainViewModel
         s.ProtectPendingCommand = true;
         _onScene = () => { RebuildBrowser(); UpdateSelectionInfo(); UpdateTitle(); RefreshRibbon(); ApplyWorkspace(); SyncLook(); InvalidateStudios(); };
         _onSelection = () => { UpdateSelectionInfo(); RefreshRibbon(); SyncLook(); RefreshStudios(); };
-        _onView = () => { CommandError = s.CommandError; };
+        _onView = () => { CommandError = s.CommandError;RefreshGizmoPanel(); };
         _onStudy = RefreshSim;
         _onInput = r => { _input = r; InputPrompt = r.Prompt; InputText = r.Initial; InputOpen = true; };
         _onProp = (_, e) =>

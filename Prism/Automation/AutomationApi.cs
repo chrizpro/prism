@@ -300,7 +300,7 @@ public sealed class AutomationApi
                 ["items"] = new JsonArray(s.Items.Select(i => (JsonNode)Describe(i)).ToArray()),
             });
         var results = new JsonArray(c.Results.Select(r => (JsonNode)new JsonObject { ["label"] = r.Label, ["value"] = r.Value, ["level"] = r.Level }).ToArray());
-        return new JsonObject { ["title"] = c.Title, ["hint"] = c.Hint, ["params"] = ps, ["slots"] = slots, ["results"] = results, ["error"] = S.CommandError };
+        return new JsonObject { ["title"] = c.DisplayTitle, ["hint"] = c.PanelHint, ["panelStep"] = c.HasPanelStep, ["params"] = ps, ["slots"] = slots, ["results"] = results, ["error"] = S.CommandError };
     }
 
     /// <summary>The short form of a sketch state: status, degrees of freedom and the entity list (no point coordinates or constraint detail). Ask for verbose:true or call sketch_state for everything.</summary>
@@ -612,14 +612,15 @@ public sealed class AutomationApi
         {
             var c = S.ActiveCommand ?? throw new InvalidOperationException("No command is active.");
             var before = S.Objects.Select(o => o.Id).ToHashSet();
-            S.CommitCommand();
-            if (S.ActiveCommand == c) throw new InvalidOperationException(c.Error ?? S.Status);
+            bool panelStep=c.HasPanelStep;
+            S.AcceptCommandPanel();
+            if (!panelStep && S.ActiveCommand == c) throw new InvalidOperationException(c.Error ?? S.Status);
             return CommandResult(before.Count, before);
         });
 
         Add("command_cancel", "Cancel the active command (or the sketch if one is open and no command is active).", Schema(null), _ =>
         {
-            if (S.ActiveCommand != null) S.CancelCommand(); else if (S.Sketch != null) S.ExitSketch(false);
+            if (S.ActiveCommand != null) S.CancelCommandPanel(); else if (S.Sketch != null) S.ExitSketch(false);
             return State();
         });
 

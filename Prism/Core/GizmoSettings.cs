@@ -12,6 +12,10 @@ public sealed class GizmoSettings
     public bool PlaneHandles { get; set; } = true;
     public bool Labels { get; set; } = true;
     public bool WorkPlane { get; set; } = true;
+    public bool AxisX {get;set;}=true;
+    public bool AxisY {get;set;}=true;
+    public bool AxisZ {get;set;}=true;
+    public bool AxisVisible(int axis)=>axis==0?AxisX:axis==1?AxisY:AxisZ;
     public double ScreenSize { get; set; } = 96;
     public double LineWidth { get; set; } = 2.5;
     public double HitTolerance { get; set; } = 9;

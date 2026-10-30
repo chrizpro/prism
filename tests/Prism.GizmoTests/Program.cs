@@ -155,7 +155,9 @@ try
     Check(options.GetVisualDescendants().OfType<GizmoPreview>().Count() == 1, "advanced options include the live shared-renderer preview");
     var panel = new CommandPanel { DataContext = vm }; s.SelectItems([SelItem.Of(curve)]); s.StartCommand(() => new EditPointsCommand());
     var host = new Window { Width = 394, Height = 900, Content = panel }; host.Show(); Dispatcher.UIThread.RunJobs();
-    Check(panel.GetVisualDescendants().OfType<GizmoOptionsPanel>().Any(p => p.IsEffectivelyVisible), "control-point command embeds the common preference controls"); host.Close(); s.CancelCommand();
+    Check(!panel.GetVisualDescendants().OfType<GizmoOptionsPanel>().Any(), "control-point command launches the shared gizmo panel without embedding its controls");
+    var retained=s.ActiveCommand;vm.OpenGizmoPanel();Check(vm.ShowGizmoPanel&&!vm.ShowCommandPanel&&ReferenceEquals(s.ActiveCommand,retained),"shared gizmo panel retains the active editor");
+    vm.CloseGizmoPanel();Check(vm.ShowCommandPanel&&ReferenceEquals(s.ActiveCommand,retained),"closing the gizmo panel returns to the editor");host.Close();s.CancelCommand();
     Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 }
 finally { AppSettings.Current.Gizmo = previous; }

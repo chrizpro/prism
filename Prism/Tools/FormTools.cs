@@ -9,7 +9,7 @@ namespace Prism.Commands;
 
 static class FormOverlay
 {
-    const uint CageColor = 0xFF6F9BFF, CreaseColor = 0xFFE0307A, VertColor = 0xFFBFD4F5;
+    const uint CageColor = 0xFFE2F1FF, CreaseColor = 0xFFFF62A5, VertColor = 0xFFE2F1FF;
     static SubdMesh? _cachedFor; static int _cf, _cv; static List<(int a, int b)> _edges = [];
 
     public static List<(int a, int b)> Edges(SubdMesh m)
@@ -26,9 +26,10 @@ static class FormOverlay
         foreach (var (a, b) in Edges(m))
         {
             bool crease = m.Crease.TryGetValue(SubdMesh.Key(a, b), out var s) && s > 0;
-            o.AddLine(m.V[a], m.V[b], crease ? CreaseColor : CageColor, crease ? 2.6f : 1.4f);
+            o.AddLine(m.V[a], m.V[b], 0xEE101923, crease ? 5.5f : 4.5f);
+            o.AddLine(m.V[a], m.V[b], crease ? CreaseColor : CageColor, crease ? 3f : 2f);
         }
-        if (vertices) foreach (var v in m.V) o.AddDot(v, VertColor, 6);
+        if (vertices) foreach (var v in m.V) {o.AddDot(v,0xFF101923,10);o.AddDot(v, VertColor, 6);}
     }
 }
 
@@ -45,7 +46,10 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     Dictionary<int, Vec3> _base = [];
     double _bx0, _by0, _bx1, _by1;
     int _hotV = -1, _hotF = -1, _hotAxis = -1; long _hotE = -1; bool _hotCenter;
-    static readonly Vec3[] Axes = [Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ];
+    public GizmoBinding Binding {get;}=new();
+    Vec3[] Axes=>_drag!=Drag.None?_dragAxes:Binding.Axes;
+    Vec3[] _dragAxes=GizmoVisual.WorldAxes;
+    Plane3 _bindingStart;
     int _hotMode = -1;
 
     public string Prompt => "Click to select; drag the gizmo to move, rotate (E) or scale (R); W goes back to move. Drag on empty space to box-select (hold Ctrl to draw a lasso). Shift adds to the selection.";
@@ -57,14 +61,15 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 
     (Vec3 c, double len)? Gizmo(CadSession s, int? operation = null)
     {
-        if (cmd.Work == null || !cmd.MovingVertices().Any()) return null;
-        var c = (operation ?? Mode) == 0 ? cmd.SelectionCenter() : cmd.PivotPoint();
+        if (cmd.Work == null || !Binding.Positioning&&!cmd.MovingVertices().Any()) return null;
+        Binding.CheckTargets(cmd.MovingVertices());
+        var c = Binding.Center((operation ?? Mode) == 0 ? cmd.SelectionCenter() : cmd.PivotPoint());
         return (c, GizmoVisual.Length(s,c));
     }
 
-    static (Vec3 u, Vec3 v) RingBasis(int axis) => axis == 0 ? (Vec3.UnitY, Vec3.UnitZ) : axis == 1 ? (Vec3.UnitZ, Vec3.UnitX) : (Vec3.UnitX, Vec3.UnitY);
+    (Vec3 u, Vec3 v) RingBasis(int axis) => axis == 0 ? (Axes[1], Axes[2]) : axis == 1 ? (Axes[2], Axes[0]) : (Axes[0], Axes[1]);
 
-    static IEnumerable<Vec3> RingPoints(Vec3 c, double r, int axis)
+    IEnumerable<Vec3> RingPoints(Vec3 c, double r, int axis)
     {
         var (u, v) = RingBasis(axis);
         for (int i = 0; i <= 64; i++) { double a = 2 * Math.PI * i / 64; yield return c + (u * Math.Cos(a) + v * Math.Sin(a)) * r; }
@@ -111,14 +116,22 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 
     public bool PointerDown(CadSession s, PointerInfo p)
     {
+        if(cmd.HasPanelStep)return true;
         if (cmd.Work == null || !p.Left) return false;
+        if(p.Clicks>=2)
+        {
+            long seed=cmd.SelMode switch {FormMode.Vertex=>PickVertex(s,p.X,p.Y),FormMode.Edge=>PickEdge(s,p.X,p.Y),FormMode.Face=>PickFace(s,p.X,p.Y),_=>-1};
+            if(seed>=0){cmd.SelectComponentLoop(seed,p.Shift,p.X,p.Y);return Selected();}
+        }
         var (axis, center, operation) = HitGizmo(s, p.X, p.Y);
         if (axis >= 0 || center)
         {
             _hotMode = operation; _hotAxis = axis; _hotCenter = center; s.Invalidate();
             if (Mode != operation) cmd.ForceMode(operation);
             var vs = cmd.MovingVertices().ToList();
-            cmd.PushUndo();
+            if(!Binding.Positioning)cmd.PushUndo();
+            _bindingStart=Binding.Frame??new Plane3(cmd.SelectionCenter(),Vec3.UnitX,Vec3.UnitY);
+            _dragAxes=Binding.Axes;
             _base = vs.ToDictionary(v => v, v => cmd.Work.V[v]);
             _baseAll = cmd.Work.V.ToArray();
             _c0 = Gizmo(s)!.Value.c;
@@ -153,9 +166,10 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         }
 
         var mode = cmd.SelMode;
-        if (mode == FormMode.Vertex && PickVertex(s, p.X, p.Y) is var v && v >= 0) { Toggle(cmd.Verts, v, p.Shift); return Selected(); }
-        if (mode == FormMode.Edge && PickEdge(s, p.X, p.Y) is var e && e >= 0) { Toggle(cmd.Edges, e, p.Shift); return Selected(); }
-        if (mode == FormMode.Face && PickFace(s, p.X, p.Y) is var f && f >= 0) { Toggle(cmd.Faces, f, p.Shift); return Selected(); }
+        if (mode == FormMode.Object && PickFace(s,p.X,p.Y)>=0){cmd.SelectWholeObject();return Selected();}
+        if (mode == FormMode.Vertex && PickVertex(s, p.X, p.Y) is var v && v >= 0) {Toggle(cmd.Verts, v, p.Shift); return Selected(); }
+        if (mode == FormMode.Edge && PickEdge(s, p.X, p.Y) is var e && e >= 0) {Toggle(cmd.Edges, e, p.Shift); return Selected(); }
+        if (mode == FormMode.Face && PickFace(s, p.X, p.Y) is var f && f >= 0) {Toggle(cmd.Faces, f, p.Shift); return Selected(); }
 
         // empty space: start a box selection
         _drag = p.Ctrl ? Drag.Lasso : Drag.Box; _bx0 = _bx1 = p.X; _by0 = _by1 = p.Y;
@@ -206,7 +220,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
             {
                 if (AxisParam(o, d, _c0, Axes[_axis]) is not double ts) return;
                 double f = GizmoVisual.SnapScale(Math.Clamp(ts / _t0, 0.02, 50), p.Alt);
-                Transform(FormTransform.ScaleAbout(_c0, _axis == 0 ? f : 1, _axis == 1 ? f : 1, _axis == 2 ? f : 1));
+                Transform(GizmoBinding.Scale(_c0,Axes, _axis == 0 ? f : 1, _axis == 1 ? f : 1, _axis == 2 ? f : 1));
                 s.Say($"Scale {f:0.###} along {(_axis == 0 ? "X" : _axis == 1 ? "Y" : "Z")}");
                 return;
             }
@@ -246,7 +260,9 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     // every drag goes through the command so soft selection and live symmetry apply to move, rotate and scale alike
     void Transform(Func<Vec3, Vec3> xf)
     {
+        if(Binding.Positioning){Binding.Transform(_bindingStart,xf);cmd.S.Invalidate();return;}
         cmd.ApplyXf(_baseAll, xf);
+        if(Binding.Bound)Binding.Transform(_bindingStart,xf);
         if (cmd.StickToScan) cmd.SnapToScan(_base.Keys);
     }
 
@@ -288,18 +304,21 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 
     public bool Key(CadSession s, string key)
     {
+        if(Binding.Positioning&&key is "Escape" or "Enter")
+        {if(key=="Escape")Binding.Cancel();else if(!Binding.Bind(cmd.MovingVertices()))s.Say("Select cage geometry before binding the gizmo.",true);s.RaiseState();s.Invalidate();return true;}
+        if(cmd.HasPanelStep)return false;
         if (key == "Delete") { cmd.Params.OfType<ActionParam>().FirstOrDefault(p => p.Label == "Delete selection")?.Run(); return true; }
         if (key == "Char:W") { cmd.ForceMode(0); s.Say("Move gizmo."); return true; }
         if (key == "Char:E") { cmd.ForceMode(1); s.Say("Rotate gizmo: drag a ring."); return true; }
         if (key == "Char:R") { cmd.ForceMode(2); s.Say("Scale gizmo: drag an axis handle, or the diagonal square for uniform scale."); return true; }
-        if (key == "Escape" && (cmd.Verts.Count + cmd.Edges.Count + cmd.Faces.Count) > 0) { cmd.ClearSelection(); return true; }
+        if (key == "Escape" && (cmd.ObjectSelected || cmd.Verts.Count + cmd.Edges.Count + cmd.Faces.Count > 0)) { cmd.ClearSelection(); return true; }
         return false;
     }
 
     public void BuildOverlay(CadSession s, Overlay o)
     {
         var m = cmd.Work; if (m == null) return;
-        FormOverlay.Cage(o, m, vertices: cmd.SelMode == FormMode.Vertex || true);
+        FormOverlay.Cage(o, m, vertices: cmd.SelMode == FormMode.Vertex);
         if (m.Frozen.Count > 0) for (int f = 0; f < m.F.Count; f++) if (m.FaceFrozen(f)) AddFaceTris(o, m, f, 0x5580A8FF);
 
         // hover + selection highlights
@@ -318,7 +337,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if (cmd.ShowPoles) FormPoleOverlay.Draw(o, m, FormQuality.Analyze(m, 1));
 
         // Every editor uses the same arrowheads, rotation rings, scale blocks and screen sizing.
-        for (int operation = 0; operation < 3; operation++)
+        for (int operation = 0; !cmd.HasPanelStep && operation < 3; operation++)
             if (Gizmo(s, operation) is { } g)
                 GizmoVisual.DrawOperation(o, s, g.c, Axes, operation, Mode,
                     _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter);

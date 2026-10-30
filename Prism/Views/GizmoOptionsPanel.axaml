@@ -1,7 +1,25 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" VerticalAlignment="Top">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" VerticalAlignment="Top" Background="{DynamicResource PanelBg}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
-    <Expander Name="GizmoOptionsExpander" Header="Gizmo display and snapping" HorizontalAlignment="Stretch">
+    <Expander Name="GizmoOptionsExpander" Header="Gizmo" IsExpanded="True" HorizontalAlignment="Stretch">
         <StackPanel Spacing="9" Margin="12,0">
+            <TextBlock Text="{Binding GizmoBindingStatus}" Classes="soft" TextWrapping="Wrap"/>
+            <StackPanel IsEnabled="{Binding CanPlaceGizmo}" Spacing="8">
+                <TextBlock Text="Operation" Classes="section"/>
+                <ComboBox ItemsSource="{Binding GizmoOperations}" SelectedIndex="{Binding GizmoActiveOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                <Button Classes="studioAction" Content="Place gizmo without moving geometry" IsVisible="{Binding !GizmoPositioning}" Click="OnPlace" HorizontalAlignment="Stretch"/>
+                <StackPanel IsVisible="{Binding GizmoPositioning}" Spacing="8">
+                    <TextBlock Text="Pivot location (mm). Drag arrows to move the gizmo or choose Rotate to orient its axes." TextWrapping="Wrap" Classes="meta"/>
+                    <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
+                        <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="Z" Classes="meta"/>
+                        <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding GizmoOriginX, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo X"/>
+                        <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding GizmoOriginY, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo Y"/>
+                        <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding GizmoOriginZ, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo Z"/>
+                    </Grid>
+                    <Button Content="Bind to selection and return" Classes="studioAction primary" Click="OnBind" HorizontalAlignment="Stretch"/>
+                    <Button Content="Cancel placement" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+                <Button Content="Reset pivot to selection" Classes="studioAction" Click="OnResetPivot" HorizontalAlignment="Stretch"/>
+            </StackPanel>
             <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4"><c:GizmoPreview Session="{Binding Session}" Height="190" AutomationProperties.Name="Live gizmo preview"/></Border>
             <TextBlock Text="Handle visibility" Classes="section"/>
             <ComboBox Name="GizmoDisplayPicker" ItemsSource="{Binding GizmoDisplayModes}" SelectedIndex="{Binding GizmoDisplayMode, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
@@ -11,6 +29,8 @@
                 <CheckBox Content="Scale handles" IsChecked="{Binding GizmoShowScale, Mode=TwoWay}"/>
             </StackPanel>
             <CheckBox Content="Show axis labels" IsChecked="{Binding GizmoShowLabels, Mode=TwoWay}"/>
+            <TextBlock Text="Visible axes" Classes="section"/>
+            <Grid ColumnDefinitions="*,*,*"><CheckBox Content="X / U" IsChecked="{Binding GizmoShowX, Mode=TwoWay}"/><CheckBox Grid.Column="1" Content="Y / V" IsChecked="{Binding GizmoShowY, Mode=TwoWay}"/><CheckBox Grid.Column="2" Content="Z / N" IsChecked="{Binding GizmoShowZ, Mode=TwoWay}"/></Grid>
             <CheckBox Content="Show plane movement handles in sketches" IsChecked="{Binding GizmoShowPlanes, Mode=TwoWay}"/>
             <CheckBox Content="Show sketch work-plane outline" IsChecked="{Binding GizmoShowWorkPlane, Mode=TwoWay}"/>
             <TextBlock Text="Appearance and picking" Classes="section" Margin="0,6,0,0"/>
@@ -25,6 +45,7 @@
             </StackPanel>
             <TextBlock Text="Shared by sketch, freeform and control-point gizmos. Hold Alt during a drag to bypass snapping. Axis colors identify X, Y and Z; the highlight follows your theme accent." Classes="meta" TextWrapping="Wrap"/>
             <Button Content="Reset gizmo preferences" Classes="studioAction" Click="OnReset" HorizontalAlignment="Stretch"/>
+            <Button Content="Done" Classes="studioAction" Click="OnReturn" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
         </StackPanel>
     </Expander>
 </UserControl>

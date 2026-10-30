@@ -767,25 +767,25 @@ public sealed partial class CadSession : ObservableObject
     public void StartCommand(Func<Command> make) { var c = make(); c.Factory = make; CommandCatalog.Register(make); StartCommand(c); }
 
     /// <summary>
-    /// Set by the app. A command that is showing a preview is work not yet made: starting something else would silently throw it away,
-    /// so the request is parked and <see cref="PendingNotice"/> asks what to do. Scripts and tests leave this off.
+    /// Set by the app. Switching away from a preview, changed inputs or a temporary options page
+    /// parks the request until the user finishes, discards or keeps editing. Scripts may leave this off.
     /// </summary>
     public bool ProtectPendingCommand { get; set; }
-    Command? _deferred;
+    Action? _deferred;
+    bool _pendingStepOnly;
     /// <summary>Plain-words explanation shown over the viewport while a request waits on an unfinished command; null when nothing waits.</summary>
     [ObservableProperty] public partial string? PendingNotice { get; set; }
-    /// <summary>Title of the unfinished command, for the "create it" button.</summary>
+    /// <summary>The editor or temporary page that the pending choice will finish or discard.</summary>
     [ObservableProperty] public partial string PendingTitle { get; set; } = "";
 
     public void StartCommand(Command cmd)
     {
-        if (ProtectPendingCommand && ActiveCommand is { } unfinished && Preview.Count > 0 && cmd.GetType() != unfinished.GetType())
+        if(ProtectPendingCommand && ActiveCommand is { } current && CommandCatalog.KeyOf(current)==CommandCatalog.KeyOf(cmd))
         {
-            _deferred = cmd; PendingTitle = unfinished.Title;
-            PendingNotice = $"{unfinished.Title} is not finished: it is only a preview, nothing has been created yet.";
-            Say($"{unfinished.Title} is still a preview. Create it or discard it before starting {cmd.Title}.", true);
+            KeepPending();Say($"Continue {current.DisplayTitle} with its current options.");RaiseState();
             return;
         }
+        if(DeferToolChange(cmd.Title,()=>StartCommand(cmd)))return;
         ClearPendingNotice();
         if (ActiveCommand != null) CancelCommand();
         if (Sketch != null) { Say("Finish or cancel the sketch first.", true); return; }
@@ -795,21 +795,42 @@ public sealed partial class CadSession : ObservableObject
         RaiseState();
     }
 
-    void ClearPendingNotice() { _deferred = null; PendingNotice = null; }
+    void ClearPendingNotice() { _deferred = null; _pendingStepOnly=false; PendingNotice = null; }
 
-    /// <summary>Answer the notice: create the unfinished command (<paramref name="create"/>) or throw it away, then carry on with what the user asked for.</summary>
+    bool DeferToolChange(string nextTitle,Action next,bool stepOnly=false)
+    {
+        if(!ProtectPendingCommand || ActiveCommand is not { } current || !(current.HasPanelStep || current.HasInputChanges || Preview.Count>0))return false;
+        _deferred=next;_pendingStepOnly=stepOnly;PendingTitle=stepOnly?current.DisplayTitle:current.Title;
+        PendingNotice=stepOnly
+            ? $"Finish or discard {current.DisplayTitle} before opening {nextTitle}. {current.Title} will stay open."
+            : current.HasPanelStep
+            ? $"Open {nextTitle}? Finish or discard the whole {current.Title} session, including the open {current.DisplayTitle} changes, or keep editing."
+            : $"{current.DisplayTitle} has unfinished work. Finish it or discard it before opening {nextTitle}, or keep editing.";
+        Say(PendingNotice);return true;
+    }
+
+    internal void RequestPanelStep(string title,Action open)
+    {
+        if(DeferToolChange(title,open,true))return;
+        ActiveCommand?.FinishPanelStep(false);open();
+    }
+
+    /// <summary>Finish or discard the explicitly named editor/page, then open the requested tool.</summary>
     public void ResolvePending(bool create)
     {
-        var next = _deferred; if (ActiveCommand == null) { ClearPendingNotice(); return; }
+        var next = _deferred;bool stepOnly=_pendingStepOnly;
+        if (ActiveCommand == null) { ClearPendingNotice(); return; }
+        if(stepOnly){ActiveCommand.FinishPanelStep(create);ClearPendingNotice();next?.Invoke();return;}
         if (create)
         {
             var before = ActiveCommand;
+            before.FinishPanelStep(true);
             CommitCommand();
             if (ActiveCommand == before) return;       // it could not be built: the reason is on the status line and the notice stays
         }
         else CancelCommand();
         ClearPendingNotice();
-        if (next != null) StartCommand(next);
+        next?.Invoke();
     }
 
     /// <summary>Close the notice and keep working on the unfinished command.</summary>
@@ -826,6 +847,9 @@ public sealed partial class CadSession : ObservableObject
         if (c.EditMode && c.ReturnNode != null) GoTo(c.ReturnNode);          // an abandoned edit puts the model back where it was
         RaiseState();
     }
+
+    public void AcceptCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(true) != true) CommitCommand(); }
+    public void CancelCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(false) != true) CancelCommand(); }
 
     public void CommitCommand()
     {
@@ -880,6 +904,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (node.Recipe == null || node.Parent == null) { Say("That step was not made with a command that can be edited.", true); return false; }
         if (Sketch != null) { Say("Finish or cancel the sketch first.", true); return false; }
+        if(DeferToolChange("Edit "+node.Label,()=>EditFeature(node)))return false;
         CancelCommand();
         var back = Current;
         var end = RebuildEndFor(node, back);
@@ -1059,6 +1084,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (obj.Kind != ObjKind.Sketch || obj.SketchData == null || obj.SketchPlane is not { } plane) { Say("This sketch has no editable definition (it was created before constraints existed, or was transformed).", true); return false; }
         if (Sketch != null) { Say("Finish the current sketch first.", true); return false; }
+        if(DeferToolChange("Edit "+obj.Name,()=>EditSketch(Find(obj.Id)??obj,source)))return false;
         CancelCommand();
         // Roll back before dependent features, keeping their original branch intact.
         // Visibility changes are folded into snapshots, so compare sketch definitions.
@@ -1324,6 +1350,10 @@ public sealed partial class CadSession : ObservableObject
 
     public bool Key(string key)
     {
+        if(PendingNotice!=null && key is "Enter" or "Escape")
+        {if(key=="Enter")ResolvePending(true);else KeepPending();return true;}
+        if (ActiveCommand?.HasPanelStep == true && key is "Enter" or "Escape")
+        { if (key == "Enter") AcceptCommandPanel(); else CancelCommandPanel(); return true; }
         if (ActiveCommand == null && Sketch?.SpaceKey(this, key) == true) return true;
         if (ActiveTool?.Key(this, key) == true) return true;
         if (ActiveCommand == null && Sketch?.DrawingKey(this, key) == true) return true;
@@ -1333,11 +1363,11 @@ public sealed partial class CadSession : ObservableObject
             case "LookAt": return LookAtSelection();
             case "Char:X": if (Sketch == null) return false; Sketch.ToggleConstructionMode(this); return true;
             case "Escape":
-                if (ActiveCommand != null) { CancelCommand(); return true; }
+                if (ActiveCommand != null) { CancelCommandPanel(); return true; }
                 if (Sketch != null) { if (Sketch.Tool is not SelectTool) Sketch.SetTool(this, new SelectTool()); return true; }
                 ClearSelection(); return true;
             case "Enter":
-                if (ActiveCommand != null) { CommitCommand(); return true; }
+                if (ActiveCommand != null) { AcceptCommandPanel(); return true; }
                 if (Sketch != null) { ExitSketch(true); return true; }
                 return false;
             case "Delete":

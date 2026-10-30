@@ -42,6 +42,13 @@ void Extrude(CadSession session, SceneObject sketch, double distance)
     Check(session.ActiveCommand == null && !session.StatusIsError, "extrusion commits with an editable recipe");
 }
 
+var canceledSketch = new CadSession();
+canceledSketch.StartCommand(() => new CreateSketchCommand());
+canceledSketch.CommitCommand();
+Check(canceledSketch.Sketch != null && canceledSketch.Current == canceledSketch.Root, "starting a sketch does not create a history step");
+canceledSketch.ExitSketch(false);
+Check(canceledSketch.Current == canceledSketch.Root && !canceledSketch.AllNodes().Skip(1).Any(), "canceling a new sketch leaves no history step");
+
 var s = new CadSession();
 var sketch = CircleSketch(s, 10); var sketchNode = s.Current;
 Extrude(s, sketch, 12); var extrudeNode = s.Current;

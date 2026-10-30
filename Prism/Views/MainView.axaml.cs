@@ -102,9 +102,10 @@ public partial class MainView : UserControl
 
     void HookSession(CadSession? old, CadSession s)
     {
-        if (old != null) { old.SelectionChanged -= QueueSync; old.LayoutChanged -= ApplyLayout; if (_modeHandler != null) old.PropertyChanged -= _modeHandler; }
+        if (old != null) { old.SelectionChanged -= QueueSync; old.LayoutChanged -= ApplyLayout; old.StateChanged-=UpdateModeButtons; if (_modeHandler != null) old.PropertyChanged -= _modeHandler; }
         _modeHandler = (_, e) => { if (e.PropertyName is nameof(CadSession.Mode) or nameof(CadSession.Display) or nameof(CadSession.XRay)) UpdateModeButtons(); };
         s.SelectionChanged += QueueSync; s.LayoutChanged += ApplyLayout; s.PropertyChanged += _modeHandler;
+        s.StateChanged+=UpdateModeButtons;
         ApplyLayout();
     }
 
@@ -182,8 +183,8 @@ public partial class MainView : UserControl
         HookSession(null, vm.Session);
         vm.SessionSwapped += (old, s) => { HookSession(old, s); UpdateModeButtons(); EmptyHint.IsVisible = s.Objects.Count == 0 && string.IsNullOrWhiteSpace(vm.BrowserFilter); QueueSync(); };
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.ShowHistoryPanel)) UpdateTabs(); };
-        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ActiveCommand != null ? 394 : 312); };
-        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ActiveCommand != null ? 394 : 312);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312); };
+        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312);
         BuildStatusBar(); UpdateContextLocation(); AppSettings.Changed += BuildStatusBar; AppSettings.Changed += UpdateContextLocation;
         HistoryList.DoubleTapped += (_, _) => { if (HistoryList.SelectedItem is HistoryItem hi) EditHistoryStep(hi); };
         OnHistoryRebuilt();
@@ -508,10 +509,10 @@ public partial class MainView : UserControl
 
     void UpdateModeButtons()
     {
-        var m = Vm?.Session.Mode ?? SelMode.Object; var d = Vm?.Session.Display ?? DisplayMode.ShadedEdges;
-        _bObj?.Classes.Set("checked", m == SelMode.Object);
-        _bFace?.Classes.Set("checked", m == SelMode.Face);
-        _bEdge?.Classes.Set("checked", m == SelMode.Edge);
+        var d = Vm?.Session.Display ?? DisplayMode.ShadedEdges;
+        _bObj?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Object)==true);
+        _bFace?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Face)==true);
+        _bEdge?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Edge)==true);
         _bShaded?.Classes.Set("checked", d == DisplayMode.Shaded);
         _bEdges?.Classes.Set("checked", d == DisplayMode.ShadedEdges);
         _bWire?.Classes.Set("checked", d == DisplayMode.Wireframe);
@@ -563,9 +564,9 @@ public partial class MainView : UserControl
                 case "memory": StatusRight.Children.Add(Txt("MemoryText")); break;
                 case "scene": StatusRight.Children.Add(Txt("SceneText")); break;
                 case "modes":
-                    StatusRight.Children.Add(_bObj = Mk("Object", () => vm.Session.Mode = SelMode.Object));
-                    StatusRight.Children.Add(_bFace = Mk("Face", () => vm.Session.Mode = SelMode.Face));
-                    StatusRight.Children.Add(_bEdge = Mk("Edge", () => vm.Session.Mode = SelMode.Edge));
+                    StatusRight.Children.Add(_bObj = Mk("Object", () => vm.SetSelectionMode(SelMode.Object)));
+                    StatusRight.Children.Add(_bFace = Mk("Face", () => vm.SetSelectionMode(SelMode.Face)));
+                    StatusRight.Children.Add(_bEdge = Mk("Edge", () => vm.SetSelectionMode(SelMode.Edge)));
                     break;
                 case "display":
                     StatusRight.Children.Add(_bShaded = Mk("Shaded", () => vm.Session.Display = DisplayMode.Shaded));

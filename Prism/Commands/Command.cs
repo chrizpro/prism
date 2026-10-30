@@ -200,7 +200,7 @@ public abstract partial class Command : ObservableObject
     [ObservableProperty] public partial bool PreviewEnabled { get; set; } = true;
     partial void OnPreviewEnabledChanged(bool value) => OnChanged();
     public virtual bool SupportsPreview => Tool == null;
-    public string CommitText => EditMode ? "Update" : OkText == "OK" ? "Create" : OkText;
+    public string CommitText => HasPanelStep ? "Apply and return" : EditMode ? "Update" : OkText == "OK" ? "Create" : OkText;
     // ---- editing a feature after the fact
     /// <summary>How to make a fresh copy of this command (set by whoever started it). Without it the step cannot be edited later.</summary>
     public Func<Command>? Factory { get; set; }
@@ -210,7 +210,49 @@ public abstract partial class Command : ObservableObject
     public Core.HistoryNode? ReturnNode { get; set; }
     public Core.HistoryNode? RebuildEnd { get; set; }
     public Dictionary<Guid, Guid>? RebuildMap { get; set; }
-    public string DisplayTitle => EditMode ? "Edit " + Title : Title;
+    public string DisplayTitle => _panelStep?.title ?? (EditMode ? "Edit " + Title : Title);
+    public string PanelHint => _panelStep?.hint ?? Hint;
+    (string title, string hint, HashSet<Param> parameters, Action accept, Action cancel)? _panelStep;
+    Dictionary<Param,bool>? _panelParamVisibility;
+    Dictionary<SelectionSlot,bool>? _panelSlotVisibility;
+    public bool HasPanelStep => _panelStep != null;
+    object?[]? _initialValues;
+    List<SelItem>[]? _initialSlots;
+    object?[] InputValues()=>Params.Select(p=>p switch
+    {
+        NumberParam n=>(object)(n.Value,n.Formula),IntParam i=>i.Value,ChoiceParam c=>c.Index,
+        BoolParam b=>b.Value,TextParam t=>t.Value,_=>null,
+    }).ToArray();
+    public bool HasInputChanges=>_initialValues!=null && (!InputValues().SequenceEqual(_initialValues)
+        || _initialSlots==null || Slots.Count!=_initialSlots.Length
+        || Slots.Where((s,i)=>!s.Items.SequenceEqual(_initialSlots[i])).Any());
+
+    /// <summary>A temporary operation page keeps the current editor and its working state alive.</summary>
+    protected bool DeferPanelStep(string title,Action open)
+    {
+        if(!HasPanelStep)return false;
+        if(_panelStep?.title==title){S.KeepPending();return true;}
+        S.RequestPanelStep(title,open);return true;
+    }
+
+    protected void OpenPanelStep(string title, string hint, IEnumerable<Param> parameters, Action accept, Action cancel)
+    {
+        if(HasPanelStep)throw new InvalidOperationException("Request the panel switch before initializing its preview and return state.");
+        _panelParamVisibility=Params.ToDictionary(p=>p,p=>p.IsVisible);
+        _panelSlotVisibility=Slots.ToDictionary(p=>p,p=>p.IsVisible);
+        _panelStep = (title, hint, parameters.ToHashSet(), accept, cancel);
+        OnChanged(); S.RaiseState();
+    }
+    public bool FinishPanelStep(bool accept)
+    {
+        if (_panelStep is not { } step) return false;
+        _panelStep = null;
+        foreach(var p in _panelParamVisibility!)p.Key.IsVisible=p.Value;
+        foreach(var p in _panelSlotVisibility!)p.Key.IsVisible=p.Value;
+        _panelParamVisibility=null;_panelSlotVisibility=null;
+        if (accept) step.accept(); else step.cancel();
+        OnChanged(); S.RaiseState(); return true;
+    }
     /// <summary>Commands driven by an interactive viewport tool keep state outside their parameters, so they cannot be replayed.</summary>
     public virtual bool CanEdit => Tool == null;
 
@@ -229,6 +271,7 @@ public abstract partial class Command : ObservableObject
     /// <summary>Fill the picks and numbers from a recipe. Picks of objects that were remade since are translated through <paramref name="map"/>.</summary>
     public void Restore(FeatureRecipe r, IReadOnlyDictionary<Guid, Guid>? map = null)
     {
+        r = UpgradeRecipe(r);
         ConfigureInputs(() =>
         {
             for (int i = 0; i < Slots.Count && i < r.Slots.Count; i++)
@@ -258,6 +301,8 @@ public abstract partial class Command : ObservableObject
         });
         OnChanged();
     }
+
+    protected virtual FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe;
 
     /// <summary>The arrow the user can pull in the viewport (null when there is nothing to pull yet).</summary>
     public virtual HandleSpec? Handle => null;
@@ -321,7 +366,7 @@ public abstract partial class Command : ObservableObject
     /// <summary>Commands can draw markers/curves over the viewport while they are open.</summary>
     public virtual void BuildOverlay(Core.CadSession s, Core.Overlay o) { }
     public IViewportTool? Tool { get; protected set; }
-    public bool HasGizmoOptions => Tool is FormEditTool or EditPointsTool || S != null && Handles.Count > 0;
+    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool || S != null && Handles.Count > 0);
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
     public CadSession S { get; private set; } = null!;
@@ -413,6 +458,7 @@ public abstract partial class Command : ObservableObject
             ActivateFirstOpenSlot();
         });
         OnChanged();
+        _initialValues=InputValues();_initialSlots=Slots.Select(s=>s.Items.ToList()).ToArray();
     }
 
     protected virtual void OnBegin() { }
@@ -475,6 +521,11 @@ public abstract partial class Command : ObservableObject
         foreach (var number in Params.OfType<NumberParam>().Where(p => p.Formula.Length > 0))
             if (Math.Abs(number.Value - S.ParameterValue(number.Formula)) > 1e-10) number.Formula = "";
         UpdateVisibility();
+        if (_panelStep is { } step)
+        {
+            foreach (var parameter in Params) parameter.IsVisible = step.parameters.Contains(parameter);
+            foreach (var slot in Slots) slot.IsVisible = false;
+        }
         ConfigureInputs(() =>
         {
             foreach (var slot in Slots.Where(s => s.IsPartialLoop && s.PathNeedsUpdate))
@@ -482,6 +533,8 @@ public abstract partial class Command : ObservableObject
         });
         OnPropertyChanged(nameof(DisplayTitle));
         OnPropertyChanged(nameof(CommitText));
+        OnPropertyChanged(nameof(PanelHint));
+        OnPropertyChanged(nameof(HasPanelStep));
         OnPropertyChanged(nameof(HasAdvancedSettings));
         S.RefreshPreview(this);
         RefreshWorkflow();

@@ -80,27 +80,32 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     double[] _weights = [];
     Vec3 _start, _c0; double _t0, _ang0, _d0;
     Plane3 _dragPlane, _ringPlane;
-    static readonly Vec3[] Axes = [Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ];
+    public GizmoBinding Binding {get;}=new();
+    Vec3[] Axes=>_drag!=Drag.None?_dragAxes:Binding.Axes;
+    Vec3[] _dragAxes=GizmoVisual.WorldAxes;
+    Plane3 _bindingStart;
     int _hotMode = -1;
     public string Prompt => "Click a control point (Shift adds). Drag the point itself, or use the gizmo: arrows move, rings rotate (E), blocks scale (R), W for move. Set an influence radius for soft edits.";
 
     int Mode => cmd.TransformMode.Index;     // 0 move, 1 rotate, 2 scale
 
-    public void Reset() { Selected.Clear(); _hot = -1; _drag = Drag.None; cmd.SelectionChanged(); }
+    public void Reset() { Binding.Reset();Selected.Clear(); _hot = -1; _drag = Drag.None; cmd.SelectionChanged(); }
 
     // ---------------------------------------------------------------- gizmo geometry
     public Vec3? GizmoCentre()
     {
+        Binding.CheckTargets(Selected);
+        if(Binding.Positioning)return Binding.Frame?.Origin;
         var m = cmd.Model; if (m == null || Selected.Count == 0) return null;
         var sum = Vec3.Zero; foreach (int i in Selected) sum += m.Points[i];
-        return sum / Selected.Count;
+        return Binding.Center(sum / Selected.Count);
     }
 
     (Vec3 c, double len)? Gizmo(CadSession s) => GizmoCentre() is { } c ? (c, GizmoVisual.Length(s,c)) : null;
 
-    static (Vec3 u, Vec3 v) RingBasis(int axis) => axis == 0 ? (Vec3.UnitY, Vec3.UnitZ) : axis == 1 ? (Vec3.UnitZ, Vec3.UnitX) : (Vec3.UnitX, Vec3.UnitY);
+    (Vec3 u, Vec3 v) RingBasis(int axis) => axis == 0 ? (Axes[1], Axes[2]) : axis == 1 ? (Axes[2], Axes[0]) : (Axes[0], Axes[1]);
 
-    static IEnumerable<Vec3> RingPoints(Vec3 c, double r, int axis)
+    IEnumerable<Vec3> RingPoints(Vec3 c, double r, int axis)
     {
         var (u, v) = RingBasis(axis);
         for (int i = 0; i <= 64; i++) { double a = 2 * Math.PI * i / 64; yield return c + (u * Math.Cos(a) + v * Math.Sin(a)) * r; }
@@ -145,13 +150,14 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
 
     void Transform(CadSession s, Func<Vec3, Vec3> xf)
     {
+        if(Binding.Positioning){Binding.Transform(_bindingStart,xf);s.Invalidate();return;}
         var pts = (Vec3[])_base.Clone();
         for (int j = 0; j < pts.Length; j++) if (_weights[j] > 0) pts[j] = _base[j] + (xf(_base[j]) - _base[j]) * _weights[j];
-        try { cmd.ApplyPoints(pts); cmd.Touch(); }
+        try { cmd.ApplyPoints(pts);if(Binding.Bound)Binding.Transform(_bindingStart,xf);cmd.Touch(); }
         catch (KernelException e) { s.Say(e.Message, true); }
     }
 
-    void BeginDrag(Vec3[] pts) { _base = (Vec3[])pts.Clone(); _weights = Weights(_base); }
+    void BeginDrag(Vec3[] pts) { _base = (Vec3[])pts.Clone(); _weights = Weights(_base);_dragAxes=Binding.Axes;_bindingStart=Binding.Frame??new Plane3(GizmoCentre()??Vec3.Zero,Vec3.UnitX,Vec3.UnitY); }
 
     // ---------------------------------------------------------------- pointer
     public bool PointerDown(CadSession s, PointerInfo p)
@@ -195,6 +201,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         else if (!Selected.Contains(i)) { Selected.Clear(); Selected.Add(i); }
         cmd.SelectionChanged();
         if (!Selected.Contains(i)) { s.Invalidate(); return true; }
+        if(Binding.Positioning){s.Invalidate();return true;}
 
         // dragging a point itself moves the selection in the plane parallel to the screen
         _dragPlane = new Plane3(m.Points[i], s.Camera.Right, s.Camera.Up);
@@ -241,7 +248,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
             {
                 if (AxisParam(o, d, _c0, Axes[_axis]) is not double ts) break;
                 double f = GizmoVisual.SnapScale(Math.Clamp(ts / _t0, 0.02, 50), p.Alt);
-                Transform(s, FormTransform.ScaleAbout(_c0, _axis == 0 ? f : 1, _axis == 1 ? f : 1, _axis == 2 ? f : 1));
+                Transform(s, GizmoBinding.Scale(_c0,Axes, _axis == 0 ? f : 1, _axis == 1 ? f : 1, _axis == 2 ? f : 1));
                 s.Say($"Scale {f:0.###} along {(_axis == 0 ? "X" : _axis == 1 ? "Y" : "Z")}");
                 break;
             }
@@ -266,6 +273,8 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
 
     public bool Key(CadSession s, string key)
     {
+        if(Binding.Positioning&&key is "Escape" or "Enter")
+        {if(key=="Escape")Binding.Cancel();else if(!Binding.Bind(Selected))s.Say("Select control points before binding the gizmo.",true);s.RaiseState();s.Invalidate();return true;}
         if (key == "Char:W") { cmd.TransformMode.Index = 0; s.Say("Move gizmo."); cmd.Touch(); return true; }
         if (key == "Char:E") { cmd.TransformMode.Index = 1; s.Say("Rotate gizmo: drag a ring."); cmd.Touch(); return true; }
         if (key == "Char:R") { cmd.TransformMode.Index = 2; s.Say("Scale gizmo: drag a block, or the centre for uniform scale."); cmd.Touch(); return true; }

@@ -85,16 +85,16 @@
                 <c:IconView Icon="{Binding ActiveCommand.Icon}" Width="24" Height="24" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding ActiveCommand.DisplayTitle}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveCommand.DisplayTitle}"/>
                 <Button Grid.Column="2" Classes="tool" Content="?" Padding="4,0">
-                    <ToolTip.Tip><TextBlock Text="{Binding ActiveCommand.Hint}" TextWrapping="Wrap" MaxWidth="280"/></ToolTip.Tip>
+                    <ToolTip.Tip><TextBlock Text="{Binding ActiveCommand.PanelHint}" TextWrapping="Wrap" MaxWidth="280"/></ToolTip.Tip>
                 </Button>
                 <Button Grid.Column="3" Classes="tool" Content="×" Click="OnCancel" Padding="4,0" ToolTip.Tip="Cancel operation (Esc)"/>
             </Grid>
         </Border>
         <ScrollViewer Name="PanelScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12,0,12,12" Spacing="2">
-                <TextBlock Text="{Binding ActiveCommand.Hint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
+                <TextBlock Text="{Binding ActiveCommand.PanelHint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
-                <v:GizmoOptionsPanel IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Margin="-12,0,-12,8"/>
+                <Button Classes="studioAction" Content="Gizmo…" IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Click="OnGizmo" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.Results}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="cmd:ResultLine">

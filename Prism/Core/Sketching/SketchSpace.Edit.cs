@@ -7,6 +7,8 @@ namespace Prism.Core;
 
 public sealed partial class SketchContext
 {
+    public bool IndependentGizmoPlacement {get;private set;}
+    Plane3 _independentGizmoBefore;int _independentUndoCount;
     bool _planarGizmoEnabled;
     public bool PlanarGizmoActive => !Is3DEnabled && GeometryEditing && _planarGizmoEnabled;
     public bool GeometryEditing { get; private set; }
@@ -76,15 +78,36 @@ public sealed partial class SketchContext
         _confirmedEntities.Clear();_confirmedEntities.UnionWith(SelEntities);_confirmedPlane=_activeSection;_confirmedCenter=center;
     }
 
-    public void ConfirmGizmoTarget(CadSession s)
+    public void ConfirmGizmoTarget(CadSession s,bool preservePlacement=false)
     {
         if(!GeometryEditing||!GizmoEditing)return;
         if(SelectionCenter() is not { } center) { s.Say("Select a point, curve or shape first. Shift-click adds more targets; Enter confirms.",true);return; }
-        _gizmoFrame=new(center,_gizmoFrame.U,_gizmoFrame.V);ActiveDatumId=null;
+        if(!preservePlacement&&!IndependentGizmoPlacement)_gizmoFrame=new(center,_gizmoFrame.U,_gizmoFrame.V);ActiveDatumId=null;
+        IndependentGizmoPlacement=false;
         GizmoTargetConfirmed=true;GeometryScale=1;_confirmedPoints.Clear();_confirmedPoints.UnionWith(SelPoints);_confirmedEntities.Clear();_confirmedEntities.UnionWith(SelEntities);
         _confirmedPlane=_activeSection;_confirmedCenter=center;GizmoEditing=false;_gizmoTargetPicker.Deactivate(s);
         s.Say("Gizmo target locked. Drag its arrows, rings or scale handle to transform the selected geometry. G edits only the gizmo.");
         s.NotifySketchChanged();s.RaiseState();s.Invalidate();
+    }
+
+    public void BeginPlacement(CadSession session)
+    {
+        _independentGizmoBefore=_gizmoFrame;_independentUndoCount=_undo.Count;IndependentGizmoPlacement=true;
+        if(!GeometryEditing)SetTool(session,new SketchGeometryEditTool());
+        if(!Is3DEnabled)_planarGizmoEnabled=true;
+        SetGizmoEditing(session,true);
+    }
+    public void SetPlacementOrigin(CadSession session,Vec3 origin)
+    {
+        if(!GizmoEditing || !double.IsFinite(origin.X)||!double.IsFinite(origin.Y)||!double.IsFinite(origin.Z))return;
+        _gizmoFrame=new(origin,_gizmoFrame.U,_gizmoFrame.V);session.NotifySketchChanged();session.Invalidate();
+    }
+    public void CenterPlacementOnSelection(CadSession session)=>SetPlacementOrigin(session,SelectionCenter()??Plane.Origin);
+    public void CancelPlacement(CadSession session,Plane3 original)
+    {
+        if(IndependentGizmoPlacement)while(_undo.Count>_independentUndoCount)_undo.Pop();
+        IndependentGizmoPlacement=false;
+        _gizmoFrame=original;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
     }
 
     internal void BeginSelectionTranslation() { _selectionMoveSnapshot=CaptureSpace();_selectionMoveValid=true;_geometryError=""; }

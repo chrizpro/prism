@@ -49,6 +49,20 @@ public sealed class HistoryGraphView : UserControl
         };
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        AppSettings.Changed += OnSettingsChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        AppSettings.Changed -= OnSettingsChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    void OnSettingsChanged() => Dispatcher.UIThread.Post(() => { if (_session != null) SetHistory(_session, _items); });
+
     IBrush Brush(string name, string fallback) => this.TryFindResource(name, ActualThemeVariant, out var resource) && resource is IBrush b ? b : new SolidColorBrush(Color.Parse(fallback));
 
     public void SetHistory(CadSession session, IReadOnlyList<HistoryItem> items)

@@ -33,6 +33,10 @@ public static class CommandCatalog
         lock (Gate)
         {
             _map ??= Build();
+            if (key == typeof(FlattenCommand).FullName + "|Flatten")
+                key = typeof(FlattenCommand).FullName + "|Flatten / Refold";
+            if (key == typeof(BoundaryFillCommand).FullName + "|Create Enclosed Solid")
+                key = typeof(BoundaryFillCommand).FullName + "|Enclosed Body";
             return _map.TryGetValue(key, out var make) ? make : null;
         }
     }

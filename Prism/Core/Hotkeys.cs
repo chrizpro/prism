@@ -13,7 +13,7 @@ public sealed record HotkeyAction(string Id, string Name, string Category, strin
 /// <summary>The shortcut catalogue, the user's changes to it, and the lookup from a pressed key to the actions it may run.</summary>
 public static class Hotkeys
 {
-    public const string Global = "global", Sketch = "sketch", Command = "command";
+    public const string Global = "global", Sketch = "sketch", Command = "command", Freeform = "freeform";
     public static string Workspace(string id) => "workspace:" + id;
 
     // order matters twice: it is the order shown in Preferences, and when two actions in the same scope share a key, the earlier one is tried first
@@ -34,6 +34,20 @@ public static class Hotkeys
         new("view.lookat", "Look at the selected plane, face or sketch", "View", Global, "N"),
         new("view.extents", "Zoom to fit everything", "View", Global, "Home"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
+        new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
+        new("form.edit", "Edit selected Freeform", "Freeform", Global, "Tab"),
+        new("form.move", "Move cage selection", "Freeform", Freeform, "W"),
+        new("form.rotate", "Rotate cage selection", "Freeform", Freeform, "E"),
+        new("form.scale", "Scale cage selection", "Freeform", Freeform, "R"),
+        new("form.extrude", "Extrude cage selection", "Freeform", Freeform, "Alt+X"),
+        new("form.crease", "Crease sharpness…", "Freeform", Freeform, "C"),
+        new("form.vertex", "Select vertices", "Freeform", Freeform, "D1"),
+        new("form.edge", "Select edges", "Freeform", Freeform, "D2"),
+        new("form.face", "Select faces", "Freeform", Freeform, "D3"),
+        new("form.object", "Select whole form", "Freeform", Freeform, "D4"),
+        new("form.selectall", "Select all cage components", "Freeform", Freeform, "Ctrl+A"),
+        new("form.loop", "Select edge loop", "Freeform", Freeform, "Alt+L"),
+        new("form.ring", "Select edge ring", "Freeform", Freeform, "Alt+R"),
 
         new("sketch.gizmo.move", "Gizmo: move", "Sketch", Sketch, "W", "Needs a gizmo target"),
         new("sketch.gizmo.rotate", "Gizmo: rotate", "Sketch", Sketch, "R", "Needs a gizmo target"),
@@ -64,10 +78,11 @@ public static class Hotkeys
         {
             int cut = v.IndexOf('|');
             string scope = cut >= 0 && v[(cut + 1)..].Length > 0 ? v[(cut + 1)..] : a.Scope;
-            return (cut >= 0 ? v[..cut] : v, scope);
+            return (Canonical(cut >= 0 ? v[..cut] : v), scope);
         }
         return (a.Default, a.Scope);
     }
+    static string Canonical(string gesture)=>string.Join("+",gesture.Split('+').Select(k=>k=="Return"?"Enter":k));
 
     public static bool IsChanged(HotkeyAction a) => Overrides.ContainsKey(a.Id);
 
@@ -88,9 +103,10 @@ public static class Hotkeys
     }
 
     /// <summary>The scopes that apply right now, most specific first.</summary>
-    public static List<string> ActiveScopes(bool commandOpen, bool sketching, string workspaceId)
+    public static List<string> ActiveScopes(bool commandOpen, bool sketching, string workspaceId, bool editingForm = false)
     {
         var scopes = new List<string>();
+        if(editingForm)scopes.Add(Freeform);
         if (commandOpen) scopes.Add(Command);
         if (sketching) scopes.Add(Sketch);
         scopes.Add(Workspace(workspaceId));
@@ -128,6 +144,7 @@ public static class Hotkeys
         Global => "Everywhere",
         Sketch => "While sketching",
         Command => "While a command is open",
+        Freeform => "While editing Freeform",
         _ when scope.StartsWith("workspace:", StringComparison.Ordinal) => "Only in " + WorkspaceName(scope[10..]),
         _ => scope,
     };

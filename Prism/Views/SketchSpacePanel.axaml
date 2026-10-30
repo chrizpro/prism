@@ -10,7 +10,7 @@
                 <Button Content="Save datum plane" Tag="save-plane" Click="OnAction"/>
                 <Button Content="Gizmo Handles (G)" Tag="gizmo" Click="OnAction" IsEnabled="{Binding SketchGeometryEditing}" Classes.primary="{Binding SketchGizmoEditing}" ToolTip.Tip="Choose a Datum gizmo to select its transform targets. G switches between pivot setup and geometry transformation."/>
                 <ComboBox ItemsSource="{Binding SketchGizmoOperations}" SelectedIndex="{Binding SketchGizmoOperation, Mode=TwoWay}"/>
-                <v:GizmoOptionsPanel/>
+                <Button Classes="studioAction" Content="Gizmo…" Click="OnGizmoPanel" HorizontalAlignment="Stretch"/>
                 <TextBlock Text="Choose the axis direction before adding a Datum axis. Select references here or click their origins/axes in the viewport." TextWrapping="Wrap"/>
             </StackPanel>
         </Expander>
@@ -34,7 +34,7 @@
             <CheckBox Content="Free 3D editing (not limited to the plane)" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Let the gizmo lift points off their drawing plane in any direction. Off keeps editing on the plane."/>
             <Button Content="Lock gizmo to selection (Enter)" Tag="confirm-target" Click="OnAction" IsVisible="{Binding SketchGizmoTargetSetup}" HorizontalAlignment="Stretch"/>
             <ComboBox ItemsSource="{Binding SketchGizmoOperations}" SelectedIndex="{Binding SketchGizmoOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-            <v:GizmoOptionsPanel Margin="-14,0"/>
+            <Button Classes="studioAction" Content="Gizmo…" Click="OnGizmoPanel" HorizontalAlignment="Stretch"/>
             <Button Content="{Binding SketchResetLabel}" Tag="reset-gizmo" Click="OnAction" HorizontalAlignment="Stretch" FontSize="11"/>
             <TextBlock Text="{Binding SketchSpaceStatus}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
             <Expander Header="Saved planes &amp; datums" IsExpanded="True" HorizontalAlignment="Stretch">

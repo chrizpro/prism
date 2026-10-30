@@ -44,7 +44,8 @@ public sealed class GizmoPreview : Control
         int active = Operation >= 0 ? Operation : Session?.Sketch is { } sk ? (int)sk.GizmoOperation
             : Session?.ActiveCommand?.Params.OfType<ChoiceParam>().FirstOrDefault(p => p.Label.StartsWith("Gizmo"))?.Index ?? 0;
         var overlay = new Overlay();
-        for (int operation = 0; operation < 3; operation++) GizmoVisual.DrawOperation(overlay, _preview, Vec3.Zero, GizmoVisual.WorldAxes, operation, active);
+        var axes=Session?.ActiveTool switch {FormEditTool tool=>tool.Binding.Axes,EditPointsTool tool=>tool.Binding.Axes,_=>Session?.Sketch is {} sketch?new[]{sketch.GizmoFrame.U,sketch.GizmoFrame.V,sketch.GizmoFrame.Normal}:GizmoVisual.WorldAxes};
+        for (int operation = 0; operation < 3; operation++) GizmoVisual.DrawOperation(overlay, _preview, Vec3.Zero, axes, operation, active);
         using var transform = context.PushTransform(Matrix.Identity);
         Point? Project(Vec3 p) => camera.Project(p) is { } q ? new Point(q.x, q.y) : null;
         foreach (var triangle in overlay.Tris)
