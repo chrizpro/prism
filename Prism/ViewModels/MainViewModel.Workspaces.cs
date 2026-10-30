@@ -30,12 +30,12 @@ public sealed partial class MainViewModel
     // Home, View and the File menu belong to every workspace; contextual tabs (Sketch, Materials) appear on their own.
     public static readonly WorkspaceDef[] WorkspaceDefs =
     [
-        new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Analyze", "View"]),
+        new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"]),
         new("ecad", "ECAD", "Electronic boards, component envelopes and enclosure integration.", ["Home", "ECAD", "Analyze", "View"], "ECAD"),
         new("scan", "Scan", "Meshes and reverse engineering. Print preparation is in CAM.", ["Home", "Mesh", "Solid", "Surface", "Direct Modeling", "Analyze", "View"], "Mesh"),
         new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Fluids", "Analyze", "View"], "Static"),
         new("assemble", "Assemble", "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.", ["Home", "Assemble", "Joints", "Animate", "Analyze", "View"], "Assemble"),
-        new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "View"], "Render"),
+        new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "Animate", "View"], "Render"),
         new("make", "CAM", "Stock and work zero, milling, toolpath playback, external slicer paths and tooling inspection.", ["Home", "CAM", "Additive", "Tooling", "Analyze", "View"], "CAM"),
         new("script", "Script", "Write Python that builds and changes models. The editor sits beside the model; everything a script makes is one undo step.", ["Home", "Script", "View"], "Script"),
         new("all", "All tabs", "Show every tab.", []),

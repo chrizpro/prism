@@ -143,6 +143,37 @@ foreach (string studio in new[] { "diagnostics", "references", "parameters" })
     PanelShot(new StudiosPanel { DataContext = vm }, studio);
 }
 s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }, "sketch", 860); s.ExitSketch(false);
+// The right panel and the animation timeline must be reachable on a fresh document, with no joints.
+{
+    var animVm = new MainViewModel { HomeOpen = false };
+    var animView = new MainView { DataContext = animVm }; var animHost = new Window { Width = 1360, Height = 940, Content = animView };
+    animHost.Show(); Dispatcher.UIThread.RunJobs();
+    var rightColumn = animView.FindControl<Grid>("WorkGrid")!.ColumnDefinitions[4];
+    var propsPanel = animView.GetVisualDescendants().OfType<PropertiesPanel>().Single();
+    Check(animVm.RightPanelTabs.Count > 0 && animVm.ShowProperties && propsPanel.IsEffectivelyVisible && propsPanel.Bounds.Width > 250 && rightColumn.ActualWidth > 250, "the right panel is shown with Properties on a fresh document");
+    Check(animVm.Tabs.Single(t => t.Title == "Animate").IsVisible, "the Animate tab is shown in the default Design workspace");
+    var editPlay = animVm.Tabs.Single(t => t.Title == "Animate").Buttons.Single(b => b.Label.StartsWith("Edit"));
+    editPlay.Refresh();
+    Check(editPlay.IsEnabled, "Edit / Play is available without joints (the exploded view can be animated)");
+    var timelineDock = animView.FindControl<Border>("TimelineDock")!;
+    Check(!timelineDock.IsEffectivelyVisible && !animVm.ShowAnimationTimeline, "the timeline stays out of the way until animation is opened");
+    var openTimeline = propsPanel.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Open animation timeline"));
+    openTimeline.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+    var timelineView = animView.GetVisualDescendants().OfType<AnimationTimelineView>().Single();
+    Check(animVm.ShowAnimationTimeline && timelineDock.IsEffectivelyVisible && timelineView.Bounds.Width > 400 && timelineView.Bounds.Height > 20, "Open animation timeline from the right panel shows the timeline dock");
+    var commandPanelView = animView.GetVisualDescendants().OfType<CommandPanel>().Single();
+    Check(animVm.ShowCommandPanel && commandPanelView.IsEffectivelyVisible && rightColumn.ActualWidth > 300, "the right panel shows the animation options (length, time, loop, keys, play) while editing");
+    foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+    {
+        Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs(); Capture(animView, "animation-workspace-" + theme.Key.ToString()!.ToLowerInvariant());
+    }
+    animVm.Session.CancelCommand(); Dispatcher.UIThread.RunJobs();
+    Check(!animVm.ShowAnimationTimeline && propsPanel.IsEffectivelyVisible, "closing the animation returns the right panel to Properties");
+    animVm.Session.AddAnimation(new Prism.Core.Assembly.AnimInfo(8, [], true), false); Dispatcher.UIThread.RunJobs();
+    animVm.Session.SelectItems([SelItem.Of(animVm.Session.Objects.Single(o => o.Kind == ObjKind.Animation))]); Dispatcher.UIThread.RunJobs();
+    Check(animVm.Properties.Any(p => p.Label == "Length" && p.Value == "8 s") && animVm.AnimationSummary.Contains("8 s"), "a selected animation lists its length, loop and keys in the right panel");
+    animHost.Close(); Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

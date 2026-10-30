@@ -117,6 +117,7 @@ public sealed partial class MainViewModel : ViewModelBase
         Properties.Clear();
         var objs = Session.SelectedObjects.ToList();
         HasSelection = objs.Count > 0;
+        UpdateAnimationSummary();
         if (objs.Count == 0) { SelectionTitle = "Nothing selected"; RenameText = ""; return; }
         if (objs.Count > 1) { SelectionTitle = $"{objs.Count} objects selected"; RenameText = ""; return; }
         var o = objs[0];
@@ -155,6 +156,16 @@ public sealed partial class MainViewModel : ViewModelBase
                 Properties.Add(new("Normal", $"{n.X:0.###}, {n.Y:0.###}, {n.Z:0.###}"));
                 var (hu, hv) = CadSession.PlaneHalfSize(o);
                 Properties.Add(new("Size", $"{2 * hu:0.##} × {2 * hv:0.##} mm"));
+                return;
+            }
+            if (o.Asm is AnimInfo anim)
+            {
+                Properties.Add(new("Type", "Animation"));
+                Properties.Add(new("Length", $"{anim.Duration:0.##} s"));
+                Properties.Add(new("Loop", anim.Loop ? "Yes" : "No"));
+                Properties.Add(new("Easing", anim.Ease ? "Ease in and out" : "Linear"));
+                Properties.Add(new("Tracks", anim.Tracks.Count.ToString()));
+                Properties.Add(new("Keys", anim.Tracks.Sum(t => t.Keys.Count).ToString()));
                 return;
             }
             var p = o.Shape.Props();
@@ -937,8 +948,8 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 G("Animation",
-                    Btn("New\nAnimation", "animation", () => { Session.AddAnimation(new AnimInfo(5, [], false), true); Session.Say("New animation created. Open the editor to key joint values."); }, "Create an empty animation (5 seconds).", RibbonSize.Large, () => HasJoints() && !IsSketching),
-                    AsmCmd("Edit /\nPlay", "animation", () => new AnimationCommand(), "Scrub the timeline, key joint values and play the motion.", RibbonSize.Large, HasJoints),
+                    Btn("New\nAnimation", "animation", () => { Session.AddAnimation(new AnimInfo(5, [], false), true); Session.Say("New animation created. Open the editor to key joint values."); }, "Create an empty animation (5 seconds).", RibbonSize.Large, () => !IsSketching),
+                    AsmCmd("Edit /\nPlay", "animation", () => new AnimationCommand(), "Open the animation timeline: scrub, key joint values or the exploded view, and play the motion.", RibbonSize.Large),
                     AsmCmd("Exploded\nView", "explode", () => new ExplodeCommand(), "Pull the parts apart.", RibbonSize.Large, HasComponents)),
                 G("Output",
                     Cmd("Render\nAnimation", "render", () => new RenderAnimationCommand(), "Turn the animation into pictures, a GIF and (with ffmpeg) an MP4, optionally with the camera circling the model.")),

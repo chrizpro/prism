@@ -36,6 +36,10 @@
                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 </ItemsControl>
             </StackPanel>
+
+            <c:PanelStepHeader Step="4" Title="Animation" Margin="-14,16,-14,6"/>
+            <TextBlock Text="{Binding AnimationSummary}" TextWrapping="Wrap" Classes="soft" Margin="0,2,0,6"/>
+            <Button Name="OpenTimelineButton" Content="Open animation timeline" Click="OnOpenTimeline" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,7"/>
         </StackPanel>
     </ScrollViewer>
     </DockPanel>

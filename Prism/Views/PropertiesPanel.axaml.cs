@@ -32,6 +32,8 @@ public partial class PropertiesPanel : UserControl
         }
     }
 
+    void OnOpenTimeline(object? sender, RoutedEventArgs e) => (DataContext as MainViewModel)?.OpenAnimationTimeline();
+
     void OnRenameKey(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) { (DataContext as MainViewModel)?.Rename(RenameBox.Text ?? ""); e.Handled = true; }

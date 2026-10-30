@@ -263,7 +263,7 @@
 
         <!-- ============ animation timeline (while the Animation command is open) ============ -->
 
-        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" IsVisible="{Binding ShowAnimationTimeline}">
+        <Border Name="TimelineDock" DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" IsVisible="{Binding ShowAnimationTimeline}">
 
             <DockPanel>
 
