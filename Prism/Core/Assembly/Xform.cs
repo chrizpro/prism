@@ -33,6 +33,11 @@ public readonly struct Xform
         double c = Math.Cos(rad), s = Math.Sin(rad);
         return new([c, -s, 0, s, c, 0, 0, 0, 1], Vec3.Zero);
     }
+    public static Xform RotX(double rad)
+    {
+        double c = Math.Cos(rad), s = Math.Sin(rad);
+        return new([1, 0, 0, 0, c, -s, 0, s, c], Vec3.Zero);
+    }
     public static Xform RotX180 => new([1, 0, 0, 0, -1, 0, 0, 0, -1], Vec3.Zero);
     public static Xform TransZ(double d) => Translation(new Vec3(0, 0, d));
 

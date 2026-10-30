@@ -102,21 +102,24 @@ public sealed class JointCommand : Command
         _b = Slot(new SelectionSlot { Label = "On the part that moves", Filter = SelFilter.Face | SelFilter.Edge });
         _flip = Choice("Direction", 0, "Automatic", "Flip", "Do not flip");
         _limits = Check("Limit the motion", false);
-        bool ang = type is JointType.Revolute or JointType.Cylindrical;
+        bool ang = type is JointType.Revolute or JointType.Cylindrical or JointType.Ball;
         _min = Num(ang ? "Minimum angle" : "Minimum travel", ang ? -90 : 0, -1e6, 1e6, 5, ang ? "°" : "mm");
         _max = Num(ang ? "Maximum angle" : "Maximum travel", ang ? 90 : 50, -1e6, 1e6, 5, ang ? "°" : "mm");
-        _min2 = Num("Minimum travel", 0, -1e6, 1e6, 5); _max2 = Num("Maximum travel", 50, -1e6, 1e6, 5);
+        bool ang2 = type == JointType.Ball;
+        _min2 = Num(ang2 ? "Minimum tilt" : "Minimum travel", ang2 ? -45 : 0, -1e6, 1e6, 5, ang2 ? "°" : "mm"); _max2 = Num(ang2 ? "Maximum tilt" : "Maximum travel", ang2 ? 45 : 50, -1e6, 1e6, 5, ang2 ? "°" : "mm");
         UpdateVisibility();
     }
 
-    public override string Title => _type switch { JointType.Rigid => "Rigid Joint", JointType.Revolute => "Revolute Joint", JointType.Slider => "Slider Joint", _ => "Cylindrical Joint" };
-    public override string Icon => _type switch { JointType.Rigid => "joint-rigid", JointType.Revolute => "joint-revolute", JointType.Slider => "joint-slider", _ => "joint-cyl" };
+    public override string Title => _type switch { JointType.Rigid => "Rigid Joint", JointType.Revolute => "Revolute Joint", JointType.Slider => "Slider Joint", JointType.Ball => "Ball Joint", JointType.Planar => "Planar Joint", _ => "Cylindrical Joint" };
+    public override string Icon => _type switch { JointType.Rigid => "joint-rigid", JointType.Revolute => "joint-revolute", JointType.Slider => "joint-slider", JointType.Ball => "joint-ball", JointType.Planar => "joint-planar", _ => "joint-cyl" };
     public override string OkText => "Create joint";
     public override string Hint => _type switch
     {
         JointType.Rigid => "Pick a face or circle on each component. The second component snaps so the two points coincide and then stays locked to the first.",
         JointType.Revolute => "Pick a circle edge or round face (a pin and its hole) on each component. The second turns about that axis.",
         JointType.Slider => "Pick a face on each component. The second slides along the direction of the picked face's normal (or a round feature's axis).",
+        JointType.Ball => "Pick a point (a circle centre or a face) on each component. The second pivots about that point: spin about the picked axis and tilt away from it.",
+        JointType.Planar => "Pick a flat face on each component. The second slides over the first in two directions, staying flat against it.",
         _ => "Pick a round feature on each component. The second turns about the axis and slides along it.",
     };
 
@@ -124,7 +127,7 @@ public sealed class JointCommand : Command
     {
         if (_min == null) return;
         _min.IsVisible = _max.IsVisible = _limits.Value && _type != JointType.Rigid;
-        _min2.IsVisible = _max2.IsVisible = _limits.Value && _type == JointType.Cylindrical;
+        _min2.IsVisible = _max2.IsVisible = _limits.Value && _type is JointType.Cylindrical or JointType.Ball or JointType.Planar;
     }
 
     // what Build worked out, shown in the viewport
@@ -157,7 +160,7 @@ public sealed class JointCommand : Command
         var pa = parent.Component.Placement.Inverse() * Aw; var pb = child.Component.Placement.Inverse() * Bw;
         string name = $"{_type} {S.JointObjects.Count(j => j.joint.Type == _type) + 1}";
         return new JointInfo(CadSession.NewKey(), name, _type, parent.Component.Key, child.Component.Key, JointInfo.Pack(pa), JointInfo.Pack(pb), flip,
-            _type == JointType.Rigid || _type == JointType.Slider || _type == JointType.Revolute || _type == JointType.Cylindrical ? zero : 0, 0, 0, _limits.Value && _type != JointType.Rigid,
+            zero, 0, 0, _limits.Value && _type != JointType.Rigid,
             _min.Value, _max.Value, _min2.Value, _max2.Value);
     }
 
@@ -213,12 +216,12 @@ public sealed class DriveJointsCommand : Command
         {
             if (j.Type == JointType.Rigid) continue;
             double lo = j.HasLimits ? j.Min : (j.UsesAngle ? -360 : -500), hi = j.HasLimits ? j.Max : (j.UsesAngle ? 360 : 500);
-            var p1 = Add(new NumberParam { Label = $"{j.Name}  ({(j.UsesAngle ? "angle" : "travel")})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
+            var p1 = Add(new NumberParam { Label = $"{j.Name}  ({j.FirstLabel})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
             NumberParam? p2 = null;
-            if (j.Type == JointType.Cylindrical)
+            if (j.HasSecond)
             {
-                double lo2 = j.HasLimits ? j.Min2 : -500, hi2 = j.HasLimits ? j.Max2 : 500;
-                p2 = Add(new NumberParam { Label = $"{j.Name}  (travel)", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = 1, Unit = "mm" });
+                double lo2 = j.HasLimits ? j.Min2 : (j.SecondIsAngle ? -180 : -500), hi2 = j.HasLimits ? j.Max2 : (j.SecondIsAngle ? 180 : 500);
+                p2 = Add(new NumberParam { Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
             }
             _rows.Add((j, p1, p2));
         }

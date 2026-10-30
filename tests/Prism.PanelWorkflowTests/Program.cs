@@ -190,6 +190,18 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     ts.SelectItems([SelItem.Of(ts.Find(b.Id)!)]); ViewBtn("Isolate").Invoke();
     Check(ts.Find(b.Id)!.Visible && !ts.Find(a.Id)!.Visible, "Isolate hides everything except the selection");
 }
+// Ball and Planar joints: two motion values each, limits respected, buttons on the Joints tab.
+{
+    var frame = Prism.Core.Assembly.JointInfo.Pack(Prism.Core.Assembly.Xform.Identity);
+    Prism.Core.Assembly.JointInfo Joint(Prism.Core.Assembly.JointType t, bool limits = false) => new("k", "J", t, "a", "b", frame, frame, false, 0, 0, 0, limits, -10, 10, -20, 20);
+    var planar = Joint(Prism.Core.Assembly.JointType.Planar); var planarMove = planar.Motion(3, 4);
+    Check(planar.HasSecond && !planar.UsesAngle && Math.Abs(planarMove.T.X - 3) < 1e-9 && Math.Abs(planarMove.T.Y - 4) < 1e-9 && Math.Abs(planarMove.T.Z) < 1e-9, "a planar joint slides in two directions and stays flat");
+    var ball = Joint(Prism.Core.Assembly.JointType.Ball); var tilt = ball.Motion(0, 90);
+    Check(ball.HasSecond && ball.SecondIsAngle && Math.Abs(tilt.AxisZ.Y + 1) < 1e-9 && tilt.T.DistanceTo(Vec3.Zero) < 1e-9, "a ball joint tilts about a fixed point");
+    Check(Joint(Prism.Core.Assembly.JointType.Planar, true).Clamped() == (0, 0) && Joint(Prism.Core.Assembly.JointType.Ball, true).Motion(50, 90).AxisZ.Y < -0.3, "limits apply to both values of a two-value joint");
+    var jointLabels = new MainViewModel { HomeOpen = false }.Tabs.Single(t => t.Title == "Joints").Buttons.Select(b => b.Label).ToList();
+    Check(jointLabels.Contains("Ball") && jointLabels.Contains("Planar"), "the Joints tab offers Ball and Planar joints");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

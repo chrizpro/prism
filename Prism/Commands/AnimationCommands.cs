@@ -52,12 +52,12 @@ public sealed class AnimationCommand : Command
         {
             if (j.Type == JointType.Rigid) continue;
             double lo = j.HasLimits ? j.Min : (j.UsesAngle ? -360 : -500), hi = j.HasLimits ? j.Max : (j.UsesAngle ? 360 : 500);
-            var p1 = Add(new NumberParam { Label = $"{j.Name}  ({(j.UsesAngle ? "angle" : "travel")})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
+            var p1 = Add(new NumberParam { Label = $"{j.Name}  ({j.FirstLabel})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
             NumberParam? p2 = null;
-            if (j.Type == JointType.Cylindrical)
+            if (j.HasSecond)
             {
-                double lo2 = j.HasLimits ? j.Min2 : -500, hi2 = j.HasLimits ? j.Max2 : 500;
-                p2 = Add(new NumberParam { Label = $"{j.Name}  (travel)", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = 1, Unit = "mm" });
+                double lo2 = j.HasLimits ? j.Min2 : (j.SecondIsAngle ? -180 : -500), hi2 = j.HasLimits ? j.Max2 : (j.SecondIsAngle ? 180 : 500);
+                p2 = Add(new NumberParam { Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
             }
             _rows.Add((j, p1, p2));
         }
@@ -146,8 +146,8 @@ public sealed class AnimationCommand : Command
         foreach (var r in _rows)
         {
             string name = r.joint.Name;
-            rows.Add(new(r.v2 == null ? name : $"{name} (angle)", r.joint.Key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && !t.SecondValue)));
-            if (r.v2 != null) rows.Add(new($"{name} (travel)", r.joint.Key, true, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && t.SecondValue)));
+            rows.Add(new(r.v2 == null ? name : $"{name} ({r.joint.FirstLabel})", r.joint.Key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && !t.SecondValue)));
+            if (r.v2 != null) rows.Add(new($"{name} ({r.joint.SecondLabel})", r.joint.Key, true, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && t.SecondValue)));
         }
         rows.Add(new("Exploded view", ExplodeKey, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == ExplodeKey && !t.SecondValue)));
         return rows;

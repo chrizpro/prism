@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core.Assembly;
 
-public enum JointType { Rigid, Revolute, Slider, Cylindrical }
+public enum JointType { Rigid, Revolute, Slider, Cylindrical, Ball, Planar }
 
 /// <summary>Extra data an assembly object carries: what it is in the assembly, on top of the geometry it shows.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$t")]
@@ -36,8 +36,13 @@ public sealed record JointInfo(string Key, string Name, JointType Type, string P
     static Xform Frame(double[] f) => Xform.FromFrame(new Vec3(f[0], f[1], f[2]), new Vec3(f[3], f[4], f[5]), new Vec3(f[6], f[7], f[8]));
     public static double[] Pack(Xform f) => [f.T.X, f.T.Y, f.T.Z, f.AxisX.X, f.AxisX.Y, f.AxisX.Z, f.AxisZ.X, f.AxisZ.Y, f.AxisZ.Z];
 
-    public bool UsesAngle => Type is JointType.Revolute or JointType.Cylindrical;
-    public bool UsesDistance => Type is JointType.Slider or JointType.Cylindrical;
+    public bool UsesAngle => Type is JointType.Revolute or JointType.Cylindrical or JointType.Ball;
+    public bool UsesDistance => Type is JointType.Slider or JointType.Cylindrical or JointType.Planar;
+    /// <summary>Joints with two motion values: cylindrical (turn, slide), ball (spin, tilt) and planar (slide X, slide Y).</summary>
+    public bool HasSecond => Type is JointType.Cylindrical or JointType.Ball or JointType.Planar;
+    public bool SecondIsAngle => Type == JointType.Ball;
+    public string FirstLabel => Type switch { JointType.Slider => "travel", JointType.Ball => "spin", JointType.Planar => "slide X", _ => "angle" };
+    public string SecondLabel => Type switch { JointType.Ball => "tilt", JointType.Planar => "slide Y", _ => "travel" };
 
     /// <summary>The first (angle for turning joints, distance for sliders) and second (distance of a cylindrical joint) value after limits.</summary>
     public (double v1, double v2) Clamped()
@@ -45,7 +50,7 @@ public sealed record JointInfo(string Key, string Name, JointType Type, string P
         double v1 = Value, v2 = Value2;
         if (HasLimits)
         {
-            if (Type == JointType.Cylindrical) { v1 = Math.Clamp(v1, Min, Max); v2 = Math.Clamp(v2, Min2, Max2); }
+            if (HasSecond) { v1 = Math.Clamp(v1, Min, Max); v2 = Math.Clamp(v2, Min2, Max2); }
             else v1 = Math.Clamp(v1, Min, Max);
         }
         return (v1, v2);
@@ -62,6 +67,8 @@ public sealed record JointInfo(string Key, string Name, JointType Type, string P
             case JointType.Revolute: m = Xform.RotZ((ZeroAngle + a) * Math.PI / 180); break;
             case JointType.Slider: m = m * Xform.TransZ(a); break;
             case JointType.Cylindrical: m = Xform.RotZ((ZeroAngle + a) * Math.PI / 180) * Xform.TransZ(d); break;
+            case JointType.Ball: m = Xform.RotZ((ZeroAngle + a) * Math.PI / 180) * Xform.RotX(d * Math.PI / 180); break;
+            case JointType.Planar: m = m * Xform.Translation(new Vec3(a, d, 0)); break;
         }
         return Flip ? m * Xform.RotX180 : m;
     }
