@@ -264,6 +264,9 @@ public sealed partial class CadSession
             var a = parent.Component.Placement * j.A;
             bool sel = _selection.Contains(SelItem.Of(obj));
             JointFrame(o, a, len * (sel ? 1.5 : 1), sel ? 0xFFFFFFFF : 0xFFFFC53D);
+            // a selected joint with limits shows how far it may move (while a command is driving it, the handles show this instead)
+            if (sel && ActiveCommand == null)
+                foreach (var ch in JointVisuals.Channels(j, a, j.Value, j.Value2)) JointVisuals.Range(o, a.T, ch.Dir, ch.Ref, len * 2.2, ch.Min, ch.Max, ch.Value);
             string ico = j.Type switch { JointType.Rigid => "rigid", JointType.Revolute => "revolute", JointType.Slider => "slider", JointType.Ball => "ball", JointType.Planar => "planar", _ => "cylindrical" };
             o.AddLabel(a.T + a.AxisZ * len * 1.6, $"{j.Name}", true, 1);
         }

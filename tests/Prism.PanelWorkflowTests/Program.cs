@@ -602,6 +602,52 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
     }
     finally { hostWindow.Close(); hv.SetWorkspace(startWorkspace); }
 }
+// Joint limits in the viewport: the allowed range is drawn, joints can be dragged by their handles and stop at their limits.
+{
+    var js = new CadSession();
+    SceneObject JointPart(string name, double x, bool ground)
+    {
+        var o = js.AddObject(Prism.Kernel.Occ.Translate(Prism.Kernel.Occ.Box(10, 10, 10), new Vec3(x, 0, 0)), name, ObjKind.Solid);
+        js.Update(o.Id, v => v.WithAsm(new Prism.Core.Assembly.ComponentInfo(CadSession.NewKey(), name, null, Prism.Core.Assembly.Xform.Identity.ToArray(), ground), v.Shape), false);
+        return js.Find(o.Id)!;
+    }
+    var hub = JointPart("Hub", 0, true); var arm = JointPart("Arm", 20, false);
+    var frameData = Prism.Core.Assembly.JointInfo.Pack(Prism.Core.Assembly.Xform.Identity);
+    var hinge = js.AddObject(Prism.Kernel.Occ.Line(Vec3.Zero, new Vec3(0, 0, 0.01)), "Hinge", ObjKind.Joint);
+    js.Update(hinge.Id, v => v.WithAsm(new Prism.Core.Assembly.JointInfo("hinge", "Hinge", Prism.Core.Assembly.JointType.Revolute, hub.Component!.Key, arm.Component!.Key, frameData, frameData, false, 0, 0, 0, true, -45, 90, 0, 0)), false);
+    js.Camera.Width = 800; js.Camera.Height = 600; js.Camera.SetView(0, 90);
+
+    // a selected joint shows its allowed range even with no command open
+    js.SelectItems([SelItem.Of(js.Find(hinge.Id)!)]);
+    var rangeOverlay = new Overlay(); js.BuildOverlay(rangeOverlay);
+    Check(rangeOverlay.Lines.Count(l => l.Color == Prism.Core.Assembly.JointVisuals.LimitColor) == 2 && rangeOverlay.Lines.Any(l => l.Color == Prism.Core.Assembly.JointVisuals.RangeColor), "a selected joint with limits draws its allowed arc with a tick at each end");
+    js.SelectItems([]);
+
+    js.StartCommand(() => new DriveJointsCommand()); var drive = js.ActiveCommand!;
+    var handle = drive.Handles.Single();
+    var hubOrigin = handle.Origin;
+    Check(handle.Ref != null && handle.Param.Min == -45 && handle.Param.Max == 90 && Math.Abs(handle.Param.Value) < 1e-9, "Drive Joints shows a turning handle for a hinge, carrying the joint's limits");
+    (double x, double y) Screen(double degrees) { var h = drive.Handles.Single(); var at = h.Origin + Prism.Core.Assembly.JointVisuals.Rotate(h.Ref!.Value.Normalized(), h.Dir, degrees) * h.Radius; var p = js.Camera.Project(at)!.Value; return (p.x, p.y); }
+    var grab = Screen(0);
+    js.PointerDown(new PointerInfo(grab.x, grab.y, true, false, false, false));
+    var to60 = Screen(60); js.PointerMove(new PointerInfo(to60.x, to60.y, true, false, false, false));
+    Check(Math.Abs(drive.Handles.Single().Param.Value - 60) <= 1.5, "dragging the handle turns the joint to the angle under the pointer");
+    var past = Screen(170); js.PointerMove(new PointerInfo(past.x, past.y, true, false, false, false));
+    Check(drive.Handles.Single().Param.Value == 90, "dragging past the upper limit stops the joint at 90 degrees");
+    var middle = Screen(0); js.PointerMove(new PointerInfo(middle.x, middle.y, true, false, false, false));            // a drag passes through the angles on the way
+    var below = Screen(-120); js.PointerMove(new PointerInfo(below.x, below.y, true, false, false, false));
+    var atLower = new Overlay(); js.BuildOverlay(atLower);
+    Check(drive.Handles.Single().Param.Value == -45 && atLower.Labels.Any(l => l.Text.Contains("limit")) && atLower.Dots.Any(d => d.Color == Prism.Core.Assembly.JointVisuals.HitColor), "at the lower limit the handle turns red and says so");
+    js.PointerUp(new PointerInfo(below.x, below.y, false, false, false, false));
+    var posed = drive.TryBuild();
+    Check(posed != null && posed.Replace.Any(r => r.Old.Id == arm.Id), "the preview moves the arm to the dragged angle");
+    js.CancelCommand();
+
+    // other joint types offer the right handles
+    var frame = Prism.Core.Assembly.Xform.Identity;
+    Prism.Core.Assembly.JointInfo J(Prism.Core.Assembly.JointType t) => new("k", "J", t, "a", "b", frameData, frameData, false, 0, 0, 0, true, -10, 10, -20, 20);
+    Check(Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Slider), frame, 0, 0).Single() is { Ref: null } && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Cylindrical), frame, 0, 0) is [{ Ref: not null }, { Ref: null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Ball), frame, 0, 0) is [{ Ref: not null }, { Ref: not null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Planar), frame, 0, 0) is [{ Ref: null }, { Ref: null }] && Prism.Core.Assembly.JointVisuals.Channels(J(Prism.Core.Assembly.JointType.Rigid), frame, 0, 0).Count == 0, "each joint type gets handles that match how it moves (turn, slide, or both)");
+}
 Console.WriteLine($"SUCCESS: {checks} checks; screenshots in {output}");
 sealed class TestApp : Application
 {

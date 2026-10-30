@@ -214,10 +214,13 @@ public sealed class DriveJointsCommand : Command
 {
     readonly List<(JointInfo joint, NumberParam v1, NumberParam? v2)> _rows = [];
 
+    /// <summary>Drag a joint in the viewport: an arc to turn it, an arrow to slide it. It stops at its limits.</summary>
+    public override IReadOnlyList<HandleSpec> Handles => JointHandles.Build(S, _rows);
+
     public override string Title => "Drive Joints";
     public override string Icon => "joint-revolute";
     public override string OkText => "Keep positions";
-    public override string Hint => "Move the joints with their values and watch the assembly follow. Limits are respected. Keep positions stores these values; Cancel puts everything back.";
+    public override string Hint => "Move the joints with their values, or drag the handles in the viewport, and watch the assembly follow. Limits are respected and drawn: the arc or ruler shows how far a joint can go. Keep positions stores these values; Cancel puts everything back.";
 
     protected override void OnBegin()
     {

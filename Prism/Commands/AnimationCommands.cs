@@ -29,6 +29,9 @@ public sealed class AnimationCommand : Command
     Dictionary<string, (double v1, double v2)> _rest = [];
     bool _createNew;
 
+    /// <summary>The joints can be dragged in the viewport to set the pose at this time.</summary>
+    public override IReadOnlyList<HandleSpec> Handles => JointHandles.Build(S, _rows);
+
     public override string Title => "Animation";
     public override string Icon => "animation";
     public override string OkText => "Save animation";

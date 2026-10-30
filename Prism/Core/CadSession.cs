@@ -1165,7 +1165,7 @@ public sealed partial class CadSession : ObservableObject
     int _handleIdx;
     string _typed = "";          // digits typed in the viewport for the active handle
 
-    static Vec3 HandleTip(HandleSpec h) => h.Origin + h.Dir.Normalized() * (h.Param.Value / h.Mul);
+    public static Vec3 HandleTip(HandleSpec h) => h.Ref is { } r ? h.Origin + Assembly.JointVisuals.Rotate(r.Normalized(), h.Dir, h.Param.Value) * h.Radius : h.Origin + h.Dir.Normalized() * (h.Param.Value / h.Mul);
 
     bool HandleHit(HandleSpec h, double px, double py)
     {
@@ -1179,6 +1179,20 @@ public sealed partial class CadSession : ObservableObject
     void DragHandle(HandleSpec h, PointerInfo p)
     {
         var (o, d) = Camera.Ray(p.X, p.Y);
+        if (h.Ref is { } refDir)
+        {
+            // a turning handle: where the pointer is on the plane the joint turns in, as an angle from the zero direction
+            var n = h.Dir.Normalized(); double dn = Vec3.Dot(d, n);
+            if (Math.Abs(dn) < 1e-4) return;                    // looking edge-on to the turn: no way to tell the angle
+            var hit = o + d * (Vec3.Dot(h.Origin - o, n) / dn) - h.Origin;
+            var r0 = refDir.Normalized(); var r90 = Vec3.Cross(n, r0);
+            double target = Math.Atan2(Vec3.Dot(hit, r90), Vec3.Dot(hit, r0)) * 180 / Math.PI;
+            double now = h.Param.Value, delta = ((target - now) % 360 + 540) % 360 - 180;       // the short way round, so the value does not jump by a full turn
+            double asked = now + delta, aStep = p.Ctrl ? 0.1 : GizmoSettings.Current.Snap ? GizmoSettings.Current.AngleStep : 1;
+            if (!double.IsFinite(aStep) || aStep <= 0) aStep = 1;
+            h.Param.Value = p.Alt ? asked : Math.Round(asked / aStep) * aStep;           // the value stops at the joint's limits by itself
+            Invalidate(); return;
+        }
         var A = h.Dir.Normalized(); var w0 = h.Origin - o;
         double b = Vec3.Dot(A, d), dd = Vec3.Dot(A, w0), e = Vec3.Dot(d, w0), den = 1 - b * b;
         if (Math.Abs(den) < 1e-4) return;                       // looking straight along the arrow: no way to tell how far
@@ -1244,6 +1258,23 @@ public sealed partial class CadSession : ObservableObject
     void BuildOneHandle(Overlay o, HandleSpec h, bool active)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return;
+        if (h.Ref != null)
+        {
+            // a turning handle: the allowed arc, the current angle and a grip at its end
+            var grip = HandleTip(h); double cur = h.Param.Value;
+            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, h.Param.Min, h.Param.Max, cur);
+            bool hit = Assembly.JointVisuals.IsLimit(h.Param.Min) && cur <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && cur >= h.Param.Max - 1e-6;
+            uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : GizmoVisual.Accent;
+            o.AddDot(grip, colour, _handleDrag ? 13 : 11);
+            o.AddLabel(grip, active && _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}  -  drag or type", true, 4);
+            return;
+        }
+        if (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max))
+        {
+            // a sliding handle with limits: the ruler of where it may go
+            double hs = Camera.PixelSizeAt(h.Origin) * 70;
+            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, null, hs, h.Param.Min / h.Mul, h.Param.Max / h.Mul, h.Param.Value / h.Mul);
+        }
         var tip = HandleTip(h); var A = h.Dir.Normalized();
         uint col = GizmoVisual.Accent;
         double ps = Camera.PixelSizeAt(tip);
@@ -1261,7 +1292,8 @@ public sealed partial class CadSession : ObservableObject
             o.AddTri(apex, p0, p1, col); o.AddTri(tip, p1, p0, col);
         }
         string unit = h.Param.Unit.Length > 0 ? " " + h.Param.Unit : "";
-        o.AddLabel(apex + A * (ps * 12), active && _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}  -  drag or type", true, 4);
+        bool atEnd = Assembly.JointVisuals.IsLimit(h.Param.Min) && h.Param.Value <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && h.Param.Value >= h.Param.Max - 1e-6;
+        o.AddLabel(apex + A * (ps * 12), active && _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}  -  drag or type", true, 4);
     }
 
     /// <summary>Typing a number while a grab handle is showing sets its value (Tab switches handle, Enter applies, Esc cancels).</summary>

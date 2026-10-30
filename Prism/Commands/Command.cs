@@ -186,8 +186,11 @@ public sealed class CommandOutput
 /// A modeling operation with a parameter panel. Build() is called on every change to produce a live preview;
 /// OK commits the same output to the document.
 /// </summary>
-/// <summary>A grab handle for a distance-like value: an arrow from Origin along Dir whose tip sits at Param/Mul. Dragging it sets the value.</summary>
-public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1);
+/// <summary>
+/// A grab handle for a distance-like value: an arrow from Origin along Dir whose tip sits at Param/Mul. Dragging it sets the value.
+/// With a Ref direction it is a turning handle instead: Dir is the axis, Param is an angle in degrees, and the tip rides an arc of the given Radius starting from Ref.
+/// </summary>
+public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1, Vec3? Ref = null, double Radius = 0);
 
 /// <summary>Everything needed to run a command again: how to make it, its picks and its numbers. Stored on the history step the command created.</summary>
 public sealed record FeatureRecipe(Func<Command> Make, string Title, List<object?> Values, List<List<SelItem>> Slots, Dictionary<int, string>? Expressions = null);
