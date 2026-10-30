@@ -87,6 +87,11 @@ AppSettings.Current.LastPicks.Remove("split:solid-edge");
 var surfaceCreate = vm.Tabs.Single(t => t.Title == "Surface").Groups.Single(g => g.Title == "Create").Items.OfType<RibbonButton>().ToArray();
 var freeformSelect=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().ToArray();
 Check(freeformSelect.Length==2 && freeformSelect[0].Icon=="sel-object" && freeformSelect.All(b=>b.IsSmall) && freeformSelect[1].IsSplit && freeformSelect[1].Menu!.Select(b=>b.Icon).SequenceEqual(new[]{"sel-face","sel-edge","sel-vertex"}),"Freeform stacks Object and the component selector in one column");
+foreach(var title in new[]{"Home","Solid","Surface","Freeform","NURBS","Sketch"})
+{
+    var datum=vm.Tabs.Single(t=>t.Title==title).Groups.Single(g=>g.Title=="Datum").Items.OfType<RibbonButton>().Single();
+    Check(datum.IsSplit && datum.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Gizmo","Point","Axis","Plane","Save gizmo"}) && vm.Tabs.Single(t=>t.Title==title).Groups.All(g=>g.Title!="Gizmo"),title+" uses the shared Datum menu");
+}
 Check(new[] { "Extrude", "Revolve", "Sweep", "Loft" }.All(n => surfaceCreate.Any(b => b.Label == n && !b.HasMenu)), "Surface exposes its four creation tools");
 Check(surfaceCreate.Any(b => b.Label.Replace("\n", " ") == "Fill Opening" && !b.HasMenu), "Surface exposes Fill Opening beside the creation tools");
 Check(vm.Tabs.Single(t=>t.Title=="Surface").Buttons.Count(b=>b.Label.Replace("\n", " ")=="Flatten / Refold")==1 && vm.Tabs.Single(t=>t.Title=="Surface").Buttons.All(b=>b.Label!="Refold"), "Surface combines Flatten and Refold into one entry");

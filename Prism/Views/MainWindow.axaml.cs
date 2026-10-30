@@ -71,8 +71,8 @@ public partial class MainWindow : Window
                 case "form.crease":form.OpenCrease();break;
                 case "form.selectall":form.SelectOp("all");break;
                 case "form.extrude":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Extrude selection").Run();break;
-                case "form.loop":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Select edge loop").Run();break;
-                case "form.ring":form.Params.OfType<Prism.Commands.ActionParam>().Single(a=>a.Label=="Select edge ring").Run();break;
+                case "form.loop":form.SelectEdgeLoopKind(false);break;
+                case "form.ring":form.SelectEdgeLoopKind(true);break;
                 default:return false;
             }
             return true;
@@ -97,7 +97,8 @@ public partial class MainWindow : Window
             case "sketch.gizmo.move": return free && gizmoTarget && s.Key("GizmoMove");
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");
             case "sketch.gizmo.size": return free && gizmoTarget && s.Key("GizmoSize");
-            case "sketch.gizmo": return free && s.Key(SketchShortcuts.GizmoCommand);
+            case "sketch.gizmo": if(free && s.Sketch?.GeometryEditing==true && vm.CanPlaceGizmo){vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
+            case "datum.gizmo": if(!vm.CanPlaceGizmo || s.Sketch!=null)return false;vm.OpenGizmoFromHotkey();return true;
             case "sketch.edit": return free && s.Key(SketchShortcuts.EditCommand);
             case "sketch.plane.yz": return free && s.Key("PlaneYZ");
             case "sketch.plane.xz": return free && s.Key("PlaneXZ");

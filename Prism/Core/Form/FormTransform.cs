@@ -9,8 +9,18 @@ namespace Prism.Core.Form;
 public enum SymMode { Off, MirrorX, MirrorY, MirrorZ, Radial }
 
 /// <summary>Live symmetry for freeform editing: moving a point also moves its mirror image (or its copies around the Z axis).</summary>
-public sealed class Symmetry(SymMode mode, int count = 4)
+public sealed class Symmetry(SymMode mode, int count = 4, Vec3 origin = default)
 {
+    /// <summary>A point the mirror plane (or radial axis) passes through; the world origin unless the user moved it.</summary>
+    public Vec3 Origin { get; } = origin;
+    public string Text
+    {
+        get
+        {
+            string name = Mode switch { SymMode.MirrorX => "x", SymMode.MirrorY => "y", SymMode.MirrorZ => "z", SymMode.Radial => $"radial:{Count}", _ => "off" };
+            return Mode == SymMode.Off || Origin.Length < 1e-9 ? name : FormattableString.Invariant($"{name}@{Origin.X:0.####},{Origin.Y:0.####},{Origin.Z:0.####}");
+        }
+    }
     public SymMode Mode { get; } = mode;
     public int Count { get; } = Math.Max(2, count);
     public bool Active => Mode != SymMode.Off;
@@ -21,16 +31,24 @@ public sealed class Symmetry(SymMode mode, int count = 4)
     public static Symmetry Parse(string? s)
     {
         s = (s ?? "off").Trim().ToLowerInvariant();
-        if (s.StartsWith("radial")) { int n = 4; var i = s.IndexOf(':'); if (i > 0) int.TryParse(s[(i + 1)..], out n); return new Symmetry(SymMode.Radial, n < 2 ? 4 : n); }
-        return s switch { "x" => new Symmetry(SymMode.MirrorX), "y" => new Symmetry(SymMode.MirrorY), "z" => new Symmetry(SymMode.MirrorZ), _ => new Symmetry(SymMode.Off) };
+        var origin = Vec3.Zero; int at = s.IndexOf('@');
+        if (at >= 0)
+        {
+            var n = s[(at + 1)..].Split(',');
+            var ci = System.Globalization.CultureInfo.InvariantCulture; const System.Globalization.NumberStyles ns = System.Globalization.NumberStyles.Float;
+            if (n.Length == 3 && double.TryParse(n[0], ns, ci, out var ox) && double.TryParse(n[1], ns, ci, out var oy) && double.TryParse(n[2], ns, ci, out var oz)) origin = new Vec3(ox, oy, oz);
+            s = s[..at];
+        }
+        if (s.StartsWith("radial")) { int n = 4; var i = s.IndexOf(':'); if (i > 0) int.TryParse(s[(i + 1)..], out n); return new Symmetry(SymMode.Radial, n < 2 ? 4 : n, origin); }
+        return s switch { "x" => new Symmetry(SymMode.MirrorX, 4, origin), "y" => new Symmetry(SymMode.MirrorY, 4, origin), "z" => new Symmetry(SymMode.MirrorZ, 4, origin), _ => new Symmetry(SymMode.Off) };
     }
 
     public Vec3 Map(int k, Vec3 p) => Mode switch
     {
-        SymMode.MirrorX => new Vec3(-p.X, p.Y, p.Z),
-        SymMode.MirrorY => new Vec3(p.X, -p.Y, p.Z),
-        SymMode.MirrorZ => new Vec3(p.X, p.Y, -p.Z),
-        SymMode.Radial => Rotate(p, 2 * Math.PI * (k + 1) / Count),
+        SymMode.MirrorX => new Vec3(2 * Origin.X - p.X, p.Y, p.Z),
+        SymMode.MirrorY => new Vec3(p.X, 2 * Origin.Y - p.Y, p.Z),
+        SymMode.MirrorZ => new Vec3(p.X, p.Y, 2 * Origin.Z - p.Z),
+        SymMode.Radial => Origin + Rotate(p - Origin, 2 * Math.PI * (k + 1) / Count),
         _ => p,
     };
 
@@ -39,10 +57,10 @@ public sealed class Symmetry(SymMode mode, int count = 4)
     /// <summary>A point that sits on the mirror plane (or the radial axis) has to stay there.</summary>
     public Vec3 Constrain(Vec3 p) => Mode switch
     {
-        SymMode.MirrorX => new Vec3(0, p.Y, p.Z),
-        SymMode.MirrorY => new Vec3(p.X, 0, p.Z),
-        SymMode.MirrorZ => new Vec3(p.X, p.Y, 0),
-        SymMode.Radial => new Vec3(0, 0, p.Z),
+        SymMode.MirrorX => new Vec3(Origin.X, p.Y, p.Z),
+        SymMode.MirrorY => new Vec3(p.X, Origin.Y, p.Z),
+        SymMode.MirrorZ => new Vec3(p.X, p.Y, Origin.Z),
+        SymMode.Radial => new Vec3(Origin.X, Origin.Y, p.Z),
         _ => p,
     };
 

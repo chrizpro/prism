@@ -222,7 +222,7 @@ public sealed class SubdMesh
     /// <summary>Smooth shaded triangles of the limit-ish surface; triangles are grouped by control face so selection can address them.</summary>
     public MeshData BuildMesh(int? level = null)
     {
-        int lv = Math.Clamp(level ?? Level, 1, 4);
+        int lv = Math.Clamp(level ?? Level, 0, 4);
         // Sharpness is consumed during refinement. Remember which original face seams
         // are still sharp at this display level so shading does not erase the crease.
         var hardFacePairs = new HashSet<long>();

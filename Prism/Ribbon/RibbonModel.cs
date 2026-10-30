@@ -40,10 +40,23 @@ public sealed partial class RibbonButton : RibbonItem
     [ObservableProperty] public partial bool IsChecked { get; set; }
     [ObservableProperty] public partial bool IsEnabled { get; set; } = true;
 
+    public bool FollowChecked { get; set; }
+
     public void Refresh()
     {
         if (CanExecute != null) IsEnabled = CanExecute();
         if (GetChecked != null) IsChecked = GetChecked();
+        if (FollowChecked && Menu != null)
+        {
+            bool any = false;
+            foreach (var v in Menu)
+            {
+                v.Refresh();
+                if (any || !v.IsChecked) continue;
+                Current = v; Label = v.Label.Replace("\n", " "); Icon = v.Icon; any = true;
+            }
+            IsChecked = any;
+        }
     }
 
     public void Invoke()

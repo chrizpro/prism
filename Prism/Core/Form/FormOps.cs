@@ -266,6 +266,97 @@ public static class FormOps
         else InsetRegion(m, faces, amount, depth);
     }
 
+    /// <summary>Cut each chosen quad into a grid of <paramref name="columns"/> x <paramref name="rows"/> quads (other faces get a centre split). Edges shared with faces that are not chosen receive the new points, so the cage stays watertight. Returns how many faces were subdivided.</summary>
+    public static int SubdivideFaces(SubdMesh m, ISet<int> faces, int columns = 2, int rows = 2)
+    {
+        columns = Math.Clamp(columns, 1, 32); rows = Math.Clamp(rows, 1, 32);
+        var chosen = faces.Where(f => f >= 0 && f < m.F.Count).ToHashSet();
+        if (chosen.Count == 0 || columns == 1 && rows == 1) return 0;
+        var edgePts = new Dictionary<long, int[]>();                 // points along an edge, ordered from its lower-numbered end
+        int Existing(int a, int b) => edgePts.TryGetValue(SubdMesh.Key(a, b), out var p) ? p.Length : -1;
+        List<int> Along(int a, int b, int count)
+        {
+            var k = SubdMesh.Key(a, b);
+            if (!edgePts.TryGetValue(k, out var pts))
+            {
+                int lo = Math.Min(a, b), hi = Math.Max(a, b);
+                pts = new int[count];
+                for (int i = 0; i < count; i++) { pts[i] = m.V.Count; m.V.Add(Vec3.Lerp(m.V[lo], m.V[hi], (i + 1.0) / (count + 1))); }
+                edgePts[k] = pts;
+            }
+            var list = pts.ToList();
+            if (a > b) list.Reverse();
+            return list;
+        }
+        bool Fits(int a, int b, int want) { int e = Existing(a, b); return e < 0 || e == want; }
+
+        var built = new Dictionary<int, List<int[]>>();
+        int done = 0;
+        foreach (int fi in chosen.OrderBy(i => i))
+        {
+            var f = m.F[fi];
+            if (f.Length == 4)
+            {
+                int u = columns - 1, v = rows - 1;
+                if (!(Fits(f[0], f[1], u) && Fits(f[3], f[2], u) && Fits(f[1], f[2], v) && Fits(f[0], f[3], v))) continue;
+                var bottom = Along(f[0], f[1], u); var top = Along(f[3], f[2], u);
+                var right = Along(f[1], f[2], v); var left = Along(f[0], f[3], v);
+                var g = new int[columns + 1, rows + 1];
+                for (int i = 0; i <= columns; i++)
+                    for (int j = 0; j <= rows; j++)
+                    {
+                        if (j == 0) g[i, j] = i == 0 ? f[0] : i == columns ? f[1] : bottom[i - 1];
+                        else if (j == rows) g[i, j] = i == 0 ? f[3] : i == columns ? f[2] : top[i - 1];
+                        else if (i == 0) g[i, j] = left[j - 1];
+                        else if (i == columns) g[i, j] = right[j - 1];
+                        else
+                        {
+                            double s = (double)i / columns, t = (double)j / rows;
+                            g[i, j] = m.V.Count;
+                            m.V.Add(m.V[f[0]] * ((1 - s) * (1 - t)) + m.V[f[1]] * (s * (1 - t)) + m.V[f[2]] * (s * t) + m.V[f[3]] * ((1 - s) * t));
+                        }
+                    }
+                var cells = new List<int[]>();
+                for (int i = 0; i < columns; i++)
+                    for (int j = 0; j < rows; j++) cells.Add([g[i, j], g[i + 1, j], g[i + 1, j + 1], g[i, j + 1]]);
+                built[fi] = cells; done++;
+            }
+            else
+            {
+                int n = f.Length;
+                if (!Enumerable.Range(0, n).All(i => Fits(f[i], f[(i + 1) % n], 1))) continue;
+                int c = m.V.Count; m.V.Add(m.FaceCenter(fi));
+                var cells = new List<int[]>();
+                for (int i = 0; i < n; i++)
+                    cells.Add([f[i], Along(f[i], f[(i + 1) % n], 1)[0], c, Along(f[(i + n - 1) % n], f[i], 1)[0]]);
+                built[fi] = cells; done++;
+            }
+        }
+        if (done == 0) return 0;
+        var result = new List<int[]>();
+        for (int fi = 0; fi < m.F.Count; fi++)
+        {
+            if (built.TryGetValue(fi, out var cells)) { result.AddRange(cells); continue; }
+            var f = m.F[fi]; var ring = new List<int>();
+            for (int i = 0; i < f.Length; i++)
+            {
+                int a = f[i], b = f[(i + 1) % f.Length];
+                ring.Add(a);
+                if (edgePts.ContainsKey(SubdMesh.Key(a, b))) ring.AddRange(Along(a, b, 0));
+            }
+            result.Add([.. ring]);
+        }
+        foreach (var (k, pts) in edgePts)
+            if (m.Crease.TryGetValue(k, out double s))
+            {
+                var (a, b) = SubdMesh.Unkey(k); m.Crease.Remove(k);
+                int prev = a;
+                foreach (int p in pts.Append(b)) { m.Crease[SubdMesh.Key(prev, p)] = s; prev = p; }
+            }
+        m.F.Clear(); m.F.AddRange(result);
+        return done;
+    }
+
     static void InsetRegion(SubdMesh m, ISet<int> faces, double amount, double depth)
     {
         ExtrudeFaces(m, faces, depth);                           // the faces keep their numbers and now stand on new points

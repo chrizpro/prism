@@ -59,8 +59,8 @@ public sealed partial class MainViewModel
                 tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" or "rib" })).ToArray()));
             }
             if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
-            if(tab.Title is "Freeform" or "NURBS" or "Surface" or "Sketch")
-                tab.Groups.Add(G("Gizmo",Btn("Gizmo", "move",OpenGizmoPanel,"Open shared gizmo visibility, snapping, placement and binding controls.")));
+            if(modeling.Contains(tab.Title) || tab.Title=="Sketch")
+                tab.Groups.Add(DatumGroup());
             if (tab.Title == "Solid")
             {
                 var modify = tab.Groups.Single(g => g.Title == "Modify");
@@ -133,7 +133,7 @@ public sealed partial class MainViewModel
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
-                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Sketch" && group.Title == "Constrain") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
                 if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = group.Title is "Transform" or "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));
@@ -160,6 +160,8 @@ public sealed partial class MainViewModel
             Picked = v => { picks[id] = v.Label.Replace("\n", " "); AppSettings.Save(false); },
         };
     }
+
+    static RibbonButton Followed(RibbonButton split) { split.FollowChecked = true; return split; }
 
     RibbonButton PrimitiveSplit() => Split("split:primitive", "Create a box, cylinder, sphere, cone or torus. Click the icon to make the one shown; click the name (or right-click) to pick another.",
         Cmd("Box", "box", () => new BoxCommand(), "Create a rectangular solid."),

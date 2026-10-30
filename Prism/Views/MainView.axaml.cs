@@ -505,7 +505,7 @@ public partial class MainView : UserControl
     void OnInputLost(object? sender, RoutedEventArgs e) { if (Vm is { InputOpen: true } vm && !InputBox.IsKeyboardFocusWithin) vm.CancelInput(); }
 
     // ================================================================= view / status
-    Button? _bObj, _bFace, _bEdge, _bShaded, _bEdges, _bWire, _bXray;
+    Button? _bObj, _bFace, _bEdge, _bVertex, _bShaded, _bEdges, _bWire, _bXray;
 
     void UpdateModeButtons()
     {
@@ -513,6 +513,7 @@ public partial class MainView : UserControl
         _bObj?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Object)==true);
         _bFace?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Face)==true);
         _bEdge?.Classes.Set("checked", Vm?.IsSelectionMode(SelMode.Edge)==true);
+        _bVertex?.Classes.Set("checked", Vm?.IsVertexMode==true);
         _bShaded?.Classes.Set("checked", d == DisplayMode.Shaded);
         _bEdges?.Classes.Set("checked", d == DisplayMode.ShadedEdges);
         _bWire?.Classes.Set("checked", d == DisplayMode.Wireframe);
@@ -524,7 +525,7 @@ public partial class MainView : UserControl
     {
         if (Vm is not { } vm) return;
         StatusRight.Children.Clear();
-        _bObj = _bFace = _bEdge = _bShaded = _bEdges = _bWire = _bXray = null;
+        _bObj = _bFace = _bEdge = _bVertex = _bShaded = _bEdges = _bWire = _bXray = null;
         Button Mk(string text, Action click, string? tip = null) { var b = new Button { Content = text }; b.Classes.Add("statusbtn"); b.Click += (_, _) => click(); if (tip != null) ToolTip.SetTip(b, tip); return b; }
         TextBlock Txt(string path, bool mono = false, double margin = 12)
         {
@@ -567,6 +568,7 @@ public partial class MainView : UserControl
                     StatusRight.Children.Add(_bObj = Mk("Object", () => vm.SetSelectionMode(SelMode.Object)));
                     StatusRight.Children.Add(_bFace = Mk("Face", () => vm.SetSelectionMode(SelMode.Face)));
                     StatusRight.Children.Add(_bEdge = Mk("Edge", () => vm.SetSelectionMode(SelMode.Edge)));
+                    StatusRight.Children.Add(_bVertex = Mk("Vertex", vm.SelectVertices, "Select cage vertices (Freeform)"));
                     break;
                 case "display":
                     StatusRight.Children.Add(_bShaded = Mk("Shaded", () => vm.Session.Display = DisplayMode.Shaded));

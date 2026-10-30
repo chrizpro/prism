@@ -130,7 +130,9 @@ public sealed class EditFormCommand : Command
     public bool ShowTriangles => _showTriangles.Value;
     public bool ObjectSelected { get; private set; }
     public bool ShowPoles => _showPoles.Value;
-    readonly IntParam _level;
+    readonly IntParam _level, _subU, _subV;
+    readonly ChoiceParam _loopKind;
+    int _lastLevel = 3;
     readonly ChoiceParam _mirror;
     readonly BoolParam _stick;
     readonly NumberParam _scanOffset, _wrapStrength, _alignStrength, _alignRange;
@@ -152,6 +154,12 @@ public sealed class EditFormCommand : Command
     public HashSet<int> Faces { get; } = [];
     public FormMode SelMode => (FormMode)Mode.Index;
 
+    /// <summary>True while Insert edge loop is the active tool: each click on an edge adds a loop across it.</summary>
+    public bool LoopArmed { get; private set; }
+    public int LoopCount => _loopCount.Value;
+    public double LoopPosition => _loopPos.Value;
+    public void DisarmLoop() { if (!LoopArmed) return; LoopArmed = false; _tool.ResetLoopPreview(); S?.RaiseState(); }
+
     public EditFormCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Freeform", Filter = SelFilter.Form });
@@ -169,11 +177,14 @@ public sealed class EditFormCommand : Command
         _radial = Add(new IntParam { Label = "Radial copies", Value = 4, Min = 2, Max = 36 });
         _sym.Changed = () => { if (Work != null) Work.Sym = SymText(); OnChanged(); };
         _radial.Changed = () => { if (Work != null) Work.Sym = SymText(); OnChanged(); };
+        Add(new ActionParam { Label = "Place symmetry through the selection (edge loop, face or points)", Run = () => Do(() => CenterSymmetryOnSelection(), undoable: false) });
+        Add(new ActionParam { Label = "Put symmetry back on the world axes", Run = () => Do(() => ResetSymmetryPlace(), undoable: false) });
         _rotAxis = Choice("Rotate axis", 2, "X", "Y", "Z");
         _rotAngle = Num("Rotate by (degrees)", 15, -360, 360, 5, "°");
         _scaleFactor = Num("Scale by (factor)", 1.2, 0.01, 100, 0.1, "");
         _loopCount = Add(new IntParam { Label = "Loops to insert", Value = 1, Min = 1, Max = 24 });
         _loopPos = Num("Loop position along the edge (0..1)", 0.5, 0.02, 0.98, 0.05, "");
+        _loopCount.Changed = _loopPos.Changed = () => _tool?.ResetLoopPreview();
         _bevelW = Num("Bevel width", 2, 0.01, 1e4, 0.5);
         _insetAmt = Num("Inset amount", 3, 0.01, 1e4, 0.5);
         _insetDepth = Num("Inset depth (push out +, in -)", 0, -1e4, 1e4, 0.5);
@@ -182,7 +193,13 @@ public sealed class EditFormCommand : Command
         _crease = Num("Crease sharpness", 1, 0, 5, 0.1, "");
         _crease.Changed = PreviewCrease;
         _crease.HelpText = "0 removes the crease. Fractional sharpness gives a soft crease; larger values retain a sharper edge through more subdivision levels.";
-        _level = Add(new IntParam { Label = "Smoothness (levels)", Value = 3, Min = 1, Max = 4 });
+        _level = Add(new IntParam { Label = "Smoothness (levels, 0 = show the cage faces)", Value = 3, Min = 0, Max = 4 });
+        _loopKind = Choice("Edge selection", 0, "Loop (end to end)", "Ring (parallel across quads)");
+        _loopKind.HelpText = "Loop follows the edge through each junction. Ring picks the parallel edges across a strip of quads. Used by Select Loop.";
+        _subU = Add(new IntParam { Label = "Divisions across", Value = 2, Min = 1, Max = 16 });
+        _subV = Add(new IntParam { Label = "Divisions down", Value = 2, Min = 1, Max = 16 });
+        _subU.Changed = _subV.Changed = PreviewSubdivide;
+        _subU.IsVisible = _subV.IsVisible = false;
         _mirror = Choice("Mirror plane", 1, "XY (Z = 0)", "XZ (Y = 0)", "YZ (X = 0)");
         _stick = Check("Keep moved points on the scan", false);
         _scanOffset = Num("Float above the scan", 0, -20, 20, 0.2);
@@ -201,8 +218,7 @@ public sealed class EditFormCommand : Command
         Add(new ActionParam { Label = "Flood-select faces by angle", Run = () => Do(() => SelectOp("angle"), undoable: false) });
         Add(new ActionParam { Label = "Select open (boundary) edges", Run = () => Do(() => SelectOp("boundary"), undoable: false) });
         Add(new ActionParam { Label = "Select creased edges", Run = () => Do(() => SelectOp("creased"), undoable: false) });
-        Add(new ActionParam { Label = "Select edge loop", Run = () => Do(() => SelectLoop(false), undoable: false) });
-        Add(new ActionParam { Label = "Select edge ring", Run = () => Do(() => SelectLoop(true), undoable: false) });
+        Add(new ActionParam { Label = "Select edge loop or ring (kind: Edge selection)", Run = () => Do(() => SelectLoop(_loopKind.Index == 1), undoable: false) });
         Add(new ActionParam { Label = "Bridge the two selected edge groups", Run = () => Do(BridgeSel) });
         Add(new ActionParam { Label = "Freeze selection (lock it)", Run = () => Do(() => FreezeSel(true)) });
         Add(new ActionParam { Label = "Unfreeze selection", Run = () => Do(() => FreezeSel(false)) });
@@ -229,8 +245,9 @@ public sealed class EditFormCommand : Command
         Add(new ActionParam { Label = "Split face between two selected points", Run = () => Do(() => { var vs = MovingVertices().ToList(); if (vs.Count != 2) throw new InvalidOperationException("Select exactly two points on the same face."); var fi = Enumerable.Range(0, Work!.F.Count).FirstOrDefault(f => Work.F[f].Contains(vs[0]) && Work.F[f].Contains(vs[1]) && FormOps.SplitFace(Work, f, vs[0], vs[1]), -1); if (fi < 0) throw new InvalidOperationException("Those two points need to be non-neighbouring corners of one face."); ClearSelection(); }) });
         Add(new ActionParam { Label = "Smooth selection (relax toward neighbours)", Run = () => Do(() => { MirrorSel(); FormOps.SmoothVertices(Work!, MovingOrAll().ToHashSet(), 0.5, Math.Max(1, _relaxPasses.Value)); }) });
         Add(new ActionParam { Label = "Flatten selection onto a plane", Run = () => Do(() => { MirrorSel(); if (!FormOps.FlattenVertices(Work!, MovingVertices().ToHashSet())) throw new InvalidOperationException("Select at least three points (or faces) to flatten."); }) });
-        Add(new ActionParam { Label = "Insert edge loop", Run = () => Do(InsertLoop) });
-        Add(new ActionParam { Label = "Subdivide cage", Run = () => Do(() => { var r = Work!.Refine(out _); Work.ReplaceWith(r); ClearSelection(); }) });
+        Add(new ActionParam { Label = "Insert edge loop", Run = ArmLoop });
+        Add(new ActionParam { Label = "Subdivide (choose divisions, selected faces or everything)", Run = OpenSubdivide });
+        Add(new ActionParam { Label = "Smooth surface on or off", Run = () => Do(ToggleSmooth) });
         Add(new ActionParam { Label = "Delete selection", Run = () => Do(() => { MirrorSel(); DeleteSel(); }) });
         Add(new ActionParam { Label = "Weld selected vertices", Run = () => Do(() => { MirrorSel(); var v = MovingVertices().ToList(); Work!.Weld(v); ClearSelection(); }) });
         Add(new ActionParam { Label = "Apply crease to selected edges", Run = () => Do(() => { MirrorSel(); FormOps.SetCrease(Work!, SelectedEdgeList(), _crease.Value); }) });
@@ -242,7 +259,7 @@ public sealed class EditFormCommand : Command
 
     public override string Title => "Edit Freeform";
     public override string OkText => "Done";
-    public override string Hint => "Pick a form, then click vertices, edges or faces. Double-click for a loop; Shift adds to the selection. Drag the gizmo to transform.";
+    public override string Hint => "Pick a form, then click vertices, edges or faces. Double-click for a loop; Shift adds to the selection. Drag the gizmo to transform. Insert Edge: click edges to add loops.";
     public override string Icon => "form-edit";
 
     // ---- source handling
@@ -275,6 +292,7 @@ public sealed class EditFormCommand : Command
             if (a.Label is "Apply crease to selected edges" or "Crease selected points (sharp corners)") a.IsVisible=false;
         }
         _crease.IsVisible=false;
+        if(!HasPanelStep)_subU.IsVisible=_subV.IsVisible=false;
         if (Work != null && Work.Level != _level.Value) Work.Level = _level.Value;
     }
 
@@ -324,8 +342,8 @@ public sealed class EditFormCommand : Command
     }
 
     public void ClearSelection() { ObjectSelected=false; Verts.Clear(); Edges.Clear(); Faces.Clear(); _tool?.SelectionChanged(); }
-    void SelectionModeChanged() { ClearSelection(); ObjectSelected=SelMode==FormMode.Object; OnChanged(); S?.RaiseState(); }
-    public void SetSelectionMode(FormMode mode) {if(mode==FormMode.Object && SelMode==mode)SelectWholeObject();else Mode.Index=(int)mode;}
+    void SelectionModeChanged() { DisarmLoop(); ClearSelection(); ObjectSelected=SelMode==FormMode.Object; OnChanged(); S?.RaiseState(); }
+    public void SetSelectionMode(FormMode mode) {DisarmLoop();if(mode==FormMode.Object && SelMode==mode)SelectWholeObject();else Mode.Index=(int)mode;}
     public void SelectWholeObject() {ClearSelection();ObjectSelected=true;OnChanged();}
     public void SelectComponentLoop(long seed,bool additive,double x,double y)
     {
@@ -393,13 +411,16 @@ public sealed class EditFormCommand : Command
 
     // ---- transform plumbing shared by the gizmo, the numeric actions and the API
     Vec3 Axis(int i) => _tool.Binding.Axes[Math.Clamp(i,0,2)];
-    string SymText() => _sym.Index switch { 1 => "x", 2 => "y", 3 => "z", 4 => $"radial:{_radial.Value}", _ => "off" };
+    string SymText() => new Symmetry(SymKind, _radial.Value, _symOrigin).Text;
+    Vec3 _symOrigin;
+    SymMode SymKind => _sym.Index switch { 1 => SymMode.MirrorX, 2 => SymMode.MirrorY, 3 => SymMode.MirrorZ, 4 => SymMode.Radial, _ => SymMode.Off };
     /// <summary>Show the form's own symmetry in the panel when a form is picked.</summary>
     void LoadSymmetry()
     {
         var s = Symmetry.Parse(Work?.Sym);
         _sym.Index = s.Mode switch { SymMode.MirrorX => 1, SymMode.MirrorY => 2, SymMode.MirrorZ => 3, SymMode.Radial => 4, _ => 0 };
         if (s.Mode == SymMode.Radial) _radial.Value = s.Count;
+        _symOrigin = s.Origin;
     }
     /// <summary>With symmetry on, the selection grows to include its mirror images, so every edit lands on both sides.</summary>
     void MirrorSel()
@@ -411,7 +432,17 @@ public sealed class EditFormCommand : Command
         foreach (var f in faces) Faces.Add(f);
         foreach (var (a, b) in edges) Edges.Add(SubdMesh.Key(a, b));
     }
-    public Symmetry Sym => _sym.Index switch { 1 => new Symmetry(SymMode.MirrorX), 2 => new Symmetry(SymMode.MirrorY), 3 => new Symmetry(SymMode.MirrorZ), 4 => new Symmetry(SymMode.Radial, _radial.Value), _ => new Symmetry(SymMode.Off) };
+    public Symmetry Sym => new(SymKind, _radial.Value, _symOrigin);
+    /// <summary>Put the mirror plane (or radial axis) through the middle of the selected points, edge loop or faces, so the mirror follows the model wherever it sits.</summary>
+    public void CenterSymmetryOnSelection()
+    {
+        if (Work == null) return;
+        if (!Sym.Active) { S.Say("Turn on Live symmetry first, then place it."); return; }
+        _symOrigin = SelectionCenter(); Work.Sym = SymText(); OnChanged();
+        S.Say("Symmetry now passes through the selection.");
+    }
+    /// <summary>Back to the world axes.</summary>
+    public void ResetSymmetryPlace() { _symOrigin = Vec3.Zero; if (Work != null) Work.Sym = SymText(); OnChanged(); }
     public double SoftRadius => _soft.Value;
     public Falloff SoftFalloff => (Falloff)_fall.Index;
     public Vec3 PivotPoint() => _tool.Binding.Center(PivotP.Index == 1 ? Vec3.Zero : SelectionCenter());
@@ -432,7 +463,7 @@ public sealed class EditFormCommand : Command
         FormTransform.Apply(Work, baseAll, sel, xf, SoftRadius, SoftFalloff, Sym, Partners());
         OnChanged();
     }
-    public void ForceMode(int i) { TransformMode.Index = i; OnChanged(); }
+    public void ForceMode(int i) { DisarmLoop(); TransformMode.Index = i; OnChanged(); }
 
     void SyncFields()
     {
@@ -473,8 +504,10 @@ public sealed class EditFormCommand : Command
         return true;
     }
 
-    void Do(Action act, bool undoable = true)
+    // Running any panel action ends Insert edge loop, unless the action is the tool's own click.
+    void Do(Action act, bool undoable = true, bool keepLoop = false)
     {
+        if (!keepLoop) DisarmLoop();
         if (Work == null) { S.Say("Pick a form first.", true); return; }
         if (undoable) PushUndo();
         try { act(); OnChanged(); }
@@ -572,10 +605,29 @@ public sealed class EditFormCommand : Command
         return n.Normalized();
     }
 
-    void InsertLoop()
+    /// <summary>Starts the Insert edge loop tool. Anything already selected gets its loop straight away; then every click on an edge adds one.</summary>
+    void ArmLoop()
+    {
+        if (Work == null) { S.Say("Pick a form first.", true); return; }
+        bool selected = SelectedEdgeList().Count > 0;
+        if (selected) Do(() => InsertLoopThrough(SelectedEdgeList(), SelMode == FormMode.Face, true));
+        LoopArmed = true;
+        if (!selected) S.Say("Insert edge loop: click an edge to add a loop across it. Press Esc or choose another tool to finish.");
+        _tool.ResetLoopPreview(); S.RaiseState();
+    }
+
+    /// <summary>One click of the Insert edge loop tool.</summary>
+    public void InsertLoopAt(long edge)
+    {
+        if (!LoopArmed || Work == null) return;
+        var (a, b) = SubdMesh.Unkey(edge);
+        Do(() => InsertLoopThrough([(a, b)], false, false), keepLoop: true);
+        _tool.ResetLoopPreview();
+    }
+
+    void InsertLoopThrough(List<(int a, int b)> edges, bool everyEdge, bool selectResult)
     {
         var m = Work!;
-        var edges = SelectedEdgeList();
         if (edges.Count == 0) throw new InvalidOperationException("Select an edge (or a face) to insert a loop through.");
         var newVerts = new List<int>();
         var topoCheck = m.Topo();
@@ -586,11 +638,13 @@ public sealed class EditFormCommand : Command
         {
             if (!m.Topo().EdgeFaces.ContainsKey(SubdMesh.Key(a, b))) continue;
             newVerts.AddRange(FormOps.InsertEdgeLoops(m, a, b, _loopCount.Value, _loopPos.Value));
-            if (SelMode != FormMode.Face) break;     // one loop (or one set of loops) per click unless faces are selected
+            if (!everyEdge) break;     // one loop (or one set of loops) per click unless faces are selected
         }
+        if (newVerts.Count == 0) throw new InvalidOperationException("A loop cannot be inserted through that edge.");
         ClearSelection();
-        SetMode(FormMode.Vertex); foreach (var v in newVerts) Verts.Add(v);
+        if (selectResult) { SetMode(FormMode.Vertex); foreach (var v in newVerts) Verts.Add(v); }
         _tool.SelectionChanged();
+        if (!selectResult) S.Say(_loopCount.Value == 1 ? "Inserted a loop. Click another edge to add more; Esc to finish." : $"Inserted {_loopCount.Value} loops. Click another edge to add more; Esc to finish.");
     }
 
     void InsetSel()
@@ -639,9 +693,42 @@ public sealed class EditFormCommand : Command
     public void Moved() { OnChanged(); }
     public void SelectionNotify() { UpdateVisibility(); }
 
+    SubdMesh? _subdivideBefore;
+    public void OpenSubdivide()
+    {
+        DisarmLoop();
+        if(DeferPanelStep("Subdivide",OpenSubdivide) || Work==null)return;
+        MirrorSel();
+        _subdivideBefore=Work.Clone();
+        bool some=Faces.Count>0;
+        OpenPanelStep("Subdivide", (some?"Splits the selected faces":"Splits every face")+" into a grid. Set the divisions with a live preview, then apply to return to Edit Freeform. Faces that are not quads get one centre split.", [_subU,_subV],
+            () => {if(_subdivideBefore!=null)_undo.Push(_subdivideBefore);_subdivideBefore=null;ClearSelection();S.Say("Subdivided the cage.");},
+            () => {if(_subdivideBefore!=null)Work=_subdivideBefore;_subdivideBefore=null;});
+        PreviewSubdivide();
+    }
+    void PreviewSubdivide()
+    {
+        if(_subdivideBefore==null || Work==null)return;
+        Work=_subdivideBefore.Clone();
+        var target=Faces.Count>0?Faces:Enumerable.Range(0,Work.F.Count).ToHashSet();
+        FormOps.SubdivideFaces(Work,target,_subU.Value,_subV.Value);
+        OnChanged();
+    }
+
+    void ToggleSmooth()
+    {
+        if(Work!.Level>0){_lastLevel=Work.Level;_level.Value=0;}
+        else _level.Value=_lastLevel>0?_lastLevel:3;
+        Work.Level=_level.Value;
+        S.Say(Work.Level==0?"Showing the cage faces (smoothing off).":$"Smooth surface on ({Work.Level} levels).");
+    }
+    public bool SmoothOn=>Work is{Level:>0};
+    public void SelectEdgeLoopKind(bool ring){_loopKind.Index=ring?1:0;Do(()=>SelectLoop(ring),undoable:false);}
+
     SubdMesh? _creaseBefore;
     public void OpenCrease()
     {
+        DisarmLoop();
         if(DeferPanelStep("Crease",OpenCrease) || Work==null)return;
         if(SelMode==FormMode.Object || !MovingVertices().Any()){S.Say("Select edges, vertices or faces to crease first.",true);return;}
         MirrorSel();

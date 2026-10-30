@@ -71,7 +71,7 @@ public sealed class PlacePointsTool(CurveByPointsCommand cmd) : IViewportTool
 /// <summary>Select and drag NURBS control points, optionally with proportional influence on neighbours.</summary>
 public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
 {
-    enum Drag { None, Point, Axis, Free, Rotate, ScaleAxis, ScaleAll }
+    enum Drag { None, Point, Axis, Free, Rotate, ScaleAxis, ScaleAll, Plane, ScalePlane }
     public HashSet<int> Selected { get; } = [];
     public bool Dragging => _drag != Drag.None;
     int _hot = -1, _hotAxis = -1; bool _hotCenter;
@@ -85,7 +85,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     Vec3[] _dragAxes=GizmoVisual.WorldAxes;
     Plane3 _bindingStart;
     int _hotMode = -1;
-    public string Prompt => "Click a control point (Shift adds). Drag the point itself, or use the gizmo: arrows move, rings rotate (E), blocks scale (R), W for move. Set an influence radius for soft edits.";
+    public string Prompt => "Click a control point (Shift adds). Drag the point itself, or use the gizmo: arrows move, rings rotate (R), blocks scale (S), T for move. Set an influence radius for soft edits.";
 
     int Mode => cmd.TransformMode.Index;     // 0 move, 1 rotate, 2 scale
 
@@ -131,7 +131,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     (int axis, bool center, int operation) HitGizmo(CadSession s, double x, double y)
     {
         if (Gizmo(s) is not { } g) return (-1, false, Mode);
-        return GizmoVisual.Hit(s, x, y, _ => g.c, Axes, Mode);
+        return GizmoVisual.Hit(s, x, y, _ => g.c, Axes, Mode, planes: true);
     }
 
     // ---------------------------------------------------------------- weights and applying a transform
@@ -166,7 +166,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (m == null || !p.Left) return false;
 
         // Shift always means "add this point to the selection", even when the gizmo sits over it
-        var (axis, center, operation) = p.Shift ? (-1, false, Mode) : HitGizmo(s, p.X, p.Y);
+        var (axis, center, operation) = p.Shift ? (-1, false, Mode) : HitGizmo(s, p.X, p.Y); axis = GizmoVisual.AsPlane(axis, operation, p.Ctrl);
         if (axis >= 0 || center)
         {
             _hotMode = operation; _hotAxis = axis; _hotCenter = center; s.Invalidate();
@@ -187,7 +187,19 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
                     _drag = Drag.ScaleAll; var pc = s.Camera.Project(_c0);
                     _d0 = pc == null ? 50 : Math.Max(10, Math.Sqrt((pc.Value.x - p.X) * (pc.Value.x - p.X) + (pc.Value.y - p.Y) * (pc.Value.y - p.Y)));
                 }
+                else if (axis >= GizmoVisual.PlaneBase)
+                {
+                    _drag = Drag.ScalePlane; _axis = axis;
+                    var (pu, pv) = GizmoVisual.PlaneAxes(Axes, axis); _dragPlane = new Plane3(_c0, pu, pv);
+                    _start = _dragPlane.Intersect(o, d) ?? _c0 + pu; _d0 = Math.Max(1e-6, (_start - _c0).Length);
+                }
                 else { _drag = Drag.ScaleAxis; _axis = axis; var tt = AxisParam(o, d, _c0, Axes[axis]) ?? 0; _t0 = Math.Abs(tt) < 1e-6 ? 1e-6 : tt; }
+            }
+            else if (axis >= GizmoVisual.PlaneBase)
+            {
+                _drag = Drag.Plane; _axis = axis;
+                var (pu, pv) = GizmoVisual.PlaneAxes(Axes, axis); _dragPlane = new Plane3(_c0, pu, pv);
+                _start = _dragPlane.Intersect(o, d) ?? _c0;
             }
             else if (center) { _drag = Drag.Free; _dragPlane = new Plane3(_c0, s.Camera.Right, s.Camera.Up); _start = _dragPlane.Intersect(o, d) ?? _c0; }
             else { _drag = Drag.Axis; _axis = axis; _t0 = AxisParam(o, d, _c0, Axes[axis]) ?? 0; }
@@ -219,7 +231,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (_drag == Drag.None)
         {
             int h = Picking.NearestPoint(s.Camera, m.Points, p.X, p.Y, 12);
-            var (ax, ce, operation) = HitGizmo(s, p.X, p.Y);
+            var (ax, ce, operation) = HitGizmo(s, p.X, p.Y); ax = GizmoVisual.AsPlane(ax, operation, p.Ctrl);
             if (operation != _hotMode || h != _hot || ax != _hotAxis || ce != _hotCenter) { _hotMode = operation; _hot = h; _hotAxis = ax; _hotCenter = ce; s.Invalidate(); }
             return;
         }
@@ -230,6 +242,18 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
             case Drag.Free:
                 if (_dragPlane.Intersect(o, d) is { } hit) { var delta = hit - _start; Transform(s, FormTransform.MoveBy(GizmoVisual.SnapMove(delta,p.Alt))); }
                 break;
+            case Drag.Plane:
+                if (_dragPlane.Intersect(o, d) is { } ph) { Transform(s, FormTransform.MoveBy(GizmoVisual.SnapMove(ph - _start, p.Alt))); s.Say($"Move in the {GizmoVisual.PlaneName(_axis)} plane"); }
+                break;
+            case Drag.ScalePlane:
+            {
+                if (_dragPlane.Intersect(o, d) is not { } sh) break;
+                double fp = GizmoVisual.SnapScale(Math.Clamp((sh - _c0).Length / _d0, 0.02, 50), p.Alt);
+                int k = _axis - GizmoVisual.PlaneBase;
+                Transform(s, GizmoBinding.Scale(_c0, Axes, k == 0 ? 1 : fp, k == 1 ? 1 : fp, k == 2 ? 1 : fp));
+                s.Say($"Scale {fp:0.###} in the {GizmoVisual.PlaneName(_axis)} plane");
+                break;
+            }
             case Drag.Axis:
                 if (AxisParam(o, d, _c0, Axes[_axis]) is double t) Transform(s, FormTransform.MoveBy(GizmoVisual.SnapMove(Axes[_axis] * (t - _t0),p.Alt)));
                 break;
@@ -275,9 +299,9 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     {
         if(Binding.Positioning&&key is "Escape" or "Enter")
         {if(key=="Escape")Binding.Cancel();else if(!Binding.Bind(Selected))s.Say("Select control points before binding the gizmo.",true);s.RaiseState();s.Invalidate();return true;}
-        if (key == "Char:W") { cmd.TransformMode.Index = 0; s.Say("Move gizmo."); cmd.Touch(); return true; }
-        if (key == "Char:E") { cmd.TransformMode.Index = 1; s.Say("Rotate gizmo: drag a ring."); cmd.Touch(); return true; }
-        if (key == "Char:R") { cmd.TransformMode.Index = 2; s.Say("Scale gizmo: drag a block, or the centre for uniform scale."); cmd.Touch(); return true; }
+        if (key == "Char:T") { cmd.TransformMode.Index = 0; s.Say("Move gizmo."); cmd.Touch(); return true; }
+        if (key == "Char:R") { cmd.TransformMode.Index = 1; s.Say("Rotate gizmo: drag a ring."); cmd.Touch(); return true; }
+        if (key == "Char:S") { cmd.TransformMode.Index = 2; s.Say("Scale gizmo: drag a block, or the centre for uniform scale."); cmd.Touch(); return true; }
         if (key == "Escape" && Selected.Count > 0) { Selected.Clear(); cmd.SelectionChanged(); s.Invalidate(); return true; }
         return false;
     }
@@ -295,7 +319,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (Gizmo(s) is not { } g) return;
         for (int operation = 0; operation < 3; operation++)
             GizmoVisual.DrawOperation(o, s, g.c, Axes, operation, Mode,
-                _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter);
+                _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter, planes: true);
 
     }
 

@@ -202,7 +202,7 @@ public sealed class EditPointsCommand : Command
         Tool = _tool = new EditPointsTool(this);
     }
     public override string Title => "Edit Control Points";
-    public override string Hint => "Pick a curve or surface, then click control points (Shift adds). Drag a point, or use the gizmo to move, rotate (E) or scale (R) the selection. An influence radius makes the neighbours follow.";
+    public override string Hint => "Pick a curve or surface, then click control points (Shift adds). Drag a point, or use the gizmo to move (T), rotate (R) or scale (S) the selection. An influence radius makes the neighbours follow.";
     public Falloff FalloffKind => (Falloff)FalloffMode.Index;
 
     protected override void OnBegin() { }

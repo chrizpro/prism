@@ -317,11 +317,15 @@ public sealed partial class MainViewModel : ViewModelBase
     }
     public bool IsSelectionMode(SelMode mode)=>Session.ActiveCommand is EditFormCommand form ? form.SelMode==(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face}) : Session.Mode==mode;
 
-    RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",()=>
+    public bool IsVertexMode=>Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex};
+    public void SelectVertices()
     {
+        if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null))Session.StartCommand(()=>new EditFormCommand());
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(FormMode.Vertex);
-    },"Select cage vertices (1 while editing Freeform).",RibbonSize.Small,
+        else Session.Say("Vertex selection is for Freeform cages: select a Freeform form first.");
+    }
+    RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",SelectVertices,"Select cage vertices (1 while editing Freeform).",RibbonSize.Small,
     ()=>!IsSketching && (Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null)),
     ()=>Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex});
 
@@ -332,18 +336,27 @@ public sealed partial class MainViewModel : ViewModelBase
         Btn(label, icon, () => Session.Display = m, desc, RibbonSize.Small, null, () => Session.Display == m);
 
     /// <summary>A button that runs one of the Edit Form panel actions (only enabled while Edit Form is open).</summary>
-    RibbonButton FormAct(string label, string icon, string paramLabel, string desc, RibbonSize size = RibbonSize.Large) =>
+    RibbonButton FormAct(string label, string icon, string paramLabel, string desc, RibbonSize size = RibbonSize.Large, Func<bool>? chk = null) =>
         Btn(label, icon, () =>
         {
             if(paramLabel=="Apply crease" && Session.ActiveCommand is EditFormCommand crease){crease.OpenCrease();return;}
+            if(paramLabel=="Subdivide" && Session.ActiveCommand is EditFormCommand sub){sub.OpenSubdivide();return;}
+            if(chk?.Invoke()==true && Session.ActiveCommand is EditFormCommand {LoopArmed:true} armed){armed.DisarmLoop();return;}
             if (Session.ActiveCommand is EditFormCommand e && e.Params.OfType<ActionParam>().FirstOrDefault(a => a.Label.StartsWith(paramLabel, StringComparison.OrdinalIgnoreCase)) is { } act) act.Run();
-        }, desc, size, () => Session.ActiveCommand is EditFormCommand { Work: not null,HasPanelStep:false,Tool:FormEditTool {Binding.Positioning:false} });
+        }, desc, size, () => Session.ActiveCommand is EditFormCommand { Work: not null,HasPanelStep:false,Tool:FormEditTool {Binding.Positioning:false} }, chk);
 
     RibbonButton EditFeatureBtn() => Btn("Edit\nFeature", "feature-edit", EditSelectedFeature,
         "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
         RibbonSize.Large, () => CanEditFeature);
 
     static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items] };
+
+    RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or choose a sketch datum.",
+        Btn("Gizmo", "move", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping."),
+        Tool("Point", "sketch-point", "Point", () => new PointTool(), "Place a reference point on the active drawing plane of a 2D or 3D sketch."),
+        Btn("Axis", "origin-axis", () => SketchSpaceAction("save-axis"), "Save the selected gizmo axis as a datum in a 2D or 3D sketch.", RibbonSize.Small, () => IsSketching),
+        Btn("Plane", "origin-plane", () => SketchSpaceAction("save-plane"), "Save the current sketch datum plane.", RibbonSize.Small, () => IsSketching),
+        Btn("Save gizmo", "origin-plane", () => SketchSpaceAction("save-gizmo"), "Save the current gizmo as a sketch datum.", RibbonSize.Small, () => IsSketching)));
 
     void BuildRibbon()
     {
@@ -365,10 +378,10 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Curve from\nTable", "curve-table", () => new EquationCurveCommand(true), "Make a curve from a table of x,y,z points."));
         RibbonGroup SelectGrp() => G("Select",
             Sel("Object", "sel-object", SelMode.Object, "Pick whole bodies, surfaces and curves."),
-            Split(RibbonSize.Small, "split:selection-components", "Select faces, edges or Freeform vertices. Click the name to choose a mode.",
+            Followed(Split(RibbonSize.Small, "split:selection-components", "Select faces, edges or Freeform vertices. Click the name to choose a mode.",
                 Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
                 Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."),
-                VertexSelection()));
+                VertexSelection())));
         RibbonGroup TransformGrp() => G("Transform",
             Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects."),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
@@ -583,17 +596,30 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Modify",
                     Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Select vertices, edges or faces and move them with the manipulator."),
                     FormAct("Extrude", "form-extrude", "Extrude", "Extrude the selected faces (or open edges), then drag the arrows."),
-                    FormAct("Insert\nEdge", "form-loop", "Insert edge", "Add an edge loop through the selected edge."),
-                    FormAct("Subdivide", "form-subdivide", "Subdivide", "Split every face into smaller faces for finer control.")),
+                    FormAct("Slide", "form-loop", "Slide selected edge loop", "Move the selected edge loop along its neighbouring edges without changing the shape much. The amount is in the panel."),
+                    FormAct("Subdivide", "form-subdivide", "Subdivide", "Split the selected faces into smaller faces, or every face when none are selected."),
+                    ToolMenu("More", "form-edit", "Less frequent editing tools. Selection helpers such as Grow and Shrink stay in the Edit Freeform panel.",
+                        FormAct("Chamfer", "chamfer", "Chamfer selected edges", "Cut a flat bevel along the selected inner edges. The width is 'Bevel width' in the panel.", small),
+                        FormAct("Delete", "form-delete", "Delete selection", "Delete the selected faces, edges or points.", small),
+                        FormAct("Merge faces", "form-weld", "Merge selected faces", "Join the selected touching faces into one.", small),
+                        FormAct("Collapse", "form-weld", "Collapse selected edges", "Shrink the selected edges to single points.", small),
+                        FormAct("Split face", "form-subdivide", "Split face between", "Cut a face in two between two selected corners.", small),
+                        FormAct("Bevel", "form-crease", "Bevel selected edges", "Add support loops beside the selected edges to tighten them.", small),
+                        FormAct("Smooth", "form-flip", "Smooth selection", "Relax the selected points toward their neighbours.", small),
+                        FormAct("Flatten", "form-face", "Flatten selection", "Press the selected points onto a plane.", small),
+                        FormAct("Fill holes", "form-face", "Fill holes", "Cap open borders with faces.", small),
+                        FormAct("Thicken", "form-box", "Thicken", "Give the cage wall thickness (Bevel width).", small))),
                 G("Loops",
-                    FormAct("Select\nLoop", "form-loop", "Select edge loop", "Select the whole edge loop that runs through the selected edge."),
-                    FormAct("Select\nRing", "form-loop", "Select edge ring", "Select the ring of edges side by side across the quads."),
+                    FormAct("Insert\nEdge", "form-loop", "Insert edge", "Click an edge to add an edge loop across it. The tool stays on for more clicks until you press Esc or pick another tool. Count and position are in the panel.", RibbonSize.Large, () => Session.ActiveCommand is EditFormCommand {LoopArmed:true}),
+                    FormAct("Inset", "form-face", "Inset selected faces", "Shrink the selected faces into a smaller face with a ring of new faces around it. Amount, depth and 'each face on its own' are in the panel."),
+                    FormAct("Select\nLoop", "form-loop", "Select edge loop or ring", "Select a whole edge loop or edge ring from the selected edge. Choose Loop (end to end) or Ring (parallel across quads) under 'Edge selection' in the panel; Alt+L and Alt+R pick directly."),
                     FormAct("Bridge", "form-bridge", "Bridge", "Join two selected groups of open edges with a strip of faces.")),
                 G("Lock and align",
                     FormAct("Freeze", "form-freeze", "Freeze selection", "Lock the selected faces, edges or points so they cannot move (shown in blue)."),
                     FormAct("Unfreeze", "form-freeze", "Unfreeze selection", "Release the selected points."),
                     FormAct("Align to\nCurve", "form-align", "Align to the curve", "Pull the selected points (or all) onto a curve: pick it in 'Curve to align to'.")),
                 G("Components",
+                    FormAct("Smooth\nsurface", "form-flip", "Smooth surface", "Switch between the smoothed surface and the plain cage faces. Levels are under Smoothness in the panel.", small, () => Session.ActiveCommand is EditFormCommand {SmoothOn:true}),
                     FormAct("Weld", "form-weld", "Weld", "Merge the selected vertices into one.", small),
                     FormAct("Crease", "form-crease", "Apply crease", "Make the selected edges sharp.", small),
                     FormAct("Merge\nedges", "form-weld", "Merge selected edges", "Remove the selected inner edges, joining the faces on either side.", small),
@@ -759,11 +785,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Tool("Polygon", "polygon", "Polygon", () => new PolygonTool(SketchTool.Recall("Polygon") == 1), "Draw regular polygons. Choose inscribed or circumscribed and the number of sides in the options bar."),
                     Tool("Slot", "slot", "Slot", () => new SlotTool(), "A slot: two arc centers, then the width."),
                     Tool("Spline", "spline", "Spline", () => new SplineTool(SketchTool.Recall("Spline") == 1), "Draw splines through fit points or shaped by control points.")),
-                G("References", ToolMenu("Datum", "origin-axis", "Place reference points or save reusable axes and gizmos.",
-                    Tool("Point", "sketch-point", "Point", () => new PointTool(), "Place reference points for sketch geometry."),
-                    Btn("Plane","origin-plane",()=>SketchSpaceAction("save-plane"),"Save a reusable datum plane.",small,()=>IsSketching),
-                    Btn("Axis", "origin-axis", () => SketchSpaceAction("save-axis"), "Save the selected gizmo axis as a reusable datum.", small, () => IsSketching),
-                    Btn("Gizmo", "origin-plane", () => SketchSpaceAction("save-gizmo"), "Save another datum gizmo. Choose one active gizmo in the right panel.", small, () => IsSketching))),
+                G("References"),
                 G("Modify",
                     Tool("Trim", "trim", "Trim", () => new TrimTool(), "Cut a line, arc or circle back to the curves that cross it. Click the part to remove."),
                     Tool("Extend", "extend", "Extend", () => new ExtendTool(), "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend."),

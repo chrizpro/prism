@@ -23,7 +23,7 @@ public static class GizmoVisual
     public static uint Ink => ResourceColor("Ink", 0xFFE8EDF5, 0xFF1B2432);
     public static uint Accent => ResourceColor("Accent", 0xFF4C94FF, 0xFF2F7BF0);
     public static double Length(CadSession session, Vec3 center) => session.Camera.PixelSizeAt(center) * GizmoSettings.Current.Pixels;
-    public static Vec3 UniformPoint(CadSession s, Vec3 c, double length) => c + (s.Camera.Right - s.Camera.Up).Normalized() * length * 1.25;
+    public static Vec3 UniformPoint(CadSession s, Vec3 c, double length) => c + (s.Camera.Right - s.Camera.Up).Normalized() * length * 0;
     public static List<Vec3> Ring(Vec3 center, Vec3 u, Vec3 v, double length) => Enumerable.Range(0, 73)
         .Select(i => center + (u * Math.Cos(i * Math.PI / 36) + v * Math.Sin(i * Math.PI / 36)) * length * .8).ToList();
     public static void Arrow(Overlay overlay, Vec3 origin, Vec3 direction, double length, uint color, float width)
@@ -44,7 +44,31 @@ public static class GizmoVisual
         o.AddTri(center - u - v, center + u - v, center + u + v, color);
         o.AddTri(center - u - v, center + u + v, center - u + v, color);
     }
-    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false)
+    /// <summary>Handle numbers 3..5 are the plane handles: 3 + k is the plane that has axis k as its normal (X: YZ, Y: ZX, Z: XY).</summary>
+    public const int PlaneBase = 3;
+    public static int AsPlane(int axis, int operation, bool modifier) => modifier && axis is >= 0 and < 3 && operation != 1 ? PlaneBase + axis : axis;
+    public static string PlaneName(int axis) => axis switch { 3 => "YZ", 4 => "ZX", _ => "XY" };
+    public static (Vec3 u, Vec3 v) PlaneAxes(Vec3[] axes, int plane) => (axes[(plane - PlaneBase + 1) % 3], axes[(plane - PlaneBase + 2) % 3]);
+    static Vec3[] PlaneCorners(Vec3 c, Vec3[] axes, int plane, double length)
+    {
+        var (u, v) = PlaneAxes(axes, plane);
+        return [c + u * length * .22 + v * length * .22, c + u * length * .55 + v * length * .22, c + u * length * .55 + v * length * .55, c + u * length * .22 + v * length * .55];
+    }
+    static bool Inside(double x, double y, (double x, double y)[] q)
+    {
+        int sign = 0;
+        for (int i = 0; i < q.Length; i++)
+        {
+            var a = q[i]; var b = q[(i + 1) % q.Length];
+            double cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+            int sg = Math.Sign(cross);
+            if (sg == 0) continue;
+            if (sign == 0) sign = sg; else if (sg != sign) return false;
+        }
+        return true;
+    }
+    static bool PlaneUsable(GizmoSettings settings, int plane) => settings.AxisVisible((plane - PlaneBase + 1) % 3) && settings.AxisVisible((plane - PlaneBase + 2) % 3);
+    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false, bool planes = false)
     {
         var settings = GizmoSettings.Current;
         if (!settings.Allows(operation, active)) return;
@@ -65,10 +89,21 @@ public static class GizmoVisual
             if (settings.Labels && (operation == 0 || !settings.Allows(0, active)))
                 o.AddLabel(c + axes[axis] * length * (operation == 2 ? 1.32 : 1.12), axes[axis].DistanceTo(WorldAxes[axis]) < 1e-6 ? new[] { "X", "Y", "Z" }[axis] : new[] { "U", "V", "N" }[axis], false);
         }
-        if (operation == 2) Square(o, s, UniformPoint(s, c, length), length * 1.3, hotCenter ? Accent : Ink);
-        if (operation == active) o.AddDot(c, hotCenter && operation == 0 ? Accent : Ink, operation == 0 ? 9 : 6);
+        if (planes && operation != 1)
+            for (int k = 0; k < 3; k++)
+            {
+                if (!PlaneUsable(settings, PlaneBase + k)) continue;
+                bool hot = hotAxis == PlaneBase + k;
+                uint color = hot ? Accent : 0xFFFFFFFF;
+                var q = PlaneCorners(c, axes, PlaneBase + k, length);
+                uint fill = (color & 0x00FFFFFF) | (hot ? 0xC0000000 : 0xB0000000);
+                o.AddTri(q[0], q[1], q[2], fill); o.AddTri(q[0], q[2], q[3], fill);
+                o.AddPolyline(q, color, hot ? width + 2 : width + 1, true);
+            }
+        if (operation == 2) Square(o, s, UniformPoint(s, c, length), length * 2.2, hotCenter ? Accent : 0xFFFFFFFF);
+        if (operation == active && operation != 2) { o.AddDot(c, 0xFFFFFFFF, operation == 0 ? 15 : 11); o.AddDot(c, hotCenter && operation == 0 ? Accent : Ink, operation == 0 ? 11 : 7); }
     }
-    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active)
+    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false)
     {
         var settings = GizmoSettings.Current; double best = settings.Tolerance;
         (int axis, bool center, int operation) hit = (-1, false, active);
@@ -90,6 +125,14 @@ public static class GizmoVisual
             var c = center(op); double length = Length(s, c);
             if (op == 0) Point(c, 0);
             if (op == 2) Point(UniformPoint(s, c, length), 2);
+            if (planes && op != 1)
+                for (int k = 0; k < 3; k++)
+                {
+                    if (!PlaneUsable(settings, PlaneBase + k)) continue;
+                    var q = PlaneCorners(c, axes, PlaneBase + k, length).Select(p => s.Camera.Project(p)).ToArray();
+                    if (q.Any(p => p == null)) continue;
+                    if (Inside(x, y, q.Select(p => (p!.Value.x, p.Value.y)).ToArray())) { best = 0; hit = (PlaneBase + k, false, op); }
+                }
             for (int axis = 0; axis < 3; axis++)
             {
                 if(!settings.AxisVisible(axis))continue;

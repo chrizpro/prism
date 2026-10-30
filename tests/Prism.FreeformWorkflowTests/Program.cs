@@ -35,9 +35,36 @@ Key(Avalonia.Input.Key.D1);vm.RefreshRibbon();Check(form.SelMode==FormMode.Verte
 selection.Single(b=>b.Icon=="sel-edge").Invoke();Check(form.SelMode==FormMode.Edge,"ribbon edge mode changes Edit Form mode");
 form.Mode.Index=(int)FormMode.Face;vm.RefreshRibbon();Check(selection.Single(b=>b.Icon=="sel-face").IsChecked,"panel face mode updates the ribbon");
 Key(Avalonia.Input.Key.D4);Check(form.ObjectSelected&&form.MovingVertices().Count()==form.Work!.V.Count,"Object mode selects the entire editable cage");
-Key(Avalonia.Input.Key.W);Check(form.TransformMode.Index==0,"W selects Move");Key(Avalonia.Input.Key.E);Check(form.TransformMode.Index==1,"E selects Rotate within Freeform");Key(Avalonia.Input.Key.R);Check(form.TransformMode.Index==2,"R selects Scale");
+vm.RefreshRibbon();Check(selection.Single(b=>b.Icon=="sel-object").IsChecked,"Object mode shows in the ribbon");
+{
+var modify=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Modify").Items.OfType<RibbonButton>().ToList();
+foreach(var n in new[]{"Extrude","Slide","Subdivide"})Check(modify.Any(b=>b.Label.Replace("\n"," ")==n&&!b.HasMenu&&b.IsEnabled),"Modify has "+n+" as its own enabled button");
+var loops=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Loops").Items.OfType<RibbonButton>().ToList();
+Console.WriteLine(string.Join("|",loops.Select(b=>b.Label+":"+b.HasMenu+":"+b.IsEnabled)));foreach(var n in new[]{"Insert Edge","Inset","Bridge"})Check(loops.Any(b=>b.Label.Replace("\n"," ")==n&&!b.HasMenu&&b.IsEnabled),"Loops has "+n);
+Check(loops.Any(b=>b.Label.Replace("\n"," ")=="Select Loop"&&!b.HasMenu&&!b.IsSplit)&&!loops.Any(b=>b.IsSplit),"Loop and ring selection is one Loops button");
+var more=modify.Single(b=>b.HasMenu).Menu!.ToList();
+foreach(var n in new[]{"Chamfer","Delete","Merge faces","Collapse","Split face","Bevel","Smooth","Flatten","Fill holes","Thicken"})Check(more.Any(b=>b.Label==n),"More menu has "+n);
+Check(more.All(b=>b.IsEnabled)&&modify.All(b=>b.Label!="Grow selection"),"More menu items are enabled and Grow stays panel-only");
+{
+var splitSel=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().Single(b=>b.IsSplit);
+form.Mode.Index=(int)FormMode.Edge;vm.RefreshRibbon();Check(splitSel.Label=="Edge"&&splitSel.IsChecked,"ribbon selector label follows the panel mode (Edge)");
+form.Mode.Index=(int)FormMode.Face;vm.RefreshRibbon();Check(splitSel.Label=="Face","ribbon selector label follows the panel mode (Face)");
+var cube=FormOps.Box(10,10,10,1,1,1);int fcount=cube.F.Count;
+int done=FormOps.SubdivideFaces(cube,new HashSet<int>{0});
+Check(done==1&&cube.F.Count==fcount+3&&cube.IsClosed(),"Subdivide splits only the chosen face and keeps the cage closed");
+var grid=FormOps.Box(10,10,10,1,1,1);FormOps.SubdivideFaces(grid,new HashSet<int>{0},3,2);
+Check(grid.F.Count==fcount+5&&grid.IsClosed(),"Subdivide 3 x 2 gives 6 faces from one and stays closed");
+var all=FormOps.Box(10,10,10,1,1,1);FormOps.SubdivideFaces(all,Enumerable.Range(0,all.F.Count).ToHashSet(),3,3);
+Check(all.F.Count==fcount*9&&all.IsClosed(),"Subdividing every face in a 3 x 3 grid stays closed");
+var smoothAct=form.Params.OfType<ActionParam>().Single(a=>a.Label.StartsWith("Smooth surface"));
+int lv=form.Work!.Level;smoothAct.Run();Check(form.Work.Level==0&&!form.SmoothOn,"smooth toggle turns smoothing off");smoothAct.Run();Check(form.Work.Level==(lv>0?lv:3)&&form.SmoothOn,"smooth toggle restores the previous level");
+form.ClearSelection();var subdBefore=form.Work.F.Count;form.OpenSubdivide();Check(form.HasPanelStep&&form.Work.F.Count==subdBefore*4,"Subdivide opens a panel with a live 2 x 2 preview");
+form.TryUndo();Check(!form.HasPanelStep&&form.Work!.F.Count==subdBefore,"cancelling the Subdivide panel restores the cage");
+}
+}
+Key(Avalonia.Input.Key.T);Check(form.TransformMode.Index==0,"T selects Move");Key(Avalonia.Input.Key.R);Check(form.TransformMode.Index==1,"R selects Rotate within Freeform");Key(Avalonia.Input.Key.S);Check(form.TransformMode.Index==2,"S selects Scale");
 Key(Avalonia.Input.Key.D3);form.Faces.Add(0);form.OnChanged();int beforeFaces=form.Work!.F.Count;
-Key(Avalonia.Input.Key.X,KeyModifiers.Alt);Check(form.Work.F.Count>beforeFaces,"Alt+X extrudes the selected cage face");
+Key(Avalonia.Input.Key.E);Check(form.Work.F.Count>beforeFaces,"E extrudes the selected cage face");
 form.TryUndo();Key(Avalonia.Input.Key.D2);
 var edge=form.Work!.Edges().First(e=>Math.Abs(form.Work.V[e.a].Z-form.Work.V[e.b].Z)<.001);long edgeKey=SubdMesh.Key(edge.a,edge.b);
 form.Edges.Add(edgeKey);form.OnChanged();Check(!form.ShowTriangles,"surface triangles are hidden by default while editing");
@@ -63,7 +90,51 @@ Check(form.Edges.Count>1,"double-clicking an edge selects its loop through the p
 Key(Avalonia.Input.Key.D1);var vertexScreen=s.Camera.Project(form.Work.V[edge.a])!.Value;
 form.Tool.PointerDown(s,new(vertexScreen.x,vertexScreen.y,true,false,false,false,2));form.Tool.PointerUp(s,new(vertexScreen.x,vertexScreen.y,false,false,false,false));Check(form.Verts.Count>1,"double-clicking a vertex selects a connected vertex chain");
 Key(Avalonia.Input.Key.D3);var faceScreen=s.Camera.Project(form.Work.FaceCenter(0))!.Value;form.SelectComponentLoop(0,false,faceScreen.x,faceScreen.y);Check(form.Faces.Count>1,"quad face selection expands to a face strip");
-form.Faces.Clear();form.Faces.Add(0);form.OnChanged();int unmodifiedFaces=form.Work.F.Count;
+// Insert edge loop is a sticky tool: arm it, click edges, and it ends on Esc, another action, or a mode change
+Key(Avalonia.Input.Key.D2);form.ClearSelection();int loopBase=form.Work.F.Count;
+var armLoop=form.Params.OfType<ActionParam>().Single(a=>a.Label=="Insert edge loop");armLoop.Run();
+Check(form.LoopArmed&&form.Work.F.Count==loopBase,"Insert edge loop arms a tool without needing a selection");
+var loopScreen=s.Camera.Project((form.Work.V[edge.a]+form.Work.V[edge.b])*.5)!.Value;
+form.Tool.PointerMove(s,new(loopScreen.x,loopScreen.y,false,false,false,false));
+var loopHover=new Overlay();form.Tool.BuildOverlay(s,loopHover);Check(loopHover.Lines.Any(l=>l.Color==0xFF3DDC84),"hovering an edge previews the loop");
+form.Tool.PointerDown(s,new(loopScreen.x,loopScreen.y,true,false,false,false,1));form.Tool.PointerUp(s,new(loopScreen.x,loopScreen.y,false,false,false,false));
+int afterOne=form.Work.F.Count;Check(afterOne>loopBase&&form.LoopArmed,"clicking an edge inserts a loop and the tool stays armed");
+var nextEdge=form.Work.Edges().First(e=>Math.Abs(form.Work.V[e.a].Z-form.Work.V[e.b].Z)<.001);var nextScreen=s.Camera.Project((form.Work.V[nextEdge.a]+form.Work.V[nextEdge.b])*.5)!.Value;
+form.Tool.PointerMove(s,new(nextScreen.x,nextScreen.y,false,false,false,false));form.Tool.PointerDown(s,new(nextScreen.x,nextScreen.y,true,false,false,false,1));form.Tool.PointerUp(s,new(nextScreen.x,nextScreen.y,false,false,false,false));
+Check(form.Work.F.Count>afterOne&&form.LoopArmed,"a second click inserts another loop without re-arming");
+Key(Avalonia.Input.Key.Escape);Check(!form.LoopArmed&&ReferenceEquals(s.ActiveCommand,form),"Esc ends Insert edge loop but keeps Edit Freeform open");
+armLoop.Run();form.Params.OfType<ActionParam>().Single(a=>a.Label=="Select everything").Run();Check(!form.LoopArmed,"choosing another action ends Insert edge loop");
+armLoop.Run();Key(Avalonia.Input.Key.D1);Check(!form.LoopArmed,"changing the selection mode ends Insert edge loop");
+armLoop.Run();Key(Avalonia.Input.Key.T);Check(!form.LoopArmed,"picking a gizmo mode ends Insert edge loop");
+Key(Avalonia.Input.Key.D2);form.ClearSelection();var freshEdge=form.Work.Edges().First(e=>Math.Abs(form.Work.V[e.a].Z-form.Work.V[e.b].Z)<.001);form.Edges.Add(SubdMesh.Key(freshEdge.a,freshEdge.b));int beforeSelected=form.Work.F.Count;armLoop.Run();
+Check(form.LoopArmed&&form.Work.F.Count>beforeSelected,"an edge that is already selected gets its loop immediately and the tool stays armed");
+form.DisarmLoop();while(form.Work.F.Count>loopBase&&form.TryUndo()){}Check(form.Work.F.Count==loopBase,"each inserted loop is its own undo step");
+Key(Avalonia.Input.Key.D3);form.ClearSelection();
+{
+form.Faces.Clear();form.Faces.Add(0);form.OnChanged();Key(Avalonia.Input.Key.T);
+var vs0=form.MovingVertices().ToList();var before=vs0.Select(v=>form.Work.V[v]).ToArray();
+var c0=form.SelectionCenter();double len0=GizmoVisual.Length(s,c0);
+var onPlane=s.Camera.Project(c0+(Vec3.UnitX+Vec3.UnitY)*.45*len0)!.Value;
+form.Tool.PointerDown(s,new(onPlane.x,onPlane.y,true,false,false,false,1));
+form.Tool.PointerMove(s,new(onPlane.x+25,onPlane.y-18,true,false,false,false));form.Tool.PointerUp(s,new(onPlane.x+25,onPlane.y-18,false,false,false,false));
+var after=vs0.Select(v=>form.Work.V[v]).ToArray();
+Check(Enumerable.Range(0,before.Length).All(i=>Math.Abs(after[i].Z-before[i].Z)<1e-6)&&(after[0]-before[0]).Length>1e-6,"dragging the XY plane handle moves two axes at once and leaves Z alone");
+form.TryUndo();
+var onZ=s.Camera.Project(c0+Vec3.UnitZ*.6*len0)!.Value;
+form.Tool.PointerDown(s,new(onZ.x,onZ.y,true,false,true,false,1));
+form.Tool.PointerMove(s,new(onZ.x+25,onZ.y-18,true,false,true,false));form.Tool.PointerUp(s,new(onZ.x+25,onZ.y-18,false,false,true,false));
+var afterCtrl=vs0.Select(v=>form.Work.V[v]).ToArray();
+Check(Enumerable.Range(0,before.Length).All(i=>Math.Abs(afterCtrl[i].Z-before[i].Z)<1e-6)&&(afterCtrl[0]-before[0]).Length>1e-6,"Ctrl+dragging the Z arrow moves the XY plane instead of just Z");
+form.TryUndo();
+Key(Avalonia.Input.Key.S);
+var sc0=vs0.Select(v=>form.Work.V[v]).ToArray();var onScale=s.Camera.Project(c0+(Vec3.UnitX+Vec3.UnitY)*.45*len0)!.Value;
+form.Tool.PointerDown(s,new(onScale.x,onScale.y,true,false,false,false,1));
+form.Tool.PointerMove(s,new(onScale.x+40,onScale.y-30,true,false,false,false));form.Tool.PointerUp(s,new(onScale.x+40,onScale.y-30,false,false,false,false));
+var sc1=vs0.Select(v=>form.Work.V[v]).ToArray();
+Check(Enumerable.Range(0,sc0.Length).All(i=>Math.Abs(sc1[i].Z-sc0[i].Z)<1e-6)&&Enumerable.Range(0,sc0.Length).Any(i=>(sc1[i]-sc0[i]).Length>1e-6),"dragging an XY scale block scales two axes and leaves Z alone");
+form.TryUndo();Key(Avalonia.Input.Key.T);
+}
+form.Faces.Clear();form.Faces.Add(0);int unmodifiedFaces=form.Work.F.Count;
 AppSettings.Current.Hotkeys["form.extrude"]="Shift+X|freeform";
 Key(Avalonia.Input.Key.X,KeyModifiers.Alt);Check(form.Work.F.Count==unmodifiedFaces,"remapping extrusion disables the shipped Freeform shortcut");
 Key(Avalonia.Input.Key.X,KeyModifiers.Shift);Check(form.Work.F.Count>unmodifiedFaces,"the customized Freeform shortcut executes extrusion");
@@ -75,6 +146,7 @@ Check(Hotkeys.Actions.Where(a=>a.Scope==Hotkeys.Freeform).All(a=>Hotkeys.FindCon
 var smooth=FormOps.Box(20,20,20,1,1,1);var partial=smooth.Clone();FormOps.SetCrease(partial,partial.Edges(),.35);
 var refinedSmooth=smooth.Refine(out _);var refinedPartial=partial.Refine(out _);
 Check((refinedPartial.V[0]-partial.V[0]).Length>0 && (refinedPartial.V[0]-partial.V[0]).Length<(refinedSmooth.V[0]-smooth.V[0]).Length,"fractional sharpness remains gradual where three creased edges meet");
+var offSym=Symmetry.Parse("x@25,0,0");Check(offSym.Mode==SymMode.MirrorX&&Math.Abs(offSym.Map(0,new Vec3(30,2,3)).X-20)<1e-9&&offSym.Text=="x@25,0,0"&&Symmetry.Parse("x").Text=="x","symmetry can mirror across a plane that is not through the origin and round-trips as text");
 panelWindow.Close();window.Close();Console.WriteLine($"SUCCESS: {checks} checks; previews in {output}");
 
 sealed class TestApp:Application{public override void Initialize(){Styles.Add(new FluentTheme());Styles.Add(new StyleInclude(new Uri("avares://Prism/")){Source=new Uri("avares://Prism/Styles/Theme.axaml")});}}

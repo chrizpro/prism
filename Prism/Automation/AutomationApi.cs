@@ -1484,7 +1484,7 @@ public sealed class AutomationApi
                     case "set_symmetry":
                     {
                         var wanted = Symmetry.Parse(a["symmetry"]?.ToString() ?? a["value"]?.ToString() ?? "off");
-                        m.Sym = wanted.Mode switch { SymMode.MirrorX => "x", SymMode.MirrorY => "y", SymMode.MirrorZ => "z", SymMode.Radial => $"radial:{wanted.Count}", _ => "off" };
+                        m.Sym = wanted.Text;
                         if (Bool(a, "enforce", false)) info["pointsMoved"] = FormSymmetry.Enforce(m, wanted, Bool(a, "keep_positive", true));
                         break;
                     }
@@ -1576,7 +1576,7 @@ public sealed class AutomationApi
                         FormOps.AddFace(m, ids, S.Camera.EyeDirection);
                         info["faceIndex"] = m.F.Count - 1;
                         break;
-                    case "level": m.Level = (int)Math.Clamp(Dbl(a, "value", 3), 1, 4); break;
+                    case "level": m.Level = (int)Math.Clamp(Dbl(a, "value", 3), 0, 4); break;
                     default: throw new ArgumentException($"Unknown form op '{op}'.");
                 }
                 var co = new CommandOutput { Label = "Freeform: " + op, Icon = "form-edit" };

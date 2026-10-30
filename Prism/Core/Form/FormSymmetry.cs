@@ -75,9 +75,9 @@ public static class FormSymmetry
         var partners = sym.Partners(m, loose); int changed = 0;
         bool Authoritative(Vec3 p) => sym.Mode switch
         {
-            SymMode.MirrorX => keepPositiveSide ? p.X >= 0 : p.X <= 0,
-            SymMode.MirrorY => keepPositiveSide ? p.Y >= 0 : p.Y <= 0,
-            SymMode.MirrorZ => keepPositiveSide ? p.Z >= 0 : p.Z <= 0,
+            SymMode.MirrorX => keepPositiveSide ? p.X >= sym.Origin.X : p.X <= sym.Origin.X,
+            SymMode.MirrorY => keepPositiveSide ? p.Y >= sym.Origin.Y : p.Y <= sym.Origin.Y,
+            SymMode.MirrorZ => keepPositiveSide ? p.Z >= sym.Origin.Z : p.Z <= sym.Origin.Z,
             _ => true,
         };
         var original = m.V.ToArray();

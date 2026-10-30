@@ -36,7 +36,7 @@ static class FormOverlay
 /// <summary>Select cage components and move them with a three-axis manipulator (or freely in the screen plane).</summary>
 public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 {
-    enum Drag { None, Axis, Free, Box, Lasso, Rotate, ScaleAxis, ScaleAll }
+    enum Drag { None, Axis, Free, Box, Lasso, Rotate, ScaleAxis, ScaleAll, Plane, ScalePlane }
     readonly List<(double x, double y)> _lasso = [];
     Drag _drag; int _axis;
     Vec3 _c0, _hit0; double _t0;
@@ -52,8 +52,24 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     Plane3 _bindingStart;
     int _hotMode = -1;
 
-    public string Prompt => "Click to select; drag the gizmo to move, rotate (E) or scale (R); W goes back to move. Drag on empty space to box-select (hold Ctrl to draw a lasso). Shift adds to the selection.";
+    public string Prompt => cmd.LoopArmed
+        ? "Insert edge loop: click an edge to add a loop across it (count and position are in the panel). Esc or choosing another tool ends it."
+        : "Click to select; drag the gizmo to move, rotate (R) or scale (S); T goes back to move, E extrudes. Drag a colored square to move or scale two axes at once, or hold Ctrl while dragging an arrow to move the plane across it. Drag on empty space to box-select (hold Ctrl to draw a lasso). Shift adds to the selection.";
     public bool Dragging => _drag != Drag.None;
+
+    List<(Vec3 a, Vec3 b)> _loopLines = [];
+
+    public void ResetLoopPreview() { _hotE = -1; _loopLines = []; cmd.S?.Invalidate(); }
+
+    // The preview is the loop itself, built on a scratch copy so it always matches what a click would do.
+    void UpdateLoopPreview()
+    {
+        _loopLines = [];
+        if (_hotE < 0 || cmd.Work == null) return;
+        var trial = cmd.Work.Clone(); var (a, b) = SubdMesh.Unkey(_hotE);
+        var added = FormOps.InsertEdgeLoops(trial, a, b, cmd.LoopCount, cmd.LoopPosition).ToHashSet();
+        foreach (var (x, y) in FormOverlay.Edges(trial)) if (added.Contains(x) && added.Contains(y)) _loopLines.Add((trial.V[x], trial.V[y]));
+    }
 
     public void SelectionChanged() { cmd.SelectionNotify(); cmd.S?.Invalidate(); }
 
@@ -88,7 +104,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     (int axis, bool center, int operation) HitGizmo(CadSession s, double x, double y)
     {
         if (Gizmo(s) is not { } g) return (-1, false, Mode);
-        return GizmoVisual.Hit(s, x, y, operation => Gizmo(s,operation)!.Value.c, Axes, Mode);
+        return GizmoVisual.Hit(s, x, y, operation => Gizmo(s,operation)!.Value.c, Axes, Mode, planes: true);
     }
 
     // ---- component picking
@@ -118,12 +134,18 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     {
         if(cmd.HasPanelStep)return true;
         if (cmd.Work == null || !p.Left) return false;
+        if (cmd.LoopArmed)
+        {
+            if (p.Clicks < 2 && PickEdge(s, p.X, p.Y) is var loopEdge && loopEdge >= 0) cmd.InsertLoopAt(loopEdge);
+            return true;
+        }
         if(p.Clicks>=2)
         {
             long seed=cmd.SelMode switch {FormMode.Vertex=>PickVertex(s,p.X,p.Y),FormMode.Edge=>PickEdge(s,p.X,p.Y),FormMode.Face=>PickFace(s,p.X,p.Y),_=>-1};
             if(seed>=0){cmd.SelectComponentLoop(seed,p.Shift,p.X,p.Y);return Selected();}
         }
         var (axis, center, operation) = HitGizmo(s, p.X, p.Y);
+        axis = GizmoVisual.AsPlane(axis, operation, p.Ctrl);
         if (axis >= 0 || center)
         {
             _hotMode = operation; _hotAxis = axis; _hotCenter = center; s.Invalidate();
@@ -150,11 +172,23 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
                     _drag = Drag.ScaleAll; var pc = s.Camera.Project(_c0);
                     _d0 = pc == null ? 50 : Math.Max(10, Math.Sqrt((pc.Value.x - p.X) * (pc.Value.x - p.X) + (pc.Value.y - p.Y) * (pc.Value.y - p.Y)));
                 }
+                else if (axis >= GizmoVisual.PlaneBase)
+                {
+                    _drag = Drag.ScalePlane; _axis = axis;
+                    var (pu, pv) = GizmoVisual.PlaneAxes(Axes, axis); _plane = new Plane3(_c0, pu, pv);
+                    _hit0 = _plane.Intersect(o, d) ?? _c0 + pu; _d0 = Math.Max(1e-6, (_hit0 - _c0).Length);
+                }
                 else
                 {
                     _drag = Drag.ScaleAxis; _axis = axis;
                     var tt = AxisParam(o, d, _c0, Axes[axis]) ?? 0; _t0 = Math.Abs(tt) < 1e-6 ? 1e-6 : tt;
                 }
+            }
+            else if (axis >= GizmoVisual.PlaneBase)
+            {
+                _drag = Drag.Plane; _axis = axis;
+                var (pu, pv) = GizmoVisual.PlaneAxes(Axes, axis); _plane = new Plane3(_c0, pu, pv);
+                _hit0 = _plane.Intersect(o, d) ?? _c0;
             }
             else if (center)
             {
@@ -166,7 +200,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         }
 
         var mode = cmd.SelMode;
-        if (mode == FormMode.Object && PickFace(s,p.X,p.Y)>=0){cmd.SelectWholeObject();return Selected();}
+        if (mode == FormMode.Object){cmd.SelectWholeObject();return Selected();}
         if (mode == FormMode.Vertex && PickVertex(s, p.X, p.Y) is var v && v >= 0) {Toggle(cmd.Verts, v, p.Shift); return Selected(); }
         if (mode == FormMode.Edge && PickEdge(s, p.X, p.Y) is var e && e >= 0) {Toggle(cmd.Edges, e, p.Shift); return Selected(); }
         if (mode == FormMode.Face && PickFace(s, p.X, p.Y) is var f && f >= 0) {Toggle(cmd.Faces, f, p.Shift); return Selected(); }
@@ -205,6 +239,18 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
             case Drag.Free:
                 if (_plane.Intersect(o, d) is { } h) Move(h - _hit0, p.Alt);
                 return;
+            case Drag.Plane:
+                if (_plane.Intersect(o, d) is { } ph) { Move(ph - _hit0, p.Alt); s.Say($"Move in the {GizmoVisual.PlaneName(_axis)} plane"); }
+                return;
+            case Drag.ScalePlane:
+            {
+                if (_plane.Intersect(o, d) is not { } sh) return;
+                double fp = GizmoVisual.SnapScale(Math.Clamp((sh - _c0).Length / _d0, 0.02, 50), p.Alt);
+                int k = _axis - GizmoVisual.PlaneBase;
+                Transform(GizmoBinding.Scale(_c0, Axes, k == 0 ? 1 : fp, k == 1 ? 1 : fp, k == 2 ? 1 : fp));
+                s.Say($"Scale {fp:0.###} in the {GizmoVisual.PlaneName(_axis)} plane");
+                return;
+            }
             case Drag.Rotate:
             {
                 if (_ringPlane.Intersect(o, d) is not { } rh) return;
@@ -242,13 +288,20 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
                 return;
         }
         // hover feedback
-        var (axis, center, operation) = HitGizmo(s, p.X, p.Y);
+        if (cmd.LoopArmed)
+        {
+            long le = PickEdge(s, p.X, p.Y);
+            if (le != _hotE) { _hotE = le; _hotV = _hotF = _hotAxis = -1; _hotCenter = false; UpdateLoopPreview(); s.Invalidate(); }
+            return;
+        }        var (axis, center, operation) = HitGizmo(s, p.X, p.Y);
+        axis = GizmoVisual.AsPlane(axis, operation, p.Ctrl);
         int hv = -1, hf = -1; long he = -1;
         if (axis < 0 && !center)
             switch (cmd.SelMode)
             {
                 case FormMode.Vertex: hv = PickVertex(s, p.X, p.Y); break;
                 case FormMode.Edge: he = PickEdge(s, p.X, p.Y); break;
+                case FormMode.Object: hf = PickFace(s, p.X, p.Y) >= 0 ? -2 : -1; break;
                 default: hf = PickFace(s, p.X, p.Y); break;
             }
         if (operation != _hotMode || axis != _hotAxis || center != _hotCenter || hv != _hotV || he != _hotE || hf != _hotF)
@@ -307,10 +360,11 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if(Binding.Positioning&&key is "Escape" or "Enter")
         {if(key=="Escape")Binding.Cancel();else if(!Binding.Bind(cmd.MovingVertices()))s.Say("Select cage geometry before binding the gizmo.",true);s.RaiseState();s.Invalidate();return true;}
         if(cmd.HasPanelStep)return false;
+        if (cmd.LoopArmed && key == "Escape") { cmd.DisarmLoop(); s.Say("Insert edge loop finished."); return true; }
         if (key == "Delete") { cmd.Params.OfType<ActionParam>().FirstOrDefault(p => p.Label == "Delete selection")?.Run(); return true; }
-        if (key == "Char:W") { cmd.ForceMode(0); s.Say("Move gizmo."); return true; }
-        if (key == "Char:E") { cmd.ForceMode(1); s.Say("Rotate gizmo: drag a ring."); return true; }
-        if (key == "Char:R") { cmd.ForceMode(2); s.Say("Scale gizmo: drag an axis handle, or the diagonal square for uniform scale."); return true; }
+        if (key == "Char:T") { cmd.ForceMode(0); s.Say("Move gizmo."); return true; }
+        if (key == "Char:R") { cmd.ForceMode(1); s.Say("Rotate gizmo: drag a ring."); return true; }
+        if (key == "Char:S") { cmd.ForceMode(2); s.Say("Scale gizmo: drag an axis handle, or the diagonal square for uniform scale."); return true; }
         if (key == "Escape" && (cmd.ObjectSelected || cmd.Verts.Count + cmd.Edges.Count + cmd.Faces.Count > 0)) { cmd.ClearSelection(); return true; }
         return false;
     }
@@ -323,8 +377,11 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 
         // hover + selection highlights
         if (_hotE >= 0) { var (a, b) = SubdMesh.Unkey(_hotE); o.AddLine(m.V[a], m.V[b], 0xFF35B6FF, 4f); }
+        foreach (var (a, b) in _loopLines) o.AddLine(a, b, 0xFF3DDC84, 4f);
         if (_hotV >= 0 && _hotV < m.V.Count) o.AddDot(m.V[_hotV], 0xFF35B6FF, 12);
-        if (_hotF >= 0 && _hotF < m.F.Count) AddFaceTris(o, m, _hotF, 0x5535B6FF);
+        if (cmd.ObjectSelected) for (int f = 0; f < m.F.Count; f++) AddFaceTris(o, m, f, 0x44FF8A1F);
+        if (_hotF == -2) { for (int f = 0; f < m.F.Count; f++) AddFaceTris(o, m, f, 0x5535B6FF); }
+        else if (_hotF >= 0 && _hotF < m.F.Count) AddFaceTris(o, m, _hotF, 0x5535B6FF);
         foreach (var f in cmd.Faces.Where(f => f < m.F.Count))
         {
             AddFaceTris(o, m, f, 0x66FF8A1F);
@@ -337,10 +394,10 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if (cmd.ShowPoles) FormPoleOverlay.Draw(o, m, FormQuality.Analyze(m, 1));
 
         // Every editor uses the same arrowheads, rotation rings, scale blocks and screen sizing.
-        for (int operation = 0; !cmd.HasPanelStep && operation < 3; operation++)
+        for (int operation = 0; !cmd.HasPanelStep && !cmd.LoopArmed && operation < 3; operation++)
             if (Gizmo(s, operation) is { } g)
                 GizmoVisual.DrawOperation(o, s, g.c, Axes, operation, Mode,
-                    _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter);
+                    _hotMode == operation ? _hotAxis : -1, _hotMode == operation && _hotCenter, planes: true);
         if (_drag == Drag.Box) o.AddRect(_bx0, _by0, _bx1, _by1);
         // the lasso is shown as a trail of small boxes along the path (the overlay has no 2D polyline)
         if (_drag == Drag.Lasso) foreach (var (x, y) in _lasso) o.AddRect(x - 1.5, y - 1.5, x + 1.5, y + 1.5);
@@ -352,17 +409,16 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         var sym = cmd.Sym; if (!sym.Active || m.V.Count == 0) return;
         var lo = m.V.Aggregate((a, b) => new Vec3(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Min(a.Z, b.Z)));
         var hi = m.V.Aggregate((a, b) => new Vec3(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y), Math.Max(a.Z, b.Z)));
-        double r = Math.Max((hi - lo).Length * 0.7, 10); const uint col = 0x90FFC53D;
-        switch (sym.Mode)
+        double tol = Math.Max((hi - lo).Length * 1e-4, 1e-4); const uint col = 0xFFFFC53D; var og = sym.Origin;
+        // the seam is drawn as colored cage edges instead of a plane, so it stays out of the way
+        bool OnSeam(Vec3 p) => sym.Mode switch
         {
-            case SymMode.MirrorX: o.AddPolyline([new(0, -r, -r), new(0, r, -r), new(0, r, r), new(0, -r, r)], col, 1.4f, true); o.AddLine(new(0, -r, 0), new(0, r, 0), col, 1f); o.AddLine(new(0, 0, -r), new(0, 0, r), col, 1f); break;
-            case SymMode.MirrorY: o.AddPolyline([new(-r, 0, -r), new(r, 0, -r), new(r, 0, r), new(-r, 0, r)], col, 1.4f, true); o.AddLine(new(-r, 0, 0), new(r, 0, 0), col, 1f); o.AddLine(new(0, 0, -r), new(0, 0, r), col, 1f); break;
-            case SymMode.MirrorZ: o.AddPolyline([new(-r, -r, 0), new(r, -r, 0), new(r, r, 0), new(-r, r, 0)], col, 1.4f, true); o.AddLine(new(-r, 0, 0), new(r, 0, 0), col, 1f); o.AddLine(new(0, -r, 0), new(0, r, 0), col, 1f); break;
-            case SymMode.Radial:
-                for (int k = 0; k < sym.Count; k++) { double a = 2 * Math.PI * k / sym.Count; o.AddLine(Vec3.Zero, new Vec3(Math.Cos(a) * r, Math.Sin(a) * r, 0), col, 1.2f); }
-                o.AddLine(new(0, 0, -r), new(0, 0, r), col, 1f);
-                break;
-        }
+            SymMode.MirrorX => Math.Abs(p.X - og.X) < tol,
+            SymMode.MirrorY => Math.Abs(p.Y - og.Y) < tol,
+            SymMode.MirrorZ => Math.Abs(p.Z - og.Z) < tol,
+            _ => Math.Abs(p.X - og.X) < tol && Math.Abs(p.Y - og.Y) < tol,
+        };
+        foreach (var (ea, eb) in m.Edges()) if (OnSeam(m.V[ea]) && OnSeam(m.V[eb])) o.AddLine(m.V[ea], m.V[eb], col, 4.5f);
         var partners = cmd.Partners(); if (partners == null) return;
         foreach (var v in cmd.MovingVertices()) if (v < partners.Length) foreach (var (p, _) in partners[v]) if (p != v) o.AddDot(m.V[p], 0xFF6FD3FF, 8);
     }
