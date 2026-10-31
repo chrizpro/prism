@@ -18,6 +18,7 @@ public class CreateSketchCommand : Command
         _face = Slot(new SelectionSlot { Label = "Plane or flat face (optional)", Filter = SelFilter.Face | SelFilter.Plane, Optional = true });
         _plane = Choice("Base plane", 0, "XY (top)", "XZ (front)", "YZ (side)");
         _offset = Num("Offset", 0);
+        Add(new ActionParam { Label = "New construction plane…", Run = () => S.SuspendFor(() => new ConstructionPlaneCommand()), HelpText = "Open the construction plane options. When you finish or cancel there, you come back here with the new plane already picked." });
         _lookNormal = Check("Look normal when starting", true);
     }
     public override string Title => "Create Sketch";

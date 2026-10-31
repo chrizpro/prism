@@ -781,6 +781,27 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>The editor or temporary page that the pending choice will finish or discard.</summary>
     [ObservableProperty] public partial string PendingTitle { get; set; } = "";
 
+    Command? _suspendedCmd;
+
+    /// <summary>Park the active command (its picks and values stay) while another command runs; when that command commits or is cancelled the parked one resumes. Newly created objects are selected on return.</summary>
+    public void SuspendFor(Func<Command> make)
+    {
+        var c = ActiveCommand; if (c == null) return;
+        var next = make(); next.Factory = make; CommandCatalog.Register(make);
+        _suspendedCmd = c;
+        ActiveCommand = null;
+        c.OnEnd();
+        ClearPreview(); Hover = null; _handleDrag = false;
+        StartCommand(next);
+        if (!ReferenceEquals(ActiveCommand, next)) _suspendedCmd = null;   // the hand-off was refused
+    }
+
+    void ResumeSuspended()
+    {
+        var c = _suspendedCmd; _suspendedCmd = null;
+        if (c != null) StartCommand(c);
+    }
+
     public void StartCommand(Command cmd)
     {
         if(ProtectPendingCommand && ActiveCommand is { } current && CommandCatalog.KeyOf(current)==CommandCatalog.KeyOf(cmd))
@@ -844,6 +865,7 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand == null) return;
         ClearPendingNotice();
         var c = ActiveCommand; ActiveCommand = null;
+        _suspendedCmd = null;
         c.OnEnd(); c.OnCancel();
         ClearPreview();
         Hover = null;
@@ -852,7 +874,16 @@ public sealed partial class CadSession : ObservableObject
     }
 
     public void AcceptCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(true) != true) CommitCommand(); }
-    public void CancelCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(false) != true) CancelCommand(); }
+    public void CancelCommandPanel()
+    {
+        KeepPending();
+        if (ActiveCommand?.FinishPanelStep(false) != true)
+        {
+            var parked = _suspendedCmd;
+            CancelCommand();
+            if (parked != null) StartCommand(parked);
+        }
+    }
 
     public void CommitCommand()
     {
@@ -872,6 +903,7 @@ public sealed partial class CadSession : ObservableObject
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
+        ResumeSuspended();
         if (edited != null && !res.NoOp) ReplayAfterEdit(edited, c.Title, c.RebuildEnd ?? c.ReturnNode!, c.RebuildMap);
         else if (edited != null && c.ReturnNode != null) { GoTo(c.ReturnNode); Say($"{c.Title}: no change"); }
         else Say($"{c.Title} complete");
