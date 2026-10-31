@@ -638,10 +638,11 @@ public sealed class LoftCommand : BodyCommand
         _closed.Caption = "Closed loft";
         _closed.HelpText = "Connect the last profile back to the first.";
         _railSteps = Add(new IntParam { Label = "Guide rail accuracy (sections along the rail)", Caption = "Rail accuracy", Min = 4, Max = 40, Value = 12, IsAdvanced = true, HelpText = "Number of intermediate sections used to follow the rails." });
+        _sections.SelectionRuleIndex = 1; _rails.SelectionRuleIndex = 1;
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Loft Surface" : "Loft";
-    public override string Hint => "Click a curve to take its whole connected chain as one profile (blue, numbered in pick order). Switch to Guide rails to pick one or two rails (orange). Hold Ctrl or Shift to take a single edge instead; click a picked curve again to remove it. A sketch holding several curves is never taken as a whole.";
+    public override string Hint => "Click a curve to take its whole connected chain as one profile (blue, numbered in pick order). Switch to Guide rails to pick one or two rails (orange). The rule list under each slot changes this (Single edges, Connected chain, Tangent chain, Partial loop); Ctrl or Shift always takes one edge; click a picked curve again to remove it. A sketch holding several curves is never taken as a whole.";
 
     protected override void UpdateVisibility()
     {
@@ -652,10 +653,10 @@ public sealed class LoftCommand : BodyCommand
     public override bool PickPoint(PickResult hit, bool additive)
     {
         var slot = ActiveSlot;
-        if ((slot != _sections && slot != _rails) || hit.Item.Kind != SelKind.Edge) return false;
+        if ((slot != _sections && slot != _rails) || hit.Item.Kind != SelKind.Edge || slot!.IsPartialLoop) return false;
         try
         {
-            var chain = additive ? [hit.Item] : SelectionChains.Expand(S, hit.Item, false);
+            var chain = additive || slot.EdgeRule == 0 ? [hit.Item] : SelectionChains.Expand(S, hit.Item, slot.EdgeRule == 2);
             bool remove = slot!.Items.Contains(hit.Item);
             ConfigureInputs(() =>
             {
