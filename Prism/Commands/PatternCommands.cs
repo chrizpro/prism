@@ -144,6 +144,9 @@ public abstract class PatternCommand : Command
     readonly List<(Vec3 p, bool skipped)> _marks = [];
     protected readonly List<(Vec3 a, Vec3 b)> Guides = [];
     protected readonly List<IReadOnlyList<Vec3>> GuideLines = [];
+    protected readonly List<HandleSpec> PatHandles = [];
+    public override IReadOnlyList<HandleSpec> Handles => PatHandles.ToArray();
+    public override HandleSpec? Handle => PatHandles.Count > 0 ? PatHandles[0] : null;
 
     protected PatternCommand(bool offerMoveOriginal)
     {
@@ -211,7 +214,7 @@ public abstract class PatternCommand : Command
 
     protected override CommandOutput? Build()
     {
-        Results.Clear(); _marks.Clear(); Guides.Clear(); GuideLines.Clear();
+        Results.Clear(); _marks.Clear(); Guides.Clear(); GuideLines.Clear(); PatHandles.Clear();
         if (!Complete) return null;
         var srcs = ObjectsOf(Src).Distinct().ToList();
         if (srcs.Count == 0) return null;
@@ -345,7 +348,12 @@ public sealed class LinearPatternCommand : PatternCommand
                     list.Add(Placement.Move(delta, r + delta));
                 }
         for (int a = 0; a < 3; a++)
-            if (axes[a].n > 1) Guides.Add((r, r + axes[a].d * (axes[a].step * (axes[a].n - 1))));
+            if (axes[a].n > 1)
+            {
+                Guides.Add((r, r + axes[a].d * (axes[a].step * (axes[a].n - 1))));
+                var sp = a == 0 ? _s1 : a == 1 ? _s2 : _s3;
+                PatHandles.Add(new HandleSpec(r, axes[a].d, sp, _mode.Index == 1 ? 1.0 : 1.0 / (axes[a].n - 1)));
+            }
         return list;
     }
 }
@@ -387,6 +395,7 @@ public sealed class CircularPatternCommand : PatternCommand
         var origin = _axis.Index < 3 ? (_through.Index == 0 ? Vec3.Zero : r) : o0;
         var radial = r - origin; radial -= d * Vec3.Dot(radial, d);
         if (radial.Length < 1e-6) { var h = Math.Abs(d.X) < 0.9 ? Vec3.UnitX : Vec3.UnitY; radial = Vec3.Cross(d, h); }
+        double radialLen = radial.Length > 1e-6 ? radial.Length : 0;
         radial = radial.Normalized();
 
         double step;
@@ -409,6 +418,8 @@ public sealed class CircularPatternCommand : PatternCommand
         }
         double size = (max - min).Length * 1.2 + 10;
         Guides.Add((origin - d * size, origin + d * size));
+        PatHandles.Add(new HandleSpec(origin, d, _angle, 1, radial, radialLen > 1e-6 ? radialLen : Math.Max(size * 0.3, 5)));
+        if (_rings.Value > 1) PatHandles.Add(new HandleSpec(r, radial, _ringSp));
         return list;
     }
 }
@@ -479,6 +490,7 @@ public sealed class CurvePatternCommand : PatternCommand
             list.Add(new Placement(Vec3.Zero, [.. rots], p - r, p));
         }
         GuideLines.Add(pts);
+        if (_dist.Index == 1 && pts.Count > 1) { var (p0, t0) = PatternGeometry.Sample(pts, _start.Value); PatHandles.Add(new HandleSpec(p0, t0, _spacing)); }
         return list;
     }
 }
@@ -592,6 +604,8 @@ public sealed class FillPatternCommand : PatternCommand
             list.Add(Placement.Move(delta, r + delta));
         }
         foreach (var c in closed) GuideLines.Add(c);
+        var hc = plane.PointAt(cu, cv);
+        PatHandles.Add(new HandleSpec(hc, (plane.PointAt(cu + ct, cv + st) - hc).Normalized(), _spacing));
         return list;
     }
 }
