@@ -29,7 +29,19 @@ sealed class Program
             Console.WriteLine("Prism geometry and simulation runtimes verified.");
             return;
         }
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception);
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    static void LogCrash(Exception? ex)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "crash.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
+        }
+        catch { }
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

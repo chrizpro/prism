@@ -630,15 +630,14 @@ public sealed class LoftCommand : BodyCommand
     public LoftCommand(bool surface = false)
     {
         _surface = surface;
-        _sections = Slot(new SelectionSlot { Label = "Sections (in order)", Caption = "Profiles", Filter = SelFilter.CurveObj | SelFilter.Edge | SelFilter.Face, Multi = true, Ordered = true });
-        _rails = Slot(new SelectionSlot { Label = "Guide rails (optional, one or two)", Caption = "Guide rails", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, Optional = true });
+        _sections = Slot(new SelectionSlot { Label = "Sections (in order)", Caption = "Profiles", Filter = SelFilter.CurveObj | SelFilter.Edge | SelFilter.Face, Multi = true, Ordered = true, SelectionRuleIndex = 1 });
+        _rails = Slot(new SelectionSlot { Label = "Guide rails (optional, one or two)", Caption = "Guide rails", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, Optional = true, SelectionRuleIndex = 1 });
         _ruled = Check("Straight (ruled) transitions", false);
         _closed = Check("Close the loft (last section back to the first)", false);
         _ruled.Caption = "Ruled transitions";
         _closed.Caption = "Closed loft";
         _closed.HelpText = "Connect the last profile back to the first.";
         _railSteps = Add(new IntParam { Label = "Guide rail accuracy (sections along the rail)", Caption = "Rail accuracy", Min = 4, Max = 40, Value = 12, IsAdvanced = true, HelpText = "Number of intermediate sections used to follow the rails." });
-        _sections.SelectionRuleIndex = 1; _rails.SelectionRuleIndex = 1;
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Loft Surface" : "Loft";
