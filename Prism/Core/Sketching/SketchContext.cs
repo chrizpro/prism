@@ -95,7 +95,7 @@ public sealed partial class SketchContext
     {
         if (_undo.Count == 0) return false;
         Tool?.Deactivate(s);
-        var snapshot = _undo.Pop(); _sections = snapshot.Sections; _activeSection = snapshot.Active; GizmoSize = snapshot.Size;
+        var snapshot = _undo.Pop(); _sections = snapshot.Sections; _activeSection = snapshot.Active; GizmoSize = snapshot.Size; GizmoStretch = snapshot.Stretch;
         _gizmoFrame = snapshot.Gizmo; GizmoPlaneIndex = snapshot.GizmoPlane; ActiveDatumId = snapshot.Datum; GeometryScale=snapshot.TargetScale;
         ClearPlaneSelection();
         Solve(s); s.Say("Undid last sketch step");
@@ -629,24 +629,31 @@ public sealed partial class SketchContext
         CurvatureComb.Draw(o, s, _comb);
     }
 
-    List<SketchFill.P2>? _fillKeyPts; List<(SketchFill.P2, SketchFill.P2, SketchFill.P2)> _fillTris = [];
+    List<SketchFill.P2>? _fillKeyPts; List<double>? _fillKeyLift; List<(SketchFill.P2, SketchFill.P2, SketchFill.P2)> _fillTris = [];
+    readonly System.Collections.Generic.Dictionary<(long, long), Vec3> _fillWorld = [];
+    static (long, long) FillKey(SketchFill.P2 p) => ((long)Math.Round(p.X * 1e6), (long)Math.Round(p.Y * 1e6));
 
     /// <summary>A light tint over every closed profile, so you can see at a glance which shapes are closed.</summary>
     void BuildFill(Overlay o)
     {
-        var curves = new List<List<SketchFill.P2>>(); var key = new List<SketchFill.P2>();
+        var curves = new List<List<SketchFill.P2>>(); var key = new List<SketchFill.P2>(); var lift = new List<double>();
+        _fillWorld.Clear();
         foreach (var (e, pts) in Model.Polylines(Plane))
         {
             if (e.Construction || e.Type == EntType.Point) continue;
-            var c = pts.Select(p => { var d = p - Plane.Origin; return new SketchFill.P2(Vec3.Dot(d, Plane.U), Vec3.Dot(d, Plane.V)); }).ToList();
+            var c = pts.Select(p => { var d = p - Plane.Origin; var q = new SketchFill.P2(Vec3.Dot(d, Plane.U), Vec3.Dot(d, Plane.V)); _fillWorld[FillKey(q)] = p; return q; }).ToList();
             curves.Add(c); key.Add(c[0]); key.Add(c[^1]); key.Add(c[c.Count / 2]);
+            // a point lifted off the plane (Free 3D editing) must move the tint too, so the height is part of what is compared
+            lift.Add(Vec3.Dot(pts[0] - Plane.Origin, Plane.Normal)); lift.Add(Vec3.Dot(pts[^1] - Plane.Origin, Plane.Normal)); lift.Add(Vec3.Dot(pts[pts.Count / 2] - Plane.Origin, Plane.Normal));
         }
-        if (_fillKeyPts == null || !_fillKeyPts.SequenceEqual(key))
+        if (_fillKeyPts == null || !_fillKeyPts.SequenceEqual(key) || _fillKeyLift == null || !_fillKeyLift.SequenceEqual(lift))
         {
-            _fillKeyPts = key;
+            _fillKeyPts = key; _fillKeyLift = lift;
             _fillTris = SketchFill.Triangulate(SketchFill.Loops(curves, 1e-4));
         }
-        foreach (var (a, b, c) in _fillTris) o.AddTri(Plane.PointAt(a.X, a.Y), Plane.PointAt(b.X, b.Y), Plane.PointAt(c.X, c.Y), 0x304C94FF);
+        // the tint is worked out flat, then each corner goes back to where its curve really is, so it follows a shape lifted out of the plane
+        Vec3 At(SketchFill.P2 p) => _fillWorld.TryGetValue(FillKey(p), out var world) ? world : Plane.PointAt(p.X, p.Y);
+        foreach (var (a, b, c) in _fillTris) o.AddTri(At(a), At(b), At(c), 0x304C94FF);
     }
 
     /// <summary>A dashed line: the usual look of construction geometry.</summary>

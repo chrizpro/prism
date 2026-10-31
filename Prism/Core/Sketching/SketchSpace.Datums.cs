@@ -35,17 +35,17 @@ public sealed partial class SketchContext
         var frame = datum.Frame; var before = CaptureSpace();
         if(!Is3DEnabled)
         {
-            ActiveDatumId=datum.Id;_gizmoFrame=frame;GizmoSize=datum.Scale;
+            ActiveDatumId=datum.Id;_gizmoFrame=frame;GizmoSize=datum.Scale;GizmoStretch=datum.Stretch;
             if(datum.Kind==SketchDatumKind.Gizmo){_planarGizmoEnabled=true;SetTool(s,new SketchGeometryEditTool());GizmoEditing=true;}
             s.NotifySketchChanged();s.Invalidate();s.Say($"Selected {datum.Name}.");return;
         }
         if(GeometryEditing&&HasGeometrySelection)
         {
-            _gizmoFrame=frame;GizmoPlaneIndex=0;GizmoSize=datum.Scale;ActiveDatumId=datum.Id;_undo.Push(before);
+            _gizmoFrame=frame;GizmoPlaneIndex=0;GizmoSize=datum.Scale;GizmoStretch=datum.Stretch;ActiveDatumId=datum.Id;_undo.Push(before);
             s.NotifySketchChanged();s.Invalidate();s.Say($"Using {datum.Name} as the selection transform pivot.");return;
         }
         _gizmoFrame=frame; GizmoPlaneIndex = 0; ApplyGizmoDrawingPlane(s,recordUndo:false); _undo.Push(before);
-        GizmoSize = datum.Scale; ActiveDatumId = datum.Id;
+        GizmoSize = datum.Scale; GizmoStretch = datum.Stretch; ActiveDatumId = datum.Id;
         if (datum.Kind == SketchDatumKind.Plane)
         {
             int existing = _sections.FindIndex(section => Math.Abs(Vec3.Dot(section.Plane.Origin - frame.Origin,frame.Normal)) < 1e-6 && section.Plane.U.DistanceTo(frame.U) < 1e-6 && section.Plane.V.DistanceTo(frame.V) < 1e-6);
@@ -58,7 +58,7 @@ public sealed partial class SketchContext
     {
         var datum = Datums.FirstOrDefault(d => d.Id == ActiveDatumId);
         if (datum == null) { s.Say("Select a saved datum first.",true); return; }
-        Push(); datum.Frame = datum.Kind == SketchDatumKind.Plane ? GizmoDrawingPlane : GizmoFrame; datum.Scale = GizmoSize;
+        Push(); datum.Frame = datum.Kind == SketchDatumKind.Plane ? GizmoDrawingPlane : GizmoFrame; datum.Scale = GizmoSize; datum.Stretch = GizmoStretch;
         s.NotifySketchChanged(); s.Invalidate();
     }
 

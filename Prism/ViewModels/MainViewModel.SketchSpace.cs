@@ -120,6 +120,7 @@ public sealed partial class MainViewModel
             case "gizmo": Session.Key("SketchGizmo"); break;
             case "confirm-target": sk.ConfirmGizmoTarget(Session); break;
             case "edit": sk.ToggleGeometryEditing(Session); break;
+            case "spline-points": sk.SetTool(Session, new SketchGeometryEditTool(1)); break;
             case "normal": sk.LookNormal(Session); break;
             case "xy": sk.PresetPlane(Session, 0); break;
             case "xz": sk.PresetPlane(Session, 1); break;

@@ -53,18 +53,38 @@ public sealed partial class MainViewModel
     public double GizmoRotationZ {get=>GizmoRotation.Z;set=>SetGizmoRotation(new(GizmoRotation.X,GizmoRotation.Y,value));}
     void SetGizmoRotation(Vec3 rotation)
     {
-        if(!EnsurePlacement())return;
+        if(ActiveBinding!=null&&!EnsurePlacement())return;
         if(ActiveBinding is {} binding)binding.SetRotation(rotation);
         else Session.Sketch?.SetGizmoTransform(Session,GizmoOrigin,rotation);
         Session.Invalidate();
     }
     public bool HasGizmoPlanes=>Session.Sketch!=null;
-    public double GizmoPlaneSize {get=>Session.Sketch?.GizmoSize??1;set {if(Session.Sketch is {} sketch && EnsurePlacement())sketch.SetGizmoSize(Session,value);}}
+    // Scale has three fields. Bound to geometry they multiply the selection along the gizmo's own axes (Blender-style: 1 means unchanged,
+    // 0.5 on Y squeezes two points on a vertical line together). Unbound they size the drawing plane: width and height, and none for depth.
+    bool GizmoScaleBound=>Session.Sketch is {GeometryEditing:true,GizmoEditing:false,HasGeometrySelection:true}&&!GizmoPositioning;
+    public string GizmoScaleHeader=>GizmoScaleBound?"Scale the selection (about the gizmo, along its axes)":"Scale the plane (width and height)";
+    public bool GizmoScaleZEnabled=>GizmoScaleBound&&Session.Sketch is {FreeEditing:true};
+    public string GizmoScaleZLabel=>GizmoScaleZEnabled?"Z":"Z (n/a)";
+    public double GizmoScaleX {get=>GizmoScaleBound?1:(Session.Sketch?.GizmoSize??1);set=>SetGizmoScale(0,value);}
+    public double GizmoScaleY {get=>GizmoScaleBound?1:(Session.Sketch is {} sketch?sketch.GizmoSize*sketch.GizmoStretch:1);set=>SetGizmoScale(1,value);}
+    public double GizmoScaleZ {get=>1;set=>SetGizmoScale(2,value);}
+    void SetGizmoScale(int axis,double value)
+    {
+        if(Session.Sketch is {} sketch&&double.IsFinite(value)&&value>0)
+        {
+            if(GizmoScaleBound)sketch.ScaleBoundGeometry(Session,new Vec3(axis==0?value:1,axis==1?value:1,axis==2?value:1));
+            else if(axis==0)sketch.SetGizmoPlaneSize(Session,value,sketch.GizmoSize*sketch.GizmoStretch);
+            else if(axis==1)sketch.SetGizmoPlaneSize(Session,sketch.GizmoSize,value);
+        }
+        foreach(var property in new[]{nameof(GizmoScaleX),nameof(GizmoScaleY),nameof(GizmoScaleZ)})OnPropertyChanged(property);
+    }
+    public double GizmoPlaneSize {get=>Session.Sketch?.GizmoSize??1;set {if(Session.Sketch is {} sketch)sketch.SetGizmoSize(Session,value);}}
     void SetGizmoOrigin(Vec3 origin)
     {
-        if(origin==GizmoOrigin||!EnsurePlacement())return;
-        if(ActiveBinding is {} binding)binding.SetOrigin(origin);
-        else Session.Sketch?.SetPlacementOrigin(Session,origin);
+        if(origin==GizmoOrigin)return;
+        // typing a location moves what the gizmo is doing now: a bound gizmo moves its geometry, an unbound one moves alone
+        if(ActiveBinding is {} binding){if(!EnsurePlacement())return;binding.SetOrigin(origin);}
+        else if(Session.Sketch is {} sketch){if(GizmoPositioning)sketch.SetPlacementOrigin(Session,origin);else sketch.MoveDrawingPlane(Session,origin);}
         Session.Invalidate();
     }
     // typing a location or angle edits the gizmo itself, so it enters placement mode on demand
@@ -83,6 +103,7 @@ public sealed partial class MainViewModel
         if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Vec3.Zero);OpenGizmoPanel();return;}
         bool existing=ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true;
         OpenGizmoPanel();
+        if(Session.Sketch!=null)return;     // a sketch's gizmo is never unbound just by opening the panel: Unbind is the user's choice
         if(!existing&&CanPlaceGizmo&&!GizmoPositioning)
         {
             BeginGizmoPlacement();
@@ -94,9 +115,9 @@ public sealed partial class MainViewModel
         if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Session.ViewportCursor??Vec3.Zero);OpenGizmoPanel();return;}
         bool bound=ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true;
         OpenGizmoPanel();
+        if(Session.Sketch!=null||bound)return;     // opening the panel never unbinds a gizmo; only a gizmo with nothing bound yet starts being placed
         if(!GizmoPositioning)BeginGizmoPlacement();
-        // an existing binding keeps its pivot so its targets can be edited; a new gizmo starts at the cursor
-        if(GizmoPositioning&&!bound)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
+        if(GizmoPositioning)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
     }
     // Done keeps what was edited: pending placement is bound to the selection, or discarded if nothing is selected
     public void FinishGizmoPanel()
@@ -156,7 +177,7 @@ public sealed partial class MainViewModel
     {
         if(_placementSketch!=null && (!ReferenceEquals(_placementSketch,Session.Sketch)||!_placementSketch.IndependentGizmoPlacement)){_sketchPlacementBefore=null;_placementSketch=null;}
         if(!ShowGizmoPanel)return;
-        foreach(var property in new[]{nameof(CanPlaceGizmo),nameof(GizmoIsDatum),nameof(GizmoIsNotDatum),nameof(GizmoPositioning),nameof(GizmoBindingStatus),nameof(GizmoOperations),nameof(GizmoActiveOperation),nameof(GizmoOriginX),nameof(GizmoOriginY),nameof(GizmoOriginZ),nameof(GizmoRotationX),nameof(GizmoRotationY),nameof(GizmoRotationZ),nameof(HasGizmoPlanes),nameof(GizmoPlaneSize)})OnPropertyChanged(property);
+        foreach(var property in new[]{nameof(CanPlaceGizmo),nameof(GizmoIsDatum),nameof(GizmoIsNotDatum),nameof(GizmoPositioning),nameof(GizmoBindingStatus),nameof(GizmoOperations),nameof(GizmoActiveOperation),nameof(GizmoOriginX),nameof(GizmoOriginY),nameof(GizmoOriginZ),nameof(GizmoRotationX),nameof(GizmoRotationY),nameof(GizmoRotationZ),nameof(HasGizmoPlanes),nameof(GizmoPlaneSize),nameof(GizmoScaleHeader),nameof(GizmoScaleZEnabled),nameof(GizmoScaleZLabel),nameof(GizmoScaleX),nameof(GizmoScaleY),nameof(GizmoScaleZ)})OnPropertyChanged(property);
     }
     public string[] GizmoDisplayModes { get; } = ["Active tool only", "Combined handles", "Custom visibility"];
     public int GizmoDisplayMode { get => GizmoSettings.Current.DisplayMode; set => ChangeGizmo(g => g.DisplayMode = Math.Clamp(value, 0, 2)); }
@@ -166,7 +187,6 @@ public sealed partial class MainViewModel
     public bool GizmoShowScale { get => GizmoSettings.Current.Scale; set => ChangeGizmo(g => g.Scale = value); }
     public bool GizmoShowPlanes { get => GizmoSettings.Current.PlaneHandles; set => ChangeGizmo(g => g.PlaneHandles = value); }
     public bool GizmoShowLabels { get => GizmoSettings.Current.Labels; set => ChangeGizmo(g => g.Labels = value); }
-    public bool GizmoShowSheets { get => GizmoSettings.Current.PlaneSheets; set => ChangeGizmo(g => g.PlaneSheets = value); }
     public bool GizmoShowWorkPlane { get => GizmoSettings.Current.WorkPlane; set => ChangeGizmo(g => g.WorkPlane = value); }
     public bool GizmoShowX {get=>GizmoSettings.Current.AxisX;set=>ChangeGizmo(g=>g.AxisX=value);}
     public bool GizmoShowY {get=>GizmoSettings.Current.AxisY;set=>ChangeGizmo(g=>g.AxisY=value);}

@@ -13,7 +13,7 @@ public sealed partial class SketchContext
 {
     List<SketchSection> _sections = [];
     int _activeSection;
-    sealed record SpaceSnapshot(List<SketchSection> Sections, int Active, double Size, Plane3 Gizmo, int GizmoPlane, Guid? Datum, double TargetScale);
+    sealed record SpaceSnapshot(List<SketchSection> Sections, int Active, double Size, Plane3 Gizmo, int GizmoPlane, Guid? Datum, double TargetScale, double Stretch = 1);
     Plane3 _gizmoFrame;
     public Plane3 GizmoFrame => _gizmoFrame;
     public int GizmoPlaneIndex { get; private set; }
@@ -39,6 +39,8 @@ public sealed partial class SketchContext
     public bool Is3DEnabled { get; private set; }
     public SketchGizmoOperation GizmoOperation { get; set; }
     public double GizmoSize { get; private set; } = 1;
+    /// <summary>The plane's height as a multiple of its width (1 is square). Width is GizmoSize.</summary>
+    public double GizmoStretch { get; private set; } = 1;
     public bool SnapOtherCurves { get; set; }
     public bool ProjectOtherCurves { get; set; }
     public int DrawingAxis { get; private set; }
@@ -93,7 +95,7 @@ public sealed partial class SketchContext
     {
         var planes = _sections.Select(section => section.Clone()).ToList();
         if (before != null) planes[_activeSection].Model = before.Clone();
-        return new(planes, _activeSection, GizmoSize, _gizmoFrame, GizmoPlaneIndex, ActiveDatumId, GeometryScale);
+        return new(planes, _activeSection, GizmoSize, _gizmoFrame, GizmoPlaneIndex, ActiveDatumId, GeometryScale, GizmoStretch);
     }
 
     void ClearPlaneSelection()
@@ -268,9 +270,24 @@ public sealed partial class SketchContext
         }
         var before = CaptureSpace();
         _gizmoFrame = new(location ? Vec3.Zero : _gizmoFrame.Origin, rotation ? Vec3.UnitX : _gizmoFrame.U, rotation ? Vec3.UnitY : _gizmoFrame.V);
-        if (scale) GizmoSize = 1;
+        if (scale) { GizmoSize = 1; GizmoStretch = 1; }
         if (!GeometryEditing) ApplyGizmoDrawingPlane(s, recordUndo: false);
         _undo.Push(before); s.NotifySketchChanged(); s.RaiseState(); s.Invalidate();
+    }
+
+    /// <summary>Size the plane by its width (U) and height (V) separately. A plane has no thickness, so there is no third value.</summary>
+    public void SetGizmoPlaneSize(CadSession s, double width, double height)
+    {
+        if (!double.IsFinite(width) || !double.IsFinite(height) || width < .25 || width > 8 || height < .25 || height > 8) { s.Say("Plane width and height must be between 0.25 and 8.", true); return; }
+        if (Math.Abs(width - GizmoSize) < 1e-8 && Math.Abs(height / width - GizmoStretch) < 1e-8) return;
+        Push(); GizmoSize = width; GizmoStretch = height / width; s.NotifySketchChanged(); s.Invalidate();
+    }
+
+    /// <summary>With geometry bound to the gizmo: scale it by a different factor along each gizmo axis (about the gizmo's center), so two points on a line can be squeezed together along that line.</summary>
+    public bool ScaleBoundGeometry(CadSession s, Vec3 factors)
+    {
+        if (!GeometryEditing || GizmoEditing || !HasGeometrySelection || !Finite(factors) || factors.X <= 0 || factors.Y <= 0 || factors.Z <= 0) return false;
+        return TransformGeometry(s, _gizmoFrame, 1, factors);
     }
 
     public void SetGizmoSize(CadSession s, double size)
@@ -527,7 +544,7 @@ public sealed partial class SketchContext
                 else
                 { if (!GeometryEditing && !SamePlane(snapshot.Gizmo, _gizmoFrame)) ApplyGizmoDrawingPlane(s, recordUndo: false); _undo.Push(snapshot); }
             }
-            else { _sections = snapshot.Sections; _activeSection = snapshot.Active; GizmoSize = snapshot.Size; _gizmoFrame = snapshot.Gizmo; GizmoPlaneIndex = snapshot.GizmoPlane; GeometryScale=snapshot.TargetScale; }
+            else { _sections = snapshot.Sections; _activeSection = snapshot.Active; GizmoSize = snapshot.Size; GizmoStretch = snapshot.Stretch; _gizmoFrame = snapshot.Gizmo; GizmoPlaneIndex = snapshot.GizmoPlane; GeometryScale=snapshot.TargetScale; }
         }
         _dragSnapshot = null; _gizmoDrag = -1;
         _geometryDrag=false;
@@ -746,27 +763,14 @@ public sealed partial class SketchContext
         var axes = Basis; var origin = _gizmoFrame.Origin; double length = HandleLength(s);
         var display = GizmoSettings.Current; int active = ActiveGizmoDisplayOperation;
         var selectedPlane = GizmoDrawingPlane;
-        double half = length * 1.25 * GizmoSize;
+        double half = length * 1.25 * GizmoSize, halfV = half * GizmoStretch;
         Vec3 P(double u, double v) => origin + selectedPlane.U * u + selectedPlane.V * v;
         if (display.WorkPlane)
         {
             uint accent = GizmoVisual.Accent;
-            o.AddTri(P(-half, -half), P(half, -half), P(half, half), (accent & 0xFFFFFF) | 0x08000000);
-            o.AddTri(P(-half, -half), P(half, half), P(-half, half), (accent & 0xFFFFFF) | 0x08000000);
-            o.AddPolyline([P(-half, -half), P(half, -half), P(half, half), P(-half, half)], (accent & 0xFFFFFF) | 0x60000000, 1, true);
-        }
-        if (display.PlaneSheets)
-        {
-            uint tint = GizmoVisual.Accent & 0xFFFFFF;
-            void Sheet(Plane3 plane, Vec3 center, double size, uint fill, uint edge)
-            {
-                Vec3 Q(double u, double v) => center + plane.U * u + plane.V * v;
-                o.AddTri(Q(-size, -size), Q(size, -size), Q(size, size), tint | fill); o.AddTri(Q(-size, -size), Q(size, size), Q(-size, size), tint | fill);
-                o.AddPolyline([Q(-size, -size), Q(size, -size), Q(size, size), Q(-size, size)], tint | edge, 1.4f, true);
-            }
-            Sheet(selectedPlane, origin, half, 0x2E000000u, 0xB0000000u);
-            for (int i = 0; i < _sections.Count; i++)
-                if (i != _activeSection) Sheet(_sections[i].Plane, _sections[i].Plane.Origin, half, 0x1C000000u, 0x80000000u);
+            o.AddTri(P(-half, -halfV), P(half, -halfV), P(half, halfV), (accent & 0xFFFFFF) | 0x08000000);
+            o.AddTri(P(-half, -halfV), P(half, halfV), P(-half, halfV), (accent & 0xFFFFFF) | 0x08000000);
+            o.AddPolyline([P(-half, -halfV), P(half, -halfV), P(half, halfV), P(-half, halfV)], (accent & 0xFFFFFF) | 0x60000000, 1, true);
         }
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
         if (display.PlaneHandles && display.Allows(0,active) && (GizmoEditing || GeometryEditing))

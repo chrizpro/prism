@@ -88,9 +88,6 @@ Check(live.SelectedGizmoAxis == 0 && vm.SketchGizmoAxis == 0, "and the X arrow t
 // the panel changes the gizmo as well
 vm.SketchGizmoAxis = 2;
 Check(live.SelectedGizmoAxis == 2, "picking an axis in the panel selects it on the gizmo");
-vm.GizmoShowSheets = true;
-Check(GizmoSettings.Current.PlaneSheets, "Show planes is a gizmo setting the panel can switch on");
-vm.GizmoShowSheets = false;
 s.ExitSketch(false);
 
 // Edit Geometry: the first click binds the gizmo; Shift-click adds or removes points and the gizmo follows the average
@@ -108,6 +105,82 @@ ClickAt(30, 0, true);
 Check(edit.SelPoints.Count == 2 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(0, 0)) < 1e-6 && edit.GizmoTargetConfirmed, "Shift-click adds the point and the gizmo moves to the average");
 ClickAt(30, 0, true);
 Check(edit.SelPoints.Count == 1 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(-30, 0)) < 1e-6, "Shift-click on a bound point takes it out again");
+s.ExitSketch(false);
+
+// the tint over a closed shape follows the shape when its corners are dragged
+s.EnterSketch(Plane3.XY); Settle();
+var tint = s.Sketch!; s.Camera.Distance = 120;
+var rect = new RectTool(RectMode.TwoCorner); tint.SetTool(s, rect); rect.Feed(s, -20, -10); rect.Feed(s, 20, 10);
+tint.SetTool(s, new SelectTool());
+double FillArea(out double minX, out double maxX)
+{
+    var overlay = new Overlay(); tint.BuildOverlay(s, overlay);
+    var fill = overlay.Tris.Where(tr => tr.Color == 0x304C94FF).ToList();
+    minX = fill.SelectMany(tr => new[] { tr.A.X, tr.B.X, tr.C.X }).DefaultIfEmpty(0).Min(); maxX = fill.SelectMany(tr => new[] { tr.A.X, tr.B.X, tr.C.X }).DefaultIfEmpty(0).Max();
+    return fill.Sum(tr => Vec3.Cross(tr.B - tr.A, tr.C - tr.A).Length / 2);
+}
+double areaBefore = FillArea(out _, out _);
+Check(Math.Abs(areaBefore - 800) < 1, "a closed rectangle is tinted: " + areaBefore);
+var cornerPx = s.Camera.Project(tint.Plane.PointAt(20, 10))!.Value;
+s.PointerDown(new(cornerPx.x, cornerPx.y, true, false, false, false));
+s.PointerMove(new(cornerPx.x + 60, cornerPx.y, true, false, false, false));
+s.PointerUp(new(cornerPx.x + 60, cornerPx.y, false, false, false, false));
+var outline = tint.Model.Polylines(tint.Plane).SelectMany(x => x.pts).ToList();
+double outlineMaxX = outline.Max(p => p.X), outlineMinX = outline.Min(p => p.X);
+double areaAfter = FillArea(out double fillMinX, out double fillMaxX);
+Check(outlineMaxX > 25, "dragging a corner moved the outline: max X " + outlineMaxX);
+Check(Math.Abs(fillMaxX - outlineMaxX) < 1e-3 && Math.Abs(fillMinX - outlineMinX) < 1e-3, $"the tint follows the moved outline (fill {fillMinX:0.##}..{fillMaxX:0.##}, outline {outlineMinX:0.##}..{outlineMaxX:0.##})");
+var farCorner = tint.Model.Points.OrderByDescending(pt => pt.X).First(); farCorner.Z = 15;
+var liftedOverlay = new Overlay(); tint.BuildOverlay(s, liftedOverlay);
+var liftedTint = liftedOverlay.Tris.Where(tr => tr.Color == 0x304C94FF).SelectMany(tr => new[] { tr.A, tr.B, tr.C }).ToList();
+Check(liftedTint.Count > 0 && Math.Abs(liftedTint.Max(pt => pt.Z) - 15) < 1e-6, "a corner lifted off the plane lifts the tint with it, so the tint never stays behind");
+farCorner.Z = 0;
+s.ExitSketch(false);
+
+// the same in Edit Geometry (3D sketch): corners dragged with the geometry tool
+foreach (bool threeD in new[] { false, true })
+{
+    s.EnterSketch(Plane3.XY); Settle();
+    var geo = s.Sketch!; s.Camera.Distance = 120; if (threeD) geo.Set3DEnabled(s, true);
+    var r2 = new RectTool(RectMode.TwoCorner); geo.SetTool(s, r2); r2.Feed(s, -20, -10); r2.Feed(s, 20, 10);
+    geo.SetTool(s, new SketchGeometryEditTool());
+    var px = s.Camera.Project(geo.Plane.PointAt(20, 10))!.Value;
+    s.PointerDown(new(px.x, px.y, true, false, false, false));
+    s.PointerMove(new(px.x + 60, px.y, true, false, false, false));
+    s.PointerUp(new(px.x + 60, px.y, false, false, false, false));
+    var shapes = geo.DrawingPlanes.SelectMany(sec => sec.Model.Polylines(sec.Plane)).SelectMany(x => x.pts).ToList();
+    var ov = new Overlay(); geo.BuildOverlay(s, ov);
+    var tris = ov.Tris.Where(tr => tr.Color == 0x304C94FF).SelectMany(tr => new[] { tr.A, tr.B, tr.C }).ToList();
+    double ox = shapes.Max(p => p.X);
+    Check(tris.Count == 0 || Math.Abs(tris.Max(p => p.X) - ox) < 1e-3, $"{(threeD ? "3D" : "2D")} Edit Geometry: the tint follows the dragged corner (outline max X {ox:0.##}, tint {(tris.Count == 0 ? "none" : tris.Max(p => p.X).ToString("0.##"))})");
+    s.ExitSketch(false);
+}
+
+// the gizmo panel: opening never unbinds, fields act on what the gizmo is bound to, and scale has three fields
+s.EnterSketch(Plane3.XY); Settle();
+var bound = s.Sketch!; bound.Set3DEnabled(s, true); s.Camera.Distance = 120;
+int low = bound.Model.AddPoint(0, -20), high = bound.Model.AddPoint(0, 20); bound.Model.AddPointEntity(low); bound.Model.AddPointEntity(high); bound.Solve(s);
+bound.SetTool(s, new SketchGeometryEditTool());
+Check(!vm.ToolPanelFocused && vm.ToolSections.Count == 1 && vm.ToolSections[0].Title == "Sketch tool", "Edit Geometry keeps the sketch panel (Sketch tool: Box | Lasso) instead of opening its own panel");
+bound.SelPoints.Add(low); bound.SelPoints.Add(high); bound.ConfirmGizmoTarget(s);
+Check(bound.GizmoTargetConfirmed && !vm.GizmoPositioning, "two points are bound");
+vm.OpenGizmoFromHotkey();
+Check(!vm.GizmoPositioning && bound.GizmoTargetConfirmed && !bound.IndependentGizmoPlacement, "opening the gizmo panel never unbinds the gizmo");
+Check(vm.GizmoScaleHeader.StartsWith("Scale the selection") && !vm.GizmoScaleZEnabled && vm.GizmoScaleZLabel.Contains("n/a"), "bound: Scale applies to the selection, and Z reads n/a on a flat sketch");
+vm.GizmoScaleY = 0.5;
+Check(Math.Abs(Math.Abs(bound.Model.P(high).Y - bound.Model.P(low).Y) - 20) < 1e-6 && Math.Abs(bound.Model.P(high).X) < 1e-9, "Scale Y 0.5 squeezes two points on a vertical line to half the distance and leaves X alone");
+Check(Math.Abs(vm.GizmoScaleY - 1) < 1e-9, "the scale fields read 1 again afterwards (they are multipliers while bound)");
+vm.GizmoOriginX = 10;
+Check(!vm.GizmoPositioning && Math.Abs(bound.Model.P(high).X - 10) < 1e-6 && Math.Abs(bound.Model.P(low).X - 10) < 1e-6, "typing a location moves the bound points and does not unbind");
+vm.BeginGizmoPlacement();
+Check(vm.GizmoPositioning && vm.GizmoScaleHeader.StartsWith("Scale the plane"), "Unbind switches Scale to the plane's size");
+vm.GizmoScaleX = 2; vm.GizmoScaleY = 1;
+Check(Math.Abs(bound.GizmoSize - 2) < 1e-9 && Math.Abs(bound.GizmoStretch - .5) < 1e-9 && Math.Abs(bound.Model.P(high).X - 10) < 1e-6, "unbound, X and Y size the plane (width 2, height 1) and no geometry moves");
+vm.CancelGizmoPlacement(); vm.CloseGizmoPanel();
+bound.SetTool(s, new SketchGeometryEditTool(1));
+Check(vm.ToolPanelFocused && vm.ToolPanelTitle.Contains("spline"), "Add points to a spline opens its own panel with Done");
+vm.FinishTool();
+Check(!vm.ToolPanelFocused, "Done returns to the sketch panel");
 s.ExitSketch(false);
 
 // pictures of the panels for review (PRISM_REVIEW_OUTPUT names the folder)

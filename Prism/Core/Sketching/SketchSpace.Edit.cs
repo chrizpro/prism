@@ -8,7 +8,7 @@ namespace Prism.Core;
 public sealed partial class SketchContext
 {
     public bool IndependentGizmoPlacement {get;private set;}
-    Plane3 _independentGizmoBefore;double _independentSizeBefore;int _independentUndoCount;
+    Plane3 _independentGizmoBefore;double _independentSizeBefore,_independentStretchBefore=1;int _independentUndoCount;
     bool _planarGizmoEnabled;
     public bool PlanarGizmoActive => !Is3DEnabled && GeometryEditing && _planarGizmoEnabled;
     public bool GeometryEditing { get; private set; }
@@ -109,7 +109,7 @@ public sealed partial class SketchContext
 
     public void BeginPlacement(CadSession session)
     {
-        _independentGizmoBefore=_gizmoFrame;_independentSizeBefore=GizmoSize;_independentUndoCount=_undo.Count;IndependentGizmoPlacement=true;
+        _independentGizmoBefore=_gizmoFrame;_independentSizeBefore=GizmoSize;_independentStretchBefore=GizmoStretch;_independentUndoCount=_undo.Count;IndependentGizmoPlacement=true;
         if(!GeometryEditing)SetTool(session,new SketchGeometryEditTool());
         if(!Is3DEnabled)_planarGizmoEnabled=true;
         SetGizmoEditing(session,true);
@@ -124,7 +124,7 @@ public sealed partial class SketchContext
     {
         if(IndependentGizmoPlacement)while(_undo.Count>_independentUndoCount)_undo.Pop();
         IndependentGizmoPlacement=false;
-        _gizmoFrame=original;GizmoSize=_independentSizeBefore;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
+        _gizmoFrame=original;GizmoSize=_independentSizeBefore;GizmoStretch=_independentStretchBefore;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
     }
 
     internal void BeginSelectionTranslation() { _selectionMoveSnapshot=CaptureSpace();_selectionMoveValid=true;_geometryError=""; }
@@ -162,11 +162,11 @@ public sealed partial class SketchContext
     void RestoreSpace(SpaceSnapshot snapshot)
     {
         _sections=snapshot.Sections.Select(section=>section.Clone()).ToList(); _activeSection=snapshot.Active;
-        _gizmoFrame=snapshot.Gizmo; GizmoPlaneIndex=snapshot.GizmoPlane; GizmoSize=snapshot.Size; ActiveDatumId=snapshot.Datum; GeometryScale=snapshot.TargetScale;
+        _gizmoFrame=snapshot.Gizmo; GizmoPlaneIndex=snapshot.GizmoPlane; GizmoSize=snapshot.Size; GizmoStretch=snapshot.Stretch; ActiveDatumId=snapshot.Datum; GeometryScale=snapshot.TargetScale;
         Result=SketchSolver.Solve(Model);
     }
 
-    bool PreviewGeometryTransform(CadSession s, SpaceSnapshot snapshot, Plane3 target, double factor)
+    bool PreviewGeometryTransform(CadSession s, SpaceSnapshot snapshot, Plane3 target, double factor, Vec3? axisFactors = null)
     {
         _sections=snapshot.Sections.Select(section=>section.Clone()).ToList(); _activeSection=snapshot.Active;
         var original = snapshot.Sections[snapshot.Active]; var source = original.Model;
@@ -177,7 +177,12 @@ public sealed partial class SketchContext
         var points=SelPoints.Concat(entities.SelectMany(id=>source.PointsOf(source.E(id)))).ToHashSet();
         if(points.Count==0)return false;
         Vec3 Turn(Vec3 v)=>target.U*Vec3.Dot(v,snapshot.Gizmo.U)+target.V*Vec3.Dot(v,snapshot.Gizmo.V)+target.Normal*Vec3.Dot(v,snapshot.Gizmo.Normal);
-        Vec3 Transform(Vec3 p)=>target.Origin+Turn(p-snapshot.Gizmo.Origin)*factor;
+        Vec3 Transform(Vec3 p)
+        {
+            if(axisFactors is not {} k)return target.Origin+Turn(p-snapshot.Gizmo.Origin)*factor;
+            var d=p-snapshot.Gizmo.Origin;      // a different factor along each gizmo axis, measured in the gizmo's own frame
+            return target.Origin+target.U*(Vec3.Dot(d,snapshot.Gizmo.U)*k.X)+target.V*(Vec3.Dot(d,snapshot.Gizmo.V)*k.Y)+target.Normal*(Vec3.Dot(d,snapshot.Gizmo.Normal)*k.Z);
+        }
         bool shared=source.Entities.Any(e=>!entities.Contains(e.Id)&&source.PointsOf(e).Any(points.Contains));
         bool mixedConstraint=source.Constraints.Any(c=>
         {
@@ -185,7 +190,7 @@ public sealed partial class SketchContext
             var inside=c.Refs.Select((id,i)=>pointRefs[i]?points.Contains(id):entities.Contains(id)).ToList();
             return inside.Any(b=>b)&&inside.Any(b=>!b);
         });
-        if(entities.Count>0&&!shared&&!mixedConstraint)
+        if(entities.Count>0&&!shared&&!mixedConstraint&&axisFactors==null)
         {
             var moved=source.Clone(); moved.Sections=[]; moved.Datums=[];
             moved.Entities.RemoveAll(e=>!entities.Contains(e.Id));
@@ -228,14 +233,14 @@ public sealed partial class SketchContext
             {_geometryError="The selected geometry cannot reach that position while satisfying its constraints.";return false;}
             if(FreeEditing)foreach(var moved in targets)Model.P(moved.id).Z=Lift(moved.point);
         }
-        _gizmoFrame=target; GizmoSize=snapshot.Size;GeometryScale=snapshot.TargetScale*factor;
+        _gizmoFrame=target; GizmoSize=snapshot.Size;GizmoStretch=snapshot.Stretch;GeometryScale=snapshot.TargetScale*factor;
         return Result.Converged;
     }
 
-    bool TransformGeometry(CadSession s,Plane3 target,double factor)
+    bool TransformGeometry(CadSession s,Plane3 target,double factor,Vec3? axisFactors=null)
     {
         var snapshot=CaptureSpace();
-        if(!PreviewGeometryTransform(s,snapshot,target,factor))
+        if(!PreviewGeometryTransform(s,snapshot,target,factor,axisFactors))
         {RestoreSpace(snapshot);s.Say(_geometryError.Length>0?_geometryError:"That transform conflicts with the constraints.",true);s.NotifySketchChanged();return false;}
         _undo.Push(snapshot); RememberGizmoTargetCenter();s.NotifySketchChanged();s.RaiseState();s.Invalidate();return true;
     }

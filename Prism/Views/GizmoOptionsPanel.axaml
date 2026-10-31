@@ -22,7 +22,15 @@
                         <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding GizmoRotationY, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo rotation Y"/>
                         <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding GizmoRotationZ, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo rotation Z"/>
                     </Grid>
-                    <Grid IsVisible="{Binding HasGizmoPlanes}" ColumnDefinitions="*,92" ColumnSpacing="7"><TextBlock Text="Plane size (U and V)" Classes="soft" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" Value="{Binding GizmoPlaneSize, Mode=TwoWay}" Minimum="0.25" Maximum="8" Increment="0.1" FormatString="0.##" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo plane size"/></Grid>
+                    <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="8">
+                        <TextBlock Text="{Binding GizmoScaleHeader}" Classes="section"/>
+                        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
+                            <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="{Binding GizmoScaleZLabel}" Classes="meta"/>
+                            <NumericUpDown Grid.Row="1" Value="{Binding GizmoScaleX, Mode=TwoWay}" Minimum="0.01" Maximum="8" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo scale X"/>
+                            <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding GizmoScaleY, Mode=TwoWay}" Minimum="0.01" Maximum="8" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo scale Y"/>
+                            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding GizmoScaleZ, Mode=TwoWay}" IsEnabled="{Binding GizmoScaleZEnabled}" Minimum="0.01" Maximum="8" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo scale Z"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel IsVisible="{Binding GizmoIsDatum}" Spacing="8">
                     <Button Content="Hide gizmo" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
@@ -50,7 +58,7 @@
                     <Button Grid.Column="1" Content="Release axis" Tag="axis-free" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
                 </Grid>
                 <CheckBox Content="Free 3D editing (not limited to the plane)" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Let the gizmo lift points off their drawing plane in any direction. Off keeps them on it."/>
-                <CheckBox Content="Show planes" IsChecked="{Binding GizmoShowSheets, Mode=TwoWay}" ToolTip.Tip="Draw the gizmo's plane and the sketch's other drawing planes as visible sheets, handy when you want to save a plane from the gizmo."/>
+                <CheckBox Content="Show the drawing plane" IsChecked="{Binding GizmoShowWorkPlane, Mode=TwoWay}" ToolTip.Tip="Draw the plane you are drawing on as a faint sheet with an outline, so you can see where it is. Handy when you want to save a plane from the gizmo."/>
                 <TextBlock Text="Drawing planes in this sketch" Classes="soft"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                     <ComboBox IsEnabled="{Binding SketchGizmoEditing}" ItemsSource="{Binding SketchPlaneChoices}" SelectedIndex="{Binding SketchPlaneChoice, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
@@ -82,9 +90,8 @@
             <TextBlock Text="Visible axes" Classes="section"/>
             <Grid ColumnDefinitions="*,*,*"><CheckBox Content="X / U" IsChecked="{Binding GizmoShowX, Mode=TwoWay}"/><CheckBox Grid.Column="1" Content="Y / V" IsChecked="{Binding GizmoShowY, Mode=TwoWay}"/><CheckBox Grid.Column="2" Content="Z / N" IsChecked="{Binding GizmoShowZ, Mode=TwoWay}"/></Grid>
             <CheckBox Content="Show plane movement handles in sketches" IsChecked="{Binding GizmoShowPlanes, Mode=TwoWay}"/>
-            <CheckBox Content="Show sketch work-plane outline" IsChecked="{Binding GizmoShowWorkPlane, Mode=TwoWay}"/>
-            <TextBlock Text="Appearance and picking" Classes="section" Margin="0,6,0,0"/>
-            <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Screen size" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoScreenSize, Mode=TwoWay}" Minimum="56" Maximum="180" Increment="8" FormatString="0"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
+            <TextBlock Text="Handle size and picking" Classes="section" Margin="0,6,0,0"/>
+            <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Handle size on screen" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoScreenSize, Mode=TwoWay}" Minimum="56" Maximum="180" Increment="8" FormatString="0"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
             <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Line width" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoLineWidth, Mode=TwoWay}" Minimum="1" Maximum="5" Increment="0.5" FormatString="0.#"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
             <Grid ColumnDefinitions="*,92,24" ColumnSpacing="7"><TextBlock Text="Pick tolerance" Classes="soft" VerticalAlignment="Center"/><NumericUpDown ShowButtonSpinner="False" Grid.Column="1" Value="{Binding GizmoHitTolerance, Mode=TwoWay}" Minimum="4" Maximum="18" Increment="1" FormatString="0"/><TextBlock Grid.Column="2" Text="px" Classes="meta" VerticalAlignment="Center"/></Grid>
             <CheckBox Content="Snap gizmo transforms" IsChecked="{Binding GizmoSnapping, Mode=TwoWay}" Margin="0,6,0,0"/>

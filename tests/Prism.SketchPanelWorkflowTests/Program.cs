@@ -65,7 +65,7 @@ foreach (var type in types)
             Check(vm.ToolSections.SelectMany(g => g.Controls).Count() == vm.ToolPanel.Count && vm.ToolSections.SelectMany(g => g.Controls).Distinct().Count() == vm.ToolPanel.Count, label + " places every control exactly once");
             Check(vm.ToolSections.SelectMany(g => g.Options).Count() == tool.Options.Count, label + " retains every method");
             // Select's own Geometry step is the sketch panel's Geometry block (3D sketch, Edit Geometry, Gizmo); its instructions are that block's tooltip
-            if (tool is not SelectTool) Check(vm.ToolSections.Single(g => g.Title == tool.PanelInputTitle).Guidance == tool.Prompt, label + " shows the current geometry instructions");
+            if (tool is not (SelectTool or SketchGeometryEditTool { SplinePoints: false })) Check(vm.ToolSections.Single(g => g.Title == tool.PanelInputTitle).Guidance == tool.Prompt, label + " shows the current geometry instructions");
             else Check(vm.ToolSections.Single().Title == "Sketch tool", label + " shows only its Sketch tool step; Geometry lives in the sketch panel");
             string file = Regex.Replace(type.Name + "-" + seed + "-" + mode, "[^a-zA-Z0-9-]", "").ToLowerInvariant();
             Capture(file);

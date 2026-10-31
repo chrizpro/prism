@@ -23,6 +23,8 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     public override IReadOnlyList<ToolOption> Options => SelOpts;
     public override int OptionIndex => _lasso ? 1 : 0;
     protected override void ApplyOption(int index) => _lasso = index == 1;
+    /// <summary>Box or lasso selection, set by a tool that wraps this one (Edit Geometry).</summary>
+    public void UseLasso(bool lasso) => _lasso = lasso;
 
     bool InRegion(double x, double y, bool window)
     {

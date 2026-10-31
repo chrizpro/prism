@@ -100,13 +100,16 @@ public sealed partial class MainViewModel
 
     public ObservableCollection<SketchToolSection> ToolSections { get; } = [];
     SketchTool? _presentedTool;
+
+    /// <summary>Select and Edit Geometry are the sketch panel itself (Sketch tool: Box or Lasso, then Geometry); every other tool, spline points included, gets its own panel with Done.</summary>
+    static bool IsSketchPanelTool(SketchTool tool) => tool is SelectTool or SketchGeometryEditTool { SplinePoints: false };
     bool _syncingToolPanel;
 
     void RefreshToolPanel(SketchTool? tool)
     {
         if (!ReferenceEquals(tool, _presentedTool)) { ToolPanel.Clear(); ToolSections.Clear(); ToolOptions.Clear(); _presentedTool = tool; }
         HasToolPanel = tool != null;
-        ToolPanelFocused = tool != null && tool is not Prism.Core.SelectTool;
+        ToolPanelFocused = tool != null && !IsSketchPanelTool(tool);
         ToolPanelTitle = tool?.PanelTitle ?? "Sketch"; ToolPanelHint = tool?.Prompt ?? "";
         if (tool == null) return;
         var controls = (tool.Panel ?? []).Where(c => !(c.Kind == ToolControlKind.Info && c.Label == tool.Prompt)).ToList();
@@ -144,13 +147,13 @@ public sealed partial class MainViewModel
         if (ToolOptions.Count > 0)
         {
             // the idle Select tool is the sketch panel itself: its section is the "Sketch tool" (Box or Lasso)
-            string methodTitle = tool is SelectTool ? "Sketch tool" : "Method";
+            string methodTitle = IsSketchPanelTool(tool) ? "Sketch tool" : "Method";
             var method = ToolSections.FirstOrDefault(g => g.Title == methodTitle) ?? new SketchToolSection(methodTitle);
             SyncCollection(method.Options, ToolOptions); sections.Add(method);
         }
         foreach (var group in groups)
         {
-            if (tool is SelectTool && group.rows.Count == 0) continue;     // Select's own "Geometry" step is the sketch panel's Geometry block, with the 3D sketch controls
+            if (IsSketchPanelTool(tool) && group.rows.Count == 0) continue;     // Select's own "Geometry" step is the sketch panel's Geometry block, with the 3D sketch controls
             var section = ToolSections.FirstOrDefault(g => g.Title == group.title) ?? new SketchToolSection(group.title);
             section.Guidance = group.title == tool.PanelInputTitle ? tool.Prompt : "";
             SyncCollection(section.Controls, group.rows); sections.Add(section);
