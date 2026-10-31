@@ -862,7 +862,43 @@ public sealed class TransformCommand : Command
         _copy = Check("Create copy", kind == Kind.Mirror);
     }
     public override string Title => _kind.ToString();
-    public override string Hint => "Select the objects to transform.";
+    public override string Hint => "Select the objects to transform, then pull the arrows in the viewport or type numbers.";
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_objs.Items.Count == 0 || _kind == Kind.Mirror) return [];
+            try
+            {
+                var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+                foreach (var obj in ObjectsOf(_objs).Distinct())
+                {
+                    var m = obj.Mesh; if (m.Positions.Length < 3) continue;
+                    lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+                    hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+                }
+                if (lo.X > hi.X) return [];
+                var center = (lo + hi) * 0.5; double size = Math.Max((hi - lo).Length * 0.5, 1);
+                switch (_kind)
+                {
+                    case Kind.Move: return [new(center, Vec3.UnitX, _dx!), new(center, Vec3.UnitY, _dy!), new(center, Vec3.UnitZ, _dz!)];
+                    case Kind.Rotate:
+                    {
+                        var ax = _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
+                        var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
+                        var refDir = Math.Abs(ax.Z) > 0.9 ? Vec3.UnitX : Vec3.UnitZ;
+                        refDir = (refDir - ax * Vec3.Dot(refDir, ax)).Normalized();
+                        return [new(pivot, ax, _angle!, 1, refDir, size * 1.3)];
+                    }
+                    default:
+                        return [new(_pivot!.Index == 0 ? center : Vec3.Zero, Vec3.UnitX, _factor!, 1 / size)];
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     protected override CommandOutput? Build()
     {
