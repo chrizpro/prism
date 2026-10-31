@@ -27,8 +27,10 @@ var navigation=new CadSession(); navigation.Camera.Yaw=.43;navigation.Camera.Pit
 navigation.Camera.Target=new(13,24,35);navigation.Camera.Distance=321;navigation.Camera.Orthographic=true;
 var camera=navigation.Camera;
 var cameraState=(camera.Yaw,camera.Pitch,camera.Roll,camera.Target,camera.Distance,camera.Orthographic);
-navigation.EnterSketch(Plane3.YZ);
-Check(ReferenceEquals(camera,navigation.Camera)&&cameraState==(camera.Yaw,camera.Pitch,camera.Roll,camera.Target,camera.Distance,camera.Orthographic),"starting a sketch on another plane preserves camera orientation, framing and projection by default");
+navigation.EnterSketch(Plane3.YZ,alignView:false);
+Check(ReferenceEquals(camera,navigation.Camera)&&cameraState==(camera.Yaw,camera.Pitch,camera.Roll,camera.Target,camera.Distance,camera.Orthographic),"starting a sketch with the view left alone preserves camera orientation, framing and projection");
+var defaultStart=new CadSession();defaultStart.Camera.Orthographic=false;defaultStart.EnterSketch(Plane3.YZ);
+Check(defaultStart.Ortho&&defaultStart.Camera.Orthographic&&Math.Abs(Math.Abs(Vec3.Dot(defaultStart.Camera.EyeDirection,Plane3.YZ.Normal))-1)<1e-6,"starting a sketch by default switches to orthographic and looks straight at its plane");
 var navSketch=navigation.Sketch!;navSketch.Set3DEnabled(navigation,true);
 double navLength=camera.PixelSizeAt(navSketch.GizmoFrame.Origin)*96;
 var planeTarget=camera.Project(navSketch.GizmoFrame.Origin+(navSketch.GizmoFrame.U+navSketch.GizmoFrame.Normal)*navLength*.28)!.Value;
@@ -50,7 +52,7 @@ Check(Prism.Rendering.GlViewport.DisplayGridPlane(offsetGrid)==offsetGridPlane,"
 offsetGrid.ExitSketch(false);offsetGrid.EnterSketch(Plane3.XZ);
 Check(Prism.Rendering.GlViewport.DisplayGridPlane(offsetGrid)==Plane3.XZ,"a new sketch captures its own initial grid plane");
 var createPlane=new CreateSketchCommand();
-Check(createPlane.Params.OfType<BoolParam>().Any(p=>p.Label=="Look normal when starting"&&!p.Value),"Create Sketch makes initial camera alignment opt-in");
+Check(createPlane.Params.OfType<BoolParam>().Any(p=>p.Label=="Look normal when starting"&&p.Value),"Create Sketch looks straight at the plane by default (and the user can turn that off)");
 
 var s = new CadSession();
 double yaw = s.Camera.Yaw, pitch = s.Camera.Pitch;

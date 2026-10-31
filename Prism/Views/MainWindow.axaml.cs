@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     /// <summary>Do what a shortcut action means right now. False means it does not apply here, and the next candidate is tried.</summary>
     bool Run(string id, MainViewModel vm)
     {
+        if (id.StartsWith(Hotkeys.CustomPrefix, System.StringComparison.Ordinal)) return Hotkeys.Find(id) is { } custom && vm.RunCommandShortcut(custom.Target);
         var s = vm.Session;
         bool free = s.Sketch != null && s.ActiveCommand == null;
         bool gizmoTarget = s.Sketch != null && (s.Sketch.GizmoEditing || (s.Sketch.Is3DEnabled || s.Sketch.PlanarGizmoActive) && s.Sketch.GeometryEditing && s.Sketch.HasGeometrySelection);

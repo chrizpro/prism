@@ -1066,13 +1066,33 @@ public sealed partial class CadSession : ObservableObject
     public event Action<InputRequest>? InputRequested;
     public void RequestInput(string prompt, string initial, Action<string?> done) => InputRequested?.Invoke(new InputRequest(prompt, initial, done));
 
-    public void EnterSketch(Plane3 plane, Sketching.SketchModel? model = null, Guid? editing = null, bool alignView = false)
+    bool? _orthoBeforeSketch;
+
+    /// <summary>Switch the main view between orthographic and perspective for sketching; the projection from before the sketch is put back when it ends.</summary>
+    public void SketchProjection(bool perspective)
+    {
+        _orthoBeforeSketch ??= Ortho;
+        Ortho = !perspective; Camera.Orthographic = !perspective; Invalidate();
+    }
+
+    void RestoreProjection()
+    {
+        if (_orthoBeforeSketch is bool ortho) { Ortho = ortho; Camera.Orthographic = ortho; Invalidate(); }
+        _orthoBeforeSketch = null;
+    }
+
+    public void EnterSketch(Plane3 plane, Sketching.SketchModel? model = null, Guid? editing = null, bool alignView = true)
     {
         if (Sketch != null) return;
-        Ortho=true;Camera.Orthographic=true;
         Sketch = new SketchContext(plane, model, editing);
         Camera.Locked = false;
-        if (alignView) { Camera.LookAlong(plane.Normal); Camera.Target = plane.Origin; }
+        // A flat sketch is drawn looking straight at its plane without perspective; a 3D sketch keeps perspective so depth reads.
+        if (Sketch.Is3DEnabled) SketchProjection(perspective: true);
+        else
+        {
+            SketchProjection(perspective: false);
+            if (alignView) { Camera.LookAlong(plane.Normal); Camera.Target = plane.Origin; }
+        }
         ClearSelection();
         NotifySketchChanged();
         Sketch.SetTool(this, new SelectTool());
@@ -1113,6 +1133,7 @@ public sealed partial class CadSession : ObservableObject
         bool committed = false;
         sk.Tool?.Deactivate(this);
         Sketch = null;
+        RestoreProjection();
         SketchStatus = "";
         if (keep && sk.HasContent)
         {

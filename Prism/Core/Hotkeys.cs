@@ -8,7 +8,19 @@ namespace Prism.Core;
 /// One thing a key can do. A shortcut lives in a scope: it works everywhere, only while sketching, only while a command is open,
 /// or only inside one workspace. The same key can mean different things in different scopes; the most specific scope wins.
 /// </summary>
-public sealed record HotkeyAction(string Id, string Name, string Category, string Scope, string Default, string Note = "");
+public sealed record HotkeyAction(string Id, string Name, string Category, string Scope, string Default, string Note = "", bool Custom = false, string Target = "");
+
+/// <summary>A shortcut the user added: a key that runs one ribbon command ("Solid|Fillet"), in the context they chose.</summary>
+public sealed class CustomHotkey
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Category { get; set; } = "Custom";
+    public string Scope { get; set; } = Hotkeys.Global;
+    public string Gesture { get; set; } = "";
+    /// <summary>The ribbon command to run, written "Tab|Label" (the label with line breaks turned into spaces).</summary>
+    public string Target { get; set; } = "";
+}
 
 /// <summary>The shortcut catalogue, the user's changes to it, and the lookup from a pressed key to the actions it may run.</summary>
 public static class Hotkeys
@@ -72,6 +84,31 @@ public static class Hotkeys
 
     static Dictionary<string, string> Overrides => AppSettings.Current.Hotkeys;
 
+    /// <summary>The built-in actions followed by the ones the user added.</summary>
+    public static IEnumerable<HotkeyAction> All =>
+        Actions.Concat(AppSettings.Current.CustomHotkeys.Select(c => new HotkeyAction(c.Id, c.Name, c.Category, c.Scope, c.Gesture, "Runs " + c.Target.Replace("|", " › "), Custom: true, Target: c.Target)));
+
+    public const string CustomPrefix = "custom:";
+
+    /// <summary>Add a shortcut that runs a ribbon command. Returns the new action.</summary>
+    public static HotkeyAction AddCustom(string name, string target, string scope, string gesture)
+    {
+        var c = new CustomHotkey { Id = CustomPrefix + Guid.NewGuid().ToString("N")[..8], Name = name, Target = target, Scope = scope, Gesture = gesture };
+        AppSettings.Current.CustomHotkeys.Add(c); AppSettings.Save();
+        return All.First(a => a.Id == c.Id);
+    }
+
+    public static void RemoveCustom(string id) { if (AppSettings.Current.CustomHotkeys.RemoveAll(c => c.Id == id) > 0) AppSettings.Save(); }
+
+    /// <summary>The contexts a shortcut can be tied to. Everyday actions choose between everywhere and one workspace; a custom shortcut can also be limited to sketching, an open command or Freeform editing.</summary>
+    public static IReadOnlyList<(string Scope, string Name)> ScopeChoices(bool custom)
+    {
+        var list = new List<(string, string)> { (Global, ScopeName(Global)) };
+        if (custom) list.AddRange([(Sketch, ScopeName(Sketch)), (Command, ScopeName(Command)), (Freeform, ScopeName(Freeform))]);
+        list.AddRange(WorkspaceIds.Select(w => (Workspace(w), ScopeName(Workspace(w)))));
+        return list;
+    }
+
     /// <summary>The shortcut an action has right now, and the scope it works in, with the user's changes applied.</summary>
     public static (string Gesture, string Scope) Effective(HotkeyAction a)
     {
@@ -88,15 +125,16 @@ public static class Hotkeys
     public static bool IsChanged(HotkeyAction a) => Overrides.ContainsKey(a.Id);
 
     /// <summary>Only everyday actions can be limited to one workspace; sketch and command shortcuts are tied to what they act on.</summary>
-    public static bool CanChangeScope(HotkeyAction a) => a.Scope == Global;
+    public static bool CanChangeScope(HotkeyAction a) => a.Scope == Global || a.Custom;
 
-    public static HotkeyAction? Find(string id) => Actions.FirstOrDefault(a => a.Id == id);
+    public static HotkeyAction? Find(string id) => All.FirstOrDefault(a => a.Id == id);
 
     /// <summary>The actions bound to this key in the given scopes, most specific scope first. The caller tries each until one does something.</summary>
     public static IEnumerable<HotkeyAction> Resolve(string gesture, IReadOnlyList<string> activeScopes)
     {
+        var all = All.ToList();
         for (int rank = 0; rank < activeScopes.Count; rank++)
-            foreach (var a in Actions)
+            foreach (var a in all)
             {
                 var (g, scope) = Effective(a);
                 if (scope == activeScopes[rank] && string.Equals(g, gesture, StringComparison.OrdinalIgnoreCase)) yield return a;
@@ -119,7 +157,7 @@ public static class Hotkeys
     public static HotkeyAction? FindConflict(string id, string gesture, string scope)
     {
         if (gesture.Length == 0) return null;
-        foreach (var a in Actions)
+        foreach (var a in All)
         {
             if (a.Id == id) continue;
             var (g, s) = Effective(a);
@@ -132,6 +170,12 @@ public static class Hotkeys
     public static void Set(string id, string gesture, string? scope = null)
     {
         var a = Find(id) ?? throw new ArgumentException("Unknown shortcut action " + id);
+        if (a.Custom)
+        {
+            var c = AppSettings.Current.CustomHotkeys.First(x => x.Id == id);
+            c.Gesture = gesture; if (scope != null) c.Scope = scope;
+            AppSettings.Save(); return;
+        }
         string sc = scope != null && CanChangeScope(a) ? scope : Effective(a).Scope;
         if (gesture == a.Default && sc == a.Scope) Overrides.Remove(id); else Overrides[id] = gesture + "|" + sc;
         AppSettings.Save();

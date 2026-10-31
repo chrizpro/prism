@@ -93,7 +93,7 @@ foreach(var title in new[]{"Home","Solid","Surface","Freeform","NURBS","Sketch"}
     Check(datum.IsSplit && datum.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Gizmo","Point","Axis","Plane","Save gizmo"}) && vm.Tabs.Single(t=>t.Title==title).Groups.All(g=>g.Title!="Gizmo"),title+" uses the shared Datum menu");
 }
 Check(new[] { "Extrude", "Revolve", "Sweep", "Loft" }.All(n => surfaceCreate.Any(b => b.Label == n && !b.HasMenu)), "Surface exposes its four creation tools");
-Check(surfaceCreate.Any(b => b.Label.Replace("\n", " ") == "Fill Opening" && !b.HasMenu), "Surface exposes Fill Opening beside the creation tools");
+Check(surfaceCreate.Any(b => b.Label.Replace("\n", " ") == "Boundary Surface" && !b.HasMenu), "Surface exposes Boundary Surface (which also fills openings) beside the creation tools");
 Check(vm.Tabs.Single(t=>t.Title=="Surface").Buttons.Count(b=>b.Label.Replace("\n", " ")=="Flatten / Refold")==1 && vm.Tabs.Single(t=>t.Title=="Surface").Buttons.All(b=>b.Label!="Refold"), "Surface combines Flatten and Refold into one entry");
 Check(vm.Tabs.Any(t=>t.Title=="Direct Modeling")&&MainViewModel.WorkspaceDefs.Single(w=>w.Id=="design").Tabs.Contains("Direct Modeling"),"Direct Modeling is available in the Design workspace");
 Check(vm.Tabs.Any(t => t.Title == "Subtractive") && vm.Tabs.All(t => t.Title is not ("CNC" or "3D Print" or "CAM")), "CNC tools live on the Subtractive tab");

@@ -146,7 +146,7 @@ Check(editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origi
 // Free 3D editing lets a point leave its drawing plane; without it the point stays on the plane.
 foreach(bool freeMode in new[]{false,true})
 {
- var freeSession=new CadSession();freeSession.EnterSketch(Plane3.XY);var freeSketch=freeSession.Sketch!;
+ var freeSession=new CadSession();freeSession.EnterSketch(Plane3.XY,alignView:false);var freeSketch=freeSession.Sketch!;
  freeSketch.Set3DEnabled(freeSession,true);freeSketch.SetTool(freeSession,new SketchGeometryEditTool());freeSketch.FreeEditing=freeMode;
  int fa=freeSketch.Model.AddPoint(20,20),fb=freeSketch.Model.AddPoint(60,40);freeSketch.Model.AddPointEntity(fa);freeSketch.Model.AddPointEntity(fb);
  freeSketch.Model.AddSpline([fa,fb],false,false,false);freeSketch.Solve(freeSession);

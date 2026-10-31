@@ -130,7 +130,7 @@
             </Grid>
             <!-- ============ keyboard ============ -->
             <ScrollViewer Name="PageKeyboard" IsVisible="False">
-                <StackPanel Name="KeyboardHost" Margin="28,24" Spacing="6" MaxWidth="780" HorizontalAlignment="Left"/>
+                <StackPanel Name="KeyboardHost" Margin="28,24" Spacing="6" MaxWidth="940" HorizontalAlignment="Left"/>
             </ScrollViewer>
         </Panel>
     </Grid>

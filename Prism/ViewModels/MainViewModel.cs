@@ -489,6 +489,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Rib", "rib", () => new RibCommand(), "Add a reinforcing rib from a planar sketch to a solid body."),
                     Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis.")),
                 G("Modify",
+                    Cmd("Hole", "hole", () => new HoleCommand(), "Create plain or modeled threaded holes on a body or face, with blind or through-all depth."),
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
                     Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges."),
                     Cmd("Shell", "shell", () => new ShellCommand(), "Hollow out a body, optionally opening faces."),

@@ -69,7 +69,8 @@ public sealed partial class SketchContext
         return root;
     }
 
-    public void Set3DEnabled(CadSession s, bool enabled)
+    /// <param name="adjustView">True when the user chose 3D sketching itself: the view then switches to perspective (and back to a straight-on orthographic view when it is turned off). Enabling it as a side effect of picking a plane or the gizmo leaves the camera alone.</param>
+    public void Set3DEnabled(CadSession s, bool enabled, bool adjustView = false)
     {
         if (enabled == Is3DEnabled) return;
         if (_gizmoDrag >= 0) { _dragChanged = false; EndGizmoDrag(s); }
@@ -78,6 +79,12 @@ public sealed partial class SketchContext
         if (enabled && GizmoFollowsSketch && _lastPlacement is { } last) _gizmoFrame = new(last, _gizmoFrame.U, _gizmoFrame.V);
         if (!enabled && wasEditing) SetTool(s, new SelectTool());
         if (!enabled) ProjectOtherCurves = false;
+        if (adjustView && s.Sketch == this)
+        {
+            // 3D sketching needs perspective to read depth; going back to a flat sketch returns to a straight-on orthographic view
+            s.SketchProjection(perspective: enabled);
+            if (!enabled) LookNormal(s, flip: false);
+        }
         s.NotifySketchChanged(); s.RaiseState(); s.Invalidate();
         s.Say(enabled ? "3D sketch: drawing planes and spatial controls are available." : "2D sketch: drawing on the active plane. Geometry on other planes is preserved.");
     }
@@ -204,12 +211,13 @@ public sealed partial class SketchContext
         s.RaiseState(); s.Invalidate();
     }
 
-    public void LookNormal(CadSession s)
+    /// <summary>Turn the view to look straight at the drawing plane. Pressing N again (flip) looks from the other side.</summary>
+    public void LookNormal(CadSession s, bool flip = true)
     {
         s.Camera = s.Cameras[0];
         var target = Is3DEnabled ? GizmoDrawingPlane : Plane;
         var n = target.Normal;
-        if (Vec3.Dot(s.Camera.EyeDirection, n) > .999) n = -n;
+        if (flip && Vec3.Dot(s.Camera.EyeDirection, n) > .999) n = -n;
         s.Camera.Target = target.Origin;
         s.AnimateView(Math.Abs(n.Z) > .9999 ? s.Camera.Yaw : Math.Atan2(n.X, -n.Y), Math.Asin(Math.Clamp(n.Z, -1, 1)));
         s.Say($"Looking normal to the gizmo {GizmoPlaneName} plane. N reverses the view; drag to orbit.");

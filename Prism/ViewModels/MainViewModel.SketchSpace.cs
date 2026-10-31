@@ -41,7 +41,7 @@ public sealed partial class MainViewModel
     partial void OnSketchFreeEditingChanged(bool value) { if (!_refreshSketchSpace && Session.Sketch is { } sk) { sk.FreeEditing = value; Session.RaiseState(); } }
     [ObservableProperty] public partial bool SketchGizmoTargetSetup { get; set; }
     [ObservableProperty] public partial bool Sketch3DEnabled { get; set; }
-    partial void OnSketch3DEnabledChanged(bool value) { if (!_refreshSketchSpace) Session.Sketch?.Set3DEnabled(Session, value); }
+    partial void OnSketch3DEnabledChanged(bool value) { if (!_refreshSketchSpace) Session.Sketch?.Set3DEnabled(Session, value, adjustView: true); }
     [ObservableProperty] public partial bool SketchSnapOtherCurves { get; set; }
     [ObservableProperty] public partial bool SketchProjectOtherCurves { get; set; }
     [ObservableProperty] public partial string SketchSpaceStatus { get; set; } = "";

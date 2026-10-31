@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -39,6 +40,31 @@ public sealed partial class MainViewModel
         foreach (var h in hits) SearchResults.Add(new CommandHit { Button = h.b, Tab = h.t.Title, Path = string.Join(" › ", new[] { h.t.Title, h.g.Title, h.menu }.Where(s => !string.IsNullOrWhiteSpace(s))) });
         SearchIndex = 0;
         SearchOpen = SearchResults.Count > 0;
+    }
+
+    /// <summary>Every ribbon command once (the same list the search box draws from), for choosing what a custom shortcut runs.</summary>
+    public IEnumerable<CommandHit> AllCommandHits() =>
+        Tabs.Where(t => !t.IsFile && !t.UserHidden)
+            .SelectMany(t => t.Groups.SelectMany(g => g.Items.OfType<Prism.Ribbon.RibbonButton>()
+                .SelectMany(parent => parent.Menu == null
+                    ? new[] { (t, g, b: parent, menu: "") }
+                    : parent.Menu.Select(b => (t, g, b, menu: parent.Label.Replace("\n", " "))))))
+            .Select(x => new CommandHit { Button = x.b, Tab = x.t.Title, Path = string.Join(" › ", new[] { x.t.Title, x.g.Title, x.menu }.Where(s => !string.IsNullOrWhiteSpace(s))) })
+            .GroupBy(h => h.Label + "|" + h.Tab).Select(g => g.First());
+
+    public static string CommandTarget(CommandHit hit) => hit.Tab + "|" + hit.Label;
+
+    /// <summary>Run the ribbon command a custom shortcut points at ("Tab|Label"). False when it cannot run right now, so another shortcut on the same key may.</summary>
+    public bool RunCommandShortcut(string target)
+    {
+        int cut = target.IndexOf('|'); if (cut < 0) return false;
+        string tab = target[..cut], label = target[(cut + 1)..];
+        var hit = AllCommandHits().FirstOrDefault(h => h.Tab == tab && h.Label == label);
+        if (hit == null) { Session.Say($"The shortcut's command '{label}' is no longer in the ribbon.", true); return true; }
+        hit.Button.Refresh();
+        if (!hit.Button.IsEnabled) return false;
+        hit.Button.Invoke();
+        return true;
     }
 
     public void RunSearchHit(CommandHit? hit)

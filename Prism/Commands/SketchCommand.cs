@@ -11,12 +11,14 @@ public class CreateSketchCommand : Command
     readonly NumberParam _offset;
     readonly SelectionSlot _face;
     readonly BoolParam _lookNormal;
+    readonly bool _spatial;
     public CreateSketchCommand(bool spatial = false)
     {
+        _spatial = spatial;
         _face = Slot(new SelectionSlot { Label = "Plane or flat face (optional)", Filter = SelFilter.Face | SelFilter.Plane, Optional = true });
         _plane = Choice("Base plane", 0, "XY (top)", "XZ (front)", "YZ (side)");
         _offset = Num("Offset", 0);
-        _lookNormal = Check("Look normal when starting", false);
+        _lookNormal = Check("Look normal when starting", true);
     }
     public override string Title => "Create Sketch";
     public override string Hint => "Choose a plane or flat face to start. Draw with constraints on any plane; G moves and rotates the drawing gizmo, E edits curves, and N looks normal. Add drawing planes in the sketch panel to continue in 3D.";
@@ -43,12 +45,13 @@ public class CreateSketchCommand : Command
         bool onOrigin = _face.Items.Count > 0 && _face.Items[0].Kind != SelKind.Face;
         _plane.IsVisible = !onFace && !onOrigin;
         _offset.IsVisible = !onFace;
+        _lookNormal.IsVisible = !_spatial;     // a 3D sketch stays in perspective instead of turning to face its plane
     }
 
     protected override CommandOutput? Build()
     {
         var plane = ResolvePlane();
-        var o = new CommandOutput { NoOp = true, After = s => s.EnterSketch(plane, alignView: _lookNormal.Value) };
+        var o = new CommandOutput { NoOp = true, After = s => { s.EnterSketch(plane, alignView: _lookNormal.Value); if (_spatial) s.Sketch?.Set3DEnabled(s, true, adjustView: true); } };
         return o;
     }
 }

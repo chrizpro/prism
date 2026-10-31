@@ -60,11 +60,14 @@ public sealed class AppSettings
     public List<string>? StatusBar { get; set; }
     /// <summary>Changed keyboard shortcuts by action id, written "gesture|scope". Actions not listed keep their shipped key (see Hotkeys).</summary>
     public Dictionary<string, string> Hotkeys { get; set; } = [];
+    /// <summary>Shortcuts the user added, each running one ribbon command.</summary>
+    public List<CustomHotkey> CustomHotkeys { get; set; } = [];
 
     public static AppSettings Current { get; private set; } = Load();
     public static event Action? Changed;
 
-    static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "settings.json");
+    /// <summary>PRISM_SETTINGS_FILE points the settings somewhere else, so tests never touch the real ones.</summary>
+    static string FilePath => Environment.GetEnvironmentVariable("PRISM_SETTINGS_FILE") is { Length: > 0 } custom ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "settings.json");
 
     static AppSettings Load()
     {
