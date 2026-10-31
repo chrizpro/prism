@@ -63,6 +63,15 @@ Check(dist["distance"] != null, "solid_check measures a distance between two fac
 try { Call("run_command", $$$"""{"name":"fillet","slots":{"Edges":[{"object":"{{{name}}}","edge":1}]},"params":{"Radius":500}}"""); throw new Exception("FAIL empty fillet must fail"); }
 catch (Exception e) when (!e.Message.StartsWith("FAIL")) { Check(e.Message.Length > 0, "failure message is explanatory: " + e.Message[..Math.Min(120, e.Message.Length)]); }
 
+// a revolved cylinder: its two caps must report opposite outward normals (a left-handed cap plane once reported both as +Z)
+using var halfSection = Prism.Kernel.Occ.Polyline([new(0, 0, 0), new(20, 0, 0), new(20, 0, 30), new(0, 0, 30)], true);
+using var revolved = Prism.Kernel.Occ.Revolve(halfSection, new(0, 0, 0), new(0, 0, 1), 360);
+var spun = vm.Session.AddObject(revolved, "Spun", Prism.Core.ObjKind.Solid);
+var capsUp = Call("solid_find", "{\"object\":\"Spun 1\",\"facing\":[0,0,1]}");
+var capsDown = Call("solid_find", "{\"object\":\"Spun 1\",\"facing\":[0,0,-1]}");
+Check(capsUp["total"]!.GetValue<int>() == 1 && Math.Abs(capsUp["hits"]![0]!["center"]![2]!.GetValue<double>() - 30) < 1e-6, "a revolved cylinder has exactly one cap facing up, at the top");
+Check(capsDown["total"]!.GetValue<int>() == 1 && Math.Abs(capsDown["hits"]![0]!["center"]![2]!.GetValue<double>()) < 1e-6, "a revolved cylinder has exactly one cap facing down, at the bottom");
+
 Console.WriteLine($"SUCCESS: {checks} checks");
 
 sealed class TestApp : Application { public override void Initialize() { Styles.Add(new FluentTheme()); Styles.Add(new StyleInclude(new Uri("avares://Prism/")) { Source = new Uri("avares://Prism/Styles/Theme.axaml") }); } }

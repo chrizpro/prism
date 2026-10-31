@@ -332,7 +332,7 @@ def shell(faces, thickness=2, **p):
 
 
 def union(body, *tools):
-    run("union", slots={"Body": body, "Tool bodies": list(tools)})
+    run("union", slots={"Base body": body, "Other bodies": list(tools)})
 
 
 def subtract(body, *tools):
@@ -340,7 +340,7 @@ def subtract(body, *tools):
 
 
 def intersect(body, *tools):
-    run("intersect", slots={"Body": body, "Tool bodies": list(tools)})
+    run("intersect", slots={"Base body": body, "Other bodies": list(tools)})
 
 
 # ---------------------------------------------------------------- transforms

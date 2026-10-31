@@ -43,6 +43,9 @@ public sealed partial class AutomationApi
             {
                 var fi = Occ.FaceInfoOf(sub);
                 var nrm = fi.Normal.Length > 1e-9 ? fi.Normal : AvgFaceNormal(m, i);
+                // A plane whose own axes are left-handed (a revolved cap, for one) reports its axis pointing into the body.
+                // The tessellation always follows the face's true outward side, so a planar face takes that when the two disagree.
+                if (fi.Type == "Plane" && AvgFaceNormal(m, i) is { } outward && outward.Length > 1e-9 && Vec3.Dot(nrm, outward) < 0) nrm = outward.Normalized();
                 var c = pr.Center;
                 try { c = Occ.Mass(sub).Cog; } catch { }
                 list.Add(new(i, true, fi.Type, c, pr.Min, pr.Max, fi.Area, fi.R1, nrm, nrm.Length > 1e-9, default, default));
