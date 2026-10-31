@@ -106,7 +106,7 @@ public static class JointHandles
             {
                 var param = ch.Index == 1 ? v1 : v2;
                 if (param == null) continue;
-                res.Add(new HandleSpec(frame.T, ch.Dir, param, 1, ch.Ref, radius));
+                res.Add(new HandleSpec(frame.T, ch.Dir, param, 1, ch.Ref, radius, true));
             }
         }
         return res;

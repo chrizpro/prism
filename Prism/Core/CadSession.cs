@@ -1324,14 +1324,15 @@ public sealed partial class CadSession : ObservableObject
         {
             // a turning handle: the allowed arc, the current angle and a grip at its end
             var grip = HandleTip(h); double cur = h.Param.Value;
-            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, h.Param.Min, h.Param.Max, cur);
-            bool hit = Assembly.JointVisuals.IsLimit(h.Param.Min) && cur <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && cur >= h.Param.Max - 1e-6;
+            double lo = h.ShowRange ? h.Param.Min : double.NegativeInfinity, hi = h.ShowRange ? h.Param.Max : double.PositiveInfinity;
+            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
+            bool hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
             uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : GizmoVisual.Accent;
             o.AddDot(grip, colour, _handleDrag ? 13 : 11);
             o.AddLabel(grip, active && _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}  -  drag or type", true, 4);
             return;
         }
-        if (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max))
+        if (h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max)))
         {
             // a sliding handle with limits: the ruler of where it may go
             double hs = Camera.PixelSizeAt(h.Origin) * 70;
