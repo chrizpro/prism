@@ -87,13 +87,13 @@ public sealed partial class CadSession : ObservableObject
     public int VisibleViews => Layout switch { ViewLayout.Single => 1, ViewLayout.Dual => 2, _ => 4 };
     public IEnumerable<Camera> VisibleCameras => Layout switch { ViewLayout.Single => [Cameras[0]], ViewLayout.Dual => [Cameras[0], Cameras[3]], _ => Cameras };
 
-    static void Standard(Camera c, double yawDeg, double pitchDeg) { c.SetView(yawDeg, pitchDeg); c.Orthographic = true; c.Locked = true; }
+    static void Standard(Camera c, double yawDeg, double pitchDeg, bool ortho) { c.SetView(yawDeg, pitchDeg); c.Orthographic = ortho; c.Locked = true; }
 
     public void SetLayout(ViewLayout l)
     {
         Layout = l;
         var main = Cameras[0];
-        Standard(Cameras[1], 0, 0); Standard(Cameras[2], 90, 0); Standard(Cameras[3], 0, 90);
+        Standard(Cameras[1], 0, 0, Ortho); Standard(Cameras[2], 90, 0, Ortho); Standard(Cameras[3], 0, 90, Ortho);
         foreach (var c in Cameras.Skip(1)) { c.Target = main.Target; c.Distance = main.Distance; }
         _activeCamera = main;
         if (l != ViewLayout.Single) ZoomExtents();
@@ -1857,7 +1857,7 @@ public sealed partial class CadSession : ObservableObject
         _anim.Start();
     }
 
-    partial void OnOrthoChanged(bool value) { Cameras[0].Orthographic = value; Invalidate(); }
+    partial void OnOrthoChanged(bool value) { foreach (var c in Cameras) c.Orthographic = value; Invalidate(); }
     partial void OnDisplayChanged(DisplayMode value) => Invalidate();
     partial void OnXRayChanged(bool value) => Invalidate();
     partial void OnZebraChanged(bool value) => Invalidate();
