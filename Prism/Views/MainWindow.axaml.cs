@@ -18,6 +18,15 @@ public partial class MainWindow : Window
         bool typing = e.Source is TextBox;
         if (typing) { if (e.Key == Key.Escape) { Focus(); e.Handled = true; } return; }
 
+        // typing text into the viewport: letters are text, not shortcuts. Ctrl and Alt combinations (undo...) still work as usual.
+        if (s.Sketch?.Tool is Prism.Core.SketchTextTool { Editing: true })
+        {
+            bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+            string? textKey = e.Key switch { Key.Back => "Back", Key.Enter or Key.Return => ctrl ? "CtrlEnter" : "Enter", Key.Escape => "Escape", _ => null };
+            if (textKey != null) { if (s.Key(textKey)) e.Handled = true; return; }
+            if (!ctrl && !e.KeyModifiers.HasFlag(KeyModifiers.Alt)) return;
+        }
+
         // shortcuts: the most specific scope first (a command that is open, then sketching, then the workspace, then everywhere)
         if (HotkeyInput.Gesture(e) is { } gesture)
             foreach (var action in Hotkeys.Resolve(gesture, Hotkeys.ActiveScopes(s.ActiveCommand != null, s.Sketch != null, vm.WorkspaceId, s.ActiveCommand is Prism.Commands.EditFormCommand)))
@@ -45,6 +54,13 @@ public partial class MainWindow : Window
             if (ch != null) key = "Char:" + ch;
         }
         if (key != null && s.Key(key)) e.Handled = true;
+    }
+
+    protected override void OnTextInput(Avalonia.Input.TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+        if (e.Handled || e.Source is TextBox || string.IsNullOrEmpty(e.Text) || DataContext is not MainViewModel vm) return;
+        if (vm.Session.Sketch?.Tool is Prism.Core.SketchTextTool { Editing: true } text) { text.TypeText(vm.Session, e.Text); e.Handled = true; }
     }
 
     static bool LetterMoved(char letter) => Hotkeys.Actions.Any(a => a.Scope == Hotkeys.Sketch && a.Default == letter.ToString() && Hotkeys.IsChanged(a));

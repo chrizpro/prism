@@ -52,6 +52,8 @@ public sealed partial class ToolControlRow : ObservableObject
     public bool IsToggle => Kind == ToolControlKind.Toggle;
     public bool IsNumber => Kind == ToolControlKind.Number;
     public bool IsButton => Kind == ToolControlKind.Button;
+    public bool IsText => Kind == ToolControlKind.Text;
+    public bool ShowNote => HasText && !IsText;
     public bool HasText => Text.Length > 0;
     public SketchTool? Owner { get; init; }
     public bool IsEditing { get; set; }
@@ -125,6 +127,7 @@ public sealed partial class MainViewModel
                 {
                     if (!_syncingToolPanel && e.PropertyName == nameof(ToolControlRow.On) && boundRow.IsToggle && ReferenceEquals(Session.Sketch?.Tool, boundRow.Owner)) SetToolControl(boundRow.Id, boundRow.On);
                     if (!_syncingToolPanel && e.PropertyName == nameof(ToolControlRow.HasError)) RefreshToolActionState();
+                    if (!_syncingToolPanel && e.PropertyName == nameof(ToolControlRow.Text) && boundRow.IsText && ReferenceEquals(Session.Sketch?.Tool, boundRow.Owner)) SetToolControl(boundRow.Id, boundRow.Text);
                 };
             }
             row.Label = c.Label; row.Text = c.Text; row.Unit = c.Unit.Trim() == "degrees" ? "°" : c.Unit.Trim();

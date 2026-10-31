@@ -34,9 +34,10 @@
                     <TextBox Grid.Column="1" Text="{Binding NumberText, Mode=TwoWay}" HorizontalContentAlignment="Right" GotFocus="OnToolNumberFocus" KeyDown="OnToolNumberKey" LostFocus="OnToolNumberLost" AutomationProperties.Name="{Binding Label}"/>
                     <TextBlock Grid.Column="2" Text="{Binding Unit}" Classes="soft" VerticalAlignment="Center"/>
                 </Grid>
+                <StackPanel Spacing="4" IsVisible="{Binding IsText}"><TextBlock Text="{Binding Label}" Classes="soft"/><TextBox Text="{Binding Text, Mode=TwoWay}" AcceptsReturn="True" MinHeight="60" TextWrapping="Wrap" AutomationProperties.Name="{Binding Label}"/></StackPanel>
                 <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" Foreground="{DynamicResource Danger}" TextWrapping="Wrap" FontSize="11"/>
                 <Button Content="{Binding Label}" Classes="studioAction" Classes.primary="{Binding Primary}" IsEnabled="{Binding CanRun}" IsVisible="{Binding IsButton}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnToolButton"/>
-                <TextBlock Text="{Binding Text}" Classes="soft" TextWrapping="Wrap" IsVisible="{Binding HasText}" FontSize="11"/>
+                <TextBlock Text="{Binding Text}" Classes="soft" TextWrapping="Wrap" IsVisible="{Binding ShowNote}" FontSize="11"/>
             </StackPanel>
         </DataTemplate>
     </UserControl.DataTemplates>

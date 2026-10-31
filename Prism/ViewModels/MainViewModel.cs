@@ -787,6 +787,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Tool("Slot", "slot", "Slot", () => new SlotTool(), "A slot: two arc centers, then the width."),
                     Tool("Spline", "spline", "Spline", () => new SplineTool(SketchTool.Recall("Spline") == 1), "Draw splines through fit points or shaped by control points.")),
                 G("References"),
+                    Tool("Text", "text", "Text", () => new SketchTextTool(), "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss."),
                 G("Modify",
                     Tool("Trim", "trim", "Trim", () => new TrimTool(), "Cut a line, arc or circle back to the curves that cross it. Click the part to remove."),
                     Tool("Extend", "extend", "Extend", () => new ExtendTool(), "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend."),

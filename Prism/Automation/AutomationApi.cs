@@ -1318,7 +1318,7 @@ public sealed partial class AutomationApi
                         "line" => new LineTool(0), "line_mid" => new LineTool(1),
                         "rect" => new RectTool(RectMode.TwoCorner), "rect_center" => new RectTool(RectMode.Center), "rect_3pt" => new RectTool(RectMode.ThreePoint),
                         "ellipse" => new EllipseTool(EllipseMode.Center), "ellipse_2pt" => new EllipseTool(EllipseMode.TwoPoint), "ellipse_3pt" => new EllipseTool(EllipseMode.ThreePoint), "arc" or "arc_3pt" => new ArcTool(ArcMode.ThreePoint), "arc_center" => new ArcTool(ArcMode.CenterStartEnd), "arc_tangent" => new ArcTool(ArcMode.Tangent), "circle" => new CircleTool(CircleMode.CenterRadius), "circle_2pt" => new CircleTool(CircleMode.TwoPoint), "circle_3pt" => new CircleTool(CircleMode.ThreePoint),
-                        "polygon" => new PolygonTool(false), "slot" => new SlotTool(), "spline" => new SplineTool(false), "spline_control" => new SplineTool(true),
+                        "polygon" => new PolygonTool(false), "slot" => new SlotTool(), "text" => new SketchTextTool(), "spline" => new SplineTool(false), "spline_control" => new SplineTool(true),
                         "edit_spline" => new SketchGeometryEditTool(1), "edit_sketch" => new SketchGeometryEditTool(), "select" => new SelectTool(), "extend" => new ExtendTool(), "offset" => new OffsetTool(), "fillet" => new FilletTool(false), "chamfer" => new FilletTool(true), "trim" => new TrimTool(), "pattern" => SketchPatternTool.Make(0), "pattern_circular" => SketchPatternTool.Make(1), "pattern_curve" => SketchPatternTool.Make(2),
                         _ => throw new ArgumentException($"Unknown sketch tool '{n}'."),
                     };
