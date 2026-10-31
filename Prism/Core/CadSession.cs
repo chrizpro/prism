@@ -694,7 +694,9 @@ public sealed partial class CadSession : ObservableObject
         var cam = Camera;
         bool wantEdges = filter.HasFlag(SelFilter.Edge) || (filter & SelFilter.AnyCurve) != 0;
         bool wantFaces = filter.HasFlag(SelFilter.Face) || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
-        var vis = Objects.Where(o => !HiddenIds.Contains(o.Id)).ToList();
+        // while a command is collecting picks its preview hides the original bodies; they stay pickable so more edges, faces or spots can be added
+        bool picking = ActiveCommand?.ActiveSlot != null;
+        var vis = Objects.Where(o => picking || !HiddenIds.Contains(o.Id)).ToList();
 
         var face = wantFaces ? Picking.RayFace(cam, vis, px, py, o => FaceEligible(o, filter)) : null;
         PickResult? fr = null;
@@ -1197,9 +1199,10 @@ public sealed partial class CadSession : ObservableObject
         if (Sketch != null) return true; // never fall back to selection while sketching
         if (ActiveCommand != null)
         {
+            if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
             var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; return true; }
             var r = Pick(p.X, p.Y, ActiveFilter);
-            if (r != null) { var cmd = ActiveCommand; if (cmd.Pick(r.Value.Item, p.Ctrl || p.Shift) && cmd.CommitOnPick) CommitCommand(); }
+            if (r != null) { var cmd = ActiveCommand; if (cmd.PickPoint(r.Value, p.Ctrl || p.Shift)) { } else if (cmd.Pick(r.Value.Item, p.Ctrl || p.Shift) && cmd.CommitOnPick) CommitCommand(); }
             return true;
         }
         var hit = Pick(p.X, p.Y, ActiveFilter);
@@ -1212,6 +1215,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
         if (DatumVisible) Datum!.PointerMove(this, p);
+        if (_cmdGrab && p.Left && ActiveCommand != null) { ActiveCommand.GrabMove(this, p.X, p.Y, p.Alt); Invalidate(); return; }
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
@@ -1220,7 +1224,8 @@ public sealed partial class CadSession : ObservableObject
         }
         ActiveTool?.PointerMove(this, p);
     }
-    public void PointerUp(PointerInfo p) { _handleDrag = false; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
+    bool _cmdGrab;
+    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
 
     // ------------------------------------------------------------ grab handle (pull an arrow to set a distance)
     bool _handleDrag, _handleHover;

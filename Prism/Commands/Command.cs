@@ -493,6 +493,13 @@ public abstract partial class Command : ObservableObject
     /// <summary>Commit as soon as a pick completes the command (no need to press OK).</summary>
     public virtual bool CommitOnPick => false;
 
+    /// <summary>A viewport click with its 3D hit point, offered before the normal slot pick. Return true to consume it.</summary>
+    public virtual bool PickPoint(PickResult hit, bool additive) => false;
+    /// <summary>Pointer pressed: return true to start dragging something of this command's (a placed point, say).</summary>
+    public virtual bool GrabAt(CadSession s, double px, double py, bool ctrl) => false;
+    /// <summary>The pointer moved while a grab started by GrabAt is held.</summary>
+    public virtual void GrabMove(CadSession s, double px, double py, bool alt) { }
+
     public SelectionSlot? ActiveSlot => Slots.FirstOrDefault(x => x.IsActive);
 
     /// <summary>Feeds a viewport pick into the active slot. Returns true if it was consumed.</summary>
