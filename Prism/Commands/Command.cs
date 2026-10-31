@@ -341,7 +341,7 @@ public abstract partial class Command : ObservableObject
     public virtual string Icon => Title switch
     {
         "Box" => "box", "Cylinder" => "cylinder", "Sphere" => "sphere", "Cone" => "cone", "Torus" => "torus",
-        "Extrude" => "extrude", "Rib" => "rib", "Extrude Surface" => "extrude-surface", "Revolve" => "revolve", "Revolve Surface" => "revolve-surface",
+        "Extrude" => "extrude", "Emboss" => "emboss", "Rib" => "rib", "Extrude Surface" => "extrude-surface", "Revolve" => "revolve", "Revolve Surface" => "revolve-surface",
         "Sweep" => "sweep", "Sweep Surface" => "sweep-surface", "Loft" => "loft", "Loft Surface" => "loft-surface",
         "Fillet" => "fillet", "Chamfer" => "chamfer", "Shell" => "shell", "Union" => "union", "Subtract" => "subtract", "Intersect" => "intersect",
         "Move" => "move", "Rotate" => "rotate", "Scale" => "scale", "Mirror" => "mirror",

@@ -47,13 +47,13 @@ public abstract class BodyCommand : Command
         return best;
     }
 
-    static double Overlap(SceneObject body, Shape tool)
+    protected static double Overlap(SceneObject body, Shape tool)
     {
         try { return Math.Abs(Occ.Mass(Occ.Common(body.Shape, tool)).Volume); }
         catch (Exception e) when (e is not OutOfMemoryException) { return 0; }
     }
 
-    SceneObject ResolveTarget(Shape tool)
+    protected SceneObject ResolveTarget(Shape tool)
     {
         if (ObjectsOf(Target!).FirstOrDefault() is { } picked) return picked;
         if (NearestBody(tool) is { } near) return near;
