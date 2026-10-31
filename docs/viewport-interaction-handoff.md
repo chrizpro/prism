@@ -28,6 +28,15 @@ A rough count of command files that expose any `Handles`/`HandleSpec`/viewport t
 * **No viewport handles or tools at all** (panel only): `HoleCommand`, `PatternCommands` (6 commands), `BoundarySurfaceCommand`, `SurfaceCommands2`, `SurfaceMatchCommands`, `PlaneCommands`, `FormCommands`/`FormBuildCommands`/`FormShapeCommands` (partly covered by `FormEditTool`), `NurbsToolCommands` (23 commands), `MeshCommands` (15), `MeshFitCommands`, `CamCommands` (11) / `CamWorkflowCommands`, `CaeCommands`/`CaeWorkflowCommands`, `EcadCommands`, `FlattenCommand`/`RefoldCommand`, `WarpCommand`, `RenderCommand`, `PrintExportCommand`, `DrawingCommand`, `ArCommand`, `GenerativeCommand`, `EquationCurveCommand`, `CheckCageCommand`.
 * **Only one handle where several are natural**: `SolidCommands.cs` (Extrude has distance arrows; Fillet/Chamfer radius, Shell thickness, Revolve angle, Rib, Loft/Sweep guides, Boolean offsets have little or none), `SurfaceCommands`, `SurfaceToolCommands`, `SheetMetalCommands`, `AssemblyCommands` (joints), `AnimationCommands`, `DirectCommands`.
 
+### Update: handles added since this audit (build-verified only, not exercised by hand)
+
+* Fillet / Chamfer: radius arrow at the first picked edge (`Command.EdgeHandle`). Shell: thickness arrow on the first removed face. Draft: angle arc at the first drafted face.
+* Hole: diameter arrow (and depth arrow for Blind) at the hole center.
+* Patterns: spacing arrows (linear, curve, fill), angle arc and ring-spacing arrow (circular), collected in `PatternCommand.PatHandles` during `Layout`.
+* Move (three axis arrows), Rotate (angle arc), Scale (factor arrow); Construction Plane offset distance and angle.
+* Already existed (audit was stale): Revolve angle, Assembly and Animation joint handles (`JointHandles`).
+* Not done: Sweep/Loft end scale and guide dragging, counts on patterns, Mirror, CAM/CAE/mesh/NURBS.
+
 ### Suggested priority and the interaction to build
 
 1. **Fillet / Chamfer / Shell / Draft / Offset / Thicken**: a drag arrow at the selected edge/face for radius/thickness/distance (like Extrude), live preview, type-to-set.
