@@ -254,6 +254,7 @@ public abstract class ClickTool : SketchTool
         _panelSession=s;Shift = SketchShortcuts.ShiftHeld(p);
         if(_typing&&TypedFields(s) is { } typedFields){CommitTyped(s,typedFields);s.RaiseState();return true;}
         ResetTyping();
+        sk.TrackFrom = Clicks.Count > 0 ? (Clicks[^1].U, Clicks[^1].V) : null;
         if (sk.Snap(s, p.X, p.Y, !p.Alt) is not { } raw) return true;
         var sn = Constrain(s, raw);
         Hot = sn; sk.Cursor = sn;
@@ -268,6 +269,7 @@ public abstract class ClickTool : SketchTool
     {
         var sk = Sk(s);
         _panelSession=s;Shift = SketchShortcuts.ShiftHeld(p);
+        sk.TrackFrom = Clicks.Count > 0 ? (Clicks[^1].U, Clicks[^1].V) : null;
         var sn = sk.Snap(s, p.X, p.Y, !p.Alt);
         Hot = sn is { } a ? Constrain(s, a) : null;
         UpdateTypedPreview(s);
@@ -520,7 +522,7 @@ public sealed class LineTool(int variant = 0) : ClickTool
 /// <summary>One choice in a tool's options bar.</summary>
 public sealed record ToolOption(string Label, string Tip, string Icon);
 
-public enum ToolControlKind { Info, Toggle, Number, Button }
+public enum ToolControlKind { Info, Toggle, Number, Button, Text }
 
 /// <summary>One control in a tool's panel. Toggle uses On, Number uses Number and Unit, Button may be Primary.</summary>
 public sealed record ToolControl(ToolControlKind Kind, string Id, string Label, string Text = "", bool On = false, double Number = 0, string Unit = "", bool Primary = false, bool Enabled = true, string Section = "");

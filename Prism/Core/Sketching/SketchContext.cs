@@ -6,9 +6,9 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum SnapKind { Grid, Point, Entity, External, Projected, Gizmo, Midpoint }
+public enum SnapKind { Grid, Point, Entity, External, Projected, Gizmo, Midpoint, Track, Center }
 /// <summary>Where a click would land. <c>Note</c> says what it landed on when that is geometry outside this sketch (for example "Sketch 1 · center").</summary>
-public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id, string? Note = null);
+public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id, string? Note = null, int Id2 = -1);
 
 public static class GridMath
 {
@@ -63,7 +63,10 @@ public sealed partial class SketchContext
     public bool HasContent => _sections.Any(section => section.Model.Entities.Count > 0) || Datums.Count > 0;
 
     public bool EntityVisible(SkEntity e) => !e.Construction || Model.ShowConstruction;
-    public bool PointVisible(int id) => id == 0 || Model.ShowConstruction || Model.Entities.Any(e => !e.Construction && Model.PointsOf(e).Contains(id));
+    public bool PointVisible(int id) => id == 0 || Model.ShowConstruction || Model.Entities.Any(e => !e.Construction && Model.PointsOf(e).Contains(id)) && !TextFitPoint(id);
+
+    /// <summary>The fit points inside a letter's curve are not shown or snapped to (only the corners and curve ends are), so text stays clean.</summary>
+    bool TextFitPoint(int id) => Model.Entities.Any(e => e.Type == EntType.Spline && e.Group != null && e.Group.StartsWith("Text ", StringComparison.Ordinal) && e.Pts.IndexOf(id) is var i && i > 0 && (e.Closed || i < e.Pts.Count - 1));
 
     bool ConstraintVisible(SkConstraint c)
     {
@@ -78,7 +81,7 @@ public sealed partial class SketchContext
         GeometryEditing = t is SketchGeometryEditTool or SplineEditTool;
         if(!GeometryEditing)_planarGizmoEnabled=false;
         if(!HasGeometrySelection)ClearGizmoTarget();
-        DrawingAxis = 0; _lastPlacement = null;
+        DrawingAxis = 0; _lastPlacement = null; ClearTracking();
         _axisPreview=null;_inferredVisualAxis=-1;
         Tool?.Deactivate(s);
         Hint = null;
@@ -395,6 +398,14 @@ public sealed partial class SketchContext
 
     public SnapInfo? Snap(CadSession s, double px, double py, bool allow = true, ICollection<int>? excludePoints = null, ICollection<int>? excludeEntities = null)
     {
+        _hoverSeen = false;
+        var result = SnapCore(s, px, py, allow, excludePoints, excludeEntities);
+        if (!_hoverSeen) _hoverKey = null;
+        return result;
+    }
+
+    SnapInfo? SnapCore(CadSession s, double px, double py, bool allow, ICollection<int>? excludePoints, ICollection<int>? excludeEntities)
+    {
         if (allow && Is3DEnabled && _axisPreview is { } inferred)
         {
             if (Math.Abs(Vec3.Dot(inferred-Plane.Origin,Plane.Normal)) > 1e-6) return null;
@@ -417,7 +428,7 @@ public sealed partial class SketchContext
                 double d = Math.Sqrt((p.X - uv.u) * (p.X - uv.u) + (p.Y - uv.v) * (p.Y - uv.v));
                 if (d < bd) { bd = d; bestP = p.Id; }
             }
-            if (bestP >= 0) { var p = Model.P(bestP); return new SnapInfo(p.X, p.Y, SnapKind.Point, bestP); }
+            if (bestP >= 0) { var p = Model.P(bestP); Hover("p" + bestP, p.X, p.Y, bestP); return new SnapInfo(p.X, p.Y, SnapKind.Point, bestP); }
             if (Is3DEnabled && Math.Abs(Vec3.Dot(GizmoFrame.Origin - Plane.Origin, Plane.Normal)) < 1e-6 && s.Camera.Project(GizmoFrame.Origin) is { } gizmo && Math.Sqrt(Math.Pow(gizmo.x - px, 2) + Math.Pow(gizmo.y - py, 2)) < 9)
             { var local = Plane.Project(GizmoFrame.Origin); return new SnapInfo(local.u, local.v, SnapKind.Gizmo, -1); }
             // a visible sketch that is not being edited counts as part of this one: its endpoints, centers and midpoints snap
@@ -430,7 +441,9 @@ public sealed partial class SketchContext
                 double mx = (a.X + b.X) / 2, my = (a.Y + b.Y) / 2, d = Math.Sqrt((mx - uv.u) * (mx - uv.u) + (my - uv.v) * (my - uv.v));
                 if (d < bm) { bm = d; bestM = e.Id; mid = (mx, my); }
             }
-            if (bestM >= 0) return new SnapInfo(mid.Item1, mid.Item2, SnapKind.Midpoint, bestM);
+            if (RectangleCenter(uv.u, uv.v, 9 * ps) is { } center) { Hover("c" + center.u.ToString("0.###") + "/" + center.v.ToString("0.###"), center.u, center.v, -1); return new SnapInfo(center.u, center.v, SnapKind.Center, -1, "Center"); }
+            if (bestM >= 0) { Hover("m" + bestM, mid.Item1, mid.Item2, -1); return new SnapInfo(mid.Item1, mid.Item2, SnapKind.Midpoint, bestM); }
+            if (TrackAcquired(uv.u, uv.v, ps, excludePoints) is { } tracked) return tracked;
             int bestE = -1; double be = 8 * ps; (double, double) bq = (0, 0);
             foreach (var e in Model.Entities)
             {
@@ -440,6 +453,15 @@ public sealed partial class SketchContext
                 if (d < be) { be = d; bestE = e.Id; bq = (qu, qv); }
             }
             if (bestE >= 0) return new SnapInfo(bq.Item1, bq.Item2, SnapKind.Entity, bestE);
+            if (TrackFrom is { } from)
+            {
+                bool nearH = Math.Abs(uv.v - from.v) < 7 * ps, nearV = Math.Abs(uv.u - from.u) < 7 * ps;
+                if (nearH ^ nearV)
+                {
+                    TrackSegs.Add((from.u, from.v, nearH ? uv.u : from.u, nearH ? from.v : uv.v));
+                    return new SnapInfo(nearH ? uv.u : from.u, nearH ? from.v : uv.v, SnapKind.Grid, -1, nearH ? "Horizontal" : "Vertical");
+                }
+            }
             if (SnapReferenceSketches(s, px, py, false) is { } referenceCurve) return referenceCurve;
             if (SnapOtherCurves && SnapExternal(s, px, py) is { } external) return external;
         }
@@ -449,10 +471,74 @@ public sealed partial class SketchContext
     }
 
     /// <summary>Turn a snap into a model point, adding the constraint the snap implies (coincident / point on curve).</summary>
+    // ---------------------------------------------------------------- alignment tracking: rest the pointer on a point to acquire it, then line up with it
+    /// <summary>A spot the pointer rested on (a point, a line's midpoint, a rectangle's center): the sketch offers horizontal and vertical alignment with it.</summary>
+    public sealed record Anchor(string Key, double U, double V, int PointId);
+    public List<Anchor> Acquired { get; } = [];
+    /// <summary>Where the active tool's last click was; the pointer also lines up with it.</summary>
+    public (double u, double v)? TrackFrom { get; set; }
+    /// <summary>Alignment lines the last snap used (drawn as a guide).</summary>
+    public List<(double au, double av, double bu, double bv)> TrackSegs { get; } = [];
+    string? _hoverKey; long _hoverSince; bool _hoverSeen;
+
+    void Hover(string key, double u, double v, int pointId)
+    {
+        _hoverSeen = true;
+        long now = Environment.TickCount64;
+        if (_hoverKey != key) { _hoverKey = key; _hoverSince = now; return; }
+        if (now - _hoverSince < 220 || Acquired.Any(a => a.Key == key)) return;
+        Acquired.Add(new Anchor(key, u, v, pointId));
+        if (Acquired.Count > 4) Acquired.RemoveAt(0);
+    }
+    public void ClearTracking() { Acquired.Clear(); TrackSegs.Clear(); _hoverKey = null; TrackFrom = null; }
+
+    (double u, double v) AnchorAt(Anchor a) => a.PointId >= 0 && Model.PointOrNull(a.PointId) is { } p ? (p.X, p.Y) : (a.U, a.V);
+
+    /// <summary>The center of a rectangle (the middle of its box) when the pointer is near it.</summary>
+    (double u, double v)? RectangleCenter(double u, double v, double tol)
+    {
+        foreach (var g in Model.Entities.Where(e => e.Type == EntType.Line && e.Group != null && e.Group.StartsWith("Rectangle ", StringComparison.Ordinal) && EntityVisible(e)).GroupBy(e => e.Group))
+        {
+            var pts = g.SelectMany(e => new[] { Model.P(e.A), Model.P(e.B) }).ToList();
+            if (g.Count() < 4) continue;
+            double cu = (pts.Min(q => q.X) + pts.Max(q => q.X)) / 2, cv = (pts.Min(q => q.Y) + pts.Max(q => q.Y)) / 2;
+            if (Math.Abs(cu - u) < tol && Math.Abs(cv - v) < tol) return (cu, cv);
+        }
+        return null;
+    }
+
+    SnapInfo? TrackAcquired(double u, double v, double ps, ICollection<int>? exclude)
+    {
+        TrackSegs.Clear();
+        if (Acquired.Count == 0) return null;
+        double tol = 7 * ps, bh = tol, bv = tol; Anchor? h = null, vv = null;
+        foreach (var a in Acquired)
+        {
+            if (a.PointId >= 0 && exclude?.Contains(a.PointId) == true) continue;
+            var (au, av) = AnchorAt(a);
+            if (Math.Abs(v - av) < bh) { bh = Math.Abs(v - av); h = a; }
+            if (Math.Abs(u - au) < bv) { bv = Math.Abs(u - au); vv = a; }
+        }
+        if (h == null && vv == null) return null;
+        double su = vv != null ? AnchorAt(vv).u : u, sv = h != null ? AnchorAt(h).v : v;
+        if (h != null) { var a = AnchorAt(h); TrackSegs.Add((a.u, a.v, su, sv)); }
+        if (vv != null) { var a = AnchorAt(vv); TrackSegs.Add((a.u, a.v, su, sv)); }
+        string note = h != null && vv != null ? "Horizontal and vertical" : h != null ? "Horizontal" : "Vertical";
+        return new SnapInfo(su, sv, SnapKind.Track, (h ?? vv)!.PointId, note, h != null && vv != null ? vv.PointId : -1);
+    }
+
     public int PointFor(SnapInfo sn)
     {
         if (sn.Kind == SnapKind.Point) return sn.Id;
         int id = Model.AddPoint(sn.U, sn.V);
+        if (sn.Kind == SnapKind.Track)
+        {
+            // only aligned-with-a-point snaps can become constraints; a midpoint or rectangle center has no point to refer to
+            bool horizontal = sn.Note?.StartsWith("Horizontal", StringComparison.Ordinal) == true, both = sn.Note == "Horizontal and vertical";
+            if (sn.Id >= 0) Model.Add(horizontal ? CType.Horizontal : CType.Vertical, refs: [id, sn.Id]);
+            if (both && sn.Id2 >= 0) Model.Add(CType.Vertical, refs: [id, sn.Id2]);
+            return id;
+        }
         if (sn.Kind == SnapKind.Entity) Model.Add(CType.PointOnEntity, 0, 0, false, id, sn.Id);
         else if (sn.Kind == SnapKind.Midpoint) Model.Add(CType.Midpoint, 0, 0, false, id, sn.Id);
         return id;
@@ -479,6 +565,9 @@ public sealed partial class SketchContext
         SnapKind.Entity => "On curve",
         SnapKind.Midpoint => "Midpoint",
         SnapKind.Gizmo => "Gizmo origin",
+        SnapKind.Track => sn.Note,
+        SnapKind.Center => "Center",
+        SnapKind.Grid when sn.Note != null => sn.Note,
         SnapKind.External => sn.Note ?? "Other curve snap",
         SnapKind.Projected => sn.Note ?? "Projected curve snap",
         _ => null,
@@ -593,6 +682,12 @@ public sealed partial class SketchContext
                 _glyphs.Add((c, pos, n));
             }
         }
+        foreach (var acq in Acquired) { var at = AnchorAt(acq); o.AddDot(Plane.PointAt(at.u, at.v), 0xFF6FD6FF, 13); }
+        foreach (var (au, av, bu, bv) in TrackSegs)
+        {
+            double len = Math.Max(Math.Sqrt((bu - au) * (bu - au) + (bv - av) * (bv - av)), 1e-9), ex = (bu - au) / len, ey = (bv - av) / len, ext = cam.PixelSizeAt(Plane.PointAt(bu, bv)) * 30;
+            DashedLine(o, Plane.PointAt(au, av), Plane.PointAt(bu + ex * ext, bv + ey * ext), cam.PixelSizeAt(Plane.PointAt(bu, bv)) * 6, 0xFF6FD6FF, 1.3f);
+        }
         BuildDimensions(s, o);
         if (ShowCurvature) BuildComb(s, o);
         if (Cursor is { } cur)
@@ -706,10 +801,29 @@ public sealed partial class SketchContext
         return null;
     }
 
+    public const uint DimColor = 0xFFFFFFFF;
+
+    /// <summary>A solid arrowhead whose tip sits at (tu, tv) and points along (du, dv).</summary>
+    public static void DimArrow(Overlay o, Plane3 pl, double ps, double tu, double tv, double du, double dv, uint col)
+    {
+        double len = 11 * ps, w = 3.4 * ps, nu = -dv, nv = du;
+        double bu = tu - du * len, bv = tv - dv * len;
+        o.AddTri(pl.PointAt(tu, tv), pl.PointAt(bu + nu * w, bv + nv * w), pl.PointAt(bu - nu * w, bv - nv * w), col);
+    }
+
+    /// <summary>A dashed guide line (guides are not geometry, so they must not look like it).</summary>
+    public static void DashedLine(Overlay o, Vec3 a, Vec3 b, double dashLen, uint col, float width)
+    {
+        var d = b - a; double total = d.Length;
+        if (total < 1e-9 || dashLen <= 0) return;
+        var u = d * (1 / total);
+        for (double t = 0; t < total; t += dashLen * 1.7) o.AddLine(a + u * t, a + u * Math.Min(t + dashLen, total), col, width);
+    }
+
     void BuildDimensions(CadSession s, Overlay o)
     {
         _dimLabels.Clear();
-        var cam = s.Camera; uint col = 0xFF8FB8FF;
+        var cam = s.Camera; uint col = DimColor;
         foreach (var c in Model.Constraints.Where(c => c.IsDimension && c.Type != CType.Fixed && ConstraintVisible(c)))
         {
             Vec3 W(double x, double y) => Plane.PointAt(x, y);
@@ -745,6 +859,8 @@ public sealed partial class SketchContext
                     o.AddLine(W(ax, ay), W(p1x + nx * 4 * ps, p1y + ny * 4 * ps), col, 1.2f);
                     o.AddLine(W(bx, by), W(p2x + nx * 4 * ps, p2y + ny * 4 * ps), col, 1.2f);
                     o.AddLine(W(p1x, p1y), W(p2x, p2y), col, 1.6f);
+                    { double dl = Math.Max(Math.Sqrt((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y)), 1e-9), dx = (p2x - p1x) / dl, dy = (p2y - p1y) / dl;
+                      DimArrow(o, Plane, ps, p1x, p1y, -dx, -dy, col); DimArrow(o, Plane, ps, p2x, p2y, dx, dy, col); }
                     labelPos = W((p1x + p2x) / 2, (p1y + p2y) / 2);
                     text = $"{Math.Abs(c.Value):0.##}";
                     break;
@@ -756,6 +872,8 @@ public sealed partial class SketchContext
                     double ex = ctr.X + Math.Cos(ang) * r, ey = ctr.Y + Math.Sin(ang) * r;
                     if (c.Type == CType.Diameter) o.AddLine(W(ctr.X - Math.Cos(ang) * r, ctr.Y - Math.Sin(ang) * r), W(ex, ey), col, 1.6f);
                     else o.AddLine(W(ctr.X, ctr.Y), W(ex, ey), col, 1.6f);
+                    DimArrow(o, Plane, ps, ex, ey, Math.Cos(ang), Math.Sin(ang), col);
+                    if (c.Type == CType.Diameter) DimArrow(o, Plane, ps, ctr.X - Math.Cos(ang) * r, ctr.Y - Math.Sin(ang) * r, -Math.Cos(ang), -Math.Sin(ang), col);
                     labelPos = W(ex + Math.Cos(ang) * 22 * ps, ey + Math.Sin(ang) * 22 * ps);
                     if(c.LabelU is { } lu&&c.LabelV is { } lv)labelPos=W(lu,lv);
                     o.AddLine(W(ex, ey), labelPos, col, 1.2f);
