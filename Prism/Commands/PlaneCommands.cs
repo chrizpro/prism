@@ -136,6 +136,31 @@ public sealed class ConstructionPlaneCommand : Command
         return (a, dir);
     }
 
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            try
+            {
+                var m = (Method)_method.Index;
+                if (m is not (Method.Offset or Method.Angle) || _base.Items.Count == 0 || S.PlaneOf(_base.Items[0]) is not { } b) return [];
+                var it = _base.Items[0];
+                var at = b.Origin;
+                if (it.Kind == SelKind.Face && S.ShapeOf(it) is { } sh) { var pr = sh.Props(); var c = (pr.Min + pr.Max) * 0.5; at = c - b.Normal * Vec3.Dot(c - b.Origin, b.Normal); }
+                if (m == Method.Offset) return [new HandleSpec(at, b.Normal, _distance)];
+                if (_hinge.Items.Count == 0) return [];
+                var (ho, hd) = HingeLine(); hd = hd.Normalized();
+                var foot = ho + hd * Vec3.Dot(at - ho, hd);
+                var away = at - foot;
+                if (away.Length < 1e-6) away = b.U;
+                double radius = Math.Max(away.Length, 10);
+                return [new HandleSpec(foot, hd, _angle, 1, away.Normalized(), radius)];
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
     // ------------------------------------------------------------ build
     protected override CommandOutput? Build()
     {
