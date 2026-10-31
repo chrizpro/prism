@@ -25,8 +25,8 @@ foreach ($p in $projects) {
     Remove-Job $job -Force
     $text = ($out | ForEach-Object { "$_" })
     $ok = $text | Where-Object { $_ -match '^SUCCESS' } | Select-Object -Last 1
-    $why = $text | Where-Object { $_ -match 'FAIL|Unhandled exception|error CS|TIMEOUT' } | Select-Object -First 1
-    $status = if ($ok -and -not ($text | Where-Object { $_ -match '^FAIL' })) { 'PASS' } else { 'FAIL' }
+    $why = $text | Where-Object { $_ -cmatch 'FAIL|Unhandled exception|error CS|TIMEOUT' } | Select-Object -First 1
+    $status = if ($ok -and -not ($text | Where-Object { $_ -cmatch '^FAIL' })) { 'PASS' } else { 'FAIL' }
     Write-Host (" {0} ({1:n0}s)" -f $status, $sw.Elapsed.TotalSeconds)
     $results += [pscustomobject]@{ Project = $p.Name; Status = $status; Detail = if ($status -eq 'PASS') { $ok } else { $why } }
 }

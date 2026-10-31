@@ -55,6 +55,8 @@ public sealed class SkConstraint
     public double? LabelV { get; set; }
     public bool IsDimension { get; set; }
     public bool Hidden { get; set; }
+    /// <summary>Switched off by the user for troubleshooting: the solver ignores it, but it stays in the sketch and can be switched back on.</summary>
+    public bool Disabled { get; set; }
 }
 
 /// <summary>An additional constrained drawing plane within the same editable sketch.</summary>
@@ -91,7 +93,7 @@ public sealed class SketchModel
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });
-        foreach (var c in Constraints) m.Constraints.Add(new SkConstraint { Id = c.Id, Type = c.Type, Refs = (int[])c.Refs.Clone(), Value = c.Value, V2 = c.V2, IsDimension = c.IsDimension, Hidden = c.Hidden, LabelU=c.LabelU,LabelV=c.LabelV });
+        foreach (var c in Constraints) m.Constraints.Add(new SkConstraint { Id = c.Id, Type = c.Type, Refs = (int[])c.Refs.Clone(), Value = c.Value, V2 = c.V2, IsDimension = c.IsDimension, Hidden = c.Hidden, Disabled = c.Disabled, LabelU=c.LabelU,LabelV=c.LabelV });
         return m;
     }
 

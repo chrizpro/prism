@@ -23,6 +23,9 @@ public sealed class ConstraintRow
     public bool IsDetail => !IsHeader;
     public string GroupName { get; init; } = "";
     public Avalonia.Thickness Indent { get; init; }
+    /// <summary>False when the user switched this constraint off (the solver ignores it).</summary>
+    public bool Active { get; init; } = true;
+    public double RowOpacity => Active ? 1 : .45;
 }
 
 /// <summary>One variant of the active drawing tool, shown in the viewport options bar.</summary>
@@ -276,7 +279,7 @@ public sealed partial class MainViewModel
             string value = c.IsDimension ? (c.Type == CType.Angle ? $"{Math.Abs(c.Value):0.##}°" : c.Type is CType.Radius ? $"R {c.Value:0.##}" : c.Type is CType.Diameter ? $"Ø {c.Value:0.##}" : $"{Math.Abs(c.Value):0.##} mm") : "";
             return new ConstraintRow
             {
-                Id = c.Id, IsDimension = c.IsDimension, Glyph = c.IsDimension ? "↔" : SketchModel.Glyph(c.Type), Title = SketchModel.Describe(c.Type), Indent = indent,
+                Id = c.Id, Active = !c.Disabled, IsDimension = c.IsDimension, Glyph = c.IsDimension ? "↔" : SketchModel.Glyph(c.Type), Title = SketchModel.Describe(c.Type), Indent = indent,
                 Detail = string.Join(" · ", c.Refs.Select((id, i) => name(ip[i], id))), Value = value,
             };
         }
@@ -297,6 +300,14 @@ public sealed partial class MainViewModel
         var sk = Session.Sketch; if (sk == null) return;
         var c = sk.Model.Constraints.FirstOrDefault(x => x.Id == row.Id); if (c == null) return;
         sk.Edit(Session, "Removing that", () => sk.Model.Remove(sk.Model.Constraints.First(x => x.Id == row.Id)));
+    }
+
+    /// <summary>Switch a constraint or dimension off or on again. Off, the solver ignores it and the row stays so it can be restored; both are undoable.</summary>
+    public void ToggleConstraint(ConstraintRow row)
+    {
+        var sk = Session.Sketch; if (sk == null || row.IsHeader) return;
+        if (sk.Model.Constraints.All(x => x.Id != row.Id)) return;
+        sk.Edit(Session, row.Active ? "Switching that off" : "Switching that on", () => { var c = sk.Model.Constraints.First(x => x.Id == row.Id); c.Disabled = !c.Disabled; });
     }
 
     public void EditConstraintValue(ConstraintRow row)

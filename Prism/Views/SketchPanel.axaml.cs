@@ -20,6 +20,12 @@ public partial class SketchPanel : UserControl
         e.Handled = true;
     }
 
+    void OnToggleRow(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is ConstraintRow row) Vm?.ToggleConstraint(row);
+        e.Handled = true;
+    }
+
     void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
         if ((e.Source as Control)?.DataContext is not ConstraintRow row) return;

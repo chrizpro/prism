@@ -335,6 +335,8 @@ public partial class MainView : UserControl
     void OnTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (e.Source is TextBox || Vm is not { } vm) return;
+        // double-clicking a name renames it (the Origin and its folders cannot be renamed); double-clicking anywhere else on the row keeps its old action
+        if (e.Source is TextBlock { DataContext: BrowserNode named } label && named.CanRename && label.Text == named.Title) { named.BeginRename(); e.Handled = true; return; }
         var node = SelectedNodes().FirstOrDefault();
         if (node == null) return;
         if (node.IsObject && node.ObjKind == ObjKind.Sketch) vm.EditSketchNode(node);

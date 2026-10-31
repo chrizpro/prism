@@ -73,7 +73,7 @@
             <ListBox ItemsSource="{Binding SketchConstraints}" Classes="hist" DoubleTapped="OnRowDoubleTapped">
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="vm:ConstraintRow">
-                        <Grid ColumnDefinitions="26,*,Auto,Auto" Height="40" ColumnSpacing="8" Background="Transparent" Margin="{Binding Indent}">
+                        <Grid ColumnDefinitions="26,*,Auto,Auto,Auto" Height="40" ColumnSpacing="8" Background="Transparent" Margin="{Binding Indent}" Opacity="{Binding RowOpacity}">
                             <TextBlock Text="{Binding Glyph}" FontSize="15" Foreground="{DynamicResource Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding IsDetail}"/>
                             <Button Classes="tool" Content="{Binding Glyph}" Tag="{Binding GroupName}" Click="OnToggleGroup" IsVisible="{Binding IsHeader}" FontSize="13" Padding="4,2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
@@ -81,7 +81,8 @@
                                 <TextBlock Text="{Binding Detail}" Classes="faint" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                             <TextBlock Grid.Column="2" Text="{Binding Value}" IsVisible="{Binding HasValue}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
-                            <Button Grid.Column="3" Classes="tool" Content="✕" FontSize="10" Padding="6,3" Click="OnDeleteRow" ToolTip.Tip="Remove" IsVisible="{Binding IsDetail}"/>
+                            <CheckBox Grid.Column="3" IsChecked="{Binding Active, Mode=OneWay}" Click="OnToggleRow" IsVisible="{Binding IsDetail}" MinWidth="0" Padding="0" VerticalAlignment="Center" ToolTip.Tip="On: the sketch obeys it. Off: the solver ignores it, handy for finding what blocks a change. The row stays so you can switch it back on."/>
+                            <Button Grid.Column="4" Classes="tool" Content="✕" FontSize="10" Padding="6,3" Click="OnDeleteRow" ToolTip.Tip="Remove" IsVisible="{Binding IsDetail}"/>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>

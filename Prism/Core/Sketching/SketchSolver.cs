@@ -69,6 +69,7 @@ public static class SketchSolver
 
             foreach (var c in M.Constraints)
             {
+                if (c.Disabled) continue;
                 var f = c.Refs;
                 switch (c.Type)
                 {
