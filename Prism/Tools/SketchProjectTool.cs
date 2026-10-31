@@ -15,7 +15,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
 {
     int _mode = variant;
     public override string Name => "Project";
-    public override string Mode => _mode switch { 0 => "Project", 1 => "Project body", 2 => "Intersect", _ => "Pierce points" };
+    public override string Mode => _mode switch { 0 => "Project", 1 => "Project body", 2 => "Intersect", 3 => "Pierce point", _ => "Pierce point(s)" };
     bool _construction;
     public override void Activate(CadSession s) => _construction = Sk(s).Construction;
     public override string PanelTitle => "Project / Include";
@@ -36,7 +36,8 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         new("Edges", "Click an edge or curve to project it onto the sketch plane", "project-edge"),
         new("Body", "Click a body to project all its edges", "project-body"),
         new("Intersect", "Click a sketch curve, edge or body to include its intersections with the sketch plane", "project-section"),
-        new("Pierce points", "Include only the points where a curve crosses this plane", "point"),
+        new("Pierce Point", "Include every point where a clicked curve crosses this plane", "point"),
+        new("Pierce Point(s)", "Click an individual crossing point to include; repeat for more", "point"),
     ];
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _mode;
@@ -46,8 +47,19 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         0 => "Project (edges): click an edge, curve or sketch curve outside this sketch to copy it onto the sketch plane.",
         1 => "Project (body): click a body to copy all of its edges onto the sketch plane.",
         2 => "Intersect: click a curve on another sketch plane, an outside edge or a body for its intersection with this plane.",
-        _ => "Pierce points: click a curve, including one on another plane in this sketch, to include only its crossing points.",
+        3 => "Pierce point: click a curve, including one on another plane in this sketch, to include every point where it crosses this plane.",
+        _ => "Pierce point(s): click a point where a curve crosses this plane to include just that point; repeat for more.",
     };
+
+    /// <summary>Keep only single-point crossings close to where the user clicked.</summary>
+    static List<List<Vec3>> PointsNear(CadSession s, IEnumerable<List<Vec3>> curves, double x, double y)
+    {
+        var res = new List<List<Vec3>>();
+        foreach (var poly in curves)
+            if (poly.Count == 1 && s.Camera.Project(poly[0]) is { } a && Math.Sqrt((a.x - x) * (a.x - x) + (a.y - y) * (a.y - y)) < 14)
+                res.Add(poly);
+        return res;
+    }
 
     (SceneObject obj, int edge)? _hoverEdge;
     SceneObject? _hoverBody;
@@ -272,7 +284,13 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         {
             if (_mode != 1 && InternalAt(s,p.X,p.Y) is { } source)
             {
-                if(_mode>=2)n=IntersectSketchEntity(s,source.section,source.entity,_mode==3,_construction);
+                if (_mode >= 3)
+                {
+                    var pts = InternalIntersections(source.section, source.entity, Sk(s).Plane, true);
+                    if (_mode == 4) pts = PointsNear(s, pts, p.X, p.Y);
+                    n = Bring(s, Sk(s), pts, "That intersection", _construction);
+                }
+                else if(_mode==2)n=IntersectSketchEntity(s,source.section,source.entity,false,_construction);
                 else n=Bring(s,Sk(s),source.section.Model.Polylines(source.section.Plane).Where(poly=>poly.ent.Id==source.entity).Select(poly=>poly.pts),"That projection",_construction);
             }
             else if (_mode == 0)
@@ -284,13 +302,21 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
             {
                 using var shape=edgeHit.obj.Shape.Sub(SubKind.Edge,edgeHit.edge);
                 var cuts=Intersections(shape,Sk(s).Plane);
-                n=Bring(s,Sk(s),_mode==3?cuts.Where(poly=>poly.Count==1):cuts,"That intersection",_construction);
+                if (_mode == 4) cuts = PointsNear(s, cuts, p.X, p.Y);
+                else if (_mode == 3) cuts = cuts.Where(poly=>poly.Count==1).ToList();
+                n=Bring(s,Sk(s),cuts,"That intersection",_construction);
             }
             else
             {
                 var body = BodyAt(s, p);
                 if (body == null) { s.Say("Click on a body.", true); return true; }
-                n = _mode == 1 ? ProjectBody(s, body, _construction) : Bring(s,Sk(s),_mode==3?SectionCurves(Sk(s),body).Where(poly=>poly.Count==1):SectionCurves(Sk(s),body),"That intersection",_construction);
+                if (_mode == 1) n = ProjectBody(s, body, _construction);
+                else
+                {
+                    var pts = SectionCurves(Sk(s), body).Where(poly=>poly.Count==1);
+                    if (_mode == 4) pts = PointsNear(s, pts, p.X, p.Y);
+                    n = Bring(s, Sk(s), _mode >= 3 ? pts : SectionCurves(Sk(s), body), "That intersection", _construction);
+                }
             }
         }
         catch (Exception e) { s.Say(e.Message, true); return true; }
@@ -334,7 +360,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         {
             foreach(var (_,poly) in source.section.Model.Polylines(source.section.Plane).Where(poly=>poly.ent.Id==source.entity))
             { o.AddPolyline(poly,hot,4f);if(_mode==0)o.AddPolyline(poly.Select(q=>{var uv=sk.Plane.Project(q);return sk.Plane.PointAt(uv.u,uv.v);}).ToList(),0xFF7AA7E8,2.5f); }
-            if(_mode>=2)DrawIntersections(o,InternalIntersections(source.section,source.entity,sk.Plane,_mode==3));
+            if(_mode>=2)DrawIntersections(o,InternalIntersections(source.section,source.entity,sk.Plane,_mode>=3));
             return;
         }
         if (_hoverEdge is { } he)
@@ -345,7 +371,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
                 o.AddPolyline(poly, hot, 4f);
                 if (_mode >= 2)
                 {
-                    DrawIntersections(o, EdgeIntersections(sk, he.obj, he.edge).Where(poly=>_mode!=3||poly.Count==1));
+                    DrawIntersections(o, EdgeIntersections(sk, he.obj, he.edge).Where(poly=>_mode<3||poly.Count==1));
                 }
                 else o.AddPolyline(poly.Select(q => { var (u, v) = sk.Plane.Project(q); return sk.Plane.PointAt(u, v); }).ToList(), 0xFF7AA7E8, 2.5f);
             }
@@ -355,7 +381,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
             if (_mode == 1) foreach (var poly in AllEdges(hb.Mesh)) o.AddPolyline(poly, hot, 3f);
             else
             {
-                DrawIntersections(o, SectionCurves(sk, hb).Where(poly=>_mode!=3||poly.Count==1));
+                DrawIntersections(o, SectionCurves(sk, hb).Where(poly=>_mode<3||poly.Count==1));
             }
         }
     }
