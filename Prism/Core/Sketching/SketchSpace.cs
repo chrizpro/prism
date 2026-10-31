@@ -368,7 +368,7 @@ public sealed partial class SketchContext
 
     bool LockedTargetClick(CadSession s)
     {
-        s.Say("The gizmo is bound to its target. Drag its handles to transform it, Shift-click to add or remove points, or press G to unbind and choose a different target.");
+        s.Say("The gizmo is bound to its target. Drag its handles to transform it, click another point or curve to retarget it, Shift-click to add or remove targets, or press G to unbind.");
         s.Invalidate(); return true;
     }
 
@@ -382,10 +382,10 @@ public sealed partial class SketchContext
         if (GeometryEditing && !p.Ctrl && !(transforming && hit>=0) && PickPoint(s,p.X,p.Y)>=0)
         {
             if (GizmoEditing) { _gizmoTargetPicker.PointerDown(s,p);PreviewGizmoTarget(s);return true; }
-            // Outside Gizmo Handles the bound target stays locked: a plain click on another point must not retarget the gizmo.
+            // Clicking another point retargets the gizmo: the new pick replaces the bound target, like a normal selection.
             // Shift-click adds the point to (or takes it out of) the bound target, and the gizmo moves to the new average.
             if (p.Shift) { AddOrRemoveBoundPoint(s, PickPoint(s, p.X, p.Y)); return true; }
-            return LockedTargetClick(s);
+            return RetargetBoundSelection(s, PickPoint(s, p.X, p.Y));
         }
         // Points and curves on another drawing plane (Gizmo Handles only): switch to that plane and pick the target there in the same click.
         if (GeometryEditing && GizmoEditing && !p.Ctrl && hit < 0 && PickPoint(s,p.X,p.Y) < 0 && PickEntity(s,p.X,p.Y) < 0 && PickOtherPlane(s,p.X,p.Y) is >= 0 and int otherPlane)
@@ -395,7 +395,17 @@ public sealed partial class SketchContext
             _gizmoTargetPicker.PointerDown(s,p); PreviewGizmoTarget(s);
             return true;
         }
-        if (GeometryEditing && !GizmoEditing && !p.Ctrl && hit < 0) return LockedTargetClick(s);
+        // Curves retarget or join the bound target the same way points do. Empty space stays inert: the bound set is kept.
+        if (GeometryEditing && !GizmoEditing && !p.Ctrl && hit < 0)
+        {
+            int eid = PickEntity(s, p.X, p.Y);
+            if (eid >= 0)
+            {
+                if (p.Shift) { AddOrRemoveBoundEntity(s, eid); return true; }
+                return RetargetBoundSelection(s, entity: eid);
+            }
+            return LockedTargetClick(s);
+        }
         if (hit < 0 && !editing && Tool is ClickTool && _axisPreview is { } candidate && _inferredVisualAxis >= 0 && Math.Abs(Vec3.Dot(candidate - Plane.Origin,Plane.Normal)) > 1e-6)
         {
             int axis = _inferredVisualAxis;

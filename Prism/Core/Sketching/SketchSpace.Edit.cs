@@ -72,6 +72,24 @@ public sealed partial class SketchContext
         CenterGizmoOnSelection(s);
     }
 
+    void AddOrRemoveBoundEntity(CadSession s, int entity)
+    {
+        if (entity < 0) return;
+        if (!SelEntities.Remove(entity)) SelEntities.Add(entity);
+        CenterGizmoOnSelection(s);
+    }
+
+    /// <summary>A fresh pick replaces the bound target and the gizmo recenters on it, the way a normal selection would.</summary>
+    bool RetargetBoundSelection(CadSession s, int point = -1, int entity = -1)
+    {
+        SelPoints.Clear(); SelEntities.Clear();
+        if (point >= 0) SelPoints.Add(point);
+        if (entity >= 0) SelEntities.Add(entity);
+        CenterGizmoOnSelection(s);
+        s.Invalidate();
+        return true;
+    }
+
     Vec3? SelectionCenter()
     {
         if(SelPoints.Count==0&&SelEntities.Count==1&&Model.EntityOrNull(SelEntities.First()) is { Type:EntType.Ellipse } ellipse)

@@ -30,8 +30,9 @@ public class CreateSketchCommand : Command
 
     protected override void OnBegin()
     {
-        // picking a plane is easiest from a tilted perspective view; a nearly straight-on view gets nudged to an angle
-        S.Ortho = false;
+        // Orthographic is left alone: the user may already be looking at the plane they want.
+        // A perspective view that is nearly straight-on gets a tilt so the planes are easy to pick.
+        if (S.Ortho) return;
         var cam = S.Camera;
         double q = Math.PI / 2;
         bool nearAxis = Math.Abs(Math.Round(cam.Yaw / q) * q - cam.Yaw) < 0.09 && (Math.Abs(cam.Pitch) < 0.09 || Math.Abs(Math.Round(cam.Pitch / q) * q - cam.Pitch) < 0.09);

@@ -552,8 +552,9 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Extrude", "extrude-surface", () => new ExtrudeCommand(true), "Extrude a curve or sketch into a surface."),
                     Cmd("Revolve", "revolve-surface", () => new RevolveCommand(true), "Revolve a curve into a surface."),
                     Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Sweep a curve along a path."),
+                    Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round tube along a path curve; set the radius, or make it a solid."),
                     Cmd("Loft", "loft-surface", () => new LoftCommand(true), "Blend a surface through several curves."),
-                    Cmd("Fill\nOpening", "patch", () => new FillOpeningCommand(), "Fill an open boundary and optionally join the patch to its surface.")),
+                    Cmd("Boundary\nSurface", "patch", () => new BoundarySurfaceCommand(), "Span a surface over curves and surface edges with G0/G1/G2 continuity per edge, a weight per edge, and optional guide curves.")),
                 G("Fill",
                     Cmd("Planar", "planar", () => new PlanarSurfaceCommand(), "Fill closed sketches with a flat surface."),
                     Cmd("Ruled", "ruled", () => new RuledSurfaceCommand(), "Join two curves with straight rulings."),
@@ -673,7 +674,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Duplicate\nEdge", "curve-through", () => new DuplicateEdgeCommand(), "Copy the edges you click as curves."),
                     Cmd("Curvature\nGraph", "curvature", () => new CurveCurvatureCommand(), "Show a comb of hairs along a curve to judge how smooth it is.")),
                 G("Surfaces",
-                    Cmd("Edge\nSurface", "patch", () => new EdgeSurfaceCommand(), "A surface across two, three or four boundary curves."),
+                    Cmd("Boundary\nSurface", "patch", () => new BoundarySurfaceCommand(), "Span a surface over curves and surface edges with G0/G1/G2 continuity per edge, a weight per edge, and optional guide curves."),
                     Cmd("Blend\nSurface", "patch", () => new BlendSurfaceCommand(), "A surface between two surface edges with tangent or curvature continuity."),
                     Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered pipe along a curve."),
                     Cmd("Sweep\n2 rails", "sweep-surface", () => new SweepTwoRailsCommand(), "Carry a profile along two rails."),
@@ -704,7 +705,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
-                    Cmd("Fill\nOpening", "patch", () => new FillOpeningCommand(), "Click an open edge and the whole opening is filled with a patch."),
+                    Cmd("Boundary\nSurface", "patch", () => new BoundarySurfaceCommand(), "Fill openings or span a boundary of edges and curves, with G0/G1/G2 continuity per edge."),
                     Cmd("Offset", "offset", () => new OffsetSurfaceCommand(), "Create a parallel copy of a surface or face.")),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
@@ -787,9 +788,9 @@ public sealed partial class MainViewModel : ViewModelBase
                     Tool("Arc", "arc", "Arc", () => new ArcTool((ArcMode)SketchTool.Recall("Arc")), "Draw arcs. Choose 3-point, center or tangent in the options bar."),
                     Tool("Polygon", "polygon", "Polygon", () => new PolygonTool(SketchTool.Recall("Polygon") == 1), "Draw regular polygons. Choose inscribed or circumscribed and the number of sides in the options bar."),
                     Tool("Slot", "slot", "Slot", () => new SlotTool(), "A slot: two arc centers, then the width."),
+                    Tool("Text", "text", "Text", () => new SketchTextTool(), "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss."),
                     Tool("Spline", "spline", "Spline", () => new SplineTool(SketchTool.Recall("Spline") == 1), "Draw splines through fit points or shaped by control points.")),
                 G("References"),
-                    Tool("Text", "text", "Text", () => new SketchTextTool(), "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss."),
                 G("Modify",
                     Tool("Trim", "trim", "Trim", () => new TrimTool(), "Cut a line, arc or circle back to the curves that cross it. Click the part to remove."),
                     Tool("Extend", "extend", "Extend", () => new ExtendTool(), "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend."),
@@ -1117,6 +1118,9 @@ public sealed partial class MainViewModel : ViewModelBase
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
         foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, cam, additive, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
+        CommandCatalog.Register(() => new EdgeSurfaceCommand());
+        CommandCatalog.Register(() => new FillOpeningCommand());
         OrganizeRibbons(TransformGrp, InspectGrp, AppearanceGrp, SelectGrp);
         FinishRibbon();
     }

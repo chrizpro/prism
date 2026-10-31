@@ -179,6 +179,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
             {
                 if (Math.Abs(p.X - _px0) + Math.Abs(p.Y - _py0) < 4) return;
                 _started = true; _snapshot = sk.Model.Clone();
+                if (p.Alt && _drag == Drag.Entity) CopyDraggedEntities(sk);
                 if (_drag == Drag.Entity && sk.GeometryEditing) { sk.BeginSelectionTranslation(); _geometryTranslation = true; }
             }
             var (rayOrigin,rayDirection)=s.Camera.Ray(p.X,p.Y);
@@ -228,6 +229,39 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         _geometryTranslation = false;
         s.NotifySketchChanged();
         s.Invalidate();
+    }
+
+    /// <summary>Alt-drag copies: clone the picked entities, keep the originals, and drag the clones.</summary>
+    void CopyDraggedEntities(SketchContext sk)
+    {
+        var m = sk.Model;
+        var map = new Dictionary<int, int>();
+        int P(int pid)
+        {
+            if (!map.TryGetValue(pid, out int np)) { var q = m.P(pid); np = m.AddPoint(q.X, q.Y); map[pid] = np; }
+            return np;
+        }
+        var copies = new List<int>();
+        foreach (int id in sk.SelEntities.ToList())
+        {
+            var e = m.EntityOrNull(id); if (e == null) continue;
+            int c = e.Type switch
+            {
+                EntType.Line => m.AddLine(P(e.A), P(e.B), e.Construction),
+                EntType.Circle => m.AddCircle(P(e.A), e.R, e.Construction),
+                EntType.Arc => m.AddArc(P(e.A), P(e.B), P(e.C), e.Construction),
+                EntType.Ellipse => m.AddEllipse(P(e.A), P(e.B), e.R, e.Construction),
+                EntType.Spline => m.AddSpline(e.Pts.Select(P).ToList(), e.Closed, e.ControlPoints, e.Construction),
+                EntType.Point => m.AddPointEntity(P(e.A), e.Construction),
+                _ => -1,
+            };
+            if (c >= 0) copies.Add(c);
+        }
+        if (copies.Count == 0) return;
+        sk.SelEntities.Clear(); foreach (int c in copies) sk.SelEntities.Add(c);
+        sk.SelPoints.Clear();
+        _start.Clear();
+        foreach (var q in sk.SelEntities.SelectMany(id => m.PointsOf(m.E(id)))) { var pt = m.P(q); _start[q] = (pt.X, pt.Y); }
     }
 
     public override bool Key(CadSession s, string key)
