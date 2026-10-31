@@ -26,8 +26,11 @@ public static class PrintExport
     public static List<string> Export(CadSession s, PrintExportOptions o)
     {
         if (string.IsNullOrWhiteSpace(o.Folder)) throw new InvalidOperationException("Choose a folder to export to.");
-        var src = o.OnlySelection && s.SelectedObjects.Any() ? s.SelectedObjects.ToList() : s.Objects.Where(x => x.Visible).ToList();
-        var parts = src.Select(x => (name: x.Name, mesh: s.PrintMesh(x, o.Tolerance))).Where(p => p.mesh != null && p.mesh.TriCount > 0).ToList();
+        // Only things that have a body count: a selected toolpath or sketch must not hide the model (or make the export empty).
+        List<(string name, TriMesh? mesh)> Printable(IEnumerable<SceneObject> objects) =>
+            objects.Select(x => (name: x.Name, mesh: s.PrintMesh(x, o.Tolerance))).Where(p => p.mesh != null && p.mesh.TriCount > 0).ToList();
+        var parts = o.OnlySelection ? Printable(s.SelectedObjects) : [];
+        if (parts.Count == 0) parts = Printable(s.Objects.Where(x => x.Visible));
         if (parts.Count == 0) throw new InvalidOperationException("Nothing to export.");
         Directory.CreateDirectory(o.Folder);
         var ext = Extension(o.Format);

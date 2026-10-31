@@ -496,3 +496,100 @@ def holes(target, points, diameter=6, depth=None, **params):
         args.update(params)
         result = run("hole", slots={"Body or entry face": target}, **args) or result
     return result
+
+
+# ---------------------------------------------------------------- more solid features
+def _made(objs):
+    return objs[0] if len(objs) == 1 else (objs or None)
+
+
+def linear_pattern(objects, count=4, spacing=20, direction="X axis", count2=1, spacing2=20, direction2="Y axis", **p):
+    """Copy objects along one or two directions. Directions are "X axis", "Y axis" or "Z axis". Returns the new objects."""
+    return run("pattern_linear", slots={"Objects to pattern": objects}, direction_1=direction, count_1=count, spacing_1=spacing,
+               direction_2=direction2, count_2=count2, spacing_2=spacing2, **p)
+
+
+def circular_pattern(objects, count=6, angle=360, axis="Z axis", **p):
+    """Copy objects around an axis through the world origin (axis_passes_through="Center of the objects" to use their centre).
+    result="Join into a body" or "Cut from a body" fuses or cuts the copies instead of leaving new bodies."""
+    return run("pattern_circular", slots={"Objects to pattern": objects}, axis=axis, count=count, angle_value=angle, **p)
+
+
+def rib(sketch, thickness=2, height=10, **p):
+    """Add a rib from a sketched line or open profile to the body it touches."""
+    return _made(run("rib", slots={"Rib sketch": sketch}, thickness=thickness, height=height, **p))
+
+
+def split_body(body, tool):
+    """Split a body with a plane, face, surface or another solid."""
+    return run("split_body", slots={"Body to split": body, "Splitting tool": tool})
+
+
+def push_pull(faces, distance=10):
+    """Move planar faces along their normal: positive pulls out, negative pushes in."""
+    return run("push_pull", slots={"Faces to push or pull": faces}, distance=distance)
+
+
+def move_face(faces, x=0, y=0, z=0, tilt=0):
+    return run("move_face", slots={"Flat faces to move": faces}, move_x=x, move_y=y, move_z=z, tilt_angle=tilt)
+
+
+def delete_face(faces):
+    """Remove faces (a hole, fillet or pocket) and heal the body."""
+    return run("delete_face", slots={"Faces to remove": faces})
+
+
+def thicken(surface, thickness=3, **p):
+    return _made(run("thicken", slots={"Surface": surface}, thickness=thickness, **p))
+
+
+# ---------------------------------------------------------------- CAM (subtractive) and printing hand-off
+def cam_setup(body, name="Setup 1", **p):
+    """Stock, work zero and default tool for machining a body: stock_allowance_xy, top_allowance, tool_diameter, cutting_feed ..."""
+    return run("cam_setup", slots={"Model body": body}, setup_name=name, **p)
+
+
+def _cnc(command, slot, geometry, depth, p):
+    slots = {slot: geometry} if geometry is not None else None
+    if depth is not None:
+        p["total_cutting_depth"] = depth
+    return _made(run(command, slots=slots, **p))
+
+
+def cnc_profile(outlines, depth=None, **p):
+    """Cut along outlines. depth = total cutting depth; also tool_diameter, cutting_feed, depth_per_pass, cut="..." """
+    return _cnc("cnc_profile", "Outlines", outlines, depth, p)
+
+
+def cnc_pocket(outlines, depth=None, **p):
+    return _cnc("cnc_pocket", "Outlines of the pocket", outlines, depth, p)
+
+
+def cnc_adaptive(outlines, depth=None, **p):
+    """Pocket with even tool load (faster, deeper)."""
+    return _cnc("adaptive_clear", "Outlines of the pocket", outlines, depth, p)
+
+
+def cnc_drill(holes, depth=None, **p):
+    return _cnc("cnc_drill", "Holes", holes, depth, p)
+
+
+def cnc_face(depth=None, **p):
+    """Face the stock top."""
+    return _cnc("cnc_face", None, None, depth, p)
+
+
+def cnc_finish(model, depth=None, **p):
+    """3D parallel finishing over a model (cutter="Ball nose" by default)."""
+    return _cnc("parallel_finish", "Model to finish", model, depth, p)
+
+
+def cnc_post(machine="GRBL", save_to="", **p):
+    """Write G-code for the toolpaths in the document. machine: "GRBL", "Mach3" or "LinuxCNC"."""
+    return run("cnc_post", machine=machine, save_to=save_to, save_g_code=True, **p)
+
+
+def print_export(folder, name="part", format="3MF", open_in="Save only", **p):
+    """Write the model for a slicer. format: "3MF", "STL", "OBJ" or "PLY"; open_in: "Bambu Studio", "OrcaSlicer", "PrusaSlicer"
+    or "Save only". Same file name each time, so the slicer can reload from disk."""
+    return run("print_export", folder=folder, file_name=name, format=format, open_in=open_in, export=True, **p)

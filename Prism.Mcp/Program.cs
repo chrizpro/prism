@@ -115,7 +115,7 @@ sealed class Bridge
             LocalTool("app_status", "Report whether the Prism app is running and reachable."),
             LocalTool("app_launch", "Start the Prism desktop app if it is not already running (other tools do this automatically)."),
             LocalTool("app_close", "Politely stop the Prism process that this bridge launched or is connected to."),
-            new JsonObject { ["name"] = "run_script", ["description"] = "Execute Python 3 against the live Prism document. import cadkit as cad; print results for the response. The script has the user's local process permissions. Use cad.history(name) to group edits into one undo step. Returns stdout, stderr and exit code; timeout is 1–300 seconds.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["code"] = new JsonObject { ["type"] = "string" }, ["timeout_seconds"] = new JsonObject { ["type"] = "integer" } }, ["required"] = new JsonArray("code") } },
+            new JsonObject { ["name"] = "run_script", ["description"] = "Execute Python 3 against the live Prism document. import cadkit as cad; print results for the response. The script has the user's local process permissions. Use cad.history(name) to group edits into one undo step. Returns what the script printed, then any error. If it fails, its changes are undone (atomic:false keeps partial work). Timeout is 1–300 seconds.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["code"] = new JsonObject { ["type"] = "string" }, ["timeout_seconds"] = new JsonObject { ["type"] = "integer" }, ["atomic"] = new JsonObject { ["type"] = "boolean" } }, ["required"] = new JsonArray("code") } },
             LocalTool("describe_api", "Discover the application automation tools. No arguments: one line per tool (name, summary, argument names; * = required). query: only tools whose name or description contains it. names: full description and argument schema for just those tools. Then call them with call_api.", new JsonObject
             {
                 ["query"] = new JsonObject { ["type"] = "string" },
@@ -199,6 +199,7 @@ sealed class Bridge
         var sb = new StringBuilder(r["stdout"]?.ToString().TrimEnd() ?? "");
         if (r["stderr"]?.ToString().Trim() is { Length: > 0 } err) sb.Append(sb.Length > 0 ? "\n" : "").Append("[stderr]").Append('\n').Append(err);
         if (r["timed_out"]?.GetValue<bool>() == true) sb.Append('\n').Append("[timed out]");
+        if (r["rolled_back"]?.GetValue<bool>() == true) sb.Append('\n').Append("[rolled back: the script failed, so its changes were undone; pass atomic:false to keep partial work]");
         if (r["exit_code"]?.GetValue<int>() is int code and not 0) sb.Append('\n').Append("[exit code ").Append(code).Append(']');
         return sb.Length == 0 ? "(no output)" : sb.ToString();
     }

@@ -46,6 +46,19 @@ public sealed partial class AutomationApi
         foreach (var joint in Enum.GetValues<Prism.Core.Assembly.JointType>()) Registry.TryAdd("joint_" + joint.ToString().ToLowerInvariant(), () => new JointCommand(joint));
     }
 
+    HistoryNode? _scriptStart;
+
+    /// <summary>Start treating a script's changes as one transaction (they fold into a single undo step).</summary>
+    public Task ScriptBeginAsync() => Dispatcher.UIThread.InvokeAsync(() => { S.BeginGroup(); _scriptStart = S.Current; }).GetTask();
+
+    /// <summary>Finish the script's transaction; when it failed, undo everything it did. Returns whether anything was rolled back.</summary>
+    public Task<bool> ScriptEndAsync(bool rollback) => Dispatcher.UIThread.InvokeAsync(() =>
+    {
+        S.EndGroup("Script");
+        if (!rollback || _scriptStart == null || S.Current == _scriptStart) return false;
+        S.Undo(); return true;
+    }).GetTask();
+
     /// <summary>Identity of every command run_command can start, in the same form the command catalogue uses.</summary>
     public static IReadOnlyList<string> CommandKeys()
     {
@@ -582,7 +595,27 @@ public sealed partial class AutomationApi
     {
         RegisterSolid();
         Add("get_state", "Full snapshot: objects (with bounding boxes), selection, active command and its parameters/slots, sketch, camera, display flags, status line.",
-            Schema(null), _ => State());
+            Schema(null, ("fields", "array", "Only these top-level keys, e.g. [\"objects\",\"selection\",\"status\"]. Default: all."),
+                ("objects", "string", "full (default) | names (one 'name [kind]' string per object, far smaller) | none."),
+                ("limit", "integer", "Most objects to list; objectsTotal gives the real count.")), a =>
+            {
+                var st = State();
+                var mode = Str(a, "objects", "full");
+                if (st["objects"] is JsonArray all)
+                {
+                    int total = all.Count, limit = a["limit"] != null ? Math.Max(0, (int)Dbl(a, "limit", total)) : total;
+                    var kept = all.Take(limit).Select(o => o!.DeepClone()).ToList();
+                    st["objects"] = mode.Equals("none", StringComparison.OrdinalIgnoreCase) ? null
+                        : new JsonArray(kept.Select(o => mode.Equals("names", StringComparison.OrdinalIgnoreCase) ? (JsonNode)$"{o["name"]} [{o["kind"]}]" : o).ToArray());
+                    st["objectsTotal"] = total;
+                }
+                if (a["fields"] is JsonArray fields && fields.Count > 0)
+                {
+                    var want = fields.Select(f => f!.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase); want.Add("objectsTotal");
+                    foreach (var key in st.Select(p => p.Key).ToList()) if (!want.Contains(key)) st.Remove(key);
+                }
+                return st;
+            });
 
         Add("wait_idle", "Wait until the view has stopped animating (after view, a tool that turns the camera, Tab in 3D sketch...) so the next pointer event or screenshot sees the final camera. Optional extra ms to wait afterwards.",
             Schema(null, ("timeout_ms", "integer", "Longest wait (default 3000)."), ("extra_ms", "integer", "Extra pause after it settles (default 100).")), async a =>
@@ -600,12 +633,28 @@ public sealed partial class AutomationApi
                 return new JsonArray(S.Log.TakeLast(n).Select(l => (JsonNode)new JsonObject { ["time"] = l.Time.ToString("HH:mm:ss"), ["error"] = l.IsError, ["message"] = l.Message }).ToArray());
             });
 
-        Add("screenshot", "Capture the whole app window as a PNG image so you can see the ribbon, panels and 3D viewport.",
-            Schema(null, ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250).")), async a =>
+        Add("screenshot", "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900).",
+            Schema(null, ("viewport", "boolean", "Only the 3D viewport."), ("max_width", "integer", "Scale down to at most this many pixels wide."), ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250).")), async a =>
             {
                 S.Invalidate();
                 await Task.Delay((int)Dbl(a, "wait_ms", 250));
-                var png = WindowCapture.CapturePng(_window);
+                bool viewportOnly = a["viewport"]?.GetValue<bool>() == true;
+                int maxWidth = a["max_width"] != null ? Math.Clamp((int)Dbl(a, "max_width", 0), 64, 8000) : 0;
+                byte[] png;
+                if (!viewportOnly && maxWidth == 0) png = WindowCapture.CapturePng(_window);
+                else
+                {
+                    var window = _window ?? throw new InvalidOperationException("No window.");
+                    double scale = window.RenderScaling; int x = 0, y = 0, w = (int)(window.Bounds.Width * scale), h = (int)(window.Bounds.Height * scale);
+                    if (viewportOnly)
+                    {
+                        var view = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Prism.Rendering.GlViewport>().FirstOrDefault() ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+                        var origin = Avalonia.VisualExtensions.TranslatePoint(view, new Avalonia.Point(0, 0), window) ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+                        x = (int)(origin.X * scale); y = (int)(origin.Y * scale); w = (int)(view.Bounds.Width * scale); h = (int)(view.Bounds.Height * scale);
+                    }
+                    var shot = WindowCapture.CaptureThumbnail(window, x, y, w, h, maxWidth == 0 ? int.MaxValue : maxWidth) ?? throw new InvalidOperationException("Could not capture the window.");
+                    png = Prism.Rendering.PngWriter.Encode(shot.pixels, shot.width, shot.height);
+                }
                 return new JsonObject { ["_image"] = new JsonObject { ["mime"] = "image/png", ["data"] = Convert.ToBase64String(png) } };
             });
 

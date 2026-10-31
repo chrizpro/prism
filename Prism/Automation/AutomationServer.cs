@@ -84,6 +84,9 @@ public sealed class AutomationServer : IDisposable
                 try
                 {
                     await File.WriteAllTextAsync(pathTemp, code, Encoding.UTF8);
+                    // atomic (default): a script that fails leaves the document as it found it, instead of half built
+                    bool atomic = body["atomic"]?.GetValue<bool>() ?? true;
+                    if (atomic) await _api.ScriptBeginAsync();
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
                     var language = new PythonLanguage();
                     int exitCode = await language.RunAsync(pathTemp, new ScriptEnvironment(Port, Token, ScriptPaths.PythonLibrary), (line, error) =>
@@ -91,7 +94,8 @@ public sealed class AutomationServer : IDisposable
                         var target = error ? stderr : stdout;
                         lock (target) { if (target.Length < 100000) target.AppendLine(line); }
                     }, timeout.Token);
-                    Write(rs, new JsonObject { ["ok"] = true, ["result"] = new JsonObject { ["exit_code"] = exitCode, ["timed_out"] = timeout.IsCancellationRequested, ["stdout"] = stdout.ToString(), ["stderr"] = stderr.ToString() } });
+                    bool rolledBack = atomic && await _api.ScriptEndAsync(rollback: exitCode != 0 || timeout.IsCancellationRequested);
+                    Write(rs, new JsonObject { ["ok"] = true, ["result"] = new JsonObject { ["exit_code"] = exitCode, ["timed_out"] = timeout.IsCancellationRequested, ["rolled_back"] = rolledBack, ["stdout"] = stdout.ToString(), ["stderr"] = stderr.ToString() } });
                 }
                 finally { try { File.Delete(pathTemp); } catch { } }
                 return;
