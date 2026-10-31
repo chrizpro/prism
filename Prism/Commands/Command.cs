@@ -334,6 +334,24 @@ public abstract partial class Command : ObservableObject
         catch (Exception e) when (e is not OutOfMemoryException) { return null; }
     }
 
+    /// <summary>A handle standing at the middle of a picked edge and pointing away from the body, so pulling it sets a radius or distance.</summary>
+    protected HandleSpec? EdgeHandle(SelItem it, NumberParam p, double mul = 1)
+    {
+        try
+        {
+            var pts = S.EdgePoints(it); var obj = S.Find(it.Obj);
+            if (pts.Count < 2 || obj == null) return null;
+            var mid = pts[pts.Count / 2];
+            var lo = obj.Mesh.Min; var hi = obj.Mesh.Max;
+            var dir = mid - (lo + hi) * 0.5;
+            var tan = pts[^1] - pts[0];
+            if (tan.Length > 1e-6) { tan = tan.Normalized(); dir -= tan * Vec3.Dot(dir, tan); }
+            if (dir.Length < 1e-9) dir = Vec3.UnitZ;
+            return new HandleSpec(mid, dir.Normalized(), p, mul);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+    }
+
     public abstract string Title { get; }
     public virtual string Hint => "";
     public virtual string OkText => "OK";

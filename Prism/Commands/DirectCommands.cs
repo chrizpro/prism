@@ -353,6 +353,21 @@ public sealed class DraftFaceCommand : Command
     public override string Title => "Draft";
     public override string Icon => "draft";
     public override string OkText => "Apply";
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (_faces.Items.Count == 0 || _neutral.Items.Count == 0) return null;
+            var pl = S.PlaneOf(_neutral.Items[0]); var face = _faces.Items[0];
+            if (pl is not { } plane || S.FaceFrame(face) is not { } f || S.Find(face.Obj) is not { } obj) return null;
+            var pull = plane.Normal * (_flip.Value ? -1 : 1);
+            var hinge = Vec3.Cross(pull, f.normal);
+            if (hinge.Length < 1e-6) return null;
+            double radius = Math.Max((obj.Mesh.Max - obj.Mesh.Min).Length * 0.2, 1);
+            return new HandleSpec(f.point, hinge.Normalized(), _angle, 1, pull.Normalized(), radius);
+        }
+    }
+
     public override string Hint => "Pick the walls to lean, then the neutral plane (usually the parting face): the walls pivot where they meet it, so that edge stays put. The pull direction is the neutral plane's normal (a flat face points out of the part): positive angles open the walls up along it, like a mould that lets the part slide out. Use Reverse if the walls lean the wrong way.";
 
     protected override CommandOutput? Build()

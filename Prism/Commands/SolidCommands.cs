@@ -732,7 +732,8 @@ public abstract class EdgeDressCommand : Command
     }
     protected abstract string SizeLabel { get; }
     protected abstract Shape Apply(Shape s, int[] edges, double size);
-    public override string Hint => "Click edges on a body (click again to deselect).";
+    public override string Hint => "Click edges on a body (click again to deselect). Pull the arrow in the viewport or type a number to set the size.";
+    public override HandleSpec? Handle => Edges.Items.Count == 0 ? null : EdgeHandle(Edges.Items[0], Size);
 
     protected override CommandOutput? Build()
     {
@@ -778,7 +779,16 @@ public sealed class ShellCommand : Command
         _dir = Choice("Direction", 0, "Inside", "Outside");
     }
     public override string Title => "Shell";
-    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow.";
+    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness.";
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            var face = _faces.Items.FirstOrDefault(i => i.Kind == SelKind.Face);
+            if (face.Obj == Guid.Empty || S.FaceFrame(face) is not { } f) return null;
+            return new HandleSpec(f.point, f.normal * (_dir.Index == 0 ? -1 : 1), _t);
+        }
+    }
 
     protected override CommandOutput? Build()
     {
