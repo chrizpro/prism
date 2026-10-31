@@ -366,6 +366,7 @@ public sealed class ViewCube : Control
                 var d = Regions[r].Dir.Normalized();
                 double pitch = Math.Asin(Math.Clamp(d.Z, -1, 1));
                 double yaw = Math.Abs(d.Z) > 0.999 ? snapYaw : Math.Atan2(d.X, -d.Y);
+                s.Ortho = true;         // a view picked on the cube is a standard view: keep it orthographic
                 s.AnimateView(yaw, pitch);
                 break;
         }

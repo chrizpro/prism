@@ -520,7 +520,8 @@ public sealed class LineTool(int variant = 0) : ClickTool
 
 // =============================================================== Rectangle
 /// <summary>One choice in a tool's options bar.</summary>
-public sealed record ToolOption(string Label, string Tip, string Icon);
+/// <summary>Group joins neighbouring choices under one dropdown labelled with the group name instead of separate buttons.</summary>
+public sealed record ToolOption(string Label, string Tip, string Icon, string Group = "");
 
 public enum ToolControlKind { Info, Toggle, Number, Button, Text }
 

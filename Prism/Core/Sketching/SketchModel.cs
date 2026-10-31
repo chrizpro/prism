@@ -331,12 +331,12 @@ public sealed class SketchModel
             foreach (var child in section.Model.DrawingModels(section.Plane)) yield return child;
     }
 
-    public List<Shape> ToShapes(Plane3 pl, bool includeSections = true)
+    public List<Shape> ToShapes(Plane3 pl, bool includeSections = true, bool includeConstruction = false)
     {
         var shapes = new List<Shape>();
         var normal = pl.Normal;
         Vec3 V(int pid) => To3(pl, P(pid));
-        foreach (var e in Entities.Where(x => !x.Construction))
+        foreach (var e in Entities.Where(x => includeConstruction || !x.Construction))
         {
             switch (e.Type)
             {
@@ -371,7 +371,7 @@ public sealed class SketchModel
                     break;
             }
         }
-        if (includeSections) foreach (var section in Sections) shapes.AddRange(section.Model.ToShapes(section.Plane));
+        if (includeSections) foreach (var section in Sections) shapes.AddRange(section.Model.ToShapes(section.Plane, true, includeConstruction));
         return shapes;
     }
 

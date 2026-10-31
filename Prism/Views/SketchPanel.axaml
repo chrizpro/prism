@@ -14,9 +14,12 @@
                     <ItemsControl ItemsSource="{Binding Options}">
                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate><DataTemplate DataType="vm:ToolOptionItem">
-                            <Button Classes="studioAction" Classes.primary="{Binding IsSelected}" Click="OnToolOption" Margin="0,0,5,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}">
-                                <Grid ColumnDefinitions="20,*" ColumnSpacing="6"><c:IconView Icon="{Binding Icon}" Width="18" Height="18"/><TextBlock Grid.Column="1" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/></Grid>
-                            </Button>
+                            <Grid>
+                                <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding ChoiceIndex}" SelectionChanged="OnToolChoice" IsVisible="{Binding IsChoice}" HorizontalAlignment="Stretch" Margin="0,0,5,5" MinHeight="32" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}"/>
+                                <Button Classes="studioAction" Classes.primary="{Binding IsSelected}" Click="OnToolOption" Margin="0,0,5,5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}" IsVisible="{Binding !IsChoice}">
+                                    <Grid ColumnDefinitions="20,*" ColumnSpacing="6"><c:IconView Icon="{Binding Icon}" Width="18" Height="18"/><TextBlock Grid.Column="1" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/></Grid>
+                                </Button>
+                            </Grid>
                         </DataTemplate></ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <ItemsControl ItemsSource="{Binding Controls}">

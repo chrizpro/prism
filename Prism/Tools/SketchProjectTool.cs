@@ -36,8 +36,8 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         new("Edges", "Click an edge or curve to project it onto the sketch plane", "project-edge"),
         new("Body", "Click a body to project all its edges", "project-body"),
         new("Intersect", "Click a sketch curve, edge or body to include its intersections with the sketch plane", "project-section"),
-        new("Pierce Point", "Include every point where a clicked curve crosses this plane", "point"),
-        new("Pierce Point(s)", "Click an individual crossing point to include; repeat for more", "point"),
+        new("Pierce Points", "Click a curve to include every point where it crosses this plane", "point", "Pierce Point"),
+        new("Pierce Point(s)", "Click an individual crossing point to include; repeat for more", "point", "Pierce Point"),
     ];
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _mode;

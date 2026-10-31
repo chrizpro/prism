@@ -35,7 +35,11 @@ public sealed partial class ToolOptionItem : ObservableObject
     public string Label { get; init; } = "";
     public string Tip { get; init; } = "";
     public string Icon { get; init; } = "";
+    /// <summary>Labels of a grouped dropdown; empty for an ordinary option button.</summary>
+    public string[] Choices { get; init; } = [];
+    public bool IsChoice => Choices.Length > 0;
     [ObservableProperty] public partial bool IsSelected { get; set; }
+    [ObservableProperty] public partial int ChoiceIndex { get; set; }
 }
 
 /// <summary>One control in a sketch tool's panel (the Offset tool's distance, its Apply button...).</summary>
@@ -207,12 +211,29 @@ public sealed partial class MainViewModel
             var options = tool?.Options ?? [];
             HasToolOptions = options.Count > 0; HasStepper = tool?.StepperLabel != null;
             ToolOptionsTitle = tool?.Name ?? "";
-            if (ToolOptions.Count != options.Count || ToolOptions.Where((o, i) => o.Label != options[i].Label).Any())
+            var items = new List<ToolOptionItem>();
+            for (int i = 0; i < options.Count; i++)
+            {
+                var o = options[i];
+                if (o.Group.Length > 0)
+                {
+                    var members = new List<string> { o.Label };
+                    int j = i + 1;
+                    while (j < options.Count && options[j].Group == o.Group) members.Add(options[j++].Label);
+                    if (members.Count > 1) { items.Add(new ToolOptionItem { Index = i, Label = o.Group, Tip = o.Tip, Icon = o.Icon, Choices = members.ToArray() }); i = j - 1; continue; }
+                }
+                items.Add(new ToolOptionItem { Index = i, Label = o.Label, Tip = o.Tip, Icon = o.Icon });
+            }
+            if (ToolOptions.Count != items.Count || ToolOptions.Where((o, i) => o.Label != items[i].Label || o.Choices.Length != items[i].Choices.Length).Any())
             {
                 ToolOptions.Clear();
-                for (int i = 0; i < options.Count; i++) ToolOptions.Add(new ToolOptionItem { Index = i, Label = options[i].Label, Tip = options[i].Tip, Icon = options[i].Icon });
+                foreach (var oi in items) ToolOptions.Add(oi);
             }
-            for (int i = 0; i < ToolOptions.Count; i++) ToolOptions[i].IsSelected = i == tool!.OptionIndex;
+            foreach (var oi in ToolOptions)
+            {
+                if (oi.IsChoice) oi.ChoiceIndex = Math.Clamp(tool!.OptionIndex - oi.Index, 0, oi.Choices.Length - 1);
+                else oi.IsSelected = oi.Index == tool!.OptionIndex;
+            }
             if (HasStepper) { StepperLabel = tool!.StepperLabel!; StepperText = tool.StepperValue.ToString(); }
             RefreshToolPanel(tool);
         }
@@ -223,6 +244,7 @@ public sealed partial class MainViewModel
     public void FinishTool() { if (Session.Sketch is { } sk) sk.SetTool(Session, new Prism.Core.SelectTool()); }
 
     public void PickToolOption(int index) => Session.Sketch?.Tool?.SetOption(Session, index);
+    public void PickToolOptionChoice(ToolOptionItem item, int choice) => PickToolOption(item.Index + choice);
     public void StepTool(int delta) => Session.Sketch?.Tool?.Step(Session, delta);
 
     public void CommitInput() { var r = _input; _input = null; InputOpen = false; r?.Done(InputText); }

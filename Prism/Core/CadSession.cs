@@ -1174,7 +1174,7 @@ public sealed partial class CadSession : ObservableObject
             try
             {
                 var model = sk.ExportModel();
-                var shapes = model.ToShapes(sk.RootPlane);
+                var shapes = model.ToShapes(sk.RootPlane, includeConstruction: model.ShowConstruction);
                 var compound = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(sk.RootPlane.Origin);
                 if (sk.EditingId is { } id && Find(id) is { } old)
                 {

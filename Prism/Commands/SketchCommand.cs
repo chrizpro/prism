@@ -28,6 +28,16 @@ public class CreateSketchCommand : Command
 
     public override Plane3? WorkPlane => ResolvePlane();
 
+    protected override void OnBegin()
+    {
+        // picking a plane is easiest from a tilted perspective view; a nearly straight-on view gets nudged to an angle
+        S.Ortho = false;
+        var cam = S.Camera;
+        double q = Math.PI / 2;
+        bool nearAxis = Math.Abs(Math.Round(cam.Yaw / q) * q - cam.Yaw) < 0.09 && (Math.Abs(cam.Pitch) < 0.09 || Math.Abs(Math.Round(cam.Pitch / q) * q - cam.Pitch) < 0.09);
+        if (nearAxis) S.AnimateView(-35 * Math.PI / 180, 28 * Math.PI / 180);
+    }
+
     Plane3 ResolvePlane()
     {
         if (_face.Items.Count > 0 && S.PlaneOf(_face.Items[0]) is { } picked)

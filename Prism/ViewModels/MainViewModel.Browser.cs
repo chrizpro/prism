@@ -194,7 +194,9 @@ public sealed partial class MainViewModel
                 else if (s.Find(n.ObjectId) is { SketchData: { } model, SketchPlane: { } plane } obj)
                 {
                     var copy = model.Clone(); copy.ShowConstruction = v;
-                    s.Update(obj.Id, x => x.WithSketch(x.Shape, copy, plane), checkpoint: false);
+                    var shapes = copy.ToShapes(plane, includeConstruction: v);
+                    var compound = shapes.Count > 0 ? Prism.Kernel.Occ.Profile(shapes, faces: false) : Prism.Kernel.Occ.Vertex(plane.Origin);
+                    s.Update(obj.Id, x => x.WithSketch(compound, copy, plane), checkpoint: false);
                 }
                 s.Invalidate();
             }
