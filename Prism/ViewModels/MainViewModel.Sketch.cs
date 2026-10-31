@@ -93,6 +93,8 @@ public sealed partial class MainViewModel
 
     public ObservableCollection<ToolControlRow> ToolPanel { get; } = [];
     [ObservableProperty] public partial bool HasToolPanel { get; set; }
+    /// <summary>A drawing tool (not the idle Select tool) is active: its panel takes over the dock and the sketch overview waits behind it, unchanged, until the tool is done.</summary>
+    [ObservableProperty] public partial bool ToolPanelFocused { get; set; }
     [ObservableProperty] public partial string ToolPanelTitle { get; set; } = "";
     [ObservableProperty] public partial string ToolPanelHint { get; set; } = "";
 
@@ -104,6 +106,7 @@ public sealed partial class MainViewModel
     {
         if (!ReferenceEquals(tool, _presentedTool)) { ToolPanel.Clear(); ToolSections.Clear(); ToolOptions.Clear(); _presentedTool = tool; }
         HasToolPanel = tool != null;
+        ToolPanelFocused = tool != null && tool is not Prism.Core.SelectTool;
         ToolPanelTitle = tool?.PanelTitle ?? "Sketch"; ToolPanelHint = tool?.Prompt ?? "";
         if (tool == null) return;
         var controls = (tool.Panel ?? []).Where(c => !(c.Kind == ToolControlKind.Info && c.Label == tool.Prompt)).ToList();
@@ -206,6 +209,9 @@ public sealed partial class MainViewModel
         }
         finally { _syncingToolPanel = false; }
     }
+
+    /// <summary>Leave the active drawing tool and go back to the sketch panel. Nothing drawn or set up in the sketch is lost.</summary>
+    public void FinishTool() { if (Session.Sketch is { } sk) sk.SetTool(Session, new Prism.Core.SelectTool()); }
 
     public void PickToolOption(int index) => Session.Sketch?.Tool?.SetOption(Session, index);
     public void StepTool(int delta) => Session.Sketch?.Tool?.Step(Session, delta);

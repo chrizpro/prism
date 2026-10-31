@@ -6,7 +6,7 @@
             <StackPanel IsEnabled="{Binding CanPlaceGizmo}" Spacing="8">
                 <TextBlock Text="Operation" Classes="section"/>
                 <ComboBox ItemsSource="{Binding GizmoOperations}" SelectedIndex="{Binding GizmoActiveOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                <Button Classes="studioAction" Content="Place gizmo without moving geometry" IsVisible="{Binding !GizmoPositioning}" Click="OnPlace" HorizontalAlignment="Stretch"/>
+                <Button Classes="studioAction" Content="Unbind: move the gizmo without moving geometry" IsVisible="{Binding !GizmoPositioning}" Click="OnPlace" HorizontalAlignment="Stretch"/>
                 <StackPanel Spacing="8">
                     <TextBlock Text="Location (mm)" Classes="section"/>
                     <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
@@ -28,10 +28,20 @@
                     <Button Content="Hide gizmo" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
                 </StackPanel>
                 <StackPanel IsVisible="{Binding GizmoIsNotDatum}" Spacing="8"><StackPanel IsVisible="{Binding GizmoPositioning}" Spacing="8">
-                    <Button Content="Bind to selection and return" Classes="studioAction primary" Click="OnBind" HorizontalAlignment="Stretch"/>
-                    <Button Content="Cancel placement" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
+                    <Button Content="Bind to the selection" Classes="studioAction primary" Click="OnBind" HorizontalAlignment="Stretch"/>
+                    <Button Content="Cancel (keep it bound as before)" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
                 </StackPanel>
                 <Button Content="Reset pivot to selection" Classes="studioAction" Click="OnResetPivot" HorizontalAlignment="Stretch"/></StackPanel>
+            </StackPanel>
+            <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="6">
+                <TextBlock Text="Saved gizmos and planes" Classes="section"/>
+                <TextBlock Text="Save where the gizmo is now as a plane, or pick a saved one to snap back to it. Saved ones also appear in the model tree." Classes="soft" TextWrapping="Wrap" FontSize="11.5"/>
+                <ComboBox ItemsSource="{Binding SketchDatumChoices}" SelectedIndex="{Binding SketchDatumChoice, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                <TextBox Text="{Binding SketchDatumName, Mode=TwoWay}" Watermark="Name (optional)"/>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                    <Button Content="Save as plane" Tag="save-plane" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                    <Button Grid.Column="1" Content="Save gizmo" Tag="save-gizmo" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                </Grid>
             </StackPanel>
             <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4"><c:GizmoPreview Session="{Binding Session}" Height="190" AutomationProperties.Name="Live gizmo preview"/></Border>
             <TextBlock Text="Handle visibility" Classes="section"/>

@@ -176,6 +176,8 @@ foreach(double yaw in new[]{-.6,.4,1.2})
  var arrowSketch=arrowSession.Sketch!;arrowSketch.Set3DEnabled(arrowSession,true);
  var draw=new SplineTool(false);arrowSketch.SetTool(arrowSession,draw);draw.Feed(arrowSession,20,20);draw.Feed(arrowSession,45,35);draw.Feed(arrowSession,70,20);
  var controls=new SketchSpacePanel{DataContext=arrowVm};var buttonHost=new Window{Content=controls,Width=360,Height=1000};buttonHost.Show();Dispatcher.UIThread.RunJobs();
+ // the less-used 3D sketch tools sit in a collapsed "More 3D sketch tools" group; open it so its buttons exist
+ foreach(var group in controls.GetVisualDescendants().OfType<Expander>().Where(x=>Equals(x.Header,"More 3D sketch tools")))group.IsExpanded=true;Dispatcher.UIThread.RunJobs();
  void Press(string tag)=>controls.GetVisualDescendants().OfType<Button>().Single(b=>Equals(b.Tag,tag)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
  Press("edit");Check(arrowSketch.GeometryEditing&&arrowSketch.GizmoEditing,"Edit Geometry button enters setup for arrow regression");
  var selectedPixel=arrowSession.Camera.Project(new Vec3(20,20,0))!.Value;

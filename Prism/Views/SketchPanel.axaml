@@ -43,10 +43,15 @@
     <DockPanel Background="{DynamicResource PanelBg}">
         <Border DockPanel.Dock="Top" Padding="12,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1"><TextBlock Text="{Binding ToolPanelTitle}" FontSize="14" FontWeight="SemiBold"/></Border>
         <Border DockPanel.Dock="Bottom" Padding="14,12" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
-                <Button Grid.Column="2" Classes="primary" Content="Finish sketch" Click="OnFinish"/>
-            </Grid>
+            <Panel>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding !ToolPanelFocused}">
+                    <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
+                    <Button Grid.Column="2" Classes="primary" Content="Finish sketch" Click="OnFinish"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ToolPanelFocused}">
+                    <Button Grid.Column="1" Classes="primary" Content="Done" Click="OnToolDone" ToolTip.Tip="Back to the sketch panel. Everything you drew stays."/>
+                </Grid>
+            </Panel>
         </Border>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -54,9 +59,9 @@
         <!-- Every sketch-tool family uses the same ordered, collapsible presentation. -->
         <ItemsControl ItemsSource="{Binding ToolSections}" Margin="0,0,0,4"/>
 
-        <views:SketchSpacePanel/>
+        <views:SketchSpacePanel IsVisible="{Binding !ToolPanelFocused}"/>
 
-        <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6" Spacing="4">
+        <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6" Spacing="4" IsVisible="{Binding !ToolPanelFocused}">
             <TextBlock Text="Sketch status" Classes="section"/>
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                 <Ellipse Width="10" Height="10" Fill="{DynamicResource Ok}" VerticalAlignment="Center" IsVisible="{Binding SketchFull}"/>
@@ -69,7 +74,7 @@
             <TextBlock Text="Constraints and dimensions" Classes="panelTitle" Margin="0,14,0,4"/>
         </StackPanel>
 
-        <Panel>
+        <Panel IsVisible="{Binding !ToolPanelFocused}">
             <ListBox ItemsSource="{Binding SketchConstraints}" Classes="hist" DoubleTapped="OnRowDoubleTapped">
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="vm:ConstraintRow">

@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using Avalonia.Themes.Fluent;
 using Prism.Commands;
 using Prism.Core;
+using Prism.Core.Sketching;
 using Prism.Kernel;
 using Prism.ViewModels;
 
@@ -53,6 +54,33 @@ Check(s.Ortho, "leaving a 3D sketch restores the projection from before it");
 // the Create Sketch command looks normal by default
 s.StartCommand(() => new CreateSketchCommand()); s.AcceptCommandPanel(); Settle();
 Check(s.Sketch != null && !s.Sketch.Is3DEnabled && s.Ortho, "Create Sketch starts a flat orthographic sketch");
+s.ExitSketch(false);
+// a drawing tool's panel takes over the dock, and the sketch panel returns unchanged
+s.EnterSketch(Plane3.XY); Settle();
+s.Sketch!.Edit(s, "Draw", () => { int p0 = s.Sketch.Model.AddPoint(0, 0), p1 = s.Sketch.Model.AddPoint(30, 0); int l = s.Sketch.Model.AddLine(p0, p1); s.Sketch.Model.Add(CType.Horizontal, 0, 0, false, l); });
+int rowsBefore = vm.SketchConstraints.Count, curvesBefore = s.Sketch.Model.Entities.Count;
+Check(!vm.ToolPanelFocused, "the idle Select tool keeps the sketch panel (overview and constraints) in front");
+s.Sketch.SetTool(s, new RectTool(RectMode.TwoCorner));
+Check(vm.ToolPanelFocused && vm.ToolPanelTitle.Length > 0, "choosing the Rectangle tool brings its panel forward on its own");
+vm.FinishTool();
+Check(!vm.ToolPanelFocused && s.Sketch.Tool is SelectTool, "Done goes back to the sketch panel");
+Check(vm.SketchConstraints.Count == rowsBefore && s.Sketch.Model.Entities.Count == curvesBefore, "the sketch and its constraints are as they were: nothing lost, no warning");
+s.Sketch.SetTool(s, new LineTool());
+Check(vm.ToolPanelFocused, "other drawing tools also take over the panel");
+s.Sketch.SetTool(s, new SelectTool());
+Check(!vm.ToolPanelFocused, "picking Select again returns to the sketch panel");
+// pictures of the panels for review (PRISM_REVIEW_OUTPUT names the folder)
+if (Environment.GetEnvironmentVariable("PRISM_REVIEW_OUTPUT") is { Length: > 0 } review)
+{
+    Directory.CreateDirectory(review);
+    s.Sketch!.Set3DEnabled(s, true, adjustView: true); Settle();
+    var sketchPanel = new Prism.Views.SketchPanel { DataContext = vm }; var host = new Avalonia.Controls.Window { Width = 360, Height = 900, Content = sketchPanel };
+    host.Show(); Dispatcher.UIThread.RunJobs();
+    host.CaptureRenderedFrame()?.Save(Path.Combine(review, "sketch-panel-3d.png"));
+    var gizmoPanel = new Prism.Views.GizmoOptionsPanel { DataContext = vm }; var host2 = new Avalonia.Controls.Window { Width = 360, Height = 1100, Content = new Avalonia.Controls.ScrollViewer { Content = gizmoPanel } };
+    host2.Show(); Dispatcher.UIThread.RunJobs();
+    host2.CaptureRenderedFrame()?.Save(Path.Combine(review, "gizmo-panel.png"));
+}
 s.ExitSketch(false);
 Console.WriteLine($"SUCCESS: {checks} checks");
 
