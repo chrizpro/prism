@@ -143,11 +143,14 @@ public sealed partial class MainViewModel
         var sections = new List<SketchToolSection>();
         if (ToolOptions.Count > 0)
         {
-            var method = ToolSections.FirstOrDefault(g => g.Title == "Method") ?? new SketchToolSection("Method");
+            // the idle Select tool is the sketch panel itself: its section is the "Sketch tool" (Box or Lasso)
+            string methodTitle = tool is SelectTool ? "Sketch tool" : "Method";
+            var method = ToolSections.FirstOrDefault(g => g.Title == methodTitle) ?? new SketchToolSection(methodTitle);
             SyncCollection(method.Options, ToolOptions); sections.Add(method);
         }
         foreach (var group in groups)
         {
+            if (tool is SelectTool && group.rows.Count == 0) continue;     // Select's own "Geometry" step is the sketch panel's Geometry block, with the 3D sketch controls
             var section = ToolSections.FirstOrDefault(g => g.Title == group.title) ?? new SketchToolSection(group.title);
             section.Guidance = group.title == tool.PanelInputTitle ? tool.Prompt : "";
             SyncCollection(section.Controls, group.rows); sections.Add(section);

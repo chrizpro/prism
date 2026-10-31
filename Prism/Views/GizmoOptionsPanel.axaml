@@ -33,15 +33,42 @@
                 </StackPanel>
                 <Button Content="Reset pivot to selection" Classes="studioAction" Click="OnResetPivot" HorizontalAlignment="Stretch"/></StackPanel>
             </StackPanel>
+            <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="8">
+                <TextBlock Text="Drawing in 3D" Classes="section" Margin="0,6,0,0"/>
+                <CheckBox Content="Gizmo follows last point" IsChecked="{Binding SketchGizmoFollows, Mode=TwoWay}" ToolTip.Tip="Move the gizmo to each placed point without moving existing curves."/>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <TextBlock Text="Gizmo plane" Classes="soft" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" IsEnabled="{Binding SketchGizmoEditing}" ItemsSource="{Binding SketchGizmoPlanes}" SelectedIndex="{Binding SketchGizmoPlane, Mode=TwoWay}" HorizontalAlignment="Stretch" ToolTip.Tip="The plane the next curves are drawn on. Clicking a plane handle on the gizmo changes this too."/>
+                </Grid>
+                <Button Content="{Binding SketchNormalLabel}" Tag="normal" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <TextBlock Text="Axis" Classes="soft" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding SketchGizmoAxes}" SelectedIndex="{Binding SketchGizmoAxis, Mode=TwoWay}" HorizontalAlignment="Stretch" ToolTip.Tip="The gizmo axis to draw along. Clicking an arrow on the gizmo changes this too."/>
+                </Grid>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                    <Button Content="Draw along axis" Tag="axis" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                    <Button Grid.Column="1" Content="Release axis" Tag="axis-free" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <CheckBox Content="Free 3D editing (not limited to the plane)" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Let the gizmo lift points off their drawing plane in any direction. Off keeps them on it."/>
+                <CheckBox Content="Show planes" IsChecked="{Binding GizmoShowSheets, Mode=TwoWay}" ToolTip.Tip="Draw the gizmo's plane and the sketch's other drawing planes as visible sheets, handy when you want to save a plane from the gizmo."/>
+                <TextBlock Text="Drawing planes in this sketch" Classes="soft"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                    <ComboBox IsEnabled="{Binding SketchGizmoEditing}" ItemsSource="{Binding SketchPlaneChoices}" SelectedIndex="{Binding SketchPlaneChoice, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                    <Button Grid.Column="1" IsEnabled="{Binding SketchGizmoEditing}" Content="+ Plane" Tag="new" Click="OnSketchAction" Classes="studioAction"/>
+                </Grid>
+                <Button Content="Reset gizmo" Tag="reset-gizmo" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+            </StackPanel>
             <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="6">
                 <TextBlock Text="Saved gizmos and planes" Classes="section"/>
                 <TextBlock Text="Save where the gizmo is now as a plane, or pick a saved one to snap back to it. Saved ones also appear in the model tree." Classes="soft" TextWrapping="Wrap" FontSize="11.5"/>
                 <ComboBox ItemsSource="{Binding SketchDatumChoices}" SelectedIndex="{Binding SketchDatumChoice, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
                 <TextBox Text="{Binding SketchDatumName, Mode=TwoWay}" Watermark="Name (optional)"/>
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <Button Content="Save as plane" Tag="save-plane" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
+                    <Button Content="Save this plane" Tag="save-plane" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
                     <Button Grid.Column="1" Content="Save gizmo" Tag="save-gizmo" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch"/>
                 </Grid>
+                <Grid ColumnDefinitions="*,92" ColumnSpacing="7"><TextBlock Text="Offset the new plane (mm)" Classes="soft" VerticalAlignment="Center"/><NumericUpDown Grid.Column="1" Value="{Binding SketchDatumPlaneOffset, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="New plane offset"/></Grid>
+                <Button Content="Update the selected one" Tag="update-datum" Click="OnSketchAction" Classes="studioAction" HorizontalAlignment="Stretch" ToolTip.Tip="Re-save the picked plane or gizmo from where the gizmo is now."/>
             </StackPanel>
             <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="4"><c:GizmoPreview Session="{Binding Session}" Height="190" AutomationProperties.Name="Live gizmo preview"/></Border>
             <TextBlock Text="Handle visibility" Classes="section"/>

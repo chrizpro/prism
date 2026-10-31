@@ -94,11 +94,10 @@ void TargetPoint(double u,double v,bool shift)
  var px=probeSession.Camera.Project(editProbe.Plane.PointAt(u,v))!.Value;
  probeSession.PointerDown(new(px.x,px.y,true,shift,false,false));probeSession.PointerUp(new(px.x,px.y,false,shift,false,false));
 }
-TargetPoint(20,20,false);Check(editProbe.GizmoEditing&&editProbe.GizmoFrame.Origin.DistanceTo(editProbe.Plane.PointAt(20,20))<1e-6,"point selection centers the gizmo immediately without leaving setup");
-TargetPoint(60,40,true);Check(editProbe.GizmoEditing&&editProbe.GizmoFrame.Origin.DistanceTo(editProbe.Plane.PointAt(40,30))<1e-6,"Shift selection updates the average center immediately");
-probeSession.Key("SketchGizmo");Check(editProbe.GeometryEditing&&!editProbe.GizmoEditing&&editProbe.SelPoints.Count==2,"leaving Gizmo Handles keeps Edit Geometry and the selected targets active");
-Check(editProbe.GizmoTargetConfirmed,"manually leaving setup binds the selected targets");
-editProbe.SetGizmoEditing(probeSession,true);TargetPoint(20,20,false);probeSession.Key("SketchGizmo");
+TargetPoint(20,20,false);Check(!editProbe.GizmoEditing&&editProbe.GizmoTargetConfirmed&&editProbe.GizmoFrame.Origin.DistanceTo(editProbe.Plane.PointAt(20,20))<1e-6,"clicking a point in Edit Geometry binds the gizmo to it straight away");
+editProbe.SelPoints.Add(secondTarget);editProbe.CenterGizmoOnSelection(probeSession);Check(editProbe.GizmoFrame.Origin.DistanceTo(editProbe.Plane.PointAt(40,30))<1e-6,"adding a second point moves the bound gizmo to the average of both");
+Check(editProbe.GeometryEditing&&!editProbe.GizmoEditing&&editProbe.SelPoints.Count==2&&editProbe.GizmoTargetConfirmed,"both clicked points stay selected and bound, with no Enter needed");
+editProbe.SetGizmoEditing(probeSession,true);TargetPoint(20,20,false);
 var pointStart=editProbe.Model.P(firstTarget);var worldStart=editProbe.Plane.PointAt(pointStart.X,pointStart.Y);
 var centerPixel=probeSession.Camera.Project(editProbe.GizmoFrame.Origin)!.Value;
 probeSession.PointerDown(new(centerPixel.x,centerPixel.y,true,false,false,false));
@@ -122,11 +121,13 @@ void TargetOtherPoint(double u,double v,bool shift)
 }
 TargetOtherPoint(-30,10,false);
 Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.Count==1&&editProbe.GizmoFrame.Origin.DistanceTo(otherPlane.PointAt(-30,10))<1e-6,"one click on a point of another drawing plane switches to it and binds the gizmo there");
-probeSession.Key("SketchGizmo");
-Check(editProbe.GizmoTargetConfirmed&&!editProbe.GizmoEditing&&editProbe.SelPoints.Count==1,"leaving Gizmo Handles binds the point on the other plane");
+Check(editProbe.GizmoTargetConfirmed&&!editProbe.GizmoEditing&&editProbe.SelPoints.Count==1,"the point on the other plane is bound without leaving setup by hand");
 var lockedOrigin=editProbe.GizmoFrame.Origin;var lockedSelection=editProbe.SelPoints.ToList();
-TargetOtherPoint(-60,25,false);TargetOtherPoint(-60,25,true);
-Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6&&editProbe.GizmoTargetConfirmed,"outside Gizmo Handles clicking another point leaves the gizmo locked on its bound target");
+TargetOtherPoint(-60,25,false);
+Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6&&editProbe.GizmoTargetConfirmed,"a plain click on another point leaves the gizmo bound to its target");
+TargetOtherPoint(-60,25,true);
+Check(editProbe.SelPoints.Count==2&&editProbe.GizmoTargetConfirmed&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)>1e-6,"Shift-clicking another point adds it and the bound gizmo moves to the average");
+TargetOtherPoint(-60,25,true);Check(editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6,"Shift-clicking it again takes it back out");
 var lockedCurve=otherPlane.PointAt(-45,17.5);var lockedPixel=probeSession.Camera.Project(lockedCurve)!.Value;
 probeSession.PointerDown(new(lockedPixel.x,lockedPixel.y,true,false,false,false));probeSession.PointerUp(new(lockedPixel.x,lockedPixel.y,false,false,false,false));
 Check(editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6,"clicking a curve or empty space outside Gizmo Handles does not move or clear the bound gizmo");
@@ -152,7 +153,6 @@ foreach(bool freeMode in new[]{false,true})
  freeSketch.Model.AddSpline([fa,fb],false,false,false);freeSketch.Solve(freeSession);
  var firstPixel=freeSession.Camera.Project(freeSketch.Plane.PointAt(20,20))!.Value;
  freeSession.PointerDown(new(firstPixel.x,firstPixel.y,true,false,false,false));freeSession.PointerUp(new(firstPixel.x,firstPixel.y,false,false,false,false));
- freeSession.Key("SketchGizmo");
  var gizmoPixel=freeSession.Camera.Project(freeSketch.GizmoFrame.Origin)!.Value;
  freeSession.PointerDown(new(gizmoPixel.x,gizmoPixel.y,true,false,false,false));
  freeSession.PointerMove(new(gizmoPixel.x,gizmoPixel.y-60,true,false,false,false));
@@ -182,8 +182,8 @@ foreach(double yaw in new[]{-.6,.4,1.2})
  Press("edit");Check(arrowSketch.GeometryEditing&&arrowSketch.GizmoEditing,"Edit Geometry button enters setup for arrow regression");
  var selectedPixel=arrowSession.Camera.Project(new Vec3(20,20,0))!.Value;
  arrowSession.PointerDown(new(selectedPixel.x,selectedPixel.y,true,false,false,false));arrowSession.PointerUp(new(selectedPixel.x,selectedPixel.y,false,false,false,false));
- int selectedId=arrowSketch.SelPoints.Single();Press("gizmo");
- Check(!arrowSketch.GizmoEditing&&arrowSketch.GizmoTargetConfirmed,"Gizmo Handles button binds the curve point without Enter");
+ int selectedId=arrowSketch.SelPoints.Single();
+ Check(!arrowSketch.GizmoEditing&&arrowSketch.GizmoTargetConfirmed,"clicking the curve point binds the gizmo without Enter or a Gizmo button");
  arrowSketch.GizmoOperation=operation;
  double handleLength=arrowSession.Camera.PixelSizeAt(arrowSketch.GizmoFrame.Origin)*96;
  var shaft=arrowSession.Camera.Project(arrowSketch.GizmoFrame.Origin+arrowSketch.GizmoFrame.U*handleLength*.45)!.Value;

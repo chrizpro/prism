@@ -69,11 +69,52 @@ s.Sketch.SetTool(s, new LineTool());
 Check(vm.ToolPanelFocused, "other drawing tools also take over the panel");
 s.Sketch.SetTool(s, new SelectTool());
 Check(!vm.ToolPanelFocused, "picking Select again returns to the sketch panel");
+// the panel's Gizmo plane and Axis boxes follow what is done to the gizmo in the viewport
+s.EnterSketch(Plane3.XY); Settle();
+var live = s.Sketch!; live.Set3DEnabled(s, true); live.SetGizmoEditing(s, true);
+live.SelectGizmoPlane(s, 1);
+Check(vm.SketchGizmoPlane == 1, "choosing a gizmo plane in the viewport updates the panel's Gizmo plane box");
+live.SelectGizmoPlane(s, 2);
+Check(vm.SketchGizmoPlane == 2, "and again for the next plane");
+live.SetGizmoEditing(s, false);
+live.SetTool(s, new LineTool());
+double handleLength = s.Camera.PixelSizeAt(live.GizmoFrame.Origin) * 96;
+var yArrow = s.Camera.Project(live.GizmoFrame.Origin + Vec3.UnitY * handleLength * .5)!.Value;
+s.PointerDown(new(yArrow.x, yArrow.y, true, false, false, false)); s.PointerUp(new(yArrow.x, yArrow.y, false, false, false, false));
+Check(live.SelectedGizmoAxis == 1 && vm.SketchGizmoAxis == 1, "clicking the gizmo's Y arrow in the viewport updates the panel's Axis box");
+var xArrow = s.Camera.Project(live.GizmoFrame.Origin + Vec3.UnitX * handleLength * .5)!.Value;
+s.PointerDown(new(xArrow.x, xArrow.y, true, false, false, false)); s.PointerUp(new(xArrow.x, xArrow.y, false, false, false, false));
+Check(live.SelectedGizmoAxis == 0 && vm.SketchGizmoAxis == 0, "and the X arrow too");
+// the panel changes the gizmo as well
+vm.SketchGizmoAxis = 2;
+Check(live.SelectedGizmoAxis == 2, "picking an axis in the panel selects it on the gizmo");
+vm.GizmoShowSheets = true;
+Check(GizmoSettings.Current.PlaneSheets, "Show planes is a gizmo setting the panel can switch on");
+vm.GizmoShowSheets = false;
+s.ExitSketch(false);
+
+// Edit Geometry: the first click binds the gizmo; Shift-click adds or removes points and the gizmo follows the average
+s.EnterSketch(Plane3.XY); Settle();
+var edit = s.Sketch!; edit.Set3DEnabled(s, true);
+s.Camera.Distance = 120;
+int pa = edit.Model.AddPoint(-30, 0), pb = edit.Model.AddPoint(30, 0); edit.Model.AddPointEntity(pa); edit.Model.AddPointEntity(pb); edit.Solve(s);
+edit.SetTool(s, new SketchGeometryEditTool());
+void ClickAt(double u, double v, bool shift) { var px = s.Camera.Project(edit.Plane.PointAt(u, v))!.Value; s.PointerDown(new(px.x, px.y, true, shift, false, false)); s.PointerUp(new(px.x, px.y, false, shift, false, false)); }
+ClickAt(-30, 0, false);
+Check(edit.GizmoTargetConfirmed && !edit.GizmoEditing && edit.SelPoints.Count == 1, "the first click in Edit Geometry binds the gizmo");
+ClickAt(30, 0, false);
+Check(edit.SelPoints.Count == 1, "a plain click on another point does not retarget a bound gizmo");
+ClickAt(30, 0, true);
+Check(edit.SelPoints.Count == 2 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(0, 0)) < 1e-6 && edit.GizmoTargetConfirmed, "Shift-click adds the point and the gizmo moves to the average");
+ClickAt(30, 0, true);
+Check(edit.SelPoints.Count == 1 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(-30, 0)) < 1e-6, "Shift-click on a bound point takes it out again");
+s.ExitSketch(false);
+
 // pictures of the panels for review (PRISM_REVIEW_OUTPUT names the folder)
 if (Environment.GetEnvironmentVariable("PRISM_REVIEW_OUTPUT") is { Length: > 0 } review)
 {
     Directory.CreateDirectory(review);
-    s.Sketch!.Set3DEnabled(s, true, adjustView: true); Settle();
+    s.EnterSketch(Plane3.XY); s.Sketch!.Set3DEnabled(s, true, adjustView: true); Settle();
     var sketchPanel = new Prism.Views.SketchPanel { DataContext = vm }; var host = new Avalonia.Controls.Window { Width = 360, Height = 900, Content = sketchPanel };
     host.Show(); Dispatcher.UIThread.RunJobs();
     host.CaptureRenderedFrame()?.Save(Path.Combine(review, "sketch-panel-3d.png"));

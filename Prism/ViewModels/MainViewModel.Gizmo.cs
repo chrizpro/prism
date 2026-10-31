@@ -14,12 +14,14 @@ public sealed partial class MainViewModel
     Plane3? _sketchPlacementBefore;
     SketchContext? _placementSketch;
     static readonly string[] AllGizmoOperations=["Move","Rotate","Scale"],PlacementOperations=["Move","Rotate"];
+    // in a sketch the operations carry their keys, so the list doubles as the shortcut reminder
+    static readonly string[] SketchGizmoOperationNames=["Move (W)","Rotate (R)","Scale (S)"],SketchPlacementOperationNames=["Move (W)","Rotate (R)"];
     GizmoBinding? ActiveBinding=>Session.ActiveTool switch {FormEditTool tool=>tool.Binding,EditPointsTool tool=>tool.Binding,_=>Session.DatumVisible?Session.Datum!.Binding:null};
     public bool CanPlaceGizmo=>Session.ActiveCommand?.HasPanelStep!=true && (Session.ActiveCommand is EditFormCommand {Work:not null} or EditPointsCommand {Model:not null} || Session.Sketch!=null || Session.DatumVisible);
     public bool GizmoIsDatum=>Session.DatumVisible;
     public bool GizmoIsNotDatum=>!Session.DatumVisible;
     public bool GizmoPositioning=>ActiveBinding?.Positioning==true || _sketchPlacementBefore!=null;
-    public string[] GizmoOperations=>GizmoPositioning?PlacementOperations:AllGizmoOperations;
+    public string[] GizmoOperations=>Session.Sketch!=null&&!GizmoIsDatum?(GizmoPositioning?SketchPlacementOperationNames:SketchGizmoOperationNames):GizmoPositioning?PlacementOperations:AllGizmoOperations;
     public int GizmoActiveOperation
     {
         get=>Session.ActiveCommand switch {EditFormCommand form=>form.TransformMode.Index,EditPointsCommand points=>points.TransformMode.Index,_=>Session.DatumVisible?Session.Datum!.Mode:(int)(Session.Sketch?.GizmoOperation??Core.SketchGizmoOperation.Move)};
@@ -164,6 +166,7 @@ public sealed partial class MainViewModel
     public bool GizmoShowScale { get => GizmoSettings.Current.Scale; set => ChangeGizmo(g => g.Scale = value); }
     public bool GizmoShowPlanes { get => GizmoSettings.Current.PlaneHandles; set => ChangeGizmo(g => g.PlaneHandles = value); }
     public bool GizmoShowLabels { get => GizmoSettings.Current.Labels; set => ChangeGizmo(g => g.Labels = value); }
+    public bool GizmoShowSheets { get => GizmoSettings.Current.PlaneSheets; set => ChangeGizmo(g => g.PlaneSheets = value); }
     public bool GizmoShowWorkPlane { get => GizmoSettings.Current.WorkPlane; set => ChangeGizmo(g => g.WorkPlane = value); }
     public bool GizmoShowX {get=>GizmoSettings.Current.AxisX;set=>ChangeGizmo(g=>g.AxisX=value);}
     public bool GizmoShowY {get=>GizmoSettings.Current.AxisY;set=>ChangeGizmo(g=>g.AxisY=value);}

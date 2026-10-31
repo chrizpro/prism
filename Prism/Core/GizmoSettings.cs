@@ -12,6 +12,8 @@ public sealed class GizmoSettings
     public bool PlaneHandles { get; set; } = true;
     public bool Labels { get; set; } = true;
     public bool WorkPlane { get; set; } = true;
+    /// <summary>Draw the gizmo plane and the sketch's other drawing planes as clearly visible sheets (off unless wanted, e.g. to save a plane from the gizmo).</summary>
+    public bool PlaneSheets { get; set; }
     public bool AxisX {get;set;}=true;
     public bool AxisY {get;set;}=true;
     public bool AxisZ {get;set;}=true;

@@ -1,108 +1,23 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:v="using:Prism.Views" x:Class="Prism.Views.SketchSpacePanel">
-    <StackPanel Spacing="8" Margin="14,10,14,0">
-        <CheckBox Name="Enable3DSketch" Content="3D sketch" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="Use the normal Sketch ribbon to draw in 3D."/>
-        <Expander Header="Datum references" IsVisible="{Binding !Sketch3DEnabled}" IsExpanded="False">
-            <StackPanel Spacing="6">
-                <ComboBox ItemsSource="{Binding SketchDatumChoices}" SelectedIndex="{Binding SketchDatumChoice, Mode=TwoWay}"/>
-                <ComboBox ItemsSource="{Binding SketchGizmoAxes}" SelectedIndex="{Binding SketchGizmoAxis, Mode=TwoWay}"/>
-                <TextBlock Text="New datum plane offset (mm)"/>
-                <TextBox Text="{Binding SketchDatumPlaneOffset, Mode=TwoWay}"/>
-                <Button Content="Save datum plane" Tag="save-plane" Click="OnAction"/>
-                <Button Content="Gizmo Handles (G)" Tag="gizmo" Click="OnAction" IsEnabled="{Binding SketchGeometryEditing}" Classes.primary="{Binding SketchGizmoEditing}" ToolTip.Tip="Choose a Datum gizmo to select its transform targets. G switches between pivot setup and geometry transformation."/>
-                <ComboBox ItemsSource="{Binding SketchGizmoOperations}" SelectedIndex="{Binding SketchGizmoOperation, Mode=TwoWay}"/>
-                <Button Classes="studioAction" Content="Gizmo…" Click="OnGizmoPanel" HorizontalAlignment="Stretch"/>
-                <TextBlock Text="Choose the axis direction before adding a Datum axis. Select references here or click their origins/axes in the viewport." TextWrapping="Wrap"/>
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.SketchSpacePanel">
+    <StackPanel Spacing="0">
+        <Expander IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,10">
+            <Expander.Header><c:PanelStepHeader Step="2" Title="Geometry" Margin="-10,-8" ToolTip.Tip="{Binding ToolPanelHint}"/></Expander.Header>
+            <StackPanel Margin="12,0" Spacing="9">
+                <CheckBox Name="Enable3DSketch" Content="3D sketch" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="Draw off the sketch plane. The view switches to perspective; turning it off returns to a flat view."/>
+                <StackPanel Name="SpatialSketchControls" IsVisible="{Binding Sketch3DEnabled}" Spacing="8">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                        <Button Content="Edit Geometry (E)" Tag="edit" Click="OnAction" Classes.primary="{Binding SketchGeometryEditing}" HorizontalAlignment="Stretch" ToolTip.Tip="Click points or curves: the gizmo binds to them automatically and its handles move, rotate or scale them."/>
+                        <Button Grid.Column="1" Content="Gizmo… (G)" Click="OnGizmoPanel" HorizontalAlignment="Stretch" ToolTip.Tip="Open the gizmo panel for the finer work: orientation, unbinding, planes."/>
+                    </Grid>
+                    <TextBlock Text="{Binding SketchSpaceStatus}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
+                </StackPanel>
             </StackPanel>
         </Expander>
-        <StackPanel Name="SpatialSketchControls" IsVisible="{Binding Sketch3DEnabled}" Spacing="8">
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                <Button Content="{Binding SketchNormalLabel}" Tag="normal" Click="OnAction" HorizontalAlignment="Stretch"/>
-                <Button Grid.Column="1" Classes="primary" Content="Gizmo… (G)" Click="OnGizmoPanel" HorizontalAlignment="Stretch" ToolTip.Tip="Open the gizmo panel: location, rotation, scale, bind and unbind, saved gizmos and planes."/>
-            </Grid>
-            <Button Content="Lock gizmo to selection (Enter)" Tag="confirm-target" Click="OnAction" IsVisible="{Binding SketchGizmoTargetSetup}" HorizontalAlignment="Stretch"/>
-            <TextBlock Text="{Binding SketchSpaceStatus}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
-            <Expander Header="More 3D sketch tools" IsExpanded="False" HorizontalAlignment="Stretch">
-                <StackPanel Spacing="8">
-                <CheckBox Content="Gizmo follows last point" IsChecked="{Binding SketchGizmoFollows, Mode=TwoWay}" ToolTip.Tip="Move the manipulator to each placed point without moving existing curves."/>
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                    <TextBlock Text="Gizmo plane" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Column="1" IsEnabled="{Binding SketchGizmoEditing}" ItemsSource="{Binding SketchGizmoPlanes}" SelectedIndex="{Binding SketchGizmoPlane, Mode=TwoWay}" HorizontalAlignment="Stretch" ToolTip.Tip="Select the gizmo plane used for drawing and Look Normal."/>
-                </Grid>
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                    <TextBlock Text="Axis" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding SketchGizmoAxes}" SelectedIndex="{Binding SketchGizmoAxis, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                    <Button Grid.Column="2" Content="Draw along axis" Tag="axis" Click="OnAction"/>
-                </Grid>
-                <Button Content="Save this plane as datum" Tag="save-plane" Click="OnAction" HorizontalAlignment="Stretch"/>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <Button Content="Gizmo handles (G)" Tag="gizmo" Click="OnAction" Classes.primary="{Binding SketchGizmoEditing}" HorizontalAlignment="Stretch"/>
-                    <Button Grid.Column="1" Content="Edit Geometry (E)" Classes.primary="{Binding SketchGeometryEditing}" Tag="edit" Click="OnAction" HorizontalAlignment="Stretch"/>
-                </Grid>
-                <CheckBox Content="Free 3D editing (not limited to the plane)" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Let the gizmo lift points off their drawing plane in any direction. Off keeps editing on the plane."/>
-                <ComboBox ItemsSource="{Binding SketchGizmoOperations}" SelectedIndex="{Binding SketchGizmoOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                <Button Content="{Binding SketchResetLabel}" Tag="reset-gizmo" Click="OnAction" HorizontalAlignment="Stretch" FontSize="11"/>
-                <Expander Header="Saved planes &amp; datums" IsExpanded="True" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Pick a saved plane, axis, point or gizmo to reuse it. They also appear under Active sketch in the model tree." TextWrapping="Wrap" Classes="faint" FontSize="11.5"/>
-                        <ComboBox ItemsSource="{Binding SketchDatumChoices}" SelectedIndex="{Binding SketchDatumChoice, Mode=TwoWay}" HorizontalAlignment="Stretch" ToolTip.Tip="Choose a saved plane, axis, point or gizmo, or Live gizmo to detach."/>
-                        <TextBox Text="{Binding SketchDatumName, Mode=TwoWay}" Watermark="Name for the next datum (optional)"/>
-                        <Button Content="Save gizmo plane as datum" Tag="save-plane" Click="OnAction" HorizontalAlignment="Stretch"/>
-                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
-                            <Button Content="Add point" Tag="save-point" Click="OnAction" HorizontalAlignment="Stretch"/>
-                            <Button Grid.Column="1" Content="Add axis" Tag="save-axis" Click="OnAction" HorizontalAlignment="Stretch"/>
-                            <Button Grid.Column="2" Content="Add gizmo" Tag="save-gizmo" Click="OnAction" HorizontalAlignment="Stretch"/>
-                        </Grid>
-                        <Button Content="Update selected datum snapshot" Tag="update-datum" Click="OnAction" HorizontalAlignment="Stretch"/>
-                    </StackPanel>
-                </Expander>
-                <Expander Header="{Binding SketchTransformTitle}" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="7">
-                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                            <TextBlock Text="Location (mm)" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Content="Set" Tag="origin" Click="OnAction"/>
-                            <Button Grid.Column="2" Content="Reset 0" Tag="reset-location" Click="OnAction" ToolTip.Tip="Set X, Y and Z location to zero."/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
-                            <TextBox Text="{Binding SketchOriginX, Mode=TwoWay}" Watermark="X" Tag="origin" KeyDown="OnTransformKey" ToolTip.Tip="World X location"/>
-                            <TextBox Grid.Column="1" Text="{Binding SketchOriginY, Mode=TwoWay}" Watermark="Y" Tag="origin" KeyDown="OnTransformKey" ToolTip.Tip="World Y location"/>
-                            <TextBox Grid.Column="2" Text="{Binding SketchOriginZ, Mode=TwoWay}" Watermark="Z" Tag="origin" KeyDown="OnTransformKey" ToolTip.Tip="World Z location"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                            <TextBlock Text="Rotation (degrees)" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Content="Set" Tag="rotate" Click="OnAction"/>
-                            <Button Grid.Column="2" Content="Reset 0" Tag="reset-rotation" Click="OnAction" ToolTip.Tip="Reset the gizmo orientation to world axes."/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="4">
-                            <TextBox Text="{Binding SketchRotateX, Mode=TwoWay}" Watermark="X°" Tag="rotate" KeyDown="OnTransformKey" ToolTip.Tip="Absolute X rotation"/>
-                            <TextBox Grid.Column="1" Text="{Binding SketchRotateY, Mode=TwoWay}" Watermark="Y°" Tag="rotate" KeyDown="OnTransformKey" ToolTip.Tip="Absolute Y rotation"/>
-                            <TextBox Grid.Column="2" Text="{Binding SketchRotateZ, Mode=TwoWay}" Watermark="Z°" Tag="rotate" KeyDown="OnTransformKey" ToolTip.Tip="Absolute Z rotation"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,60,Auto,Auto" ColumnSpacing="6">
-                            <TextBlock Text="Scale" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1" Text="{Binding SketchDisplaySize, Mode=TwoWay}" Tag="size" KeyDown="OnTransformKey" ToolTip.Tip="Scale the plane display, or selected geometry in Edit Sketch."/>
-                            <Button Grid.Column="2" Content="Set" Tag="size" Click="OnAction"/>
-                            <Button Grid.Column="3" Content="Reset 1" Tag="reset-scale" Click="OnAction"/>
-                        </Grid>
-                        <TextBlock Text="{Binding SketchTransformHelp}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
-                    </StackPanel>
-                </Expander>
-                <Expander Header="Snapping" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="6">
-                        <CheckBox Content="Snap to other sketches and curves" IsChecked="{Binding SketchSnapOtherCurves, Mode=TwoWay}"/>
-                        <CheckBox Content="Project off-plane curve snaps" IsChecked="{Binding SketchProjectOtherCurves, Mode=TwoWay}" IsEnabled="{Binding SketchSnapOtherCurves}"/>
-                    </StackPanel>
-                </Expander>
-                <Expander Header="Existing drawing planes" HorizontalAlignment="Stretch">
-                    <StackPanel Spacing="6">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                            <ComboBox IsEnabled="{Binding SketchGizmoEditing}" ItemsSource="{Binding SketchPlaneChoices}" SelectedIndex="{Binding SketchPlaneChoice, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                            <Button Grid.Column="1" IsEnabled="{Binding SketchGizmoEditing}" Content="+ Plane" Tag="new" Click="OnAction"/>
-                        </Grid>
-                        <Button Content="Release drawing axis" Tag="axis-free" Click="OnAction" HorizontalAlignment="Stretch"/>
-                    </StackPanel>
-                </Expander>
-                </StackPanel>
-            </Expander>
-        </StackPanel>
+        <Expander Header="Snapping" IsVisible="{Binding Sketch3DEnabled}" HorizontalAlignment="Stretch" Margin="0,0,0,10">
+            <StackPanel Spacing="6" Margin="12,0">
+                <CheckBox Content="Snap to other sketches and curves" IsChecked="{Binding SketchSnapOtherCurves, Mode=TwoWay}"/>
+                <CheckBox Content="Project off-plane curve snaps" IsChecked="{Binding SketchProjectOtherCurves, Mode=TwoWay}" IsEnabled="{Binding SketchSnapOtherCurves}"/>
+            </StackPanel>
+        </Expander>
     </StackPanel>
 </UserControl>

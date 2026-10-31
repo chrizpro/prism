@@ -55,6 +55,23 @@ public sealed partial class SketchContext
         s.NotifySketchChanged();s.Invalidate();
     }
 
+    /// <summary>
+    /// In Edit Geometry, clicking points or curves binds the gizmo to them straight away: it sits at their center and its handles transform them.
+    /// The gizmo panel is only for the finer work (orienting the gizmo, unbinding to move it alone). A gizmo being placed on its own is left alone.
+    /// </summary>
+    void BindSelectedTargetAutomatically(CadSession s)
+    {
+        if (!GeometryEditing || !GizmoEditing || IndependentGizmoPlacement || !HasGeometrySelection) return;
+        ConfirmGizmoTarget(s);
+    }
+
+    void AddOrRemoveBoundPoint(CadSession s, int point)
+    {
+        if (point < 0) return;
+        if (!SelPoints.Remove(point)) SelPoints.Add(point);
+        CenterGizmoOnSelection(s);
+    }
+
     Vec3? SelectionCenter()
     {
         if(SelPoints.Count==0&&SelEntities.Count==1&&Model.EntityOrNull(SelEntities.First()) is { Type:EntType.Ellipse } ellipse)
@@ -137,7 +154,9 @@ public sealed partial class SketchContext
         }
         ClearGizmoTarget();
         if(ActiveDatumId!=null)return;
-        _gizmoFrame=new(center,_gizmoFrame.U,_gizmoFrame.V); s.NotifySketchChanged(); s.Invalidate();
+        _gizmoFrame=new(center,_gizmoFrame.U,_gizmoFrame.V);
+        LockCurrentGizmoTarget();     // a new selection is bound as it is made: no Enter, no extra button
+        s.NotifySketchChanged(); s.Invalidate();
     }
 
     void RestoreSpace(SpaceSnapshot snapshot)

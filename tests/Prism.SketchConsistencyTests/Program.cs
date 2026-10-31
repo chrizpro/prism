@@ -38,7 +38,7 @@ var revolve=new RevolveCommand();referenceSession.StartCommand(revolve);revolve.
 var profileSlot=revolve.Slots.Single(p=>p.Label=="Profile");profileSlot.Items.Clear();profileSlot.Items.Add(SelItem.Of(obj));var axisSlot=revolve.Slots.Single(p=>p.Label=="Axis line");axisSlot.Items.Add(axisItem);revolve.OnChanged();referenceSession.CommitCommand();
 Check(referenceSession.Objects.Any(o=>o.Kind==ObjKind.Solid),"Revolve builds a solid using a saved datum axis");
 var g=Session();var sk=g.Sketch!;int p1=sk.Model.AddPoint(20,20),p2=sk.Model.AddPoint(60,40);sk.Model.AddPointEntity(p1);sk.Model.AddPointEntity(p2);sk.Solve(g);var gizmo=sk.SaveDatum(g,SketchDatumKind.Gizmo);sk.UseDatum(g,gizmo.Id);
-Check(sk.PlanarGizmoActive&&sk.GizmoEditing&&!sk.Is3DEnabled,"selecting a 2D datum gizmo enables planar transform setup without switching to 3D");Click(g,20,20);Click(g,60,40,true);g.Key("SketchGizmo");
+Check(sk.PlanarGizmoActive&&sk.GizmoEditing&&!sk.Is3DEnabled,"selecting a 2D datum gizmo enables planar transform setup without switching to 3D");Click(g,20,20);sk.SelPoints.Add(p2);sk.CenterGizmoOnSelection(g);
 double length=g.Camera.PixelSizeAt(sk.GizmoFrame.Origin)*96;var handle=g.Camera.Project(sk.GizmoFrame.Origin+sk.GizmoFrame.U*length*.5)!.Value;var old=sk.Model.P(p1).X;
 g.PointerDown(new(handle.x,handle.y,true,false,false,false));g.PointerMove(new(handle.x+35,handle.y,true,false,false,false));g.PointerUp(new(handle.x+35,handle.y,false,false,false,false));
 Check(sk.Model.P(p1).X>old+1&&Math.Abs(sk.Model.P(p2).X-sk.Model.P(p1).X-40)<1e-4&&!sk.Is3DEnabled,"2D gizmo translates multiple points while preserving their separation");

@@ -351,7 +351,7 @@ public sealed partial class SketchContext
 
     bool LockedTargetClick(CadSession s)
     {
-        s.Say("The gizmo is locked to its target. Drag its handles to transform it, or press G to choose a different target.");
+        s.Say("The gizmo is bound to its target. Drag its handles to transform it, Shift-click to add or remove points, or press G to unbind and choose a different target.");
         s.Invalidate(); return true;
     }
 
@@ -365,7 +365,9 @@ public sealed partial class SketchContext
         if (GeometryEditing && !p.Ctrl && !(transforming && hit>=0) && PickPoint(s,p.X,p.Y)>=0)
         {
             if (GizmoEditing) { _gizmoTargetPicker.PointerDown(s,p);PreviewGizmoTarget(s);return true; }
-            // Outside Gizmo Handles the bound target stays locked: clicking another point must not retarget the gizmo.
+            // Outside Gizmo Handles the bound target stays locked: a plain click on another point must not retarget the gizmo.
+            // Shift-click adds the point to (or takes it out of) the bound target, and the gizmo moves to the new average.
+            if (p.Shift) { AddOrRemoveBoundPoint(s, PickPoint(s, p.X, p.Y)); return true; }
             return LockedTargetClick(s);
         }
         // Points and curves on another drawing plane (Gizmo Handles only): switch to that plane and pick the target there in the same click.
@@ -389,7 +391,7 @@ public sealed partial class SketchContext
             if (Tool is ClickTool && hit is >= 1 and <= 3)
             {
                 int axis = hit - 1; int[][] axesByPlane = [[0, 1], [0, 2], [1, 2]];
-                SelectedGizmoAxis = axis;
+                ChooseGizmoAxis(s, axis);
                 if (!axesByPlane[GizmoPlaneIndex].Contains(axis)) SetGizmoPlane(s, axis == 2 ? 1 : 0);
                 int localAxis = Array.IndexOf(axesByPlane[GizmoPlaneIndex], axis) + 1;
                 DrawingAxis = DrawingAxis == localAxis ? 0 : localAxis;
@@ -404,7 +406,7 @@ public sealed partial class SketchContext
         if (hit is >= 1 and <= 6) GizmoOperation = SketchGizmoOperation.Move;
         else if (hit is >= 7 and <= 9) GizmoOperation = SketchGizmoOperation.Rotate;
         else if (hit == 10) GizmoOperation = SketchGizmoOperation.Size;
-        if (hit is >= 1 and <= 3) SelectedGizmoAxis = hit - 1;
+        if (hit is >= 1 and <= 3) ChooseGizmoAxis(s, hit - 1);
         _dragSnapshot = CaptureSpace();
         _geometryDrag=transforming; _geometryValid=true; _geometryError="";
         _gizmoDrag = hit; _dragX = p.X; _dragY = p.Y; _dragPlane = _gizmoFrame; _dragSize = GizmoSize; _dragChanged = false;
@@ -509,7 +511,7 @@ public sealed partial class SketchContext
     {
         if (_gizmoDrag < 0)
         {
-            if (GizmoEditing && GeometryEditing && pointer is { } p) { _gizmoTargetPicker.PointerUp(s,p);PreviewGizmoTarget(s); return true; }
+            if (GizmoEditing && GeometryEditing && pointer is { } p) { _gizmoTargetPicker.PointerUp(s,p);PreviewGizmoTarget(s);BindSelectedTargetAutomatically(s); return true; }
             return false;
         }
         int handle = _gizmoDrag; bool changed = _dragChanged;
@@ -585,6 +587,13 @@ public sealed partial class SketchContext
         _gizmoFrame = new(point, _gizmoFrame.U, _gizmoFrame.V);
         s.NotifySketchChanged(); s.Invalidate();
     }
+    /// <summary>Pick the gizmo axis (from the viewport or the panel). The panel's Axis box follows, so the two always agree.</summary>
+    void ChooseGizmoAxis(CadSession s, int axis)
+    {
+        if (SelectedGizmoAxis == axis) return;
+        SelectedGizmoAxis = axis; s.NotifySketchChanged();
+    }
+
     public void ReleaseDrawingAxis(CadSession s) { DrawingAxis = 0; s.Invalidate(); }
     public void LockSelectedGizmoAxis(CadSession s)
     {
@@ -745,6 +754,19 @@ public sealed partial class SketchContext
             o.AddTri(P(-half, -half), P(half, -half), P(half, half), (accent & 0xFFFFFF) | 0x08000000);
             o.AddTri(P(-half, -half), P(half, half), P(-half, half), (accent & 0xFFFFFF) | 0x08000000);
             o.AddPolyline([P(-half, -half), P(half, -half), P(half, half), P(-half, half)], (accent & 0xFFFFFF) | 0x60000000, 1, true);
+        }
+        if (display.PlaneSheets)
+        {
+            uint tint = GizmoVisual.Accent & 0xFFFFFF;
+            void Sheet(Plane3 plane, Vec3 center, double size, uint fill, uint edge)
+            {
+                Vec3 Q(double u, double v) => center + plane.U * u + plane.V * v;
+                o.AddTri(Q(-size, -size), Q(size, -size), Q(size, size), tint | fill); o.AddTri(Q(-size, -size), Q(size, size), Q(-size, size), tint | fill);
+                o.AddPolyline([Q(-size, -size), Q(size, -size), Q(size, size), Q(-size, size)], tint | edge, 1.4f, true);
+            }
+            Sheet(selectedPlane, origin, half, 0x2E000000u, 0xB0000000u);
+            for (int i = 0; i < _sections.Count; i++)
+                if (i != _activeSection) Sheet(_sections[i].Plane, _sections[i].Plane.Origin, half, 0x1C000000u, 0x80000000u);
         }
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
         if (display.PlaneHandles && display.Allows(0,active) && (GizmoEditing || GeometryEditing))
