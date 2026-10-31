@@ -630,8 +630,8 @@ public sealed class LoftCommand : BodyCommand
     public LoftCommand(bool surface = false)
     {
         _surface = surface;
-        _sections = Slot(new SelectionSlot { Label = "Sections (in order)", Caption = "Profiles", Filter = SelFilter.AnyCurve | SelFilter.Face, Multi = true, Ordered = true });
-        _rails = Slot(new SelectionSlot { Label = "Guide rails (optional, one or two)", Caption = "Guide rails", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true, Optional = true, MaxCount = 2 });
+        _sections = Slot(new SelectionSlot { Label = "Sections (in order)", Caption = "Profiles", Filter = SelFilter.CurveObj | SelFilter.Edge | SelFilter.Face, Multi = true, Ordered = true });
+        _rails = Slot(new SelectionSlot { Label = "Guide rails (optional, one or two)", Caption = "Guide rails", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, Optional = true });
         _ruled = Check("Straight (ruled) transitions", false);
         _closed = Check("Close the loft (last section back to the first)", false);
         _ruled.Caption = "Ruled transitions";
@@ -641,7 +641,7 @@ public sealed class LoftCommand : BodyCommand
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Loft Surface" : "Loft";
-    public override string Hint => "Click two or more profiles in the order they should be connected. Add one or two guide rails (curves that run along the shape) to control its outline between the profiles.";
+    public override string Hint => "Click a curve to take its whole connected chain as one profile (blue, numbered in pick order). Switch to Guide rails to pick one or two rails (orange). Hold Ctrl or Shift to take a single edge instead; click a picked curve again to remove it. A sketch holding several curves is never taken as a whole.";
 
     protected override void UpdateVisibility()
     {
@@ -649,17 +649,95 @@ public sealed class LoftCommand : BodyCommand
         base.UpdateVisibility();
     }
 
+    public override bool PickPoint(PickResult hit, bool additive)
+    {
+        var slot = ActiveSlot;
+        if ((slot != _sections && slot != _rails) || hit.Item.Kind != SelKind.Edge) return false;
+        try
+        {
+            var chain = additive ? [hit.Item] : SelectionChains.Expand(S, hit.Item, false);
+            bool remove = slot!.Items.Contains(hit.Item);
+            ConfigureInputs(() =>
+            {
+                foreach (var e in chain)
+                {
+                    if (remove) slot.Items.Remove(e);
+                    else if (!slot.Items.Contains(e)) slot.TryAdd(e);
+                }
+            });
+            OnChanged();
+        }
+        catch (KernelException e) { S.Say(e.Message, true); }
+        return true;
+    }
+
+    /// <summary>Picked edges that touch end to end make one group (one profile or one rail); faces and whole curves stand alone. Groups keep pick order.</summary>
+    List<List<SelItem>> Groups(IEnumerable<SelItem> items)
+    {
+        var list = items.ToList();
+        var parent = Enumerable.Range(0, list.Count).ToArray();
+        int Root(int i) => parent[i] == i ? i : parent[i] = Root(parent[i]);
+        var ends = list.Select(it => it.Kind == SelKind.Edge && S.EdgePoints(it) is { Count: >= 2 } p ? ((Vec3, Vec3)?)(p[0], p[^1]) : null).ToList();
+        static bool Near(Vec3 a, Vec3 b) => (a - b).Length < 1e-5;
+        for (int i = 0; i < list.Count; i++)
+            for (int j = i + 1; j < list.Count; j++)
+                if (ends[i] is { } a && ends[j] is { } b && list[i].Obj == list[j].Obj && (Near(a.Item1, b.Item1) || Near(a.Item1, b.Item2) || Near(a.Item2, b.Item1) || Near(a.Item2, b.Item2)))
+                    parent[Root(j)] = Root(i);
+        var groups = new List<List<SelItem>>(); var index = new Dictionary<int, int>();
+        for (int i = 0; i < list.Count; i++)
+        {
+            int r = Root(i);
+            if (!index.TryGetValue(r, out int g)) { g = groups.Count; index[r] = g; groups.Add([]); }
+            groups[g].Add(list[i]);
+        }
+        return groups;
+    }
+
+    Shape GroupShape(List<SelItem> g, bool closedWanted)
+    {
+        if (g.Count == 1 && g[0].Kind != SelKind.Edge) return g[0].Kind == SelKind.Object ? S.Find(g[0].Obj)!.Shape : S.ShapeOf(g[0])!;
+        return Occ.Profile(g.Select(i => S.ShapeOf(i)!).ToList(), false);
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        void Draw(List<List<SelItem>> groups, uint color, string name)
+        {
+            for (int n = 0; n < groups.Count; n++)
+            {
+                Vec3? first = null;
+                foreach (var it in groups[n])
+                {
+                    if (it.Kind != SelKind.Edge) continue;
+                    var pts = s.EdgePoints(it);
+                    for (int k = 1; k < pts.Count; k++) o.AddLine(pts[k - 1], pts[k], color, 4f);
+                    if (pts.Count > 0) first ??= pts[pts.Count / 2];
+                }
+                if (first is { } at) o.AddLabel(at, $"{name} {n + 1}", true, 4);
+            }
+        }
+        try
+        {
+            Draw(Groups(_sections.Items), 0xFF4FC3F7, "Section");
+            Draw(Groups(_rails.Items), 0xFFFF8A1F, "Rail");
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { }
+    }
+
     protected override CommandOutput? Build()
     {
         if (_sections.Items.Count < 2 || TargetMissing) return null;
         Results.Clear();
-        var secs = _sections.Items.Select(i => i.Kind == SelKind.Object ? S.Find(i.Obj)!.Shape : S.ShapeOf(i)!).ToList();
+        var secs = Groups(_sections.Items).Select(g => GroupShape(g, false)).ToList();
+        if (secs.Count < 2) throw new KernelException("A loft needs two profiles. Each connected chain of curves counts as one: pick a curve on the second profile.");
+        Results.Add(new ResultLine("Profiles", $"{secs.Count} profile(s) in pick order"));
         if (_closed.Value && secs.Count > 2) secs.Add(secs[0]);
         Shape shape;
         if (_rails.Items.Count > 0)
         {
-            var rails = _rails.Items.Take(2).Select(i => i.Kind == SelKind.Edge ? S.ShapeOf(i)! : Occ.Profile([i.Kind == SelKind.Object ? S.Find(i.Obj)!.Shape : S.ShapeOf(i)!], false)).ToList();
-            if (_rails.Items.Count > 2) Results.Add(new ResultLine("Guide rails", "Only the first two rails are used", 1));
+            var railGroups = Groups(_rails.Items);
+            var rails = railGroups.Take(2).Select(g => GroupShape(g, false)).ToList();
+            if (railGroups.Count > 2) Results.Add(new ResultLine("Guide rails", "Only the first two rails are used", 1));
             shape = GuidedLoft.Build(secs, rails, !_surface, _ruled.Value, _railSteps.Value);
             Results.Add(new ResultLine("Guide rails", $"{rails.Count} rail(s) steer the shape through {_railSteps.Value} sections"));
         }
