@@ -520,6 +520,7 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
     bool _waiting,_dragging;
     double _downX,_downY,_value,_sign=1;
     CType _pendingType;int[] _pendingRefs=[];int _previewLine=-1;
+    int _pa=-1,_pb=-1,_lineId=-1;bool _smart;
     (double u,double v)? _position;
     public override IReadOnlyList<ToolControl>? Panel =>
     [new(ToolControlKind.Info,"step",_waiting?"Set the driving value and Apply. Drag a line outward to position its dimension.":Prompt),
@@ -528,15 +529,29 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
     public override void PanelSet(CadSession s,string id,object? value)
     {
         if(id=="value"&&value is double number&&number>0){_value=number;s.Invalidate();return;}
-        if(id=="apply"&&_waiting)
-        {
-            var sk=Sk(s);
-            if(sk.Edit(s,"That dimension",()=>{var c=sk.Model.Add(_pendingType,_sign*_value,0,true,_pendingRefs);if(_position is { } p){c.LabelU=p.u;c.LabelV=p.v;}})){_waiting=false;_previewLine=-1;}
-        }
+        if(id=="apply"&&_waiting)Place(s,false);
         s.RaiseState();s.Invalidate();
     }
-    public override void PointerUp(CadSession s,PointerInfo p)
-    {if(_dragging){_dragging=false;if(_picks.Count==1&&!_picks[0].pt)Finish(s,true);}}
+
+    /// <summary>Put the pending dimension where the pointer is. Clicking places it and opens the value box right there in the viewport; the panel's Apply keeps the measured value.</summary>
+    void Place(CadSession s,bool editValue)
+    {
+        var sk=Sk(s);SkConstraint? made=null;
+        Resolve(sk);
+        if(!sk.Edit(s,"That dimension",()=>{made=sk.Model.Add(_pendingType,_sign*_value,0,true,_pendingRefs);if(_position is { } p){made.LabelU=p.u;made.LabelV=p.v;}}))return;
+        _waiting=false;_previewLine=-1;_smart=false;_pa=_pb=_lineId=-1;
+        if(editValue&&made!=null&&sk.Model.Constraints.FirstOrDefault(x=>x.Id==made.Id) is { } fresh)sk.EditDimension(s,fresh);
+    }
+
+    /// <summary>Smart dimension: where the pointer sits decides the kind. Beside the two points gives their distance along the line between them; above or below the span gives the horizontal distance; left or right of it the vertical one.</summary>
+    void Resolve(SketchContext sk)
+    {
+        if(!_smart||_position is not { } c||_pa<0||sk.Model.PointOrNull(_pa) is not { } a||sk.Model.PointOrNull(_pb) is not { } b)return;
+        bool inX=c.u>=Math.Min(a.X,b.X)&&c.u<=Math.Max(a.X,b.X),inY=c.v>=Math.Min(a.Y,b.Y)&&c.v<=Math.Max(a.Y,b.Y);
+        if(inX&&!inY&&Math.Abs(b.X-a.X)>1e-6){_pendingType=CType.HDistance;_pendingRefs=[_pa,_pb];_sign=b.X>=a.X?1:-1;_value=Math.Abs(b.X-a.X);}
+        else if(inY&&!inX&&Math.Abs(b.Y-a.Y)>1e-6){_pendingType=CType.VDistance;_pendingRefs=[_pa,_pb];_sign=b.Y>=a.Y?1:-1;_value=Math.Abs(b.Y-a.Y);}
+        else{_pendingType=_lineId>=0?CType.LineLength:CType.Distance;_pendingRefs=_lineId>=0?[_lineId]:[_pa,_pb];_sign=1;_value=Dist(a.X,a.Y,b.X,b.Y);}
+    }
 
     public override string Name => "Dimension";
     public override string Mode => mode == DimMode.Smart ? "Smart" : mode.ToString();
@@ -544,7 +559,7 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => (int)mode;
     protected override void ApplyOption(int index) => mode = (DimMode)index;
-    protected override void ResetState(CadSession s) { _picks.Clear(); _waiting = _dragging = false; _previewLine = -1; _position = null; _pendingRefs = []; }
+    protected override void ResetState(CadSession s) { _picks.Clear(); _waiting = _dragging = false; _previewLine = -1; _position = null; _pendingRefs = []; _smart = false; _pa = _pb = _lineId = -1; }
     public override string Prompt => mode switch
     {
         DimMode.Horizontal => "Horizontal dimension: pick two points, or a line.",
@@ -554,8 +569,17 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
 
     public override bool PointerDown(CadSession s, PointerInfo p)
     {
-        if (!p.Left || _waiting) return true;
+        if (!p.Left) return true;
         var sk = Sk(s);
+        if (_waiting)
+        {
+            // a second line instead of a placement turns a length into an angle
+            int other=sk.PickEntity(s,p.X,p.Y);
+            if(_lineId>=0&&other>=0&&other!=_lineId&&sk.Model.E(other).Type==EntType.Line&&sk.PickPoint(s,p.X,p.Y)<0)
+            {_picks.Clear();_picks.Add((false,_lineId));_picks.Add((false,other));_waiting=false;_lineId=-1;Finish(s,false);s.Invalidate();return true;}
+            if(sk.PlanePoint(s,p.X,p.Y) is { } at)_position=at;
+            Place(s,true);s.RaiseState();s.Invalidate();return true;
+        }
         if (sk.PickDimension(s, p.X, p.Y) is { } existing) { if (p.Clicks >= 2) sk.EditDimension(s, existing); return true; }
         int pid = sk.PickPoint(s, p.X, p.Y), eid = sk.PickEntity(s, p.X, p.Y);
         if (pid >= 0) _picks.Add((true, pid));
@@ -569,7 +593,7 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
             return true;
         }
         _downX=p.X;_downY=p.Y;
-        if(_picks.Count==1&&!_picks[0].pt&&sk.Model.E(_picks[0].id).Type==EntType.Line)_previewLine=_picks[0].id;
+        if(_picks.Count==1&&!_picks[0].pt&&sk.Model.E(_picks[0].id).Type==EntType.Line){Finish(s,true);s.Invalidate();return true;}
         TryFinish(s);
         s.Invalidate();
         return true;
@@ -578,9 +602,8 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
     public override void PointerMove(CadSession s, PointerInfo p)
     {
         var sk = Sk(s);
-        if(sk.PlanePoint(s,p.X,p.Y) is { } location&&(_previewLine>=0||_waiting))_position=location;
-        if(p.Left&&_previewLine>=0&&Math.Abs(p.X-_downX)+Math.Abs(p.Y-_downY)>4)_dragging=true;
-        if (_previewLine >= 0 || _waiting) s.Invalidate();
+        if(sk.PlanePoint(s,p.X,p.Y) is { } location&&_waiting){_position=location;Resolve(sk);s.RaiseState();}
+        if (_waiting) s.Invalidate();
         int hp = sk.PickPoint(s, p.X, p.Y), he = sk.PickEntity(s, p.X, p.Y);
         if (hp != sk.HoverPoint || he != sk.HoverEntity) { sk.HoverPoint = hp; sk.HoverEntity = hp >= 0 ? -1 : he; s.Invalidate(); }
         if (sk.PlanePoint(s, p.X, p.Y) is { } w) s.Cursor3 = sk.Plane.PointAt(w.u, w.v);
@@ -657,12 +680,17 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
         double sign = value < 0 ? -1 : 1;
         _waiting = true;
         _pendingType=t;_pendingRefs=refs;_value=shown;_sign=sign;
-        s.Say("Set the dimension value in the right panel, then Apply.");s.RaiseState();s.Invalidate();
+        _pa=_pb=_lineId=-1;_smart=false;
+        if(t==CType.LineLength){_lineId=refs[0];var ln=m.E(_lineId);_pa=ln.A;_pb=ln.B;_smart=mode==DimMode.Smart;}
+        else if(t==CType.Distance){_pa=refs[0];_pb=refs[1];_smart=mode==DimMode.Smart;}
+        else if(t is CType.HDistance or CType.VDistance){_pa=refs[0];_pb=refs[1];}
+        _position??=_pa>=0&&m.PointOrNull(_pa) is { } pp?(pp.X,pp.Y):null;
+        s.Say("Move to place the dimension, then click. Its value opens for typing. Esc cancels.");s.RaiseState();s.Invalidate();
     }
 
     public override bool Key(CadSession s, string key)
     {
-        if(key=="Enter"&&_waiting){PanelSet(s,"apply",null);return true;}
+        if(key=="Enter"&&_waiting){Place(s,true);s.RaiseState();s.Invalidate();return true;}
         if (key == "Enter" && _picks.Count == 1 && !_picks[0].pt) { Finish(s, true); return true; }
         if (key is "Escape" or "RightClick") { if (_picks.Count > 0 || _waiting) { ResetState(s); s.RaiseState(); s.Invalidate(); return true; } Sk(s).SetTool(s, new SelectTool()); return true; }
         return false;
@@ -671,11 +699,20 @@ public sealed class DimensionTool(DimMode mode) : SketchTool
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         var sk = Sk(s);
-        if(_previewLine>=0&&_position is { } position&&sk.Model.EntityOrNull(_previewLine) is { } line)
+        if(_waiting&&_pa>=0&&_position is { } position&&_pendingType is CType.Distance or CType.LineLength or CType.HDistance or CType.VDistance&&sk.Model.PointOrNull(_pa) is { } A&&sk.Model.PointOrNull(_pb) is { } B)
         {
-            var a=sk.Model.P(line.A);var b=sk.Model.P(line.B);double dx=b.X-a.X,dy=b.Y-a.Y,len=Math.Max(1e-9,Math.Sqrt(dx*dx+dy*dy)),nx=-dy/len,ny=dx/len,offset=(position.u-a.X)*nx+(position.v-a.Y)*ny;
-            var p1=sk.Plane.PointAt(a.X+nx*offset,a.Y+ny*offset);var p2=sk.Plane.PointAt(b.X+nx*offset,b.Y+ny*offset);
-            o.AddLine(sk.Plane.PointAt(a.X,a.Y),p1,0xFF8FB8FF,1.2f);o.AddLine(sk.Plane.PointAt(b.X,b.Y),p2,0xFF8FB8FF,1.2f);o.AddLine(p1,p2,0xFF8FB8FF,1.6f);o.AddLabel((p1+p2)/2,$"{len:0.##}",true);
+            double ax=A.X,ay=A.Y,bx=B.X,by=B.Y,ux,uy;
+            if(_pendingType==CType.HDistance){ux=bx>=ax?1:-1;uy=0;by=ay;}
+            else if(_pendingType==CType.VDistance){ux=0;uy=by>=ay?1:-1;bx=ax;}
+            else{double dx=bx-ax,dy=by-ay,len=Math.Max(Math.Sqrt(dx*dx+dy*dy),1e-9);ux=dx/len;uy=dy/len;}
+            double nx=-uy,ny=ux,off=(position.u-ax)*nx+(position.v-ay)*ny;
+            var p1=sk.Plane.PointAt(ax+nx*off,ay+ny*off);var p2=sk.Plane.PointAt(bx+nx*off,by+ny*off);
+            uint dc=SketchContext.DimColor;
+            o.AddLine(sk.Plane.PointAt(A.X,A.Y),p1,dc,1.2f);o.AddLine(sk.Plane.PointAt(B.X,B.Y),p2,dc,1.2f);o.AddLine(p1,p2,dc,1.6f);
+            double ps=s.Camera.PixelSizeAt(p1),ql=Math.Max(Math.Sqrt((bx-ax)*(bx-ax)+(by-ay)*(by-ay)),1e-9),qx=(bx-ax)/ql,qy=(by-ay)/ql;
+            SketchContext.DimArrow(o,sk.Plane,ps,ax+nx*off,ay+ny*off,-qx,-qy,dc);SketchContext.DimArrow(o,sk.Plane,ps,bx+nx*off,by+ny*off,qx,qy,dc);
+            string kind=_pendingType==CType.HDistance?"horizontal":_pendingType==CType.VDistance?"vertical":"aligned";
+            o.AddLabel((p1+p2)/2,$"{_value:0.##} mm  ·  {kind}",true);
         }
         foreach (var (pt, id) in _picks)
         {
