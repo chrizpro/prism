@@ -14,6 +14,36 @@ static class SurfaceUtil
         return Occ.Profile([s.Find(item.Obj)!.Shape], false);
     }
 
+    /// <summary>Open-boundary loops of a surface as edge-index lists. With a start index, only the loop that edge belongs to is returned.</summary>
+    public static List<List<int>> OpeningLoops(Shape shape, int start = -1)
+    {
+        var free = Occ.FreeEdges(shape);
+        if (free.Length == 0) throw new FormatException("This surface has no open edges: there is nothing to fill.");
+        var info = free.ToDictionary(i => i, i => Occ.EdgeInfoOf(shape.Sub(SubKind.Edge, i)));
+        var loops = new List<List<int>>(); var used = new HashSet<int>();
+        IEnumerable<int> starts = start >= 0 ? (free.Contains(start) ? [start] : throw new FormatException("That edge is not an open edge. Click an edge on the border of a hole.")) : free;
+        foreach (int s0 in starts)
+        {
+            if (used.Contains(s0)) continue;
+            var loop = new List<int> { s0 }; used.Add(s0);
+            var end = info[s0].End; var begin = info[s0].Start;
+            for (int guard = 0; guard < 10000 && end.DistanceTo(begin) > 1e-3; guard++)
+            {
+                int next = -1; bool flip = false;
+                foreach (int c in free)
+                {
+                    if (used.Contains(c)) continue;
+                    if (info[c].Start.DistanceTo(end) < 1e-3) { next = c; flip = false; break; }
+                    if (info[c].End.DistanceTo(end) < 1e-3) { next = c; flip = true; break; }
+                }
+                if (next < 0) break;
+                loop.Add(next); used.Add(next); end = flip ? info[next].Start : info[next].End;
+            }
+            loops.Add(loop);
+        }
+        return loops;
+    }
+
     public static CommandOutput Single(Shape shape, string name = "Surface", ObjKind kind = ObjKind.Surface)
     {
         var o = new CommandOutput();
@@ -60,7 +90,7 @@ public sealed class RuledSurfaceCommand : Command
 public sealed class PatchCommand : Command
 {
     readonly SelectionSlot _edges;
-    public PatchCommand() { _edges = Slot(new SelectionSlot { Label = "Boundary curves", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true }); }
+    public PatchCommand() { _edges = Slot(new SelectionSlot { Label = "Boundary curves", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 }); }
     public override string Title => "Patch";
     public override string Hint => "Pick the curves/edges that surround the hole to fill.";
     protected override CommandOutput? Build()

@@ -435,7 +435,7 @@ public sealed class CurvePatternCommand : PatternCommand
 
     public CurvePatternCommand() : base(true)
     {
-        _path = Slot(new SelectionSlot { Label = "Path (edges or curves)", Filter = SelFilter.Edge | SelFilter.CurveObj | SelFilter.SketchObj, Multi = true });
+        _path = Slot(new SelectionSlot { Label = "Path (edges or curves)", Filter = SelFilter.Edge | SelFilter.CurveObj | SelFilter.SketchObj, Multi = true, SelectionRuleIndex = 1 });
         _dist = Choice("Distribution", 0, "Equal count along the path", "Fixed spacing");
         _count = Add(new IntParam { Label = "Count", Value = 8, Min = 1, Max = 400 });
         _spacing = Num("Spacing", 15, 0.001);

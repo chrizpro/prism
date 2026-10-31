@@ -600,21 +600,48 @@ public sealed class SweepCommand : BodyCommand
     public SweepCommand(bool surface = false)
     {
         _surface = surface;
-        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face });
-        _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.AnyCurve | SelFilter.Edge });
+        _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
+        _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
-    public override string Hint => "Select the profile, then the path to sweep it along. Choose how the profile turns, and a scale to grow or shrink it along the way.";
+    public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains.";
+
+    // each click replaces the pick: a sweep has exactly one profile and one path
+    public override bool PickPoint(PickResult hit, bool additive)
+    {
+        var slot = ActiveSlot;
+        if (slot != _profile && slot != _path || slot.IsPartialLoop) return false;
+        try
+        {
+            ConfigureInputs(() =>
+            {
+                slot.Items.Clear();
+                if (hit.Item.Kind != SelKind.Edge) slot.TryAdd(hit.Item);
+                else foreach (var edge in additive || slot.EdgeRule == 0 ? [hit.Item] : SelectionChains.Expand(S, hit.Item, slot.EdgeRule == 2))
+                    slot.TryAdd(edge);
+            });
+            OnChanged();
+        }
+        catch (KernelException e) { S.Say(e.Message, true); }
+        return true;
+    }
+
+    /// <summary>One object/face pick resolves as its shape; several edges become a single profile or wire.</summary>
+    Shape SlotShape(SelectionSlot slot, bool wantFaces)
+    {
+        if (slot.Items.Count == 1 && slot.Items[0].Kind != SelKind.Edge)
+            return ProfileUtil.Resolve(S, slot.Items[0], wantFaces).shape;
+        return Occ.Profile(slot.Items.Select(i => S.ShapeOf(i)!).ToList(), wantFaces);
+    }
 
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var (prof, _) = ProfileUtil.Resolve(S, _profile.Items[0], !_surface);
-        var pathItem = _path.Items[0];
-        var path = pathItem.Kind == SelKind.Edge ? S.ShapeOf(pathItem)! : Occ.Profile([S.ShapeOf(pathItem)!], false);
+        var prof = SlotShape(_profile, !_surface);
+        var path = SlotShape(_path, false);
         var shape = Occ.Sweep2(prof, path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Sweep");
