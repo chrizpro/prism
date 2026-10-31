@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Prism.Core;
 using Prism.Kernel;
 
@@ -114,6 +115,26 @@ public sealed class HoleCommand : Command
         }
         return (at, x, outward * (_reverse.Value ? 1 : -1));
     }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_target.Items.Count == 0) return [];
+            try
+            {
+                var item = _target.Items[0];
+                var body = S.Find(item.Obj);
+                if (body == null || body.Tri != null || !body.Shape.HasFaces) return [];
+                var (origin, x, direction) = Frame(body, item);
+                var list = new List<HandleSpec> { new(origin, x, _diameter, 2) };
+                if (_extent.Index == 1) list.Add(new HandleSpec(origin, direction, _depth));
+                return list;
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     protected override CommandOutput? Build()
     {
