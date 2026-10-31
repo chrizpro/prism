@@ -183,6 +183,67 @@ vm.FinishTool();
 Check(!vm.ToolPanelFocused, "Done returns to the sketch panel");
 s.ExitSketch(false);
 
+// an edge can be unbound just like a vertex
+foreach (bool clickEdge in new[] { false, true })
+{
+    s.EnterSketch(Plane3.XY); Settle();
+    var ub = s.Sketch!; ub.Set3DEnabled(s, true); s.Camera.Distance = 120;
+    var rr = new RectTool(RectMode.TwoCorner); ub.SetTool(s, rr); rr.Feed(s, -20, -10); rr.Feed(s, 20, 10);
+    ub.SetTool(s, new SketchGeometryEditTool());
+    var spot = clickEdge ? ub.Plane.PointAt(0, 10) : ub.Plane.PointAt(20, 10);
+    var pxu = s.Camera.Project(spot)!.Value;
+    s.PointerDown(new(pxu.x, pxu.y, true, false, false, false)); s.PointerUp(new(pxu.x, pxu.y, false, false, false, false));
+    string what = clickEdge ? "edge" : "vertex";
+    Check(ub.GizmoTargetConfirmed && ub.HasGeometrySelection, $"clicking a {what} binds the gizmo");
+    vm.OpenGizmoFromHotkey();
+    Check(!vm.GizmoPositioning, $"{what}: opening the panel leaves it bound");
+    vm.BeginGizmoPlacement();
+    Check(vm.GizmoPositioning && ub.IndependentGizmoPlacement, $"{what}: Unbind detaches the gizmo (positioning {vm.GizmoPositioning})");
+    // while unbound, dragging a gizmo arrow moves the gizmo and nothing else; Bind then re-attaches it
+    var before = ub.Model.Points.Select(pt => (pt.X, pt.Y)).ToList();
+    double len = s.Camera.PixelSizeAt(ub.GizmoFrame.Origin) * 96;
+    var arrow = s.Camera.Project(ub.GizmoFrame.Origin + ub.GizmoFrame.U * len * .5)!.Value;
+    var originBefore = ub.GizmoFrame.Origin;
+    s.PointerDown(new(arrow.x, arrow.y, true, false, false, false)); s.PointerMove(new(arrow.x + 40, arrow.y, true, false, false, false)); s.PointerUp(new(arrow.x + 40, arrow.y, false, false, false, false));
+    Check(ub.GizmoFrame.Origin.DistanceTo(originBefore) > 1 && ub.Model.Points.Select(pt => (pt.X, pt.Y)).SequenceEqual(before), $"{what}: dragging while unbound moves only the gizmo");
+    vm.BindGizmoSelection();
+    Check(!vm.GizmoPositioning && ub.GizmoTargetConfirmed, $"{what}: Bind re-attaches it");
+    vm.CancelGizmoPlacement(); vm.CloseGizmoPanel();
+    s.ExitSketch(false);
+}
+
+// other ways to let go of a bound gizmo behave the same for an edge as for a vertex
+foreach (bool clickEdge in new[] { false, true })
+{
+    s.EnterSketch(Plane3.XY); Settle();
+    var ex = s.Sketch!; ex.Set3DEnabled(s, true); s.Camera.Distance = 120;
+    var rx = new RectTool(RectMode.TwoCorner); ex.SetTool(s, rx); rx.Feed(s, -20, -10); rx.Feed(s, 20, 10);
+    ex.SetTool(s, new SketchGeometryEditTool());
+    void Click(double u, double v) { var q = s.Camera.Project(ex.Plane.PointAt(u, v))!.Value; s.PointerDown(new(q.x, q.y, true, false, false, false)); s.PointerUp(new(q.x, q.y, false, false, false, false)); }
+    string what = clickEdge ? "edge" : "vertex";
+    if (clickEdge) Click(0, 10); else Click(20, 10);
+    bool boundAtFirst = ex.GizmoTargetConfirmed;
+    Click(0, -80);
+    Console.WriteLine($"INFO {what}: bound after click {boundAtFirst}; after clicking empty space: selection {ex.HasGeometrySelection}, bound {ex.GizmoTargetConfirmed}");
+    s.ExitSketch(false);
+}
+
+// Lasso is a method of the same Edit Geometry tool; an edge picked that way is bound, moves as a whole, and unbinds like any other
+s.EnterSketch(Plane3.XY); Settle();
+var las = s.Sketch!; las.Set3DEnabled(s, true); s.Camera.Distance = 120;
+var rl = new RectTool(RectMode.TwoCorner); las.SetTool(s, rl); rl.Feed(s, -20, -10); rl.Feed(s, 20, 10);
+las.SetTool(s, new SketchGeometryEditTool()); las.Tool!.SetOption(s, 1);
+var edgePx = s.Camera.Project(las.Plane.PointAt(0, 10))!.Value;
+s.PointerDown(new(edgePx.x, edgePx.y, true, false, false, false)); s.PointerUp(new(edgePx.x, edgePx.y, false, false, false, false));
+Check(las.SelEntities.Count == 1 && las.GizmoTargetConfirmed, "Lasso mode: clicking an edge selects the whole edge and binds the gizmo");
+double topBefore = las.Model.Points.Max(pt => pt.Y);
+vm.GizmoOriginY = las.GizmoFrame.Origin.Y + 5;
+Check(las.Model.Points.Max(pt => pt.Y) > topBefore + 4 && las.Model.Entities.Count(e => e.Type == EntType.Line) == 4, "Lasso mode: typing a location moves the whole edge (and the rectangle stays connected)");
+vm.OpenGizmoFromHotkey(); vm.BeginGizmoPlacement();
+Check(vm.GizmoPositioning, "Lasso mode: Unbind works on the edge");
+vm.CancelGizmoPlacement(); vm.CloseGizmoPanel();
+s.ExitSketch(false);
+
 // pictures of the panels for review (PRISM_REVIEW_OUTPUT names the folder)
 if (Environment.GetEnvironmentVariable("PRISM_REVIEW_OUTPUT") is { Length: > 0 } review)
 {

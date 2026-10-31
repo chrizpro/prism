@@ -76,7 +76,7 @@ public sealed partial class SketchContext
     {
         if(SelPoints.Count==0&&SelEntities.Count==1&&Model.EntityOrNull(SelEntities.First()) is { Type:EntType.Ellipse } ellipse)
         { return SketchModel.To3(Plane,Model.P(ellipse.A)); }
-        var entities = Tool is SketchGeometryEditTool { OptionIndex:1 } && SelPoints.Count>0 ? Enumerable.Empty<int>() : SelEntities;
+        var entities = Tool is SketchGeometryEditTool { SplinePoints:true } && SelPoints.Count>0 ? Enumerable.Empty<int>() : SelEntities;
         var points=SelPoints.Concat(entities.Where(id=>Model.EntityOrNull(id)!=null).SelectMany(id=>Model.PointsOf(Model.E(id)))).Distinct().Select(Model.PointOrNull).Where(p=>p!=null).ToList();
         return points.Count==0?null:points.Select(p=>SketchModel.To3(Plane,p!)).Aggregate(Vec3.Zero,(a,b)=>a+b)/points.Count;
     }
@@ -170,9 +170,9 @@ public sealed partial class SketchContext
     {
         _sections=snapshot.Sections.Select(section=>section.Clone()).ToList(); _activeSection=snapshot.Active;
         var original = snapshot.Sections[snapshot.Active]; var source = original.Model;
-        var entities=(Tool is SketchGeometryEditTool { OptionIndex:1 } && SelPoints.Count>0 ? Enumerable.Empty<int>() : SelEntities).Where(id=>source.EntityOrNull(id)!=null).ToHashSet();
+        var entities=(Tool is SketchGeometryEditTool { SplinePoints:true } && SelPoints.Count>0 ? Enumerable.Empty<int>() : SelEntities).Where(id=>source.EntityOrNull(id)!=null).ToHashSet();
         // Selecting every defining point of a line/outline makes that complete curve a transform target too.
-        if (Tool is not SketchGeometryEditTool { OptionIndex:1 })
+        if (Tool is not SketchGeometryEditTool { SplinePoints:true })
             entities.UnionWith(source.Entities.Where(e=>source.PointsOf(e).Distinct().Count()>=2&&source.PointsOf(e).All(SelPoints.Contains)).Select(e=>e.Id));
         var points=SelPoints.Concat(entities.SelectMany(id=>source.PointsOf(source.E(id)))).ToHashSet();
         if(points.Count==0)return false;
