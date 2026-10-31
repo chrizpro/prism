@@ -207,13 +207,7 @@ public sealed class HoleCommand : Command
             double d = Math.Sqrt((a.x - px) * (a.x - px) + (a.y - py) * (a.y - py));
             if (d < bestD) { bestD = d; best = i; }
         }
-        if (best < 0)
-        {
-            // the original body is hidden while the preview shows, so click it directly: another spot on the face adds a hole
-            if (Picking.RayFace(s.Camera, [body], px, py) is { } h)
-                return PickPoint(new PickResult(new SelItem(body.Id, SelKind.Face, h.face), h.point, h.normal, h.t), false);
-            return false;
-        }
+        if (best < 0) return false;
         if (ctrl && best > 0) { var ex = Extras(); if (best - 1 < ex.Count) { ex.RemoveAt(best - 1); SetExtras(ex); } return true; }
         _grab = best;
         return true;
