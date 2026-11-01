@@ -5,7 +5,7 @@ using Prism.Rendering;
 
 namespace Prism.Help;
 
-/// <summary>Help for the CAE tabs (Static, Thermal, Dynamics, Fluids). Result colors are illustrations, not solved studies.</summary>
+/// <summary>Help for the CAE tabs (Static, Thermal, Dynamics, Motion, Fluids). Result colors are illustrations, not solved studies.</summary>
 public static partial class ToolHelp
 {
     static ToolHelpTopic? FindCae(string? icon) => icon switch
@@ -73,6 +73,12 @@ public static partial class ToolHelp
         "cae-modal" => Topic(icon, "Natural Frequencies", "Find the frequencies a part vibrates at, and the shape of each.", "Start: a fixed support", "Result: a vibration mode shape",
             "1. Select the solid body.\n2. Select the fixed support faces.\n3. Set the number of modes, then run.",
             "The deformation amplitude is arbitrary. The shape matters, the size does not."),
+        "motion-kinematics" => Topic(icon, "Kinematics", "Move a mechanism through a motion you choose and see how every joint and part moves.", "Start: the mechanism at rest", "Result: parts swung through their motion, colored by speed",
+            "1. Build the mechanism in Assemble: insert parts, ground one, add joints (and gears).\n2. Open Kinematics and choose for each joint: hold, constant speed or oscillate.\n3. Run, then scrub or play the motion and read the speeds, accelerations and paths.",
+            "No masses or forces are needed. Turn on the collision check to find where moving parts hit each other; it is slower. Gears and racks carry the motion to the joints they drive."),
+        "motion-dynamics" => Topic(icon, "Motion Dynamics", "Find the torque a motor needs, or let a joint swing freely under gravity and loads.", "Start: a link held out sideways", "Result: the link swung down under its own weight",
+            "1. Build the mechanism in Assemble and give every part a material.\n2. Open Motion Dynamics, set gravity, and choose for each joint: driven by a motor or free.\n3. Add loads and friction, run, and read the drive torque, power, energy and part accelerations.",
+            "Parts are rigid and joints and gears are ideal: no flexing, backlash, tooth contact or collisions between moving parts. The result is only as good as the masses and loads you enter."),
         "cae-fluid" => Topic(icon, "Pipe Flow", "Estimate pressure drop and Reynolds number in a round pipe.", "Start: a pipe", "Result: pressure falling along the pipe",
             "1. Enter the pipe size, length and fluid.\n2. Set the flow rate.\n3. Read the pressure drop and Reynolds number.",
             "A quick hand calculation, not 3D CFD. It does not model bends, valves or changes in size."),
@@ -143,6 +149,14 @@ public static partial class ToolHelp
                 var plate = GridBox(44, 10, 3, 16, 2, 1);
                 var bent = Colorize(Deform(GridBox(44, 10, 3, 16, 2, 1), p => p + new Vec3(0, 0, 9 * Bend(p.X))), (p, n) => p.Z);
                 return new(Src(plate, topic.BeforeLabel, null, [3], Green), Src(bent, topic.AfterLabel));
+            }
+            case "motion-kinematics" or "motion-dynamics":
+            {
+                bool dyn = key == "motion-dynamics";
+                Vec3 Swing(Vec3 p, double deg) { double a = deg * Math.PI / 180, c = Math.Cos(a), sn = Math.Sin(a); double x = p.X + 20; return new Vec3(-20 + x * c, p.Y, x * sn + p.Z * c); }
+                var rest = GridBox(40, 8, 6, 10, 2, 2);
+                var moved = Colorize(Deform(GridBox(40, 8, 6, 10, 2, 2), p => Swing(p, dyn ? -55 : 50)), (p, n) => (p.X + 20) / 40);
+                return new(Src(rest, topic.BeforeLabel, null, [3], Green), Src(moved, topic.AfterLabel));
             }
             case "cae-fluid":
             {

@@ -97,7 +97,7 @@ public sealed partial class MainViewModel
                 tab.Groups.Remove(look);
                 tab.Groups.Add(appearance());
             }
-            if (tab.Title is "Thermal" or "Dynamics" or "Static")
+            if (tab.Title is "Thermal" or "Dynamics" or "Static" or "Motion")
             {
                 foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
                 tab.Groups.Add(appearance());

@@ -1,0 +1,58 @@
+# Kinematics and motion analysis
+
+The CAE workspace has a **Motion** tab for mechanisms: a hinge, a slider-crank, a gear train, a rack and pinion. You build the mechanism in the **Assemble** workspace, then switch to **CAE → Motion** to say what drives it and read what happens. Nothing is rebuilt or copied between the two: the Motion tab works on the same parts, joints and gears.
+
+The Motion tab also carries the assembly tools it needs (Parts Library, Insert Component, Ground, Joint menu, Gear Pair, Rack and Pinion, Drive Joints), so a small fix to the mechanism does not need a trip back to Assemble.
+
+## The workflow
+
+1. **Assemble.** Insert the parts. **Ground** the one that stays still (the first component is grounded for you).
+2. **Joints.** Connect the parts with joints: revolute for a shaft or hinge, slider for a slide, cylindrical, ball, planar, rigid. Set limits where the real mechanism has stops. Use **Drive Joints** to check by hand that it moves the way you expect.
+3. **Couple gears.** Make a revolute joint for each gear shaft, then **Joints → Couple → Gear Pair**. Pick the driving and the driven joint and enter the two tooth counts (or pitch diameters). External gears turn opposite ways; choose *Internal gear or belt* for the same direction. For a rack, make a revolute joint for the pinion and a slider for the rack, then **Rack and Pinion** with the pinion's pitch diameter.
+   From here on the driven joint follows the driving one everywhere: Drive Joints, animations and the motion studies. Gear pairs chain (A drives B drives C).
+4. **Materials** (for dynamics only). Give each part a material so it has mass. Kinematics needs none.
+5. **CAE → Motion.** Run **Kinematics** or **Motion Dynamics**.
+
+## Kinematics
+
+A prescribed motion. For every joint that can move (those driven through a gear are shown as followers):
+
+| Motion | Meaning |
+| --- | --- |
+| Hold | the joint stays at its starting position |
+| Constant speed | a steady speed in °/s or mm/s |
+| Oscillate | a sine of a given amplitude and frequency about the starting position |
+
+Set the duration and output interval, then **Run study**. The panel reports, for each joint, its range, peak speed and peak acceleration, then the fastest parts with their peak speed, acceleration and turning rate. The paths the parts' centres of mass follow are drawn in the viewport, with a dot at the time shown. **Show the motion at** scrubs the whole assembly to any moment; **Play / Stop** plays it. **Look for collisions along the motion** checks parts that are not connected by a joint or gear against each other at up to 36 moments and lists any that overlap, with the time. A joint asked to go past its limit holds at the limit and the study says so.
+
+**Save results** writes a CSV of every joint's position, speed and acceleration and every part's position, speed and acceleration against time.
+
+## Motion dynamics
+
+The same set-up plus masses and forces. Each joint is either:
+
+- **driven** (hold, constant speed or oscillate), in which case the study returns the **torque or force the motor needs** at every moment, its RMS and peak, the peak power and the energy put in; or
+- **free**, in which case it moves under gravity, a constant torque or force, and friction from a starting position and starting speed. A free link swings, a free flywheel spins up.
+
+Gravity can be switched off or set along any axis. Every joint (including gear followers) can have viscous friction; a follower can carry a **load** (a torque or force on the driven shaft), and a gear train reflects that load and the driven gear's inertia back to the motor with the ratio squared. Free joints stop at their limits.
+
+The results add the kinetic plus potential energy at the start and end and, for each part, the peak acceleration and the inertial force `m·a`. Mass, centre of mass and inertia tensor come from each part's geometry and material density.
+
+### How it is solved
+
+The joint values are the coordinates. The pose of every part comes from the assembly's own joint solver (the same one Drive Joints uses, including gear couplings), so every joint type works. Part Jacobians and the velocity-dependent accelerations are taken by numerical differentiation of that pose function, which gives the mass matrix `M(q)` and bias term `h(q, q̇)` of `M·q̈ + h = Q` without separate formulas per joint type. With some joints driven and some free, the free accelerations are solved from the partitioned system and the driven joints' required effort is the remainder. Free joints are integrated with fixed 2 ms fourth-order Runge–Kutta steps.
+
+## Verified against theory
+
+`tests/Prism.MotionTests` (no CAD kernel needed) checks the engine against closed-form results: box mass and inertia from a mesh; the period of a physical pendulum (0.73299 s computed and theoretical) and energy conservation over two seconds; the holding torque `m·g·d` of a horizontal rod; the torque `I·A·ω²` to oscillate a rod; the 2:1 gear ratio, direction and power balance; the gear train's reflected inertia `I·(N₁/N₂)²`; free spin-up `α = τ/I_reflected`; rack travel `π·d` per turn; the speed and acceleration of a point on a turning arm; joint limits for driven and free joints; gear chains, loops and saving.
+
+`tests/Prism.MotionStudyTests` (needs the CAD kernel) runs the same on real parts: a rod made in the assembly and swung from the CAE tab matches the pendulum period (0.7345 s vs 0.733 s theory), gears are coupled with the Gear Pair command and turn each other in Drive Joints, a 20 mN·m load on a 2:1 reduction needs 10 mN·m at the motor, results save to CSV, and the collision sweep finds a post standing in a gear's way. Run it with `LD_LIBRARY_PATH` pointing at the built `prism_kernel`.
+
+## What it does not do
+
+- **Rigid bodies only.** No flexing, vibration or stress. Use the Static and Dynamics tabs for those, with loads read from this study.
+- **Ideal joints and gears.** No clearance, backlash, tooth contact or friction beyond the viscous friction you enter, and no efficiency loss in gears.
+- **Joint reaction forces and contact are not computed.** Parts are not tested against each other while the dynamics runs; the collision check is a separate, kinematic sweep.
+- **Closed kinematic loops** (a four-bar linkage) are not enforced by the assembly solver, so they are not simulated. A gear train, a slider or a chain of hinges are.
+- Joint limits are inelastic stops.
+- A motor is a prescribed motion; there is no motor curve, so torque limits are not applied.
