@@ -104,7 +104,7 @@ public sealed class FeatureEditCommand : Command
     }
 
     /// <summary>The solid a feature occupies: the void of a hole, slot or pocket (to fill or re-cut) or the material of a boss (to remove or re-add).</summary>
-    static Shape ToolOf(SceneObject body, Feat f)
+    internal static Shape ToolOf(SceneObject body, Feat f)
     {
         if (f.Round is { } r) return DirectHelpers.Cylinder(r.Origin, f.Dir, r.T0, r.T1, r.Radius);
         var filled = Occ.Defeature(body.Shape, [.. f.Faces]);
