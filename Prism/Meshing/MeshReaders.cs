@@ -74,6 +74,7 @@ public static partial class MeshIO
             ".obj" => ReadObj(File.ReadAllText(path), Path.GetDirectoryName(Path.GetFullPath(path)), rd, name),
             ".ply" => ReadPly(File.ReadAllBytes(path), rd, name),
             ".3mf" => Read3mf(path, rd, name),
+            ".xyz" or ".pts" or ".xyzn" or ".csv" => throw new InvalidDataException("That is a point cloud, not a mesh. Use Mesh > Import Point Cloud to build a surface from it."),
             _ => throw new InvalidDataException("Unknown mesh format. Use STL, OBJ, PLY or 3MF."),
         };
         rd.Report(1, "Read " + Path.GetFileName(path));

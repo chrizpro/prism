@@ -234,8 +234,26 @@ public sealed partial class MainViewModel : ViewModelBase
     public async void ImportMesh()
     {
         if (PickOpenFile == null) return;
-        var path = await PickOpenFile("Import mesh", Meshing.MeshIO.ReadPatterns);
-        if (path != null) StartMeshImport(path);
+        var path = await PickOpenFile("Import mesh or point cloud", [.. Meshing.MeshIO.ReadPatterns, "*.xyz", "*.pts", "*.xyzn", "*.csv"]);
+        if (path == null) return;
+        try { if (await Commands.PointCloudCommands.TryBeginAsync(Session, path)) return; } catch (Exception e) { Session.Say(e.Message, true); return; }
+        StartMeshImport(path);
+    }
+
+    /// <summary>Pick a scan (XYZ, PTS, CSV or point-only PLY) and open Reconstruct Surface on it.</summary>
+    public async void ImportPointCloud()
+    {
+        if (PickOpenFile == null) return;
+        var path = await PickOpenFile("Import point cloud", Commands.PointCloudCommands.ImportPatterns);
+        if (path == null) return;
+        try { if (!await Commands.PointCloudCommands.TryBeginAsync(Session, path)) Session.Say("That PLY file has faces; use Import Mesh.", true); }
+        catch (Exception e) { Session.Say(e.Message, true); }
+    }
+
+    /// <summary>Reconstruct a surface from the last imported cloud, asking for a file when there is none.</summary>
+    public void ReconstructSurface()
+    {
+        if (Commands.PointCloudStore.Current == null) ImportPointCloud(); else Session.StartCommand(() => new Commands.ReconstructSurfaceCommand());
     }
 
     /// <summary>Open the import options step for a mesh file (or import straight away with the remembered options when the user turned the step off).</summary>
@@ -916,7 +934,9 @@ public sealed partial class MainViewModel : ViewModelBase
             [
                 G("Get a mesh",
                     Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
-                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes.")),
+                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes."),
+                    Btn("Import Point\nCloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY) and turn it into a mesh.", RibbonSize.Large, () => !IsSketching),
+                    Btn("Reconstruct\nSurface", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim.", RibbonSize.Large, () => !IsSketching)),
                 G("Repair",
                     Cmd("Repair", "mesh-repair", () => new MeshRepairCommand(), "Merge vertices, remove junk, fix normals and fill holes."),
                     Cmd("Fill\nHoles", "mesh-holes", () => new MeshRepairCommand(true), "Close the open holes in a mesh."),
