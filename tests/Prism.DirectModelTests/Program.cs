@@ -17,6 +17,7 @@ PatternEditTests.Run(Check);
 FaceOpsTests.Run(Check);
 RepairMoveTests.Run(Check);
 FaceOpsGapTests.Run(Check);
+EditGapTests.Run(Check);
 
 // a plate with a 10 x 5 grid of 6 mm through holes
 var s = new CadSession();

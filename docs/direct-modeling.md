@@ -42,7 +42,7 @@ Click a selected feature again to deselect it. A stray feature of the same size 
 | Match Face | Give faces the plane, cylinder radius or cone angle of a source face. |
 | Draft | Lean walls away from a pull direction. |
 | Split Face | Divide a face along a plane, edge or sketch. |
-| Merge Faces | Join neighbouring faces that lie on the same surface. |
+| Merge Faces | Join the picked neighbouring faces that lie on the same surface; other faces are left alone. |
 | Delete Face | Remove faces and let the neighbours close the gap. |
 
 ## Edit features
@@ -51,8 +51,8 @@ Click a selected feature again to deselect it. A stray feature of the same size 
 
 - **Move** by X, Y, Z, with a drag arrow in the view.
 - **Copy**: a number of copies at a spacing.
-- **Resize**: a round hole or boss diameter, a slot's width and length, or a straight fillet's radius.
-- **Change type**: a hole becomes plain, counterbore or countersink.
+- **Resize**: a round hole or boss diameter, a slot's width and length, or the radius of fillets (straight edges, round rims; pick several to change neighbours together).
+- **Change type**: a hole becomes plain, counterbore, countersink or a modeled metric thread (the same thread the Hole tool makes).
 - **Delete**: the feature goes and the gap closes.
 
 The panel only shows what applies to what you picked.
@@ -63,13 +63,13 @@ Other tools in the group:
 - **Mirror Feature**: copy features across a plane or flat face.
 - **Remove Fillets**: remove picked fillets, or every round up to a radius.
 - **Edit Freeform**: shape a Freeform body by its cage.
-- **Move Body**: move or turn a body while keeping a face flush, two holes coaxial or a round face tangent.
+- **Move Body**: move or turn a body while keeping a face flush, two holes coaxial, or a round face tangent to a flat face or to another cylinder (pin against pin, or a pin inside a hole).
 
 **Delete key and right-click.** With faces selected and no tool open, **Delete** removes the feature those faces belong to, not the whole body, and it is one undo step. Right-clicking offers what fits: select the whole feature or pattern, move, copy, resize, change hole type, delete. A plain face offers Push / Pull, Move Face and Delete.
 
 ## Repair
 
-- **Check and Repair** reports open edges, tiny or sliver faces, duplicates and bad edges on an imported body, then heals, sews or cleans it.
+- **Check and Repair** reports open edges, tiny or sliver faces, duplicates and bad edges on an imported body, then heals, sews or cleans it. After a STEP, IGES or BREP import, the status line tells you if any body looks invalid and points here.
 - **Fill / Cap** closes an open loop of edges with a flat face or a smooth patch.
 
 ## Speed

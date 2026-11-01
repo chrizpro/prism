@@ -15,9 +15,9 @@ public sealed class FeatureEditCommand : Command
 {
     readonly SelectionSlot _faces;
     readonly ChoiceParam _action;
-    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR;
+    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _threadDia, _threadPitch, _threadDepth;
     readonly ChoiceParam _type, _drag;
-    readonly BoolParam _flip;
+    readonly BoolParam _flip, _leftHand;
 
     public FeatureEditCommand()
     {
@@ -29,12 +29,16 @@ public sealed class FeatureEditCommand : Command
         _width = Num("New slot width (0 = keep)", 0, 0, 1e5, 1);
         _length = Num("New slot length (0 = keep)", 0, 0, 1e5, 1);
         _filletR = Num("New fillet radius (0 = keep)", 0, 0, 1e5, 0.5);
-        _type = Choice("New hole type", 1, "Plain", "Counterbore", "Countersink");
+        _type = Choice("New hole type", 1, "Plain", "Counterbore", "Countersink", "Threaded (modeled)");
         _boreDia = Num("Counterbore diameter", 12, 0.01, 1e5, 1);
         _boreDepth = Num("Counterbore depth", 4, 0.01, 1e5, 0.5);
         _sinkDia = Num("Countersink diameter", 12, 0.01, 1e5, 1);
         _sinkAngle = Num("Countersink angle", 90, 10, 170, 1, "°");
         _flip = Check("Other side", false);
+        _threadDia = Num("Thread diameter", 6, 1.2, 1e4, 1);
+        _threadPitch = Num("Thread pitch", 1, 0.05, 100, 0.05);
+        _threadDepth = Num("Thread depth (0 = full hole)", 0, 0, 1e5, 0.5);
+        _leftHand = Check("Left-hand thread", false);
         _drag = Choice("Drag handle along", 0, "X", "Y", "Z");
     }
 
@@ -75,6 +79,7 @@ public sealed class FeatureEditCommand : Command
         _type.IsVisible = retype; _flip.IsVisible = retype && t != 0;
         _boreDia.IsVisible = _boreDepth.IsVisible = retype && t == 1;
         _sinkDia.IsVisible = _sinkAngle.IsVisible = retype && t == 2;
+        _threadDia.IsVisible = _threadPitch.IsVisible = _threadDepth.IsVisible = _leftHand.IsVisible = retype && t == 3;
     }
 
     HashSet<FeatureKind> PickedKinds()
@@ -104,7 +109,7 @@ public sealed class FeatureEditCommand : Command
             var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Pick faces on a solid body.");
             var feats = grp.Select(i => FeatureFinder.FeatureOf(body, i.Index) ?? throw new FormatException("That face is gone.")).Distinct().ToList();
             // fill: material added where a hole was; strip: a boss cut away; drill: new holes; grow: new bosses
-            List<Shape> fill = [], strip = [], drill = [], grow = []; List<int> fillets = []; List<Feat> resizeFillets = [];
+            List<Shape> fill = [], strip = [], drill = [], grow = []; List<int> fillets = []; List<Feat> resizeFillets = []; List<Shape> grooves = [];
             foreach (var f in feats)
             {
                 bool boss = f.Kind == FeatureKind.Boss;
@@ -122,7 +127,7 @@ public sealed class FeatureEditCommand : Command
                             case 0: (boss ? strip : fill).Add(tool); (boss ? grow : drill).Add(Occ.Translate(tool, move)); break;
                             case 2: for (int k = 1; k <= (int)_copies.Value; k++) (boss ? grow : drill).Add(Occ.Translate(tool, move * k)); break;
                             case 3: (boss ? strip : fill).Add(tool); break;
-                            case 4: fill.Add(tool); drill.Add(RetypedHole(body, f)); break;
+                            case 4: fillets.AddRange(f.Faces); drill.Add(RetypedHole(body, f, out var groove)); if (groove != null) grooves.Add(groove); break;   // the old hole is healed away, then the new one is cut
                             default:
                                 var resized = Resized(body, f);
                                 if (resized == null) continue;
@@ -132,8 +137,10 @@ public sealed class FeatureEditCommand : Command
                 }
             }
             var start = fillets.Count > 0 ? Occ.Defeature(body.Shape, [.. fillets.Distinct()]) : body.Shape;
-            foreach (var rf in resizeFillets) start = ResizedFillet(body, start, rf);
-            o.Replace.Add((body, DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill)));
+            if (resizeFillets.Count > 0) start = ResizedFillets(body, start, resizeFillets);
+            var result = DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill);
+            foreach (var g in grooves) result = Occ.Cut(result, g);
+            o.Replace.Add((body, result));
             foreach (var g in feats.GroupBy(f => f.Name))
                 Results.Add(new ResultLine(g.Key + (g.Count() > 1 ? "s" : ""), $"{_action.Selected.ToLowerInvariant()}: {g.Count()}"));
         }
@@ -196,8 +203,9 @@ public sealed class FeatureEditCommand : Command
     }
 
     /// <summary>A hole of the chosen type through the same place as the feature: same axis, same smallest diameter and same depth; the bore or countersink opens on the entry side.</summary>
-    Shape RetypedHole(SceneObject body, Feat f)
+    Shape RetypedHole(SceneObject body, Feat f, out Shape? groove)
     {
+        groove = null;
         if (f.Kind is not (FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink))
             throw new FormatException($"Change type works on holes, counterbores and countersinks. A {f.Name.ToLowerInvariant()} has no hole type.");
         var cyls = f.Faces.Select(i => (i, info: Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)), ax: Occ.AxisOf(body.Shape.Sub(SubKind.Face, i)))).Where(x => x.info.Type == "Cylinder" && x.ax != null).ToList();
@@ -225,29 +233,52 @@ public sealed class FeatureEditCommand : Command
                 if (h >= t1 - t0) throw new FormatException("That countersink is deeper than the hole. Use a smaller diameter or a wider angle.");
                 var cone = entryTop ? PlaceAlong(Occ.Cone(r, Rc, h), o, d, t1 - h) : PlaceAlong(Occ.Cone(Rc, r, h), o, d, t0);
                 return Occ.Fuse(hole, cone);
+            case 3:
+                // the same construction as the Hole tool: a bore at the thread's minor diameter plus a modeled groove along it
+                double D = _threadDia.Value, P = _threadPitch.Value, td = _threadDepth.Value > 0 ? _threadDepth.Value : t1 - t0;
+                if (D <= 1.082532 * P) throw new FormatException("The pitch must be smaller than the diameter / 1.083.");
+                if (td > t1 - t0 + 1e-6 || td / P > 200) throw new FormatException("The thread must fit inside the hole, with at most 200 turns.");
+                var into = entryTop ? -d : d; var entry = o + d * (entryTop ? t1 : t0);
+                // the Hole tool's construction: a right-handed frame (x, z x x, z), the bore starting 0.01 mm outside the entry so no boolean meets a coincident face
+                var gx = Xform.AnyPerpendicular(into); var gy = Vec3.Cross(into, gx).Normalized();
+                double[] frame = [gx.X, gy.X, into.X, gx.Y, gy.Y, into.Y, gx.Z, gy.Z, into.Z];
+                var core = Occ.Transform(Occ.Cylinder((D - 1.082532 * P) / 2, t1 - t0 + 0.01), frame, entry - into * 0.01);
+                groove = Occ.Transform(Occ.ThreadGroove(D, P, td, _leftHand.Value), frame, entry);   // cut after the bore, as the Hole tool does
+                return core;
             default: return hole;
         }
     }
 
     // ---------------------------------------------------------------- fillet radius
-    /// <summary>Re-fillet a simple fillet along a straight edge with a new radius: remove the old one (the sharp edge comes back), find that edge and round it again.</summary>
-    Shape ResizedFillet(SceneObject body, Shape current, Feat f)
+    /// <summary>
+    /// Re-fillet fillets (single rounds, rounded corners, rims; several at once so neighbours that meet are rounded together) with a new radius: the old faces were already removed, so the sharp edges they rounded are back.
+    /// They are the edges the removal created (not on the original body) that run alongside the removed faces; round them again together.
+    /// </summary>
+    Shape ResizedFillets(SceneObject body, Shape current, List<Feat> feats)
     {
-        var cyls = f.Faces.Select(i => (i, info: Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)), ax: Occ.AxisOf(body.Shape.Sub(SubKind.Face, i)))).ToList();
-        if (cyls.Count != 1 || cyls[0].info.Type != "Cylinder" || cyls[0].ax == null)
-            throw new FormatException("Changing the radius works on a simple fillet along a straight edge. Delete this one and add a new Fillet instead.");
-        var (o, d) = cyls[0].ax!.Value; d = d.Normalized(); double r = cyls[0].info.R1;
-        var (t0, t1) = DirectHelpers.ExtentAlong(body, f.Faces, o, d);
-        int best = -1; double bestDist = double.MaxValue;
+        var m = body.Mesh; var original = body.Shape;
+        double r = 0; var pts = new List<Vec3>();
+        foreach (int i in feats.SelectMany(f => f.Faces))
+        {
+            var info = Occ.FaceInfoOf(original.Sub(SubKind.Face, i));
+            r = Math.Max(r, info.Type == "Torus" ? info.R2 : info.R1);
+            for (int t = m.FaceTriStart[i]; t < m.FaceTriStart[i + 1]; t++)
+                for (int c = 0; c < 3; c++) { int vi = m.Indices[3 * t + c] * 3; pts.Add(new Vec3(m.Positions[vi], m.Positions[vi + 1], m.Positions[vi + 2])); }
+        }
+        if (r <= 0 || pts.Count == 0) throw new FormatException("Could not read that fillet. Delete it and add a new Fillet instead.");
+        double reach = 2.5 * r + 0.01;
+        bool Near(Vec3 p) { foreach (var q in pts) if ((q - p).Length <= reach) return true; return false; }
+        var oldEdges = new List<Vec3>();
+        for (int e = 0; e < original.Count(SubKind.Edge); e++) { var ei = Occ.EdgeInfoOf(original.Sub(SubKind.Edge, e)); oldEdges.Add((ei.Start + ei.End) * 0.5); oldEdges.Add(ei.Start); }
+        bool WasThere(Vec3 mid, Vec3 start) { foreach (var q in oldEdges) if ((q - mid).Length < 1e-4 || (q - start).Length < 1e-4) return true; return false; }
+        var found = new List<int>();
         for (int e = 0; e < current.Count(SubKind.Edge); e++)
         {
-            var ei = Occ.EdgeInfoOf(current.Sub(SubKind.Edge, e));
-            if (ei.Type != "Line") continue;
-            var dir = ei.End - ei.Start; if (dir.Length < 0.8 * (t1 - t0) || Vec3.Cross(dir.Normalized(), d).Length > 1e-4) continue;
-            var mid = (ei.Start + ei.End) * 0.5; var off = mid - o; double dist = (off - d * Vec3.Dot(off, d)).Length;
-            if (dist < bestDist) { bestDist = dist; best = e; }
+            var ei = Occ.EdgeInfoOf(current.Sub(SubKind.Edge, e)); var mid = (ei.Start + ei.End) * 0.5;
+            if (WasThere(mid, ei.Start) || !Near(ei.Start) || !Near(ei.End)) continue;
+            found.Add(e);
         }
-        if (best < 0 || bestDist > 12 * r) throw new FormatException("Could not find the sharp edge this fillet rounds. Delete it and add a new Fillet instead.");
-        return Occ.Fillet(current, [best], _filletR.Value);
+        if (found.Count == 0) throw new FormatException("Could not find the sharp edges this fillet rounded. Delete it and add a new Fillet instead.");
+        return Occ.Fillet(current, [.. found], _filletR.Value);
     }
 }
