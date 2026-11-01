@@ -563,6 +563,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Offset\nFace", "pushpull", () => new OffsetFaceCommand(), "Edit existing faces, holes and bosses: move every picked face along its own normal by a distance; neighbours extend or trim."),
                     Cmd("Rotate\nFace", "moveface", () => new RotateFaceCommand(), "Edit existing flat faces: turn them about a straight edge, the face's own direction or a world axis; the body follows."),
                     Cmd("Remove\nFillets", "deleteface", () => new RemoveFilletsCommand(), "Edit existing geometry: remove fillets and rounds (picked chains or all up to a radius) and let the neighbours close the gap."),
+                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up."),
+                    Cmd("Move\nBody", "move", () => new MoveBodyCommand(), "Move or turn a body while keeping a face flush, two holes coaxial or a round face tangent to another body."),
                     Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.")),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
