@@ -12,6 +12,7 @@ void Check(bool condition, string message) { if (!condition) throw new Exception
 double[] identity = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 FeatureTests.Run(Check);
+FaceTests.Run(Check);
 
 // a plate with a 10 x 5 grid of 6 mm through holes
 var s = new CadSession();
