@@ -23,7 +23,7 @@ sealed class GpuMesh
 }
 
 /// <summary>The 3D viewport: shaded B-rep display, edges, grid, overlays, picking and camera navigation.</summary>
-public sealed unsafe class GlViewport : OpenGlControlBase
+public sealed unsafe class GlViewport : Decorator
 {
     public static readonly StyledProperty<CadSession?> SessionProperty =
         AvaloniaProperty.Register<GlViewport, CadSession?>(nameof(Session));
@@ -48,6 +48,14 @@ public sealed unsafe class GlViewport : OpenGlControlBase
     readonly HashSet<MeshData> _used = [];
     CadSession? _hooked;
 
+    readonly IGlViewportHost _glHost;
+
+    public GlViewport()
+    {
+        _glHost = (GlViewportHosts.Factory ?? (o => new DesktopGlHost(o)))(this);
+        Child = _glHost.Visual;
+    }
+
     static GlViewport()
     {
         SessionProperty.Changed.AddClassHandler<GlViewport>((v, e) => v.Hook(e.NewValue as CadSession));
@@ -62,12 +70,23 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         Redraw();
     }
 
-    void Redraw() { if (Dispatcher.UIThread.CheckAccess()) RequestNextFrameRendering(); else Dispatcher.UIThread.Post(RequestNextFrameRendering); }
+    void Redraw() { if (Dispatcher.UIThread.CheckAccess()) _glHost.RequestFrame(); else Dispatcher.UIThread.Post(_glHost.RequestFrame); }
 
     // ================================================================= GL setup
-    protected override void OnOpenGlInit(GlInterface gli)
+    // Browser diagnostics: the WebGL path fails silently otherwise.
+    static void BrowserLog(string m) { if (OperatingSystem.IsBrowser()) Console.Error.WriteLine("GlViewport: " + m); }
+    int _frames;
+
+    public void GlInit(GL gl)
     {
-        _gl = GL.GetApi(gli.GetProcAddress);
+        BrowserLog("init");
+        try { InitCore(gl); BrowserLog("init ok, glError=" + _gl!.GetError()); }
+        catch (Exception e) { BrowserLog("init failed: " + e); throw; }
+    }
+
+    void InitCore(GL glApi)
+    {
+        _gl = glApi;
         var gl = _gl;
         _bg = Program(Shaders.BgVert, Shaders.BgFrag);
         _mesh = Program(Shaders.MeshVert, Shaders.MeshFrag);
@@ -98,7 +117,7 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         gl.BindVertexArray(0);
     }
 
-    protected override void OnOpenGlDeinit(GlInterface gli)
+    public void GlDeinit()
     {
         var gl = _gl; if (gl == null) return;
         foreach (var m in _cache.Values) FreeMesh(m);
@@ -337,7 +356,16 @@ public sealed unsafe class GlViewport : OpenGlControlBase
 
     static (float r, float g, float b, float a) C(uint c) => (((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f, ((c >> 24) & 255) / 255f);
 
-    protected override void OnOpenGlRender(GlInterface gli, int fb)
+    /// <summary>Draws the scene and resolves it into framebuffer <paramref name="fb"/> (supplied by the host).</summary>
+    public void GlRender(int fb)
+    {
+        if (_frames < 3) BrowserLog($"render #{_frames} fb={fb} bounds={Bounds} gl={(_gl != null)}");
+        try { RenderCore(fb); }
+        catch (Exception e) { BrowserLog("render failed: " + e); throw; }
+        if (_frames++ < 3 && _gl != null) BrowserLog("render done, glError=" + _gl.GetError());
+    }
+
+    void RenderCore(int fb)
     {
         var gl = _gl; if (gl == null) return;
         float scale = (float)(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0);
@@ -873,3 +901,28 @@ public sealed unsafe class GlViewport : OpenGlControlBase
         if (Session is { Hover: not null } s) { s.Hover = null; s.Invalidate(); }
     }
 }
+
+/// <summary>Supplies the GL surface a <see cref="GlViewport"/> draws into: Avalonia's OpenGL control on the desktop, a Skia-composited WebGL surface in the browser.</summary>
+public interface IGlViewportHost
+{
+    Control Visual { get; }
+    void RequestFrame();
+}
+
+/// <summary>Lets a platform head (the browser project) replace the default desktop GL host.</summary>
+public static class GlViewportHosts
+{
+    public static Func<GlViewport, IGlViewportHost>? Factory { get; set; }
+}
+
+sealed class DesktopGlHost : OpenGlControlBase, IGlViewportHost
+{
+    readonly GlViewport _owner;
+    public DesktopGlHost(GlViewport owner) { _owner = owner; }
+    public Control Visual => this;
+    public void RequestFrame() => RequestNextFrameRendering();
+    protected override void OnOpenGlInit(GlInterface gli) => _owner.GlInit(GL.GetApi(gli.GetProcAddress));
+    protected override void OnOpenGlDeinit(GlInterface gli) => _owner.GlDeinit();
+    protected override void OnOpenGlRender(GlInterface gli, int fb) => _owner.GlRender(fb);
+}
+

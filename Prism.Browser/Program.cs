@@ -13,6 +13,7 @@ internal sealed partial class Program
         // otherwise nothing posted to the UI thread ever runs and the first frame never paints.
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Console.Error.WriteLine("Prism unhandled: " + e.ExceptionObject);
         TaskScheduler.UnobservedTaskException += (_, e) => Console.Error.WriteLine("Prism unobserved task: " + e.Exception);
+        Prism.Rendering.GlViewportHosts.Factory = v => new BrowserGlHost(v);
         try
         {
             System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.ConsoleTraceListener(true));

@@ -16,6 +16,11 @@
         <ProjectReference Include="..\Prism\Prism.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Exposes Emscripten WebGL function lookup to Silk.NET (see BrowserGlHost). -->
+        <NativeFileReference Include="prism_gl.c"/>
+    </ItemGroup>
+
     <!-- Native kernel + FE core built by native/build-wasm.ps1, statically linked into dotnet.native.wasm. -->
     <PropertyGroup>
         <WasmLibs Condition="'$(WasmLibs)' == ''">C:/vcpkg/installed/wasm32-emscripten-eh/lib</WasmLibs>
