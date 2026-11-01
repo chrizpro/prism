@@ -470,3 +470,5 @@ native/bin/
 /site/.vitepress/cache/
 /site/.vitepress/dist/
 /site/dist/
+
+native/build-wasm/

@@ -10,7 +10,10 @@ public partial class HomeView : UserControl
     public HomeView()
     {
         InitializeComponent();
-        DefaultLabel.Text = "Use " + MainViewModel.DefaultWorkspacePath.Replace(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), "Documents");
+        var documents = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
+        var workspace = MainViewModel.DefaultWorkspacePath;
+        // The browser has no Documents folder (empty path), and String.Replace rejects an empty pattern.
+        DefaultLabel.Text = "Use " + (documents.Length > 0 ? workspace.Replace(documents, "Documents") : workspace);
     }
 
     MainViewModel? Vm => DataContext as MainViewModel;

@@ -13,4 +13,18 @@
     <ItemGroup>
         <ProjectReference Include="..\Prism\Prism.csproj"/>
     </ItemGroup>
+
+    <!-- Native kernel + FE core built by native/build-wasm.ps1, statically linked into dotnet.native.wasm. -->
+    <PropertyGroup>
+        <WasmLibs Condition="'$(WasmLibs)' == ''">C:/vcpkg/installed/wasm32-emscripten-eh/lib</WasmLibs>
+        <WasmNative>$(MSBuildThisFileDirectory)../native/build-wasm</WasmNative>
+        <!-- OCCT is built with -fwasm-exceptions; the link needs the matching exception and setjmp/longjmp support. -->
+        <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
+        <EmccExtraLDFlags>$(EmccExtraLDFlags) -fwasm-exceptions -sSUPPORT_LONGJMP=wasm</EmccExtraLDFlags>
+    </PropertyGroup>
+    <ItemGroup Condition="Exists('$(WasmNative)/prism_kernel.a')">
+        <NativeFileReference Include="$(WasmNative)/prism_kernel.a"/>
+        <NativeFileReference Include="$(WasmNative)/prism_sim.a"/>
+        <NativeFileReference Include="$(WasmLibs)/libTK*.a"/>
+    </ItemGroup>
 </Project>
