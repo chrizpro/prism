@@ -20,7 +20,47 @@ public sealed class TriMesh
     float[]? _faceNormals;
     Bvh? _bvh;
 
-    public TriMesh(float[] v, int[] t) { V = v; T = t; }
+    /// <summary>Optional ARGB colour per vertex (scan / PLY / OBJ vertex colours). Null when the mesh is uncoloured. A wrong-length array is dropped.</summary>
+    public uint[]? VertexColors { get; }
+    /// <summary>Optional ARGB colour per triangle (OBJ materials, 3MF materials). Null when the mesh is uncoloured. A wrong-length array is dropped.</summary>
+    public uint[]? FaceColors { get; }
+    public bool HasColors => VertexColors != null || FaceColors != null;
+
+    public TriMesh(float[] v, int[] t, uint[]? vertexColors = null, uint[]? faceColors = null)
+    {
+        V = v; T = t;
+        VertexColors = vertexColors != null && vertexColors.Length == v.Length / 3 ? vertexColors : null;
+        FaceColors = faceColors != null && faceColors.Length == t.Length / 3 ? faceColors : null;
+    }
+
+    /// <summary>The same geometry with different colours (the arrays are shared, not copied).</summary>
+    public TriMesh WithColors(uint[]? vertexColors, uint[]? faceColors) => new(V, T, vertexColors, faceColors);
+
+    /// <summary>The colour of one triangle: its face colour, else the average of its vertex colours, else <paramref name="fallback"/>.</summary>
+    public uint ColorOf(int t, uint fallback = 0xFFC8D0DA)
+    {
+        if (FaceColors != null) return FaceColors[t];
+        if (VertexColors == null) return fallback;
+        uint a = VertexColors[T[3 * t]], b = VertexColors[T[3 * t + 1]], c = VertexColors[T[3 * t + 2]];
+        static uint Ch(uint x, uint y, uint z, int sh) => (((x >> sh) & 0xFF) + ((y >> sh) & 0xFF) + ((z >> sh) & 0xFF)) / 3;
+        return Ch(a, b, c, 24) << 24 | Ch(a, b, c, 16) << 16 | Ch(a, b, c, 8) << 8 | Ch(a, b, c, 0);
+    }
+
+    MeshData? _colorDisplay;
+    /// <summary>Render mesh that shows the colours (flat colour per triangle, packed into the shader's scalar). Null when the mesh has no colours.</summary>
+    public MeshData? ColorDisplay
+    {
+        get
+        {
+            if (!HasColors) return null;
+            if (_colorDisplay != null) return _colorDisplay;
+            var label = new int[TriCount];
+            for (int t = 0; t < label.Length; t++) label[t] = (int)(ColorOf(t) & 0xFFFFFF);
+            var (m, sc) = ToLabelledMeshData(label);
+            m.Scalars = sc;
+            return _colorDisplay = m;
+        }
+    }
 
     public static TriMesh Empty => new([], []);
 
@@ -136,28 +176,42 @@ public sealed class TriMesh
         for (int i = 0; i < VertexCount; i++) { var p = f(P(i)); v[3 * i] = (float)p.X; v[3 * i + 1] = (float)p.Y; v[3 * i + 2] = (float)p.Z; }
         var t = (int[])T.Clone();
         if (flipWinding) for (int i = 0; i < t.Length; i += 3) (t[i + 1], t[i + 2]) = (t[i + 2], t[i + 1]);
-        return new TriMesh(v, t);
+        return new TriMesh(v, t, VertexColors, FaceColors);
     }
 
     /// <summary>A copy with only the listed triangles (vertices are compacted).</summary>
     public TriMesh Subset(IEnumerable<int> tris)
     {
         var map = new Dictionary<int, int>(); var v = new List<float>(); var t = new List<int>();
+        var vc = VertexColors != null ? new List<uint>() : null; var fc = FaceColors != null ? new List<uint>() : null;
         foreach (int tri in tris)
+        {
             for (int k = 0; k < 3; k++)
             {
                 int old = T[3 * tri + k];
-                if (!map.TryGetValue(old, out int nv)) { nv = map.Count; map[old] = nv; v.Add(V[3 * old]); v.Add(V[3 * old + 1]); v.Add(V[3 * old + 2]); }
+                if (!map.TryGetValue(old, out int nv)) { nv = map.Count; map[old] = nv; v.Add(V[3 * old]); v.Add(V[3 * old + 1]); v.Add(V[3 * old + 2]); vc?.Add(VertexColors![old]); }
                 t.Add(nv);
             }
-        return new TriMesh([.. v], [.. t]);
+            fc?.Add(FaceColors![tri]);
+        }
+        return new TriMesh([.. v], [.. t], vc?.ToArray(), fc?.ToArray());
     }
 
     public static TriMesh Merge(IEnumerable<TriMesh> parts)
     {
         var v = new List<float>(); var t = new List<int>();
-        foreach (var m in parts) { int off = v.Count / 3; v.AddRange(m.V); t.AddRange(m.T.Select(i => i + off)); }
-        return new TriMesh([.. v], [.. t]);
+        var list = parts as IList<TriMesh> ?? parts.ToList();
+        foreach (var m in list) { int off = v.Count / 3; v.AddRange(m.V); t.AddRange(m.T.Select(i => i + off)); }
+        // colours survive when every part has vertex colours; otherwise any coloured part makes the result per-face coloured (plain parts get the default grey)
+        uint[]? vc = null, fc = null;
+        if (list.Count > 0 && list.All(m => m.VertexColors != null)) vc = list.SelectMany(m => m.VertexColors!).ToArray();
+        else if (list.Any(m => m.HasColors))
+        {
+            var f = new List<uint>();
+            foreach (var m in list) for (int i = 0; i < m.TriCount; i++) f.Add(m.ColorOf(i));
+            fc = [.. f];
+        }
+        return new TriMesh([.. v], [.. t], vc, fc);
     }
 
     // ---------------------------------------------------------------- topology
