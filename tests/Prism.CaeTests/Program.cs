@@ -40,6 +40,38 @@ Check(modal.Frequencies.Length==6&&modal.Modes.Count==6,"modal solver returns si
 Check(Math.Abs(modal.Frequencies[0]-analytic)/analytic<.08,$"first bending mode agrees with slender-beam theory within 8% ({modal.Frequencies[0]:G6} vs {analytic:G6} Hz)");
 Check(modal.Frequencies.SequenceEqual(modal.Frequencies.Order()),"natural frequencies are ordered");
 var mode=ResultView.Field(modal);Check(mode.Values.All(float.IsFinite)&&Math.Abs(mode.Values.Max()-1)<1e-6,"mode display uses normalized relative magnitude");
+// ---- fatigue (stress-life)
+var steel=Materials.Find("1045")!;var fs=new FatigueSettings(-1,MeanStressModel.Goodman,SurfaceFinish.Ground,1,1,1e6);
+var fc=Fatigue.Curve(steel,fs);
+double kaGround=Math.Min(1.58*Math.Pow(steel.Ultimate,-0.085),1);
+Check(Math.Abs(fc.Se-kaGround*0.5*steel.Ultimate)<1e-9,"steel endurance limit is Marin-corrected 0.5·Sut");
+Check(Math.Abs(fc.A*Math.Pow(1e3,fc.B)-fc.F*steel.Ultimate)<1e-6&&Math.Abs(fc.A*Math.Pow(1e6,fc.B)-fc.Se)<1e-6,"S-N curve passes through 0.9·Sut at 10³ cycles and Se at the 10⁶ knee");
+Check(Fatigue.LifeAt(fc,fc.Se*0.99)==Fatigue.LifeCap&&Math.Abs(Fatigue.LifeAt(fc,fc.A*Math.Pow(1e5,fc.B))-1e5)<1,"steel runs out below Se and follows Basquin above it");
+double reversedLife=Fatigue.LifeAt(fc,Fatigue.EquivalentAmplitude(fc,fs,400));
+var pulsating=fs with{LoadRatio=0};
+double eq0=Fatigue.EquivalentAmplitude(fc,pulsating,400);
+Check(Math.Abs(eq0-200/(1-200/steel.Ultimate))<1e-9&&Fatigue.LifeAt(fc,eq0)>=reversedLife&&eq0<400,"Goodman correction: pulsating loading with the same peak is gentler than reversed loading");
+Check(Math.Abs(Fatigue.SafetyFactor(fc,fs,fc.Se/2)-2)<1e-9&&Math.Abs(Fatigue.SafetyFactor(fc,fs,fc.Se)-1)<1e-9,"fully reversed safety factor is allowable / alternating stress");
+double gerberN=Fatigue.SafetyFactor(fc,fs with{LoadRatio=0,Mean=MeanStressModel.Gerber},200);
+double gerberCheck=gerberN*100/fc.Se+Math.Pow(gerberN*100/steel.Ultimate,2);
+Check(Math.Abs(gerberCheck-1)<1e-9,"Gerber safety factor lands on the Gerber parabola");
+bool brittle=false;try{Fatigue.Curve(Materials.Find("pla")!,fs);}catch(InvalidOperationException){brittle=true;}
+Check(brittle,"materials without a stress-life model (plastics) are rejected");
+bool noYield=false;try{Fatigue.Curve(Materials.Find("cast-iron")!,fs with{Mean=MeanStressModel.Soderberg});}catch(InvalidOperationException){noYield=true;}
+Check(noYield,"Soderberg is refused for materials with no yield point");
+var alFc=Fatigue.Curve(Materials.Find("6061")!,fs);
+Check(!alFc.HasKnee&&Fatigue.LifeAt(alFc,alFc.Se*0.9)>Fatigue.LifeAt(alFc,alFc.Se),"aluminum has no endurance limit: lower stress keeps lengthening life");
+var fatBeam=new StudyDef{BodyId=beam.Id,ElementSize=7};
+fatBeam.Fixtures.Add(new Fixture{Kind=FixtureKind.Fixed,Faces=[new(beam.Id,fixedFace)]});
+fatBeam.Loads.Add(new Load{Kind=LoadKind.Force,Value=100,Direction=Vec3.UnitX,Faces=[new(beam.Id,loadedFace)],Total=true});
+var fatStatic=StudyRunner.Run(session,fatBeam);
+var fatigue=Fatigue.Analyze(fatStatic,Materials.Find("6061")!,fs with{Finish=SurfaceFinish.Machined,SizeFactor=.9,ReliabilityFactor=.897});
+Check(fatigue.Life.Length==fatStatic.Mesh.NodeCount&&fatigue.Life.All(x=>x>=1&&x<=Fatigue.LifeCap),"fatigue life is reported for every node");
+int hot=Array.IndexOf(fatStatic.Solution.VonMises,fatStatic.Solution.VonMises.Max());
+Check(fatigue.MinLife==fatigue.Life[hot]&&fatigue.MinSafety<=fatigue.Safety.Min()+1e-12,"shortest life sits at the node with the highest stress");
+var fatigueView=ResultView.Build(fatStatic,beam.Id,ResultKind.Scalar,0,100,fatigue.Safety,"Fatigue safety factor","",5,Math.Min(fatigue.MinSafety,4.99));
+Check(fatigueView.Kind==ResultKind.Scalar&&fatigueView.Values.All(float.IsFinite),"fatigue field paints through the result renderer");
+fatStatic.Mesh.Dispose();
 var laminar=PipeFlow.Calculate(.01,1,1e-6,1000,.001);
 double poiseuille=128*.001*1*1e-6/(Math.PI*Math.Pow(.01,4));
 Check(Math.Abs(laminar.PressureDrop-poiseuille)<1e-8,"laminar pipe loss matches Hagen–Poiseuille");

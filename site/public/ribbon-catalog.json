@@ -3167,6 +3167,12 @@
               "shortcut": ""
             },
             {
+              "id": "cae-fatigue|Fatigue",
+              "label": "Fatigue",
+              "description": "Fatigue life and safety factor of the solved study under repeated loading (stress-life).",
+              "shortcut": ""
+            },
+            {
               "id": "sim-probe|Probe",
               "label": "Probe",
               "description": "Click the result to read values.",
