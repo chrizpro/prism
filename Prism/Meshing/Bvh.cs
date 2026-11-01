@@ -84,6 +84,32 @@ public sealed class Bvh
         }
     }
 
+    /// <summary>Triangles whose bounding box overlaps the given box (candidates for exact tests).</summary>
+    public void QueryBox(Vec3 min, Vec3 max, List<int> result)
+    {
+        if (_nodes == 0) return;
+        var stack = new Stack<int>(); stack.Push(0);
+        while (stack.Count > 0)
+        {
+            int id = stack.Pop();
+            if (_bb[6 * id] > max.X || _bb[6 * id + 3] < min.X || _bb[6 * id + 1] > max.Y || _bb[6 * id + 4] < min.Y || _bb[6 * id + 2] > max.Z || _bb[6 * id + 5] < min.Z) continue;
+            if (_l[id] < 0)
+            {
+                for (int i = _first[id]; i < _first[id] + _count[id]; i++)
+                {
+                    int t = _tris[i]; float x0 = float.MaxValue, y0 = x0, z0 = x0, x1 = float.MinValue, y1 = x1, z1 = x1;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        int v = _m.T[3 * t + k]; float x = _m.V[3 * v], y = _m.V[3 * v + 1], z = _m.V[3 * v + 2];
+                        x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); y0 = Math.Min(y0, y); y1 = Math.Max(y1, y); z0 = Math.Min(z0, z); z1 = Math.Max(z1, z);
+                    }
+                    if (x0 <= max.X && x1 >= min.X && y0 <= max.Y && y1 >= min.Y && z0 <= max.Z && z1 >= min.Z) result.Add(t);
+                }
+            }
+            else { stack.Push(_l[id]); stack.Push(_r[id]); }
+        }
+    }
+
     // ---------------------------------------------------------------- ray casting
     /// <summary>Nearest hit along a ray (t &gt; tMin). Returns triangle index and ray parameter; no culling.</summary>
     public (int tri, double t)? Raycast(Vec3 o, Vec3 d, double tMax = double.MaxValue, double tMin = 1e-9)

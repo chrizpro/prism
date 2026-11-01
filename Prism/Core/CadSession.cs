@@ -1549,6 +1549,7 @@ public sealed partial class CadSession : ObservableObject
             }
         }
         Sketch?.BuildOverlay(this, o);
+        DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
         ActiveTool?.BuildOverlay(this, o);
@@ -1829,8 +1830,14 @@ public sealed partial class CadSession : ObservableObject
     }
     public void ClearField(Guid id) { if (Fields.Remove(id)) Invalidate(); }
 
+    /// <summary>Persistent mesh defect highlights (Mesh Quality); stays after the command closes until cleared.</summary>
+    public Action<Overlay>? DefectOverlay { get; private set; }
+    public void SetDefects(Action<Overlay>? draw) { DefectOverlay = draw; Invalidate(); }
+    public void ClearDefects() => SetDefects(null);
+
     public void ClearAnalysis()
     {
+        DefectOverlay = null;
         foreach (var k in Fields.Where(f => !f.Value.IsSelection).Select(f => f.Key).ToList()) Fields.Remove(k);
         Analysis = AnalysisKind.None; Zebra = false; Clip = null; ShowBounds = false;
         Invalidate(); Say("Analysis display cleared");
