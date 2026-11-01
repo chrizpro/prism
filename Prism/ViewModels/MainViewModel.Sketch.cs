@@ -302,7 +302,9 @@ public sealed partial class MainViewModel
         }
         foreach (var c in loose) SketchConstraints.Add(MakeRow(c, Name, default));
         int curves = m.Entities.Count(e => !e.Construction), cons = m.Entities.Count(e => e.Construction);
-        SketchSummary = $"Plane {sk.ActivePlane + 1} of {sk.DrawingPlanes.Count} · {curves} curve{(curves == 1 ? "" : "s")}" + (cons > 0 ? $" · {cons} construction" : "") + $" · {m.Constraints.Count(c => !c.Hidden && !c.IsDimension)} constraints · {m.Constraints.Count(c => c.IsDimension)} dimensions";
+        // Drawing flat is planeless: plane numbering would only expose planes the user never asked for.
+        string planeText = sk.Is3DEnabled && sk.IsDrawingFlat ? "" : $"Plane {sk.ActivePlane + 1} of {sk.DrawingPlanes.Count} · ";
+        SketchSummary = $"{planeText}{curves} curve{(curves == 1 ? "" : "s")}" + (cons > 0 ? $" · {cons} construction" : "") + $" · {m.Constraints.Count(c => !c.Hidden && !c.IsDimension)} constraints · {m.Constraints.Count(c => c.IsDimension)} dimensions";
         SketchStateText = m.Entities.Count == 0 ? "Ready to draw" : r.Status;
         SketchBad = !r.Converged; SketchFull = m.Entities.Count > 0 && r.FullyConstrained; SketchFree = r.Converged && !SketchFull;
     }

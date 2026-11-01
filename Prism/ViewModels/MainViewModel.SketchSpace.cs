@@ -20,7 +20,7 @@ public sealed partial class MainViewModel
             var existing = nurbs ? Session.Objects.LastOrDefault(o => o.Kind == ObjKind.Sketch && (o.SketchData?.SharedNurbsCurves == true || o.Name.StartsWith("NURBS Curves", StringComparison.Ordinal)) && o.SketchData != null) : null;
             if (existing != null) { if (!Session.EditSketch(existing)) return; }
             else { Session.EnterSketch(Plane3.XY); if (nurbs && Session.Sketch is { } created) { created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true; } }
-            if (existing == null) Session.Sketch?.SetDrawingMode(Session, flat: nurbs);
+            if (existing == null && nurbs) Session.Sketch?.SetDrawingMode(Session, flat: true);   // NURBS curves start with 3D sketch on, drawing flat
         }
         if (Session.Sketch is { } sketch) { sketch.SetTool(Session, new SplineTool(false)); }
     }
@@ -54,6 +54,13 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial bool SketchFreeEditing { get; set; }
     partial void OnSketchFreeEditingChanged(bool value) { if (!_refreshSketchSpace && Session.Sketch is { } sk) { sk.FreeEditing = value; Session.RaiseState(); } }
     [ObservableProperty] public partial bool SketchGizmoTargetSetup { get; set; }
+    /// <summary>The "3D sketch" checkbox: spatial tools on or off. Off is a plain 2D sketch.</summary>
+    [ObservableProperty] public partial bool SketchSpatialEnabled { get; set; }
+    partial void OnSketchSpatialEnabledChanged(bool value)
+    {
+        if (!_refreshSketchSpace) Session.Sketch?.Set3DEnabled(Session, value, adjustView: true);
+    }
+    /// <summary>Draw in space (rather than flat). Only meaningful while 3D sketch is on.</summary>
     [ObservableProperty] public partial bool Sketch3DEnabled { get; set; }
     public bool SketchDrawFlat { get => !Sketch3DEnabled; set { if (value) Sketch3DEnabled = false; } }
     partial void OnSketch3DEnabledChanged(bool value)
@@ -98,7 +105,7 @@ public sealed partial class MainViewModel
                 foreach (var section in sk.DrawingPlanes) SketchPlaneChoices.Add(section.Name);
             }
             SketchPlaneChoice = sk.ActivePlane; SketchGizmoOperation = (int)sk.GizmoOperation;
-            Sketch3DEnabled = !sk.IsDrawingFlat;
+            SketchSpatialEnabled = sk.Is3DEnabled; Sketch3DEnabled = sk.Is3DEnabled && !sk.IsDrawingFlat;
             SketchGizmoPlane = sk.GizmoPlaneIndex; SketchGizmoFollows = sk.GizmoFollowsSketch;
             SketchGizmoAxis = sk.SelectedGizmoAxis;
             bool editingSelection=sk.GeometryEditing&&!sk.GizmoEditing&&sk.HasGeometrySelection;

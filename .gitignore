@@ -472,3 +472,6 @@ native/bin/
 /site/dist/
 
 native/build-wasm/
+
+# Scratch build copies and one-off experiment output (GBs of published app binaries)
+work/

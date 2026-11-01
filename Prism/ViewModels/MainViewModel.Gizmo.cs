@@ -59,7 +59,7 @@ public sealed partial class MainViewModel
         Session.Invalidate();
     }
     public bool HasGizmoPlanes=>Session.Sketch!=null;
-    // Scale has three fields. Bound to geometry they multiply the selection along the gizmo's own axes (Blender-style: 1 means unchanged,
+    // Scale has three fields. Bound to geometry they multiply the selection along the gizmo's own axes (1 means unchanged,
     // 0.5 on Y squeezes two points on a vertical line together). Unbound they size the drawing plane: width and height, and none for depth.
     bool GizmoScaleBound=>Session.Sketch is {GeometryEditing:true,GizmoEditing:false,HasGeometrySelection:true}&&!GizmoPositioning;
     public string GizmoScaleHeader=>GizmoScaleBound?"Scale the selection (about the gizmo, along its axes)":"Scale the plane (width and height)";
@@ -194,6 +194,7 @@ public sealed partial class MainViewModel
     public double GizmoScreenSize { get => GizmoSettings.Current.Pixels; set { if (double.IsFinite(value)) ChangeGizmo(g => g.ScreenSize = Math.Clamp(value, 56, 180)); } }
     public double GizmoLineWidth { get => GizmoSettings.Current.Stroke; set { if (double.IsFinite(value)) ChangeGizmo(g => g.LineWidth = Math.Clamp(value, 1, 5)); } }
     public double GizmoHitTolerance { get => GizmoSettings.Current.Tolerance; set { if (double.IsFinite(value)) ChangeGizmo(g => g.HitTolerance = Math.Clamp(value, 4, 18)); } }
+    public double GizmoPlaneCueDelay { get => GizmoSettings.Current.PlaneCueSeconds; set { if (double.IsFinite(value)) ChangeGizmo(g => g.PlaneCueDelay = Math.Clamp(value, 0.5, 2)); } }
     public bool GizmoSnapping { get => GizmoSettings.Current.Snap; set => ChangeGizmo(g => g.Snap = value); }
     public double GizmoMoveStep { get => GizmoSettings.Current.MoveStep; set { if (double.IsFinite(value)) ChangeGizmo(g => g.MoveStep = Math.Clamp(value, .001, 10000)); } }
     public double GizmoAngleStep { get => GizmoSettings.Current.AngleStep; set { if (double.IsFinite(value)) ChangeGizmo(g => g.AngleStep = Math.Clamp(value, .1, 180)); } }
@@ -212,7 +213,7 @@ public sealed partial class MainViewModel
     {
         AppSettings.Current.Gizmo = new(); AppSettings.Save(notify: false);
         foreach(string name in new[]{nameof(GizmoShowX),nameof(GizmoShowY),nameof(GizmoShowZ)})OnPropertyChanged(name);
-        foreach (string name in new[] { nameof(GizmoDisplayMode), nameof(GizmoCustomVisibility), nameof(GizmoShowMove), nameof(GizmoShowRotate), nameof(GizmoShowScale), nameof(GizmoShowPlanes), nameof(GizmoShowLabels), nameof(GizmoShowWorkPlane), nameof(GizmoScreenSize), nameof(GizmoLineWidth), nameof(GizmoHitTolerance), nameof(GizmoSnapping), nameof(GizmoMoveStep), nameof(GizmoAngleStep), nameof(GizmoScaleStep) }) OnPropertyChanged(name);
+        foreach (string name in new[] { nameof(GizmoDisplayMode), nameof(GizmoCustomVisibility), nameof(GizmoShowMove), nameof(GizmoShowRotate), nameof(GizmoShowScale), nameof(GizmoShowPlanes), nameof(GizmoShowLabels), nameof(GizmoShowWorkPlane), nameof(GizmoScreenSize), nameof(GizmoLineWidth), nameof(GizmoHitTolerance), nameof(GizmoPlaneCueDelay), nameof(GizmoSnapping), nameof(GizmoMoveStep), nameof(GizmoAngleStep), nameof(GizmoScaleStep) }) OnPropertyChanged(name);
         Session.Invalidate();
     }
 }

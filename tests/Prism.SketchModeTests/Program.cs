@@ -24,7 +24,7 @@ var sketch = vm.Session.Sketch!;
 var panel = new SketchPanel { DataContext = vm }; var host = new Window { Width = 340, Height = 900, Content = panel };
 host.Show(); Dispatcher.UIThread.RunJobs();
 var spatial = panel.GetVisualDescendants().OfType<StackPanel>().Single(p => p.Name == "SpatialSketchControls");
-var checkbox = panel.GetVisualDescendants().OfType<RadioButton>().Single(p => p.Name == "DrawInSpace");
+var checkbox = panel.GetVisualDescendants().OfType<CheckBox>().Single(p => p.Name == "Enable3D");
 Check(!sketch.Is3DEnabled && checkbox.IsChecked == false && !spatial.IsVisible, "new sketches start in a clean 2D mode");
 vm.Session.Key("SketchGizmo"); vm.Session.Key("PlaneXZ");
 Check(!sketch.Is3DEnabled && !sketch.GizmoEditing && sketch.Plane == Plane3.XY, "spatial shortcuts cannot bypass the 3D checkbox");
@@ -296,6 +296,242 @@ Check(retention.Objects.Single().SketchData!.Entities.Any(e=>e.Type==EntType.Spl
  using(var bitmap=new RenderTargetBitmap(new PixelSize(900,120))){bitmap.Render(timeline);bitmap.Save(Path.Combine(output,"timeline.png"));}
  timelineHost.Close();
  animVm.Session.CancelCommand();Check(!animVm.ShowAnimationTimeline,"closing the command hides the timeline dock");
+}
+// Alt-dragging a gizmo move handle copies the bound curve and leaves the original.
+{
+    var cs=new CadSession();cs.EnterSketch(Plane3.XY);var ck=cs.Sketch!;ck.Set3DEnabled(cs,true);ck.SetDrawingMode(cs,flat:true);
+    ck.SetTool(cs,new SelectTool());
+    int a=ck.Model.AddPoint(20,20),b=ck.Model.AddPoint(60,40);ck.Model.AddPointEntity(a);ck.Model.AddPointEntity(b);
+    int curve=ck.Model.AddSpline([a,b],false,false,false);ck.Solve(cs);
+    ck.SelEntities.Clear();ck.SelPoints.Clear();ck.SelEntities.Add(curve);ck.CenterGizmoOnSelection(cs);
+    // a moved independent shape lives on its own drawing plane, so count splines across the whole exported sketch
+    int Splines(){var m=ck.ExportModel();return m.Entities.Count(e=>e.Type==EntType.Spline)+m.Sections.Sum(x=>x.Model.Entities.Count(e=>e.Type==EntType.Spline));}
+    int before=Splines();var o=cs.Camera.Project(ck.GizmoFrame.Origin)!.Value;var ux=cs.Camera.Project(ck.GizmoFrame.Origin+ck.GizmoFrame.U)!.Value;
+    double ax=ux.x-o.x,ay=ux.y-o.y,al=Math.Sqrt(ax*ax+ay*ay);bool grabbed=false;double gx=0,gy=0;
+    for(double off=25;off<=140&&!grabbed;off+=5)
+    {
+        gx=o.x+ax/al*off;gy=o.y+ay/al*off;
+        cs.PointerDown(new(gx,gy,true,false,false,true));
+        if(Splines()>before)grabbed=true;else cs.PointerUp(new(gx,gy,false,false,false,true));
+    }
+    Check(grabbed,"Alt on a gizmo move handle starts a copy");
+    cs.PointerMove(new(gx+40,gy,true,false,false,true));cs.PointerUp(new(gx+40,gy,false,false,false,true));
+    var root=ck.ExportModel();
+    Check(Splines()==before+1,"the drag leaves one extra curve");
+    Check(root.Entities.Any(e=>e.Id==curve)&&Math.Abs(root.P(root.E(curve).Pts[0]).X-20)<1e-9,"the original stays where it was");
+    Check(ck.SelEntities.Count==1&&!ck.SelEntities.Contains(curve),"the copy is the selection");
+    Check(ck.TryUndo(cs)&&Splines()==before,"one undo removes the copy");
+}
+// Draw flat follows an axis-aligned view: draw on the side view, then on the top view, in one sketch.
+{
+    var fs=new CadSession();fs.EnterSketch(Plane3.XY,alignView:false);var fk=fs.Sketch!;fk.Set3DEnabled(fs,true);fk.SetDrawingMode(fs,flat:true,adjustView:false);
+    fs.Camera.Orthographic=true;fs.Camera.Yaw=0;fs.Camera.Pitch=Math.PI/2-1e-4;
+    fk.Model.AddLine(fk.Model.AddPoint(0,0),fk.Model.AddPoint(30,0));fk.Solve(fs);
+    fk.SetTool(fs,new LineTool(0));
+    fs.PointerDown(new(300,300,true,false,false,false));fs.PointerUp(new(300,300,false,false,false,false));fs.Key("Escape");
+    var topNormal=fk.Plane.Normal;
+    fs.Camera.Yaw=Math.PI/2;fs.Camera.Pitch=0;
+    Console.WriteLine("DBG eye="+fs.Camera.EyeDirection+" topNormal="+topNormal);
+    fk.SetTool(fs,new LineTool(0));
+    fs.PointerDown(new(300,300,true,false,false,false));fs.PointerUp(new(300,300,false,false,false,false));
+    Check(Math.Abs(topNormal.Z)>.99,"flat drawing from the top view uses the XY plane");
+    Check(Math.Abs(fk.Plane.Normal.X)>.99||Math.Abs(fk.Plane.Normal.Y)>.99,"flat drawing from a side view switches to that view's plane");
+    Check(fk.DrawingPlanes.Count>=2,"the first plane and its curves are kept");
+}
+// Flat editing: a curve drawn on the top view can be picked and edited from the side view.
+{
+    var es=new CadSession();es.EnterSketch(Plane3.XY,alignView:false);var ek=es.Sketch!;ek.Set3DEnabled(es,true);ek.SetDrawingMode(es,flat:true,adjustView:false);
+    int p0=ek.Model.AddPoint(0,0),p1=ek.Model.AddPoint(40,0);int topLine=ek.Model.AddLine(p0,p1);ek.Solve(es);
+    es.Camera.Orthographic=true;es.Camera.Yaw=Math.PI/2;es.Camera.Pitch=0;
+    ek.SetTool(es,new SelectTool());
+    // second curve on the side-view plane, so the top-view line is on another section
+    ek.SetDrawingPlane(es,Plane3.YZ,forceNew:true);ek.Model.AddLine(ek.Model.AddPoint(0,10),ek.Model.AddPoint(0,50));ek.Solve(es);
+    ek.SelectPlane(es,0);int active0=ek.ActivePlane;
+    var mid=es.Camera.Project(new Vec3(0,0,10))!.Value;
+    // click on the curve that sits on the YZ plane while plane 1 is active
+    var onYz=es.Camera.Project(ek.DrawingPlanes[1].Plane.PointAt(0,30))!.Value;
+    es.PointerDown(new(onYz.x,onYz.y,true,false,false,false));es.PointerUp(new(onYz.x,onYz.y,false,false,false,false));
+    Check(ek.ActivePlane==1&&ek.SelEntities.Count==1,"clicking a curve on another plane in flat mode switches to it and selects the curve");
+}
+// Rotating the unbound gizmo with its rings (only ring pixels: the center and arrows are skipped).
+foreach(var (bound,ortho,tool) in new[]{(false,false,"select"),(true,false,"select"),(false,true,"line"),(false,false,"spline"),(true,true,"select")})
+{
+    var rs=new CadSession();rs.EnterSketch(Plane3.XY,alignView:false);var rk=rs.Sketch!;rk.Set3DEnabled(rs,true);
+    rs.Camera.Orthographic=ortho;rs.Camera.Yaw=ortho?0:-.6;rs.Camera.Pitch=ortho?Math.PI/2-1e-4:.5;
+    int ra=rk.Model.AddPoint(20,20),rb=rk.Model.AddPoint(60,40);int rc=rk.Model.AddSpline([ra,rb],false,false,false);rk.Solve(rs);
+    rk.SetTool(rs,tool=="line"?new LineTool(0):tool=="spline"?new SplineTool(false):new SelectTool());
+    if(bound){rk.SelEntities.Add(rc);rk.CenterGizmoOnSelection(rs);}
+    rk.SetGizmoEditing(rs,true);rk.GizmoOperation=SketchGizmoOperation.Rotate;rs.Invalidate();
+    var c=rs.Camera.Project(rk.GizmoFrame.Origin)!.Value;var f0=rk.GizmoFrame;bool turned=false;int ringHits=0;
+    for(double r=40;r<=220&&!turned;r+=4)for(double a2=0;a2<6.28&&!turned;a2+=.1)
+    {
+        double px=c.x+r*Math.Cos(a2),py=c.y+r*Math.Sin(a2);
+        int hit=rk.GizmoHit(rs,px,py,true);
+        if(hit<7||hit>9)continue;ringHits++;
+        rs.PointerDown(new(px,py,true,false,false,false));rs.PointerMove(new(px+25,py+10,true,false,false,false));rs.PointerUp(new(px+25,py+10,false,false,false,false));
+        if(rk.GizmoFrame.U.DistanceTo(f0.U)>1e-3||rk.GizmoFrame.V.DistanceTo(f0.V)>1e-3)turned=true;
+    }
+    Check(ringHits>0&&turned,$"DBG rotation ring draggable bound={bound} ortho={ortho} tool={tool} hits={ringHits}");
+}
+// Box and lasso select everything visible, including curves drawn from other views, and Delete removes them together.
+foreach (bool lassoMode in new[] { false, true })
+{
+    var xs = new CadSession(); xs.EnterSketch(Plane3.XY, alignView: false); var xk = xs.Sketch!; xk.Set3DEnabled(xs, true); xk.SetDrawingMode(xs, flat: true, adjustView: false);
+    xk.Model.AddLine(xk.Model.AddPoint(0, 0), xk.Model.AddPoint(40, 0)); xk.Solve(xs);
+    xk.SetDrawingPlane(xs, Plane3.YZ, forceNew: true); xk.Model.AddLine(xk.Model.AddPoint(0, 5), xk.Model.AddPoint(0, 45)); xk.Solve(xs);
+    xs.Camera.Orthographic = false; xs.Camera.Yaw = -.6; xs.Camera.Pitch = .5;
+    var xt = new SelectTool(); if (lassoMode) xt.UseLasso(true); xk.SetTool(xs, xt);
+    var c0 = xs.Camera.Project(new Vec3(20, 0, 0))!.Value; var c1 = xs.Camera.Project(new Vec3(0, 0, 25))!.Value;
+    double minX = Math.Min(c0.x, c1.x) - 120, maxX = Math.Max(c0.x, c1.x) + 120, minY = Math.Min(c0.y, c1.y) - 120, maxY = Math.Max(c0.y, c1.y) + 120;
+    xs.PointerDown(new(minX, minY, true, false, false, false));
+    if (lassoMode) { xs.PointerMove(new(maxX, minY, true, false, false, false)); xs.PointerMove(new(maxX, maxY, true, false, false, false)); xs.PointerMove(new(minX, maxY, true, false, false, false)); }
+    else xs.PointerMove(new(maxX, maxY, true, false, false, false));
+    var live = new Overlay(); xs.BuildOverlay(live);
+    Console.WriteLine($"DBG rects={live.Rects.Count} paths={live.ScreenPaths.Count} tool={xk.Tool?.GetType().Name} geo={xk.GeometryEditing} min=({minX:0},{minY:0}) max=({maxX:0},{maxY:0})");
+    if (lassoMode) Check(live.ScreenPaths.Count == 1, "the lasso loop is drawn in screen space while dragging");
+    else Check(live.Rects.Count == 1, "the selection box is drawn while dragging");
+    xs.PointerUp(new(lassoMode ? minX : maxX, maxY, false, false, false, false));
+    int picked = xk.SelEntities.Count + xk.ExtraSelection.Sum(x => x.Value.Count);
+    Check(picked == 2, (lassoMode ? "lasso" : "box") + " select picks curves from every plane in view");
+    xs.Key("Delete");
+    var left = xk.ExportModel(); int remaining = left.Entities.Count + left.Sections.Sum(x => x.Model.Entities.Count);
+    Check(remaining == 0, "Delete removes the curves on both planes");
+    Check(xk.TryUndo(xs) && xk.ExportModel() is var back && back.Entities.Count + back.Sections.Sum(x => x.Model.Entities.Count) == 2, "one undo brings both back");
+}
+// A visible 2D sketch is something to attach to: curves snap onto its circle.
+{
+    var ss = new CadSession(); ss.EnterSketch(Plane3.XY, alignView: false); var s1 = ss.Sketch!;
+    s1.Model.AddCircle(s1.Model.AddPoint(0, 0), 20); s1.Solve(ss); ss.ExitSketch(true);
+    Check(ss.Objects.Any(o => o.Kind == ObjKind.Sketch && o.Visible), "the finished 2D sketch stays visible");
+    ss.EnterSketch(Plane3.XY, alignView: false); var s2 = ss.Sketch!;
+    ss.Camera.Orthographic = true; ss.Camera.Yaw = 0; ss.Camera.Pitch = Math.PI / 2 - 1e-4;
+    var onCircle = ss.Camera.Project(new Vec3(20, 0, 0))!.Value;
+    var near = s2.Snap(ss, onCircle.x + 3, onCircle.y + 2, true);
+    Check(near is { } hit && Math.Abs(Math.Sqrt(hit.U * hit.U + hit.V * hit.V) - 20) < .5, "a point near a visible sketch's circle snaps onto it");
+    s2.Set3DEnabled(ss, true); s2.SetDrawingMode(ss, flat: true, adjustView: false);
+    ss.Camera.Yaw = Math.PI / 2; ss.Camera.Pitch = 0;
+    var seen = ss.Camera.Project(new Vec3(0, 20, 0));
+    Check(seen != null, "the sketch is seen from the side view");
+}
+// A pending spline click that refers to a point the model no longer has must not crash the solver.
+{
+    var cs2 = new CadSession(); cs2.EnterSketch(Plane3.XY, alignView: false); var ck2 = cs2.Sketch!;
+    var st = new SplineTool(false); ck2.SetTool(cs2, st);
+    st.Feed(cs2, 10, 10); st.Feed(cs2, 30, 20);
+    var pending = typeof(ClickTool).GetProperty("Clicks", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.GetValue(st) as List<SnapInfo>;
+    pending?.Add(new SnapInfo(50, 10, SnapKind.Point, 9999));
+    cs2.Key("Escape");
+    Check(ck2.Model.Entities.Count(e => e.Type == EntType.Spline) == 1, "a stale point id in a pending spline becomes a plain point instead of crashing");
+}
+// Drawing in space offers the plane squares near the gizmo, and clicking one draws on that plane.
+var cueNow = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc); SketchContext.Clock = () => cueNow;
+{
+    var ps = new CadSession(); ps.EnterSketch(Plane3.XY, alignView: false); var pk = ps.Sketch!; pk.Set3DEnabled(ps, true); pk.SetDrawingMode(ps, flat: false, adjustView: false);
+    ps.Camera.Orthographic = false; ps.Camera.Yaw = -.6; ps.Camera.Pitch = .5;
+    pk.SetTool(ps, new LineTool(0));
+    var g = ps.Camera.Project(pk.GizmoFrame.Origin)!.Value;
+    ps.PointerMove(new(g.x + 6, g.y + 6, false, false, false, false));
+    var overlayNear = new Overlay(); pk.BuildOverlay(ps, overlayNear);
+    var overlayFar = new Overlay(); ps.PointerMove(new(g.x + 900, g.y + 900, false, false, false, false)); pk.BuildOverlay(ps, overlayFar);
+    Check(overlayNear.Tris.Count > overlayFar.Tris.Count, "the plane squares appear when the pointer nears the gizmo and hide when it leaves");
+    bool locked = false;
+    for (double r = 8; r < 90 && !locked; r += 3) for (double a = 0; a < 6.28 && !locked; a += .15)
+    {
+        double px = g.x + r * Math.Cos(a), py = g.y + r * Math.Sin(a);
+        ps.PointerMove(new(px, py, false, false, false, false));
+        int hit = pk.GizmoHit(ps, px, py, false);
+        if (hit is < 4 or > 6) continue;
+        cueNow += TimeSpan.FromSeconds(2); ps.PointerMove(new(px, py, false, false, false, false));      // rest on the square until the cue shows
+        ps.PointerDown(new(px, py, true, false, false, false)); ps.PointerUp(new(px, py, false, false, false, false));
+        locked = pk.GizmoPlaneIndex == hit - 4;
+    }
+    Check(locked, "clicking a plane square while drawing selects that plane");
+}
+// A dropdown that holds the running sketch tool looks pressed (Spline sits inside "More drawing tools").
+{
+    var rvm = new MainViewModel(); rvm.Session.EnterSketch(Plane3.XY, alignView: false);
+    rvm.Session.Sketch!.SetTool(rvm.Session, new SplineTool(false));
+    foreach (var t in rvm.Tabs) foreach (var b in t.Buttons) b.Refresh();
+    var sketchTab = rvm.Tabs.Single(t => t.Title == "Sketch");
+    var more = sketchTab.Groups.Single(g => g.Title == "Draw").Items.OfType<Prism.Ribbon.RibbonButton>().Single(b => b.HasMenu);
+    Check(more.IsChecked && more.Label == "Spline", "the drawing-tools dropdown shows Spline as pressed while the spline tool runs");
+    rvm.Session.Sketch!.SetTool(rvm.Session, new SelectTool());
+    foreach (var t in rvm.Tabs) foreach (var b in t.Buttons) b.Refresh();
+    Check(!more.IsChecked, "and it releases when another tool takes over");
+}
+// Holding Ctrl over an indicated plane keeps drawing on it however far the pointer wanders; releasing ends the lock.
+{
+    var ls = new CadSession(); ls.EnterSketch(Plane3.XY, alignView: false); var lk = ls.Sketch!; lk.Set3DEnabled(ls, true); lk.SetDrawingMode(ls, flat: false, adjustView: false);
+    ls.Camera.Orthographic = false; ls.Camera.Yaw = -.6; ls.Camera.Pitch = .5;
+    lk.SetTool(ls, new LineTool(0));
+    var lg = ls.Camera.Project(lk.GizmoFrame.Origin)!.Value; int target = -1; double tx = 0, ty = 0;
+    for (double r = 8; r < 90 && target < 0; r += 3) for (double a = 0; a < 6.28 && target < 0; a += .15)
+    {
+        double px = lg.x + r * Math.Cos(a), py = lg.y + r * Math.Sin(a);
+        ls.PointerMove(new(px, py, false, false, false, false));
+        int hit = lk.GizmoHit(ls, px, py, false);
+        if (hit is >= 4 and <= 6 && hit - 4 != lk.GizmoPlaneIndex) { target = hit - 4; tx = px; ty = py; }
+    }
+    Check(target >= 0, "found a plane square other than the current plane");
+    ls.PointerMove(new(lg.x + 500, lg.y - 400, false, false, false, false)); cueNow += TimeSpan.FromSeconds(5);
+    ls.PointerMove(new(tx, ty, false, false, false, false)); cueNow += TimeSpan.FromSeconds(.5);
+    ls.PointerMove(new(tx, ty, false, false, true, false));
+    Check(lk.LockedPlane == -1, "resting on a plane square for half a second does not offer it yet (1.5 s default)");
+    cueNow += TimeSpan.FromSeconds(1.2); ls.PointerMove(new(tx, ty, false, false, false, false));
+    var cueOverlay = new Overlay(); ls.BuildOverlay(cueOverlay);
+    Check(cueOverlay.Labels.Any(l => l.Text.Contains("hold Ctrl")), "after the rest time the plane is offered and says Ctrl locks it");
+    ls.PointerMove(new(tx, ty, false, false, true, false));
+    Check(lk.LockedPlane == target && lk.GizmoPlaneIndex == target, "Ctrl over an indicated plane locks drawing to it");
+    var lockedOverlay = new Overlay(); ls.BuildOverlay(lockedOverlay);
+    Check(lockedOverlay.Labels.Any(l => l.Text.Contains("locked")), "the locked plane is labelled");
+    ls.PointerMove(new(lg.x + 400, lg.y - 300, false, false, true, false));
+    Check(lk.LockedPlane == target && lk.GizmoPlaneIndex == target, "the lock holds while the pointer is far from the gizmo");
+    ls.PointerMove(new(lg.x + 400, lg.y - 300, false, false, false, false));
+    Check(lk.LockedPlane == -1 && lk.GizmoPlaneIndex == target, "releasing Ctrl ends the lock and the plane stays current");
+}
+// 3D sketching attaches to whatever is visible: a line can start on the end of a curve from another sketch, off the drawing plane.
+{
+    var os = new CadSession(); os.EnterSketch(Plane3.XY, alignView: false); var o1 = os.Sketch!;
+    o1.Model.AddLine(o1.Model.AddPoint(0, 0), o1.Model.AddPoint(40, 0)); o1.Solve(os); os.ExitSketch(true);
+    os.EnterSketch(Plane3.YZ, alignView: false); var o2 = os.Sketch!; o2.Set3DEnabled(os, true); o2.SetDrawingMode(os, flat: false, adjustView: false);
+    os.Camera.Orthographic = false; os.Camera.Yaw = -.6; os.Camera.Pitch = .5;
+    o2.SetTool(os, new LineTool(0));
+    var end = os.Camera.Project(new Vec3(40, 0, 0))!.Value;
+    var snap = o2.Snap(os, end.x + 2, end.y + 1, true);
+    Check(snap is { Kind: SnapKind.External } hit2 && Math.Abs(Math.Abs(hit2.Depth) - 40) < 1e-6, "in 3D sketch a line snaps to the end of another sketch's curve, off the drawing plane");
+}
+// Snapping a spline point onto another spline must not crash the solver (the crash.log KeyNotFoundException).
+{
+    var cs3 = new CadSession(); cs3.EnterSketch(Plane3.XY, alignView: false); var ck3 = cs3.Sketch!;
+    int sa = ck3.Model.AddPoint(0, 0), sb = ck3.Model.AddPoint(30, 20), sc = ck3.Model.AddPoint(60, 0);
+    int baseSpline = ck3.Model.AddSpline([sa, sb, sc], false, false); ck3.Solve(cs3);
+    bool solved = ck3.Edit(cs3, "That spline", () =>
+    {
+        int pid = ck3.PointFor(new SnapInfo(30, 20, SnapKind.Entity, baseSpline));
+        int pid2 = ck3.Model.AddPoint(30, 50);
+        ck3.Model.AddSpline([pid, pid2], false, false);
+    });
+    Check(solved && ck3.Model.Entities.Count(e => e.Type == EntType.Spline) == 2, "a spline can start on another spline's curve without crashing");
+}
+// Right-click Look at in the object tree: origin planes and saved planes know their own plane.
+{
+    var tvm = new MainViewModel(); tvm.Session.EnterSketch(Plane3.XY, alignView: false);
+    var originNode = new BrowserNode { Kind = NodeKind.Origin, OriginIndex = 1, Title = "XZ" };
+    Check(tvm.CanLookAtNode(originNode) && tvm.LookAtNode(originNode), "Look at works on an origin plane row even while sketching");
+}
+// A plane made from the gizmo becomes the working reference; Live gizmo returns the gizmo to the global axes.
+{
+    var gs = new CadSession(); gs.EnterSketch(Plane3.XY, alignView: false); var gk = gs.Sketch!; gk.Set3DEnabled(gs, true); gk.SetDrawingMode(gs, flat: false, adjustView: false);
+    gk.RotateDrawingPlane(gs, new(0, 35, 0));
+    var tilted = gk.GizmoFrame;
+    Check(tilted.U.DistanceTo(Vec3.UnitX) > .1, "the gizmo can be tilted");
+    var made = gk.SaveDatum(gs, SketchDatumKind.Plane, "Tilted plane");
+    Check(gk.ActiveDatumId == made.Id && gk.GizmoFrame.U.DistanceTo(tilted.U) < 1e-9, "the plane just made from the gizmo is selected and the gizmo stays in its orientation");
+    var withPlane = new Overlay(); gs.BuildOverlay(withPlane);
+    Check(withPlane.Labels.Any(l => l.Text == "Tilted plane"), "the plane made from the gizmo is drawn and named");
+    gk.UseDatum(gs, null);
+    Check(gk.ActiveDatumId == null && gk.GizmoFrame.U.DistanceTo(Vec3.UnitX) < 1e-9 && gk.GizmoFrame.V.DistanceTo(Vec3.UnitY) < 1e-9, "Live gizmo puts the gizmo back on the global axes");
+    Check(gk.Datums.Any(d => d.Id == made.Id), "the saved plane is kept");
 }
 mainHost.Close(); Console.WriteLine($"SUCCESS: {checks} checks");
 sealed class TestApp : Application

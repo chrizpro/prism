@@ -316,6 +316,7 @@ public partial class MainView : UserControl
             if (nodes[0].IsActiveSketchDatum) items.Add(Mi("Use this reference", () => vm.UseDatumNode(nodes[0])));
             else if (nodes[0].DatumKind == Core.Sketching.SketchDatumKind.Plane) items.Add(Mi("Create sketch on this plane", () => vm.UseDatumNode(nodes[0]), !vm.IsSketching));
         }
+        if (nodes.Count == 1 && vm.CanLookAtNode(nodes[0])) items.Add(Mi("Look at", () => vm.LookAtNode(nodes[0])));
         if (objs.Count == 1 && objs[0].ObjKind == ObjKind.Sketch) items.Add(Mi("Edit sketch", () => vm.EditSketchNode(objs[0])));
         if (objs.Count == 1 && vm.Session.FeatureNodeFor(objs[0].ObjectId) is { } feature)
             items.Add(Mi("Edit feature…", () => vm.Session.EditFeature(feature), !vm.IsSketching));

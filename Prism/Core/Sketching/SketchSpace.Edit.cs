@@ -145,6 +145,73 @@ public sealed partial class SketchContext
         _gizmoFrame=original;GizmoSize=_independentSizeBefore;GizmoStretch=_independentStretchBefore;GizmoEditing=false;ClearGizmoTarget();session.NotifySketchChanged();session.RaiseState();session.Invalidate();
     }
 
+    /// <summary>Clones the selected curves (and the points they use) in place and selects the clones. Constraints are not copied. False when no curve is selected.</summary>
+    public bool DuplicateSelection()
+    {
+        var m = Model; var map = new System.Collections.Generic.Dictionary<int, int>();
+        int P(int pid)
+        {
+            if (!map.TryGetValue(pid, out int np)) { var q = m.P(pid); np = m.AddPoint(q.X, q.Y); m.P(np).Z = q.Z; map[pid] = np; }
+            return np;
+        }
+        var copies = new System.Collections.Generic.List<int>();
+        foreach (int id in SelEntities.ToList())
+        {
+            var e = m.EntityOrNull(id); if (e == null) continue;
+            int c = e.Type switch
+            {
+                EntType.Line => m.AddLine(P(e.A), P(e.B), e.Construction),
+                EntType.Circle => m.AddCircle(P(e.A), e.R, e.Construction),
+                EntType.Arc => m.AddArc(P(e.A), P(e.B), P(e.C), e.Construction),
+                EntType.Ellipse => m.AddEllipse(P(e.A), P(e.B), e.R, e.Construction),
+                EntType.Spline => m.AddSpline(e.Pts.Select(P).ToList(), e.Closed, e.ControlPoints, e.Construction),
+                EntType.Point => m.AddPointEntity(P(e.A), e.Construction),
+                _ => -1,
+            };
+            if (c >= 0) copies.Add(c);
+        }
+        if (copies.Count == 0) return false;
+        SelEntities.Clear(); foreach (int c in copies) SelEntities.Add(c);
+        SelPoints.Clear();
+        return true;
+    }
+
+    /// <summary>Curves selected on drawing planes other than the active one (a box or lasso selects everything visible). Section index to entity ids.</summary>
+    public System.Collections.Generic.Dictionary<int, System.Collections.Generic.HashSet<int>> ExtraSelection { get; } = [];
+    /// <summary>Selects, on every non-active drawing plane, the curves the finder returns. Returns how many were added.</summary>
+    public int SelectOtherPlanesInRegion(Func<SketchModel, Plane3, System.Collections.Generic.List<int>> finder)
+    {
+        int n = 0;
+        for (int i = 0; i < _sections.Count; i++)
+        {
+            if (i == _activeSection) continue;
+            var ids = finder(_sections[i].Model, _sections[i].Plane); if (ids.Count == 0) continue;
+            if (!ExtraSelection.TryGetValue(i, out var set)) ExtraSelection[i] = set = [];
+            foreach (int id in ids) if (set.Add(id)) n++;
+        }
+        return n;
+    }
+    /// <summary>Removes the curves selected on other planes. The caller owns the undo step.</summary>
+    bool DeleteExtraSelection()
+    {
+        bool any = false;
+        foreach (var (index, ids) in ExtraSelection)
+        {
+            if (index < 0 || index >= _sections.Count) continue;
+            var m = _sections[index].Model;
+            foreach (int id in ids) if (m.EntityOrNull(id) != null) { m.RemoveEntity(id); any = true; }
+            m.PruneUnusedPoints(m.Points.Select(p => p.Id).ToList());
+        }
+        ExtraSelection.Clear();
+        return any;
+    }
+
+    SpaceSnapshot? _gizmoCopyBase;
+    System.Collections.Generic.List<int>? _gizmoCopyOriginals;
+    bool _gizmoCopyDrag;
+    SpaceSnapshot? _copyUndoBase;
+    /// <summary>Call before an Alt-drag copy adds its clones, so one undo removes the copy as well as the move.</summary>
+    internal void MarkCopyUndoBase() => _copyUndoBase=CaptureSpace();
     internal void BeginSelectionTranslation() { _selectionMoveSnapshot=CaptureSpace();_selectionMoveValid=true;_geometryError=""; }
     internal void PreviewSelectionTranslation(CadSession s,Vec3 delta)
     {
@@ -155,8 +222,9 @@ public sealed partial class SketchContext
     internal void EndSelectionTranslation(CadSession s,bool cancel=false)
     {
         if(_selectionMoveSnapshot is not { } snapshot)return;
-        if(!cancel&&_selectionMoveValid){_undo.Push(snapshot);RememberGizmoTargetCenter();}
-        else{RestoreSpace(snapshot);if(!cancel)s.Say(_geometryError.Length>0?_geometryError:"That move conflicts with the constraints.",true);}
+        var copyBase=_copyUndoBase;_copyUndoBase=null;
+        if(!cancel&&_selectionMoveValid){_undo.Push(copyBase??snapshot);RememberGizmoTargetCenter();}
+        else{RestoreSpace(copyBase??snapshot);if(!cancel)s.Say(_geometryError.Length>0?_geometryError:"That move conflicts with the constraints.",true);}
         _selectionMoveSnapshot=null;s.NotifySketchChanged();s.Invalidate();
     }
 

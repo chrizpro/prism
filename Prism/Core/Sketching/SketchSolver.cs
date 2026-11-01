@@ -85,7 +85,7 @@ public static class SketchSolver
                             double lu = dx * ca + dy * sa, lv = -dx * sa + dy * ca;
                             r.Add((Math.Sqrt(lu * lu / (a * a) + lv * lv / (b * b)) - 1) * Math.Min(a, b));
                         }
-                        else r.Add(Dist(X(f[0]), Y(f[0]), X(e.A), Y(e.A)) - Rad(e));
+                        else if (e.Type is EntType.Circle or EntType.Arc) r.Add(Dist(X(f[0]), Y(f[0]), X(e.A), Y(e.A)) - Rad(e));   // splines and the rest have no centre to measure from
                         break;
                     }
                     case CType.Horizontal: if (f.Length == 2) r.Add(Y(f[0]) - Y(f[1])); else { var l = M.E(f[0]); r.Add(Y(l.A) - Y(l.B)); } break;

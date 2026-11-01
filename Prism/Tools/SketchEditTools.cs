@@ -1,3 +1,4 @@
+using Prism.Kernel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +36,24 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         return c;
     }
 
+    bool HitsRegion(CadSession s, List<Vec3> pts, bool window)
+    {
+        var cam = s.Camera;
+        var px = pts.Select(q => cam.Project(q)).ToList(); if (px.Any(q => q == null)) return false;
+        bool any = false, all = true;
+        for (int i = 0; i + 1 < px.Count; i++)
+        {
+            var a = px[i]!.Value; var b = px[i + 1]!.Value;
+            int steps = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)) / 5));
+            for (int k = 0; k <= steps; k++)
+            {
+                bool ins = InRegion(a.x + (b.x - a.x) * k / steps, a.y + (b.y - a.y) * k / steps, window);
+                any |= ins; all &= ins;
+            }
+        }
+        return window ? all : any;
+    }
+
     void FinishRegion(CadSession s)
     {
         _region = false;
@@ -45,25 +64,15 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         foreach (var (e, pts) in sk.Model.Polylines(sk.Plane))
         {
             if(!sk.EntityVisible(e))continue;
-            var px = pts.Select(q => cam.Project(q)).ToList(); if (px.Any(q => q == null)) continue;
-            bool any = false, all = true;
-            for (int i = 0; i + 1 < px.Count; i++)
-            {
-                var a = px[i]!.Value; var b = px[i + 1]!.Value;
-                int steps = Math.Max(1, (int)Math.Ceiling(Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)) / 5));
-                for (int k = 0; k <= steps; k++)
-                {
-                    bool ins = InRegion(a.x + (b.x - a.x) * k / steps, a.y + (b.y - a.y) * k / steps, window);
-                    any |= ins; all &= ins;
-                }
-            }
-            if (window ? all : any) { sk.SelEntities.Add(e.Id); n++; }
+            if (HitsRegion(s, pts, window)) { sk.SelEntities.Add(e.Id); n++; }
         }
         foreach (var e in sk.Model.Entities.Where(e => e.Type == EntType.Point))
         {
             var q = cam.Project(sk.Plane.PointAt(sk.Model.P(e.A).X, sk.Model.P(e.A).Y));
             if (q != null && InRegion(q.Value.x, q.Value.y, window)) { sk.SelEntities.Add(e.Id); n++; }
         }
+        // Everything visible can be selected, including curves drawn on other planes (other views).
+        n += sk.SelectOtherPlanesInRegion((model, plane) => model.Polylines(plane).Where(t => !t.ent.Construction || model.ShowConstruction).Where(t => HitsRegion(s, t.pts, window)).Select(t => t.ent.Id).ToList());
         s.Say(n == 0 ? "Nothing in that area." : $"{n} selected. Delete removes them; pick a constraint tool to apply it to them.");
         s.NotifySketchChanged(); s.Invalidate();
     }
@@ -71,10 +80,8 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         if (!_region) return;
-        var sk = Sk(s);
         if (!_lasso) { o.AddRect(_rx0, _ry0, _rx1, _ry1); return; }
-        var pts = _path.Select(q => sk.PlanePoint(s, q.x, q.y)).Where(q => q != null).Select(q => sk.Plane.PointAt(q!.Value.u, q!.Value.v)).ToList();
-        o.AddPolyline(pts, 0xFF4C94FF, 1.6f, true);
+        o.AddScreenPath(_path);      // screen space: stays visible from any view, whatever plane the sketch is on
     }
 
     /// <summary>Every curve joined to this one end to end (sharing or coinciding points), construction and normal kept apart.</summary>
@@ -136,7 +143,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
             return true;
         }
         bool keepSelection = !p.Shift && (pid >= 0 && sk.SelPoints.Count==1 && sk.SelEntities.Count==0 && sk.SelPoints.Contains(pid) || eid >= 0 && sk.SelEntities.Contains(eid));
-        if (!p.Shift && !keepSelection) { sk.SelEntities.Clear(); sk.SelPoints.Clear(); }
+        if (!p.Shift && !keepSelection) { sk.SelEntities.Clear(); sk.SelPoints.Clear(); sk.ExtraSelection.Clear(); }
         _drag = Drag.None; _down = false; _started = false;
         _geometryTranslation = false; _dragPlane = sk.Plane;
         var uv = sk.PlanePoint(s, p.X, p.Y);
@@ -179,7 +186,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
             {
                 if (Math.Abs(p.X - _px0) + Math.Abs(p.Y - _py0) < 4) return;
                 _started = true; _snapshot = sk.Model.Clone();
-                if (p.Alt && _drag == Drag.Entity) CopyDraggedEntities(sk);
+                if (p.Alt && _drag is Drag.Entity or Drag.Radius) { _drag = Drag.Entity; sk.MarkCopyUndoBase(); CopyDraggedEntities(sk); }
                 if (_drag == Drag.Entity && sk.GeometryEditing) { sk.BeginSelectionTranslation(); _geometryTranslation = true; }
             }
             var (rayOrigin,rayDirection)=s.Camera.Ray(p.X,p.Y);
@@ -236,31 +243,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     void CopyDraggedEntities(SketchContext sk)
     {
         var m = sk.Model;
-        var map = new Dictionary<int, int>();
-        int P(int pid)
-        {
-            if (!map.TryGetValue(pid, out int np)) { var q = m.P(pid); np = m.AddPoint(q.X, q.Y); map[pid] = np; }
-            return np;
-        }
-        var copies = new List<int>();
-        foreach (int id in sk.SelEntities.ToList())
-        {
-            var e = m.EntityOrNull(id); if (e == null) continue;
-            int c = e.Type switch
-            {
-                EntType.Line => m.AddLine(P(e.A), P(e.B), e.Construction),
-                EntType.Circle => m.AddCircle(P(e.A), e.R, e.Construction),
-                EntType.Arc => m.AddArc(P(e.A), P(e.B), P(e.C), e.Construction),
-                EntType.Ellipse => m.AddEllipse(P(e.A), P(e.B), e.R, e.Construction),
-                EntType.Spline => m.AddSpline(e.Pts.Select(P).ToList(), e.Closed, e.ControlPoints, e.Construction),
-                EntType.Point => m.AddPointEntity(P(e.A), e.Construction),
-                _ => -1,
-            };
-            if (c >= 0) copies.Add(c);
-        }
-        if (copies.Count == 0) return;
-        sk.SelEntities.Clear(); foreach (int c in copies) sk.SelEntities.Add(c);
-        sk.SelPoints.Clear();
+        if (!sk.DuplicateSelection()) return;
         _start.Clear();
         foreach (var q in sk.SelEntities.SelectMany(id => m.PointsOf(m.E(id)))) { var pt = m.P(q); _start[q] = (pt.X, pt.Y); }
     }
@@ -272,7 +255,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         {
             case "Delete": return sk.DeleteSelected(s) || true;
             case "Escape":
-                if (sk.SelEntities.Count + sk.SelPoints.Count > 0 || sk.SelConstraint >= 0) { sk.SelEntities.Clear(); sk.SelPoints.Clear(); sk.SelConstraint = -1; s.NotifySketchChanged(); s.Invalidate(); return true; }
+                if (sk.SelEntities.Count + sk.SelPoints.Count + sk.ExtraSelection.Count > 0 || sk.SelConstraint >= 0) { sk.SelEntities.Clear(); sk.SelPoints.Clear(); sk.ExtraSelection.Clear(); sk.SelConstraint = -1; s.NotifySketchChanged(); s.Invalidate(); return true; }
                 return false;
         }
         return false;

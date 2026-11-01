@@ -156,6 +156,7 @@ public sealed partial class MainViewModel
         return new RibbonButton
         {
             Id = id, Label = cur.Label.Replace("\n", " "), Icon = cur.Icon, Description = desc, Size = size, Menu = [.. variants], IsSplit = true, Current = cur,
+            FollowChecked = true,      // a dropdown looks pressed, and shows the tool, while any tool inside it is running
             CanExecute = () => { foreach (var v in variants) { v.Refresh(); if (v.IsEnabled) return true; } return false; },
             Picked = v => { picks[id] = v.Label.Replace("\n", " "); AppSettings.Save(false); },
         };

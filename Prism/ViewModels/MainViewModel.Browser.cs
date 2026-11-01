@@ -270,6 +270,23 @@ public sealed partial class MainViewModel
         foreach (var o in Session.Objects.ToList()) if (!o.Visible) Session.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
     }
 
+    /// <summary>Look straight at the plane a tree row stands for (an origin plane, a saved plane, a construction plane or a sketch), whatever is selected or being drawn.</summary>
+    public bool LookAtNode(BrowserNode node)
+    {
+        Prism.Kernel.Plane3? plane = null;
+        if (node.IsActiveSketchDatum && Session.Sketch is { } sketch && node.OriginIndex >= 0 && node.OriginIndex < sketch.Datums.Count && sketch.Datums[node.OriginIndex].Kind == Core.Sketching.SketchDatumKind.Plane)
+            plane = sketch.Datums[node.OriginIndex].Frame;
+        else if (node.SelectionItem is { } item) plane = Session.PlaneOf(item);
+        if (plane is not { } target) { Session.Say("That row has no plane to look at.", true); return false; }
+        Session.LookAt(target);
+        Session.Say($"Looking straight at {node.Title}. Choose Look at again to see it from the other side.");
+        return true;
+    }
+
+    public bool CanLookAtNode(BrowserNode node)
+        => node.IsActiveSketchDatum ? node.DatumKind == Core.Sketching.SketchDatumKind.Plane
+        : node.SelectionItem is { } item && Session.PlaneOf(item) != null;
+
     public void SketchOnPlane(BrowserNode node)
     {
         if (node.Kind != NodeKind.Origin || node.OriginIndex > 2) return;

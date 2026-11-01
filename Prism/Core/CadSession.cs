@@ -1667,21 +1667,55 @@ public sealed partial class CadSession : ObservableObject
         AddImported(Occ.ImportStep(path), path);
     }
 
+    /// <summary>Every solid, surface and curve inside an imported shape, with its on-screen mesh made in parallel (so the UI thread only has to add the objects).</summary>
+    public sealed record PreparedImport(Shape Root, List<(Shape Shape, ObjKind Kind, MeshData? Mesh)> Parts);
+
+    /// <summary>Read a file and mesh its bodies away from the UI thread. Call <see cref="AddPrepared"/> with the result on the UI thread.</summary>
+    public static PreparedImport PrepareImport(string path, IProgress<string>? progress = null)
+    {
+        progress?.Report($"Reading {Path.GetFileName(path)}…");
+        Shape root = Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".step" or ".stp" => Occ.ImportStep(path),
+            ".iges" or ".igs" => Occ.ImportIges(path),
+            _ => Occ.FromBrep(File.ReadAllText(path)),
+        };
+        var leaves = new List<Shape>();
+        void Walk(Shape s) { if (s.Kind == ShapeKind.Compound) { foreach (var c in s.Children()) Walk(c); } else leaves.Add(s); }
+        Walk(root);
+        var parts = leaves.Select(s => (Shape: s, Kind: SceneObject.Classify(s), Mesh: (MeshData?)null)).ToList();
+        int done = 0, total = parts.Count(p => p.Kind != ObjKind.Curve);
+        System.Threading.Tasks.Parallel.For(0, parts.Count, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) }, i =>
+        {
+            if (parts[i].Kind == ObjKind.Curve) return;
+            parts[i] = parts[i] with { Mesh = parts[i].Shape.Tessellate() };
+            progress?.Report($"Meshing {System.Threading.Interlocked.Increment(ref done)} of {total}…");
+        });
+        return new PreparedImport(root, parts);
+    }
+
+    public void AddPrepared(PreparedImport prepared, string path) => AddImported(prepared.Root, path, prepared);
+
     /// <summary>Add every solid, surface and curve of an imported shape as its own object.</summary>
-    void AddImported(Shape root, string path)
+    void AddImported(Shape root, string path, PreparedImport? prepared = null)
     {
         Checkpoint();
         int count = 0;
+        void Add(Shape s, ObjKind k, MeshData? mesh)
+        {
+            var name = NextName(k == ObjKind.Solid ? "Body" : k == ObjKind.Surface ? "Surface" : "Curve");
+            uint col = k == ObjKind.Solid ? Palette.ForIndex(count) : k == ObjKind.Surface ? Palette.Surface : Palette.Curve;
+            var o = new SceneObject(Guid.NewGuid(), name, s, k, col);
+            if (mesh != null) o.PrimeMesh(mesh);
+            Objects = Objects.Add(o);
+            count++;
+        }
         void Walk(Shape s)
         {
             if (s.Kind == ShapeKind.Compound) { foreach (var c in s.Children()) Walk(c); return; }
-            var k = SceneObject.Classify(s);
-            var name = NextName(k == ObjKind.Solid ? "Body" : k == ObjKind.Surface ? "Surface" : "Curve");
-            uint col = k == ObjKind.Solid ? Palette.ForIndex(count) : k == ObjKind.Surface ? Palette.Surface : Palette.Curve;
-            Objects = Objects.Add(new SceneObject(Guid.NewGuid(), name, s, k, col));
-            count++;
+            Add(s, SceneObject.Classify(s), null);
         }
-        Walk(root);
+        if (prepared != null) foreach (var (s, k, m) in prepared.Parts) Add(s, k, m); else Walk(root);
         RaiseScene(); ZoomExtents(); Say($"Imported {count} object(s) from {Path.GetFileName(path)}");
     }
 

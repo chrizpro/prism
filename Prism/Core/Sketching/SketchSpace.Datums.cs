@@ -30,7 +30,19 @@ public sealed partial class SketchContext
 
     public void UseDatum(CadSession s, Guid? id)
     {
-        if (id == null) { ActiveDatumId = null; s.NotifySketchChanged(); return; }
+        if (id == null)
+        {
+            // Live gizmo: back to normal. After working from a saved plane the gizmo returns to the global axes (XY) where it stands.
+            bool wasReference = ActiveDatumId != null;
+            ActiveDatumId = null;
+            if (wasReference && Is3DEnabled && !HasGeometrySelection)
+            {
+                _gizmoFrame = new(_gizmoFrame.Origin, Vec3.UnitX, Vec3.UnitY); GizmoSize = 1; GizmoStretch = 1;
+                SetGizmoPlane(s, 0);
+                s.Say("Live gizmo: back to the global axes. The saved plane stays in the object tree.");
+            }
+            s.NotifySketchChanged(); s.RaiseState(); s.Invalidate(); return;
+        }
         var datum = Datums.FirstOrDefault(d => d.Id == id); if (datum == null) return;
         var frame = datum.Frame; var before = CaptureSpace();
         if(!Is3DEnabled)

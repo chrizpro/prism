@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Prism.Commands;
 using Prism.Core;
@@ -241,14 +243,33 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         if (PickOpenFile == null) return;
         var path = await PickOpenFile("Import file", CadSession.ImportPatterns);
-        if (path != null) Guard(() => Session.ImportFile(path));
+        if (path != null) await ImportPath(path);
+    }
+
+    /// <summary>
+    /// STEP, IGES and BREP files are read and meshed on background threads (large assemblies took a minute with the window frozen); the status bar shows progress
+    /// and the finished bodies are added in one go. Other formats are quick and load directly.
+    /// </summary>
+    async Task ImportPath(string path)
+    {
+        if (Path.GetExtension(path).ToLowerInvariant() is not (".step" or ".stp" or ".iges" or ".igs" or ".brep")) { Guard(() => Session.ImportFile(path)); return; }
+        bool finished = false;
+        var progress = new Progress<string>(m => { if (!finished) Session.Say(m); });
+        try
+        {
+            Session.Say($"Importing {Path.GetFileName(path)}…");
+            var prepared = await Task.Run(() => CadSession.PrepareImport(path, progress));
+            finished = true;
+            Session.AddPrepared(prepared, path);
+        }
+        catch (Exception e) { finished = true; Session.Say(e.Message, true); }
     }
 
     public async void ImportStep()
     {
         if (PickOpenFile == null) return;
         var path = await PickOpenFile("Import STEP", ["*.step", "*.stp"]);
-        if (path != null) Guard(() => Session.ImportStep(path));
+        if (path != null) await ImportPath(path);
     }
 
     public async void Export(string kind)
@@ -287,7 +308,7 @@ public sealed partial class MainViewModel : ViewModelBase
     RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
     {
         CommandCatalog.Register(make);
-        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching);
+        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching, () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
         // Some unrelated tools share an icon (for example Sweep and Sweep 2 rails).
         button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
         return button;
@@ -526,21 +547,20 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Direct Modeling",
             Groups =
             [
-                G("Direct",
-                    Cmd("Hole", "hole", () => new HoleCommand(), "Create holes on exact bodies."),
-                    Cmd("Push /\nPull", "pushpull", () => new PushPullCommand(), "Move planar faces on solid bodies."),
-                    Cmd("Move Hole\n/ Boss", "movehole", () => new MoveHoleCommand(), "Move a hole or boss on a solid."),
-                    Cmd("Delete\nFace", "deleteface", () => new DeleteFaceCommand(), "Remove a face and heal its neighbors.")),
-                G("Faces",
-                    Cmd("Move\nFace", "moveface", () => new MoveFaceCommand(), "Slide and tilt flat faces; the body stretches to follow."),
-                    Cmd("Replace\nFace", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face."),
-                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
-                    Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.")),
-                G("Modify",
-                    Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
-                    Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges."),
+                G("Add",
+                    Cmd("Hole", "hole", () => new HoleCommand(), "Add a new plain or threaded hole to an exact body, including imported parts."),
+                    Cmd("Fillet", "fillet", () => new FilletCommand(), "Add a round to selected edges."),
+                    Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Add a bevel to selected edges."),
                     Cmd("Shell", "shell", () => new ShellCommand(), "Hollow out a body, optionally opening faces."),
                     Cmd("Split\nBody", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.")),
+                G("Edit",
+                    Cmd("Push /\nPull", "pushpull", () => new PushPullCommand(), "Edit existing faces, holes and bosses by dragging them out or in. No history needed. Can include matching features or the whole pattern."),
+                    Cmd("Move\nFace", "moveface", () => new MoveFaceCommand(), "Edit existing flat faces: slide and tilt them; the body stretches to follow. Can include matching features or the whole pattern."),
+                    Cmd("Move Hole\n/ Boss", "movehole", () => new MoveHoleCommand(), "Edit an existing hole or boss: move it or change its diameter. Can include matching features or the whole pattern."),
+                    Cmd("Replace\nFace", "replaceface", () => new ReplaceFaceCommand(), "Edit existing faces so they lie on another plane or face."),
+                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Edit existing walls: lean them away from a pull direction."),
+                    Cmd("Delete\nFace", "deleteface", () => new DeleteFaceCommand(), "Remove an existing hole, fillet, pocket or boss and let the neighbouring faces close the gap. Can include matching features or the whole pattern."),
+                    Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.")),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Prism.Kernel;
 
 namespace Prism.Core;
@@ -15,6 +16,9 @@ public sealed class Overlay
     public readonly record struct Rect(double X0, double Y0, double X1, double Y1);
     public List<Tri> Tris { get; } = [];
     public List<Rect> Rects { get; } = [];
+    /// <summary>Screen-space (pixel) outlines, drawn dashed and lightly filled, such as a lasso selection loop.</summary>
+    public List<IReadOnlyList<(double x, double y)>> ScreenPaths { get; } = [];
+    public void AddScreenPath(IReadOnlyList<(double x, double y)> pts) { if (pts.Count > 1) ScreenPaths.Add(pts.ToArray()); }
     public void AddTri(Vec3 a, Vec3 b, Vec3 c, uint color) => Tris.Add(new(a, b, c, color));
     /// <summary>A screen-space rectangle (pixels) such as a selection box.</summary>
     public void AddRect(double x0, double y0, double x1, double y1) => Rects.Add(new(x0, y0, x1, y1));
@@ -30,7 +34,7 @@ public sealed class Overlay
     }
     public void AddDot(Vec3 p, uint color, float size = 7) => Dots.Add(new(p, color, size));
     public void AddLabel(Vec3 p, string text, bool pill = true, int style = 0) => Labels.Add(new(p, text, pill, style));
-    public void Clear() { Lines.Clear(); Dots.Clear(); Labels.Clear(); Tris.Clear(); Rects.Clear(); }
+    public void Clear() { Lines.Clear(); Dots.Clear(); Labels.Clear(); Tris.Clear(); Rects.Clear(); ScreenPaths.Clear(); }
 }
 
 public readonly record struct PointerInfo(double X, double Y, bool Left, bool Shift, bool Ctrl, bool Alt, int Clicks = 1);

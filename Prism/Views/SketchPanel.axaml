@@ -62,8 +62,9 @@
         <StackPanel>
         <StackPanel Margin="12,12,12,10" Spacing="8">
             <TextBlock Text="Drawing" Classes="section"/>
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <RadioButton Content="Draw flat" GroupName="SketchDrawingMode" IsChecked="{Binding SketchDrawFlat, Mode=TwoWay}" ToolTip.Tip="Place new geometry on the active plane. Use the view cube to inspect it from another direction."/>
+            <CheckBox Name="Enable3D" Content="3D sketch" IsChecked="{Binding SketchSpatialEnabled, Mode=TwoWay}" ToolTip.Tip="Off: a plain 2D sketch on the active plane. On: spatial tools are available and you can choose between drawing flat and drawing in space. Switch it any time."/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding SketchSpatialEnabled}">
+                <RadioButton Content="Draw flat" GroupName="SketchDrawingMode" IsChecked="{Binding SketchDrawFlat, Mode=TwoWay}" ToolTip.Tip="Draw on the active plane, then change the view to edit the curve points from another direction."/>
                 <RadioButton Grid.Column="1" Name="DrawInSpace" Content="Draw in space" GroupName="SketchDrawingMode" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="Use the drawing gizmo to place geometry on planes in space."/>
             </Grid>
             <CheckBox Name="Free3DEditing" IsVisible="{Binding Sketch3DEnabled}" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Allow selected points to move out of their drawing plane. Use the gizmo arrows and plane squares to control movement. Off restricts point movement to its plane." HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><TextBlock Text="Free 3D editing (Not limited to the plane)" TextWrapping="Wrap"/></CheckBox>

@@ -261,6 +261,24 @@ public sealed partial class SketchContext
             var c = Model.Constraints.FirstOrDefault(x => x.Id == SelConstraint && !x.Hidden); SelConstraint = -1;
             if (c != null) { RemoveConstraint(s, c); return true; }
         }
+        if (SelEntities.Count + SelPoints.Count == 0 && ExtraSelection.Count > 0)
+        {
+            var snapshot = CaptureSpace();
+            if (!DeleteExtraSelection()) return false;
+            _undo.Push(snapshot); Solve(s); s.NotifySketchChanged(); s.Invalidate(); return true;
+        }
+        if (ExtraSelection.Count > 0)
+        {
+            // curves on other planes go in the same undo step as the active plane's selection
+            bool activeDone = DeleteActiveSelection(s);
+            if (activeDone) { DeleteExtraSelection(); Solve(s); s.NotifySketchChanged(); s.Invalidate(); }
+            return activeDone;
+        }
+        return DeleteActiveSelection(s);
+    }
+
+    bool DeleteActiveSelection(CadSession s)
+    {
         if (SelEntities.Count + SelPoints.Count == 0) { s.Say("Select something to delete first.", true); return false; }
         if (SelEntities.Count == 0 && SelPoints.All(pid => Model.Entities.Where(e => e.Type == EntType.Spline && e.Pts.Contains(pid)).Any() && !Model.Entities.Any(e => e.Type != EntType.Spline && Model.PointsOf(e).Contains(pid))))
         {
@@ -531,7 +549,7 @@ public sealed partial class SketchContext
 
     public int PointFor(SnapInfo sn)
     {
-        if (sn.Kind == SnapKind.Point) return sn.Id;
+        if (sn.Kind == SnapKind.Point && Model.Points.Any(p => p.Id == sn.Id)) return sn.Id;   // a stale id (point deleted, or the plane changed under a pending click) becomes a plain new point
         int id = Model.AddPoint(sn.U, sn.V);
         if (Is3DEnabled) Model.P(id).Z = sn.Depth;
         if (sn.Kind == SnapKind.Track)
@@ -542,7 +560,7 @@ public sealed partial class SketchContext
             if (both && sn.Id2 >= 0) Model.Add(CType.Vertical, refs: [id, sn.Id2]);
             return id;
         }
-        if (sn.Kind == SnapKind.Entity) Model.Add(CType.PointOnEntity, 0, 0, false, id, sn.Id);
+        if (sn.Kind == SnapKind.Entity && Model.EntityOrNull(sn.Id) is { Type: EntType.Line or EntType.Circle or EntType.Arc or EntType.Ellipse }) Model.Add(CType.PointOnEntity, 0, 0, false, id, sn.Id);
         else if (sn.Kind == SnapKind.Midpoint) Model.Add(CType.Midpoint, 0, 0, false, id, sn.Id);
         return id;
     }

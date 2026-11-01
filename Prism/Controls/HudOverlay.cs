@@ -35,6 +35,17 @@ public sealed class HudOverlay : Control
             var rect = new Rect(Math.Min(r.X0, r.X1), Math.Min(r.Y0, r.Y1), Math.Abs(r.X1 - r.X0), Math.Abs(r.Y1 - r.Y0));
             ctx.DrawRectangle(new SolidColorBrush(Color.FromArgb(40, 31, 111, 235)), new Pen(new SolidColorBrush(Color.FromRgb(31, 111, 235)), 1, DashStyle.Dash), rect);
         }
+        foreach (var path in vp.LastOverlay.ScreenPaths)
+        {
+            var geometry = new StreamGeometry();
+            using (var g = geometry.Open())
+            {
+                g.BeginFigure(new Point(path[0].x, path[0].y), true);
+                for (int i = 1; i < path.Count; i++) g.LineTo(new Point(path[i].x, path[i].y));
+                g.EndFigure(true);
+            }
+            ctx.DrawGeometry(new SolidColorBrush(Color.FromArgb(40, 31, 111, 235)), new Pen(new SolidColorBrush(Color.FromRgb(31, 111, 235)), 1.5, DashStyle.Dash), geometry);
+        }
         foreach (var l in vp.LastOverlay.Labels)
         {
             var p = (vp.Cam ?? s.Camera).Project(l.P);

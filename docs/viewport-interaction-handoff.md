@@ -1,6 +1,6 @@
 # Viewport interaction: handoff for the next agent
 
-Goal set by the owner: **everywhere it is possible, the user should be able to do the job directly in the 3D viewport (click, drag, type on the canvas), not only through the options/properties panel.** The model is Fusion 360's feel. The owner calls out sketching first ("knock sketching out of the park"), then feature tools, assembly, animation and the rest.
+Goal set by the owner: **everywhere it is possible, the user should be able to do the job directly in the 3D viewport (click, drag, type on the canvas), not only through the options/properties panel.** The target is a direct, canvas-first feel. The owner calls out sketching first ("knock sketching out of the park"), then feature tools, assembly, animation and the rest.
 
 Stack: C# / Avalonia, OpenCascade kernel in `native/`. Solution `Prism.slnx`; run with `dotnet run --project Prism.Desktop` (stop a running `Prism.Desktop.exe` before rebuilding or the copy step fails). Nothing below is committed; check `git status`.
 
@@ -8,7 +8,7 @@ Stack: C# / Avalonia, OpenCascade kernel in `native/`. Solution `Prism.slnx`; ru
 
 | Feature | Where |
 |---|---|
-| **Alignment tracking** (Fusion-style "acquire"): rest the pointer ~0.2 s on a point, a line midpoint or a rectangle center and a dashed guide line extends horizontally/vertically; the cursor snaps to it, and clicking adds Horizontal/Vertical constraints when the anchor is a real point. Also lines up with the tool's last click. | `Prism/Core/Sketching/SketchContext.cs` (`Snap`/`SnapCore`, `Hover`, `Acquired`, `TrackAcquired`, `RectangleCenter`, `TrackSegs`, `PointFor`); `Prism/Tools/SketchTools.cs` (`ClickTool` sets `sk.TrackFrom`) |
+| **Alignment tracking** ("acquire"): rest the pointer ~0.2 s on a point, a line midpoint or a rectangle center and a dashed guide line extends horizontally/vertically; the cursor snaps to it, and clicking adds Horizontal/Vertical constraints when the anchor is a real point. Also lines up with the tool's last click. | `Prism/Core/Sketching/SketchContext.cs` (`Snap`/`SnapCore`, `Hover`, `Acquired`, `TrackAcquired`, `RectangleCenter`, `TrackSegs`, `PointFor`); `Prism/Tools/SketchTools.cs` (`ClickTool` sets `sk.TrackFrom`) |
 | **Text tool** that is typed and sized in the viewport: drag a box (height = letter height) or click, type on the canvas, drag the corner dot to resize, drag the frame to move, click away / Ctrl+Enter to place. Placed text is clean geometry (lines + one spline per smooth curve; interior fit points hidden). | `Prism/Tools/SketchTextTool.cs`, `Prism/Core/Sketching/TextOutline.cs` (own TrueType glyf reader, no native code), `Prism/Views/MainWindow.axaml.cs` (`OnKeyDown`/`OnTextInput` route typing to the tool so letters do not fire shortcuts) |
 | **Dimension tool**: pick points/line/circle/arc, move to preview, click to place, value box opens in the viewport. Smart mode picks aligned/horizontal/vertical from where the pointer sits; a second line makes an angle. White lines with arrowheads. | `Prism/Tools/SketchEditTools.cs` (`DimensionTool`: `Place`, `Resolve`), `SketchContext.DimArrow`, `BuildDimensions` |
 | **Emboss** feature (raised or engraved sketch/text) with a drag arrow for height. | `Prism/Commands/EmbossCommand.cs` |

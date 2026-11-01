@@ -1884,6 +1884,12 @@ CK_API void* ck_edge_surface(void** edges, int n) {
         }
         // chain the curves end to end
         std::vector<Handle(Geom_BSplineCurve)> chain{ cs[0] }; std::vector<bool> used(n, false); used[0] = true;
+        std::vector<int> chainIdx{ 0 }; // input position of each chained curve, for the error messages
+        auto gapMsg = [](const char* what, int a, int b, double gap) {
+            char buf[200];
+            snprintf(buf, sizeof buf, "%s: curve %d and curve %d are %.4g apart (model units). Move their ends together or trim them to meet.", what, a, b, gap);
+            return std::string(buf);
+        };
         for (int k = 1; k < n; ++k) {
             gp_Pnt tail = chain.back()->EndPoint(); int pick = -1; bool flip = false; double best = 1e300;
             for (int i = 0; i < n; ++i) {
@@ -1892,11 +1898,18 @@ CK_API void* ck_edge_surface(void** edges, int n) {
                 if (ds < best) { best = ds; pick = i; flip = false; }
                 if (de < best) { best = de; pick = i; flip = true; }
             }
-            if (pick < 0 || best > tol) { fail("The curves do not meet end to end. Their ends have to touch."); return nullptr; }
+            if (pick < 0 || best > tol) {
+                // name the closest curve to the open end and how far off it is
+                fail(gapMsg("The curves do not meet end to end", chainIdx.back() + 1, pick + 1, best).c_str());
+                return nullptr;
+            }
             if (flip) cs[pick]->Reverse();
-            used[pick] = true; chain.push_back(cs[pick]);
+            used[pick] = true; chain.push_back(cs[pick]); chainIdx.push_back(pick);
         }
-        if (chain.back()->EndPoint().Distance(chain[0]->StartPoint()) > tol && n == 4) { fail("The four curves do not close into a loop."); return nullptr; }
+        if (n == 4) {
+            double closeGap = chain.back()->EndPoint().Distance(chain[0]->StartPoint());
+            if (closeGap > tol) { fail(gapMsg("The four curves do not close into a loop", chainIdx.back() + 1, chainIdx[0] + 1, closeGap).c_str()); return nullptr; }
+        }
         Handle(Geom_BSplineSurface) surf;
         // some boundary sets are rejected by one filling style but accepted by another
         const GeomFill_FillingStyle styles[3] = { GeomFill_CoonsStyle, GeomFill_CurvedStyle, GeomFill_StretchStyle };

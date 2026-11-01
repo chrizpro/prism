@@ -46,6 +46,10 @@
                 <ComboBox ItemsSource="{Binding SelectionRules}" SelectedIndex="{Binding SelectionRuleIndex}" SelectionChanged="OnIntentChanged" HorizontalAlignment="Stretch" MinHeight="32" ToolTip.Tip="Choose a whole profile, pick edges individually, or build a connected chain."/>
                 <CheckBox Content="Other path" IsChecked="{Binding OtherPath}" IsVisible="{Binding IsPartialLoop}" ToolTip.Tip="After picking the first and last edges, follow the other side of the loop."/>
             </StackPanel>
+            <StackPanel IsVisible="{Binding SmartPick}" Spacing="5" Margin="0,0,0,4">
+                <TextBlock Text="Select by" Classes="soft" FontSize="11"/>
+                <ComboBox ItemsSource="{Binding PickIntents}" SelectedIndex="{Binding IntentIndex}" SelectionChanged="OnIntentChanged" HorizontalAlignment="Stretch" MinHeight="32" ToolTip.Tip="A click can pick the whole hole, slot, pocket or boss it lands on, one face, a chain of smoothly joined faces, every feature of the same size, or the whole pattern it is part of."/>
+            </StackPanel>
             <Border Name="SelectionBorder" Classes="selectionEditor" Classes.active="{Binding IsActive}" Background="{DynamicResource FieldBg}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                 <StackPanel>
                     <ListBox Name="Rows" Classes="picks" Focusable="True" MaxHeight="128" SelectionChanged="OnSelectionChanged" KeyDown="OnRowsKeyDown"

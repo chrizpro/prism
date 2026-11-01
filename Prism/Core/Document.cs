@@ -61,6 +61,8 @@ public sealed class SceneObject
     public Shape Shape => _shape ??= Form != null ? FormToBrep.ToShape(Form) : throw new InvalidOperationException(Tri != null ? "This is a mesh: convert it to a solid first (Mesh tab > Mesh to Solid)." : "Object has no geometry.");
     public MeshData Mesh => _mesh ??= Tri != null ? Tri.ToMeshData() : Form != null ? Form.BuildMesh() : Shape.Tessellate();
     public bool HasBrep => Tri == null;
+    /// <summary>Hand over a tessellation made elsewhere (a background import) so nothing re-meshes it on the UI thread.</summary>
+    public void PrimeMesh(MeshData m) => _mesh ??= m;
     MeshData? _fine;
     /// <summary>A much finer tessellation, used only while a surface-quality display (zebra stripes, curvature map) is on: normals must vary smoothly across each triangle's neighbours or the stripes come out serrated.</summary>
     public MeshData FineMesh => _fine ??= Tri != null || Form != null ? Mesh : Shape.Tessellate(null, 0.012);

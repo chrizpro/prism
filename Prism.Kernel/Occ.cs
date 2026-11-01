@@ -41,12 +41,17 @@ public sealed class Shape : IDisposable
         }
     }
 
-    public unsafe MeshData Tessellate(double? deflection = null, double angle = 0.04)
+    /// <summary>Angular deflection of the on-screen mesh. Smooth shading uses exact surface normals, so a coarser angle looks the same and meshes several times faster than 0.04.</summary>
+    public const double DisplayAngle = 0.1;
+
+    /// <param name="angle">Angular deflection in radians. Left out, the display mesh (no explicit deflection) uses <see cref="DisplayAngle"/> and exact-size meshes for export or machining keep the finer 0.04.</param>
+    public unsafe MeshData Tessellate(double? deflection = null, double? angle = null)
     {
+        double ang = angle ?? (deflection == null ? DisplayAngle : 0.04);
         var pr = Props();
         double diag = (pr.Max - pr.Min).Length;
         double lin = deflection ?? Math.Max(diag * 0.0004, 1e-4);
-        IntPtr m = Native.ck_mesh_create(Handle, lin, angle);
+        IntPtr m = Native.ck_mesh_create(Handle, lin, ang);
         if (m == IntPtr.Zero) throw new KernelException(Occ.LastError);
         try
         {

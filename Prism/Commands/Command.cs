@@ -117,6 +117,12 @@ public sealed partial class SelectionSlot : ObservableObject
     public string DisplayLabel => Caption ?? Label;
     public SelFilter Filter { get; init; } = SelFilter.AnyObject;
     public bool Multi { get; init; }
+    /// <summary>Clicking a face selects what it belongs to (a hole, slot, pocket, boss...), by the chosen <see cref="Intent"/>, instead of the one face.</summary>
+    public bool SmartPick { get; init; }
+    static readonly string[] IntentNames = ["Whole feature", "Single face", "Tangent chain", "Same size", "Pattern"];
+    public string[] PickIntents => IntentNames;
+    [ObservableProperty] public partial int IntentIndex { get; set; }
+    public PickIntent Intent => (PickIntent)Math.Clamp(IntentIndex, 0, IntentNames.Length - 1);
     public bool Optional { get; init; }
     public bool Ordered { get; init; }
     public bool IsResult { get; init; }
@@ -517,6 +523,7 @@ public abstract partial class Command : ObservableObject
         {
             slot.Items.Clear(); slot.Items.Add(item); AdvanceSlot(slot); return true;
         }
+        if (slot.Multi && slot.SmartPick && item.Kind == SelKind.Face && PickFeature(slot, item)) return true;
         if (slot.Multi)
         {
             if (!slot.Items.Remove(item) && !slot.TryAdd(item))
@@ -529,6 +536,31 @@ public abstract partial class Command : ObservableObject
             AdvanceSlot(slot);
         }
         return true;
+    }
+
+    /// <summary>A click on a face of a solid picks the whole feature it belongs to (or the tangent chain, the same-size features, the pattern); clicking it again deselects it.</summary>
+    bool PickFeature(SelectionSlot slot, SelItem item)
+    {
+        if (S.Find(item.Obj) is not { Kind: ObjKind.Solid, HasBrep: true } body) return false;
+        try
+        {
+            var feat = FeatureFinder.FeatureOf(body, item.Index);
+            var faces = FeatureFinder.Expand(body, item.Index, slot.Intent).Select(i => new SelItem(item.Obj, SelKind.Face, i)).ToList();
+            ConfigureInputs(() =>
+            {
+                if (faces.All(slot.Items.Contains)) foreach (var f in faces) slot.Items.Remove(f);
+                else foreach (var f in faces) slot.TryAdd(f);
+            });
+            UpdateSlots(); OnChanged();
+            if (feat != null && slot.Intent == PickIntent.Feature && feat.Kind != FeatureKind.Face)
+            {
+                int pattern = FeatureFinder.PatternSize(body, feat);
+                S.Say($"{feat.Name}: {faces.Count} face{(faces.Count == 1 ? "" : "s")} selected." + (pattern > 0 ? $" It is one of a pattern of {pattern + 1}: choose Pattern in Select by to take them all." : ""));
+            }
+            else if (slot.Intent != PickIntent.Face) S.Say($"{faces.Count} face{(faces.Count == 1 ? "" : "s")} selected.");
+            return true;
+        }
+        catch (KernelException) { return false; }
     }
 
     void UpdateSlots() { foreach (var s in Slots) s.Update(S.Describe); }
