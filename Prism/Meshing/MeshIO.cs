@@ -23,6 +23,7 @@ public static class MeshIO
             case ".obj": return LoadObj(File.ReadAllLines(path));
             case ".ply": return LoadPly(File.ReadAllBytes(path));
             case ".3mf": return Load3mf(path);
+            case ".xyz" or ".pts" or ".xyzn" or ".csv": throw new InvalidDataException("That is a point cloud, not a mesh. Use Mesh > Import Point Cloud to build a surface from it.");
             default: throw new InvalidDataException("Unknown mesh format. Use STL, OBJ, PLY or 3MF.");
         }
     }
