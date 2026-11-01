@@ -570,6 +570,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Edit existing geometry: cap an open loop of edges with a flat face or smooth patch so the body closes."),
                     Cmd("Extend /\nTrim Face", "pushpull", () => new ExtendTrimFaceCommand(), "Edit existing flat faces: grow or shrink them in their own plane until they meet a target plane or face."),
                     Cmd("Match\nFace", "replaceface", () => new MatchFaceCommand(), "Edit existing faces so they take the source face's plane, cylinder radius or cone angle."),
+                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up."),
+                    Cmd("Move\nBody", "move", () => new MoveBodyCommand(), "Move or turn a body while keeping a face flush, two holes coaxial or a round face tangent to another body."),
                     Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.")),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
