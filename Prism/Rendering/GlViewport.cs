@@ -437,6 +437,7 @@ public sealed unsafe class GlViewport : Decorator
         var hovItems = new List<SelItem>(); if (s.Hover is { } hh) hovItems.Add(hh);
         foreach (var gid in s.HighlightIds) hovItems.Add(new SelItem(gid, SelKind.Object, -1));
         var hov = hovItems.Count > 0 ? Build(hovItems) : [];
+        var preview = s.Hover != null && s.HoverPreview.Count > 0 ? Build(s.HoverPreview) : [];
 
         var mode = s.Display;
         gl.UseProgram(_mesh);
@@ -479,7 +480,7 @@ public sealed unsafe class GlViewport : Decorator
         gl.PolygonOffset(-0.5f, -0.5f);
         _look = (0f, 0.35f);
         U1(_mesh,"uPattern",(int)SurfacePattern.Plain);
-        foreach (var (dict, col, amount) in new[] { (sel, 0xFFFF8A1Fu, 0.55f), (hov, 0xFF35B6FFu, 0.45f) })
+        foreach (var (dict, col, amount) in new[] { (sel, 0xFFFF8A1Fu, 0.55f), (hov, 0xFF35B6FFu, 0.45f), (preview, 0xFF9BDCFFu, 0.3f) })
         {
             foreach (var o in visible)
             {

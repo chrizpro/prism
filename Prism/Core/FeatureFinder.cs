@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet }
+public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink }
 
 /// <summary>How a click grows into a selection (the "intent" of a pick in the direct-editing tools).</summary>
 public enum PickIntent { Feature, Face, Tangent, SameSize, Pattern }
@@ -17,7 +17,7 @@ public sealed record Round(Vec3 Origin, double Radius, bool Hole, double T0, dou
 /// <summary>A recognised feature: its faces, what it is, a size key (equal keys mean "same feature again") and where it sits.</summary>
 public sealed record Feat(int Face, FeatureKind Kind, string Key, Vec3 Centre, Vec3 Dir, IReadOnlyList<int> Faces, Round? Round)
 {
-    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", _ => "Face" };
+    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", _ => "Face" };
 }
 
 /// <summary>
@@ -64,7 +64,7 @@ public static class FeatureFinder
         for (int f = 0; f < n; f++)
         {
             var sh = shape.Sub(SubKind.Face, f); info[f] = Occ.FaceInfoOf(sh);
-            if (info[f].Type == "Cylinder") axis[f] = Occ.AxisOf(sh);
+            if (info[f].Type is "Cylinder" or "Cone") axis[f] = Occ.AxisOf(sh);
         }
         var a = new Analysis { Info = info, Axis = axis, Centre = new Vec3[n], Adj = new List<Link>[n], Normal = new Vec3[n], FirstPoint = new Vec3[n], Mesh = m };
         for (int f = 0; f < n; f++) a.Adj[f] = [];
@@ -280,6 +280,54 @@ public static class FeatureFinder
             string key = info.Type == "Plane" ? $"pln|{info.Area:0.###}|{nrm.X:0.###},{nrm.Y:0.###},{nrm.Z:0.###}" : $"{info.Type}|{info.Area:0.###}|{info.R1:0.####}|{info.R2:0.####}";
             Add(FeatureKind.Face, [f], nrm, key);
         }
+        MergeSteppedHoles(a, n, (k, fc, d, key, r) => Add(k, fc, d, key, r));
+    }
+
+    /// <summary>
+    /// Joins a round hole to what steps or flares it: a flat annulus square to the axis between two coaxial holes of different radius is a counterbore
+    /// (both bores and the annulus), and a cone coaxial with a hole is a countersink (the cone and the hole).
+    /// </summary>
+    static void MergeSteppedHoles(Analysis a, int n, Action<FeatureKind, List<int>, Vec3, string, Round?> add)
+    {
+        bool Coaxial(Round r, Vec3 d, Vec3 origin, Vec3 dir)
+        {
+            if (Vec3.Cross(d.Normalized(), dir.Normalized()).Length > 1e-4) return false;
+            var off = origin - r.Origin; return (off - dir.Normalized() * Vec3.Dot(off, dir.Normalized())).Length < 1e-4;
+        }
+        var merges = new List<(FeatureKind kind, List<int> faces, Vec3 dir, string key)>(); var taken = new HashSet<int>();
+        for (int f = 0; f < n; f++)
+        {
+            int own = a.FeatureOfFace[f]; if (own < 0 || a.Features[own].Kind != FeatureKind.Face) continue;
+            var holes = new List<Feat>();
+            foreach (var l in a.Adj[f])
+            {
+                int fi = a.FeatureOfFace[l.To];
+                if (fi >= 0 && a.Features[fi] is { Kind: FeatureKind.Hole, Round: not null } h && !holes.Contains(h) && !taken.Contains(fi)) holes.Add(h);
+            }
+            if (a.Info[f].Type == "Plane")
+            {
+                if (holes.Count != 2) continue;
+                var (h1, h2) = (holes[0], holes[1]);
+                if (Math.Abs(Vec3.Dot(a.Normal[f], h1.Dir.Normalized())) < 0.999 || !Coaxial(h1.Round!, h1.Dir, h2.Round!.Origin, h2.Dir) || Math.Abs(h1.Round!.Radius - h2.Round.Radius) < 1e-6) continue;
+                var big = h1.Round.Radius > h2.Round.Radius ? h1 : h2; var small = big == h1 ? h2 : h1;
+                taken.Add(a.FeatureOfFace[h1.Face]); taken.Add(a.FeatureOfFace[h2.Face]);
+                merges.Add((FeatureKind.Counterbore, [.. big.Faces, .. small.Faces, f], small.Dir,
+                    $"cbore|{big.Round!.Radius:0.####}|{small.Round!.Radius:0.####}|{big.Round.T1 - big.Round.T0:0.###}|{small.Round.T1 - small.Round.T0:0.###}"));
+            }
+            else if (a.Info[f].Type == "Cone" && a.Axis[f] is { } ax)
+            {
+                var h = holes.FirstOrDefault(x => Coaxial(x.Round!, x.Dir, ax.Origin, ax.Dir));
+                if (h == null) continue;
+                taken.Add(a.FeatureOfFace[h.Face]);
+                merges.Add((FeatureKind.Countersink, [.. h.Faces, f], h.Dir, $"csink|{h.Round!.Radius:0.####}|{a.Info[f].Area:0.###}"));
+            }
+        }
+        if (merges.Count == 0) return;
+        var drop = merges.SelectMany(m => m.faces).ToHashSet();
+        var keep = a.Features.Where(ft => !ft.Faces.Any(drop.Contains)).ToList();
+        a.Features.Clear(); a.FeatureOfFace = Enumerable.Repeat(-1, n).ToArray();
+        foreach (var ft in keep) { foreach (int g in ft.Faces) a.FeatureOfFace[g] = a.Features.Count; a.Features.Add(ft); }
+        foreach (var m in merges) add(m.kind, m.faces, m.dir, m.key, null);
     }
 
     static (double t0, double t1) Extent(Analysis a, IEnumerable<int> faces, Vec3 origin, Vec3 dir)
