@@ -4,6 +4,7 @@ using System.Linq;
 using Prism.Commands;
 using Prism.Controls;
 using Prism.Core;
+using Prism.Kernel;
 using Prism.Core.Assembly;
 
 namespace Prism.ViewModels;
@@ -102,6 +103,37 @@ public sealed partial class MainViewModel
                 Act("Fit view", "zoom-extents", () => s.ZoomExtents()), Act("Import image", "image", ImportImage), Cm("Measure", "measure", () => new MeasureCommand()), Cm("Section view", "section", () => new SectionCommand())];
     }
 
+    /// <summary>With faces of a solid selected: what they belong to (a hole, slot, pocket, boss, fillet...) and what can be done to it.</summary>
+    void AddFeatureMenu(List<MenuSpec> list)
+    {
+        var s = Session;
+        if (s.Sketch != null || s.ActiveCommand != null) return;
+        var faces = s.Selection.Where(i => i.Kind == SelKind.Face).ToList();
+        if (faces.Count == 0 || faces.Any(f => s.Find(f.Obj) is not { Kind: ObjKind.Solid, HasBrep: true })) return;
+        Feat? feat = null;
+        try { if (s.Find(faces[0].Obj) is { } body) feat = FeatureFinder.FeatureOf(body, faces[0].Index); } catch (KernelException) { }
+        bool isFeature = feat != null && feat.Kind != FeatureKind.Face; string name = isFeature ? feat!.Name.ToLowerInvariant() : "face";
+        void Edit(int action) { var c = new FeatureEditCommand { Factory = () => new FeatureEditCommand() }; s.StartCommand(c); if (s.ActiveCommand == c) c.Preset(faces, action); }
+        list.Add(MenuSpec.Sep);
+        if (isFeature)
+        {
+            var body = s.Find(faces[0].Obj)!; int pattern = FeatureFinder.PatternSize(body, feat!);
+            if (faces.Count < feat!.Faces.Count) list.Add(new($"Select the whole {name}", () => s.SelectItems(feat.Faces.Select(f => new SelItem(body.Id, SelKind.Face, f)))));
+            if (pattern > 0) list.Add(new($"Select the whole pattern ({pattern + 1})", () => s.SelectItems(FeatureFinder.Expand(body, faces[0].Index, PickIntent.Pattern).Select(f => new SelItem(body.Id, SelKind.Face, f)))));
+            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Move {name}…", () => Edit(0)));
+            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Copy {name}…", () => Edit(2)));
+            list.Add(new($"Resize {name}…", () => Edit(1)));
+            if (feat.Kind is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink) list.Add(new("Change hole type…", () => Edit(4)));
+            list.Add(new($"Delete {name}", () => s.DeleteSelection(), Gesture: "Del"));
+        }
+        else
+        {
+            list.Add(new("Push / Pull…", () => s.StartCommand(() => new PushPullCommand())));
+            list.Add(new("Move face…", () => s.StartCommand(() => new MoveFaceCommand())));
+            list.Add(new("Delete face", () => s.DeleteSelection(), Gesture: "Del"));
+        }
+    }
+
     public event Action? OpenTraditionalMenu;
     public Action? RequestSettings;
 
@@ -114,6 +146,7 @@ public sealed partial class MainViewModel
         if (list.Count > 0) list.Add(MenuSpec.Sep);
         list.Add(new("Undo", () => s.Undo(), Enabled: s.CanUndo, Gesture: "Ctrl+Z"));
         list.Add(new("Redo", () => s.Redo(), Gesture: "Ctrl+Y"));
+        AddFeatureMenu(list);
         var objs = s.Sketch == null && s.ActiveCommand == null ? s.SelectedObjects.ToList() : [];
         if (objs.Count > 0)
         {

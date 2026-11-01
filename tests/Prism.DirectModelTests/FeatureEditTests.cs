@@ -65,6 +65,48 @@ static class FeatureEditTests
         c2.ConfigureInputs(() => { c2.Slots[0].Items.Clear(); c2.Slots[0].TryAdd(new SelItem(block.Id, SelKind.Face, fillet.Faces[0])); c2.Params.OfType<ChoiceParam>().Single(p => p.Label == "Action").Index = 3; });
         var healed = c2.TryBuild()?.Replace.Single().New;
         check(healed != null && healed.IsValid && healed.Count(SubKind.Face) == 6 && Math.Abs(Vol(healed) - 40 * 30 * 20) < 2, "Delete on a fillet restores the sharp corner");
+        // hole type: plain -> counterbore -> plain, and a countersink, checked against the exact volumes
+        Shape Retype(SceneObject b, Feat f, int type, Action<FeatureEditCommand>? set = null)
+        {
+            var c = new FeatureEditCommand(); c.Begin(s);
+            c.ConfigureInputs(() =>
+            {
+                c.Slots[0].Items.Clear(); c.Slots[0].TryAdd(new SelItem(b.Id, SelKind.Face, f.Faces[0]));
+                c.Params.OfType<ChoiceParam>().Single(p => p.Label == "Action").Index = 4;
+                c.Params.OfType<ChoiceParam>().Single(p => p.Label == "New hole type").Index = type;
+                set?.Invoke(c);
+            });
+            return c.TryBuild()?.Replace.Single().New ?? throw new Exception(c.Error ?? "Change type built nothing");
+        }
+        var cbore = Retype(body, hole, 1, c => { Num(c, "Counterbore diameter", 10); Num(c, "Counterbore depth", 4); });
+        check(cbore.IsValid && Math.Abs(Vol(cbore) - (v0 - Math.PI * (25 - 9) * 4)) < 2, "Change type turns a plain hole into a counterbore of the exact size");
+        var cbBody = s.AddObject(cbore, "Counterbored", ObjKind.Solid);
+        var cb = FeatureFinder.Features(cbBody).FirstOrDefault(f => f.Kind == FeatureKind.Counterbore);
+        check(cb != null, "the new counterbore is recognised as a counterbore");
+        var back = Retype(cbBody, cb!, 0);
+        check(back.IsValid && Math.Abs(Vol(back) - v0) < 2, "Change type turns the counterbore back into a plain hole");
+        var wider = Retype(cbBody, cb!, 1, c => { Num(c, "Counterbore diameter", 12); Num(c, "Counterbore depth", 3); });
+        check(wider.IsValid && Math.Abs(Vol(wider) - (v0 - Math.PI * (36 - 9) * 3)) < 2, "Change type can re-cut a counterbore with a new size");
+        var sink = Retype(body, hole, 2, c => { Num(c, "Countersink diameter", 10); Num(c, "Countersink angle", 90); });
+        double sinkV = Math.PI * 2 / 3 * (25 + 15 + 9) - Math.PI * 9 * 2;
+        check(sink.IsValid && Math.Abs(Vol(sink) - (v0 - sinkV)) < 2, "Change type makes a countersink of the exact size");
+        bool refusedType = false; try { Retype(body, slot, 1); } catch (Exception e) { refusedType = e.Message.Contains("slot"); }
+        check(refusedType, "Change type on a slot says it has no hole type");
+
+        // fillet radius: 4 mm -> 2 mm on a vertical block edge
+        var fblock = Occ.Box(40, 30, 20);
+        var fbody = s.AddObject(Occ.Fillet(fblock, [FilletEdge(fblock)], 4), "Filleted", ObjKind.Solid);
+        var fil = FeatureFinder.Features(fbody).First(f => f.Kind == FeatureKind.Fillet);
+        var fc = new FeatureEditCommand(); fc.Begin(s);
+        fc.ConfigureInputs(() => { fc.Slots[0].Items.Clear(); fc.Slots[0].TryAdd(new SelItem(fbody.Id, SelKind.Face, fil.Faces[0])); fc.Params.OfType<ChoiceParam>().Single(p => p.Label == "Action").Index = 1; Num(fc, "New fillet radius (0 = keep)", 2); });
+        var refilleted = fc.TryBuild()?.Replace.Single().New;
+        check(refilleted != null && refilleted.IsValid && Math.Abs(Vol(refilleted) - (40 * 30 * 20 - 4 * (1 - Math.PI / 4) * 20)) < 1, "Resize changes a fillet's radius (4 mm to 2 mm) with the exact volume");
+
+        // the drag handle follows the chosen axis
+        var hc = new FeatureEditCommand(); hc.Begin(s);
+        hc.ConfigureInputs(() => { hc.Slots[0].Items.Clear(); hc.Slots[0].TryAdd(new SelItem(body.Id, SelKind.Face, slot.Faces[0])); hc.Params.OfType<ChoiceParam>().Single(p => p.Label == "Drag handle along").Index = 1; });
+        check(hc.Handle is { } hs && Math.Abs(hs.Dir.Y - 1) < 1e-9, "Move has a drag handle in the viewport along the chosen axis");
+
         // the Delete key with a face selected removes its feature, not the whole body, and is one undo step
         var (ks, kb) = FeatureTests.BuildPlate();
         var kslot = FeatureFinder.Features(kb).First(f => f.Kind == FeatureKind.Slot);
@@ -77,6 +119,8 @@ static class FeatureEditTests
         check(Math.Abs(ks.Objects.Single().Shape.Props().Volume - kv) < 1, "Undo brings the slot back");
         ks.SelectItems([SelItem.Of(ks.Objects.Single())]); ks.Key("Delete");
         check(ks.Objects.Count == 0, "Delete with the whole body selected still deletes the body");
+
+        FeatureMenuTests.Run(check);
 
         // the panel only offers what applies
         var panel = new FeatureEditCommand(); panel.Begin(s);
