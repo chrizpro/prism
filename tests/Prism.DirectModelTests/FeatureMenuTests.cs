@@ -7,6 +7,9 @@ static class FeatureMenuTests
     public static void Run(Action<bool, string> check)
     {
         var vm = new MainViewModel(); var s = vm.Session;
+        var groups = vm.Tabs.Single(t => t.Title == "Direct Modeling").Groups.Select(g => g.Title).ToList();
+        int At(string g) => groups.IndexOf(g);
+        check(At("Select") < At("Datum") && At("Datum") < At("Add") && At("Add") < At("Edit faces") && At("Edit faces") < At("Edit features") && At("Edit features") < At("Repair") && At("Repair") < At("Transform") && At("Transform") < At("Inspect") && At("Inspect") < At("Appearance"), "the Direct Modeling tab reads Select, Datum, Add, Edit faces, Edit features, Repair, Transform, Inspect, Appearance");
         var (_, plate) = FeatureTests.BuildPlate();
         var body = s.AddObject(plate.Shape, "Plate", ObjKind.Solid);
         var slot = FeatureFinder.Features(body).First(f => f.Kind == FeatureKind.Slot);
