@@ -173,7 +173,9 @@ void main(){
             // selection highlight: untouched triangles keep their normal shading, selected ones glow orange
             if (vVal > 0.5) col = mix(col, vec3(1.0, 0.55, 0.12), 0.62) + vec3(0.04);
         } else {
-            vec3 fc = uField == 1 ? ramp((vVal - uFRange.x) / (uFRange.y - uFRange.x)) : category(int(vVal + 0.5));
+            int pk = int(vVal + 0.5);
+            vec3 fc = uField == 3 ? vec3(float((pk >> 16) & 255), float((pk >> 8) & 255), float(pk & 255)) / 255.0   // 3: packed 24-bit RGB (imported mesh colours)
+                : uField == 1 ? ramp((vVal - uFRange.x) / (uFRange.y - uFRange.x)) : category(int(vVal + 0.5));
             col = fc * (0.62 + 0.38 * d1) + vec3(spec) * 0.35;
         }
     }

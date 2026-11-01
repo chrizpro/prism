@@ -235,8 +235,11 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         if (PickOpenFile == null) return;
         var path = await PickOpenFile("Import mesh", Meshing.MeshIO.ReadPatterns);
-        if (path != null) Guard(() => Session.ImportMesh(path));
+        if (path != null) StartMeshImport(path);
     }
+
+    /// <summary>Open the import options step for a mesh file (or import straight away with the remembered options when the user turned the step off).</summary>
+    void StartMeshImport(string path) => Guard(() => Session.StartCommand(new ImportMeshCommand(path, !Commands.MeshImportPrefs.Load().Ask)));
 
     /// <summary>One Import button for every supported format (STEP, IGES, BREP, DXF, STL, OBJ, PLY, 3MF).</summary>
     public async void ImportFile()
@@ -252,6 +255,7 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     async Task ImportPath(string path)
     {
+        if (Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj" or ".ply" or ".3mf") { StartMeshImport(path); return; }
         if (Path.GetExtension(path).ToLowerInvariant() is not (".step" or ".stp" or ".iges" or ".igs" or ".brep")) { Guard(() => Session.ImportFile(path)); return; }
         bool finished = false;
         var progress = new Progress<string>(m => { if (!finished) Session.Say(m); });
