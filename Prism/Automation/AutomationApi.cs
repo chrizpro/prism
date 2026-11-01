@@ -467,7 +467,7 @@ public sealed partial class AutomationApi
         ["mesh_repair"] = () => new MeshRepairCommand(), ["mesh_fill_holes"] = () => new MeshRepairCommand(true), ["mesh_check"] = () => new MeshCheckCommand(),
         ["mesh_reduce"] = () => new MeshDecimateCommand(), ["mesh_smooth"] = () => new MeshSmoothCommand(), ["mesh_offset"] = () => new MeshOffsetCommand(), ["mesh_split"] = () => new MeshCutCommand(),
         ["mesh_section"] = () => new MeshSectionCommand(), ["mesh_thickness"] = () => new MeshThicknessCommand(), ["mesh_overhang"] = () => new MeshOverhangCommand(),
-        ["mesh_deviation"] = () => new MeshDeviationCommand(), ["mesh_fit"] = () => new MeshSegmentCommand(), ["mesh_align"] = () => new MeshAlignCommand(),
+        ["mesh_deviation"] = () => new MeshDeviationCommand(), ["mesh_fit"] = () => new MeshSegmentCommand(), ["mesh_align"] = () => new MeshAlignCommand(), ["mesh_rebuild"] = () => new MeshRebuildCommand(), ["mesh_section_fit"] = () => new MeshSectionFitCommand(),
         ["mesh_to_solid"] = () => new MeshToSolidCommand(), ["solid_to_mesh"] = () => new SolidToMeshCommand(),
         ["sim_fixed"] = () => new FixtureCommand(Simulation.FixtureKind.Fixed), ["sim_roller"] = () => new FixtureCommand(Simulation.FixtureKind.Slider), ["sim_fixed_dirs"] = () => new FixtureCommand(Simulation.FixtureKind.Directional),
         ["sim_force"] = () => new LoadCommand(Simulation.LoadKind.Force), ["sim_pressure"] = () => new LoadCommand(Simulation.LoadKind.Pressure), ["sim_torque"] = () => new LoadCommand(Simulation.LoadKind.Torque), ["sim_gravity"] = () => new LoadCommand(Simulation.LoadKind.Gravity),

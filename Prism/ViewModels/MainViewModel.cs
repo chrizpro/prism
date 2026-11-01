@@ -918,6 +918,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Reverse engineering",
                     Cmd("Segment\n& Fit", "mesh-fit", () => new MeshSegmentCommand(), "Find planes, cylinders, spheres and cones in a scan and create CAD geometry from them."),
                     Cmd("Section\nCurves", "mesh-section", () => new MeshSectionCommand(), "Slice the mesh into curves to rebuild with extrude, loft or sweep."),
+                    Cmd("Rebuild\nfrom Scan", "mesh-fit", () => new MeshRebuildCommand(), "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan."),
+                    Cmd("Section Lines\n& Arcs", "mesh-section", () => new MeshSectionFitCommand(), "Slice the scan and fit clean lines and arcs to each outline."),
                     Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Drop on the bed, lay a face flat, or best-fit onto a CAD body."),
                     Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare a scan with its CAD model and show the error as colors."),
                     Cmd("Mesh to\nSolid", "mesh-solid", () => new MeshToSolidCommand(), "Convert a mesh into a CAD body (one face per triangle).")),
