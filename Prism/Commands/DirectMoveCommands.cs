@@ -23,7 +23,7 @@ public sealed class MoveBodyCommand : Command
     {
         _mine = Slot(new SelectionSlot { Label = "Face on the body to move", Filter = SelFilter.Face, MaxCount = 1 });
         _other = Slot(new SelectionSlot { Label = "Face on the other body to keep to", Filter = SelFilter.Face, MaxCount = 1 });
-        _rel = Choice("Keep", 0, "Faces flush", "Holes / pins coaxial", "Tangent (round face on a flat one)");
+        _rel = Choice("Keep", 0, "Faces flush", "Holes / pins coaxial", "Tangent (round face on a flat or round one)");
         _flushMode = Choice("Flush means", 0, "Touching (faces meet)", "Aligned (same plane, same direction)");
         _snap = Check("Snap into the relationship first", true);
         _dx = Num("Move X", 0); _dy = Num("Move Y", 0); _dz = Num("Move Z", 0);
@@ -84,6 +84,12 @@ public sealed class MoveBodyCommand : Command
 
         Vec3 PlanePoint(SelItem it, Shape f) => S.FaceFrame(it)?.point ?? throw new FormatException("Could not read that face.");
         (Vec3 o, Vec3 d) Axis(Shape f) => Occ.AxisOf(f) ?? throw new FormatException("That round face has no axis.");
+        // a hole's wall faces the axis; a pin's faces away from it
+        bool IsHole(SelItem it, Vec3 axisPoint, Vec3 axisDir)
+        {
+            var fr = S.FaceFrame(it) ?? throw new FormatException("Could not read that face.");
+            var rel = fr.point - axisPoint; return Vec3.Dot(fr.normal, rel - axisDir * Vec3.Dot(rel, axisDir)) < 0;
+        }
 
         void Turn(Vec3 from, Vec3 to, Vec3 pivot)
         {
@@ -115,8 +121,24 @@ public sealed class MoveBodyCommand : Command
             }
             default:    // tangent
             {
+                if (ia.Type == "Cylinder" && ib.Type == "Cylinder")
+                {
+                    // two round faces with parallel axes touching along a line: pin against pin, or a pin inside a hole
+                    var (A, a) = Axis(fa); var (B, b) = Axis(fb); a = a.Normalized(); b = b.Normalized();
+                    bool holeMine = IsHole(mine, A, a), holeOther = IsHole(other, B, b);
+                    if (holeMine && holeOther) throw new FormatException("Two holes cannot touch each other. Pick a pin and a hole, or two pins.");
+                    double r1 = ia.R1, r2 = ib.R1;
+                    if (holeMine != holeOther && (holeMine ? r2 >= r1 : r1 >= r2)) throw new FormatException("The pin is as wide as the hole or wider, so it cannot sit inside it.");
+                    Turn(a, Vec3.Dot(a, b) >= 0 ? b : -b, A);
+                    var off = A - B; off -= b * Vec3.Dot(off, b);
+                    double want = holeMine == holeOther ? r1 + r2 : Math.Abs(r1 - r2);
+                    var side = off.Length < 1e-9 ? Xform.AnyPerpendicular(b) : off.Normalized();
+                    var shiftBy = side * (want - off.Length);
+                    Shift(shiftBy);
+                    return (b, snap ? A + shiftBy : A, b, true, holeMine == holeOther ? $"cylinders tangent (radii {r1:0.###} and {r2:0.###} mm)" : $"pin tangent inside the hole (radii {Math.Min(r1, r2):0.###} and {Math.Max(r1, r2):0.###} mm)");
+                }
                 bool cylMine = ia.Type == "Cylinder" && ib.Type == "Plane";
-                if (!cylMine && !(ia.Type == "Plane" && ib.Type == "Cylinder")) throw new FormatException("Tangent works between a cylinder and a flat face. Cylinder on cylinder, spheres and cones are not supported.");
+                if (!cylMine && !(ia.Type == "Plane" && ib.Type == "Cylinder")) throw new FormatException("Tangent works between a cylinder and a flat face, or between two cylinders with parallel axes. Spheres and cones are not supported.");
                 if (cylMine)
                 {
                     var (A, a) = Axis(fa); a = a.Normalized(); var m = ib.Normal.Normalized(); var Q = PlanePoint(other, fb); double r = ia.R1;

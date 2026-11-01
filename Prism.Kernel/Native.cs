@@ -53,6 +53,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_compound(IntPtr* shapes, int n);
     [DllImport(Lib)] public static extern IntPtr ck_intersect(IntPtr a, IntPtr b);
     [DllImport(Lib)] public static extern IntPtr ck_defeature(IntPtr s, int* faces, int n);
+    [DllImport(Lib)] public static extern IntPtr ck_unify_faces(IntPtr s, int* faces, int n);
     [DllImport(Lib)] public static extern IntPtr ck_offset_planar(IntPtr s, double dist, int join);
     [DllImport(Lib)] public static extern IntPtr ck_split(IntPtr s, IntPtr tool);
     [DllImport(Lib)] public static extern IntPtr ck_draft(IntPtr s, int* faces, int n, double* dir, double angle, double* po, double* pn);

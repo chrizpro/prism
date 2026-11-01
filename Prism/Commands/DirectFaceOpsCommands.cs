@@ -123,7 +123,7 @@ public sealed class MergeFacesCommand : Command
             if (infos.Count < 2) throw new FormatException("Pick at least two faces to merge.");
             if (infos.Any(i => i.Type != infos[0].Type)) throw new FormatException("Those faces are not on the same kind of surface, so they cannot become one face.");
             int before = body.Shape.Count(SubKind.Face);
-            var res = FaceOpsHelpers.Unify(body.Shape);
+            var res = Occ.UnifyFaces(body.Shape, [.. grp.Select(i => i.Index).Distinct()]);
             int after = res.Count(SubKind.Face);
             if (after >= before) throw new FormatException("Those faces cannot be merged: they must be next to each other and lie on exactly the same surface.");
             o.Replace.Add((body, res));

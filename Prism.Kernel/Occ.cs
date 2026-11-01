@@ -379,6 +379,8 @@ public static unsafe class Occ
     public static Shape Intersect(Shape a, Shape b) => Wrap(Native.ck_intersect(a.Handle, b.Handle));
     /// <summary>Remove faces (a hole, boss, fillet, pocket...) and heal the surrounding faces over the gap.</summary>
     public static Shape Defeature(Shape s, int[] faces) { fixed (int* p = faces) return Wrap(Native.ck_defeature(s.Handle, p, faces.Length)); }
+    /// <summary>Merge neighbouring faces that lie on one surface, only along edges between two of the listed faces; every other edge stays.</summary>
+    public static Shape UnifyFaces(Shape s, int[] faces) { fixed (int* p = faces) return Wrap(Native.ck_unify_faces(s.Handle, p, faces.Length)); }
     /// <summary>Offset a planar face or wire inside its own plane (negative = inward). Returns the resulting wires.</summary>
     public static Shape OffsetPlanar(Shape faceOrWire, double dist, bool sharpCorners = false) => Wrap(Native.ck_offset_planar(faceOrWire.Handle, dist, sharpCorners ? 1 : 0));
     /// <summary>Cut a shape into pieces along another shape.</summary>

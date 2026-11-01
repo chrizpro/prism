@@ -1700,7 +1700,11 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Every solid, surface and curve inside an imported shape, with its on-screen mesh made in parallel (so the UI thread only has to add the objects).</summary>
-    public sealed record PreparedImport(Shape Root, List<(Shape Shape, ObjKind Kind, MeshData? Mesh)> Parts);
+    public sealed record PreparedImport(Shape Root, List<(Shape Shape, ObjKind Kind, MeshData? Mesh)> Parts)
+    {
+        /// <summary>How many imported solids the kernel's validity check rejects (open or inconsistent geometry), found while the file was being meshed.</summary>
+        public int Invalid { get; init; }
+    }
 
     /// <summary>Read a file and mesh its bodies away from the UI thread. Call <see cref="AddPrepared"/> with the result on the UI thread.</summary>
     public static PreparedImport PrepareImport(string path, IProgress<string>? progress = null)
@@ -1716,14 +1720,15 @@ public sealed partial class CadSession : ObservableObject
         void Walk(Shape s) { if (s.Kind == ShapeKind.Compound) { foreach (var c in s.Children()) Walk(c); } else leaves.Add(s); }
         Walk(root);
         var parts = leaves.Select(s => (Shape: s, Kind: SceneObject.Classify(s), Mesh: (MeshData?)null)).ToList();
-        int done = 0, total = parts.Count(p => p.Kind != ObjKind.Curve);
+        int done = 0, invalid = 0, total = parts.Count(p => p.Kind != ObjKind.Curve);
         System.Threading.Tasks.Parallel.For(0, parts.Count, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1) }, i =>
         {
             if (parts[i].Kind == ObjKind.Curve) return;
             parts[i] = parts[i] with { Mesh = parts[i].Shape.Tessellate() };
+            if (parts[i].Kind == ObjKind.Solid && !parts[i].Shape.IsValid) System.Threading.Interlocked.Increment(ref invalid);
             progress?.Report($"Meshing {System.Threading.Interlocked.Increment(ref done)} of {total}…");
         });
-        return new PreparedImport(root, parts);
+        return new PreparedImport(root, parts) { Invalid = invalid };
     }
 
     public void AddPrepared(PreparedImport prepared, string path) => AddImported(prepared.Root, path, prepared);
@@ -1748,7 +1753,7 @@ public sealed partial class CadSession : ObservableObject
             Add(s, SceneObject.Classify(s), null);
         }
         if (prepared != null) foreach (var (s, k, m) in prepared.Parts) Add(s, k, m); else Walk(root);
-        RaiseScene(); ZoomExtents(); Say($"Imported {count} object(s) from {Path.GetFileName(path)}");
+        RaiseScene(); ZoomExtents(); Say($"Imported {count} object(s) from {Path.GetFileName(path)}" + (prepared is { Invalid: > 0 } ? $". {prepared.Invalid} of them {(prepared.Invalid == 1 ? "has" : "have")} problems: open Direct Modeling > Repair > Check and Repair." : ""));
     }
 
     public void ExportStep(string path)
