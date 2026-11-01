@@ -9,7 +9,7 @@ using Prism.Kernel;
 namespace Prism.Rendering;
 
 /// <summary>A snapshot of actual viewport mesh data. No live session or native handles are used by the worker.</summary>
-public sealed record StudioPreviewSource(MeshData Mesh, int[] Edges, int[] Faces, bool Error, string Caption, uint? HighlightColor = null);
+public sealed record StudioPreviewSource(MeshData Mesh, int[] Edges, int[] Faces, bool Error, string Caption, uint? HighlightColor = null, bool MonoScalars = false, bool Perspective = false);
 public sealed record StudioPreviewPixels(byte[] Bgra, int Width, int Height, int HighlightPixels);
 
 /// <summary>Small cached diagnostic renders, using the application's tessellation and projection camera.</summary>
@@ -47,7 +47,7 @@ public static class StudioPreview
             }
             else focused = false;
         }
-        var camera = new Camera { Width = width, Height = height, Orthographic = true };
+        var camera = new Camera { Width = width, Height = height, Orthographic = !source.Perspective };
         if (focused)
         {
             var outward = (min + max - mesh.Min - mesh.Max) * .5;
@@ -119,6 +119,8 @@ public static class StudioPreview
                 double intensity = .38 + diffuse * .48 + spec * .4;
                 byte grey = (byte)Math.Clamp(intensity * 230, 0, 255);
                 Put(index, grey, (byte)Math.Min(255, grey + 5), (byte)Math.Min(255, grey + 12));
+                if (mesh.Scalars is { } scalars && scalars.Length >= mesh.VertexCount)
+                    Heat(index, scalars[ia] * u + scalars[ib] * v + scalars[ic] * w, intensity);
                 if (selectedFaces.Contains(mesh.TriFace[t])) { Tint(index, .34); highlighted++; }
             }
         }
@@ -150,6 +152,17 @@ public static class StudioPreview
         }
         return new(pixels, width, height, highlighted);
         void Put(int i, byte r, byte g, byte b) { int p = i * 4; pixels[p] = b; pixels[p + 1] = g; pixels[p + 2] = r; }
+        // Result colors: blue (low) through green and yellow to red (high), or black to white for stripe patterns.
+        void Heat(int i, double value, double intensity)
+        {
+            value = Math.Clamp(value, 0, 1);
+            double shade = Math.Clamp(.55 + intensity * .6, 0, 1.25);
+            if (source.MonoScalars) { byte g = (byte)Math.Clamp((value < .5 ? 28 : 238) * Math.Min(1, shade), 0, 255); Put(i, g, g, g); return; }
+            (double r, double g, double b)[] stops = [(49, 84, 198), (52, 170, 214), (94, 190, 100), (240, 210, 60), (220, 60, 50)];
+            double position = value * (stops.Length - 1); int k = Math.Min(stops.Length - 2, (int)position); double f = position - k;
+            double R = stops[k].r + (stops[k + 1].r - stops[k].r) * f, G = stops[k].g + (stops[k + 1].g - stops[k].g) * f, B = stops[k].b + (stops[k + 1].b - stops[k].b) * f;
+            Put(i, (byte)Math.Clamp(R * shade, 0, 255), (byte)Math.Clamp(G * shade, 0, 255), (byte)Math.Clamp(B * shade, 0, 255));
+        }
         void Tint(int i, double amount)
         {
             int p = i * 4; uint color = source.HighlightColor ?? (source.Error ? 0xFFF75F64u : 0xFFEEB75Au);

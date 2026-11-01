@@ -8,6 +8,7 @@ namespace Prism.Commands;
 public sealed class CaeSolveCommand : AnalysisCommand
 {
     readonly bool _thermal;
+    public bool IsThermal => _thermal;
     readonly SelectionSlot _body,_first,_second;
     readonly ChoiceParam _type;
     readonly NumberParam _hot,_cold,_initial,_duration,_size;

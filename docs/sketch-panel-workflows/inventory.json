@@ -636,8 +636,7 @@
     "Seed": 0,
     "Option": 0,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "selecttool-0-0"
@@ -649,8 +648,7 @@
     "Seed": 0,
     "Option": 1,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "selecttool-0-1"
@@ -662,8 +660,7 @@
     "Seed": 1,
     "Option": 0,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "selecttool-1-0"
@@ -675,8 +672,7 @@
     "Seed": 1,
     "Option": 1,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "selecttool-1-1"
@@ -688,8 +684,7 @@
     "Seed": 0,
     "Option": 0,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "sketchgeometryedittool-0-0"
@@ -697,12 +692,11 @@
   {
     "Tool": "SketchGeometryEditTool",
     "Name": "Edit Sketch",
-    "Mode": "Spline points",
+    "Mode": "Geometry",
     "Seed": 0,
     "Option": 1,
     "Sections": [
-      "Method",
-      "Geometry"
+      "Sketch tool"
     ],
     "Controls": [],
     "Screenshot": "sketchgeometryedittool-0-1"

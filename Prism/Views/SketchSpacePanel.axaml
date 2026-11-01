@@ -3,11 +3,9 @@
         <Expander IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,0,0,10">
             <Expander.Header><c:PanelStepHeader Step="2" Title="Geometry" Margin="-10,-8" ToolTip.Tip="{Binding ToolPanelHint}"/></Expander.Header>
             <StackPanel Margin="12,0" Spacing="9">
-                <CheckBox Name="Enable3DSketch" Content="3D sketch" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="Draw off the sketch plane. The view switches to perspective; turning it off returns to a flat view."/>
-                <Button Content="Add points to a spline" Tag="spline-points" Click="OnAction" HorizontalAlignment="Stretch" ToolTip.Tip="Click a spline, then click along it to add a point you can drag. Lines and arcs are defined by their end points, so only splines gain points."/>
                 <StackPanel Name="SpatialSketchControls" IsVisible="{Binding Sketch3DEnabled}" Spacing="8">
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                        <Button Content="Edit Geometry (E)" Tag="edit" Click="OnAction" Classes.primary="{Binding SketchGeometryEditing}" HorizontalAlignment="Stretch" ToolTip.Tip="Click points or curves: the gizmo binds to them automatically and its handles move, rotate or scale them."/>
+                        <Button Content="Select / edit" Tag="select" Click="OnAction" Classes.primary="{Binding SketchGeometryEditing}" HorizontalAlignment="Stretch" ToolTip.Tip="Click points or curves: the gizmo binds to them automatically and its handles move, rotate or scale them."/>
                         <Button Grid.Column="1" Content="Gizmo… (G)" Click="OnGizmoPanel" HorizontalAlignment="Stretch" ToolTip.Tip="Open the gizmo panel for the finer work: orientation, unbinding, planes."/>
                     </Grid>
                     <TextBlock Text="{Binding SketchSpaceStatus}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>

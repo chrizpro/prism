@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia.Threading;
 using Prism.Core.Cam;
 using Prism.Kernel;
@@ -8,6 +10,18 @@ namespace Prism.Core;
 public sealed partial class CadSession
 {
     public CamSetup? CamSetup {get;set;}
+    public List<CamSetup> CamSetups {get;}=[];
+    public void SaveCamSetup(CamSetup setup)
+    {
+        setup.Validate(Find(setup.BodyId)??throw new InvalidOperationException("The CAM setup model was deleted."));
+        if(CamSetup is{} previous&&previous.Name!=setup.Name&&!CamSetups.Any(s=>s.Name==previous.Name))CamSetups.Add(previous);
+        CamSetups.RemoveAll(s=>s.Name==setup.Name);CamSetups.Add(setup);CamSetup=setup;Dirty=true;Invalidate();
+    }
+    public CamSetup? SetupFor(ToolpathInfo path)=>path.SetupSignature==null?null:
+        (CamSetup?.Signature()==path.SetupSignature?CamSetup:CamSetups.FirstOrDefault(s=>s.Signature()==path.SetupSignature));
+    public IEnumerable<SceneObject> MillingProgram()=>Objects.Where(o=>o.Visible&&o.Asm is ToolpathInfo{IsPrint:false}).OrderBy(o=>((ToolpathInfo)o.Asm!).ProgramOrder);
+    public IEnumerable<SceneObject> ActiveMillingProgram()=>MillingProgram().Where(o=>
+        o.Asm is ToolpathInfo p&&(p.SetupSignature==null||p.SetupName!=null&&p.SetupName==CamSetup?.Name||p.SetupName==null&&p.SetupSignature==CamSetup?.Signature()));
     public PathTimeline? CamTimeline {get;private set;}
     public Guid? CamPathId {get;private set;}
     public double CamSeconds {get;private set;}

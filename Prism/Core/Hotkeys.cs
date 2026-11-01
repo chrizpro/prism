@@ -31,6 +31,7 @@ public static class Hotkeys
     // order matters twice: it is the order shown in Preferences, and when two actions in the same scope share a key, the earlier one is tried first
     public static readonly IReadOnlyList<HotkeyAction> Actions =
     [
+        new("sketch.start", "Start or resume sketch", "Sketch", Global, "K"),
         new("file.new", "New part", "File", Global, "Ctrl+N"),
         new("file.open", "Open…", "File", Global, "Ctrl+O"),
         new("file.save", "Save", "File", Global, "Ctrl+S"),

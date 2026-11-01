@@ -651,6 +651,21 @@ public sealed class SweepCommand : BodyCommand
 public sealed class LoftCommand : BodyCommand
 {
     readonly bool _surface;
+    readonly List<string> _pointNames = ["None"];
+    readonly List<Vec3> _pointPositions = [];
+    readonly ChoiceParam _endPoint;
+    protected override void OnBegin()
+    {
+        base.OnBegin();
+        _pointNames.Clear(); _pointNames.Add("None"); _pointPositions.Clear();
+        foreach (var obj in S.Objects.Where(o => o.Visible && !S.HiddenIds.Contains(o.Id) && o.SketchData != null && o.SketchPlane != null))
+            foreach (var (model, plane) in obj.SketchData!.DrawingModels(obj.SketchPlane!.Value))
+                foreach (var entity in model.Entities.Where(e => e.Type == Core.Sketching.EntType.Point && (!e.Construction || model.ShowConstruction)))
+                {
+                    _pointNames.Add($"{obj.Name} · point {entity.A}");
+                    _pointPositions.Add(Core.Sketching.SketchModel.To3(plane, model.P(entity.A)));
+                }
+    }
     readonly SelectionSlot _sections, _rails;
     readonly BoolParam _ruled, _closed;
     readonly IntParam _railSteps;
@@ -659,6 +674,7 @@ public sealed class LoftCommand : BodyCommand
         _surface = surface;
         _sections = Slot(new SelectionSlot { Label = "Sections (in order)", Caption = "Profiles", Filter = SelFilter.CurveObj | SelFilter.Edge | SelFilter.Face, Multi = true, Ordered = true, SelectionRuleIndex = 1 });
         _rails = Slot(new SelectionSlot { Label = "Guide rails (optional, one or two)", Caption = "Guide rails", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, Optional = true, SelectionRuleIndex = 1 });
+        _endPoint = Add(new ChoiceParam { Label = "End at sketch point", Options = _pointNames, HelpText = "Taper the last profile to a standalone point from a visible sketch." });
         _ruled = Check("Straight (ruled) transitions", false);
         _closed = Check("Close the loft (last section back to the first)", false);
         _ruled.Caption = "Ruled transitions";
@@ -747,15 +763,26 @@ public sealed class LoftCommand : BodyCommand
         {
             Draw(Groups(_sections.Items), 0xFF4FC3F7, "Section");
             Draw(Groups(_rails.Items), 0xFFFF8A1F, "Rail");
+            if (_endPoint.Index > 0 && _endPoint.Index <= _pointPositions.Count)
+            {
+                var point = _pointPositions[_endPoint.Index - 1];
+                o.AddDot(point, 0xFF4FC3F7, 11); o.AddLabel(point, "Loft endpoint", true, 4);
+            }
         }
         catch (Exception e) when (e is not OutOfMemoryException) { }
     }
 
     protected override CommandOutput? Build()
     {
-        if (_sections.Items.Count < 2 || TargetMissing) return null;
+        if (_sections.Items.Count < (_endPoint.Index > 0 ? 1 : 2) || TargetMissing) return null;
         Results.Clear();
         var secs = Groups(_sections.Items).Select(g => GroupShape(g, false)).ToList();
+        if (_endPoint.Index > 0)
+        {
+            if (_endPoint.Index > _pointPositions.Count) throw new KernelException("The selected sketch point is no longer available.");
+            if (_closed.Value || _rails.Items.Count > 0) throw new KernelException("A point endpoint requires an open loft without guide rails.");
+            secs.Add(Occ.Vertex(_pointPositions[_endPoint.Index - 1]));
+        }
         if (secs.Count < 2) throw new KernelException("A loft needs two profiles. Each connected chain of curves counts as one: pick a curve on the second profile.");
         Results.Add(new ResultLine("Profiles", $"{secs.Count} profile(s) in pick order"));
         if (_closed.Value && secs.Count > 2) secs.Add(secs[0]);

@@ -25,6 +25,7 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnToolHelpKey, RoutingStrategies.Tunnel);
         HistoryGraph.Navigate += item => Vm?.GoToHistory(item);
         HistoryGraph.Edit += item => EditHistoryStep(item);
         HistoryGraph.Hover += item => Vm?.HoverHistory(item);
@@ -41,8 +42,8 @@ public partial class MainView : UserControl
     void UpdateContextLocation()
     {
         bool bottom = AppSettings.Current.HelpContextLocation == "bottom";
-        BottomContext.IsVisible = bottom;
-        ViewportContext.IsVisible = !bottom;
+        BottomContext.IsVisible = bottom && Vm?.HasActiveAssistance != true;
+        ViewportContext.IsVisible = !bottom || Vm?.HasActiveAssistance == true;
     }
 
     void CenterSearch()
@@ -76,6 +77,16 @@ public partial class MainView : UserControl
     void OnClose(object? sender, RoutedEventArgs e) { if (TopLevel.GetTopLevel(this) is Window window) window.Close(); }
 
     MainViewModel? Vm => DataContext as MainViewModel;
+    void OnToolHelpKey(object? sender, KeyEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+        var ribbon = this.GetVisualDescendants().OfType<Prism.Ribbon.RibbonView>().FirstOrDefault();
+        if (e.Key == Key.Escape && ribbon?.DismissExample() == true) { e.Handled = true; return; }
+        if (e.Key != Key.F1) return;
+        string? icon = (e.Source as Control)?.DataContext is Prism.Ribbon.RibbonButton rb ? rb.ToolHelpIcon
+            : vm.HoveredToolHelpIcon ?? Help.ToolHelp.ForCommand(vm.ActiveCommand)?.Icon;
+        if (ribbon?.ShowExample(e.Source as Control ?? ribbon, icon) == true) e.Handled = true;
+    }
     void OnOpenStudio(object? sender, RoutedEventArgs e) => Vm?.OpenStudio((sender as Control)?.Tag is string panel && panel.Length > 0 ? panel : null);
     void OnPanelPickerClick(object? sender, RoutedEventArgs e)
     {
@@ -185,6 +196,7 @@ public partial class MainView : UserControl
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.ShowHistoryPanel)) UpdateTabs(); };
         vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312); };
         WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.HasActiveAssistance)) UpdateContextLocation(); };
         BuildStatusBar(); UpdateContextLocation(); AppSettings.Changed += BuildStatusBar; AppSettings.Changed += UpdateContextLocation;
         HistoryList.DoubleTapped += (_, _) => { if (HistoryList.SelectedItem is HistoryItem hi) EditHistoryStep(hi); };
         OnHistoryRebuilt();

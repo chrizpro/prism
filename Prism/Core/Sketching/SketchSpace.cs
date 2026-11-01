@@ -37,6 +37,7 @@ public sealed partial class SketchContext
     /// <summary>When on, transforming points is not restricted to their drawing plane: they can be lifted off it along any direction.</summary>
     public bool FreeEditing { get; set; }
     public bool Is3DEnabled { get; private set; }
+    public bool IsDrawingFlat { get; private set; }
     public SketchGizmoOperation GizmoOperation { get; set; }
     public double GizmoSize { get; private set; } = 1;
     /// <summary>The plane's height as a multiple of its width (1 is square). Width is GizmoSize.</summary>
@@ -56,7 +57,9 @@ public sealed partial class SketchContext
     {
         var model = source?.Clone() ?? new SketchModel();
         var children = model.Sections;
-        Is3DEnabled = model.SpatialEditing ?? children.Count > 0;
+        Is3DEnabled = model.SharedNurbsCurves || (model.SpatialEditing ?? children.Count > 0);
+        FreeEditing = model.FreePointEditing ?? (source == null || model.SharedNurbsCurves);
+        IsDrawingFlat = model.FlatDrawing ?? !(model.SpatialEditing ?? children.Count > 0);
         model.Sections = [];
         _sections = [new() { Name = "Plane 1", Plane = plane, Model = model }];
         _sections.AddRange(children);
@@ -68,6 +71,8 @@ public sealed partial class SketchContext
         var root = _sections[0].Model.Clone();
         root.Sections = _sections.Skip(1).Select(section => section.Clone()).ToList();
         root.SpatialEditing = Is3DEnabled;
+        root.FreePointEditing = FreeEditing;
+        root.FlatDrawing = IsDrawingFlat;
         return root;
     }
 
@@ -77,7 +82,7 @@ public sealed partial class SketchContext
         if (enabled == Is3DEnabled) return;
         if (_gizmoDrag >= 0) { _dragChanged = false; EndGizmoDrag(s); }
         bool wasEditing = GizmoEditing;
-        Is3DEnabled = enabled; GizmoEditing = false; DrawingAxis = 0;
+        Is3DEnabled = enabled; IsDrawingFlat = !enabled; GizmoEditing = false; DrawingAxis = 0;
         if (enabled && GizmoFollowsSketch && _lastPlacement is { } last) _gizmoFrame = new(last, _gizmoFrame.U, _gizmoFrame.V);
         if (!enabled && wasEditing) SetTool(s, new SelectTool());
         if (!enabled) ProjectOtherCurves = false;
@@ -89,6 +94,15 @@ public sealed partial class SketchContext
         }
         s.NotifySketchChanged(); s.RaiseState(); s.Invalidate();
         s.Say(enabled ? "3D sketch: drawing planes and spatial controls are available." : "2D sketch: drawing on the active plane. Geometry on other planes is preserved.");
+    }
+
+    public void SetDrawingMode(CadSession s, bool flat, bool adjustView = true)
+    {
+        Set3DEnabled(s, true);
+        IsDrawingFlat = flat; DrawingAxis = 0; _axisPreview = null; _inferredVisualAxis = -1;
+        if (Tool is SelectTool) SetTool(s, new SelectTool());
+        if (adjustView) { s.SketchProjection(perspective: !flat); if (flat) LookNormal(s, flip: false); }
+        s.NotifySketchChanged(); s.RaiseState(); s.Invalidate();
     }
 
     SpaceSnapshot CaptureSpace(SketchModel? before = null)
@@ -151,9 +165,9 @@ public sealed partial class SketchContext
 
     public void PresetPlane(CadSession s, int index)
     {
-        if (!GizmoEditing) { s.Say("Press G to edit the gizmo before choosing a plane."); return; }
+        if (GeometryEditing) SetTool(s, new SplineTool(false));
         _gizmoFrame = new(_gizmoFrame.Origin, Vec3.UnitX, Vec3.UnitY);
-        SelectGizmoPlane(s, index);
+        SetGizmoPlane(s, index);
     }
 
     public void SelectGizmoPlane(CadSession s, int index)
@@ -379,7 +393,10 @@ public sealed partial class SketchContext
         bool editing = GizmoEditing || p.Ctrl;
         bool transforming = GeometryEditing && !GizmoEditing && !p.Ctrl && HasGeometrySelection;
         int hit = GizmoHit(s, p.X, p.Y, editing);
-        if (GeometryEditing && !p.Ctrl && !(transforming && hit>=0) && PickPoint(s,p.X,p.Y)>=0)
+        // Curve insertion belongs to the spline tool; selection routing must not consume its clicks.
+        bool splinePoints = Tool is SplineEditTool or SketchGeometryEditTool { SplinePoints:true };
+        if (splinePoints && !GizmoEditing && !p.Ctrl && (hit < 0 || PickPoint(s,p.X,p.Y)>=0 || PickEntity(s,p.X,p.Y)>=0)) return false;
+        if (GeometryEditing && Tool is not SelectTool && !p.Ctrl && !(transforming && hit>=0) && PickPoint(s,p.X,p.Y)>=0)
         {
             if (GizmoEditing) { _gizmoTargetPicker.PointerDown(s,p);PreviewGizmoTarget(s);return true; }
             // Clicking another point retargets the gizmo: the new pick replaces the bound target, like a normal selection.
@@ -396,7 +413,7 @@ public sealed partial class SketchContext
             return true;
         }
         // Curves retarget or join the bound target the same way points do. Empty space stays inert: the bound set is kept.
-        if (GeometryEditing && !GizmoEditing && !p.Ctrl && hit < 0)
+        if (GeometryEditing && !GizmoEditing && !p.Ctrl && hit < 0 && Tool is not SelectTool)
         {
             int eid = PickEntity(s, p.X, p.Y);
             if (eid >= 0)
@@ -415,7 +432,7 @@ public sealed partial class SketchContext
         if (hit < 0 && GizmoEditing && Tool is not ClickTool && PickDatum(s,p.X,p.Y)) return true;
         if (!editing && !transforming)
         {
-            if (Tool is ClickTool && hit is >= 1 and <= 3)
+            if (!IsDrawingFlat && Tool is ClickTool && hit is >= 1 and <= 3)
             {
                 int axis = hit - 1; int[][] axesByPlane = [[0, 1], [0, 2], [1, 2]];
                 ChooseGizmoAxis(s, axis);
@@ -448,7 +465,7 @@ public sealed partial class SketchContext
             int hover = GizmoHit(s,p.X,p.Y,GizmoEditing || p.Ctrl);
             if (hover != _gizmoHover) { _gizmoHover = hover; s.Invalidate(); }
             _inferredVisualAxis = -1; _axisPreview = null;
-            if (!GizmoEditing && !p.Ctrl && !p.Alt && Tool is ClickTool)
+            if (!IsDrawingFlat && !GizmoEditing && !p.Ctrl && !p.Alt && Tool is ClickTool)
             {
                 var origin = s.Camera.Project(GizmoFrame.Origin);
                 if (origin is { } q)
@@ -579,6 +596,7 @@ public sealed partial class SketchContext
                 return true;
             case "SketchEdit": ToggleGeometryEditing(s); return true;
             case "Enter" when GizmoEditing && GeometryEditing: ConfirmGizmoTarget(s); return true;
+            case "Enter" when GeometryEditing && GizmoTargetConfirmed: return true;
             case "LookAt": LookNormal(s); return true;
             case "PlaneXY": PresetPlane(s, 0); return true;
             case "PlaneXZ": PresetPlane(s, 1); return true;
@@ -660,9 +678,9 @@ public sealed partial class SketchContext
         {
             if (screenDistance >= distance) return;
             bool projected = Math.Abs(Vec3.Dot(world - Plane.Origin, Plane.Normal)) > 1e-6;
-            if (projected && !ProjectOtherCurves) return;
+            if (projected && !ProjectOtherCurves && !(Is3DEnabled && Tool is PointTool)) return;
             var (u, v) = Plane.Project(world);
-            best = new(u, v, projected ? SnapKind.Projected : SnapKind.External, -1, note); distance = screenDistance;
+            best = new(u, v, projected && !(Is3DEnabled && Tool is PointTool) ? SnapKind.Projected : SnapKind.External, -1, note, Depth: Is3DEnabled && Tool is PointTool ? Vec3.Dot(world - Plane.Origin, Plane.Normal) : 0); distance = screenDistance;
         }
         void Point(Vec3 world, string note)
         {
@@ -676,7 +694,7 @@ public sealed partial class SketchContext
                 {
                     foreach (var e in model.Entities.Where(e => !e.Construction || model.ShowConstruction))
                     {
-                        Vec3 At(int id) { var q = model.P(id); return plane.PointAt(q.X, q.Y); }
+                        Vec3 At(int id) { var q = model.P(id); return SketchModel.To3(plane, q); }
                         switch (e.Type)
                         {
                             case EntType.Line:
@@ -775,7 +793,7 @@ public sealed partial class SketchContext
         var selectedPlane = GizmoDrawingPlane;
         double half = length * 1.25 * GizmoSize, halfV = half * GizmoStretch;
         Vec3 P(double u, double v) => origin + selectedPlane.U * u + selectedPlane.V * v;
-        if (display.WorkPlane)
+        if (display.WorkPlane && !IsDrawingFlat)
         {
             uint accent = GizmoVisual.Accent;
             o.AddTri(P(-half, -halfV), P(half, -halfV), P(half, halfV), (accent & 0xFFFFFF) | 0x08000000);

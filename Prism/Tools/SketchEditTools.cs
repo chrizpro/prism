@@ -218,7 +218,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     public override void PointerUp(CadSession s, PointerInfo p)
     {
         var sk = Sk(s);
-        if (_region) { _rx1 = p.X; _ry1 = p.Y; FinishRegion(s); return; }
+        if (_region) { _rx1 = p.X; _ry1 = p.Y; FinishRegion(s); sk.CenterGizmoOnSelection(s); return; }
         if (_started && _snapshot != null)
         {
             if (_geometryTranslation) sk.EndSelectionTranslation(s);
@@ -227,6 +227,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         }
         _down = false; _started = false; _drag = Drag.None; _snapshot = null;
         _geometryTranslation = false;
+        sk.CenterGizmoOnSelection(s);
         s.NotifySketchChanged();
         s.Invalidate();
     }

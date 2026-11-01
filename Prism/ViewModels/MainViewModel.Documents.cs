@@ -106,7 +106,8 @@ public sealed partial class MainViewModel
                 case nameof(CadSession.FilePath) or nameof(CadSession.Dirty): UpdateTitle(); break;
                 case nameof(CadSession.Display) or nameof(CadSession.Zebra) or nameof(CadSession.Analysis) or nameof(CadSession.ShowBounds) or nameof(CadSession.ShowGrid) or nameof(CadSession.Ortho) or nameof(CadSession.Mode) or nameof(CadSession.XRay): RefreshRibbon(); break;
                 case nameof(CadSession.CommandError): CommandError = s.CommandError; break;
-                case nameof(CadSession.Status): RefreshStudioActivity(); break;
+                case nameof(CadSession.Status): RefreshStudioActivity(); OnPropertyChanged(nameof(AssistanceStatus)); break;
+                case nameof(CadSession.StatusIsError): OnPropertyChanged(nameof(AssistanceStatus)); break;
             }
         };
         s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory;

@@ -10,6 +10,7 @@ public partial class SketchPanel : UserControl
     public SketchPanel() => InitializeComponent();
     MainViewModel? Vm => DataContext as MainViewModel;
 
+    void OnSketchAction(object? sender, RoutedEventArgs e) { if(sender is Button { Tag:string action }) Vm?.SketchSpaceAction(action); }
     void OnFinish(object? sender, RoutedEventArgs e) => Vm?.Session.ExitSketch(true);
     void OnToolDone(object? sender, RoutedEventArgs e) => Vm?.FinishTool();
     void OnToolOption(object? sender, RoutedEventArgs e) { if(sender is Control { DataContext:ToolOptionItem option })Vm?.PickToolOption(option.Index); }

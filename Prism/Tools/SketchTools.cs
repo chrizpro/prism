@@ -62,7 +62,7 @@ public abstract class SketchTool : IViewportTool
         Hot = sk.Snap(s, p.X, p.Y, !p.Alt);
         sk.Cursor = Hot;
         sk.Hint = null;
-        if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V);
+        if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V) + sk.Plane.Normal * h.Depth;
         s.Invalidate();
     }
     public virtual void PointerUp(CadSession s, PointerInfo p) { }
@@ -275,7 +275,7 @@ public abstract class ClickTool : SketchTool
         UpdateTypedPreview(s);
         sk.Cursor = Hot;
         sk.Hint = Hot is { } hinted ? Inference(s, hinted) : null;
-        if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V);
+        if (Hot is { } h) s.Cursor3 = sk.Plane.PointAt(h.U, h.V) + sk.Plane.Normal * h.Depth;
         if(!_typing&&DateTime.UtcNow-_lastPanelUpdate>TimeSpan.FromMilliseconds(90)){_lastPanelUpdate=DateTime.UtcNow;s.RaiseState();}
         s.Invalidate();
     }
@@ -333,9 +333,9 @@ public abstract class ClickTool : SketchTool
         if (TypingKey(s, key)) {UpdateTypedPreview(s);s.RaiseState();return true;}
         switch (key)
         {
-            case "Escape": if (Clicks.Count > 0) { Cancel(s); return true; } return false;
-            case "Enter": if (Clicks.Count > 0) { Finish(s); return true; } return false;
-            case "RightClick": if (Clicks.Count > 1) Finish(s); else Cancel(s); return true;
+            case "Escape": Cancel(s); Sk(s).SetTool(s, new SelectTool()); return true;
+            case "Enter": if (Clicks.Count > 0) { Finish(s); Sk(s).SetTool(s, new SelectTool()); return true; } return false;
+            case "RightClick": if (Clicks.Count > 1) Finish(s); else Cancel(s); Sk(s).SetTool(s, new SelectTool()); return true;
             case "Back": if (Clicks.Count > 0) { Clicks.RemoveAt(Clicks.Count - 1); s.Invalidate(); return true; } return false;
         }
         return false;

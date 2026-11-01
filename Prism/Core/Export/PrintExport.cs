@@ -18,7 +18,7 @@ public static class PrintExport
     public static readonly string[] QualityNames = ["Draft", "Standard", "Fine", "Very fine"];
     /// <summary>Tessellation tolerance relative to the standard print tolerance (smaller is finer).</summary>
     public static readonly double[] QualityScale = [5, 1, .4, .15];
-    public static readonly string[] SlicerNames = ["Save only", "Bambu Studio", "OrcaSlicer", "PrusaSlicer", "Other program"];
+    public static readonly string[] SlicerNames = ["Save only", "Bambu Studio", "OrcaSlicer", "PrusaSlicer", "Other program", "CHITUBOX", "Lychee Slicer", "PreForm"];
 
     public static string Extension(PrintFormat f) => f switch { PrintFormat.Stl => ".stl", PrintFormat.Obj => ".obj", PrintFormat.Ply => ".ply", _ => ".3mf" };
 
@@ -26,6 +26,7 @@ public static class PrintExport
     public static List<string> Export(CadSession s, PrintExportOptions o)
     {
         if (string.IsNullOrWhiteSpace(o.Folder)) throw new InvalidOperationException("Choose a folder to export to.");
+        if (!Enum.IsDefined(o.Format) || !double.IsFinite(o.Tolerance) || o.Tolerance <= 0) throw new InvalidOperationException("Choose a valid format and positive tessellation quality.");
         // Only things that have a body count: a selected toolpath or sketch must not hide the model (or make the export empty).
         List<(string name, TriMesh? mesh)> Printable(IEnumerable<SceneObject> objects) =>
             objects.Select(x => (name: x.Name, mesh: s.PrintMesh(x, o.Tolerance))).Where(p => p.mesh != null && p.mesh.TriCount > 0).ToList();
@@ -59,9 +60,13 @@ public static class PrintExport
     {
         // Write to a temporary file first so a slicer reloading from disk never reads a half-written file.
         var tmp = path + ".tmp" + Path.GetExtension(path);
-        if (Path.GetExtension(path).Equals(".3mf", StringComparison.OrdinalIgnoreCase)) MeshIO.Save3mf(meshes, tmp, names);
-        else MeshIO.Save(meshes.Count == 1 ? meshes[0] : TriMesh.Merge(meshes), tmp);
-        File.Move(tmp, path, true);
+        try
+        {
+            if (Path.GetExtension(path).Equals(".3mf", StringComparison.OrdinalIgnoreCase)) MeshIO.Save3mf(meshes, tmp, names);
+            else MeshIO.Save(meshes.Count == 1 ? meshes[0] : TriMesh.Merge(meshes), tmp);
+            File.Move(tmp, path, true);
+        }
+        finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
     static string Safe(string name)
@@ -74,12 +79,17 @@ public static class PrintExport
     /// <summary>The slicer's executable if it is in a usual install place (or the user's own path), else null.</summary>
     public static string? FindSlicer(int choice, string custom)
     {
-        if (choice == 4) return File.Exists(custom) ? custom : null;
+        if (choice <= 0 || choice >= SlicerNames.Length) return null;
+        if (!string.IsNullOrWhiteSpace(custom)) return File.Exists(custom) ? custom : null;
+        if (choice == 4) return null;
         string[] candidates = choice switch
         {
             1 => ["Bambu Studio\\bambu-studio.exe"],
             2 => ["OrcaSlicer\\orca-slicer.exe"],
             3 => ["Prusa3D\\PrusaSlicer\\prusa-slicer.exe"],
+            5 => ["CHITUBOX\\CHITUBOX.exe", "CHITUBOX Basic\\CHITUBOX.exe"],
+            6 => ["LycheeSlicer\\LycheeSlicer.exe", "Lychee Slicer\\LycheeSlicer.exe"],
+            7 => ["Formlabs\\PreForm\\PreForm.exe"],
             _ => [],
         };
         var roots = new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),

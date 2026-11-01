@@ -30,5 +30,5 @@ public sealed partial class CadSession
         return st;
     }
 
-    void ResetSimulation() { StopCae(); Cae=null; Studies.Clear(); FaceSets.Clear(); CaeCases.Clear(); CamSetup=null; StopCamPlayback(); ActiveStudy = null; Result = null; StudyChanged?.Invoke(); }
+    void ResetSimulation() { StopCae(); Cae=null; Studies.Clear(); FaceSets.Clear(); CaeCases.Clear(); CamSetup=null; CamSetups.Clear(); StopCamPlayback(); ActiveStudy = null; Result = null; StudyChanged?.Invoke(); }
 }

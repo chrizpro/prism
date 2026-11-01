@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Media;
 using Avalonia.Markup.Xaml.Styling;
@@ -37,8 +38,8 @@ var planeTarget=camera.Project(navSketch.GizmoFrame.Origin+(navSketch.GizmoFrame
 Check(navSketch.GizmoHit(navigation,planeTarget.x,planeTarget.y,false) is not (>=4 and <=6),"gizmo planes have no pick targets outside gizmo edit mode");
 var initialPlane=navSketch.Plane;navigation.PointerDown(new(planeTarget.x,planeTarget.y,true,false,false,false));navigation.PointerUp(new(planeTarget.x,planeTarget.y,false,false,false,false));
 Check(navSketch.Plane==initialPlane&&navSketch.ActivePlane==0,"clicking a gizmo plane while selecting geometry leaves the drawing plane alone");
-navSketch.SelectGizmoPlane(navigation,1);navigation.Key("PlaneXY");
-Check(navSketch.Plane==initialPlane,"panel plane selection and plane shortcuts require gizmo edit mode");
+navSketch.SelectGizmoPlane(navigation,1);
+Check(navSketch.Plane==initialPlane,"panel gizmo orientation still requires gizmo edit mode");
 navSketch.SetGizmoEditing(navigation,true);navigation.PointerDown(new(planeTarget.x,planeTarget.y,true,false,false,false));navigation.PointerUp(new(planeTarget.x,planeTarget.y,false,false,false,false));
 Check(navSketch.GizmoPlaneIndex==1,"the same plane target becomes selectable in gizmo edit mode");
 Check(cameraState==(camera.Yaw,camera.Pitch,camera.Roll,camera.Target,camera.Distance,camera.Orthographic),"selecting a gizmo plane preserves the entire camera state");
@@ -116,6 +117,30 @@ var projected = snap.Snap(snapSession,screen.x,screen.y)!.Value;
 Check(projected.Kind == SnapKind.Projected && Math.Abs(projected.U-50)<1e-4 && Math.Abs(projected.V)<1e-4, "off-plane projection is explicit and lands on the active plane");
 int point = snap.PointFor(projected);
 Check(snap.Model.P(point).X > 49 && snap.Model.Constraints.Count == 1, "external snapshots never create dangling local constraint references");
+
+var fluid = new CadSession(); fluid.EnterSketch(Plane3.XY); fluid.Sketch!.Set3DEnabled(fluid,true,adjustView:false);
+fluid.Sketch.SetTool(fluid,new SelectTool());
+Check(fluid.Sketch.GeometryEditing && !fluid.Sketch.GizmoEditing,"spatial selection edits geometry without entering gizmo setup");
+fluid.Key("PlaneXZ");
+Check(Math.Abs(Vec3.Dot(fluid.Sketch.Plane.Normal,Plane3.XZ.Normal))>.999,"plane shortcut works directly without gizmo setup");
+int depthPoint=fluid.Sketch.PointFor(new SnapInfo(10,20,SnapKind.External,-1,Depth:35));
+Check(Math.Abs(fluid.Sketch.Model.P(depthPoint).Z-35)<1e-9,"spatial reference points preserve snapped depth");
+
+var referenceSession = new CadSession();
+var referenceModel = new SketchModel(); int referencePid=referenceModel.AddPoint(35,27); referenceModel.P(referencePid).Z=40; referenceModel.AddPointEntity(referencePid);
+referenceSession.AddObject(Occ.Vertex(new(35,27,40)),"Reference",ObjKind.Sketch,plane:Plane3.XY,sketch:referenceModel);
+referenceSession.EnterSketch(Plane3.XY); referenceSession.Sketch!.Set3DEnabled(referenceSession,true,adjustView:false); referenceSession.Sketch.SetTool(referenceSession,new PointTool());
+var referencePixel=referenceSession.Camera.Project(new(35,27,40))!.Value;
+var referenceSnap=referenceSession.Sketch.Snap(referenceSession,referencePixel.x,referencePixel.y)!.Value;
+Check(Math.Abs(referenceSnap.Depth-40)<1e-6,"standalone point snaps at the true depth of another visible sketch");
+referenceSession.Sketch.Tool!.PointerDown(referenceSession,new(referencePixel.x,referencePixel.y,true,false,false,false));
+Check(referenceSession.Sketch.Model.Entities.Any(e=>e.Type==EntType.Point&&Math.Abs(referenceSession.Sketch.Model.P(e.A).Z-40)<1e-6),"click placement retains cross-sketch depth");
+referenceSession.ExitSketch(true);
+var loftProfile=referenceSession.AddObject(Occ.Circle(Vec3.Zero,Vec3.UnitZ,10),"Profile",ObjKind.Curve);
+var pointLoft=new LoftCommand(true);referenceSession.StartCommand(pointLoft);pointLoft.Slots[0].TryAdd(SelItem.Of(loftProfile));
+pointLoft.Params.OfType<ChoiceParam>().Single(p=>p.Label=="End at sketch point").Index=1;
+Check(pointLoft.TryBuild()?.Add.Count==1,"a loft can terminate at a standalone point from another sketch");
+referenceSession.CancelCommand();
 
 // Exercise the actual session pointer route: Ctrl moves the drawing frame without drawing a curve.
 var dragSession = new CadSession(); dragSession.EnterSketch(Plane3.XY,alignView:false);
@@ -218,7 +243,7 @@ var scaleHandle = scaleSession.Camera.Project(GizmoVisual.UniformPoint(scaleSess
 Check(scaleSketch.GizmoHit(scaleSession,scaleHandle.x,scaleHandle.y,false) != 10,"plane scale cannot intercept drawing outside gizmo edit mode");
 scaleSketch.SetGizmoEditing(scaleSession,true);
 scaleSketch.GizmoOperation=SketchGizmoOperation.Size;
-Check(scaleSketch.GizmoHit(scaleSession,scaleHandle.x,scaleHandle.y,true) == 10, "plane scale has a visible directly draggable corner handle");
+Check(scaleSketch.GizmoHit(scaleSession,scaleHandle.x,scaleHandle.y,true) == 0, "plane scale uses the directly draggable center handle");
 scaleSession.PointerDown(new(scaleHandle.x,scaleHandle.y,true,false,false,false));
 scaleSession.PointerMove(new(scaleHandle.x+60,scaleHandle.y,true,false,false,false));
 scaleSession.PointerUp(new(scaleHandle.x+60,scaleHandle.y,false,false,false,false));
@@ -339,7 +364,7 @@ var multiSession=EditableRectangle(true);var multi=multiSession.Sketch!;var mult
 multiSession.Key("SketchGizmo");
 foreach(var cornerTarget in new[]{new Vec3(20,20,0),new Vec3(100,20,0),new Vec3(100,70,0),new Vec3(20,70,0)})ClickWorld(multiSession,cornerTarget,true);
 Check(multi.SelPoints.Count==4&&multi.ExportModel().SameDefinition(multiOriginal),"Shift-click chooses multiple corner targets in gizmo setup without editing them");
-multi.SetGizmoTransform(multiSession,new(10,15,20),new(0,30,20));multi.SetGizmoSize(multiSession,2);multiSession.Key("Enter");
+multi.SetGizmoEditing(multiSession,true);multi.SetGizmoTransform(multiSession,new(10,15,20),new(0,30,20));multi.SetGizmoSize(multiSession,2);multiSession.Key("Enter");
 Check(multi.GizmoSize==2&&multi.GeometryScale==1,"gizmo display size and target geometry scale have independent identities");
 Check(!multi.GizmoEditing&&multi.GizmoFrame.Origin.DistanceTo(new(60,45,0))<1e-6&&multi.GizmoRotationDegrees.DistanceTo(new(0,30,20))<1e-6,"Enter centers the gizmo on multiple selected points while preserving its chosen orientation");
 var beforeMultiWorld=multi.Model.Polylines(multi.Plane).SelectMany(p=>p.pts).ToList();var multiDelta=multi.GizmoFrame.U*10;
@@ -383,12 +408,60 @@ Check(multi.GeometryScale==1&&multi.ExportModel().SameDefinition(scaledDefinitio
 
 var deleteSession=EditableRectangle(true);foreach(var entity in deleteSession.Sketch!.Model.Entities)deleteSession.Sketch.SelEntities.Add(entity.Id);
 deleteSession.Key("SketchGizmo");deleteSession.Key("Enter");deleteSession.Key("Delete");Check(deleteSession.Sketch.Model.Entities.Count==0&&!deleteSession.Sketch.GizmoTargetConfirmed,"Delete key still removes selected sketch geometry after ribbon cleanup");
+foreach(bool flat in new[]{true,false})
+{
+    var insertVm=new MainViewModel();insertVm.Session.EnterSketch(Plane3.XY);var insertSketch=insertVm.Session.Sketch!;insertSketch.SetDrawingMode(insertVm.Session,flat,adjustView:false);
+    Check(insertSketch.FreeEditing,"new sketches default to unrestricted point editing");
+    int ia=insertSketch.Model.AddPoint(30,20),ib=insertSketch.Model.AddPoint(80,50),ic=insertSketch.Model.AddPoint(130,20);
+    foreach(int pid in new[]{ia,ib,ic})insertSketch.Model.P(pid).Z=30;
+    int eid=insertSketch.Model.AddSpline([ia,ib,ic],false,false,false);insertSketch.Solve(insertVm.Session);insertSketch.SetTool(insertVm.Session,new SplineTool(false));
+    var insertPanel=new SketchPanel{DataContext=insertVm};var insertWindow=new Window{Width=360,Height=700,Content=insertPanel};insertWindow.Show();insertWindow.UpdateLayout();
+    var addButton=insertPanel.GetVisualDescendants().OfType<Button>().Single(b=>Equals(b.Tag,"spline-points"));
+    Check(addButton.IsEffectivelyVisible,"add curve points remains accessible while drawing");
+    addButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    Check(!insertSketch.GizmoEditing,"adding curve points does not enter gizmo setup");
+    var sample=insertSketch.Model.SplineSamples3(insertSketch.Model.E(eid))[7];
+    ClickWorld(insertVm.Session,new Vec3(sample.x,sample.y,sample.z));
+    var inserted=insertSketch.Model.E(eid).Pts.Except(new[]{ia,ib,ic}).ToList();
+    Check(inserted.Count==1&&Math.Abs(insertSketch.Model.P(inserted[0]).Z-30)<1e-6,$"curve click inserts a point at the curve depth while drawing {(flat?"flat":"in space")}");
+    insertSketch.SetTool(insertVm.Session,new SplineTool(false));var drawingOverlay=new Overlay();insertSketch.BuildOverlay(insertVm.Session,drawingOverlay);
+    Check(drawingOverlay.Tris.Any(t=>(t.Color>>24)==8)==!flat,"the drawing plane sheet is hidden while drawing flat");
+    insertWindow.Close();insertVm.Session.ExitSketch(false);
+}
+var idleVm=new MainViewModel();idleVm.Session.EnterSketch(Plane3.XY);var idleSketch=idleVm.Session.Sketch!;
+Check(idleSketch.Tool is SelectTool,"entering a sketch starts in Select");
+idleSketch.SetTool(idleVm.Session,null);Check(idleSketch.Tool is SelectTool,"clearing a sketch tool falls back to Select");
+foreach(string finish in new[]{"Escape","Enter","RightClick"})
+{
+    var idleCurve=new SplineTool(false);idleSketch.SetTool(idleVm.Session,idleCurve);idleCurve.Feed(idleVm.Session,30,30);idleCurve.Feed(idleVm.Session,70,40);
+    int before=idleSketch.Model.Entities.Count;idleVm.Session.Key(finish);
+    Check(idleSketch.Tool is SelectTool&&idleSketch.Model.Entities.Count==before+1,$"{finish} keeps the curve and returns directly to Select");
+}
+idleSketch.SetTool(idleVm.Session,new RectTool(RectMode.TwoCorner));idleVm.FinishTool();
+Check(idleSketch.Tool is SelectTool,"Done returns to Select");idleVm.Session.ExitSketch(false);
+var fluidVm=new MainViewModel { HomeOpen=false };
+fluidVm.SelectedTab=fluidVm.Tabs.Single(t=>t.Title=="NURBS");fluidVm.StartFluidSketch();
+Check(fluidVm.Session.Sketch is { Is3DEnabled:true,IsDrawingFlat:true,FreeEditing:true,Tool:SplineTool } && fluidVm.Session.Ortho,"NURBS shortcut starts flat with spatial point editing available");
+((SplineTool)fluidVm.Session.Sketch!.Tool!).Feed(fluidVm.Session,10,10);((SplineTool)fluidVm.Session.Sketch.Tool).Feed(fluidVm.Session,20,25);((SplineTool)fluidVm.Session.Sketch.Tool).FinishFeed(fluidVm.Session);
+fluidVm.Session.Key("Escape");
+var fluidSketch=fluidVm.Session.Sketch!;int fluidPoint=fluidSketch.Model.Entities.First(e=>e.Type==EntType.Spline).Pts[0];
+ClickWorld(fluidVm.Session,SketchModel.To3(fluidSketch.Plane,fluidSketch.Model.P(fluidPoint)));
+Check(fluidSketch.GeometryEditing&&fluidSketch.GizmoTargetConfirmed&&fluidSketch.SelPoints.Contains(fluidPoint),"clicking a NURBS point in Select binds its gizmo while drawing flat");
+Check(fluidSketch.GizmoFrame.Origin.DistanceTo(SketchModel.To3(fluidSketch.Plane,fluidSketch.Model.P(fluidPoint)))<1e-6,"flat drawing point gizmo is centered on the clicked point");
+var defaultSession=new CadSession();defaultSession.StartCommand(new CreateSketchCommand());defaultSession.CommitCommand();
+Check(defaultSession.Sketch is { Is3DEnabled:true,IsDrawingFlat:false },"ordinary Create Sketch defaults to drawing in space");defaultSession.ExitSketch(false);
+fluidVm.Session.ExitSketch(true);var sharedCurve=fluidVm.Session.Objects.Single(o=>o.SketchData?.SharedNurbsCurves==true);
+fluidVm.Session.Update(sharedCurve.Id,o=>o.WithName("Renamed curves"));
+fluidVm.SelectedTab=fluidVm.Tabs.Single(t=>t.Title=="NURBS");fluidVm.StartFluidSketch();
+Check(fluidVm.Session.Sketch?.EditingId==sharedCurve.Id,"NURBS shortcut resumes the same sketch after renaming");
+fluidVm.Session.ExitSketch(false);
 var graphicsVm=new MainViewModel{HomeOpen=false};graphicsVm.Session.EnterSketch(Plane3.XY);
 var sketchRibbon=graphicsVm.Tabs.Single(t=>t.Title=="Sketch");var mainSketchButtons=sketchRibbon.Groups.SelectMany(g=>g.Items).OfType<Prism.Ribbon.RibbonButton>().ToList();
+Check(!sketchRibbon.Groups.Any(g=>g.Title=="Drawing plane"),"plane controls stay out of the sketch ribbon");
 var datumDropdown=mainSketchButtons.Single(b=>b.Menu?.Any(item=>item.Label=="Save gizmo")==true);
 Check(datumDropdown.Menu!.Select(b=>b.Label).SequenceEqual(new[]{"Gizmo","Point","Axis","Plane","Save gizmo"}),"Datum groups gizmo options with sketch point, axis and saved references");
 Check(!sketchRibbon.Buttons.Any(b=>b.Label is "Save plane" or "Grid Snap" or "Delete"),"Save Plane, Grid Snap and Delete are absent from the sketch ribbon");
-Check(!graphicsVm.Tabs.SelectMany(t=>t.Buttons).Any(b=>b.Label=="Delete"),"modeling ribbon also leaves Delete to the keyboard and contextual menus");
+Check(!graphicsVm.Tabs.Where(t=>t.Title!="Freeform").SelectMany(t=>t.Buttons).Any(b=>b.Label=="Delete"),"modeling ribbon also leaves Delete to the keyboard and contextual menus");
 Check(!SketchContext.ShowCurvature,"curvature comb starts disabled");
 Check(graphicsVm.Tabs.SelectMany(t=>t.Buttons).Where(b=>b.Label=="Hole").All(b=>b.Icon=="hole"),"mechanical Hole uses the modeling palette icon rather than the PCB icon");
 
@@ -427,6 +500,10 @@ var window = new Window { Width = 340, Height = 1100, Background = SolidColorBru
 window.Show(); window.UpdateLayout();
 using (var bitmap = new RenderTargetBitmap(new PixelSize(340,1100))) { bitmap.Render(window); bitmap.Save(Path.Combine(output,"sketch-panel.png")); }
 window.Close();
+var ribbonWindow = new Window { Width = 1440, Height = 210, Background = SolidColorBrush.Parse("#1A1F27"), Content = new Prism.Ribbon.RibbonView { DataContext = graphicsVm } };
+ribbonWindow.Show(); ribbonWindow.UpdateLayout();
+using (var bitmap = new RenderTargetBitmap(new PixelSize(1440,210))) { bitmap.Render(ribbonWindow); bitmap.Save(Path.Combine(output,"fluid-sketch-ribbon.png")); }
+ribbonWindow.Close();
 Console.WriteLine($"SUCCESS: {checks} checks; artifacts in {output}");
 
 sealed class TestApp : Application

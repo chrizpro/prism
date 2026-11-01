@@ -21,7 +21,7 @@ public sealed record PrintParams(
 /// </summary>
 public sealed record ToolpathInfo(string Operation, string Tool, double ToolDia, double Feed, double Plunge, double Rpm, double SafeZ,
     double[] Moves, int[] LayerStarts, bool IsPrint, bool Transient, PrintParams? Print = null, double[]? Feeds = null,
-    Guid? SetupBody = null, string? SourceSignature = null, Dictionary<Guid,string>? Sources = null, string? SetupSignature = null) : AssemblyData
+    Guid? SetupBody = null, string? SourceSignature = null, Dictionary<Guid,string>? Sources = null, string? SetupSignature = null, int ProgramOrder = 0, string? SetupName = null) : AssemblyData
 {
     [JsonIgnore] public int MoveCount => Moves.Length / 4;
     [JsonIgnore] public int LayerCount => LayerStarts.Length;

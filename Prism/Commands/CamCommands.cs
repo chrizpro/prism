@@ -66,7 +66,7 @@ public abstract class CncOperationCommand : Command
         if(inputs.Count==0)inputs.AddRange(S.Objects.Where(o=>o.Visible&&!o.IsAnnotation&&o.Kind is ObjKind.Solid or ObjKind.Surface));
         var sources=inputs.ToDictionary(o=>o!.Id,o=>Simulation.StudySetup.Signature(o!));
         return new ToolpathInfo(operation, ToolName, Dia.Value, Feed.Value, Plunge.Value, Rpm.Value, SafeZ, [.. _moves], [.. _starts], false, false,
-            SetupBody:S.CamSetup?.BodyId,SourceSignature:S.CamSetup?.ShapeSignature,Sources:sources,SetupSignature:S.CamSetup?.Signature());
+            SetupBody:S.CamSetup?.BodyId,SourceSignature:S.CamSetup?.ShapeSignature,Sources:sources,SetupSignature:S.CamSetup?.Signature(),ProgramOrder:S.MillingProgram().Select(o=>((ToolpathInfo)o.Asm!).ProgramOrder).DefaultIfEmpty(-1).Max()+1,SetupName:S.CamSetup?.Name);
     }
 
     /// <summary>The depth of each pass from the top down to the full depth.</summary>
@@ -607,7 +607,7 @@ public sealed class CncPostCommand : Command
     public override string OkText => "Done";
     public override string Hint => "Writes one G-code program from all the machining toolpaths. Set your machine's work zero (G54) at the corner this tells you about. Always run the first part in the air or on scrap.";
 
-    IEnumerable<ToolpathInfo> Paths() => S.Objects.Where(o => o.Visible && o.Asm is ToolpathInfo { IsPrint: false }).Select(o => (ToolpathInfo)o.Asm!);
+    IEnumerable<ToolpathInfo> Paths() => (_zero.Index==2?S.ActiveMillingProgram():S.MillingProgram()).Select(o => (ToolpathInfo)o.Asm!);
 
     Vec3 Origin()
     {
@@ -625,6 +625,7 @@ public sealed class CncPostCommand : Command
             var paths = Paths().ToList();
             if (paths.Count == 0) { S.Say("There are no machining toolpaths yet. Create a Profile, Pocket, Drill or Face first.", true); return; }
             foreach(var tp in paths)CamValidation.Validate(S,tp);
+            if(paths.Select(p=>p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup at a time. Select its saved setup and use Saved CAM setup work zero.");
             string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "GCode"); Directory.CreateDirectory(dir);
             string file = string.IsNullOrWhiteSpace(_path.Value) ? Path.Combine(dir, $"program_{DateTime.Now:yyyyMMdd_HHmmss}.nc") : _path.Value;
             string title = S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "Prism program";

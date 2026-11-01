@@ -454,6 +454,10 @@ public sealed partial class AutomationApi
     {
         ["cae_select_study"] = () => new SelectStudyCommand(), ["cae_save_faces"] = () => new NamedFacesCommand(), ["cae_recall_faces"] = () => new RecallFacesCommand(), ["cae_saved"] = () => new SavedCaeCommand(), ["cae_convergence"] = () => new ConvergenceCommand(), ["cae_export"] = () => new ExportStudyCommand(),
         ["cam_setup"] = () => new CamSetupCommand(), ["cam_playback"] = () => new CamPlaybackCommand(), ["cam_review"] = () => new CamReviewCommand(), ["cam_import_gcode"] = () => new ImportGcodeCommand(),
+        ["fdm_check"] = () => new FdmCheckCommand(), ["resin_check"] = () => new ResinCheckCommand(), ["cnc_design_check"] = () => new CncDesignCheckCommand(), ["cnc_stock_review"] = () => new CncStockCommand(),
+        ["cam_select_setup"] = () => new SelectCamSetupCommand(), ["cam_operation_order"] = () => new CamProgramOrderCommand(), ["resin_export"] = () => new PrintExportCommand(true), ["print_export"] = () => new PrintExportCommand(),
+        ["cam_tool_library"] = () => new CamToolLibraryCommand(),
+        ["cnc_rough"] = () => new Rough3DCommand(),
         ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(),
         ["pcb_board"] = () => new PcbBoardCommand(), ["pcb_from_outline"] = () => new PcbOutlineCommand(), ["component_envelope"] = () => new ComponentEnvelopeCommand(), ["pcb_hole"] = () => new PcbHoleCommand(),
         ["match_surface"] = () => new MatchSurfaceCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),

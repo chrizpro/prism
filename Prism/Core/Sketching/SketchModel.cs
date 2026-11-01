@@ -79,6 +79,9 @@ public sealed class SketchModel
     public bool ShowConstruction { get; set; } = true;
     /// <summary>Spatial editing is opt-in. Null preserves compatibility with older multi-plane sketches.</summary>
     public bool? SpatialEditing { get; set; }
+    public bool SharedNurbsCurves { get; set; }
+    public bool? FreePointEditing { get; set; }
+    public bool? FlatDrawing { get; set; }
 
     public SketchModel()
     {
@@ -89,7 +92,7 @@ public sealed class SketchModel
 
     public SketchModel Clone()
     {
-        var m = new SketchModel { NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
+        var m = new SketchModel { NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, SharedNurbsCurves = SharedNurbsCurves, FreePointEditing = FreePointEditing, FlatDrawing = FlatDrawing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });
@@ -102,7 +105,7 @@ public sealed class SketchModel
     {
         if (ReferenceEquals(this, other)) return true;
         var a = Clone(); var b = other.Clone();
-        void IgnoreDisplay(SketchModel model) { model.ShowConstruction = true; model.SpatialEditing = null; foreach(var c in model.Constraints){c.LabelU=null;c.LabelV=null;} foreach (var section in model.Sections) IgnoreDisplay(section.Model); }
+        void IgnoreDisplay(SketchModel model) { model.ShowConstruction = true; model.SpatialEditing = null; model.FreePointEditing = null; model.FlatDrawing = null; foreach(var c in model.Constraints){c.LabelU=null;c.LabelV=null;} foreach (var section in model.Sections) IgnoreDisplay(section.Model); }
         IgnoreDisplay(a); IgnoreDisplay(b);
         return System.Text.Json.JsonSerializer.Serialize(a) == System.Text.Json.JsonSerializer.Serialize(b);
     }

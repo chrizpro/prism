@@ -281,6 +281,15 @@ public static unsafe class Occ
 
     public static Shape Patch(IReadOnlyList<Shape> edges) { fixed (IntPtr* p = H(edges)) return Wrap(Native.ck_patch(p, edges.Count)); }
     public static Shape PatchSupported(Shape source, int[] edges, int order) { fixed (int* p = edges) return Wrap(Native.ck_patch_supported(source.Handle, p, edges.Length, order)); }
+    /// <summary>Boundary Surface: one fill over a loop mixing supported edges (host shape + edge index + G0/G1/G2 + weight) and free curves, with optional interior guide curves.</summary>
+    public static Shape BoundaryFill(IReadOnlyList<Shape> hosts, int[] edgeIds, int[] orders, double[] weights,
+        IReadOnlyList<Shape> freeCurves, IReadOnlyList<Shape> guides)
+    {
+        var hp = H(hosts); var fp = H(freeCurves); var gp = H(guides);
+        fixed (IntPtr* h = hp) fixed (IntPtr* f = fp) fixed (IntPtr* g = gp)
+        fixed (int* id = edgeIds) fixed (int* o = orders) fixed (double* w = weights)
+            return Wrap(Native.ck_boundary_fill(h, id, o, w, edgeIds.Length, f, freeCurves.Count, g, guides.Count));
+    }
 
     // ---- booleans & modification
     public static Shape Fuse(Shape a, Shape b) => Wrap(Native.ck_fuse(a.Handle, b.Handle));

@@ -96,6 +96,7 @@ public partial class MainWindow : Window
         }
         switch (id)
         {
+            case "sketch.start": if (s.ActiveCommand != null) return false; vm.StartFluidSketch(); return true;
             case "model.extrude":if(s.Sketch!=null || s.ActiveCommand?.Tool!=null)return false;s.StartCommand(()=>new Prism.Commands.ExtrudeCommand());return true;
             case "form.edit":if(s.Sketch!=null || s.ActiveCommand!=null || !s.SelectedObjects.Any(o=>o.Form!=null))return false;s.StartCommand(()=>new Prism.Commands.EditFormCommand());return true;
             case "file.new": vm.NewFile(); return true;

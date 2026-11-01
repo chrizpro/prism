@@ -101,8 +101,11 @@ var cam = vm.Tabs.Single(t => t.Title == "Subtractive");
 foreach (var name in new[] { "Profile", "Pocket", "Drill", "Face", "Post G-code", "CAM setup", "Playback", "Setup sheet" })
     Check(cam.Buttons.Any(b => b.Label.Replace("\n", " ") == name), "Subtractive retains " + name);
 Check(MainViewModel.WorkspaceDefs.Single(w=>w.Id=="make").Name=="CAM","CAM has a dedicated named workspace");
-var additive=vm.Tabs.Single(t=>t.Title=="Additive");
+var additive=vm.Tabs.Single(t=>t.Title=="3D FDM");
 Check(additive.Buttons.Any(b=>b.Label=="Import nozzle path")&&additive.Buttons.Any(b=>b.Label=="Export for printing")&&additive.Buttons.All(b=>!b.Label.Contains("slice")),"additive workflow imports external slicer paths without promoting built-in slicing");
+var resin=vm.Tabs.Single(t=>t.Title=="3D Resin");
+Check(resin.Buttons.Any(b=>b.Label=="Resin check")&&resin.Buttons.Any(b=>b.Label=="Drain / vent hole")&&resin.Buttons.All(b=>!b.Label.Contains("nozzle",StringComparison.OrdinalIgnoreCase)),"resin has cavity preparation and drainage without FDM nozzle controls");
+Check(cam.Buttons.Any(b=>b.Label=="Stock review")&&cam.Buttons.Any(b=>b.Label=="Design check"),"CNC exposes stock and manufacturability review");
 foreach (var title in new[] { "Surface", "NURBS", "Freeform" })
 {
     var tab = vm.Tabs.Single(t => t.Title == title);

@@ -37,7 +37,7 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty] public partial string SelectionTitle { get; set; } = "Nothing selected";
     [ObservableProperty] public partial bool HasSelection { get; set; }
     [ObservableProperty] public partial string RenameText { get; set; } = "";
-    [ObservableProperty] public partial string? CommandError { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AssistanceStatus))] public partial string? CommandError { get; set; }
 
     partial void OnSelectedTabChanged(RibbonTab? oldValue, RibbonTab? newValue)
     {
@@ -96,6 +96,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RebuildQuickBar();
         UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions();
         Prompt = s.ActiveCommand?.HasPanelStep==true ? s.ActiveCommand.PanelHint : s.ActiveTool?.Prompt ?? (s.ActiveCommand != null ? s.ActiveCommand.Hint : s.Sketch != null ? "Pick a sketch tool from the ribbon." : "");
+        UpdateActiveToolInstruction();
         if (IsSketching && !_sketchTab.IsVisible) { _sketchTab.IsVisible = true; _lastNormalTab = SelectedTab ?? _lastNormalTab; SelectedTab = _sketchTab; }
         else if (!IsSketching && _sketchTab.IsVisible)
         {
@@ -286,7 +287,10 @@ public sealed partial class MainViewModel : ViewModelBase
     RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
     {
         CommandCatalog.Register(make);
-        return Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching);
+        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching);
+        // Some unrelated tools share an icon (for example Sweep and Sweep 2 rails).
+        button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
+        return button;
     }
 
     /// <summary>A sketch tool button (shows as pressed while any mode of that tool family is active).</summary>
@@ -648,7 +652,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "NURBS",
             Groups =
             [
-                SketchGrp(), PlanesGrp(),
+                G("Sketch", Btn("Draw (K)", "sketch", StartFluidSketch, "Draw flat, then shape curves in space.")), PlanesGrp(),
                 G("Curves",
                     Cmd("Curve\nIntersect", "section", () => new CurveIntersectCommand(), "Combine planar curves from two different planes into their shared 3D curve."),
                     Cmd("Control\nCurve", "curve-cp", () => new CurveByPointsCommand(false), "Place control points; the curve is pulled toward them."),
@@ -830,7 +834,9 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonButton SimCmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
         {
             CommandCatalog.Register(make);
-            return Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && Session.ActiveStudy != null);
+            var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching && Session.ActiveStudy != null);
+            button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
+            return button;
         }
         var simulate = new RibbonTab
         {
@@ -1054,7 +1060,10 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Subtractive",
             Groups =
             [
-                G("Setup", Cmd("CAM setup", "cnc", () => new CamSetupCommand(), "Stock, G54 work zero and shared tool settings.")),
+                G("Setup", Cmd("CAM setup", "cnc", () => new CamSetupCommand(), "Stock, G54 work zero and shared tool settings."),
+                    Cmd("Select setup", "cnc", () => new SelectCamSetupCommand(), "Switch named stock and work-zero setups."),
+                    Cmd("Tool library", "cnc", () => new CamToolLibraryCommand(), "Save named tools with material-specific cutting feeds and speeds."),
+                    Cmd("Design check", "check", () => new CncDesignCheckCommand(), "Screen top-down access, reach and thin walls on CAD bodies or meshes.")),
                 G("CNC", ToolMenu("Toolpaths", "cnc-profile", "Create a milling or drilling operation.",
                     Cmd("Profile", "cnc-profile", () => new ProfileCommand(), "Profile milling with depth passes and holding tabs."),
                     Cmd("Pocket", "cnc-pocket", () => new PocketCommand(), "Pocket milling with islands."),
@@ -1062,9 +1071,12 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Turning", "cnc", () => new TurnCommand(), "Lathe: face, rough and finish a round part from a half-section sketch."),
                     Cmd("Drill", "cnc-drill", () => new DrillCommand(), "Drilling and peck cycles."),
                     Cmd("Face", "cnc-face", () => new FaceMillCommand(), "Face the stock with zigzag passes."),
+                    Cmd("3D Rough", "cnc", () => new Rough3DCommand(), "Layered raster roughing of setup stock, leaving an allowance around the model."),
                     Cmd("3D\nFinish", "cnc", () => new ParallelFinishCommand(), "Finish a 3D shape with parallel passes that follow its surface (ball nose or flat end mill).")),
                     Cmd("Post\nG-code", "gcode", () => new CncPostCommand(), "Post existing CNC toolpaths for GRBL, Mach3 or LinuxCNC.")),
                 G("Review", Cmd("Playback", "animation", () => new CamPlaybackCommand(), "Animate a cutter or nozzle along a path."),
+                    Cmd("Operation order", "toolpath", () => new CamProgramOrderCommand(), "Set the machining sequence used by posting and stock review."),
+                    Cmd("Stock review", "cnc", () => new CncStockCommand(), "Sample material removal, remaining stock, gouges, rapid and holder contacts."),
                     Cmd("Setup sheet", "check", () => new CamReviewCommand(), "Review operation sources and export a setup sheet."),
                     Cmd("Pass view", "toolpath", () => new ToolpathViewCommand(), "Inspect depth passes.")),
             ],
@@ -1076,9 +1088,19 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Match compatible natural patch boundaries with G0, G1 or G2 constraints."),
             Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
         form.Groups.Insert(3, G("Validate", Cmd("Check\nCage", "check", () => new CheckCageCommand(), "Check manifold topology, winding, degenerate faces and extraordinary points.")));
-        var additive = new RibbonTab {Title="Additive",Groups=[
-            G("Preparation",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY to a folder and open it in your slicer."),Btn("Export 3MF","print3d",()=>Export("3mf"),"Save a 3MF to a place you choose."),Btn("Export STL","mesh",()=>Export("stl"),"Save an STL to a place you choose."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
+        var additive = new RibbonTab {Title="3D FDM",Groups=[
+            G("Preparation",Cmd("FDM check","print3d",()=>new FdmCheckCommand(),"Check nozzle-based walls, overhangs, bed contact, build fit and filament weight on CAD bodies or meshes."),
+                Cmd("Orient part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Rotate the model for bed contact, supports and layer strength."),
+                Cmd("Split mesh","mesh",()=>new MeshCutCommand(),"Split an imported mesh to fit the build volume.")),
+            G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY and open in your slicer."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
             G("Nozzle review",Cmd("Import nozzle path","gcode",()=>new ImportGcodeCommand(),"Read linear G0/G1 output from an external slicer."),Cmd("Playback","animation",()=>new CamPlaybackCommand(),"Animate nozzle travel and extrusion paths."),Cmd("Layer view","toolpath",()=>new ToolpathViewCommand(),"Inspect imported print layers."))]};
+        var resin = new RibbonTab {Title="3D Resin",Groups=[
+            G("Resin preparation",Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
+                Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck."),
+                Cmd("Drain / vent hole","pcb-hole",()=>new HoleCommand(),"Cut a plain drainage or vent hole through a selected face or exact body.")),
+            G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
+                Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
+            G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",
             Cmd("Select static study","sim-new",()=>new SelectStudyCommand(),"Select a saved static study."),
@@ -1118,11 +1140,15 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, cam, additive, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         CommandCatalog.Register(() => new EdgeSurfaceCommand());
         CommandCatalog.Register(() => new FillOpeningCommand());
         OrganizeRibbons(TransformGrp, InspectGrp, AppearanceGrp, SelectGrp);
+        // Buttons that are not commands (and the shared selection and materials buttons) get their help by icon.
+        foreach (var t in Tabs.Where(t => !t.IsContextual && !t.IsFile))
+            foreach (var b in t.Buttons)
+                if (b.ExampleResolver == null) { var owner = t.Title; var button = b; b.ExampleResolver = () => Help.ToolHelp.ForButton(owner, button.Icon); }
         FinishRibbon();
     }
 }

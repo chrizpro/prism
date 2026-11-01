@@ -24,7 +24,7 @@ var sketch = vm.Session.Sketch!;
 var panel = new SketchPanel { DataContext = vm }; var host = new Window { Width = 340, Height = 900, Content = panel };
 host.Show(); Dispatcher.UIThread.RunJobs();
 var spatial = panel.GetVisualDescendants().OfType<StackPanel>().Single(p => p.Name == "SpatialSketchControls");
-var checkbox = panel.GetVisualDescendants().OfType<CheckBox>().Single(p => p.Name == "Enable3DSketch");
+var checkbox = panel.GetVisualDescendants().OfType<RadioButton>().Single(p => p.Name == "DrawInSpace");
 Check(!sketch.Is3DEnabled && checkbox.IsChecked == false && !spatial.IsVisible, "new sketches start in a clean 2D mode");
 vm.Session.Key("SketchGizmo"); vm.Session.Key("PlaneXZ");
 Check(!sketch.Is3DEnabled && !sketch.GizmoEditing && sketch.Plane == Plane3.XY, "spatial shortcuts cannot bypass the 3D checkbox");
@@ -47,10 +47,16 @@ foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
     using var bitmap = new RenderTargetBitmap(new PixelSize(340, 900)); bitmap.Render(panel); bitmap.Save(Path.Combine(output, "3d-" + theme.Key.ToString()!.ToLowerInvariant() + ".png"));
 }
 sketch.SetDrawingPlane(vm.Session, Plane3.XZ, forceNew: true); var count = sketch.DrawingPlanes.Count;
-checkbox.IsChecked = false; Dispatcher.UIThread.RunJobs();
-Check(!sketch.Is3DEnabled && !sketch.GizmoEditing && sketch.DrawingPlanes.Count == count && !spatial.IsVisible, "returning to 2D hides controls without deleting other drawing planes");
+vm.SketchDrawFlat = true; Dispatcher.UIThread.RunJobs();
+Check(sketch.Is3DEnabled && sketch.IsDrawingFlat && !sketch.GizmoEditing && sketch.DrawingPlanes.Count == count && !spatial.IsVisible, "returning to 2D hides controls without deleting other drawing planes");
+Check(!panel.GetVisualDescendants().OfType<CheckBox>().Single(p=>p.Name=="Free3DEditing").IsVisible,"free depth editing is hidden while drawing flat");
+var flatMode=sketch.Is3DEnabled;vm.Session.Camera.Yaw+=.4;vm.Session.Camera.Orthographic=false;
+Check(sketch.Is3DEnabled==flatMode,"orbiting and perspective changes do not change drawing mode");
+vm.Sketch3DEnabled=true;vm.SketchFreeEditing=true;var freeSaved=sketch.ExportModel();
+Check(new SketchContext(sketch.RootPlane,freeSaved).FreeEditing,"free editing choice survives reopening");
+vm.SketchDrawFlat=true;
 var exported = sketch.ExportModel(); var restored = new SketchContext(sketch.RootPlane, exported);
-Check(!restored.Is3DEnabled && restored.DrawingPlanes.Count == count, "saved mode and multi-plane geometry round-trip through sketch definitions");
+Check(restored.Is3DEnabled && restored.IsDrawingFlat && restored.DrawingPlanes.Count == count, "saved mode and multi-plane geometry round-trip through sketch definitions");
 exported.SpatialEditing = null;
 Check(new SketchContext(sketch.RootPlane, exported).Is3DEnabled, "legacy multi-plane sketches reopen with spatial editing enabled");
 var plain = new SketchModel(); var modeOnly = plain.Clone(); modeOnly.SpatialEditing = true;
@@ -124,13 +130,14 @@ Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.Count==1&&edit
 Check(editProbe.GizmoTargetConfirmed&&!editProbe.GizmoEditing&&editProbe.SelPoints.Count==1,"the point on the other plane is bound without leaving setup by hand");
 var lockedOrigin=editProbe.GizmoFrame.Origin;var lockedSelection=editProbe.SelPoints.ToList();
 TargetOtherPoint(-60,25,false);
-Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6&&editProbe.GizmoTargetConfirmed,"a plain click on another point leaves the gizmo bound to its target");
+Check(editProbe.ActivePlane==otherPlaneIndex&&editProbe.SelPoints.SetEquals(new[]{otherB})&&editProbe.GizmoFrame.Origin.DistanceTo(otherPlane.PointAt(-60,25))<1e-6&&editProbe.GizmoTargetConfirmed,"a plain click retargets the gizmo to the newly selected point");
+TargetOtherPoint(-30,10,false);
 TargetOtherPoint(-60,25,true);
 Check(editProbe.SelPoints.Count==2&&editProbe.GizmoTargetConfirmed&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)>1e-6,"Shift-clicking another point adds it and the bound gizmo moves to the average");
 TargetOtherPoint(-60,25,true);Check(editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6,"Shift-clicking it again takes it back out");
 var lockedCurve=otherPlane.PointAt(-45,17.5);var lockedPixel=probeSession.Camera.Project(lockedCurve)!.Value;
 probeSession.PointerDown(new(lockedPixel.x,lockedPixel.y,true,false,false,false));probeSession.PointerUp(new(lockedPixel.x,lockedPixel.y,false,false,false,false));
-Check(editProbe.SelPoints.SetEquals(lockedSelection)&&editProbe.GizmoFrame.Origin.DistanceTo(lockedOrigin)<1e-6,"clicking a curve or empty space outside Gizmo Handles does not move or clear the bound gizmo");
+Check(editProbe.SelEntities.Count==1&&editProbe.GizmoTargetConfirmed,"clicking a curve retargets the bound gizmo to that curve");
 // Saved datums are listed in the model tree and can be reused from there.
 {
  var treeVm=new MainViewModel{HomeOpen=false};treeVm.Session.EnterSketch(Plane3.XY);var treeSketch=treeVm.Session.Sketch!;
@@ -179,7 +186,7 @@ foreach(double yaw in new[]{-.6,.4,1.2})
  // the less-used 3D sketch tools sit in a collapsed "More 3D sketch tools" group; open it so its buttons exist
  foreach(var group in controls.GetVisualDescendants().OfType<Expander>().Where(x=>Equals(x.Header,"More 3D sketch tools")))group.IsExpanded=true;Dispatcher.UIThread.RunJobs();
  void Press(string tag)=>controls.GetVisualDescendants().OfType<Button>().Single(b=>Equals(b.Tag,tag)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
- Press("edit");Check(arrowSketch.GeometryEditing&&arrowSketch.GizmoEditing,"Edit Geometry button enters setup for arrow regression");
+ Press("select");Check(arrowSketch.GeometryEditing&&!arrowSketch.GizmoEditing,"Select button enables direct point editing without setup");
  var selectedPixel=arrowSession.Camera.Project(new Vec3(20,20,0))!.Value;
  arrowSession.PointerDown(new(selectedPixel.x,selectedPixel.y,true,false,false,false));arrowSession.PointerUp(new(selectedPixel.x,selectedPixel.y,false,false,false,false));
  int selectedId=arrowSketch.SelPoints.Single();

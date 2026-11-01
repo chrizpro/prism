@@ -19,6 +19,7 @@ from .api import (
     flange, flat_pattern, drawing, image, edit_image,
     linear_pattern, circular_pattern, rib, split_body, push_pull, move_face, delete_face, thicken,
     cam_setup, cnc_profile, cnc_pocket, cnc_adaptive, cnc_drill, cnc_face, cnc_finish, cnc_post, print_export,
+    fdm_check, resin_check, cnc_design_check, cnc_stock_review, resin_export, cnc_rough,
     form_box, form_cylinder, form_loft, form_pipe, form_info, form_op, form_to_nurbs,
 )
 

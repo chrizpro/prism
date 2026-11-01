@@ -7,13 +7,8 @@
 
         <!-- Large button: icon above a (possibly two line) label -->
         <DataTemplate DataType="rb:RibbonButton">
+            <Border Background="Transparent" PointerEntered="OnToolEntered" PointerExited="OnToolExited">
             <Button Classes="rb" Classes.checked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Click="OnRibbonButtonClick">
-                <ToolTip.Tip>
-                    <StackPanel MaxWidth="280" Spacing="3">
-                        <TextBlock Text="{Binding ToolTipTitle}" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Classes="soft"/>
-                    </StackPanel>
-                </ToolTip.Tip>
                 <Panel>
                     <StackPanel IsVisible="{Binding IsLarge}" Orientation="Vertical" Spacing="2" Margin="8,5,8,3" MinWidth="40">
                         <c:IconView Icon="{Binding Icon}" Width="34" Height="34" HorizontalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
@@ -25,6 +20,7 @@
                     </StackPanel>
                 </Panel>
             </Button>
+            </Border>
         </DataTemplate>
 
         <DataTemplate DataType="rb:RibbonGroup">
@@ -77,5 +73,6 @@
             </Grid>
         </Border>
         <Border Height="1" Background="{DynamicResource Line}" IsVisible="{Binding RibbonCollapsed}"/>
+        <Popup Name="ToolHoverPopup" Placement="Pointer" VerticalOffset="16" HorizontalOffset="12" IsLightDismissEnabled="False"/>
     </StackPanel>
 </UserControl>

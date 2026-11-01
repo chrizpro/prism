@@ -11,6 +11,20 @@ namespace Prism.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    public void StartFluidSketch()
+    {
+        bool nurbs = SelectedTab?.Title == "NURBS";
+        if (Session.ActiveCommand != null) return;
+        if (Session.Sketch == null)
+        {
+            var existing = nurbs ? Session.Objects.LastOrDefault(o => o.Kind == ObjKind.Sketch && (o.SketchData?.SharedNurbsCurves == true || o.Name.StartsWith("NURBS Curves", StringComparison.Ordinal)) && o.SketchData != null) : null;
+            if (existing != null) { if (!Session.EditSketch(existing)) return; }
+            else { Session.EnterSketch(Plane3.XY); if (nurbs && Session.Sketch is { } created) { created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true; } }
+            if (existing == null) Session.Sketch?.SetDrawingMode(Session, flat: nurbs);
+        }
+        if (Session.Sketch is { } sketch) { sketch.SetTool(Session, new SplineTool(false)); }
+    }
+
     [ObservableProperty] public partial double SketchDatumPlaneOffset { get; set; }
     public ObservableCollection<string> SketchPlaneChoices { get; } = [];
     public string[] SketchGizmoOperations { get; } = ["Move (W)", "Rotate (R)", "Scale (S)"];
@@ -41,7 +55,12 @@ public sealed partial class MainViewModel
     partial void OnSketchFreeEditingChanged(bool value) { if (!_refreshSketchSpace && Session.Sketch is { } sk) { sk.FreeEditing = value; Session.RaiseState(); } }
     [ObservableProperty] public partial bool SketchGizmoTargetSetup { get; set; }
     [ObservableProperty] public partial bool Sketch3DEnabled { get; set; }
-    partial void OnSketch3DEnabledChanged(bool value) { if (!_refreshSketchSpace) Session.Sketch?.Set3DEnabled(Session, value, adjustView: true); }
+    public bool SketchDrawFlat { get => !Sketch3DEnabled; set { if (value) Sketch3DEnabled = false; } }
+    partial void OnSketch3DEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SketchDrawFlat));
+        if (!_refreshSketchSpace) Session.Sketch?.SetDrawingMode(Session, flat: !value);
+    }
     [ObservableProperty] public partial bool SketchSnapOtherCurves { get; set; }
     [ObservableProperty] public partial bool SketchProjectOtherCurves { get; set; }
     [ObservableProperty] public partial string SketchSpaceStatus { get; set; } = "";
@@ -79,7 +98,7 @@ public sealed partial class MainViewModel
                 foreach (var section in sk.DrawingPlanes) SketchPlaneChoices.Add(section.Name);
             }
             SketchPlaneChoice = sk.ActivePlane; SketchGizmoOperation = (int)sk.GizmoOperation;
-            Sketch3DEnabled = sk.Is3DEnabled;
+            Sketch3DEnabled = !sk.IsDrawingFlat;
             SketchGizmoPlane = sk.GizmoPlaneIndex; SketchGizmoFollows = sk.GizmoFollowsSketch;
             SketchGizmoAxis = sk.SelectedGizmoAxis;
             bool editingSelection=sk.GeometryEditing&&!sk.GizmoEditing&&sk.HasGeometrySelection;
@@ -120,6 +139,7 @@ public sealed partial class MainViewModel
             case "gizmo": Session.Key("SketchGizmo"); break;
             case "confirm-target": sk.ConfirmGizmoTarget(Session); break;
             case "edit": sk.ToggleGeometryEditing(Session); break;
+            case "select": sk.SetTool(Session, new SelectTool()); break;
             case "spline-points": sk.SetTool(Session, new SketchGeometryEditTool(1)); break;
             case "normal": sk.LookNormal(Session); break;
             case "xy": sk.PresetPlane(Session, 0); break;

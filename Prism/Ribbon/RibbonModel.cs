@@ -13,13 +13,14 @@ public abstract partial class RibbonItem : ObservableObject { }
 public sealed partial class RibbonButton : RibbonItem
 {
     [ObservableProperty] public partial string Label { get; set; } = "";
-    [ObservableProperty] public partial string Icon { get; set; } = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasExample))] public partial string Icon { get; set; } = "";
     /// <summary>A dropdown: clicking opens a menu of variants and the button shows the last one chosen.</summary>
     public List<RibbonButton>? Menu { get; init; }
     public bool HasMenu => Menu != null;
     /// <summary>A split button: pressing the icon runs the variant last used, pressing the label (or right-clicking) opens the list of variants.</summary>
     public bool IsSplit { get; init; }
-    public RibbonButton? Current { get; set; }
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasExample)), NotifyPropertyChangedFor(nameof(ToolHelpIcon))]
+    public partial RibbonButton? Current { get; set; }
     public Action<RibbonButton>? Picked { get; init; }
     /// <summary>Stable identity (icon + label as shipped) so a customised ribbon can refer to a command.</summary>
     public string Id { get; set; } = "";
@@ -36,6 +37,18 @@ public sealed partial class RibbonButton : RibbonItem
     public bool IsLarge => Size == RibbonSize.Large;
     public bool IsSmall => Size == RibbonSize.Small;
     public string ToolTipTitle => Shortcut.Length > 0 ? $"{Label.Replace("\n", " ")}  ({Shortcut})" : Label.Replace("\n", " ");
+    string? _exampleIcon; bool _exampleResolved; Func<string?>? _exampleResolver;
+    /// <summary>Finds the help topic on first use, so building the ribbon does not construct every command.</summary>
+    public Func<string?>? ExampleResolver { get => _exampleResolver; set { _exampleResolver = value; _exampleResolved = false; } }
+    public string? ExampleIcon
+    {
+        get { if (!_exampleResolved && _exampleResolver != null) { _exampleResolved = true; _exampleIcon ??= _exampleResolver(); } return _exampleIcon; }
+        set { _exampleIcon = value; }
+    }
+    public string? ToolHelpIcon => IsSplit ? Current?.ExampleIcon : ExampleIcon;
+    public bool HasExample => ToolHelpIcon != null;
+    public string DocumentationId => IsSplit && Current != null ? Current.DocumentationId
+        : Id.Length > 0 ? Id : Icon + "|" + Label.Replace("\n", " ");
 
     [ObservableProperty] public partial bool IsChecked { get; set; }
     [ObservableProperty] public partial bool IsEnabled { get; set; } = true;

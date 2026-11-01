@@ -1,5 +1,7 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" VerticalAlignment="Top" Background="{DynamicResource PanelBg}">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Views.GizmoOptionsPanel" Background="{DynamicResource PanelBg}">
     <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
+    <Grid RowDefinitions="*,Auto">
+    <ScrollViewer Name="GizmoPanelScroll" Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <Expander Name="GizmoOptionsExpander" Header="Edit Gizmo" IsExpanded="True" HorizontalAlignment="Stretch">
         <StackPanel Spacing="9" Margin="12,0">
             <TextBlock Text="{Binding GizmoBindingStatus}" Classes="soft" TextWrapping="Wrap"/>
@@ -32,13 +34,7 @@
                         </Grid>
                     </StackPanel>
                 </StackPanel>
-                <StackPanel IsVisible="{Binding GizmoIsDatum}" Spacing="8">
-                    <Button Content="Hide gizmo" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
-                </StackPanel>
-                <StackPanel IsVisible="{Binding GizmoIsNotDatum}" Spacing="8"><StackPanel IsVisible="{Binding GizmoPositioning}" Spacing="8">
-                    <Button Content="Bind to the selection" Classes="studioAction primary" Click="OnBind" HorizontalAlignment="Stretch"/>
-                    <Button Content="Cancel (keep it bound as before)" Classes="studioAction" Click="OnCancelPlacement" HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                <StackPanel IsVisible="{Binding GizmoIsNotDatum}" Spacing="8">
                 <Button Content="Reset pivot to selection" Classes="studioAction" Click="OnResetPivot" HorizontalAlignment="Stretch"/></StackPanel>
             </StackPanel>
             <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="8">
@@ -102,7 +98,21 @@
             </StackPanel>
             <TextBlock Text="Shared by sketch, freeform and control-point gizmos. Hold Alt during a drag to bypass snapping. Axis colors identify X, Y and Z; the highlight follows your theme accent." Classes="meta" TextWrapping="Wrap"/>
             <Button Content="Reset gizmo preferences" Classes="studioAction" Click="OnReset" HorizontalAlignment="Stretch"/>
-            <Button Content="Done" Classes="studioAction" Click="OnReturn" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+
         </StackPanel>
     </Expander>
+    </ScrollViewer>
+    <Border Name="GizmoActionBar" Grid.Row="1" Padding="12,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
+        <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding GizmoIsNotDatum}">
+                <Button Name="CancelGizmoPlacement" Content="Cancel placement" Classes="studioAction" Click="OnCancelPlacement" IsVisible="{Binding GizmoPositioning}" ToolTip.Tip="Restore the previous gizmo binding."/>
+                <Button Name="BindGizmoSelection" Grid.Column="1" Content="Bind to selection" Classes="studioAction primary" Click="OnBind" IsVisible="{Binding GizmoPositioning}" IsEnabled="{Binding CanPlaceGizmo}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Button Content="Hide gizmo" Classes="studioAction" Click="OnCancelPlacement" IsVisible="{Binding GizmoIsDatum}" HorizontalAlignment="Left"/>
+                <Button Name="FinishGizmoPanel" Grid.Column="1" Content="Done" Classes="primary" Click="OnReturn"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+    </Grid>
 </UserControl>

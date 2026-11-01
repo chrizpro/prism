@@ -8,7 +8,7 @@ namespace Prism.Core;
 
 public enum SnapKind { Grid, Point, Entity, External, Projected, Gizmo, Midpoint, Track, Center }
 /// <summary>Where a click would land. <c>Note</c> says what it landed on when that is geometry outside this sketch (for example "Sketch 1 · center").</summary>
-public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id, string? Note = null, int Id2 = -1);
+public readonly record struct SnapInfo(double U, double V, SnapKind Kind, int Id, string? Note = null, int Id2 = -1, double Depth = 0);
 
 public static class GridMath
 {
@@ -33,6 +33,7 @@ public sealed partial class SketchContext
     public Plane3 GridPlane { get; }
     public Plane3 Plane => _sections[_activeSection].Plane;
     public SketchModel Model { get => _sections[_activeSection].Model; private set => _sections[_activeSection].Model = value; }
+    public string? SuggestedName { get; set; }
     public Guid? EditingId { get; }
     public SketchTool? Tool { get; private set; }
     public SolveResult Result { get; private set; }
@@ -77,8 +78,9 @@ public sealed partial class SketchContext
     // ---------------------------------------------------------------- tools, undo, solving
     public void SetTool(CadSession s, SketchTool? t)
     {
+        t ??= new SelectTool();
         GizmoEditing = false;
-        GeometryEditing = t is SketchGeometryEditTool or SplineEditTool;
+        GeometryEditing = t is SketchGeometryEditTool or SplineEditTool || Is3DEnabled && t is SelectTool;
         if(!GeometryEditing)_planarGizmoEnabled=false;
         if(!HasGeometrySelection)ClearGizmoTarget();
         DrawingAxis = 0; _lastPlacement = null; ClearTracking();
@@ -88,7 +90,7 @@ public sealed partial class SketchContext
         Tool = t;
         s.Say(t?.Prompt ?? "Pick a sketch tool.");
         t?.Activate(s);
-        if (t is SketchGeometryEditTool && Is3DEnabled) GizmoEditing = true;
+        if (t is SketchGeometryEditTool { SplinePoints:false } && Is3DEnabled) GizmoEditing = true;
         s.RaiseState();
     }
 
@@ -406,7 +408,7 @@ public sealed partial class SketchContext
 
     SnapInfo? SnapCore(CadSession s, double px, double py, bool allow, ICollection<int>? excludePoints, ICollection<int>? excludeEntities)
     {
-        if (allow && Is3DEnabled && _axisPreview is { } inferred)
+        if (allow && Is3DEnabled && !IsDrawingFlat && _axisPreview is { } inferred)
         {
             if (Math.Abs(Vec3.Dot(inferred-Plane.Origin,Plane.Normal)) > 1e-6) return null;
             var snapped=Plane.Project(inferred); return new SnapInfo(snapped.u,snapped.v,SnapKind.Grid,-1);
@@ -531,6 +533,7 @@ public sealed partial class SketchContext
     {
         if (sn.Kind == SnapKind.Point) return sn.Id;
         int id = Model.AddPoint(sn.U, sn.V);
+        if (Is3DEnabled) Model.P(id).Z = sn.Depth;
         if (sn.Kind == SnapKind.Track)
         {
             // only aligned-with-a-point snaps can become constraints; a midpoint or rectangle center has no point to refer to
@@ -692,7 +695,7 @@ public sealed partial class SketchContext
         if (ShowCurvature) BuildComb(s, o);
         if (Cursor is { } cur)
         {
-            var cp = Plane.PointAt(cur.U, cur.V);
+            var cp = Plane.PointAt(cur.U, cur.V) + Plane.Normal * cur.Depth;
             o.AddDot(cp, cur.Kind == SnapKind.Point ? 0xFFFFA630 : cur.Kind == SnapKind.Entity ? 0xFF35B6FF : 0xFFFFFFFF, cur.Kind == SnapKind.Grid ? 6 : 11);
             if ((Hint ?? DescribeSnap(cur)) is { } text)
                 o.AddLabel(cp + Plane.V * (cam.PixelSizeAt(cp) * 20), text, true, Hint != null ? 4 : 0);

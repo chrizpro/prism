@@ -156,30 +156,7 @@ public sealed class FillOpeningCommand : Command
         var obj = S.Find(it.Obj) ?? throw new FormatException("That surface is gone.");
         if (obj.Kind != ObjKind.Surface) throw new FormatException("This works on surfaces. For a solid use Delete Face; for a mesh use Mesh Repair.");
         var shape = obj.Shape;
-        var free = Occ.FreeEdges(shape);
-        if (free.Length == 0) throw new FormatException("This surface has no open edges: there is nothing to fill.");
-        var info = free.ToDictionary(i => i, i => Occ.EdgeInfoOf(shape.Sub(SubKind.Edge, i)));
-        var loops = new List<List<int>>(); var used = new HashSet<int>();
-        IEnumerable<int> starts = it.Kind == SelKind.Edge ? (free.Contains(it.Index) ? [it.Index] : throw new FormatException("That edge is not an open edge. Click an edge on the border of a hole.")) : free;
-        foreach (int s0 in starts)
-        {
-            if (used.Contains(s0)) continue;
-            var loop = new List<int> { s0 }; used.Add(s0);
-            var end = info[s0].End; var begin = info[s0].Start;
-            for (int guard = 0; guard < 10000 && end.DistanceTo(begin) > 1e-3; guard++)
-            {
-                int next = -1; bool flip = false;
-                foreach (int c in free)
-                {
-                    if (used.Contains(c)) continue;
-                    if (info[c].Start.DistanceTo(end) < 1e-3) { next = c; flip = false; break; }
-                    if (info[c].End.DistanceTo(end) < 1e-3) { next = c; flip = true; break; }
-                }
-                if (next < 0) break;
-                loop.Add(next); used.Add(next); end = flip ? info[next].Start : info[next].End;
-            }
-            loops.Add(loop);
-        }
+        var loops = SurfaceUtil.OpeningLoops(shape, it.Kind == SelKind.Edge ? it.Index : -1);
         var patches = new List<Shape>();
         foreach (var loop in loops)
         {

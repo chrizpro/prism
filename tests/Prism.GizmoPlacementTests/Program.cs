@@ -7,6 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Prism.Commands;
 using Prism.Core;
 using Prism.Core.Form;
@@ -59,9 +60,37 @@ try
     var moved=form.Work.V.ToArray();var bound=tool.Binding.Frame;vm.OpenGizmoPanel();vm.BeginGizmoPlacement();vm.GizmoOriginX+=20;vm.CloseGizmoPanel();
     Check(tool.Binding.Frame==bound&&moved.SequenceEqual(form.Work.V)&&vm.ShowCommandPanel,"leaving placement without binding restores the prior frame and editor");
     form.ClearSelection();form.Verts.Add(2);form.OnChanged();tool.BuildOverlay(s,new Overlay());Check(!tool.Binding.Bound&&tool.Binding.Frame==null,"changing the selection releases the previous binding");
-    var panel=new GizmoOptionsPanel{DataContext=vm};vm.OpenGizmoPanel();vm.BeginGizmoPlacement();var window=new Window{Width=394,Height=900,Content=new ScrollViewer{Content=panel}};window.Show();Dispatcher.UIThread.RunJobs();
+    var panel=new GizmoOptionsPanel{DataContext=vm};vm.OpenGizmoPanel();vm.BeginGizmoPlacement();var window=new Window{Width=394,Height=900,Content=panel};window.Show();Dispatcher.UIThread.RunJobs();
+    var scroll=panel.FindControl<ScrollViewer>("GizmoPanelScroll")!;
+    var footer=panel.FindControl<Border>("GizmoActionBar")!;
+    foreach(var height in new[]{360,480,900})
+    {
+        window.Height=height;window.UpdateLayout();Dispatcher.UIThread.RunJobs();
+        var before=footer.TranslatePoint(default, panel)!.Value;
+        scroll.Offset=new Vector(0,scroll.Extent.Height);window.UpdateLayout();Dispatcher.UIThread.RunJobs();
+        var after=footer.TranslatePoint(default,panel)!.Value;
+        Check(before==after&&after.Y>=0&&after.Y+footer.Bounds.Height<=panel.Bounds.Height+.1,$"gizmo action bar stays within a {height}px panel when scrolled");
+        foreach(var name in new[]{"FinishGizmoPanel","CancelGizmoPlacement","BindGizmoSelection"})
+        {
+            var button=panel.FindControl<Button>(name)!;
+            Check(button.IsEffectivelyVisible&&!button.GetVisualAncestors().OfType<ScrollViewer>().Any(),$"{name} remains visible outside the scroll region at {height}px");
+        }
+        scroll.Offset=default;
+    }
+    window.Height=480;window.UpdateLayout();Dispatcher.UIThread.RunJobs();
+    // Every existing panel action bar must remain outside the scrolling settings area.
+    foreach(var entry in new (UserControl panel,string label)[]{(new CommandPanel(),"Cancel"),(new SketchPanel(),"Finish sketch"),(new MaterialsPanel(),"Apply material"),(new SimulationPanel(),"Run study"),(new LibraryPanel(),"Insert selected part…"),(new StudiosPanel(),"Apply changes")})
+    {
+        entry.panel.DataContext=vm;
+        if(entry.panel is StudiosPanel) { var studioVm=new MainViewModel();studioVm.OpenRightPanel("parameters");entry.panel.DataContext=studioVm; }
+        var actionHost=new Window{Width=394,Height=360,Content=entry.panel};actionHost.Show();actionHost.UpdateLayout();Dispatcher.UIThread.RunJobs();
+        if(entry.panel is MaterialsPanel) { entry.panel.FindControl<TabControl>("StudioTabs")!.SelectedIndex=1;actionHost.UpdateLayout();Dispatcher.UIThread.RunJobs(); }
+        var actions=entry.panel.GetVisualDescendants().OfType<Button>().Where(b=>Equals(b.Content,entry.label)).ToList();
+        Check(actions.Count>0&&actions.All(b=>!b.GetVisualAncestors().OfType<ScrollViewer>().Any()),$"{entry.panel.GetType().Name} action bar is outside scrolling content");
+        actionHost.Close();
+    }
     string output=Path.GetFullPath("artifacts/gizmo-panel-review");Directory.CreateDirectory(output);
-    foreach(var theme in new[]{ThemeVariant.Dark,ThemeVariant.Light}){Application.Current!.RequestedThemeVariant=theme;Dispatcher.UIThread.RunJobs();using var bitmap=new RenderTargetBitmap(new PixelSize(394,900));bitmap.Render((Visual)window.Content!);bitmap.Save(Path.Combine(output,"gizmo-"+theme.Key+".png"));}
+    foreach(var theme in new[]{ThemeVariant.Dark,ThemeVariant.Light}){Application.Current!.RequestedThemeVariant=theme;Dispatcher.UIThread.RunJobs();using var bitmap=new RenderTargetBitmap(new PixelSize(394,480));bitmap.Render((Visual)window.Content!);bitmap.Save(Path.Combine(output,"gizmo-"+theme.Key+".png"));}
     vm.CloseGizmoPanel();window.Close();s.CancelCommand();
     GizmoSettings.Current.AxisX=false;var hiddenOverlay=new Overlay();GizmoVisual.DrawOperation(hiddenOverlay,s,Vec3.Zero,GizmoVisual.WorldAxes,0,0);
     var hiddenPoint=s.Camera.Project(Vec3.UnitX*GizmoVisual.Length(s,Vec3.Zero)*.7)!.Value;

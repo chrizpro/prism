@@ -252,7 +252,7 @@ if (Environment.GetEnvironmentVariable("PRISM_REVIEW_OUTPUT") is { Length: > 0 }
     var sketchPanel = new Prism.Views.SketchPanel { DataContext = vm }; var host = new Avalonia.Controls.Window { Width = 360, Height = 900, Content = sketchPanel };
     host.Show(); Dispatcher.UIThread.RunJobs();
     host.CaptureRenderedFrame()?.Save(Path.Combine(review, "sketch-panel-3d.png"));
-    var gizmoPanel = new Prism.Views.GizmoOptionsPanel { DataContext = vm }; var host2 = new Avalonia.Controls.Window { Width = 360, Height = 1100, Content = new Avalonia.Controls.ScrollViewer { Content = gizmoPanel } };
+    var gizmoPanel = new Prism.Views.GizmoOptionsPanel { DataContext = vm }; var host2 = new Avalonia.Controls.Window { Width = 360, Height = 1100, Content = gizmoPanel };
     host2.Show(); Dispatcher.UIThread.RunJobs();
     host2.CaptureRenderedFrame()?.Save(Path.Combine(review, "gizmo-panel.png"));
 }

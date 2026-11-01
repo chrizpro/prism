@@ -56,6 +56,8 @@ public sealed class AppSettings
     public bool HistoryExpanded { get; set; } = true;
     public double HistoryHeight { get; set; } = 210;
     public string HelpContextLocation { get; set; } = "viewport";
+    /// <summary>Base URL for per-tool online guides. Leave unset until the guide is published.</summary>
+    public string? ToolDocumentationBaseUrl { get; set; }
     /// <summary>What the status bar shows on the right (see MainViewModel.StatusCatalog). Null means the shipped set.</summary>
     public List<string>? StatusBar { get; set; }
     /// <summary>Changed keyboard shortcuts by action id, written "gesture|scope". Actions not listed keep their shipped key (see Hotkeys).</summary>

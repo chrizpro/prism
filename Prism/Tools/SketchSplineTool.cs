@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Prism.Core.Sketching;
+using Prism.Kernel;
 
 namespace Prism.Core;
 
@@ -53,6 +54,32 @@ public static class SplineOps
         return id;
     }
 
+    public static (int index, Vec3 point) ScreenInsertSpot(CadSession session, SketchContext sketch, SkEntity entity, double px, double py)
+    {
+        var model = sketch.Model;
+        Vec3 World(Vec3 p) => sketch.Plane.PointAt(p.X,p.Y) + sketch.Plane.Normal*p.Z;
+        var samples=model.SplineSamples3(entity).Select(p=>new Vec3(p.x,p.y,p.z)).ToList();
+        Vec3 closest=samples[0]; double best=double.MaxValue;
+        for(int i=1;i<samples.Count;i++)
+        {
+            var a=session.Camera.Project(World(samples[i-1])); var b=session.Camera.Project(World(samples[i]));
+            if(a==null||b==null)continue;
+            var (t,distance)=Picking.SegDist(px,py,a.Value.x,a.Value.y,b.Value.x,b.Value.y);
+            if(distance<best){best=distance;closest=Vec3.Lerp(samples[i-1],samples[i],t);}
+        }
+        int index=1; best=double.MaxValue; Vec3 polygon=closest;
+        int count=entity.Closed&&!entity.ControlPoints?entity.Pts.Count:entity.Pts.Count-1;
+        Vec3 At(int i){var p=model.P(entity.Pts[i%entity.Pts.Count]);return new(p.X,p.Y,p.Z);}
+        for(int i=0;i<count;i++)
+        {
+            var a=At(i);var delta=At(i+1)-a;
+            double t=Math.Clamp(Vec3.Dot(closest-a,delta)/Math.Max(Vec3.Dot(delta,delta),1e-18),0,1);
+            var point=a+delta*t;double distance=point.DistanceTo(closest);
+            if(distance<best){best=distance;index=i+1;polygon=point;}
+        }
+        return(index,entity.ControlPoints?polygon:closest);
+    }
+
     /// <summary>Take a point out of the spline (it stays on screen only if something else uses it).</summary>
     public static bool Remove(SketchModel m, SkEntity e, int pid)
     {
@@ -70,7 +97,7 @@ public sealed class SplineEditTool : SketchTool
 
     int _spline = -1;
     int _dragPt = -1; bool _down, _started; SketchModel? _snap;
-    (double u, double v)? _ghost;
+    Vec3? _ghost;
 
     public override void Activate(CadSession s)
     {
@@ -95,7 +122,7 @@ public sealed class SplineEditTool : SketchTool
         foreach (var p in sk.Model.Points)
         {
             if (p.Id == 0 || SplineWith(sk, p.Id) is not { } e) continue;
-            var q = s.Camera.Project(sk.Plane.PointAt(p.X, p.Y)); if (q == null) continue;
+            var q = s.Camera.Project(SketchModel.To3(sk.Plane,p)); if (q == null) continue;
             double d = Math.Sqrt((q.Value.x - px) * (q.Value.x - px) + (q.Value.y - py) * (q.Value.y - py)) - (e.Id == _spline ? 3 : 0);
             if (d < bd) { bd = d; best = p.Id; }
         }
@@ -122,11 +149,11 @@ public sealed class SplineEditTool : SketchTool
             s.NotifySketchChanged(); s.Invalidate(); return true;
         }
         int eid = PickSpline(s, sk, p.X, p.Y);
-        if (eid >= 0 && eid != _spline) { _spline = eid; SetSelection(sk); s.Say("Spline selected. Click along it to add points, drag points to reshape it."); s.NotifySketchChanged(); s.Invalidate(); return true; }
-        if (eid >= 0 && sk.PlanePoint(s, p.X, p.Y) is { } uv)
+        if (eid >= 0 && eid != _spline) { _spline = eid; SetSelection(sk); }
+        if (eid >= 0)
         {
             int made = -1;
-            if (sk.Edit(s, "Adding that point", () => { var e = sk.Model.E(_spline); made = SplineOps.Insert(sk.Model, e, uv.u, uv.v); }) && made >= 0)
+            if (sk.Edit(s, "Adding that point", () => { var e = sk.Model.E(_spline); var spot=SplineOps.ScreenInsertSpot(s,sk,e,p.X,p.Y); made=sk.Model.AddPoint(spot.point.X,spot.point.Y); sk.Model.P(made).Z=spot.point.Z; e.Pts.Insert(Math.Min(spot.index,e.Pts.Count),made); }) && made >= 0)
             {
                 sk.SelPoints.Clear(); sk.SelPoints.Add(made);
                 _dragPt = made; _down = true;           // keep the button down to shape it right away
@@ -156,8 +183,8 @@ public sealed class SplineEditTool : SketchTool
         _ghost = null;
         if (he >= 0 && he == _spline && sk.PlanePoint(s, p.X, p.Y) is { } w)
         {
-            var spot = SplineOps.InsertSpot(sk.Model, sk.Model.E(he), w.u, w.v);
-            _ghost = (spot.x, spot.y);
+            var spot = SplineOps.ScreenInsertSpot(s, sk, sk.Model.E(he), p.X, p.Y);
+            _ghost = spot.point;
         }
         sk.HoverPoint = hp; sk.HoverEntity = he;
         sk.Cursor = null;
@@ -226,11 +253,11 @@ public sealed class SplineEditTool : SketchTool
         var sk = Sk(s);
         if (_spline >= 0 && sk.Model.EntityOrNull(_spline) is { } e)
         {
-            var pts = e.Pts.Select(i => sk.Plane.PointAt(sk.Model.P(i).X, sk.Model.P(i).Y)).ToList();
+            var pts = e.Pts.Select(i => SketchModel.To3(sk.Plane,sk.Model.P(i))).ToList();
             if (e.Closed && !e.ControlPoints && pts.Count > 2) pts.Add(pts[0]);
             o.AddPolyline(pts, e.ControlPoints ? 0xB06F86A6 : 0x606F86A6, 1.2f);          // the point polygon
-            foreach (var i in e.Pts) o.AddDot(sk.Plane.PointAt(sk.Model.P(i).X, sk.Model.P(i).Y), sk.SelPoints.Contains(i) ? 0xFFFFC53D : 0xFFFF8A1F, 11);
+            foreach (var i in e.Pts) o.AddDot(SketchModel.To3(sk.Plane,sk.Model.P(i)), sk.SelPoints.Contains(i) ? 0xFFFFC53D : 0xFFFF8A1F, 11);
         }
-        if (_ghost is { } g) o.AddDot(sk.Plane.PointAt(g.u, g.v), 0xFF35B6FF, 10);
+        if (_ghost is { } g) o.AddDot(sk.Plane.PointAt(g.X,g.Y)+sk.Plane.Normal*g.Z, 0xFF35B6FF, 10);
     }
 }

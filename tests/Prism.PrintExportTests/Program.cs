@@ -36,6 +36,11 @@ try
     bool threw = false; try { PrintExport.Export(new CadSession(), new PrintExportOptions(folder, "none", PrintFormat.Stl, false, false, 1)); } catch (InvalidOperationException) { threw = true; }
     Check(threw, "an empty document reports nothing to export");
     Check(PrintExport.FindSlicer(4, Path.Combine(folder, "missing.exe")) == null, "a missing custom slicer is reported, not launched");
+    string fake=Path.Combine(folder,"custom-resin.exe");File.WriteAllText(fake,"");
+    Check(new[]{5,6,7}.All(i=>PrintExport.FindSlicer(i,fake)==fake),"all resin slicer choices accept an explicit executable override");
+    Check(PrintExport.FindSlicer(0,fake)==null,"save-only mode does not launch a custom executable");
+    bool badQuality=false;try{PrintExport.Export(s,new(folder,"bad",PrintFormat.ThreeMf,false,false,double.NaN));}catch(InvalidOperationException){badQuality=true;}
+    Check(badQuality,"non-finite tessellation quality is rejected before writing files");
 }
 finally { try { Directory.Delete(folder, true); } catch { } }
 Console.WriteLine($"SUCCESS: {checks} checks");

@@ -1,86 +1,54 @@
-# CAM plan
+# CAM status and scope
 
-Status: milestone 1 is partly built. The CAM ribbon tab is now Subtractive, and Additive has "Export for printing" (folder, 3MF/STL/OBJ/PLY, curve quality, one file per body, open in Bambu Studio/OrcaSlicer/PrusaSlicer/other). Not yet tested against a real slicer. Everything else below is still planned.
+Updated 2026-10-31.
 
-## Direction
+Prism focuses on CNC machining and preparation for FDM and resin printing. Dedicated slicers handle supports, slicing, exposure, printer profiles and printer delivery. Do not expand the legacy built-in FDM slicer.
 
-Prism makes the model manufacturable; dedicated tools do the rest. Focus on **CNC (subtractive)** and **3D printing (additive)**. We do not compete with slicers. Injection molding is a later, separate "Mold" workspace.
+## Workspace
 
-## What exists today
+The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, **3D FDM** and **3D Resin**, alongside Home, Analyze and View. Mold tooling is not part of this workspace.
 
-- Workspace `make` ("CAM"), tabs: Home, CAM, Additive, Tooling, Analyze, View (`Prism/ViewModels/MainViewModel.Workspaces.cs`).
-- CNC operations: profile, pocket, adaptive clear, turn, parallel finish, drill, face mill (`Prism/Commands/CamCommands.cs`).
-- Posts: GRBL, Mach3, LinuxCNC; lathe and print posts (`Prism/Core/Cam/Post.cs`).
-- Setup: stock box, work zero, tool and feeds (`CamSetup.cs`).
-- Playback: `PathTimeline` (time to tool position) and `ToolpathViewCommand`. This is the base for the bit animation.
-- Built-in slicer (`Slicer.cs`). To be removed later, once the hand-off is solid. Do not grow it.
+Separate print tabs are justified by distinct checks and workflows, rather than different export formats:
 
-## Tabs
+- FDM: nozzle/perimeter wall targets, overhangs, bed contact, build fit, orientation guidance and filament estimates. Imported linear nozzle G-code can be played back.
+- Resin: closed cavities, sampled trapped volume, potential unvented cups during build progression, unsupported layer starts, minimum features, peak layer area and resin estimates. Hollowing and drain/vent holes reuse exact CAD tools. Resin slicing/supports/exposure stay external.
 
-- **Subtractive** (CNC): Setup, Operations, Tools, Simulate, Post.
-- **Additive** (3D printing): Printability, Orientation, Export.
-- Shared: Tooling, Analyze, View.
-- Possible third process tab later: Sheet/Cut (laser, waterjet, plasma), reusing sketch and sheet-metal flat patterns.
+## Implemented CNC workflow
 
-## Export and send to slicer
+1. Create or edit a named setup: rectangular stock, G54 work zero and shared cutting settings. Named setups persist in the project; Select setup changes the active one. All use the global +Z tool axis.
+2. Choose or save a tool/material preset in the local tool library. Existing generated paths retain their original settings.
+3. Generate profiling (including tabs), pocketing/islands, adaptive clearing, drilling/pecking, facing, layered 3D raster roughing with stock allowance, parallel 3D finishing or turning.
+4. Set Operation order. Hide operations to omit them. Program order persists with each path and is respected by posting, setup sheets and stock review.
+5. Review source freshness and playback. Setup or source changes invalidate generated paths. Switching saved setups does not invalidate another setup's paths.
+6. Run CNC Design Check for sampled top-down access, reach and thin walls; inspect inside corner and hole requirements.
+7. Run Stock review on the active setup. A swept flat/ball cutter heightfield estimates material removed/remaining and possible gouges, rapid contacts and holder contacts. Program position can be set before rerunning to inspect intermediate stock.
+8. Export a setup sheet and post one setup per program to GRBL, Mach3 or LinuxCNC. Turning and milling are separate programs. LinuxCNC gets G7 diameter mode; Mach3 Turn must be configured for diameter mode.
 
-Export dialog:
-- Formats: 3MF (default), STL binary and ASCII, OBJ, STEP.
-- Chosen folder, remembered per project.
-- Bodies: selected, visible, or all. One file per body or one combined file.
-- Tessellation quality (chord and angle tolerance).
-- Units and Z-up orientation, written into the 3MF.
+## Print preparation and handoff
 
-Send to slicer:
-- User picks a slicer in Settings; default is "just reveal the file".
-- Export to a stable path (for example `<project>/print/part.3mf`) and launch the slicer with that file.
-- If the slicer is already open, tell the user to use Reload from disk. There is no API to push into an open slicer, and a second launch may open a new window depending on the slicer and its single-instance setting.
-- Optional: a file watcher re-exports when the model changes.
-- First target: Bambu Studio (tested manually by the user). PrusaSlicer and OrcaSlicer are expected to behave similarly but are unverified.
+Both print workflows accept exact CAD bodies, forms and imported meshes. Run checks explicitly after choosing the model/settings. Results and overlays are invalidated when those inputs change.
 
-## Additive: printability checks
+Export supports 3MF (default, named separate bodies in millimetres), STL, OBJ and PLY; selection/visible bodies; combined or one file per body; and tessellation quality. Exports replace a stable path through a temporary file. Export folder, format, quality, slicer and per-body choice are remembered per project and process in local preferences.
 
-- Overhang shading with a threshold, and bridging.
-- Minimum wall and feature size against nozzle diameter.
-- Bed fit, orientation advice (overhangs, supports, strength direction).
-- Mesh health: watertight, non-manifold edges, inverted normals.
-- Later: lattices and gyroid fill (a modelling feature, large).
-- Skipped: STEP/NURBS slicing. Slicers tessellate STEP themselves; we only control our own tessellation.
+Slicer choices include Bambu Studio, OrcaSlicer, PrusaSlicer, CHITUBOX, Lychee Slicer, PreForm, or a custom executable. Install-path discovery is best effort; the program-path override works for any selection. Real application launch/import compatibility is not yet verified. Re-export and use the external application's reload/import workflow to update an existing model.
 
-## Resin (later)
+## Important limits and remaining work
 
-A printability profile alongside FDM: trapped volumes and drain holes, cupping, layer islands, tilt orientation, support touch points, minimum feature size.
+This is a focused three-axis CAM/preparation workflow, not complete industrial CAM.
 
-## Subtractive: design-for-CNC checks
+- Stock removal is a sampled 2.5D heightfield, not an exact solid simulation. It cannot represent undercuts, fixtures, rotary axes or machine kinematics. The grid can miss fine contacts. Holder size and flute clearance are user-supplied global review dimensions.
+- Resin geometry is sampled on a bounded grid (at most about 82 cells per dimension). Thin walls, small drains, fine islands and narrow connections can be missed. A coarse clean report does not establish printability. Rerun finer checks and use final slicer validation.
+- Resin layer sampling is geometric screening, not actual exposure-layer slicing or support generation. Printed-material overlap identifies unsupported starts; peel physics and support strength are not calculated.
+- Named setups currently vary stock/body/origin, not tool-axis orientation. Rotated workplanes, indexed/multi-axis machining and a full setup manager remain future work.
+- 3D roughing uses raster layers, a flat cutter, sampled clearance and vertical entries. It does not include rest machining, constant-engagement 3D roughing, helical entry or scallop/constant-Z finishing.
+- CNC corner and hole guidance is not automatic recognition or certification of every radius, hole and tool-access constraint.
+- Posts beyond GRBL/Mach3/LinuxCNC, exact tool assemblies, automatic fixture checks and machine-specific prove-out remain future work. Do not add nominal controller support without checking its dialect.
+- Mesh hollowing, lattices, automatic support-contact placement and material-specific resin process profiles are deferred to dedicated tools.
 
-- Tool access and reachability per direction.
-- Minimum inside corner radius against the smallest tool.
-- Thin walls and floors, deep pockets (depth to diameter).
-- Undercuts and number of setups or flips.
-- Hole checks: standard sizes, depth to diameter, bottom shape.
-- Suggested fixes (for example, fillet these edges).
+## Validation
 
-## Subtractive: workflow
+`tests/Prism.CamTests` covers analytical resin cavity/cup/vent/island cases, stock removal and contact regressions, direct CAD/mesh checks, named-setup freshness and roundtrip, operation ordering, post validation and generated 3D roughing. It renders process ribbons and print panels in dark/light themes to `docs/cam-workflows`.
 
-- Stock setup, tool library with feeds and speeds by material, multiple setups (WCS).
-- Operation ordering and cycle-time estimates.
-- More posts (Fanuc, Haas, Siemens).
+Also run `Prism.PrintExportTests`, `Prism.RibbonTests`, `Prism.ApiCoverageTests` and `Prism.WorkflowTests` after CAM changes. Real slicer and CNC machine testing remain outstanding.
 
-## Bit animation and simulation
-
-- Phase A: animate tool and holder along `PathTimeline`, with play/pause, scrub, speed, rapids in a different colour.
-- Phase B: material removal (heightmap for 3-axis; `HeightMap.cs` is a start).
-- Phase C: collision detection, and overlay of cut stock against the target to show leftover or gouges.
-
-## Order of work
-
-1. Split tabs into Subtractive and Additive; export dialog and Send to slicer (Bambu Studio).
-2. Overhang shading and the printability panel.
-3. Bit animation, Phase A.
-4. CNC design-for-manufacture checks.
-5. Material removal simulation, resin checks, lattices.
-
-## Open questions
-
-- Who are the first CNC users: hobby routers (GRBL class) or small production mills? This sets the weight on posts and tool libraries.
-- Which slicers should be supported beyond Bambu Studio?
+Resin design references: [Formlabs cups](https://formlabs.com/support/Preventing-suction-cups-in-PreForm/), [Formlabs orientation](https://formlabs.com/support/Model-Orientation/), [Prusa hollowing](https://help.prusa3d.com/article/hollowing_117285?product=sl1s-speed). Controller reference: [LinuxCNC G7/G8](https://www.linuxcnc.org/docs/2.8/html/gcode/g-code.html), [Mach3 Turn manual](https://www.machsupport.com/ftp/Docs/Mach3Turn_1.84.pdf).

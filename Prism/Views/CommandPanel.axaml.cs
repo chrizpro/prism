@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Linq;
+using Avalonia.VisualTree;
 using Avalonia;
 using Avalonia.Threading;
 using Avalonia.Controls;
@@ -63,6 +65,12 @@ public partial class CommandPanel : UserControl
     }
 
     void OnOk(object? sender, RoutedEventArgs e) => Vm?.Session.AcceptCommandPanel();
+    void OnHelp(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control anchor)
+            this.FindAncestorOfType<MainView>()?.GetVisualDescendants().OfType<Ribbon.RibbonView>().FirstOrDefault()
+                ?.ShowExample(anchor, Help.ToolHelp.ForCommand(Vm?.ActiveCommand)?.Icon);
+    }
     void OnCancel(object? sender, RoutedEventArgs e) => Vm?.Session.CancelCommandPanel();
     void OnActionClick(object? sender, RoutedEventArgs e) { if ((sender as Control)?.DataContext is ActionParam a) a.Run(); }
     void OnGizmo(object? sender,RoutedEventArgs e)=>Vm?.OpenGizmoPanel();

@@ -36,6 +36,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_ruled(IntPtr a, IntPtr b);
     [DllImport(Lib)] public static extern IntPtr ck_patch(IntPtr* edges, int n);
     [DllImport(Lib)] public static extern IntPtr ck_patch_supported(IntPtr source, int* edgeIds, int n, int order);
+    [DllImport(Lib)] public static extern IntPtr ck_boundary_fill(IntPtr* hosts, int* ids, int* orders, double* weights, int n, IntPtr* freeCurves, int nf, IntPtr* guides, int ng);
     [DllImport(Lib)] public static extern IntPtr ck_patch_points(IntPtr* edges, int n, double* pts, int m, int degree, int nbPtsOnCur, int nbIter, double tol3d);
 
     [DllImport(Lib)] public static extern IntPtr ck_fuse(IntPtr a, IntPtr b);

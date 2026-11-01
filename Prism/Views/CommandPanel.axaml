@@ -84,7 +84,7 @@
             <Grid ColumnDefinitions="24,*,Auto,Auto" ColumnSpacing="8">
                 <c:IconView Icon="{Binding ActiveCommand.Icon}" Width="24" Height="24" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding ActiveCommand.DisplayTitle}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveCommand.DisplayTitle}"/>
-                <Button Grid.Column="2" Classes="tool" Content="?" Padding="4,0">
+                <Button Grid.Column="2" Classes="tool" Content="?" Padding="4,0" Click="OnHelp">
                     <ToolTip.Tip><TextBlock Text="{Binding ActiveCommand.PanelHint}" TextWrapping="Wrap" MaxWidth="280"/></ToolTip.Tip>
                 </Button>
                 <Button Grid.Column="3" Classes="tool" Content="×" Click="OnCancel" Padding="4,0" ToolTip.Tip="Cancel operation (Esc)"/>
@@ -93,6 +93,7 @@
         <ScrollViewer Name="PanelScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12,0,12,12" Spacing="2">
                 <TextBlock Text="{Binding ActiveCommand.PanelHint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
+                <Button Content="Show tool example" IsVisible="{Binding HasActiveToolExample}" Click="OnHelp" HorizontalAlignment="Stretch" Margin="0,0,0,10"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
                 <Button Classes="studioAction" Content="Gizmo…" IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Click="OnGizmo" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.Results}" Margin="0,8,0,0">

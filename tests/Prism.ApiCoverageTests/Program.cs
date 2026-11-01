@@ -18,7 +18,7 @@ var api = AutomationApi.CommandKeys().ToHashSet();
 var missing = ribbon.Where(k => !api.Contains(k)).Order().ToList();
 Console.WriteLine($"ribbon commands: {ribbon.Count}, reachable by name: {ribbon.Count - missing.Count}");
 foreach (var m in missing) Console.WriteLine("NOT REACHABLE " + m);
-foreach (var tab in new[] { "Solid", "Sketch", "Sheet Metal", "Direct Modeling", "Subtractive", "Additive" })
+foreach (var tab in new[] { "Solid", "Sketch", "Sheet Metal", "Direct Modeling", "Subtractive", "3D FDM", "3D Resin" })
     if (vm.Tabs.FirstOrDefault(t => t.Title == tab) is { } t) Console.WriteLine(tab + ": " + string.Join(" | ", t.Buttons.Select(b => b.Label.Replace("\n", " "))));
 if (missing.Count > 0) { Console.WriteLine($"FAIL: {missing.Count} ribbon commands cannot be started through the API"); return 1; }
 Console.WriteLine("SUCCESS");

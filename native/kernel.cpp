@@ -141,8 +141,10 @@
 #include <gp_Ax2.hxx>
 #include <gp_Circ.hxx>
 #include <gp_Pnt.hxx>
+#include <gp_Pnt2d.hxx>
 #include <gp_Trsf.hxx>
 #include <gp_Vec.hxx>
+#include <gp_Vec2d.hxx>
 
 #ifdef _WIN32
 #define CK_API extern "C" __declspec(dllexport)
@@ -509,6 +511,83 @@ CK_API void* ck_patch_supported(void* source, const int* edgeIds, int n, int ord
         }
         f.Build();
         if (!f.IsDone() || !BRepCheck_Analyzer(f.Face()).IsValid()) { fail("Could not fill the opening with the requested continuity."); return nullptr; }
+        return wrap(f.Face());
+    CATCH(nullptr)
+}
+
+// Points just inside a supporting face along an edge. They pull the fill toward the face's shape:
+// the deeper they sit, the stronger the fill hugs the neighbour (the "weight" of the boundary edge).
+static void addInteriorPoints(const TopoDS_Edge& edge, const TopoDS_Face& face, double w, std::vector<gp_Pnt>& out) {
+    Standard_Real fp, lp;
+    Handle(Geom2d_Curve) pc = BRep_Tool::CurveOnSurface(edge, face, fp, lp);
+    Handle(Geom_Surface) base = BRep_Tool::Surface(face);
+    if (pc.IsNull() || base.IsNull()) return;
+    Handle(Geom_Surface) surf = Handle(Geom_Surface)::DownCast(base->Transformed(face.Location().Transformation()));
+    if (surf.IsNull()) return;
+    BRepAdaptor_Curve ac(edge);
+    double depth = w * 0.15 * GCPnts_AbscissaPoint::Length(ac);
+    const int M = 9;
+    for (int i = 0; i < M; ++i) {
+        double t = fp + (lp - fp) * (i + 0.5) / M;
+        gp_Pnt2d uv; gp_Vec2d tg;
+        pc->D1(t, uv, tg);
+        if (tg.Magnitude() < 1e-9) continue;
+        tg.Normalize();
+        gp_Pnt pu; gp_Vec d1u, d1v;
+        surf->D1(uv.X(), uv.Y(), pu, d1u, d1v);
+        bool done = false;
+        for (int side = 0; side < 2 && !done; ++side) {
+            gp_Vec2d inward = side == 0 ? gp_Vec2d(-tg.Y(), tg.X()) : gp_Vec2d(tg.Y(), -tg.X());
+            gp_Vec step3 = d1u.Multiplied(inward.X()) + d1v.Multiplied(inward.Y());
+            double scale = step3.Magnitude();
+            if (scale < 1e-9) continue;
+            double h = depth;
+            for (int r = 0; r < 6; ++r) {
+                gp_Pnt2d p2 = uv.Translated(inward * (h / scale));
+                BRepClass_FaceClassifier cls(face, p2, Precision::Confusion());
+                if (cls.State() == TopAbs_IN) { out.push_back(surf->Value(p2.X(), p2.Y())); done = true; break; }
+                h *= 0.5;
+            }
+        }
+    }
+}
+
+// Fill one boundary loop made of surface edges and free curves (Boundary Surface).
+// hosts/ids/orders/weights[i]: edge ids[i] of shape hosts[i]; orders 0/1/2 constrain it to its single
+// supporting face (position/tangent/curvature) and weights[i] adds pull toward that face. An edge with
+// no unique supporting face falls back to position only. freeCurves: wire/edge shapes whose edges join
+// the boundary at C0. guides: curves inside the outline the surface should pass through.
+CK_API void* ck_boundary_fill(void** hosts, const int* ids, const int* orders, const double* weights, int n,
+                              void** freeCurves, int nf, void** guides, int ng) {
+    TRY
+        if (n < 1 && nf < 1) { fail("Pick the edges or curves that bound the surface."); return nullptr; }
+        BRepFill_Filling f(3, 15, 3, Standard_False, 1e-5, 1e-4, 0.01, 0.1, 8, 9);
+        std::vector<gp_Pnt> inside;
+        for (int i = 0; i < n; ++i) {
+            TopTools_IndexedMapOfShape em; TopExp::MapShapes(get(hosts[i]), TopAbs_EDGE, em);
+            if (ids[i] < 0 || ids[i] >= em.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge edge = TopoDS::Edge(em(ids[i] + 1));
+            int order = orders == nullptr ? 0 : orders[i];
+            if (order <= 0) { f.Add(edge, GeomAbs_C0); continue; }
+            TopTools_IndexedDataMapOfShapeListOfShape af;
+            TopExp::MapShapesAndAncestors(get(hosts[i]), TopAbs_EDGE, TopAbs_FACE, af);
+            if (!af.Contains(edge) || af.FindFromKey(edge).Extent() != 1) { f.Add(edge, GeomAbs_C0); continue; }
+            TopoDS_Face face = TopoDS::Face(af.FindFromKey(edge).First());
+            // OCCT's GeomPlate order ints are 0/1/2 = G0/G1/G2 but BRepFill_Filling forwards the raw
+            // GeomAbs enum: GeomAbs_G2 (3) is rejected, so G2 is requested as GeomAbs_C1 (value 2).
+            f.Add(edge, face, order == 1 ? GeomAbs_G1 : GeomAbs_C1);
+            double w = weights == nullptr ? 0 : weights[i];
+            if (w > 0.001) addInteriorPoints(edge, face, w, inside);
+        }
+        for (int i = 0; i < nf; ++i)
+            for (TopExp_Explorer ex(get(freeCurves[i]), TopAbs_EDGE); ex.More(); ex.Next())
+                f.Add(TopoDS::Edge(ex.Current()), GeomAbs_C0);
+        for (int i = 0; i < ng; ++i)
+            for (TopExp_Explorer ex(get(guides[i]), TopAbs_EDGE); ex.More(); ex.Next())
+                f.Add(TopoDS::Edge(ex.Current()), GeomAbs_C0, Standard_False);
+        for (const gp_Pnt& p : inside) f.Add(p);
+        f.Build();
+        if (!f.IsDone() || !BRepCheck_Analyzer(f.Face()).IsValid()) { fail("Could not fill the boundary with the requested continuity."); return nullptr; }
         return wrap(f.Face());
     CATCH(nullptr)
 }

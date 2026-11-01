@@ -584,6 +584,11 @@ def cnc_finish(model, depth=None, **p):
     return _cnc("parallel_finish", "Model to finish", model, depth, p)
 
 
+def cnc_rough(model, depth=None, **p):
+    """Layered 3D roughing of setup stock with a flat end mill and finishing allowance."""
+    return _cnc("cnc_rough", "Model to rough", model, depth, p)
+
+
 def cnc_post(machine="GRBL", save_to="", **p):
     """Write G-code for the toolpaths in the document. machine: "GRBL", "Mach3" or "LinuxCNC"."""
     return run("cnc_post", machine=machine, save_to=save_to, save_g_code=True, **p)
@@ -593,3 +598,28 @@ def print_export(folder, name="part", format="3MF", open_in="Save only", **p):
     """Write the model for a slicer. format: "3MF", "STL", "OBJ" or "PLY"; open_in: "Bambu Studio", "OrcaSlicer", "PrusaSlicer"
     or "Save only". Same file name each time, so the slicer can reload from disk."""
     return run("print_export", folder=folder, file_name=name, format=format, open_in=open_in, export=True, **p)
+
+
+def fdm_check(model, **p):
+    """Screen a CAD body or mesh for bed fit, nozzle walls and overhangs."""
+    return run("fdm_check", slots={"Model": model}, run_checks=True, **p)
+
+
+def resin_check(model, **p):
+    """Sample resin cavities, potential cups, islands and thin features; sampling_size sets grid resolution."""
+    return run("resin_check", slots={"Model": model}, run_checks=True, **p)
+
+
+def cnc_design_check(model, **p):
+    """Screen top-down access, reach and wall thickness."""
+    return run("cnc_design_check", slots={"Model": model}, run_checks=True, **p)
+
+
+def cnc_stock_review(model, **p):
+    """Sample visible milling paths in the active setup and program order."""
+    return run("cnc_stock_review", slots={"Model": model}, run_checks=True, **p)
+
+
+def resin_export(folder, name="part", format="3MF", open_in="Save only", **p):
+    """Export for an external resin slicer; supports/exposure are configured there."""
+    return run("resin_export", folder=folder, file_name=name, format=format, open_in=open_in, export=True, **p)

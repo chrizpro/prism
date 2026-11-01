@@ -63,7 +63,7 @@ public class CreateSketchCommand : Command
     protected override CommandOutput? Build()
     {
         var plane = ResolvePlane();
-        var o = new CommandOutput { NoOp = true, After = s => { s.EnterSketch(plane, alignView: _lookNormal.Value); if (_spatial) s.Sketch?.Set3DEnabled(s, true, adjustView: true); } };
+        var o = new CommandOutput { NoOp = true, After = s => { s.EnterSketch(plane, alignView: _lookNormal.Value); s.Sketch?.SetDrawingMode(s, flat: false); } };
         return o;
     }
 }

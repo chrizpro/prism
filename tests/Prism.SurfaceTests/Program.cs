@@ -61,6 +61,29 @@ using (var plane = Occ.NurbsSurface(Enumerable.Range(0, 16).Select(i => new Vec3
     try { using var invalidPatch = Occ.PatchSupported(plane, [-1], 1); } catch (KernelException) { invalidEdgeRejected = true; }
     Check(invalidEdgeRejected, "opening fill rejects invalid supporting edges");
 }
+using (var plane = Occ.NurbsSurface(Enumerable.Range(0, 16).Select(i => new Vec3(i / 4 * 10, i % 4 * 10, 0)).ToArray(), 4, 4))
+{
+    var edges = Occ.FreeEdges(plane);
+    var hosts = edges.Select(_ => plane).ToList();
+    foreach (int order in new[] { 0, 1, 2 })
+    {
+        using var patch = Occ.BoundaryFill(hosts, edges, Enumerable.Repeat(order, edges.Length).ToArray(), Enumerable.Repeat(0.5, edges.Length).ToArray(), [], []);
+        Check(patch.IsValid && Occ.Distance(plane, patch).Distance < 1e-4, $"boundary fill builds a valid G{order} patch on a planar boundary");
+    }
+    bool badEdgeRejected = false;
+    try { using var invalidPatch = Occ.BoundaryFill(hosts[..1], [-1], [1], [0.5], [], []); } catch (KernelException) { badEdgeRejected = true; }
+    Check(badEdgeRejected, "boundary fill rejects an out-of-range edge index");
+}
+var bsSession = new CadSession();
+var square = new[] { Occ.Line(new(0, 0, 0), new(10, 0, 0)), Occ.Line(new(10, 0, 0), new(10, 10, 0)), Occ.Line(new(10, 10, 0), new(0, 10, 0)), Occ.Line(new(0, 10, 0), new(0, 0, 0)) }
+    .Select((s, i) => bsSession.AddObject(s, $"Edge {i}", ObjKind.Curve)).ToList();
+var bs = new BoundarySurfaceCommand(); bsSession.StartCommand(bs);
+bs.ConfigureInputs(() => { foreach (var c in square) bs.Slots[0].Items.Add(SelItem.Of(c)); });
+bs.OnChanged();
+Check(bs.Error == null && bsSession.Preview.Count > 0, "boundary surface previews a patch over picked curves");
+bsSession.CommitCommand();
+var bsResult = bsSession.Objects.FirstOrDefault(o => o.Name.StartsWith("Boundary surface"));
+Check(bsResult != null && bsResult.Shape.IsValid && bsResult.Shape.Count(SubKind.Face) > 0, "boundary surface commits a valid surface");
 SubdMesh Quad() { var m = new SubdMesh(); m.V.AddRange([new(0,0,0),new(10,0,0),new(10,10,0),new(0,10,0)]); m.F.Add([0,1,2,3]); return m; }
 var open = Quad(); var r = CageReport.Inspect(open);
 Check(r.Valid && r.BoundaryEdges == 4 && r.Components == 1, "an open manifold cage is valid for surface conversion");

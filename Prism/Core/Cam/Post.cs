@@ -14,25 +14,44 @@ public static class Post
 {
     static readonly CultureInfo C = CultureInfo.InvariantCulture;
     static string N(double v) => v.ToString("0.###", C);
+    static string Comment(string value)=>new(value.Select(c=>c is '(' or ')' or '\r' or '\n' || char.IsControl(c)?' ':c).ToArray());
+    static void Validate(ToolpathInfo path)
+    {
+        _=new PathTimeline(path);
+        if(new[]{path.ToolDia,path.Feed,path.Plunge,path.Rpm}.Any(v=>!double.IsFinite(v)||v<=0)||!double.IsFinite(path.SafeZ))throw new InvalidOperationException("Invalid machining tool or feed data.");
+        if(path.IsPrint)throw new InvalidOperationException("Printing paths cannot be posted as CNC programs.");
+        if(path.Move(0).kind!=MoveKind.Rapid)throw new InvalidOperationException("A machining program must start with a clearance rapid.");
+        if(!path.Operation.StartsWith("Turning",StringComparison.Ordinal)&&path.Move(0).z<path.SafeZ-1e-6)throw new InvalidOperationException("The first milling move must be at or above clearance.");
+        if(!path.Operation.StartsWith("Turning",StringComparison.Ordinal))for(int i=1;i<path.MoveCount;i++)
+        {
+            var a=path.Move(i-1);var b=path.Move(i);
+            if(b.kind==MoveKind.Rapid&&(Math.Abs(a.x-b.x)>1e-6||Math.Abs(a.y-b.y)>1e-6)&&Math.Min(a.z,b.z)<path.SafeZ-1e-6)throw new InvalidOperationException("A lateral rapid is below the clearance plane.");
+        }
+    }
 
     /// <summary>CNC program: every machining toolpath in order. origin is subtracted from the model coordinates (the work zero).</summary>
     public static string Cnc(IEnumerable<ToolpathInfo> paths, Controller controller, Vec3 origin, string title)
     {
+        if(!Enum.IsDefined(controller)||new[]{origin.X,origin.Y,origin.Z}.Any(v=>!double.IsFinite(v)))throw new InvalidOperationException("Invalid controller or work origin.");
+        var ordered=paths.OrderBy(p=>p.ProgramOrder).ToArray();
+        if(ordered.Length==0)throw new InvalidOperationException("No machining operations to post.");
+        if(ordered.Select(p=>p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup per program.");
+        foreach(var p in ordered){Validate(p);if(p.Operation.StartsWith("Turning",StringComparison.Ordinal))throw new InvalidOperationException("Use the lathe post for turning.");}
         var sb = new StringBuilder();
-        sb.AppendLine($"({title})");
+        sb.AppendLine($"({Comment(title)})");
         sb.AppendLine($"(Posted by Prism for {controller}, {DateTime.Now:yyyy-MM-dd HH:mm})");
         sb.AppendLine("G21 G90 G17 G94" + (controller == Controller.GRBL ? " G54" : " G54"));
-        string? lastTool = null; int toolNo = 0;
+        string? lastTool = null; double lastDiameter=double.NaN; int toolNo = 0;
         double fx = double.NaN;
-        foreach (var tp in paths.Where(p => !p.IsPrint))
+        foreach (var tp in ordered)
         {
-            sb.AppendLine($"({tp.Operation})");
-            if (tp.Tool != lastTool)
+            sb.AppendLine($"({Comment(tp.Operation)})");
+            if (tp.Tool != lastTool || tp.ToolDia!=lastDiameter)
             {
-                toolNo++; lastTool = tp.Tool;
+                toolNo++; lastTool = tp.Tool; lastDiameter=tp.ToolDia;
                 sb.AppendLine("M5");
-                if (controller == Controller.GRBL) { sb.AppendLine($"(Fit tool {toolNo}: {tp.Tool}, then press cycle start)"); sb.AppendLine("M0"); }
-                else sb.AppendLine($"T{toolNo} M6 ({tp.Tool})");
+                if (controller == Controller.GRBL) { sb.AppendLine($"(Fit tool {toolNo}: {Comment(tp.Tool)}, then press cycle start)"); sb.AppendLine("M0"); }
+                else sb.AppendLine($"T{toolNo} M6 ({Comment(tp.Tool)})");
             }
             sb.AppendLine($"S{N(tp.Rpm)} M3");
             sb.AppendLine("G4 P2");
@@ -53,7 +72,7 @@ public static class Post
                 }
                 else
                 {
-                    double f = k == MoveKind.Plunge ? tp.Plunge : tp.Feed;
+                    double f = tp.FeedAt(i);
                     line.Append("G1");
                     bool mv = false;
                     if (!Same(x, cx)) { line.Append($" X{N(x)}"); mv = true; }
@@ -75,18 +94,22 @@ public static class Post
     public static string Lathe(IEnumerable<ToolpathInfo> paths, Controller controller, string title)
     {
         if (controller == Controller.GRBL) throw new InvalidOperationException("GRBL cannot run a lathe. Choose Mach3 or LinuxCNC for turning programs.");
-        var list = paths.ToList();
+        if(!Enum.IsDefined(controller))throw new InvalidOperationException("Invalid lathe controller.");
+        var list = paths.OrderBy(p=>p.ProgramOrder).ToList();
+        if(list.Count==0)throw new InvalidOperationException("No turning operations to post.");
+        foreach(var p in list){Validate(p);if(!p.Operation.StartsWith("Turning",StringComparison.Ordinal)||Enumerable.Range(0,p.MoveCount).Any(i=>p.Move(i).x<0||Math.Abs(p.Move(i).y)>1e-6))throw new InvalidOperationException("Lathe operations need nonnegative radius X and zero Y.");}
         double front = list.SelectMany(p => Enumerable.Range(0, p.MoveCount).Where(i => (MoveKind)(int)p.Moves[4 * i + 3] != MoveKind.Rapid).Select(i => p.Moves[4 * i + 2])).DefaultIfEmpty(0).Max();
         var sb = new StringBuilder();
-        sb.AppendLine($"({title})");
+        sb.AppendLine($"({Comment(title)})");
         sb.AppendLine($"(Posted by Prism for {controller} lathe, {DateTime.Now:yyyy-MM-dd HH:mm})");
         sb.AppendLine("(Z zero is the front face of the stock; X is a diameter)");
-        sb.AppendLine("G21 G90 G18 G94 G7 G54");
+        sb.AppendLine(controller==Controller.LinuxCNC?"G21 G90 G18 G94 G7 G54":"G21 G90 G18 G94 G54");
+        if(controller==Controller.Mach3)sb.AppendLine("(Configure Mach3 Turn for DIAMETER mode before running this program)");
         string? lastTool = null; int toolNo = 0;
         foreach (var tp in list)
         {
-            sb.AppendLine($"({tp.Operation})");
-            if (tp.Tool != lastTool) { toolNo++; lastTool = tp.Tool; sb.AppendLine("M5"); sb.AppendLine($"T{toolNo} M6 ({tp.Tool})"); }
+            sb.AppendLine($"({Comment(tp.Operation)})");
+            if (tp.Tool != lastTool) { toolNo++; lastTool = tp.Tool; sb.AppendLine("M5"); sb.AppendLine($"T{toolNo} M6 ({Comment(tp.Tool)})"); }
             sb.AppendLine($"G97 S{N(tp.Rpm)} M3");
             double cx = double.NaN, cz = double.NaN, fx = double.NaN;
             for (int i = 0; i < tp.MoveCount; i++)

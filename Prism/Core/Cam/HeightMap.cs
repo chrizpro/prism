@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Prism.Kernel;
 
 namespace Prism.Core.Cam;
@@ -9,7 +12,7 @@ public sealed record CamTool(string Name, double Diameter, bool Ball, double Rpm
 /// <summary>Starting points for common cutters. They are conservative: tune them for the machine and the material.</summary>
 public static class CamToolLibrary
 {
-    public static readonly CamTool[] Tools =
+    static readonly CamTool[] Defaults =
     [
         new("3 mm flat end mill, aluminium", 3, false, 18000, 600, 200, 1),
         new("6 mm flat end mill, aluminium", 6, false, 12000, 900, 300, 2),
@@ -20,6 +23,21 @@ public static class CamToolLibrary
         new("3 mm ball nose, aluminium", 3, true, 18000, 700, 250, 0.5),
         new("6 mm ball nose, wood / MDF", 6, true, 16000, 1500, 500, 1),
     ];
+    static string LibraryFile=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Prism","cam-tools.json");
+    public static CamTool[] Tools {get;private set;}=Load();
+    static CamTool[] Load()
+    {
+        try{var tools=JsonSerializer.Deserialize<CamTool[]>(File.ReadAllText(LibraryFile));return tools is{Length:>0}&&tools.All(Valid)?tools:Defaults;}catch{return Defaults;}
+    }
+    static bool Valid(CamTool t)=>!string.IsNullOrWhiteSpace(t.Name)&&new[]{t.Diameter,t.Rpm,t.Feed,t.Plunge,t.StepDown}.All(v=>double.IsFinite(v)&&v>0);
+    public static void SaveTool(CamTool tool)
+    {
+        if(!Valid(tool))throw new InvalidOperationException("Name the tool and use positive finite sizes, feeds and spindle speed.");
+        var updated=Tools.Where(t=>!t.Name.Equals(tool.Name,StringComparison.OrdinalIgnoreCase)).Append(tool).ToArray();
+        Directory.CreateDirectory(Path.GetDirectoryName(LibraryFile)!);string temp=LibraryFile+".tmp";
+        try{File.WriteAllText(temp,JsonSerializer.Serialize(updated,new JsonSerializerOptions{WriteIndented=true}));File.Move(temp,LibraryFile,true);Tools=updated;}
+        finally{if(File.Exists(temp))File.Delete(temp);}
+    }
 }
 
 /// <summary>
@@ -35,9 +53,9 @@ public sealed class HeightMap
 
     HeightMap(double x0, double y0, double cell, int nx, int ny) { X0 = x0; Y0 = y0; Cell = cell; Nx = nx; Ny = ny; _h = new double[nx * ny]; Array.Fill(_h, double.NaN); }
 
-    public static HeightMap FromMesh(MeshData mesh, double cell)
+    public static HeightMap FromMesh(MeshData mesh, double cell, double padding=0)
     {
-        var lo = mesh.Min; var hi = mesh.Max;
+        var lo = mesh.Min-new Vec3(padding,padding,0); var hi = mesh.Max+new Vec3(padding,padding,0);
         // keep the grid a sensible size however big the part is
         cell = Math.Max(cell, Math.Max(hi.X - lo.X, hi.Y - lo.Y) / 600);
         int nx = (int)Math.Ceiling((hi.X - lo.X) / cell) + 1, ny = (int)Math.Ceiling((hi.Y - lo.Y) / cell) + 1;
