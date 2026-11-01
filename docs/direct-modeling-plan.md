@@ -1,5 +1,7 @@
 # Direct modeling: plan
 
+Status: Phases 0 to 3 are implemented, with the Phase 4 drag handle, hover preview and right-click menu. The user guide is [direct-modeling.md](direct-modeling.md). Not built yet: threaded hole conversion in Change type, curved or multi-face fillets in Resize, and tangent-case limits in Move Body.
+
 Goal: you point at geometry, Prism works out what it is (a hole, a slot, a fillet, a pattern of them), and every
 sensible action is one click or one key away. No history, works on imported parts.
 
