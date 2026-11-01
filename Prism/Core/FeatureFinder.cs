@@ -432,4 +432,62 @@ public static class FeatureFinder
             }
         return best;
     }
+
+    // ---------------------------------------------------------------- pattern geometry
+    /// <summary>How a feature repeats: a line or grid of equal steps (<c>V1</c>, <c>V2</c>) or a circle (<c>Centre</c>, <c>Axis</c>, <c>Step</c> in radians).</summary>
+    public enum PatternKind { None, Line, Grid, Circle }
+
+    /// <summary>
+    /// The pattern a feature belongs to. <c>Others</c> are the other members and <c>Cells</c> where each sits: whole steps along V1 and V2 from the picked
+    /// feature (negative when it lies before it), or for a circle (steps, 0) counted anticlockwise about <c>Axis</c>. The picked feature is cell (0, 0).
+    /// </summary>
+    public sealed record PatternInfo(PatternKind Kind, IReadOnlyList<Feat> Others, IReadOnlyList<(int A, int B)> Cells, Vec3 V1, Vec3 V2, Vec3 Centre, Vec3 Axis, double Step)
+    {
+        public int MinA => Cells.Count == 0 ? 0 : Math.Min(0, Cells.Min(c => c.A));
+        public int MaxA => Cells.Count == 0 ? 0 : Math.Max(0, Cells.Max(c => c.A));
+        public int MinB => Cells.Count == 0 ? 0 : Math.Min(0, Cells.Min(c => c.B));
+        public int MaxB => Cells.Count == 0 ? 0 : Math.Max(0, Cells.Max(c => c.B));
+    }
+
+    /// <summary>The line, grid or circle of equal features that <paramref name="feat"/> belongs to (Kind None when it stands alone).</summary>
+    public static PatternInfo PatternOf(SceneObject body, Feat feat)
+    {
+        var none = new PatternInfo(PatternKind.None, [], [], default, default, default, default, 0);
+        var sib = Features(body).Where(f => f != feat && f.Key == feat.Key).ToList();
+        if (sib.Count == 0) return none;
+        var centres = sib.Select(f => f.Centre).ToList(); var c0 = feat.Centre;
+        var lat = LatticeMembers(c0, centres); var circ = CircleMembers(c0, feat.Dir, centres);
+        if (lat.Count == 0 && circ.Count == 0) return none;
+        if (circ.Count > lat.Count || (circ.Count == lat.Count && circ.Count >= 4))   // a hexagon of holes fits a lattice too: from five on, call it a ring
+        {
+            var n = feat.Dir.Normalized(); var idx = circ.OrderBy(i => i).ToList();
+            Vec3 Flat(Vec3 v) => v - n * Vec3.Dot(v, n);
+            Vec3 p = Flat(centres[idx[0]] - c0), q = Flat(centres[idx[1]] - c0); var cr = Vec3.Cross(p, q);
+            var centre = (Vec3.Cross(cr, p) * Vec3.Dot(q, q) + Vec3.Cross(q, cr) * Vec3.Dot(p, p)) * (1 / (2 * Vec3.Dot(cr, cr)));
+            var ux = (-centre).Normalized(); var uy = Vec3.Cross(n, ux);
+            var angs = idx.Select(i => { var rel = Flat(centres[i] - c0) - centre; double a = Math.Atan2(Vec3.Dot(rel, uy), Vec3.Dot(rel, ux)); return a < 0 ? a + 2 * Math.PI : a; }).ToList();
+            double step = angs.Min();
+            return new PatternInfo(PatternKind.Circle, idx.Select(i => sib[i]).ToList(), angs.Select(a => ((int)Math.Round(a / step), 0)).ToList(), default, default, c0 + centre, n, step);
+        }
+        var d = centres.Select(c => c - c0).ToList();
+        var order = Enumerable.Range(0, d.Count).OrderBy(i => d[i].Length).ToList();
+        var v1 = d[order[0]]; double l1 = v1.Length; double tol = 1e-3 * l1 + 1e-4;
+        var members = lat.OrderBy(i => i).ToList();
+        bool grid = members.Any(i => (d[i] - v1 * Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1))).Length >= tol);
+        if (!grid)
+            return new PatternInfo(PatternKind.Line, members.Select(i => sib[i]).ToList(), members.Select(i => ((int)Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1)), 0)).ToList(), v1, default, default, default, 0);
+        Vec3 v2 = default; double best = double.MaxValue;
+        foreach (int i in order)
+        {
+            double len = d[i].Length; if (len < 1e-6 || Vec3.Cross(v1, d[i]).Length < 1e-3 * l1 * len) continue;
+            if (len < best) { best = len; v2 = d[i]; }
+        }
+        double a11 = Vec3.Dot(v1, v1), a12 = Vec3.Dot(v1, v2), a22 = Vec3.Dot(v2, v2), det = a11 * a22 - a12 * a12;
+        var cells = members.Select(i =>
+        {
+            double r1 = Vec3.Dot(d[i], v1), r2 = Vec3.Dot(d[i], v2);
+            return ((int)Math.Round((r1 * a22 - r2 * a12) / det), (int)Math.Round((a11 * r2 - a12 * r1) / det));
+        }).ToList();
+        return new PatternInfo(PatternKind.Grid, members.Select(i => sib[i]).ToList(), cells, v1, v2, default, default, 0);
+    }
 }
