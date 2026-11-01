@@ -10,6 +10,8 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia.Browser"/>
+        <!-- Debug-only package pulled in via Prism; the wasm native-link step fails on it ("assembly already loaded"). -->
+        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" ExcludeAssets="all"/>
     </ItemGroup>
 
     <ItemGroup>
