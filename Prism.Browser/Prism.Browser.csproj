@@ -3,6 +3,8 @@
         <TargetFramework>net10.0-browser</TargetFramework>
         <OutputType>Exe</OutputType>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- XAML bindings resolve properties by reflection; trimming strips them (e.g. RibbonButton.ClickCommand). -->
+        <PublishTrimmed>false</PublishTrimmed>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
