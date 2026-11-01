@@ -5,7 +5,7 @@ using Prism.Kernel;
 
 namespace Prism.Meshing;
 
-public enum PrimKind { Plane, Cylinder, Sphere, Cone }
+public enum PrimKind { Plane, Cylinder, Sphere, Cone, Torus, Extrusion, Revolution, Freeform }
 
 /// <summary>A group of triangles that fits one analytic surface: the basis for rebuilding a scan as CAD.</summary>
 public sealed class FitRegion
@@ -28,8 +28,21 @@ public sealed class FitRegion
     public bool Convex { get; init; }
     public Vec3 Min { get; init; }
     public Vec3 Max { get; init; }
+    /// <summary>Torus: the tube radius (Radius is the ring radius, Origin the centre, Axis the symmetry axis).</summary>
+    public double MinorRadius { get; init; }
+    /// <summary>Extrusion: cross-section on the mid plane, along Axis. Revolution: generatrix in a half plane through the axis (Origin/Axis).</summary>
+    public Vec3[]? Profile { get; init; }
+    public bool ProfileClosed { get; init; }
+    /// <summary>Freeform: the fitted bicubic B-spline patch.</summary>
+    public NurbsPatch? Patch { get; init; }
+    /// <summary>Largest distance of the region's vertices from the fitted surface (set by the extended fits).</summary>
+    public double MaxDev { get; init; }
     public string Describe() => Kind switch
     {
+        PrimKind.Torus => $"Torus  R{Radius:0.###} r{MinorRadius:0.###}",
+        PrimKind.Extrusion => $"Extrusion  {Math.Abs(T1 - T0):0.###} long, {Profile?.Length ?? 0}-pt section",
+        PrimKind.Revolution => $"Revolved surface  {Profile?.Length ?? 0}-pt profile",
+        PrimKind.Freeform => $"Free-form patch  {Patch?.NU}x{Patch?.NV}",
         PrimKind.Plane => "Plane",
         PrimKind.Cylinder => $"{(Convex ? "Cylinder" : "Hole")}  Ø{2 * Radius:0.###}",
         PrimKind.Sphere => $"{(Convex ? "Sphere" : "Spherical socket")}  Ø{2 * Radius:0.###}",
@@ -40,7 +53,7 @@ public sealed class FitRegion
 /// <summary>Finds planes, cylinders, spheres and cones in a mesh by RANSAC on triangle positions and normals, then refits each by least squares.</summary>
 public static class PrimitiveFit
 {
-    public sealed record Options(double Tolerance, double AngleDeg, int MinTris, bool Planes = true, bool Cylinders = true, bool Spheres = true, bool Cones = true, int MaxRegions = 40, int Seed = 7);
+    public sealed record Options(double Tolerance, double AngleDeg, int MinTris, bool Planes = true, bool Cylinders = true, bool Spheres = true, bool Cones = true, int MaxRegions = 40, int Seed = 7, bool Extended = false);
 
     internal sealed class Ctx
     {
@@ -159,6 +172,7 @@ public static class PrimitiveFit
             foreach (int t in comp) assigned[t] = true;
             misses = 0;
         }
+        if (o.Extended) PrimitiveFit2.Extras(cx, o, regions, assigned);      // torus, extrusion, revolution, free-form (PrimitiveFit2.cs)
         return regions.OrderByDescending(r => r.Area).ToList();
     }
 
