@@ -463,7 +463,9 @@ s.EditSketch(s.Find(sketch.Id)!); PanelShot(new SketchPanel { DataContext = vm }
         var prefs = new SettingsWindow(keyVm); prefs.Show(); Dispatcher.UIThread.RunJobs();
         prefs.FindControl<ListBox>("Nav")!.SelectedIndex = 6; Dispatcher.UIThread.RunJobs();
         List<Button> KeyButtons() => prefs.FindControl<StackPanel>("KeyboardHost")!.GetVisualDescendants().OfType<Button>().Where(b => b.Tag is string).ToList();
-        Check(prefs.FindControl<ScrollViewer>("PageKeyboard")!.IsVisible && KeyButtons().Count == Prism.Core.Hotkeys.Actions.Count && KeyButtons().Any(b => Equals(b.Content, "Ctrl+Z")), "Preferences has a Keyboard page listing every shortcut with its current key");
+        // the page is a collapsible tree: nothing is listed under a closed group, so open them all first
+        prefs.FindControl<StackPanel>("KeyboardHost")!.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Expand all")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(prefs.FindControl<ScrollViewer>("PageKeyboard")!.IsVisible && KeyButtons().Count == Prism.Core.Hotkeys.All.Count() && KeyButtons().Any(b => Equals(b.Content, "Ctrl+Z")), "Preferences has a Keyboard page listing every shortcut with its current key");
         foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
         {
             Application.Current!.RequestedThemeVariant = theme; Dispatcher.UIThread.RunJobs();

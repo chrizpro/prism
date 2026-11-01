@@ -296,7 +296,7 @@ public partial class SettingsWindow : Window
         else where = new TextBlock { Text = Hotkeys.ScopeName(scope), Classes = { "soft" }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
         Grid.SetColumn(where, 1); row.Children.Add(where);
         bool waiting = _capturing == action.Id;
-        var key = new Button { Content = waiting ? "Press the keys…" : Hotkeys.Display(gesture), Width = 140, HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center };
+        var key = new Button { Tag = action.Id, Content = waiting ? "Press the keys…" : Hotkeys.Display(gesture), Width = 140, HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center };
         if (waiting) key.Classes.Add("accent");
         key.Click += (_, _) => { _capturing = action.Id; _keyNote = ""; BuildKeyboardPage(); Focus(); };
         Grid.SetColumn(key, 2); row.Children.Add(key);
