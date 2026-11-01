@@ -205,7 +205,16 @@ public static class FeatureFinder
                 var set = ring.ToHashSet();
                 // a boss stands on something: some ring face meets a flat face square to the axis in an inside corner (a plain box exterior has none)
                 bool stands = ring.Any(f => a.Adj[f].Any(l => !set.Contains(l.To) && l.Class == Edge.Concave && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999));
-                if (stands) return (FeatureKind.Boss, ring, d);
+                if (stands)
+                {
+                    // the boss's top: a flat face square to the axis that meets most of the ring in an outside corner
+                    var faces = new List<int>(ring); var caps = new Dictionary<int, int>();
+                    foreach (int f in ring) foreach (var l in a.Adj[f])
+                        if (!set.Contains(l.To) && l.Class == Edge.Convex && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999)
+                            caps[l.To] = caps.GetValueOrDefault(l.To) + 1;
+                    foreach (var (cap, cnt) in caps) if (cnt * 2 >= ring.Count) faces.Add(cap);
+                    return (FeatureKind.Boss, faces, d);
+                }
             }
         }
         return null;

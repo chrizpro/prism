@@ -5,9 +5,9 @@ using Prism.Kernel;
 /// <summary>Feature recognition: what each face of a plate with a round hole, a slot, a pocket, two bosses and a filleted block turns out to be.</summary>
 static class FeatureTests
 {
-    public static void Run(Action<bool, string> check)
+    /// <summary>A 120 x 80 x 10 plate: round through hole, through slot (26 x 6), blind pocket (16 x 10 x 5), rectangular boss (12 x 12 x 8) and round boss (r 4, h 6).</summary>
+    public static (CadSession, SceneObject) BuildPlate()
     {
-        double[] id = [1, 0, 0, 0, 1, 0, 0, 0, 1];
         var plate = Occ.Box(120, 80, 10); var lo = plate.Props().Min;
         // put a shape's own bounding-box corner at a spot on the plate (the kernel's primitives are not all anchored the same way)
         Shape Rel(Shape s, double x, double y, double z) { var m = s.Props().Min; return Occ.Translate(s, new Vec3(lo.X + x - m.X, lo.Y + y - m.Y, lo.Z + z - m.Z)); }
@@ -20,6 +20,12 @@ static class FeatureTests
         plate = Occ.Fuse(plate, Rel(Occ.Box(12, 12, 8), 15, 50, 10));
         plate = Occ.Fuse(plate, Cyl(4, 6, 60, 55, 10));
         var s = new CadSession(); var body = s.AddObject(plate, "Plate", ObjKind.Solid);
+        return (s, body);
+    }
+
+    public static void Run(Action<bool, string> check)
+    {
+        var (s, body) = BuildPlate();
         var feats = FeatureFinder.Features(body);
         foreach (var k in Enum.GetValues<FeatureKind>()) Console.WriteLine($"  {k,-8} {feats.Count(f => f.Kind == k)}");
         int Count(FeatureKind k) => feats.Count(f => f.Kind == k);
@@ -28,7 +34,7 @@ static class FeatureTests
         check(Count(FeatureKind.Pocket) == 1 && feats.First(f => f.Kind == FeatureKind.Pocket).Faces.Count == 5, "a blind rectangular pocket is its four walls and its floor");
         check(Count(FeatureKind.Hole) == 1, "the round hole is recognised");
         check(Count(FeatureKind.Boss) == 2, "the rectangular boss and the round boss are both bosses");
-        check(feats.Where(f => f.Kind == FeatureKind.Boss).Any(f => f.Faces.Count == 4) , "the rectangular boss is its four side walls");
+        check(feats.Where(f => f.Kind == FeatureKind.Boss).Any(f => f.Faces.Count == 5), "the rectangular boss is its four side walls and its top");
 
         // clicking any face of the slot, whichever kind it is, gives the whole slot
         var slot = feats.First(f => f.Kind == FeatureKind.Slot);
@@ -65,6 +71,7 @@ static class FeatureTests
         mh.Params.OfType<NumberParam>().Single(p => p.Label == "Move Y").Value = 5;
         check(mh.TryBuild() == null && mh.Error!.Contains("slot"), "Move Hole on a slot says it is a slot and what to use instead");
 
+        FeatureEditTests.Run(check);
         Dump.Plate(body, slot, FeatureFinder.Features(body));
         Dump.Patterns(check);
 

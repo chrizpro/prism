@@ -88,7 +88,7 @@ public sealed partial class MainViewModel
     {
         var s = Session;
         return [Cm("Push / pull", "pushpull", () => new PushPullCommand()), Cm("Create sketch", "sketch", () => new CreateSketchCommand()), Cm("Shell", "shell", () => new ShellCommand()), Act("Look at", "look-at", () => s.LookAtSelection()),
-                Cm("Delete face", "deleteface", () => new DeleteFaceCommand()), Cm("Hole", "pcb-hole", () => new HoleCommand()), Cm("Measure", "measure", () => new MeasureCommand()), Cm("Move hole / boss", "movehole", () => new MoveHoleCommand())];
+                Cm("Delete face", "deleteface", () => new DeleteFaceCommand()), Cm("Hole", "pcb-hole", () => new HoleCommand()), Cm("Measure", "measure", () => new MeasureCommand()), Cm("Edit feature", "movehole", () => new FeatureEditCommand())];
     }
 
     IReadOnlyList<MarkItem?> EdgeMarking() =>

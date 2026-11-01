@@ -386,6 +386,18 @@ public sealed partial class CadSession : ObservableObject
 
     public void DeleteSelection()
     {
+        // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body
+        var faces = _selection.Where(i => i.Kind == SelKind.Face).ToList();
+        if (faces.Count > 0 && ActiveCommand == null && Sketch == null && faces.All(f => Find(f.Obj) is { Kind: ObjKind.Solid, HasBrep: true }))
+        {
+            var c = new DeleteFaceCommand { Factory = () => new DeleteFaceCommand() };
+            StartCommand(c);
+            if (ActiveCommand != c) return;
+            c.ConfigureInputs(() => { foreach (var f in faces) c.Slots[0].TryAdd(f); });
+            if (c.TryBuild() == null) { Say(c.Error ?? "Those faces cannot be removed on their own.", true); CancelCommand(); return; }
+            CommitCommand(); ClearSelection();
+            return;
+        }
         var ids = _selection.Select(s => s.Obj).Distinct().ToHashSet();
         if (ids.Count == 0) return;
         Checkpoint("Delete", "delete");
