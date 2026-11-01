@@ -75,9 +75,49 @@ static class FeatureTests
         Dump.Plate(body, slot, FeatureFinder.Features(body));
         Dump.Patterns(check);
 
+        Stepped(check);
+
         // a plain box has no features other than faces
         var plain = s.AddObject(Occ.Box(30, 20, 10), "Box", ObjKind.Solid);
         check(FeatureFinder.Features(plain).All(f => f.Kind == FeatureKind.Face), "a plain box is just faces: its outside is not a boss");
+    }
+
+    static void Stepped(Action<bool, string> check)
+    {
+        var plate = Occ.Box(100, 60, 10); var lo = plate.Props().Min;
+        Shape At(Shape s, double x, double y, double z) { var m = s.Props().Min; return Occ.Translate(s, new Vec3(lo.X + x - m.X, lo.Y + y - m.Y, lo.Z + z - m.Z)); }
+        // counterbore: a 3 mm radius through hole with a 6 mm radius, 5 mm deep bore on top
+        plate = Occ.Cut(plate, At(Occ.Cylinder(3, 12), 20 - 3, 30 - 3, -1));
+        plate = Occ.Cut(plate, At(Occ.Cylinder(6, 6), 20 - 6, 30 - 6, 5));
+        // countersink: the same through hole with a cone flaring to the top face
+        plate = Occ.Cut(plate, At(Occ.Cylinder(3, 12), 70 - 3, 30 - 3, -1));
+        plate = Occ.Cut(plate, At(Occ.Cone(3, 6.5, 3.5), 70 - 6.5, 30 - 6.5, 7));
+        var s = new CadSession(); var body = s.AddObject(plate, "Stepped", ObjKind.Solid);
+        var feats = FeatureFinder.Features(body);
+        var cb = feats.Where(f => f.Kind == FeatureKind.Counterbore).ToList(); var cs = feats.Where(f => f.Kind == FeatureKind.Countersink).ToList();
+        check(cb.Count == 1 && cs.Count == 1, $"one counterbore and one countersink are recognised (got {cb.Count} and {cs.Count})");
+        check(feats.Count(f => f.Kind == FeatureKind.Hole) == 0, "the bores of a stepped hole are not also separate holes");
+        if (cb.Count != 1 || cs.Count != 1) { Console.WriteLine(FeatureFinder.Describe(body)); return; }
+        check(cb[0].Faces.Count == 3 && cb[0].Name == "Counterbore", "a counterbore is two bores and the annulus between them");
+        check(cs[0].Faces.Count == 2 && cs[0].Name == "Countersink", "a countersink is the cone and the hole wall");
+        foreach (var feat in new[] { cb[0], cs[0] })
+            foreach (int face in feat.Faces)
+                check(FeatureFinder.Expand(body, face, PickIntent.Feature).Count == feat.Faces.Count, $"clicking {feat.Name.ToLowerInvariant()} face {face} selects the whole feature");
+        var mh = new Prism.Commands.MoveHoleCommand(); mh.Begin(s);
+        mh.Pick(new SelItem(body.Id, SelKind.Face, cb[0].Faces[0]), false);
+        mh.Params.OfType<NumberParam>().Single(p => p.Label == "Move Y").Value = 5;
+        check(mh.TryBuild() == null && mh.Error!.Contains("counterbore"), "Move Hole on a counterbore says what it is and what to use instead");
+        foreach (var feat in new[] { cb[0], cs[0] })
+        {
+            var del = new Prism.Commands.DeleteFaceCommand(); del.Begin(s);
+            del.Pick(new SelItem(body.Id, SelKind.Face, feat.Faces[^1]), false);
+            check(del.Slots[0].Items.Count == feat.Faces.Count, $"Delete Face picks all {feat.Faces.Count} faces of the {feat.Name.ToLowerInvariant()}");
+            var built = del.TryBuild();
+            if (built == null) { check(false, $"Delete Face on the {feat.Name.ToLowerInvariant()} builds: {del.Error}"); continue; }
+            var after = built.Replace.Single().New;
+            check(after.IsValid && after.Count(SubKind.Face) == body.Shape.Count(SubKind.Face) - feat.Faces.Count + 0 && after.Props().Volume > body.Shape.Props().Volume + 50,
+                $"Delete Face fills the whole {feat.Name.ToLowerInvariant()} (faces {body.Shape.Count(SubKind.Face)} -> {after.Count(SubKind.Face)})");
+        }
     }
 }
 

@@ -766,7 +766,27 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveTool != null && ActiveTool is not null && ToolOwnsPointer) { if (Hover != null) { Hover = null; Invalidate(); } return; }
         var r = Pick(px, py, ActiveFilter);
         var h = r?.Item;
-        if (h != Hover) { Hover = h; Invalidate(); }
+        if (h != Hover) { Hover = h; _hoverPreviewFor = null; HoverPreview = []; Invalidate(); }
+        UpdateHoverPreview(h);
+    }
+
+    /// <summary>While a direct tool's smart-pick slot is active, the other faces a click on the hovered face would also select (drawn lighter than the hover).</summary>
+    public IReadOnlyList<SelItem> HoverPreview { get; private set; } = [];
+    SelItem? _hoverPreviewFor;
+
+    void UpdateHoverPreview(SelItem? h)
+    {
+        if (h == _hoverPreviewFor) return;
+        _hoverPreviewFor = h;
+        var faces = new List<SelItem>();
+        if (h is { Kind: SelKind.Face } it && ActiveCommand?.ActiveSlot is { Multi: true, SmartPick: true } slot && Matches(it, slot.PickFilter)
+            && Find(it.Obj) is { Kind: ObjKind.Solid, HasBrep: true } body)
+        {
+            try { faces = FeatureFinder.Expand(body, it.Index, slot.Intent).Where(i => i != it.Index).Select(i => new SelItem(it.Obj, SelKind.Face, i)).ToList(); }
+            catch (Exception) { faces = []; }
+        }
+        if (faces.Count == 0 && HoverPreview.Count == 0) return;
+        HoverPreview = faces; Invalidate();
     }
 
     // ------------------------------------------------------------ commands

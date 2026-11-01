@@ -58,6 +58,7 @@ static class DirectHelpers
     public static string NotRound(Feat feat) => feat.Kind switch
     {
         FeatureKind.Slot or FeatureKind.Pocket or FeatureKind.Boss => $"That is a {feat.Name.ToLowerInvariant()}, not a round hole. Use Delete Face to remove it, or move its walls with Move Face.",
+        FeatureKind.Counterbore or FeatureKind.Countersink => $"That is a {feat.Name.ToLowerInvariant()}, a stepped hole, not a plain round one. Use Delete Face to fill it, or move its walls with Move Face.",
         FeatureKind.Fillet => "That is a fillet or round. Use Fillet to change its radius, or Delete Face to remove it.",
         _ => "Pick the round (cylindrical) face of a hole or boss.",
     };
