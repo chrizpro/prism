@@ -79,6 +79,15 @@ public static partial class ToolHelp
         "motion-dynamics" => Topic(icon, "Motion Dynamics", "Find the torque a motor needs, or let a joint swing freely under gravity and loads.", "Start: a link held out sideways", "Result: the link swung down under its own weight",
             "1. Build the mechanism in Assemble and give every part a material.\n2. Open Motion Dynamics, set gravity, and choose for each joint: driven by a motor or free.\n3. Add loads and friction, run, and read the drive torque, power, energy and part accelerations.",
             "Parts are rigid and joints and gears are ideal: no flexing, backlash, tooth contact or collisions between moving parts. The result is only as good as the masses and loads you enter."),
+        "motion-robot" => Topic(icon, "Robot Path", "Move a robot arm's tool along a curve and see the joint motion and torque it takes.", "Start: the arm at rest, a curve to follow", "Result: the arm reaching along the curve",
+            "1. Build the arm in Assemble: parts, joints, a grounded base.\n2. Pick a point on the last link as the tool, then the curve to follow.\n3. Set the speed and payload, run, then scrub or play the motion.",
+            "The arm must be able to reach the curve; points it cannot reach are reported. Corners are rounded so the arm does not have to stop. With six joints the tool can also keep its direction."),
+        "motion-spring" => Topic(icon, "Spring / Actuator", "Add a spring, damper or cylinder between two parts.", "Start: two parts", "Result: a spring joining them",
+            "1. Pick a point on the first part.\n2. Pick a point on the second part, or on a fixed body.\n3. Set stiffness, damping or an actuator push.",
+            "Used by Motion Dynamics. A push of zero stiffness acts like a hydraulic or electric cylinder: force equals pressure times area."),
+        "motion-force" => Topic(icon, "Force and Torque Loads", "Push or twist a part with a load that can change in time.", "Start: a part", "Result: a load acting on it",
+            "1. Pick where it acts.\n2. Choose the direction or axis and the size.\n3. Make it constant, a pulse or alternating.",
+            "Used by Motion Dynamics. The direction stays fixed in space unless you choose that it turns with the part."),
         "cae-fluid" => Topic(icon, "Pipe Flow", "Estimate pressure drop and Reynolds number in a round pipe.", "Start: a pipe", "Result: pressure falling along the pipe",
             "1. Enter the pipe size, length and fluid.\n2. Set the flow rate.\n3. Read the pressure drop and Reynolds number.",
             "A quick hand calculation, not 3D CFD. It does not model bends, valves or changes in size."),
@@ -150,7 +159,7 @@ public static partial class ToolHelp
                 var bent = Colorize(Deform(GridBox(44, 10, 3, 16, 2, 1), p => p + new Vec3(0, 0, 9 * Bend(p.X))), (p, n) => p.Z);
                 return new(Src(plate, topic.BeforeLabel, null, [3], Green), Src(bent, topic.AfterLabel));
             }
-            case "motion-kinematics" or "motion-dynamics":
+            case "motion-robot" or "motion-spring" or "motion-force" or "motion-kinematics" or "motion-dynamics":
             {
                 bool dyn = key == "motion-dynamics";
                 Vec3 Swing(Vec3 p, double deg) { double a = deg * Math.PI / 180, c = Math.Cos(a), sn = Math.Sin(a); double x = p.X + 20; return new Vec3(-20 + x * c, p.Y, x * sn + p.Z * c); }

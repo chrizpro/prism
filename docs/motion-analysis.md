@@ -13,6 +13,28 @@ The Motion tab also carries the assembly tools it needs (Parts Library, Insert C
 4. **Materials** (for dynamics only). Give each part a material so it has mass. Kinematics needs none.
 5. **CAE → Motion.** Run **Kinematics** or **Motion Dynamics**.
 
+## Drives, actuators and loads
+
+Every joint in a study gets one of these motions: **Hold**, **Constant speed**, **Oscillate**, **Move to a position** (a smooth minimum-jerk move: it waits, moves, and stops at rest), or, in Motion Dynamics, **Free** (it moves under gravity, loads and friction from a starting position and starting speed). A free joint can carry a **motor** with a torque–speed curve: stall torque (or force) and no-load speed, the push falling linearly between them.
+
+Springs, actuators and loads are objects in the assembly, so they are placed once and used by every study. They are made from the Motion tab:
+
+- **Spring / Actuator** acts along the line between a point on one part and a point on another part, or on a plain fixed body (an anchor in space). Stiffness and damping make a spring-damper (a suspension, a return spring); an **actuator push** makes a cylinder that pushes (or, negative, pulls) with a constant force, its pressure times its area. The study reports the force each one carries.
+- **Force** and **Torque** act on a part. The direction is an axis or the picked face's normal, fixed in space or turning with the part. In time they are constant, a pulse (on for a while) or a sine.
+- A **payload** (kg) at a tool point is added in Robot Path.
+
+All of these appear in the browser, can be selected and deleted like joints, and are saved with the document.
+
+## Robot Path
+
+For a robot arm, state what you want the tool to do instead of what each joint does. Build the arm in Assemble (parts, a grounded base, a joint per axis), then **Motion → Robot Path**:
+
+1. Pick the **tool point**: a face, circle or edge on the last link.
+2. Pick the **path**: a curve, a sketch, or edges in order.
+3. Set the tool speed, acceleration along the path and, if you want torques, a payload and gravity. Tick the joints that move the arm.
+
+The speed profile along the path is a trapezoid (accelerate, cruise, brake) with the corners rounded by an acceleration-limited radius, so the tool does not have to stop. If the tool does not start on the path, the first move goes straight to its start. Joint values at every output time come from **inverse kinematics** (damped least squares, started from the previous point so the arm stays on one branch), and the joint motion is then simulated as a planned (spline) drive. The study reports whether every point was reached and the worst miss, points the arm cannot reach (outside its reach or joint limits), the joint ranges, and, with torques on, the torque and power each joint needs with the payload. With six or more joints the tool can also keep its direction; with fewer, only its position follows the path and the study says so.
+
 ## Kinematics
 
 A prescribed motion. For every joint that can move (those driven through a gear are shown as followers):
@@ -46,6 +68,8 @@ The joint values are the coordinates. The pose of every part comes from the asse
 
 `tests/Prism.MotionTests` (no CAD kernel needed) checks the engine against closed-form results: box mass and inertia from a mesh; the period of a physical pendulum (0.73299 s computed and theoretical) and energy conservation over two seconds; the holding torque `m·g·d` of a horizontal rod; the torque `I·A·ω²` to oscillate a rod; the 2:1 gear ratio, direction and power balance; the gear train's reflected inertia `I·(N₁/N₂)²`; free spin-up `α = τ/I_reflected`; rack travel `π·d` per turn; the speed and acceleration of a point on a turning arm; joint limits for driven and free joints; gear chains, loops and saving.
 
+The engine tests also cover: the minimum-jerk ramp, spline interpolation, a motor curve (exponential spin-up), a spring-mass natural frequency and energy, damping, an actuator's F/m, a force pulse's impulse F·t, a payload's holding torque m·g·r, a torque's α = T/(m r²), inverse kinematics of a two-link arm (on target, unreachable, joint limits), path following and the speed profile, and static torques of an arm holding a payload.
+
 `tests/Prism.MotionStudyTests` (needs the CAD kernel) runs the same on real parts: a rod made in the assembly and swung from the CAE tab matches the pendulum period (0.7345 s vs 0.733 s theory), gears are coupled with the Gear Pair command and turn each other in Drive Joints, a 20 mN·m load on a 2:1 reduction needs 10 mN·m at the motor, results save to CSV, and the collision sweep finds a post standing in a gear's way. Run it with `LD_LIBRARY_PATH` pointing at the built `prism_kernel`.
 
 ## What it does not do
@@ -53,6 +77,7 @@ The joint values are the coordinates. The pose of every part comes from the asse
 - **Rigid bodies only.** No flexing, vibration or stress. Use the Static and Dynamics tabs for those, with loads read from this study.
 - **Ideal joints and gears.** No clearance, backlash, tooth contact or friction beyond the viscous friction you enter, and no efficiency loss in gears.
 - **Joint reaction forces and contact are not computed.** Parts are not tested against each other while the dynamics runs; the collision check is a separate, kinematic sweep.
-- **Closed kinematic loops** (a four-bar linkage) are not enforced by the assembly solver, so they are not simulated. A gear train, a slider or a chain of hinges are.
+- **Closed kinematic loops** (a four-bar linkage, a piston and crank) are not enforced by the assembly solver, so they are not simulated yet. A serial arm, a gear train, a slider or a chain of hinges are. A cylinder acting between two parts works, because it is a force, not a loop.
+- Inverse kinematics is position-only unless the arm has six usable joints; paths are followed at a given speed, not a given time, and there is no collision avoidance or singularity check beyond reporting unreachable points.
 - Joint limits are inelastic stops.
 - A motor is a prescribed motion; there is no motor curve, so torque limits are not applied.

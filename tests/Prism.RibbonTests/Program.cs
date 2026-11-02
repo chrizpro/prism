@@ -136,7 +136,7 @@ var ecad = vm.Tabs.Single(t => t.Title == "ECAD");
 var cae=MainViewModel.WorkspaceDefs.Single(w=>w.Id=="simulate");
 Check(cae.Name=="CAE"&&new[]{"Static","Thermal","Dynamics","Motion","Fluids"}.All(cae.Tabs.Contains),"CAE workspace includes the five analysis areas");
 var motionTab=vm.Tabs.Single(t=>t.Title=="Motion");
-foreach(var label in new[]{"Kinematics","Motion Dynamics","Gear Pair","Rack and Pinion","Ground","Drive Joints","Insert Component"})
+foreach(var label in new[]{"Kinematics","Motion Dynamics","Robot Path","Spring / Actuator","Force","Torque","Gear Pair","Rack and Pinion","Ground","Drive Joints","Insert Component"})
     Check(motionTab.Buttons.Any(b=>b.Label.Replace("\n"," ")==label),"Motion tab exposes "+label);
 Check(vm.Tabs.Single(t=>t.Title=="Joints").Buttons.Any(b=>b.Label.Replace("\n"," ")=="Gear Pair")&&vm.Tabs.Single(t=>t.Title=="Joints").Buttons.Any(b=>b.Label.Replace("\n"," ")=="Rack and Pinion"),"Joints tab (Assemble) can couple gears and racks");
 foreach (var label in new[] { "Rectangular board", "Board from outline", "Mounting Hole", "Component Envelope", "Interference", "Import STEP", "Export STEP" })

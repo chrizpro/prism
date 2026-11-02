@@ -35,6 +35,7 @@ public sealed partial class CadSession
         int colour = 0;
         for (int b = 0; b < m.Bodies.Length; b++)
         {
+            if (m.Bodies[b].Name.StartsWith('@')) continue;
             var path = m.Path[b];
             double length = 0; for (int i = 1; i < path.Length; i++) length += (path[i] - path[i - 1]).Length;
             if (length < 1) continue;                                           // parts that stay put have no path worth drawing
@@ -57,8 +58,71 @@ public sealed partial class CadSession
         return b;
     }
 
-    /// <summary>The assembly as the motion engine sees it: every component with its mass, and the joints and couplings that connect them.</summary>
-    public MotionEngine BuildMotionEngine(IEnumerable<MotionDof> dofs, bool dynamic, out List<string> notes, out List<MotionBody> bodies)
+    /// <summary>Springs, actuators and loads placed in the assembly.</summary>
+    public IEnumerable<SpringInfo> Springs => Objects.Select(o => o.Asm).OfType<SpringInfo>();
+    public IEnumerable<LoadInfo> Loads => Objects.Select(o => o.Asm).OfType<LoadInfo>();
+
+    public SceneObject AddForceElement(AssemblyData info, string namePrefix, Vec3 at)
+    {
+        var obj = new SceneObject(Guid.NewGuid(), NextName(namePrefix), Occ.Line(at, at + new Vec3(0, 0, 0.01)), ObjKind.Joint, Palette.JointColor, true, null, null, null, null, null, info);
+        Objects = Objects.Add(obj);
+        RaiseScene();
+        return obj;
+    }
+
+    Vec3 WorldPoint(string compKey, double[] local) => ComponentByKey(compKey)?.Component is { } c ? c.Placement.Apply(new Vec3(local[0], local[1], local[2])) : new Vec3(local[0], local[1], local[2]);
+
+    /// <summary>Springs and loads, drawn where they act now: a line between a spring's ends, an arrow for a force, an arc for a torque.</summary>
+    void BuildForceOverlay(Overlay o)
+    {
+        double size = 0; foreach (var c in Components) { var m = c.Mesh; size = Math.Max(size, (m.Max - m.Min).Length); }
+        double len = Math.Max(size * 0.15, 8);
+        foreach (var obj in Objects)
+        {
+            if (!obj.Visible) continue;
+            bool sel = _selection.Contains(SelItem.Of(obj));
+            switch (obj.Asm)
+            {
+                case SpringInfo sp:
+                {
+                    var a = WorldPoint(sp.CompA, sp.PointA); var b = sp.CompB != null ? WorldPoint(sp.CompB, sp.PointB) : new Vec3(sp.PointB[0], sp.PointB[1], sp.PointB[2]);
+                    uint col = sel ? 0xFFFFFFFF : sp.Stiffness == 0 && sp.Push != 0 ? 0xFFFF8A1F : 0xFF3FCF8E;
+                    var d = b - a; double L = d.Length; if (L < 1e-9) break;
+                    var u = d / L; var side = Xform.AnyPerpendicular(u) * Math.Min(L * 0.06, len * 0.25);
+                    var pts = new List<Vec3> { a };
+                    if (sp.Stiffness > 0) { int coils = 8; for (int i = 1; i < coils * 2; i++) pts.Add(a + u * (L * (0.15 + 0.7 * i / (coils * 2.0))) + side * (i % 2 == 0 ? 1 : -1)); }
+                    pts.Add(b); o.AddPolyline(pts, col, sel ? 3f : 2.2f);
+                    o.AddDot(a, col, 7); o.AddDot(b, col, 7);
+                    o.AddLabel((a + b) * 0.5 + side * 2, sp.Name, true, 1);
+                    break;
+                }
+                case LoadInfo ld:
+                {
+                    var p = WorldPoint(ld.Comp, ld.Point);
+                    var comp = ComponentByKey(ld.Comp)?.Component; var dir = SpringInfo.V(ld.Direction);
+                    if (ld.BodyFixed && comp != null) dir = comp.Placement.Rotate(dir);
+                    if (dir.Length < 1e-9) break; dir = dir.Normalized();
+                    uint col = sel ? 0xFFFFFFFF : 0xFFFF6B6F;
+                    if (ld.IsTorque)
+                    {
+                        var perp = Xform.AnyPerpendicular(dir); var third = Vec3.Cross(dir, perp); var ring = new List<Vec3>();
+                        for (int i = 0; i <= 24; i++) { double ang = Math.PI * 1.5 * i / 24; ring.Add(p + (perp * Math.Cos(ang) + third * Math.Sin(ang)) * len * 0.5); }
+                        o.AddPolyline(ring, col, 2.6f); var tip = ring[^1]; o.AddLine(tip, tip + dir * len * 0.2 + third * len * 0.1, col, 2.6f);
+                    }
+                    else
+                    {
+                        var from = ld.Magnitude >= 0 ? p - dir * len : p + dir * len; var head = Xform.AnyPerpendicular(dir) * len * 0.15;
+                        o.AddLine(from, p, col, 2.8f); o.AddLine(p, p + (from - p).Normalized() * len * 0.3 + head, col, 2.8f); o.AddLine(p, p + (from - p).Normalized() * len * 0.3 - head, col, 2.8f);
+                    }
+                    o.AddDot(p, col, 6); o.AddLabel(p + dir * len * 0.2, ld.Name, true, 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>The assembly as the motion engine sees it: every component with its mass, the joints and couplings that connect them, and the springs and loads acting on it.</summary>
+    public MotionEngine BuildMotionEngine(IEnumerable<MotionDof> dofs, bool dynamic, out List<string> notes, out List<MotionBody> bodies, IEnumerable<MotionPoint>? points = null)
     {
         notes = []; bodies = [];
         var missing = new List<string>();
@@ -71,6 +135,9 @@ public sealed partial class CadSession
         if (dynamic && missing.Count > 0) throw new InvalidOperationException("Assign a material to " + string.Join(", ", missing) + " first (Materials). Motion dynamics needs each part's density.");
         var start = Components.ToDictionary(o => o.Component!.Key, o => o.Component!.Placement);
         var grounded = Components.Where(o => o.Component!.Grounded).Select(o => o.Component!.Key).ToHashSet();
-        return new MotionEngine(start, grounded, JointObjects.Select(j => j.joint), Couplings, bodies, dofs);
+        var forces = Springs.Select(s => s.ToForce()).Concat(Loads.Select(l => l.ToForce())).ToList();
+        foreach (var sp in Springs) if (!start.ContainsKey(sp.CompA) || sp.CompB != null && !start.ContainsKey(sp.CompB)) notes.Add($"{sp.Name} is attached to a part that was removed, so it is left out.");
+        foreach (var ld in Loads) if (!start.ContainsKey(ld.Comp)) notes.Add($"{ld.Name} acts on a part that was removed, so it is left out.");
+        return new MotionEngine(start, grounded, JointObjects.Select(j => j.joint), Couplings, bodies, dofs, forces, points);
     }
 }

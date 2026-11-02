@@ -1168,7 +1168,12 @@ public sealed partial class MainViewModel : ViewModelBase
             AsmCmd("Drive\nJoints","joint-revolute",()=>new DriveJointsCommand(),"Move the joints by hand to check the mechanism before simulating it.",RibbonSize.Large,HasJoints)),
          G("Simulate",
             Cmd("Kinematics","motion-kinematics",()=>new MotionStudyCommand(false),"Drive joints at a constant speed or oscillate them and see positions, speeds, accelerations, part paths and collisions. No masses or forces needed."),
-            Cmd("Motion\nDynamics","motion-dynamics",()=>new MotionStudyCommand(true),"Rigid-body motion with gravity, motor torque, loads and friction: required motor torque and power, energy, and free joints that swing under gravity.")),
+            Cmd("Motion\nDynamics","motion-dynamics",()=>new MotionStudyCommand(true),"Rigid-body motion with gravity, motor torque, loads and friction: required motor torque and power, energy, and free joints that swing under gravity."),
+            Cmd("Robot\nPath","motion-robot",()=>new MotionStudyCommand(MotionKind.Robot),"Move a robot arm's tool along a curve: inverse kinematics, reach check, joint motion and the torque each joint needs with a payload.")),
+         G("Springs and loads",
+            Cmd("Spring /\nActuator","motion-spring",()=>new MotionSpringCommand(),"A spring, damper or cylinder between two points (or a point and a fixed body).",RibbonSize.Large),
+            Cmd("Force","motion-force",()=>new MotionLoadCommand(false),"A force on a part, constant, a pulse or alternating.",RibbonSize.Large),
+            Cmd("Torque","motion-force",()=>new MotionLoadCommand(true),"A torque on a part, constant, a pulse or alternating.",RibbonSize.Large)),
          G("Review",Btn("Clear\nResults","clear-analysis",ClearResults,"Remove the motion paths from the model."))]};
         var fluids = new RibbonTab {Title="Fluids",Groups=
         [G("Pipe flow",Cmd("Pipe\nFlow","cae-fluid",()=>new PipeFlowCommand(),"Incompressible circular-pipe pressure drop and Reynolds number. This is a reduced-order calculation, not general 3D CFD."))]};

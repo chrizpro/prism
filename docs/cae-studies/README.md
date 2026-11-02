@@ -41,7 +41,7 @@ Each run retains `analysis.inp`, `analysis.dat`, `analysis.frd`, `solver.log`, a
 - `Prism.RibbonTests`: **38 checks passed**, including CAE tab availability and 1024-pixel Thermal/Dynamics/Fluids layouts.
 - Desktop Release build passed. Live MCP runs verified temperature contours (20–100 °C), six modal results, mode display, and solver status.
 
-MCP commands: `cae_thermal`, `cae_modal`, `cae_pipe_flow`, `cae_kinematics`, `cae_motion` (plus `gear_pair` and `rack_pinion` for the assembly couplings). For the solver commands, use `run_command(commit=false)`, configure inputs, and trigger `Run analysis` through `command_set`. Poll `cae_state`; use `cae_state(action=stop)` to stop. `get_state` includes CAE status. Detailed result data are retained in the case directory.
+MCP commands: `cae_thermal`, `cae_modal`, `cae_pipe_flow`, `cae_kinematics`, `cae_motion`, `cae_robot_path`, `motion_spring`, `motion_force`, `motion_torque` (plus `gear_pair` and `rack_pinion` for the assembly couplings). For the solver commands, use `run_command(commit=false)`, configure inputs, and trigger `Run analysis` through `command_set`. Poll `cae_state`; use `cae_state(action=stop)` to stop. `get_state` includes CAE status. Detailed result data are retained in the case directory.
 
 The benchmark `.prism` contains test solids, not stored solver setups. `live-cae-demo.prism` is the saved viewport model. Numeric evidence and screenshots are alongside this report.
 

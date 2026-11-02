@@ -16,15 +16,24 @@ namespace Prism.Commands;
 /// a motor (constant speed or oscillation), a free joint that swings under gravity, loads and friction. Results are the motion of every joint, the speed
 /// and acceleration of every part, the torque or force the drives need and where parts collide.
 /// </summary>
+public enum MotionKind { Kinematics, Dynamics, Robot }
+
 public sealed class MotionStudyCommand : Command
 {
     sealed class Row
     {
         public required MotionDof Dof;
-        public ChoiceParam? Mode; public NumberParam? Start, Rate, Amplitude, Frequency, Effort, Damping;
+        public ChoiceParam? Mode; public NumberParam? Start, Rate, StartSpeed, Amplitude, Frequency, Effort, Damping, Target, RampStart, RampTime, MotorStall, MotorNoLoad;
+        public BoolParam? Use;
     }
 
-    readonly bool _dynamic;
+    readonly MotionKind _kind;
+    DriveMode[] _modeMap = [];
+    SelectionSlot? _tool, _pathSlot;
+    NumberParam? _speed, _accel, _payload;
+    BoolParam? _hold, _torques;
+    bool _dynamic => _kind == MotionKind.Dynamics || _kind == MotionKind.Robot && (_torques?.Value ?? true);
+    bool Robot => _kind == MotionKind.Robot;
     readonly List<Row> _rows = [];
     NumberParam _duration = null!, _interval = null!, _time = null!;
     ChoiceParam? _gravity;
@@ -39,15 +48,19 @@ public sealed class MotionStudyCommand : Command
     static readonly Vec3[] GravityDirs = [Vec3.Zero, -Vec3.UnitZ, -Vec3.UnitY, -Vec3.UnitX, Vec3.UnitZ, Vec3.UnitY, Vec3.UnitX];
     public const double G = 9.80665;
 
-    public MotionStudyCommand(bool dynamic) => _dynamic = dynamic;
+    public MotionStudyCommand(bool dynamic) : this(dynamic ? MotionKind.Dynamics : MotionKind.Kinematics) { }
+    public MotionStudyCommand(MotionKind kind) => _kind = kind;
 
-    public bool IsDynamic => _dynamic;
+    public bool IsDynamic => _kind == MotionKind.Dynamics;
+    public bool IsRobot => Robot;
     public MotionResult? Result => _result;
     public override bool SupportsPreview => false;
-    public override string Title => _dynamic ? "Motion Dynamics" : "Kinematics";
-    public override string Icon => _dynamic ? "motion-dynamics" : "motion-kinematics";
+    public override string Title => _kind switch { MotionKind.Dynamics => "Motion Dynamics", MotionKind.Robot => "Robot Path", _ => "Kinematics" };
+    public override string Icon => _kind switch { MotionKind.Dynamics => "motion-dynamics", MotionKind.Robot => "motion-robot", _ => "motion-kinematics" };
     public override string OkText => "Done";
-    public override string Hint => _dynamic
+    public override string Hint => Robot
+        ? "Move a robot arm's tool along a path. Pick a point on the arm's last link (the tool), then the curve to follow (a sketch, a curve or edges). The joint motion is worked out for you by inverse kinematics along a speed profile with rounded corners, then played back. With joint torques on it also reports what each motor must supply, with a payload at the tool. Build the arm in the Assemble workspace first; each joint you leave ticked is used to reach the path."
+        : _dynamic
         ? "Rigid-body motion of the assembly. Choose for each joint whether a motor drives it (constant speed or oscillation) or it is free to move under gravity, a torque or force and friction. Gears and racks made in the Assemble workspace carry the motion on. Results include the torque a motor needs, power, energy, and the speed and acceleration of every part. Each part needs a material for its mass. Parts are rigid and joints and gears ideal: no flexing, tooth contact, backlash or collisions between moving parts."
         : "Move the assembly through a prescribed motion: drive joints at a constant speed or oscillate them, and see every joint's position, speed and acceleration, the paths and speeds of the parts, and where they collide. Joints, gears and the grounded part come from the Assemble workspace. No masses or forces are needed; use Motion Dynamics for those.";
 
@@ -56,41 +69,71 @@ public sealed class MotionStudyCommand : Command
         var joints = S.JointObjects.Select(j => j.joint).ToList();
         var couplings = S.Couplings.ToList();
         var dofs = MotionEngine.DofsOf(joints, couplings);
-        _duration = Add(new NumberParam { Label = "Duration", Value = 5, Min = 0.01, Max = 3600, Step = 0.5, Unit = "s" });
-        _interval = Add(new NumberParam { Label = "Output interval", Value = 0.02, Min = 0.0005, Max = 60, Step = 0.01, Unit = "s" });
-        if (_dynamic)
+        T Run<T>(T p) where T : Param { p.Section = "Run and review"; return p; }
+        if (Robot)
+        {
+            _tool = Slot(new SelectionSlot { Label = "Tool point (a face, circle or edge on the arm's last link)", Filter = SelFilter.Face | SelFilter.Edge });
+            _pathSlot = Slot(new SelectionSlot { Label = "Path to follow (a curve, sketch or edges, in order)", Filter = SelFilter.Edge | SelFilter.CurveObj | SelFilter.SketchObj, Multi = true, Ordered = true });
+            _speed = Add(new NumberParam { Label = "Tool speed", Value = 100, Min = 0.01, Max = 1e6, Step = 10, Unit = "mm/s" });
+            _accel = Add(new NumberParam { Label = "Acceleration along the path", Value = 500, Min = 0.01, Max = 1e7, Step = 50, Unit = "mm/s²" });
+            _interval = Add(new NumberParam { Label = "Output interval", Value = 0.02, Min = 0.0005, Max = 60, Step = 0.01, Unit = "s" });
+            _hold = Check("Keep the tool pointing the same way (needs six joints)", true);
+            _torques = Check("Work out the joint torques (every part needs a material)", true);
+            _payload = Add(new NumberParam { Label = "Payload carried at the tool", Value = 0, Min = 0, Max = 1e6, Step = 0.5, Unit = "kg" });
             _gravity = Choice("Gravity", 1, GravityNames);
+        }
+        else
+        {
+            _duration = Add(new NumberParam { Label = "Duration", Value = 5, Min = 0.01, Max = 3600, Step = 0.5, Unit = "s" });
+            _interval = Add(new NumberParam { Label = "Output interval", Value = 0.02, Min = 0.0005, Max = 60, Step = 0.01, Unit = "s" });
+            if (_dynamic) _gravity = Choice("Gravity", 1, GravityNames);
+        }
+        _modeMap = _dynamic ? [DriveMode.Hold, DriveMode.Constant, DriveMode.Oscillate, DriveMode.Free, DriveMode.Ramp] : [DriveMode.Hold, DriveMode.Constant, DriveMode.Oscillate, DriveMode.Ramp];
+        string[] modeNames = _dynamic ? ["Hold", "Constant speed", "Oscillate", "Free (moves under load and gravity)", "Move to a position (smooth)"] : ["Hold", "Constant speed", "Oscillate", "Move to a position (smooth)"];
         foreach (var d in dofs)
         {
             var row = new Row { Dof = d };
             string sect = d.Follower ? d.Name + " (follows a gear or rack)" : d.Name;
             T Sec<T>(T p) where T : Param { p.Section = sect; return p; }
-            string leadName = d.Name;
-            if (!d.Follower)
+            if (!d.Follower && Robot)
             {
-                row.Mode = Sec(Add(new ChoiceParam { Label = leadName + " — motion", Options = _dynamic ? ["Hold", "Constant speed", "Oscillate", "Free (moves under load and gravity)"] : ["Hold", "Constant speed", "Oscillate"], Index = 0 }));
+                row.Use = Sec(Add(new BoolParam { Label = "Use " + d.Name + " to move the arm", Value = true }));
+                row.Start = Sec(Add(new NumberParam { Label = "Starting position", Value = Math.Round(d.Start, 4), Min = -1e6, Max = 1e6, Step = d.Angular ? 5 : 1, Unit = d.Unit }));
+            }
+            else if (!d.Follower)
+            {
+                row.Mode = Sec(Add(new ChoiceParam { Label = d.Name + " — motion", Options = modeNames, Index = 0 }));
                 row.Start = Sec(Add(new NumberParam { Label = "Starting position", Value = Math.Round(d.Start, 4), Min = -1e6, Max = 1e6, Step = d.Angular ? 5 : 1, Unit = d.Unit }));
                 row.Rate = Sec(Add(new NumberParam { Label = "Speed", Value = d.Angular ? 90 : 20, Min = -1e6, Max = 1e6, Step = d.Angular ? 10 : 5, Unit = d.Unit + "/s" }));
+                row.StartSpeed = Sec(Add(new NumberParam { Label = "Starting speed", Value = 0, Min = -1e6, Max = 1e6, Step = d.Angular ? 10 : 5, Unit = d.Unit + "/s" }));
                 row.Amplitude = Sec(Add(new NumberParam { Label = "Amplitude", Value = d.Angular ? 45 : 20, Min = 0, Max = 1e6, Step = d.Angular ? 5 : 1, Unit = d.Unit }));
                 row.Frequency = Sec(Add(new NumberParam { Label = "Frequency", Value = 0.5, Min = 0.001, Max = 1000, Step = 0.1, Unit = "Hz" }));
+                row.Target = Sec(Add(new NumberParam { Label = "Move to", Value = Math.Round(d.Start + (d.Angular ? 90 : 50), 4), Min = -1e6, Max = 1e6, Step = d.Angular ? 5 : 1, Unit = d.Unit }));
+                row.RampStart = Sec(Add(new NumberParam { Label = "Move starts at", Value = 0, Min = 0, Max = 1e6, Step = 0.1, Unit = "s" }));
+                row.RampTime = Sec(Add(new NumberParam { Label = "Move takes", Value = 1, Min = 0.001, Max = 1e6, Step = 0.1, Unit = "s" }));
             }
             if (_dynamic)
             {
-                row.Effort = Sec(Add(new NumberParam { Label = d.Follower ? "Load" : "Applied " + (d.Angular ? "torque" : "force"), Value = 0, Min = -1e9, Max = 1e9, Step = d.Angular ? 0.1 : 1, Unit = d.EffortUnit }));
+                if (!d.Follower && !Robot)
+                {
+                    row.MotorStall = Sec(Add(new NumberParam { Label = d.Angular ? "Motor stall torque (0 = no motor)" : "Motor stall force (0 = no motor)", Value = 0, Min = 0, Max = 1e9, Step = 0.1, Unit = d.EffortUnit }));
+                    row.MotorNoLoad = Sec(Add(new NumberParam { Label = "Motor no-load speed", Value = d.Angular ? 1000 : 100, Min = 0.001, Max = 1e9, Step = 10, Unit = d.Unit + "/s" }));
+                }
+                if (!Robot) row.Effort = Sec(Add(new NumberParam { Label = d.Follower ? "Load" : "Applied " + (d.Angular ? "torque" : "force"), Value = 0, Min = -1e9, Max = 1e9, Step = d.Angular ? 0.1 : 1, Unit = d.EffortUnit }));
                 row.Damping = Sec(Add(new NumberParam { Label = d.Angular ? "Viscous friction (N·m·s/rad)" : "Viscous friction (N·s/m)", Value = 0, Min = 0, Max = 1e9, Step = 0.001, Unit = "" }));
             }
             _rows.Add(row);
         }
-        _collide = Check("Look for collisions along the motion", false);
+        if (!Robot) _collide = Check("Look for collisions along the motion", false);
+        else _collide = new BoolParam { Label = "", Value = false };
         _paths = Check("Show the paths the parts take", S.ShowMotionPaths);
         _paths.Changed = () => { S.ShowMotionPaths = _paths.Value; OnChanged(); };
-        T Run<T>(T p) where T : Param { p.Section = "Run and review"; return p; }
         Run(Add(new ActionParam { Label = "Run study", Run = RunStudy }));
         _time = Run(Add(new NumberParam { Label = "Show the motion at", Value = 0, Min = 0, Max = 100, Step = 1, Unit = "%" }));
         _time.Changed = () => { if (_result != null) S.SetMotionSample(_result.SampleAt(Seconds)); OnChanged(); };
         _loop = Run(Check("Loop the playback", true));
         Run(Add(new ActionParam { Label = "Play  /  Stop", Run = TogglePlay }));
-        _file = Run(Text("Save results as CSV", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Motion", _dynamic ? "motion-dynamics.csv" : "kinematics.csv")));
+        _file = Run(Text("Save results as CSV", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Motion", Robot ? "robot-path.csv" : _dynamic ? "motion-dynamics.csv" : "kinematics.csv")));
         Run(Add(new ActionParam { Label = "Save results", Run = SaveCsv }));
     }
 
@@ -99,10 +142,12 @@ public sealed class MotionStudyCommand : Command
         foreach (var r in _rows)
         {
             if (r.Mode == null) continue;
-            int mode = r.Mode.Index;
-            r.Rate!.IsVisible = mode is 1 or 3; r.Rate.Caption = mode == 3 ? "Starting speed" : "Speed";
-            r.Amplitude!.IsVisible = r.Frequency!.IsVisible = mode == 2;
-            if (r.Effort != null) r.Effort.IsVisible = mode == 3;
+            var mode = _modeMap[Math.Clamp(r.Mode.Index, 0, _modeMap.Length - 1)];
+            r.Rate!.IsVisible = mode == DriveMode.Constant; r.StartSpeed!.IsVisible = mode == DriveMode.Free;
+            r.Amplitude!.IsVisible = r.Frequency!.IsVisible = mode == DriveMode.Oscillate;
+            r.Target!.IsVisible = r.RampStart!.IsVisible = r.RampTime!.IsVisible = mode == DriveMode.Ramp;
+            if (r.Effort != null) r.Effort.IsVisible = mode == DriveMode.Free;
+            if (r.MotorStall != null) r.MotorStall.IsVisible = r.MotorNoLoad!.IsVisible = mode == DriveMode.Free;
         }
         if (_time != null) _time.IsVisible = _result != null;
     }
@@ -113,7 +158,7 @@ public sealed class MotionStudyCommand : Command
     public override void OnEnd() { StopPlay(); S.ShowMotion(null); }
 
     // ------------------------------------------------------------------ running
-    string Fingerprint() => string.Join("|", Params.Where(p => p != _time && p != _loop && p != _paths && p != _file).Select(p => p switch
+    string Fingerprint() => string.Join(",", Slots.Select(x => string.Join(";", x.Items.Select(i => $"{i.Obj}{i.Kind}{i.Index}")))) + "|" + string.Join("|", Params.Where(p => p != _time && p != _loop && p != _paths && p != _file).Select(p => p switch
     {
         NumberParam n => n.Label + n.Section + n.Value.ToString("R", CultureInfo.InvariantCulture), ChoiceParam c => c.Label + c.Index, BoolParam b => b.Label + b.Value, _ => "",
     }));
@@ -125,10 +170,13 @@ public sealed class MotionStudyCommand : Command
             var d = r.Dof;
             if (r.Mode != null)
             {
-                d.Mode = (DriveMode)r.Mode.Index;
-                d.Start = r.Start!.Value; d.Rate = r.Rate!.Value; d.Amplitude = r.Amplitude!.Value; d.Frequency = r.Frequency!.Value;
+                d.Mode = _modeMap[Math.Clamp(r.Mode.Index, 0, _modeMap.Length - 1)];
+                d.Start = r.Start!.Value; d.Rate = d.Mode == DriveMode.Free ? r.StartSpeed!.Value : r.Rate!.Value; d.Amplitude = r.Amplitude!.Value; d.Frequency = r.Frequency!.Value;
+                d.Target = r.Target!.Value; d.RampStart = r.RampStart!.Value; d.RampTime = r.RampTime!.Value;
             }
+            else if (r.Start != null) { d.Start = r.Start.Value; d.Mode = DriveMode.Hold; }
             d.Effort = r.Effort?.Value ?? 0; d.Damping = r.Damping?.Value ?? 0;
+            d.MotorStall = r.MotorStall?.Value ?? 0; d.MotorNoLoad = r.MotorNoLoad?.Value ?? 0;
         }
     }
 
@@ -139,10 +187,30 @@ public sealed class MotionStudyCommand : Command
             StopPlay(); _error = ""; _collisions.Clear();
             if (_rows.Count == 0) throw new InvalidOperationException("There are no joints that can move. Build the mechanism in the Assemble workspace first: insert the parts, ground one, and add revolute, slider or other joints (and gears).");
             Apply();
-            var engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), _dynamic, out var notes, out var bodies);
             var gravity = _dynamic && _gravity != null ? GravityDirs[_gravity.Index] * G : Vec3.Zero;
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            var result = engine.Run(new MotionSettings(_duration.Value, _interval.Value, _dynamic, gravity));
+            MotionEngine engine; List<string> notes; List<MotionBody> bodies; MotionResult result;
+            var extra = new List<string>();
+            if (Robot)
+            {
+                var (points, active, tool, local, pts) = RobotSetup();
+                var planner = S.BuildMotionEngine(_rows.Select(r => r.Dof), false, out notes, out bodies, points);
+                bool hold = _hold!.Value && active.Count >= 6;
+                if (_hold.Value && !hold) extra.Add($"The arm has {active.Count} usable joints; keeping the tool's direction needs six, so only its position follows the path.");
+                var plan = RobotPath.Follow(planner, active, tool, local, pts, _speed!.Value, _accel!.Value, _interval.Value, hold);
+                int ai = 0; var indep = _rows.Where(r => !r.Dof.Follower).ToList();
+                foreach (int k in active) { indep[k].Dof.SetTable(plan.Times, plan.JointValues[ai++]); }
+                engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), _dynamic, out notes, out bodies, points);
+                result = engine.Run(new MotionSettings(plan.Times[^1], plan.Times[1] - plan.Times[0], _dynamic, gravity));
+                extra.Add(plan.Unreached == 0 ? $"Reached all {plan.Times.Length} points of the {plan.PathLength:0.#} mm path (worst miss {plan.MaxPositionError:G2} mm) in {plan.Times[^1]:0.###} s." : $"{plan.Unreached} of {plan.Times.Length} points could not be reached.");
+                foreach (var n in plan.Notes) extra.Add(n);
+            }
+            else
+            {
+                engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), _dynamic, out notes, out bodies);
+                result = engine.Run(new MotionSettings(_duration.Value, _interval.Value, _dynamic, gravity));
+            }
+            _reach = extra;
             _result = result;
             if (_collide.Value) CheckCollisions(result);
             _summary = Summarize(result, bodies, notes, clock.Elapsed.TotalSeconds);
@@ -154,22 +222,44 @@ public sealed class MotionStudyCommand : Command
         OnChanged();
     }
 
+    List<string> _reach = [];
+
+    /// <summary>The tool point, the arm's joints and the path polyline for a robot study.</summary>
+    (List<MotionPoint> points, List<int> active, string tool, Vec3 local, List<Vec3> path) RobotSetup()
+    {
+        if (_tool!.Items.Count == 0) throw new InvalidOperationException("Pick the tool point: a face, circle or edge on the arm's last link.");
+        if (_pathSlot!.Items.Count == 0) throw new InvalidOperationException("Pick the path to follow: a curve, a sketch or edges.");
+        var comp = MotionPicks.ComponentOf(S, _tool.Items[0]) ?? throw new InvalidOperationException("The tool point must be on a component of the assembly.");
+        var world = MotionPicks.PointOf(S, _tool.Items[0]);
+        var local = new Vec3(0, 0, 0); { var l = MotionPicks.Local(comp, world); local = new Vec3(l[0], l[1], l[2]); }
+        var points = new List<MotionPoint> { new("Tool", comp.Component!.Key, local, 0) };
+        if (_payload!.Value > 0) points.Add(new("Payload", comp.Component.Key, local, _payload.Value));
+        var pieces = _pathSlot.Items.Select(i => MotionPicks.CurveOf(S, i)).Where(p => p.Count >= 2).ToList();
+        var path = MotionPicks.Join(pieces);
+        if (path.Count < 2) throw new InvalidOperationException("The picked path has no length.");
+        var active = new List<int>(); int k = 0;
+        foreach (var r in _rows.Where(r => !r.Dof.Follower)) { if (r.Use!.Value) active.Add(k); k++; }
+        if (active.Count == 0) throw new InvalidOperationException("Tick at least one joint to move the arm.");
+        return (points, active, comp.Component.Key, local, path);
+    }
+
     static double Z(double v) => Math.Abs(v) < 5e-4 ? 0 : v;       // no "-0"
 
     List<ResultLine> Summarize(MotionResult r, List<MotionBody> bodies, List<string> notes, double seconds)
     {
         var res = new List<ResultLine>();
         res.Add(new("Solved", $"{r.Samples:N0} times over {r.Time[^1]:0.###} s  ({seconds:0.##} s to compute)", 1));
-        double total = bodies.Sum(b => b.Mass);
+        foreach (var line in _reach) res.Add(new(line.StartsWith("Reached") ? "Path" : "Note", line, line.StartsWith("Reached") ? 1 : 2));
+        double total = bodies.Sum(b => b.Mass) + r.Bodies.Where(b => b.Name == "Payload").Sum(b => b.Mass);
         if (_dynamic) res.Add(new("Moving mass", $"{total * 1000:0.###} g in {bodies.Count} part{(bodies.Count == 1 ? "" : "s")}"));
         for (int j = 0; j < r.Dofs.Length; j++)
         {
             var d = r.Dofs[j]; string u = d.Unit;
             double lo = r.Pos[j].Min(), hi = r.Pos[j].Max(), vmax = r.Vel[j].Select(Math.Abs).Max(), amax = r.Acc[j].Select(Math.Abs).Max();
-            string role = d.Follower ? "follows" : d.Mode switch { DriveMode.Free when _dynamic => "free", DriveMode.Constant => "driven", DriveMode.Oscillate => "driven", _ => "held" };
+            string role = d.Follower ? "follows" : d.Mode switch { DriveMode.Free when _dynamic => "free", DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table => "driven", _ => "held" };
             if (role == "held" && hi - lo < 1e-9) continue;
             res.Add(new($"{d.Name} ({role})", $"{Z(lo):0.###} to {Z(hi):0.###} {u}   ·   peak speed {vmax:0.###} {u}/s   ·   peak acceleration {amax:0.###} {u}/s²"));
-            if (_dynamic && !d.Follower && d.Mode is DriveMode.Constant or DriveMode.Oscillate && r.Effort[j].Any(e => e != 0))
+            if (_dynamic && !d.Follower && d.Mode is DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table && r.Effort[j].Any(e => e != 0))
             {
                 var e = r.Effort[j]; var p = r.Power[j];
                 double peak = e.Select(Math.Abs).Max(), rms = Math.Sqrt(e.Select(x => x * x).Average());
@@ -177,8 +267,13 @@ public sealed class MotionStudyCommand : Command
                 res.Add(new($"  drive {(d.Angular ? "torque" : "force")}", $"peak {peak:G4} {d.EffortUnit}   ·   rms {rms:G4} {d.EffortUnit}   ·   peak power {p.Select(Math.Abs).Max():G4} W   ·   energy put in {work:G4} J", 1));
             }
         }
+        for (int f = 0; f < r.ForceNames.Length; f++)
+        {
+            double peak = r.ForceValue[f].Select(Math.Abs).Max(); if (peak < 1e-12) continue;
+            res.Add(new($"{r.ForceNames[f]}", $"peak {peak:G4} (N or N·m){(r.ForceValue[f].Min() < 0 && r.ForceValue[f].Max() > 0 ? "   ·   changes sign" : "")}"));
+        }
         // the parts that move fastest and that accelerate hardest
-        var moving = Enumerable.Range(0, r.Bodies.Length).Where(b => r.Speed[b].Max() > 1e-9 || r.AngSpeed[b].Max() > 1e-9).ToList();
+        var moving = Enumerable.Range(0, r.Bodies.Length).Where(b => !r.Bodies[b].Name.StartsWith('@') && (r.Speed[b].Max() > 1e-9 || r.AngSpeed[b].Max() > 1e-9)).ToList();
         foreach (int b in moving.OrderByDescending(b => r.Speed[b].Max()).Take(4))
         {
             double a = r.Accel[b].Max(); string force = _dynamic && r.Bodies[b].Mass > 0 ? $"   ·   inertial force {a * r.Bodies[b].Mass:0.###} N" : "";
@@ -187,7 +282,7 @@ public sealed class MotionStudyCommand : Command
         if (_dynamic)
         {
             double e0 = r.Kinetic[0] + r.Potential[0], e1 = r.Kinetic[^1] + r.Potential[^1];
-            bool anyDrive = r.Dofs.Any(d => !d.Follower && d.Mode is DriveMode.Constant or DriveMode.Oscillate), anyLoss = r.Dofs.Any(d => d.Damping > 0 || d.Effort != 0);
+            bool anyDrive = r.Dofs.Any(d => !d.Follower && d.Mode is DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table), anyLoss = r.Dofs.Any(d => d.Damping > 0 || d.Effort != 0 || d.MotorStall != 0) || r.ForceNames.Length > 0;
             res.Add(new("Kinetic + potential energy", $"{e0:0.####} J at the start, {e1:0.####} J at the end{(anyDrive || anyLoss ? " (a motor, a load or friction adds or removes energy)" : "")}"));
         }
         foreach (var ev in r.Events) res.Add(new("Limit", ev, 2));
@@ -273,8 +368,9 @@ public sealed class MotionStudyCommand : Command
                 head.Add($"{n} position_{d.Unit}"); head.Add($"{n} speed_{d.Unit}/s"); head.Add($"{n} acceleration_{d.Unit}/s2");
                 if (r.Dynamic) { head.Add($"{n} drive_{d.EffortUnit}"); head.Add($"{n} power_W"); }
             }
-            if (r.Dynamic) { head.Add("kinetic_J"); head.Add("potential_J"); }
-            for (int b = 0; b < r.Bodies.Length; b++)
+            if (r.Dynamic) { head.Add("kinetic_J"); head.Add("potential_J"); foreach (var fn in r.ForceNames) head.Add($"{fn.Replace(',', ';')} force_N_or_Nm"); }
+            var shown = Enumerable.Range(0, r.Bodies.Length).Where(b => !r.Bodies[b].Name.StartsWith('@')).ToList();
+            foreach (int b in shown)
             { string n = r.Bodies[b].Name.Replace(',', ';'); head.Add($"{n} x_mm"); head.Add($"{n} y_mm"); head.Add($"{n} z_mm"); head.Add($"{n} speed_m/s"); head.Add($"{n} acceleration_m/s2"); }
             var lines = new List<string> { string.Join(",", head) };
             for (int i = 0; i < r.Samples; i++)
@@ -285,8 +381,8 @@ public sealed class MotionStudyCommand : Command
                     cells.Add(F(r.Pos[j][i])); cells.Add(F(r.Vel[j][i])); cells.Add(F(r.Acc[j][i]));
                     if (r.Dynamic) { cells.Add(F(r.Effort[j][i])); cells.Add(F(r.Power[j][i])); }
                 }
-                if (r.Dynamic) { cells.Add(F(r.Kinetic[i])); cells.Add(F(r.Potential[i])); }
-                for (int b = 0; b < r.Bodies.Length; b++) { var p = r.Path[b][i]; cells.Add(F(p.X)); cells.Add(F(p.Y)); cells.Add(F(p.Z)); cells.Add(F(r.Speed[b][i])); cells.Add(F(r.Accel[b][i])); }
+                if (r.Dynamic) { cells.Add(F(r.Kinetic[i])); cells.Add(F(r.Potential[i])); for (int f = 0; f < r.ForceNames.Length; f++) cells.Add(F(r.ForceValue[f][i])); }
+                foreach (int b in shown) { var p = r.Path[b][i]; cells.Add(F(p.X)); cells.Add(F(p.Y)); cells.Add(F(p.Z)); cells.Add(F(r.Speed[b][i])); cells.Add(F(r.Accel[b][i])); }
                 lines.Add(string.Join(",", cells));
             }
             File.WriteAllLines(_file.Value, lines);
@@ -301,7 +397,7 @@ public sealed class MotionStudyCommand : Command
         Results.Clear();
         if (_rows.Count == 0) { Results.Add(new ResultLine("Mechanism", "no joints that can move. Build it in the Assemble workspace: insert the parts, ground one, add joints (and gears), then come back.", 2)); return new CommandOutput { NoOp = true }; }
         if (_error.Length > 0) Results.Add(new ResultLine("Could not run", _error, 3));
-        if (_result == null) { if (_error.Length == 0) Results.Add(new ResultLine("Setup", "Set how each joint moves, then press Run study.")); return new CommandOutput { NoOp = true }; }
+        if (_result == null) { if (_error.Length == 0) Results.Add(new ResultLine("Setup", Robot ? "Pick the tool point and the path, tick the joints that move the arm, then press Run study." : "Set how each joint moves, then press Run study.")); return new CommandOutput { NoOp = true }; }
         if (_fingerprint != Fingerprint()) Results.Add(new ResultLine("Settings changed", "These results are from the earlier settings. Press Run study again.", 2));
         Results.Add(new ResultLine("Showing", $"{Seconds:0.###} s of {_result.Time[^1]:0.###} s"));
         foreach (var l in _summary) Results.Add(l);

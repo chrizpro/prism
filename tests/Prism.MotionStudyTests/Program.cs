@@ -145,6 +145,117 @@ string Text(Command c) => string.Join("\n", c.Results.Select(r => r.Label + ": "
     s.CancelCommand();
 }
 
+
+// ---------------------------------------------------------------- springs, actuators and loads placed in the assembly
+SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
+{
+    int n = o.Shape.Count(SubKind.Face);
+    for (int i = 0; i < n; i++) if (s.FaceFrame(new SelItem(o.Id, SelKind.Face, i)) is { } f && Vec3.Dot(f.normal, normal) > 0.99) return new SelItem(o.Id, SelKind.Face, i);
+    throw new Exception("no such face");
+}
+{
+    var s = new CadSession();
+    var floor = Part(s, "Floor", Occ.Box(300, 60, 10), true);
+    var block = Part(s, "Block", Occ.Translate(Occ.Box(20, 20, 20), new Vec3(0, 0, 15)), false);
+    Joint(s, "slide", "Slide", JointType.Slider, floor, block, new Vec3(0, 0, 25), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+    var wall = s.AddObject(Occ.Translate(Occ.Box(10, 20, 20), new Vec3(110, 0, 15)), "Wall", ObjKind.Solid);        // a plain body: fixed in space
+    var massBlock = s.BodyOf(s.Find(block.Id)!, out _);
+
+    s.StartCommand(() => new MotionSpringCommand()); var spring = s.ActiveCommand!;
+    spring.Slots[0].TryAdd(FaceFacing(s, s.Find(block.Id)!, new Vec3(1, 0, 0))); spring.Slots[1].TryAdd(FaceFacing(s, s.Find(wall.Id)!, new Vec3(-1, 0, 0)));
+    spring.OnChanged();
+    Check(Text(spring).Contains("a fixed point in space") && Text(spring).Contains("95"), "Spring / Actuator joins a part to a fixed body and reads the length between the picked points");
+    Num(spring, "Stiffness").Value = 0.1;
+    s.CommitCommand();
+    var info = s.Springs.Single();
+    Check(info.CompB == null && Near(info.RestLength, 95, 1e-6) && info.Stiffness == 0.1, "the spring is stored in the assembly with its free length");
+    var ov = new Overlay(); s.BuildOverlay(ov);
+    Check(ov.Lines.Count > 8, "springs are drawn between their ends");
+    Check(System.Text.Json.JsonSerializer.Deserialize<AssemblyData>(System.Text.Json.JsonSerializer.Serialize<AssemblyData>(info)) is SpringInfo back && back.CompA == info.CompA && back.Stiffness == 0.1, "a spring is saved with the document");
+
+    s.StartCommand(() => new MotionStudyCommand(true)); var cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Slide").Index = 3; Num(cmd, "Starting position", "Slide").Value = 10;
+    Num(cmd, "Duration").Value = 0.5; Num(cmd, "Output interval").Value = 0.002; Pick(cmd, "Gravity").Index = 0;
+    Run(cmd);
+    var r = cmd.Result!;
+    double quarter = Math.PI / 2 * Math.Sqrt(massBlock.Mass / 100);
+    int zero = Array.FindIndex(r.Pos[0], v => v <= 0); double tq = r.Time[zero - 1] + 0.002 * r.Pos[0][zero - 1] / (r.Pos[0][zero - 1] - r.Pos[0][zero]);
+    Check(Near(tq, quarter, 0.004), $"a block released on the spring made in the assembly swings at √(k/m): quarter period {tq:0.####} s vs {quarter:0.####} s");
+    Check(Text(cmd).Contains("Spring") && Near(r.ForceValue[0].Select(Math.Abs).Max(), 1.0, 0.01), "the study reports the spring's peak force (k × 10 mm = 1 N)");
+    s.CancelCommand();
+
+    // a force load
+    s.StartCommand(() => new MotionLoadCommand(false)); var load = s.ActiveCommand!;
+    load.Slots[0].TryAdd(FaceFacing(s, s.Find(block.Id)!, new Vec3(-1, 0, 0)));
+    Pick(load, "Direction").Index = 0; Num(load, "Force").Value = 3; Pick(load, "In time").Index = 1; Num(load, "Starts at").Value = 0.05; Num(load, "Lasts").Value = 0.02;
+    s.CommitCommand();
+    Check(s.Loads.Single().Magnitude == 3 && s.Loads.Single().Shape == 1, "a force load is stored with its direction and pulse");
+    s.SelectItems([SelItem.Of(s.Objects.First(o => o.Asm is SpringInfo))]); s.DeleteSelection();
+    Check(!s.Springs.Any(), "deleting the spring object removes it from the studies");
+    s.StartCommand(() => new MotionStudyCommand(true)); cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Slide").Index = 3; Num(cmd, "Starting position", "Slide").Value = 0; Num(cmd, "Duration").Value = 0.2; Num(cmd, "Output interval").Value = 0.005; Pick(cmd, "Gravity").Index = 0;
+    Run(cmd); r = cmd.Result!;
+    Check(Near(r.Vel[0][^1] / 1000, 3 * 0.02 / massBlock.Mass, 0.01), $"a 3 N pulse for 20 ms gives the block {r.Vel[0][^1]:0.#} mm/s");
+    s.CancelCommand();
+
+    // a smooth move and a motor curve from the study panel
+    s.StartCommand(() => new MotionStudyCommand(false)); cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Slide").Index = 3;                                                                 // kinematics: hold, speed, oscillate, move
+    Num(cmd, "Move to", "Slide").Value = 80; Num(cmd, "Move starts at", "Slide").Value = 0.5; Num(cmd, "Move takes", "Slide").Value = 2; Num(cmd, "Duration").Value = 3;
+    Run(cmd);
+    Check(Near(cmd.Result!.Pos[0][^1], 80, 1e-6) && cmd.Result.Vel[0][0] == 0, "a smooth move to a position starts and stops at rest");
+    s.CancelCommand();
+    s.StartCommand(() => new MotionStudyCommand(true)); cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Slide").Index = 3; Num(cmd, "Motor stall force", "Slide").Value = 1; Num(cmd, "Motor no-load speed", "Slide").Value = 100; Num(cmd, "Duration").Value = 1; Pick(cmd, "Gravity").Index = 0;
+    Run(cmd); double tauM = massBlock.Mass * 0.1 / 1.0;
+    Check(Near(cmd.Result!.Vel[0][^1], 100 * (1 - Math.Exp(-1 / tauM)), 0.01), "a linear motor with a force–speed curve reaches its no-load speed exponentially");
+    s.CancelCommand();
+}
+
+// ---------------------------------------------------------------- robot arm following a curve
+{
+    var s = new CadSession();
+    var baseP = Part(s, "Base", Occ.Box(60, 60, 10), true);
+    var l1 = Part(s, "Link 1", Occ.Translate(Occ.Box(300, 20, 20), new Vec3(150, 0, 15)), false);
+    var l2 = Part(s, "Link 2", Occ.Translate(Occ.Box(200, 20, 20), new Vec3(400, 0, 15)), false);
+    Joint(s, "j1", "Shoulder", JointType.Revolute, baseP, l1, new Vec3(0, 0, 0), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j2", "Elbow", JointType.Revolute, l1, l2, new Vec3(300, 0, 0), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var tipFace = FaceFacing(s, s.Find(l2.Id)!, new Vec3(1, 0, 0));
+    var line = s.AddObject(Occ.Line(new Vec3(420, 80, 25), new Vec3(420, -80, 25)), "Path", ObjKind.Curve);
+
+    MotionStudyCommand RobotRun(Vec3 from, Vec3 to, double payload, bool torques = true)
+    {
+        var pathObj = s.AddObject(Occ.Line(from, to), "Path", ObjKind.Curve);
+        s.StartCommand(() => new MotionStudyCommand(MotionKind.Robot)); var c = (MotionStudyCommand)s.ActiveCommand!;
+        c.Slots[0].TryAdd(tipFace); c.Slots[1].TryAdd(SelItem.Of(s.Find(pathObj.Id)!));
+        Num(c, "Starting position", "Shoulder").Value = 20; Num(c, "Starting position", "Elbow").Value = -40;
+        Num(c, "Tool speed").Value = 150; Num(c, "Acceleration along the path").Value = 600; Num(c, "Payload carried at the tool").Value = payload;
+        c.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Work out the joint torques")).Value = torques;
+        Pick(c, "Gravity").Index = 2;                                                              // −Y: the arm stands in the XY plane
+        Run(c); return c;
+    }
+    var empty = RobotRun(new Vec3(420, 80, 25), new Vec3(420, -80, 25), 0);
+    var rr = empty.Result!;
+    int ti = Array.FindIndex(rr.Bodies, b => b.Name == "Tool");
+    Check(Text(empty).Contains("Reached all"), "Robot Path plans joint motion that reaches every point of the picked curve");
+    Check((rr.Path[ti][^1] - new Vec3(420, -80, 25)).Length < 0.01, $"the tool ends on the end of the curve (miss {(rr.Path[ti][^1] - new Vec3(420, -80, 25)).Length:G2} mm)");
+    Check(rr.Speed[ti].Max() * 1000 < 156 && rr.Speed[ti].Max() * 1000 > 140, $"at the speed asked for ({rr.Speed[ti].Max() * 1000:0.#} mm/s)");
+    double peakEmpty = rr.Effort[0].Select(Math.Abs).Max();
+    Check(peakEmpty > 0 && Text(empty).Contains("drive torque"), $"with joint torques on, the shoulder torque is reported ({peakEmpty:0.###} N·m)");
+    empty.Params.OfType<NumberParam>().First(p => p.Label.StartsWith("Show the motion")).Value = 50;
+    Check(empty.TryBuild()!.Replace.Any(x => x.Old.Id == l2.Id), "the arm can be scrubbed along the path");
+    s.CancelCommand();
+    var loaded = RobotRun(new Vec3(420, 80, 25), new Vec3(420, -80, 25), 3.0);
+    Check(loaded.Result!.Effort[0].Select(Math.Abs).Max() > peakEmpty + 3.0 * MotionStudyCommand.G * 0.25 && Text(loaded).Contains("Payload"), "a 3 kg payload adds at least m·g·(reach) to the shoulder torque");
+    s.CancelCommand();
+    var out_ = RobotRun(new Vec3(900, 0, 25), new Vec3(900, 50, 25), 0, false);
+    Check(Text(out_).Contains("could not be reached"), "a path beyond the arm's reach is reported");
+    s.CancelCommand();
+    var kin = RobotRun(new Vec3(420, 80, 25), new Vec3(420, -80, 25), 0, false);
+    Check(!kin.Result!.Dynamic && kin.Result.Effort[0].All(e => e == 0), "without joint torques the arm needs no materials or loads, only reach");
+    s.CancelCommand();
+}
+
 // ---------------------------------------------------------------- help
 {
     foreach (var dyn in new[] { false, true })

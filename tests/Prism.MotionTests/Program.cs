@@ -194,4 +194,114 @@ Xform At(Vec3 t) => Xform.Translation(t);
     Check(Math.Abs(Math.Atan2(r.Path[0][^1].Y, r.Path[0][^1].X) * 180 / Math.PI - 30) < 1e-6, "and the part really stops at the limit");
 }
 
+// ---------------------------------------------------------------- drives: smooth ramp, planned table, motor curve
+{
+    var arm = new MotionBody("arm", "Arm", 0, new Vec3(100, 0, 0), new double[9]);
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["arm"] = Xform.Identity };
+    var j = Joint("j", JointType.Revolute, "base", "arm", Vec3.Zero, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var dofs = MotionEngine.DofsOf([j], []); dofs[0].Mode = DriveMode.Ramp; dofs[0].Target = 90; dofs[0].RampStart = 0.5; dofs[0].RampTime = 1;
+    var r = new MotionEngine(start, new HashSet<string> { "base" }, [j], [], [arm], dofs).Run(new MotionSettings(2.5, 0.01, false, Vec3.Zero));
+    Check(r.Pos[0][0] == 0 && Near(r.Pos[0][^1], 90, 1e-9) && r.Vel[0][^1] == 0 && Math.Abs(r.Vel[0][40]) < 1e-9, "a ramp waits, moves to its target and stops there");
+    Check(Near(r.Vel[0].Max(), 1.875 * 90, 2e-3) && Near(r.Pos[0][100], 45, 1e-6), "a ramp is a minimum-jerk move: half way at half time, peak speed 1.875 × distance ÷ time");
+    var ts = Enumerable.Range(0, 51).Select(i => i * 0.1).ToArray(); var spline = new CubicSpline(ts, ts.Select(Math.Sin).ToArray());
+    double worstV = 0, worstA = 0; for (double t = 0.5; t < 4.5; t += 0.013) { var (q, v, a) = spline.At(t); worstV = Math.Max(worstV, Math.Abs(v - Math.Cos(t))); worstA = Math.Max(worstA, Math.Abs(a + Math.Sin(t))); }
+    Check(worstV < 1e-4 && worstA < 2e-3, "a spline through samples gives smooth speed and acceleration between them");
+
+    // a motor with a torque–speed curve spins a flywheel up exponentially toward its no-load speed
+    var (pos, idx) = Box(-20, 20, -20, 20, -2, 2); var wheel = MotionMass.FromMesh("arm", "Wheel", pos, idx, 7.85e-6, out _);
+    var spin = MotionEngine.DofsOf([j], []); spin[0].Mode = DriveMode.Free; spin[0].MotorStall = 0.002; spin[0].MotorNoLoad = 600;
+    var m = new MotionEngine(start, new HashSet<string> { "base" }, [j], [], [wheel], spin).Run(new MotionSettings(1.0, 0.01, true, Vec3.Zero));
+    double tau = wheel.Inertia[8] * (600 * Math.PI / 180) / 0.002;
+    Check(Near(m.Vel[0][^1], 600 * (1 - Math.Exp(-1 / tau)), 2e-3), $"a motor's speed rises along its torque–speed curve (time constant {tau:0.###} s)");
+}
+
+// ---------------------------------------------------------------- force elements: springs, actuators, loads, payloads
+{
+    var (pos, idx) = Box(-10, 10, -10, 10, -10, 10); var block = MotionMass.FromMesh("blk", "Block", pos, idx, 7.85e-6, out _);
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["blk"] = Xform.Identity };
+    var slide = Joint("s", JointType.Slider, "base", "blk", Vec3.Zero, Vec3.Zero, new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+    MotionResult RunWith(MotionForce f, double x0, double duration, Action<MotionDof>? tweak = null, double dt = 0.002)
+    {
+        var d = MotionEngine.DofsOf([slide], []); d[0].Mode = DriveMode.Free; d[0].Start = x0; tweak?.Invoke(d[0]);
+        return new MotionEngine(start, new HashSet<string> { "base" }, [slide], [], [block], d, [f]).Run(new MotionSettings(duration, dt, true, Vec3.Zero));
+    }
+    var spring = new SpringForce("Spring", "blk", Vec3.Zero, null, new Vec3(-100, 0, 0), 0.1, 0, 100, 0);        // 100 N/m to a wall 100 mm away
+    var sr = RunWith(spring, 10, 0.5);
+    double omega = Math.Sqrt(100 / block.Mass), period = 2 * Math.PI / omega;
+    int zero = Array.FindIndex(sr.Pos[0], v => v <= 0);
+    double quarter = sr.Time[zero - 1] + 0.002 * sr.Pos[0][zero - 1] / (sr.Pos[0][zero - 1] - sr.Pos[0][zero]);
+    Check(Near(quarter, period / 4, 0.003), $"a block on a 100 N/m spring has the natural frequency √(k/m): quarter period {quarter:0.####} s vs {period / 4:0.####} s");
+    double e0 = sr.Kinetic[0] + 0.5 * 100 * 0.01 * 0.01; double worst = 0;
+    for (int i = 0; i < sr.Samples; i++) { double x = sr.Pos[0][i] * 1e-3; worst = Math.Max(worst, Math.Abs(sr.Kinetic[i] + 0.5 * 100 * x * x - e0)); }
+    Check(worst < 1e-3 * e0, "kinetic plus spring energy stays constant");
+    Check(Near(sr.ForceValue[0][0], 0.1 * 10, 1e-6), "the spring reports the force it carries (1 N for 10 mm at 0.1 N/mm)");
+    var damped = RunWith(spring with { Damping = 0.0004 }, 10, 1.0);
+    double decay = Math.Abs(damped.Pos[0].Skip(300).Max()) / 10;
+    Check(decay < 0.3 && decay > 0.001, "a damper takes energy out of the oscillation");
+
+    var cylinder = new SpringForce("Cylinder", "blk", Vec3.Zero, null, new Vec3(-100, 0, 0), 0, 0, 100, 5);        // pushes with 5 N
+    var cr = RunWith(cylinder, 0, 0.1);
+    Check(Near(cr.Acc[0][5], 5 / block.Mass * 1000, 1e-3) && Near(cr.ForceValue[0][5], -5, 1e-9), "a cylinder's push accelerates the block by F/m");
+    var load = RunWith(new PointForce("Push", "blk", Vec3.Zero, new Vec3(1, 0, 0), false, 2, LoadProfile.Always), 0, 0.1);
+    Check(Near(load.Acc[0][5], 2 / block.Mass * 1000, 1e-3), "a force on a part accelerates it by F/m");
+    var pulse = RunWith(new PointForce("Kick", "blk", Vec3.Zero, new Vec3(1, 0, 0), false, 2, new LoadProfile(LoadShape.Pulse, 0.05, 0.02)), 0, 0.2, null, 0.005);
+    double dv = pulse.Vel[0][^1] / 1000, expected = 2 * 0.02 / block.Mass;
+    Check(Near(dv, expected, 1e-3) && Math.Abs(pulse.Vel[0][5]) < 1e-9, "a pulse of force gives the block the impulse F·t");
+
+    // torque and payload on a hinge
+    var hinge = Joint("h", JointType.Revolute, "base", "blk", Vec3.Zero, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var massless = new MotionBody("blk", "Arm", 0, Vec3.Zero, new double[9]);
+    var hold = MotionEngine.DofsOf([hinge], []);
+    var payload = new MotionPoint("Payload", "blk", new Vec3(300, 0, 0), 2.0);
+    var held = new MotionEngine(start, new HashSet<string> { "base" }, [hinge], [], [massless], hold, null, [payload]).Run(new MotionSettings(0.1, 0.05, true, new Vec3(0, -9.80665, 0)));
+    Check(Near(Math.Abs(held.Effort[0][0]), 2.0 * 9.80665 * 0.3, 1e-6), $"a 2 kg payload 300 mm out needs {Math.Abs(held.Effort[0][0]):0.###} N·m to hold");
+    var spun = MotionEngine.DofsOf([hinge], []); spun[0].Mode = DriveMode.Free;
+    var tq = new MotionEngine(start, new HashSet<string> { "base" }, [hinge], [], [massless], spun, [new BodyTorque("T", "blk", new Vec3(0, 0, 1), false, 0.6, LoadProfile.Always)], [payload]).Run(new MotionSettings(0.1, 0.05, true, Vec3.Zero));
+    Check(Near(tq.Acc[0][1], 0.6 / (2.0 * 0.09) * 180 / Math.PI, 1e-4), "a torque spins a payload up at T/(m r²)");
+}
+
+// ---------------------------------------------------------------- a two-link arm following a line: inverse kinematics and joint torques
+{
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["l1"] = Xform.Identity, ["l2"] = At(new Vec3(300, 0, 0)) };
+    var j1 = Joint("j1", JointType.Revolute, "base", "l1", Vec3.Zero, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var j2 = Joint("j2", JointType.Revolute, "l1", "l2", new Vec3(300, 0, 0), Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var l1 = new MotionBody("l1", "Link 1", 0, new Vec3(150, 0, 0), new double[9]); var l2 = new MotionBody("l2", "Link 2", 0, new Vec3(100, 0, 0), new double[9]);
+    var tool = new MotionPoint("Tool", "l2", new Vec3(200, 0, 0), 0);
+    MotionEngine Arm(IEnumerable<MotionDof> dofs, MotionPoint[]? pts = null) => new(start, new HashSet<string> { "base" }, [j1, j2], [], [l1, l2], dofs, null, pts ?? [tool]);
+    var dofs0 = MotionEngine.DofsOf([j1, j2], []); dofs0[0].Start = 20; dofs0[1].Start = -40;
+    var eng = Arm(dofs0);
+    var ik = eng.InverseKinematics(eng.StartVector(), [0, 1], "l2", new Vec3(200, 0, 0), new Vec3(350, 150, 0), null);
+    var (tip, _) = eng.ToolPose(ik.Q, "l2", new Vec3(200, 0, 0));
+    Check(ik.Converged && (tip - new Vec3(350, 150, 0)).Length < 1e-4, $"inverse kinematics puts the tool on the target (error {ik.PositionError:G2} mm)");
+    var far = eng.InverseKinematics(eng.StartVector(), [0, 1], "l2", new Vec3(200, 0, 0), new Vec3(700, 0, 0), null);
+    Check(!far.Converged && far.PositionError > 190, "a target beyond the arm's reach is reported as unreachable");
+    var lim = MotionEngine.DofsOf([j1, j2], []); lim[1] = new MotionDof { JointKey = "j2", JointName = "j2", Name = "j2", Angular = true, Limited = true, Lo = 0, Hi = 10, Start = 5 }; lim[0].Start = 20;
+    var limited = Arm(lim).InverseKinematics(Arm(lim).StartVector(), [0, 1], "l2", new Vec3(200, 0, 0), new Vec3(350, -150, 0), null);
+    Check(!limited.Converged, "a joint limit that blocks the target is respected, not violated");
+
+    var path = new List<Vec3> { new(380, 100, 0), new(380, -100, 0) };
+    var plan = RobotPath.Follow(eng, [0, 1], "l2", new Vec3(200, 0, 0), path, 150, 600, 0.02, false);
+    Check(plan.Unreached == 0 && plan.MaxPositionError < 1e-3 && plan.PathLength > 200, $"a planned path along a line reaches every point (worst error {plan.MaxPositionError:G2} mm over {plan.PathLength:0.#} mm)");
+    var (tot, dist) = RobotPath.TimeLaw(200, 150, 600);
+    Check(Near(dist(tot), 200, 1e-9) && dist(0) == 0 && Near(tot, 200 / 150.0 + 150.0 / 600, 1e-9), "the speed profile accelerates, cruises and brakes to land exactly on the end");
+
+    var drive = MotionEngine.DofsOf([j1, j2], []); drive[0].Start = 20; drive[1].Start = -40;
+    for (int a = 0; a < 2; a++) drive[a].SetTable(plan.Times, plan.JointValues[a]);
+    var played = Arm(drive).Run(new MotionSettings(plan.Times[^1], plan.Times[1] / 3, false, Vec3.Zero));
+    int toolIdx = Array.FindIndex(played.Bodies, b => b.Name == "Tool");
+    int ti = Array.FindIndex(played.Bodies, b => b.Name == "Tool");
+    var tp = played.Path[ti];
+    int onLine = Array.FindIndex(tp, p => Math.Abs(p.X - 380) < 0.05 && p.Y < 62);
+    Check(onLine > 0 && tp.Skip(onLine).All(p => Math.Abs(p.X - 380) < 0.1), "once past the rounded corner the tool stays on the straight line between planned samples");
+    Check((tp[^1] - new Vec3(380, -100, 0)).Length < 1e-3 && (tp[0] - eng.ToolPose(eng.StartVector(), "l2", new Vec3(200, 0, 0)).Point).Length < 1e-6, "it starts where the arm is and ends on the last path point");
+    var sp = played.Speed[ti].Select(v => v * 1000).ToArray(); int cruiseFrom = sp.ToList().FindIndex(v => v > 140), cruiseTo = sp.ToList().FindLastIndex(v => v > 140);
+    Check(sp.Max() < 156 && sp.Skip(cruiseFrom).Take(cruiseTo - cruiseFrom).Min() > 140, $"the tool moves at the planned speed through the rounded corner ({sp.Skip(cruiseFrom).Take(cruiseTo - cruiseFrom).Min():0}–{sp.Max():0} mm/s)");
+
+    // static torques with a payload on the arm
+    var hold = MotionEngine.DofsOf([j1, j2], []); hold[0].Start = 0; hold[1].Start = 0;
+    var weight = new MotionPoint("Load", "l2", new Vec3(200, 0, 0), 1.5);
+    var held = Arm(hold, [weight]).Run(new MotionSettings(0.1, 0.05, true, new Vec3(0, -9.80665, 0)));
+    Check(Near(Math.Abs(held.Effort[0][0]), 1.5 * 9.80665 * 0.5, 1e-6) && Near(Math.Abs(held.Effort[1][0]), 1.5 * 9.80665 * 0.2, 1e-6), "an arm stretched out holding 1.5 kg needs m·g·reach at the shoulder and m·g·(reach from the elbow) at the elbow");
+}
+
 Console.WriteLine($"{checks} checks passed");

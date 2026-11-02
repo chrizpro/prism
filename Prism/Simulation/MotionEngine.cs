@@ -7,7 +7,8 @@ using Prism.Kernel;
 
 namespace Prism.Simulation;
 
-public enum DriveMode { Hold, Constant, Oscillate, Free }
+/// <summary>How a joint moves in a study. Ramp is a smooth move to a position; Table follows planned (time, value) samples such as the joints of a robot following a path.</summary>
+public enum DriveMode { Hold, Constant, Oscillate, Free, Ramp, Table }
 
 /// <summary>One motion value of a joint (its angle, or its travel) and what is done to it in a study.</summary>
 public sealed class MotionDof
@@ -35,6 +36,16 @@ public sealed class MotionDof
     public double Effort { get; set; }
     /// <summary>Viscous friction in N·m·s/rad or N·s/m.</summary>
     public double Damping { get; set; }
+    /// <summary>Ramp: the position to move to (° or mm), when the move starts and how long it takes (s).</summary>
+    public double Target { get; set; }
+    public double RampStart { get; set; }
+    public double RampTime { get; set; } = 1;
+    /// <summary>A motor on a free joint: stall torque or force (N·m or N) and the speed (°/s or mm/s) it reaches with no load. The push falls linearly from stall to zero.</summary>
+    public double MotorStall { get; set; }
+    public double MotorNoLoad { get; set; }
+    /// <summary>Table: planned values (° or mm) at the given times.</summary>
+    public CubicSpline? Table { get; private set; }
+    public void SetTable(double[] times, double[] values) { Table = new CubicSpline(times, values); Mode = DriveMode.Table; }
     /// <summary>Internal units (radians or metres) per displayed unit (degrees or mm).</summary>
     public double Scale => Angular ? Math.PI / 180 : 1e-3;
     public string Unit => Angular ? "°" : "mm";
@@ -64,6 +75,9 @@ public sealed class MotionResult
     public required double[][] AngSpeed { get; init; }
     public List<string> Events { get; } = [];
     public bool Dynamic { get; init; }
+    /// <summary>Force elements (springs, actuators, loads) and the force or torque each one carried at every output time (N or N·m; a spring is positive when it pulls its ends together).</summary>
+    public string[] ForceNames { get; init; } = [];
+    public double[][] ForceValue { get; init; } = [];
 
     public int Samples => Time.Length;
     /// <summary>Joint values at one output time, keyed by joint (first and second value, in degrees or mm), for showing the pose.</summary>
@@ -94,13 +108,30 @@ public sealed class MotionEngine
     readonly int[] _ind;                 // dofs that are not followers
     readonly Dictionary<string, int> _jointIndex = [];
     readonly List<CouplingInfo> _couplings;
+    readonly List<(MotionForce force, int a, int b)> _forces = [];
 
-    public MotionEngine(IReadOnlyDictionary<string, Xform> start, ISet<string> grounded, IEnumerable<JointInfo> joints, IEnumerable<CouplingInfo> couplings, IEnumerable<MotionBody> bodies, IEnumerable<MotionDof> dofs)
+    public MotionEngine(IReadOnlyDictionary<string, Xform> start, ISet<string> grounded, IEnumerable<JointInfo> joints, IEnumerable<CouplingInfo> couplings, IEnumerable<MotionBody> bodies, IEnumerable<MotionDof> dofs,
+        IEnumerable<MotionForce>? forces = null, IEnumerable<MotionPoint>? points = null)
     {
         _start = start; _grounded = grounded;
         // limits are handled here (a driven value holds at its limit, a free one stops there), so the pose itself must stay smooth past them
         _joints = joints.Select(j => j with { HasLimits = false }).ToList(); _couplings = couplings.ToList();
-        _bodies = bodies.Where(b => start.ContainsKey(b.Key)).ToArray();
+        // the parts, then marked points (payloads and tool points), then massless probes where forces act: all are tracked the same way
+        var list = bodies.Where(b => start.ContainsKey(b.Key)).ToList();
+        foreach (var p in points ?? []) if (start.ContainsKey(p.BodyKey)) list.Add(new MotionBody(p.BodyKey, p.Name, p.Mass, p.Local, new double[9]));
+        int Probe(string? body, Vec3 local)
+        {
+            if (body == null || !start.ContainsKey(body)) return -1;
+            list.Add(new MotionBody(body, "@" + body, 0, local, new double[9])); return list.Count - 1;
+        }
+        foreach (var f in forces ?? [])
+            switch (f)
+            {
+                case SpringForce sp: _forces.Add((f, Probe(sp.BodyA, sp.PointA), Probe(sp.BodyB, sp.PointB))); break;
+                case PointForce pf: _forces.Add((f, Probe(pf.Body, pf.Point), -1)); break;
+                case BodyTorque bt: _forces.Add((f, Probe(bt.Body, Vec3.Zero), -1)); break;
+            }
+        _bodies = list.ToArray();
         _dofs = dofs.ToArray();
         for (int i = 0; i < _joints.Count; i++) _jointIndex[_joints[i].Key] = i;
         _ind = Enumerable.Range(0, _dofs.Length).Where(i => !_dofs[i].Follower).ToArray();
@@ -272,6 +303,87 @@ public sealed class MotionEngine
         return (M, H);
     }
 
+    // ------------------------------------------------------------------ inverse kinematics
+    public int IndependentCount => _ind.Length;
+    public MotionDof IndependentDof(int k) => _dofs[_ind[k]];
+
+    /// <summary>Where every independent joint starts (radians or metres).</summary>
+    public double[] StartVector()
+    {
+        var q = new double[_ind.Length];
+        for (int k = 0; k < q.Length; k++) q[k] = _dofs[_ind[k]].Start * _dofs[_ind[k]].Scale;
+        return q;
+    }
+
+    /// <summary>Where a point of a part is (mm) and how the part is turned (a rotation, row-major) for these joint values.</summary>
+    public (Vec3 Point, double[] Rotation) ToolPose(double[] q, string bodyKey, Vec3 local)
+    {
+        var p = Pose(q)[bodyKey];
+        return (p.Apply(local), p.R);
+    }
+
+    public sealed record IkResult(double[] Q, double PositionError, double OrientationError, bool Converged);
+
+    /// <summary>
+    /// Joint values (radians or metres) that put a point of a part at a target (mm), and optionally keep the part turned a given way.
+    /// Damped least squares from the start values, so a path followed point by point stays on one branch. Only the listed joints move.
+    /// </summary>
+    public IkResult InverseKinematics(double[] q0, IReadOnlyList<int> active, string bodyKey, Vec3 local, Vec3 target, double[]? holdRotation, double orientationWeight = 100, int maxIterations = 100)
+    {
+        var q = (double[])q0.Clone(); int na = active.Count, m = holdRotation == null ? 3 : 6;
+        double[] Scale() { var sc = new double[na]; for (int i = 0; i < na; i++) sc[i] = _dofs[_ind[active[i]]].Angular ? 1 : 0.5; return sc; }
+        var scale = Scale();
+        double[] Residual(double[] qq)
+        {
+            var (pt, rot) = ToolPose(qq, bodyKey, local); var e = new double[m];
+            e[0] = target.X - pt.X; e[1] = target.Y - pt.Y; e[2] = target.Z - pt.Z;
+            if (holdRotation != null)
+            {
+                var w = Vee(Mul(holdRotation, Tr(rot)));
+                e[3] = orientationWeight * w.X; e[4] = orientationWeight * w.Y; e[5] = orientationWeight * w.Z;
+            }
+            return e;
+        }
+        static double Norm(double[] v) { double s = 0; foreach (var x in v) s += x * x; return Math.Sqrt(s); }
+        double[] Clamp(double[] qq)
+        {
+            var r = (double[])qq.Clone();
+            foreach (int k in active) { var d = _dofs[_ind[k]]; if (d.Limited) r[k] = Math.Clamp(r[k], d.Lo * d.Scale, d.Hi * d.Scale); }
+            return r;
+        }
+        double lambda = 2; var res = Residual(q); double err = Norm(res);
+        for (int it = 0; it < maxIterations && err > 1e-7; it++)
+        {
+            var J = new double[m, na]; const double eps = 1e-6;
+            for (int c = 0; c < na; c++)
+            {
+                var qp = (double[])q.Clone(); var qm = (double[])q.Clone(); qp[active[c]] += eps; qm[active[c]] -= eps;
+                var ep = Residual(qp); var em = Residual(qm);
+                for (int r = 0; r < m; r++) J[r, c] = (em[r] - ep[r]) / (2 * eps) * scale[c];       // d(position)/d(joint): the residual is target − position
+            }
+            bool accepted = false;
+            for (int attempt = 0; attempt < 8 && !accepted; attempt++)
+            {
+                var A = new double[m, m];
+                for (int r = 0; r < m; r++)
+                    for (int c = 0; c < m; c++)
+                    {
+                        double sum = r == c ? lambda * lambda : 0; for (int k = 0; k < na; k++) sum += J[r, k] * J[c, k]; A[r, c] = sum;
+                    }
+                var y = Solve(A, res); if (y == null) { lambda *= 4; continue; }
+                var next = (double[])q.Clone();
+                for (int k = 0; k < na; k++) { double du = 0; for (int r = 0; r < m; r++) du += J[r, k] * y[r]; next[active[k]] += du * scale[k]; }
+                next = Clamp(next); var rn = Residual(next); double en = Norm(rn);
+                if (en < err) { accepted = true; bool tiny = err - en < 1e-12; q = next; res = rn; err = en; lambda = Math.Max(lambda / 3, 1e-4); if (tiny) it = maxIterations; }
+                else lambda *= 4;
+            }
+            if (!accepted) break;
+        }
+        double pos = Math.Sqrt(res[0] * res[0] + res[1] * res[1] + res[2] * res[2]);
+        double rot = m == 6 ? Math.Sqrt(res[3] * res[3] + res[4] * res[4] + res[5] * res[5]) / orientationWeight : 0;
+        return new IkResult(q, pos, rot, pos < 1e-2);
+    }
+
     // ------------------------------------------------------------------ prescribed motion
     (double q, double v, double a) Profile(MotionDof d, double t)
     {
@@ -279,6 +391,18 @@ public sealed class MotionEngine
         switch (d.Mode)
         {
             case DriveMode.Constant: return (q0 + d.Rate * s * t, d.Rate * s, 0);
+            case DriveMode.Ramp:
+            {
+                double T = Math.Max(d.RampTime, 1e-9), u = (t - d.RampStart) / T, span = (d.Target - d.Start) * s;
+                if (u <= 0) return (q0, 0, 0);
+                if (u >= 1) return (q0 + span, 0, 0);
+                double u2 = u * u, u3 = u2 * u;             // minimum-jerk blend: zero speed and acceleration at both ends
+                return (q0 + span * (10 * u3 - 15 * u3 * u + 6 * u3 * u2), span * (30 * u2 - 60 * u3 + 30 * u3 * u) / T, span * (60 * u - 180 * u2 + 120 * u3) / (T * T));
+            }
+            case DriveMode.Table when d.Table is { } tab:
+            {
+                var (q, v, a) = tab.At(t); return (q * s, v * s, a * s);
+            }
             case DriveMode.Oscillate:
                 double w = 2 * Math.PI * d.Frequency, A = d.Amplitude * s;
                 return (q0 + A * Math.Sin(w * t), A * w * Math.Cos(w * t), -A * w * w * Math.Sin(w * t));
@@ -286,11 +410,50 @@ public sealed class MotionEngine
         }
     }
 
+    /// <summary>Add the generalized force of every force element to Q; returns the force each one carries now.</summary>
+    double[] Forces(Kin kin, double t, int n, double[] Q)
+    {
+        var mags = new double[_forces.Count];
+        void Push(int body, Vec3 f) { if (body >= 0) for (int k = 0; k < n; k++) Q[k] += kin.Jv[body][k] * f.X + kin.Jv[body][n + k] * f.Y + kin.Jv[body][2 * n + k] * f.Z; }
+        for (int i = 0; i < _forces.Count; i++)
+        {
+            var (force, a, b) = _forces[i];
+            switch (force)
+            {
+                case SpringForce sp when a >= 0:
+                {
+                    var pa = kin.Com[a]; var pb = b >= 0 ? kin.Com[b] : sp.PointB;
+                    var d = pb - pa; double len = d.Length; if (len < 1e-9) break;
+                    var u = d / len;
+                    var rel = (b >= 0 ? kin.V[b] : Vec3.Zero) - kin.V[a];              // m/s
+                    double lenRate = Vec3.Dot(u, rel) * 1000;                          // mm/s
+                    double pull = sp.Stiffness * (len - sp.RestLength) + sp.Damping * lenRate - sp.Push;
+                    Push(a, u * pull); if (b >= 0) Push(b, u * -pull);
+                    mags[i] = pull; break;
+                }
+                case PointForce pf when a >= 0:
+                {
+                    var dir = pf.BodyFixed ? new Xform(kin.Rot[a], Vec3.Zero).Rotate(pf.Direction) : pf.Direction;
+                    double mag = pf.Magnitude * pf.Profile.Factor(t);
+                    Push(a, dir.Normalized() * mag); mags[i] = mag; break;
+                }
+                case BodyTorque bt when a >= 0:
+                {
+                    var axis = bt.BodyFixed ? new Xform(kin.Rot[a], Vec3.Zero).Rotate(bt.Axis) : bt.Axis;
+                    double mag = bt.Magnitude * bt.Profile.Factor(t); var tq = axis.Normalized() * mag;
+                    for (int k = 0; k < n; k++) Q[k] += kin.Jw[a][k] * tq.X + kin.Jw[a][n + k] * tq.Y + kin.Jw[a][2 * n + k] * tq.Z;
+                    mags[i] = mag; break;
+                }
+            }
+        }
+        return mags;
+    }
+
     // ------------------------------------------------------------------ the study
     sealed class State
     {
         public double[] Q = [], Qd = [], Qdd = [], Tau = [], QFull = [], QdFull = [], QddFull = [];
-        public Kin Kin = new(); public double[,] M = new double[0, 0]; public double Ke;
+        public Kin Kin = new(); public double[,] M = new double[0, 0]; public double Ke; public double[] ForceNow = [];
     }
 
     public MotionResult Run(MotionSettings s, CancellationToken ct = default, Action<string>? progress = null)
@@ -338,10 +501,12 @@ public sealed class MotionEngine
             for (int j = 0; j < nd; j++)
             {
                 var d = _dofs[j]; bool drivenHere = !d.Follower && _dofs[j].Mode != DriveMode.Free;
-                qf[j] = (drivenHere ? 0 : d.Effort) - d.Damping * qdFull[j];
+                double motor = !drivenHere && d.MotorStall != 0 && d.MotorNoLoad != 0 ? d.MotorStall * (1 - qdFull[j] / (d.MotorNoLoad * d.Scale)) : 0;
+                qf[j] = (drivenHere ? 0 : d.Effort) + motor - d.Damping * qdFull[j];
             }
             var Q = new double[n];
             for (int k = 0; k < n; k++) for (int j = 0; j < nd; j++) Q[k] += E[j, k] * qf[j];
+            st.ForceNow = Forces(st.Kin, t, n, Q);
             if (free.Length > 0)
             {
                 var A = new double[free.Length, free.Length]; var rhs = new double[free.Length];
@@ -371,6 +536,7 @@ public sealed class MotionEngine
             Time = new double[samples], Dofs = _dofs, Dynamic = s.Dynamic, Bodies = _bodies,
             Pos = Jag(nd, samples), Vel = Jag(nd, samples), Acc = Jag(nd, samples), Effort = Jag(nd, samples), Power = Jag(nd, samples),
             Kinetic = new double[samples], Potential = new double[samples],
+            ForceNames = _forces.Select(f => f.force.Name).ToArray(), ForceValue = Jag(_forces.Count, samples),
             Path = Enumerable.Range(0, nb).Select(_ => new Vec3[samples]).ToArray(), Speed = Jag(nb, samples), Accel = Jag(nb, samples), AngSpeed = Jag(nb, samples),
         };
         var qF = free.Select(k => q0[k]).ToArray(); var qdF = free.Select(k => _dofs[_ind[k]].Rate * _dofs[_ind[k]].Scale).ToArray();
@@ -392,6 +558,7 @@ public sealed class MotionEngine
                     int j = _ind[k]; res.Effort[j][i] = st.Tau[k]; res.Power[j][i] = st.Tau[k] * st.Qd[k];
                 }
                 res.Kinetic[i] = st.Ke;
+                for (int f = 0; f < _forces.Count; f++) res.ForceValue[f][i] = st.ForceNow[f];
                 double pe = 0; for (int b = 0; b < nb; b++) pe -= _bodies[b].Mass * Vec3.Dot(s.Gravity, st.Kin.Com[b] * 1e-3);
                 res.Potential[i] = pe;
             }

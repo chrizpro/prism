@@ -1565,6 +1565,7 @@ public sealed partial class CadSession : ObservableObject
         BuildAssemblyOverlay(o);
         BuildCamOverlay(o);
         BuildMotionOverlay(o);
+        BuildForceOverlay(o);
         BuildLightsOverlay(o);
         foreach (var obj in Objects.Where(x => x.Visible && x.Id != Sketch?.EditingId && x.SketchData != null))
         {
