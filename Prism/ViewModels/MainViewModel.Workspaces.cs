@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
         new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"]),
         new("ecad", "ECAD", "Electronic boards, component envelopes and enclosure integration.", ["Home", "ECAD", "Analyze", "View"], "ECAD"),
         new("scan", "Scan", "Meshes and reverse engineering. Print preparation is in CAM.", ["Home", "Mesh", "Solid", "Surface", "Direct Modeling", "Analyze", "View"], "Mesh"),
-        new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Fluids", "Analyze", "View"], "Static"),
+        new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies, mechanism kinematics and motion, and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Motion", "Fluids", "Analyze", "View"], "Static"),
         new("assemble", "Assemble", "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.", ["Home", "Assemble", "Joints", "Animate", "Analyze", "View"], "Assemble"),
         new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "Animate", "View"], "Render"),
         new("make", "CAM", "CNC machining and stock review, FDM preparation and resin cavity checks. Export to your preferred slicer.", ["Home", "Subtractive", "3D FDM", "3D Resin", "Analyze", "View"], "Subtractive"),

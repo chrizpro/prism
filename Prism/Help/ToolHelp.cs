@@ -36,6 +36,9 @@ public static partial class ToolHelp
         Commands.CaeSolveCommand solve => Find(solve.IsThermal ? "cae-thermal" : "cae-modal"),
         Commands.PipeFlowCommand => Find("cae-fluid"),
         Commands.FatigueCommand => Find("cae-fatigue"),
+        Commands.MotionStudyCommand motion => Find(motion.IsRobot ? "motion-robot" : motion.IsDynamic ? "motion-dynamics" : "motion-kinematics"),
+        Commands.MotionSpringCommand => Find("motion-spring"),
+        Commands.MotionLoadCommand => Find("motion-force"),
         Commands.CamSetupCommand => Find("cam-setup"),
         Commands.SelectCamSetupCommand => Find("cam-select-setup"),
         Commands.CamToolLibraryCommand => Find("cam-tools"),
@@ -164,7 +167,7 @@ public static partial class ToolHelp
         ("Static", "sim-displacement") => Find("sim-displacement")?.Icon,
         ("Static", "sim-safety") => Find("sim-safety")?.Icon,
         ("Static", "cae-fatigue") => Find("cae-fatigue")?.Icon,
-        ("Static" or "Thermal" or "Dynamics" or "Analyze", "clear-analysis") => Find("clear-analysis")?.Icon,
+        ("Static" or "Thermal" or "Dynamics" or "Motion" or "Analyze", "clear-analysis") => Find("clear-analysis")?.Icon,
         ("Analyze", "bbox" or "zebra") => Find(icon)?.Icon,
         _ => null
     };

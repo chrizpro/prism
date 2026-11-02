@@ -458,7 +458,7 @@ public sealed partial class AutomationApi
         ["cam_select_setup"] = () => new SelectCamSetupCommand(), ["cam_operation_order"] = () => new CamProgramOrderCommand(), ["resin_export"] = () => new PrintExportCommand(true), ["print_export"] = () => new PrintExportCommand(),
         ["cam_tool_library"] = () => new CamToolLibraryCommand(),
         ["cnc_rough"] = () => new Rough3DCommand(),
-        ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(), ["cae_fatigue"] = () => new FatigueCommand(),
+        ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(), ["cae_fatigue"] = () => new FatigueCommand(), ["cae_kinematics"] = () => new MotionStudyCommand(false), ["cae_motion"] = () => new MotionStudyCommand(true), ["cae_robot_path"] = () => new MotionStudyCommand(MotionKind.Robot), ["motion_spring"] = () => new MotionSpringCommand(), ["motion_load_to_static"] = () => new MotionLoadToStaticCommand(), ["motion_force"] = () => new MotionLoadCommand(false), ["motion_torque"] = () => new MotionLoadCommand(true), ["gear_pair"] = () => new CouplingCommand(false), ["rack_pinion"] = () => new CouplingCommand(true),
         ["pcb_board"] = () => new PcbBoardCommand(), ["pcb_from_outline"] = () => new PcbOutlineCommand(), ["component_envelope"] = () => new ComponentEnvelopeCommand(), ["pcb_hole"] = () => new PcbHoleCommand(),
         ["match_surface"] = () => new MatchSurfaceCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
         ["pattern_linear"] = () => new LinearPatternCommand(), ["pattern_circular"] = () => new CircularPatternCommand(), ["pattern_curve"] = () => new CurvePatternCommand(),
@@ -1019,7 +1019,7 @@ public sealed partial class AutomationApi
                 }
                 return new JsonObject { ["open"] = _vm.AssistantOpen, ["messages"] = new JsonArray(_vm.ChatMessages.Select(m => (JsonNode)new JsonObject { ["role"] = m.Role.ToString(), ["text"] = m.Text }).ToArray()) };
             });
-        Add("workspace", "Switch workspace: design | scan | cae (or simulate) | assemble | render | ar | make | script | all. CAE includes Static, Thermal, Dynamics and Fluids. make opens Manufacture/CAM.", Schema(["id"], ("id", "string", "Workspace id; cae opens CAE, make opens CAM.")), a => { _vm.SetWorkspace(Str(a, "id")); return State(); });
+        Add("workspace", "Switch workspace: design | scan | cae (or simulate) | assemble | render | ar | make | script | all. CAE includes Static, Thermal, Dynamics, Motion (kinematics and rigid-body motion of an assembly) and Fluids. make opens Manufacture/CAM.", Schema(["id"], ("id", "string", "Workspace id; cae opens CAE, make opens CAM.")), a => { _vm.SetWorkspace(Str(a, "id")); return State(); });
         Add("study_new", "Start a static study on a solid body (the selected one, or the named one). Then add fixtures and loads with run_command sim_fixed / sim_roller / sim_force / sim_pressure / sim_torque / sim_gravity and call study_run.",
             Schema(null, ("object", "string", "Body name (default: the selection)."), ("element_size", "number", "Target element size in mm (0 = automatic).")), a =>
             {

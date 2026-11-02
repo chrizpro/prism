@@ -13,6 +13,9 @@ public enum JointType { Rigid, Revolute, Slider, Cylindrical, Ball, Planar }
 [JsonDerivedType(typeof(ComponentInfo), "component")]
 [JsonDerivedType(typeof(JointInfo), "joint")]
 [JsonDerivedType(typeof(AnimInfo), "animation")]
+[JsonDerivedType(typeof(CouplingInfo), "coupling")]
+[JsonDerivedType(typeof(SpringInfo), "spring")]
+[JsonDerivedType(typeof(LoadInfo), "load")]
 [JsonDerivedType(typeof(Prism.Core.Cam.ToolpathInfo), "toolpath")]
 [JsonDerivedType(typeof(ImageInfo), "image")]
 public abstract record AssemblyData;

@@ -1,5 +1,5 @@
 {
-  "sourceHash": "37955D320567DAB387C0484B228E4C0251DCF2E543452CED4DC1A3E8C82381B1",
+  "sourceHash": "5CC692FB68F636898B197473A8E247B4B053E4CD6636D95C4C7F475A371B3F9C",
   "workspaces": [
     {
       "Id": "design",
@@ -46,12 +46,13 @@
     {
       "Id": "simulate",
       "Name": "CAE",
-      "Tip": "Static structures, thermal conduction, natural frequencies and pipe-flow calculations.",
+      "Tip": "Static structures, thermal conduction, natural frequencies, mechanism kinematics and motion, and pipe-flow calculations.",
       "Tabs": [
         "Home",
         "Static",
         "Thermal",
         "Dynamics",
+        "Motion",
         "Fluids",
         "Analyze",
         "View"
@@ -4104,6 +4105,163 @@
       ]
     },
     {
+      "title": "Motion",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "motion-force|Load from Motion",
+              "label": "Load from Motion",
+              "description": "Turn the force a joint held in the last Motion Dynamics study into a load in a new Static study.",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Remove the motion paths from the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Mechanism",
+          "tools": [
+            {
+              "id": "component|Parts Library",
+              "label": "Parts Library",
+              "description": "Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",
+              "shortcut": ""
+            },
+            {
+              "id": "component|Insert Component",
+              "label": "Insert Component",
+              "description": "Place a part from another open document or a part file.",
+              "shortcut": ""
+            },
+            {
+              "id": "ground|Ground",
+              "label": "Ground",
+              "description": "Fix the selected component in place. Motion is solved outwards from the grounded part.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-rigid|Rigid",
+              "label": "Rigid",
+              "description": "Lock one component to another.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-revolute|Revolute",
+              "label": "Revolute",
+              "description": "A hinge or shaft: the second component turns about the axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-slider|Slider",
+              "label": "Slider",
+              "description": "The second component slides along one direction.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-cyl|Cylindrical",
+              "label": "Cylindrical",
+              "description": "Turns about an axis and slides along it.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-ball|Ball",
+              "label": "Ball",
+              "description": "Pivots about a point.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-planar|Planar",
+              "label": "Planar",
+              "description": "Slides over a flat face in two directions.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-gear|Gear Pair",
+              "label": "Gear Pair",
+              "description": "Make one revolute joint follow another through gears.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-rack|Rack and Pinion",
+              "label": "Rack and Pinion",
+              "description": "Make a slider follow a revolute joint like a rack on a pinion.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-revolute|Drive Joints",
+              "label": "Drive Joints",
+              "description": "Move the joints by hand to check the mechanism before simulating it.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Simulate",
+          "tools": [
+            {
+              "id": "motion-kinematics|Kinematics",
+              "label": "Kinematics",
+              "description": "Drive joints at a constant speed or oscillate them and see positions, speeds, accelerations, part paths and collisions. No masses or forces needed.",
+              "shortcut": ""
+            },
+            {
+              "id": "motion-dynamics|Motion Dynamics",
+              "label": "Motion Dynamics",
+              "description": "Rigid-body motion with gravity, motor torque, loads and friction: required motor torque and power, energy, and free joints that swing under gravity.",
+              "shortcut": ""
+            },
+            {
+              "id": "motion-robot|Robot Path",
+              "label": "Robot Path",
+              "description": "Move a robot arm\u0027s tool along a curve: inverse kinematics, reach check, joint motion and the torque each joint needs with a payload.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Springs and loads",
+          "tools": [
+            {
+              "id": "motion-spring|Spring / Actuator",
+              "label": "Spring / Actuator",
+              "description": "A spring, damper or cylinder between two points (or a point and a fixed body).",
+              "shortcut": ""
+            },
+            {
+              "id": "motion-force|Force",
+              "label": "Force",
+              "description": "A force on a part, constant, a pulse or alternating.",
+              "shortcut": ""
+            },
+            {
+              "id": "motion-force|Torque",
+              "label": "Torque",
+              "description": "A torque on a part, constant, a pulse or alternating.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "Fluids",
       "contextual": false,
       "groups": [
@@ -4353,6 +4511,23 @@
               "id": "interference|Interference",
               "label": "Interference",
               "description": "Check the current pose for overlapping parts.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Couple",
+          "tools": [
+            {
+              "id": "joint-gear|Gear Pair",
+              "label": "Gear Pair",
+              "description": "Make one revolute joint follow another through gears: pick both shafts and the two tooth counts.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-rack|Rack and Pinion",
+              "label": "Rack and Pinion",
+              "description": "Make a slider follow a revolute joint like a rack on a pinion.",
               "shortcut": ""
             }
           ]

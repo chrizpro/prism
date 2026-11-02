@@ -1,6 +1,6 @@
 # CAE workspace — first implementation
 
-The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dynamics** and **Fluids** tabs. The internal workspace id `simulate` remains compatible; MCP also accepts `cae`.
+The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dynamics**, **Motion** and **Fluids** tabs. The internal workspace id `simulate` remains compatible; MCP also accepts `cae`.
 
 ## Working analysis types
 
@@ -11,6 +11,8 @@ The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dy
 **Dynamics:** CalculiX solves linear natural frequencies and mode shapes of one homogeneous isotropic solid with fully fixed faces. Request 1–20 modes, then choose a returned mode and press Show mode. Frequency is in Hz; deformation is scaled for visibility and the scalar field is relative magnitude. Mode amplitude is arbitrary, not a predicted vibration amplitude. This is modal free vibration, not forced response, impact, contact or nonlinear transient dynamics.
 
 **Fluids:** Pipe Flow calculates steady, fully developed, incompressible flow through a circular full pipe. It reports velocity, Reynolds number, Darcy friction factor, pressure drop, head loss and hydraulic power, with a total minor-loss coefficient. Laminar flow uses 64/Re; turbulent flow solves Colebrook–White. The uncertain 2000–4000 Reynolds transition range is rejected explicitly. Inputs use bore/length/roughness in mm, flow in L/min, density in kg/m³ and viscosity in Pa·s. This is a reduced-order pipe calculation, not 3D CFD, compressible flow, entrance flow, a network solver or conjugate heat transfer.
+
+**Motion:** kinematics and rigid-body motion of an assembly. The mechanism is built in the Assemble workspace (see [docs/motion-analysis.md](../motion-analysis.md)); the Motion tab adds what moves it. It needs no external solver.
 
 ## Dependency and execution
 
@@ -39,7 +41,7 @@ Each run retains `analysis.inp`, `analysis.dat`, `analysis.frd`, `solver.log`, a
 - `Prism.RibbonTests`: **38 checks passed**, including CAE tab availability and 1024-pixel Thermal/Dynamics/Fluids layouts.
 - Desktop Release build passed. Live MCP runs verified temperature contours (20–100 °C), six modal results, mode display, and solver status.
 
-MCP commands: `cae_thermal`, `cae_modal`, `cae_pipe_flow`. For the solver commands, use `run_command(commit=false)`, configure inputs, and trigger `Run analysis` through `command_set`. Poll `cae_state`; use `cae_state(action=stop)` to stop. `get_state` includes CAE status. Detailed result data are retained in the case directory.
+MCP commands: `cae_thermal`, `cae_modal`, `cae_pipe_flow`, `cae_kinematics`, `cae_motion`, `cae_robot_path`, `motion_spring`, `motion_force`, `motion_torque`, `motion_load_to_static` (plus `gear_pair` and `rack_pinion` for the assembly couplings). For the solver commands, use `run_command(commit=false)`, configure inputs, and trigger `Run analysis` through `command_set`. Poll `cae_state`; use `cae_state(action=stop)` to stop. `get_state` includes CAE status. Detailed result data are retained in the case directory.
 
 The benchmark `.prism` contains test solids, not stored solver setups. `live-cae-demo.prism` is the saved viewport model. Numeric evidence and screenshots are alongside this report.
 

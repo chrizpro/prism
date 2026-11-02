@@ -66,37 +66,23 @@ public sealed partial class CadSession
     {
         var log = new List<string>(); notes = log;
         var comps = Components.ToDictionary(o => o.Component!.Key, o => o);
-        var placement = comps.ToDictionary(kv => kv.Key, kv => kv.Value.Component!.Placement);
-        var joints = JointObjects.Select(j => overrides != null && overrides.TryGetValue(j.joint.Key, out var ov) ? ov : j.joint)
-            .Concat(extra ?? []).Where(j => comps.ContainsKey(j.ParentKey) && comps.ContainsKey(j.ChildKey)).ToList();
-        var placed = new HashSet<string>(comps.Values.Where(o => o.Component!.Grounded).Select(o => o.Component!.Key));
-        var used = new HashSet<string>();
+        var start = comps.ToDictionary(kv => kv.Key, kv => kv.Value.Component!.Placement);
+        var joints = JointObjects.Select(j => overrides != null && overrides.TryGetValue(j.joint.Key, out var ov) ? ov : j.joint).Concat(extra ?? []);
+        var grounded = comps.Values.Where(o => o.Component!.Grounded).Select(o => o.Component!.Key).ToHashSet();
+        return AssemblyKinematics.Solve(start, grounded, joints, Couplings, log);
+    }
 
-        bool Step()
-        {
-            foreach (var j in joints)
-            {
-                if (used.Contains(j.Key)) continue;
-                bool p = placed.Contains(j.ParentKey), c = placed.Contains(j.ChildKey);
-                if (p && c) { used.Add(j.Key); log.Add($"{j.Name}: both parts are already positioned by other joints (a closed loop), so this joint is not enforced."); continue; }
-                if (!p && !c) continue;
-                var jm = j.Motion();
-                if (p) placement[j.ChildKey] = placement[j.ParentKey] * j.A * jm * j.B.Inverse();
-                else placement[j.ParentKey] = placement[j.ChildKey] * j.B * jm.Inverse() * j.A.Inverse();
-                placed.Add(p ? j.ChildKey : j.ParentKey); used.Add(j.Key);
-                return true;
-            }
-            return false;
-        }
-        while (true)
-        {
-            while (Step()) { }
-            // a group with nothing grounded: hold its first part where it is
-            var seed = joints.FirstOrDefault(j => !used.Contains(j.Key));
-            if (seed == null) break;
-            placed.Add(seed.ParentKey);
-        }
-        return placement;
+    /// <summary>Gear and rack-and-pinion couplings: they set a follower joint from its leader whenever the assembly is solved.</summary>
+    public IEnumerable<CouplingInfo> Couplings => Objects.Select(o => o.Asm).OfType<CouplingInfo>();
+
+    public SceneObject AddCoupling(CouplingInfo info)
+    {
+        var marker = Occ.Line(Vec3.Zero, new Vec3(0, 0, 0.01));
+        var obj = new SceneObject(Guid.NewGuid(), NextName(info.Kind == CouplingKind.Gear ? "Gear pair" : "Rack and pinion"), marker, ObjKind.Joint, Palette.JointColor, true, null, null, null, null, null, info);
+        Objects = Objects.Add(obj);
+        SolveAssembly();
+        RaiseScene();
+        return obj;
     }
 
     /// <summary>Move every component to where the joints put it (and apply the exploded-view offsets). Quiet: it folds into the history step in progress.</summary>
@@ -314,6 +300,10 @@ public sealed partial class CadSession
         var list = Objects;
         for (int i = 0; i < list.Count; i++)
             if (list[i].Asm is JointInfo j && values.TryGetValue(j.Key, out var v)) list = list.SetItem(i, list[i].WithAsm(j with { Value = v.v1, Value2 = v.v2 }));
+        // gears and racks: a coupled joint is stored at the value its leader gives it
+        var coupled = CouplingSolver.Apply(list.Select(o => o.Asm).OfType<JointInfo>(), list.Select(o => o.Asm).OfType<CouplingInfo>()).ToDictionary(j => j.Key);
+        for (int i = 0; i < list.Count; i++)
+            if (list[i].Asm is JointInfo j && coupled.TryGetValue(j.Key, out var c) && Math.Abs(c.Value - j.Value) > 1e-12) list = list.SetItem(i, list[i].WithAsm(j with { Value = c.Value }));
         Objects = list;
         SolveAssembly();
         RaiseScene();

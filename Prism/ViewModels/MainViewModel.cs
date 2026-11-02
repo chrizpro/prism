@@ -1079,6 +1079,9 @@ public sealed partial class MainViewModel : ViewModelBase
                     AsmCmd("Cylindrical", "joint-cyl", () => new JointCommand(JointType.Cylindrical), "Turns about an axis and slides along it (a bolt in a hole).", RibbonSize.Large, HasComponents),
                     AsmCmd("Ball", "joint-ball", () => new JointCommand(JointType.Ball), "Pivots about a point: spin and tilt (a ball and socket).", RibbonSize.Large, HasComponents),
                     AsmCmd("Planar", "joint-planar", () => new JointCommand(JointType.Planar), "Slides over a flat face in two directions.", RibbonSize.Large, HasComponents)),
+                G("Couple",
+                    AsmCmd("Gear\nPair", "joint-gear", () => new CouplingCommand(false), "Make one revolute joint follow another through gears: pick both shafts and the two tooth counts.", RibbonSize.Large, () => Session.JointObjects.Count(j => j.joint.Type is JointType.Revolute or JointType.Cylindrical) >= 2),
+                    AsmCmd("Rack and\nPinion", "joint-rack", () => new CouplingCommand(true), "Make a slider follow a revolute joint like a rack on a pinion.", RibbonSize.Large, () => Session.JointObjects.Any(j => j.joint.Type == JointType.Slider) && Session.JointObjects.Any(j => j.joint.Type is JointType.Revolute or JointType.Cylindrical))),
                 G("Motion",
                     AsmCmd("Drive\nJoints", "joint-revolute", () => new DriveJointsCommand(), "Move joints and watch the assembly follow, within their limits.", RibbonSize.Large, HasJoints),
                     AsmCmd("Interference", "interference", () => new InterferenceCommand(), "Check the current pose for overlapping parts.", RibbonSize.Large, HasComponents)),
@@ -1185,6 +1188,30 @@ public sealed partial class MainViewModel : ViewModelBase
         [G("Vibration",Cmd("Natural\nFrequencies","cae-modal",()=>new CaeSolveCommand(false),"Linear modal frequencies and arbitrary-amplitude mode shapes; fixed faces on one homogeneous solid."),
             Btn("Materials","materials",OpenMaterials,"Assign elastic modulus, Poisson ratio and density.")),
          G("Review",Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
+        var motion = new RibbonTab {Title="Motion",Groups=
+        [G("Mechanism",
+            Btn("Parts\nLibrary","component",OpenLibrary,"Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",RibbonSize.Large,()=>!IsSketching),
+            AsmCmd("Insert\nComponent","component",()=>new InsertComponentCommand(),"Place a part from another open document or a part file."),
+            Btn("Ground","ground",ToggleGround,"Fix the selected component in place. Motion is solved outwards from the grounded part.",RibbonSize.Large,()=>HasComponents()&&!IsSketching,()=>SelectedComponent?.Component?.Grounded==true),
+            ToolMenu("Joint","joint-revolute","Connect two components. Create the joints here or in the Assemble workspace; they are the same joints.",
+                AsmCmd("Rigid","joint-rigid",()=>new JointCommand(JointType.Rigid),"Lock one component to another.",RibbonSize.Large,HasComponents),
+                AsmCmd("Revolute","joint-revolute",()=>new JointCommand(JointType.Revolute),"A hinge or shaft: the second component turns about the axis.",RibbonSize.Large,HasComponents),
+                AsmCmd("Slider","joint-slider",()=>new JointCommand(JointType.Slider),"The second component slides along one direction.",RibbonSize.Large,HasComponents),
+                AsmCmd("Cylindrical","joint-cyl",()=>new JointCommand(JointType.Cylindrical),"Turns about an axis and slides along it.",RibbonSize.Large,HasComponents),
+                AsmCmd("Ball","joint-ball",()=>new JointCommand(JointType.Ball),"Pivots about a point.",RibbonSize.Large,HasComponents),
+                AsmCmd("Planar","joint-planar",()=>new JointCommand(JointType.Planar),"Slides over a flat face in two directions.",RibbonSize.Large,HasComponents)),
+            AsmCmd("Gear\nPair","joint-gear",()=>new CouplingCommand(false),"Make one revolute joint follow another through gears.",RibbonSize.Large,()=>Session.JointObjects.Count(j=>j.joint.Type is JointType.Revolute or JointType.Cylindrical)>=2),
+            AsmCmd("Rack and\nPinion","joint-rack",()=>new CouplingCommand(true),"Make a slider follow a revolute joint like a rack on a pinion.",RibbonSize.Large,()=>Session.JointObjects.Any(j=>j.joint.Type==JointType.Slider)&&Session.JointObjects.Any(j=>j.joint.Type is JointType.Revolute or JointType.Cylindrical)),
+            AsmCmd("Drive\nJoints","joint-revolute",()=>new DriveJointsCommand(),"Move the joints by hand to check the mechanism before simulating it.",RibbonSize.Large,HasJoints)),
+         G("Simulate",
+            Cmd("Kinematics","motion-kinematics",()=>new MotionStudyCommand(false),"Drive joints at a constant speed or oscillate them and see positions, speeds, accelerations, part paths and collisions. No masses or forces needed."),
+            Cmd("Motion\nDynamics","motion-dynamics",()=>new MotionStudyCommand(true),"Rigid-body motion with gravity, motor torque, loads and friction: required motor torque and power, energy, and free joints that swing under gravity."),
+            Cmd("Robot\nPath","motion-robot",()=>new MotionStudyCommand(MotionKind.Robot),"Move a robot arm's tool along a curve: inverse kinematics, reach check, joint motion and the torque each joint needs with a payload.")),
+         G("Springs and loads",
+            Cmd("Spring /\nActuator","motion-spring",()=>new MotionSpringCommand(),"A spring, damper or cylinder between two points (or a point and a fixed body).",RibbonSize.Large),
+            Cmd("Force","motion-force",()=>new MotionLoadCommand(false),"A force on a part, constant, a pulse or alternating.",RibbonSize.Large),
+            Cmd("Torque","motion-force",()=>new MotionLoadCommand(true),"A torque on a part, constant, a pulse or alternating.",RibbonSize.Large)),
+         G("Review",Cmd("Load from\nMotion","motion-force",()=>new MotionLoadToStaticCommand(),"Turn the force a joint held in the last Motion Dynamics study into a load in a new Static study.",RibbonSize.Large),Btn("Clear\nResults","clear-analysis",ClearResults,"Remove the motion paths from the model."))]};
         var fluids = new RibbonTab {Title="Fluids",Groups=
         [G("Pipe flow",Cmd("Pipe\nFlow","cae-fluid",()=>new PipeFlowCommand(),"Incompressible circular-pipe pressure drop and Reynolds number. This is a reduced-order calculation, not general 3D CFD."))]};
         var ecad = new RibbonTab
@@ -1211,7 +1238,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, simulate, thermal, dynamics, fluids, assemble, joints, animate, render, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         CommandCatalog.Register(() => new EdgeSurfaceCommand());
         CommandCatalog.Register(() => new FillOpeningCommand());

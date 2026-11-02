@@ -167,7 +167,7 @@ public sealed partial class MainViewModel
         RebuildResultView();
     }
 
-    public void ClearResults() { Session.ShowResult(null); }
+    public void ClearResults() { Session.ShowResult(null); Session.ShowMotion(null); }
 
     // ------------------------------------------------------------ mesh and run
     public async void MeshStudy()
