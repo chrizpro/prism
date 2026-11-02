@@ -474,6 +474,13 @@ public sealed unsafe class GlViewport : Decorator
                 U1(_mesh, "uField", 0);
                 continue;
             }
+            if (o.Tri?.ColorDisplay is { } colored)      // imported vertex / face colours
+            {
+                U1(_mesh, "uField", 3);
+                DrawFaces(gl, Upload(colored), o.Color, o.Color, faceAlpha, (0, 0, 0, 0), 0, -1);
+                U1(_mesh, "uField", 0);
+                continue;
+            }
             DrawFaces(gl, Upload(fineShading ? o.FineMesh : o.Mesh), o.Color, o.Kind == ObjKind.Surface ? 0xFF8FC9DB : o.Color, faceAlpha, (0, 0, 0, 0), 0, -1);
         }
         // selection / hover tint (faces)

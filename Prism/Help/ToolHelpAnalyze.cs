@@ -64,6 +64,24 @@ public static partial class ToolHelp
         "mesh-cut" => Topic(icon, "Split Mesh", "Cut a mesh with a plane and cap the halves.", "Start: a part too big for the bed", "Result: two pieces that fit",
             "1. Select the mesh.\n2. Position the cutting plane.\n3. Check the preview, then accept.",
             "Cut where the pieces are easy to glue, and keep each half inside your build volume."),
+        "mesh-repair" => Topic(icon, "Repair Mesh", "Merge duplicate vertices, remove junk triangles, fix flipped normals and fill holes.", "Start: a scan with stray fragments", "Result: one clean, closed body",
+            "1. Select the mesh.\n2. Choose what to fix.\n3. Check the before and after counts, then accept.",
+            "Run Repair before Print Check or any slicing step; open or inverted meshes are the usual cause of failed prints."),
+        "mesh-quality" => Topic(icon, "Mesh Quality", "Find thin or stretched triangles, open and non-manifold edges and self-intersections.", "Start: a mesh with hidden defects", "Result: problem areas marked",
+            "1. Select the mesh.\n2. Choose which defects to show and an optional heat map.\n3. Fix what is marked, then check again.",
+            "Highlights stay on screen after the command closes; use Clear Colors to remove them."),
+        "mesh-overhang" => Topic(icon, "Overhang & Orientation", "Find what needs supports and the best way to lay the part down.", "Start: a part that needs a lot of support", "Result: laid down with fewer supports",
+            "1. Select the mesh.\n2. Set the largest overhang your printer can bridge.\n3. Try the suggested orientations.",
+            "Fewer supports often means a rougher bed face; weigh surface finish against support removal."),
+        "mesh-thickness" => Topic(icon, "Wall Thickness", "Color the part by wall thickness to find walls that are too thin to print.", "Start: a part with thin and thick walls", "Result: thin areas show in color",
+            "1. Select the mesh.\n2. Set the thinnest wall your printer can make.\n3. Thicken or redesign the colored areas.",
+            "The minimum printable wall depends on nozzle size or resin; check your printer's limit."),
+        "mesh-remesh" => Topic(icon, "Remesh", "Rebuild a mesh with evenly sized triangles.", "Start: uneven, stretched triangles", "Result: even triangles",
+            "1. Select the mesh.\n2. Set the target edge length.\n3. Choose whether to keep sharp and open edges, then accept.",
+            "Pick an edge length near the smallest detail you need to keep."),
+        "mesh-boolean" => Topic(icon, "Mesh Boolean", "Combine two closed meshes: join, subtract or keep the overlap.", "Start: two overlapping meshes", "Result: one combined mesh",
+            "1. Select the first and second mesh.\n2. Choose join, subtract or intersect.\n3. Check the preview, then accept.",
+            "Both meshes must be closed; run Repair first if you are told one is open."),
         _ => null
     };
 
@@ -192,6 +210,42 @@ public static partial class ToolHelp
                 using var whole = Occ.Box(40, 20, 12);
                 using var halves = Join([Mv(Occ.Box(19, 20, 12), -11.5, 0, 0), Mv(Occ.Box(19, 20, 12), 11.5, 0, 0)]);
                 return new(Src(whole.Tessellate(), topic.BeforeLabel), Src(halves.Tessellate(), topic.AfterLabel));
+            }
+            case "mesh-repair":
+            {
+                using var junk = Join([Occ.Box(30, 20, 12), Mv(Occ.Box(3, 3, 3), 22, 0, 0)]);
+                using var clean = Occ.Box(30, 20, 12);
+                return new(Src(junk.Tessellate(), topic.BeforeLabel), Src(clean.Tessellate(), topic.AfterLabel));
+            }
+            case "mesh-quality":
+            {
+                using var body = Occ.Box(30, 20, 12);
+                var mesh = body.Tessellate();
+                return new(Src(mesh, topic.BeforeLabel), Src(mesh, topic.AfterLabel, null, FacesAt(mesh, 0, 15).ToArray(), Blue));
+            }
+            case "mesh-overhang":
+            {
+                using var flat = Join([Occ.Box(30, 10, 6), Mv(Occ.Box(6, 10, 18), 12, 0, 12)]);
+                using var upright = Join([Occ.Box(10, 6, 30), Mv(Occ.Box(10, 18, 6), 0, 12, 12)]);
+                return new(Src(flat.Tessellate(), topic.BeforeLabel), Src(upright.Tessellate(), topic.AfterLabel));
+            }
+            case "mesh-thickness":
+            {
+                using var body = Join([Occ.Box(30, 20, 4), Mv(Occ.Box(30, 20, 2), 0, 0, 12)]);
+                var mesh = body.Tessellate();
+                return new(Src(mesh, topic.BeforeLabel), Src(mesh, topic.AfterLabel, null, FacesAt(mesh, 2, 13).ToArray(), Blue));
+            }
+            case "mesh-remesh":
+            {
+                using var body = Occ.Box(30, 20, 12);
+                var mesh = body.Tessellate();
+                return new(Src(mesh, topic.BeforeLabel, AllEdges(mesh)), Src(mesh, topic.AfterLabel));
+            }
+            case "mesh-boolean":
+            {
+                using var apart = Join([Mv(Occ.Box(20, 20, 12), -8, 0, 0), Mv(Occ.Box(20, 20, 12), 8, 8, 0)]);
+                using var merged = Join([Mv(Occ.Box(20, 20, 12), -8, 0, 0), Mv(Occ.Box(20, 20, 12), 8, 8, 0), Mv(Occ.Box(16, 16, 12), 0, 4, 0)]);
+                return new(Src(apart.Tessellate(), topic.BeforeLabel), Src(merged.Tessellate(), topic.AfterLabel));
             }
             default: return null;
         }

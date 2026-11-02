@@ -36,20 +36,23 @@ public static class MeshOps
         }
         var v = new float[keep.Count * 3];
         for (int k = 0; k < keep.Count; k++) { v[3 * k] = m.V[3 * keep[k]]; v[3 * k + 1] = m.V[3 * keep[k] + 1]; v[3 * k + 2] = m.V[3 * keep[k] + 2]; }
+        var vcol = m.VertexColors != null ? keep.Select(k => m.VertexColors[k]).ToArray() : null;
+        var fcol = m.FaceColors != null ? new List<uint>() : null;
         var t = new List<int>(m.T.Length);
         for (int i = 0; i < m.TriCount; i++)
         {
             int a = rep[m.T[3 * i]], b = rep[m.T[3 * i + 1]], c = rep[m.T[3 * i + 2]];
             if (a == b || b == c || a == c) continue;
-            t.Add(a); t.Add(b); t.Add(c);
+            t.Add(a); t.Add(b); t.Add(c); fcol?.Add(m.FaceColors![i]);
         }
-        return new TriMesh(v, [.. t]);
+        return new TriMesh(v, [.. t], vcol, fcol?.ToArray());
     }
 
     /// <summary>Remove zero-area and duplicate triangles and unreferenced vertices.</summary>
     public static (TriMesh mesh, int degenerate, int duplicate) Clean(TriMesh m, double areaEps = 1e-12)
     {
         var seen = new HashSet<(int, int, int)>(); var t = new List<int>(m.T.Length);
+        var fcol = m.FaceColors != null ? new List<uint>() : null;
         int deg = 0, dup = 0;
         for (int i = 0; i < m.TriCount; i++)
         {
@@ -57,23 +60,23 @@ public static class MeshOps
             if (a == b || b == c || a == c || m.TriArea(i) < areaEps) { deg++; continue; }
             int x = Math.Min(a, Math.Min(b, c)), z = Math.Max(a, Math.Max(b, c)), y = a + b + c - x - z;
             if (!seen.Add((x, y, z))) { dup++; continue; }
-            t.Add(a); t.Add(b); t.Add(c);
+            t.Add(a); t.Add(b); t.Add(c); fcol?.Add(m.FaceColors![i]);
         }
-        return (Compact(m.V, [.. t]), deg, dup);
+        return (Compact(m.V, [.. t], m.VertexColors, fcol?.ToArray()), deg, dup);
     }
 
-    /// <summary>Re-index so only referenced vertices remain.</summary>
-    public static TriMesh Compact(float[] v, int[] t)
+    /// <summary>Re-index so only referenced vertices remain (colours, when given, are carried along).</summary>
+    public static TriMesh Compact(float[] v, int[] t, uint[]? vertexColors = null, uint[]? faceColors = null)
     {
         var map = new int[v.Length / 3]; Array.Fill(map, -1);
-        var nv = new List<float>(); var nt = new int[t.Length];
+        var nv = new List<float>(); var nt = new int[t.Length]; var vc = vertexColors != null && vertexColors.Length == v.Length / 3 ? new List<uint>() : null;
         for (int i = 0; i < t.Length; i++)
         {
             int o = t[i];
-            if (map[o] < 0) { map[o] = nv.Count / 3; nv.Add(v[3 * o]); nv.Add(v[3 * o + 1]); nv.Add(v[3 * o + 2]); }
+            if (map[o] < 0) { map[o] = nv.Count / 3; nv.Add(v[3 * o]); nv.Add(v[3 * o + 1]); nv.Add(v[3 * o + 2]); vc?.Add(vertexColors![o]); }
             nt[i] = map[o];
         }
-        return new TriMesh([.. nv], nt);
+        return new TriMesh([.. nv], nt, vc?.ToArray(), faceColors);
     }
 
     // ================================================================= components
@@ -105,7 +108,8 @@ public static class MeshOps
         int largest = sizes.Length == 0 ? 0 : sizes.Max();
         var keepComp = sizes.Select(s => s >= minTris && s >= largest * minFraction).ToArray();
         var tris = Enumerable.Range(0, m.TriCount).Where(t => keepComp[label[t]]);
-        var res = Compact(m.V, tris.SelectMany(t => new[] { m.T[3 * t], m.T[3 * t + 1], m.T[3 * t + 2] }).ToArray());
+        var kept = tris.ToList();
+        var res = Compact(m.V, kept.SelectMany(t => new[] { m.T[3 * t], m.T[3 * t + 1], m.T[3 * t + 2] }).ToArray(), m.VertexColors, m.FaceColors != null ? kept.Select(t => m.FaceColors[t]).ToArray() : null);
         return (res, keepComp.Count(k => !k), keepComp.Count(k => k));
     }
 
@@ -151,7 +155,7 @@ public static class MeshOps
             vol[compOf[i]] += Vec3.Dot(a, Vec3.Cross(b, c)) / 6;
         }
         for (int i = 0; i < nt; i++) if (vol[compOf[i]] < 0) { (t[3 * i + 1], t[3 * i + 2]) = (t[3 * i + 2], t[3 * i + 1]); flipped++; }
-        return (new TriMesh(m.V, t), flipped);
+        return (new TriMesh(m.V, t, m.VertexColors, m.FaceColors), flipped);
     }
 
     public static TriMesh FlipAll(TriMesh m) => m.Transformed(p => p, flipWinding: true);
@@ -177,7 +181,9 @@ public static class MeshOps
             foreach (var (a, b, c) in Triangulator.Polygon(poly)) { tris.Add(order[a]); tris.Add(order[b]); tris.Add(order[c]); }
             filled++;
         }
-        return (new TriMesh(m.V, [.. tris]), filled, skipped);
+        uint[]? fcol = null;
+        if (m.FaceColors != null) { fcol = new uint[tris.Count / 3]; m.FaceColors.CopyTo(fcol, 0); Array.Fill(fcol, 0xFFC8D0DAu, m.TriCount, fcol.Length - m.TriCount); }
+        return (new TriMesh(m.V, [.. tris], m.VertexColors, fcol), filled, skipped);
     }
 
     // ================================================================= smoothing, subdivision
@@ -218,7 +224,7 @@ public static class MeshOps
         }
         for (int it = 0; it < iterations; it++) { Step(lambda); Step(mu); }
         var v = new float[p.Length]; for (int i = 0; i < p.Length; i++) v[i] = (float)p[i];
-        return new TriMesh(v, (int[])m.T.Clone());
+        return new TriMesh(v, (int[])m.T.Clone(), m.VertexColors, m.FaceColors);
     }
 
     /// <summary>0 for vertices on sharp edges or corners (so smoothing keeps them), 1 elsewhere.</summary>
@@ -553,6 +559,6 @@ public static class MeshOps
     {
         var n = m.VertexNormals(); var v = new float[m.V.Length];
         for (int i = 0; i < m.VertexCount; i++) { v[3 * i] = m.V[3 * i] + (float)(n[3 * i] * d); v[3 * i + 1] = m.V[3 * i + 1] + (float)(n[3 * i + 1] * d); v[3 * i + 2] = m.V[3 * i + 2] + (float)(n[3 * i + 2] * d); }
-        return new TriMesh(v, (int[])m.T.Clone());
+        return new TriMesh(v, (int[])m.T.Clone(), m.VertexColors, m.FaceColors);
     }
 }
