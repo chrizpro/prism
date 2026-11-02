@@ -467,7 +467,7 @@ public sealed partial class AutomationApi
         ["mesh_repair"] = () => new MeshRepairCommand(), ["mesh_fill_holes"] = () => new MeshRepairCommand(true), ["mesh_check"] = () => new MeshCheckCommand(),
         ["mesh_reduce"] = () => new MeshDecimateCommand(), ["mesh_smooth"] = () => new MeshSmoothCommand(), ["mesh_offset"] = () => new MeshOffsetCommand(), ["mesh_split"] = () => new MeshCutCommand(),
         ["mesh_section"] = () => new MeshSectionCommand(), ["mesh_thickness"] = () => new MeshThicknessCommand(), ["mesh_overhang"] = () => new MeshOverhangCommand(),
-        ["mesh_deviation"] = () => new MeshDeviationCommand(), ["mesh_fit"] = () => new MeshSegmentCommand(), ["mesh_align"] = () => new MeshAlignCommand(),
+        ["mesh_deviation"] = () => new MeshDeviationCommand(), ["mesh_fit"] = () => new MeshSegmentCommand(), ["mesh_align"] = () => new MeshAlignCommand(), ["mesh_rebuild"] = () => new MeshRebuildCommand(), ["mesh_section_fit"] = () => new MeshSectionFitCommand(),
         ["mesh_to_solid"] = () => new MeshToSolidCommand(), ["solid_to_mesh"] = () => new SolidToMeshCommand(),
         ["sim_fixed"] = () => new FixtureCommand(Simulation.FixtureKind.Fixed), ["sim_roller"] = () => new FixtureCommand(Simulation.FixtureKind.Slider), ["sim_fixed_dirs"] = () => new FixtureCommand(Simulation.FixtureKind.Directional),
         ["sim_force"] = () => new LoadCommand(Simulation.LoadKind.Force), ["sim_pressure"] = () => new LoadCommand(Simulation.LoadKind.Pressure), ["sim_torque"] = () => new LoadCommand(Simulation.LoadKind.Torque), ["sim_gravity"] = () => new LoadCommand(Simulation.LoadKind.Gravity),
@@ -904,10 +904,22 @@ public sealed partial class AutomationApi
                 return State();
             });
 
-        Add("mesh_import", "Import a mesh file (STL, OBJ, PLY, 3MF) as a mesh object.", Schema(["path"], ("path", "string", "Full path of the file.")), a =>
+        Add("mesh_import", "Import a mesh file (STL, OBJ, PLY, 3MF) as one or more mesh objects. Without options it imports as-is (mm, Z-up, no repair). Colours and parts in the file are kept.",
+            Schema(["path"], ("path", "string", "Full path of the file."), ("units", "string", "auto (default: the 3MF's own unit, else mm) | mm | cm | m | inch."), ("up_axis", "string", "z (default, keep) | y (rotate Y-up to Z-up) | x (rotate X-up to Z-up)."),
+                ("weld_tolerance", "number", "Merge vertices closer than this many mm (default 0: identical corners only)."), ("auto_repair", "boolean", "Merge, clean, fix normals and fill small holes (default false)."),
+                ("split", "string", "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces).")), a =>
         {
-            var o = S.ImportMesh(Str(a, "path"));
-            return Describe(o, true);
+            var opts = new Meshing.MeshImportOptions
+            {
+                Units = Str(a, "units", "auto").ToLowerInvariant() switch { "mm" or "millimeter" or "millimetre" => Meshing.ImportUnits.Millimeter, "cm" or "centimeter" => Meshing.ImportUnits.Centimeter, "m" or "meter" or "metre" => Meshing.ImportUnits.Meter, "in" or "inch" or "inches" => Meshing.ImportUnits.Inch, "auto" => Meshing.ImportUnits.Auto, var u => throw new ArgumentException($"Unknown units '{u}'. Use auto, mm, cm, m or inch.") },
+                UpAxis = Str(a, "up_axis", "z").ToLowerInvariant() switch { "z" => Meshing.ImportUpAxis.Z, "y" => Meshing.ImportUpAxis.Y, "x" => Meshing.ImportUpAxis.X, var u => throw new ArgumentException($"Unknown up_axis '{u}'. Use z, y or x.") },
+                WeldTolerance = Math.Max(0, Dbl(a, "weld_tolerance", 0)), AutoRepair = Bool(a, "auto_repair", false),
+                Split = Str(a, "split", "auto").ToLowerInvariant() switch { "auto" => Meshing.ImportSplit.Auto, "none" => Meshing.ImportSplit.None, "groups" => Meshing.ImportSplit.Groups, "components" => Meshing.ImportSplit.Components, var u => throw new ArgumentException($"Unknown split '{u}'. Use auto, none, groups or components.") },
+            };
+            var all = S.ImportMeshAll(Str(a, "path"), opts);
+            var d = Describe(all[0], true);
+            if (all.Count > 1) d["bodies"] = new JsonArray(all.Select(o => (JsonNode?)Describe(o)).ToArray());
+            return d;
         });
         Add("drawing_export", "Produce an engineering drawing of the model and save it as .svg, .pdf or .dxf (chosen by the extension). Hidden-line-removed orthographic views in third-angle layout (front, top, right, iso by default; first_angle:true to swap) at an automatic standard scale, with overall dimensions, hole callouts (Ø, count, THRU or depth), centerlines and locating dimensions, optional section and detail views, hand-placed annotations (dimension, diameter, radius, note, balloon, datum, gdt frames, surface finish), a bill of materials when several bodies are drawn, general tolerance and notes, and a title block. Drawn from the named objects, or every visible solid/surface/Freeform when none are named. View coordinates in sections/details/annotations are the view's drawing coordinates in mm: front x = model X, y = model Z; top x = X, y = Y; right x = Y, y = Z.",
             Schema(["path"], ("path", "string", "Output file: .svg, .pdf or .dxf."), ("objects", "array", "Object names to draw (default: all visible bodies)."), ("views", "array", "front | back | top | bottom | left | right | iso (default front, top, right, iso)."),

@@ -11,7 +11,7 @@ namespace Prism.Core;
 public sealed partial class CadSession
 {
     /// <summary>Every format Import File understands, as file-picker patterns.</summary>
-    public static readonly string[] ImportPatterns = ["*.step", "*.stp", "*.iges", "*.igs", "*.brep", "*.dxf", "*.stl", "*.obj", "*.ply", "*.3mf"];
+    public static readonly string[] ImportPatterns = ["*.step", "*.stp", "*.iges", "*.igs", "*.brep", "*.dxf", "*.stl", "*.obj", "*.ply", "*.3mf", "*.xyz", "*.pts", "*.xyzn", "*.csv"];
 
     /// <summary>Import by file extension: STEP, IGES, BREP, DXF (as a sketch) and the mesh formats.</summary>
     public void ImportFile(string path)
@@ -22,7 +22,8 @@ public sealed partial class CadSession
             case ".iges" or ".igs": ImportIges(path); break;
             case ".brep": ImportBrep(path); break;
             case ".dxf": ImportDxf(path); break;
-            case ".stl" or ".obj" or ".ply" or ".3mf": ImportMesh(path); break;
+            case ".xyz" or ".pts" or ".xyzn" or ".csv": Commands.PointCloudCommands.TryBegin(this, path); break;
+            case ".stl" or ".obj" or ".ply" or ".3mf": if (!Commands.PointCloudCommands.TryBegin(this, path)) ImportMesh(path); break;
             default: throw new NotSupportedException($"{Path.GetExtension(path)} files cannot be imported. Supported: STEP, IGES, BREP, DXF, STL, OBJ, PLY, 3MF.");
         }
     }
