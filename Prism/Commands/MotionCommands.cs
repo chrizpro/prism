@@ -193,13 +193,16 @@ public sealed class MotionStudyCommand : Command
             var extra = new List<string>();
             if (Robot)
             {
-                var (points, active, tool, local, pts) = RobotSetup();
+                var (points, used, tool, local, pts) = RobotSetup();
                 var planner = S.BuildMotionEngine(_rows.Select(r => r.Dof), false, out notes, out bodies, points);
+                // the joints that move the arm, as coordinates of the engine (a loop may fix some of the ticked joints)
+                var active = Enumerable.Range(0, planner.IndependentCount).Where(k => used.Contains(planner.IndependentDof(k))).ToList();
+                if (active.Count == 0) throw new InvalidOperationException("The joints you ticked are all fixed by closed loops; tick one that is free to move.");
                 bool hold = _hold!.Value && active.Count >= 6;
                 if (_hold.Value && !hold) extra.Add($"The arm has {active.Count} usable joints; keeping the tool's direction needs six, so only its position follows the path.");
                 var plan = RobotPath.Follow(planner, active, tool, local, pts, _speed!.Value, _accel!.Value, _interval.Value, hold);
-                int ai = 0; var indep = _rows.Where(r => !r.Dof.Follower).ToList();
-                foreach (int k in active) { indep[k].Dof.SetTable(plan.Times, plan.JointValues[ai++]); }
+                int ai = 0;
+                foreach (int k in active) planner.IndependentDof(k).SetTable(plan.Times, plan.JointValues[ai++]);
                 engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), _dynamic, out notes, out bodies, points);
                 result = engine.Run(new MotionSettings(plan.Times[^1], plan.Times[1] - plan.Times[0], _dynamic, gravity));
                 extra.Add(plan.Unreached == 0 ? $"Reached all {plan.Times.Length} points of the {plan.PathLength:0.#} mm path (worst miss {plan.MaxPositionError:G2} mm) in {plan.Times[^1]:0.###} s." : $"{plan.Unreached} of {plan.Times.Length} points could not be reached.");
@@ -211,7 +214,7 @@ public sealed class MotionStudyCommand : Command
                 result = engine.Run(new MotionSettings(_duration.Value, _interval.Value, _dynamic, gravity));
             }
             _reach = extra;
-            _result = result;
+            _result = result; S.RememberMotion(result);
             if (_collide.Value) CheckCollisions(result);
             _summary = Summarize(result, bodies, notes, clock.Elapsed.TotalSeconds);
             _fingerprint = Fingerprint();
@@ -225,7 +228,7 @@ public sealed class MotionStudyCommand : Command
     List<string> _reach = [];
 
     /// <summary>The tool point, the arm's joints and the path polyline for a robot study.</summary>
-    (List<MotionPoint> points, List<int> active, string tool, Vec3 local, List<Vec3> path) RobotSetup()
+    (List<MotionPoint> points, List<MotionDof> used, string tool, Vec3 local, List<Vec3> path) RobotSetup()
     {
         if (_tool!.Items.Count == 0) throw new InvalidOperationException("Pick the tool point: a face, circle or edge on the arm's last link.");
         if (_pathSlot!.Items.Count == 0) throw new InvalidOperationException("Pick the path to follow: a curve, a sketch or edges.");
@@ -237,10 +240,9 @@ public sealed class MotionStudyCommand : Command
         var pieces = _pathSlot.Items.Select(i => MotionPicks.CurveOf(S, i)).Where(p => p.Count >= 2).ToList();
         var path = MotionPicks.Join(pieces);
         if (path.Count < 2) throw new InvalidOperationException("The picked path has no length.");
-        var active = new List<int>(); int k = 0;
-        foreach (var r in _rows.Where(r => !r.Dof.Follower)) { if (r.Use!.Value) active.Add(k); k++; }
-        if (active.Count == 0) throw new InvalidOperationException("Tick at least one joint to move the arm.");
-        return (points, active, comp.Component.Key, local, path);
+        var used = _rows.Where(r => !r.Dof.Follower && r.Use!.Value).Select(r => r.Dof).ToList();
+        if (used.Count == 0) throw new InvalidOperationException("Tick at least one joint to move the arm.");
+        return (points, used, comp.Component.Key, local, path);
     }
 
     static double Z(double v) => Math.Abs(v) < 5e-4 ? 0 : v;       // no "-0"
@@ -256,7 +258,7 @@ public sealed class MotionStudyCommand : Command
         {
             var d = r.Dofs[j]; string u = d.Unit;
             double lo = r.Pos[j].Min(), hi = r.Pos[j].Max(), vmax = r.Vel[j].Select(Math.Abs).Max(), amax = r.Acc[j].Select(Math.Abs).Max();
-            string role = d.Follower ? "follows" : d.Mode switch { DriveMode.Free when _dynamic => "free", DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table => "driven", _ => "held" };
+            string role = d.Follower ? "follows" : d.Dependent ? "set by the loop" : d.Mode switch { DriveMode.Free when _dynamic => "free", DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table => "driven", _ => "held" };
             if (role == "held" && hi - lo < 1e-9) continue;
             res.Add(new($"{d.Name} ({role})", $"{Z(lo):0.###} to {Z(hi):0.###} {u}   ·   peak speed {vmax:0.###} {u}/s   ·   peak acceleration {amax:0.###} {u}/s²"));
             if (_dynamic && !d.Follower && d.Mode is DriveMode.Constant or DriveMode.Oscillate or DriveMode.Ramp or DriveMode.Table && r.Effort[j].Any(e => e != 0))
@@ -278,6 +280,16 @@ public sealed class MotionStudyCommand : Command
         {
             double a = r.Accel[b].Max(); string force = _dynamic && r.Bodies[b].Mass > 0 ? $"   ·   inertial force {a * r.Bodies[b].Mass:0.###} N" : "";
             res.Add(new(r.Bodies[b].Name, $"peak {r.Speed[b].Max():0.####} m/s   ·   {a:0.###} m/s²   ·   turning {r.AngSpeed[b].Max() * 180 / Math.PI:0.###} °/s{force}"));
+        }
+        if (r.ReactionJoints.Length > 0)
+        {
+            var rows = Enumerable.Range(0, r.ReactionJoints.Length).Select(j => (j, f: r.ReactionForce[j].Max(v => v.Length), m: r.ReactionMoment[j].Max(v => v.Length)))
+                .Where(x => x.f > 1e-9 || x.m > 1e-9).OrderByDescending(x => x.f).Take(8).ToList();
+            foreach (var (j, f, m) in rows)
+            {
+                int at = Array.IndexOf(r.ReactionForce[j].Select(v => v.Length).ToArray(), f);
+                res.Add(new($"Reaction at {r.ReactionJoints[j]}", $"force peaks at {f:G4} N ({r.Time[at]:0.###} s)   ·   moment {m:G3} N·m   (what the joint holds, apart from the turning or sliding it allows)"));
+            }
         }
         if (_dynamic)
         {
@@ -369,6 +381,8 @@ public sealed class MotionStudyCommand : Command
                 if (r.Dynamic) { head.Add($"{n} drive_{d.EffortUnit}"); head.Add($"{n} power_W"); }
             }
             if (r.Dynamic) { head.Add("kinetic_J"); head.Add("potential_J"); foreach (var fn in r.ForceNames) head.Add($"{fn.Replace(',', ';')} force_N_or_Nm"); }
+            for (int j = 0; j < r.ReactionJoints.Length; j++)
+            { string n = r.ReactionJoints[j].Replace(',', ';'); foreach (var c in new[] { "fx_N", "fy_N", "fz_N", "mx_Nm", "my_Nm", "mz_Nm" }) head.Add($"{n} reaction {c}"); }
             var shown = Enumerable.Range(0, r.Bodies.Length).Where(b => !r.Bodies[b].Name.StartsWith('@')).ToList();
             foreach (int b in shown)
             { string n = r.Bodies[b].Name.Replace(',', ';'); head.Add($"{n} x_mm"); head.Add($"{n} y_mm"); head.Add($"{n} z_mm"); head.Add($"{n} speed_m/s"); head.Add($"{n} acceleration_m/s2"); }
@@ -382,6 +396,7 @@ public sealed class MotionStudyCommand : Command
                     if (r.Dynamic) { cells.Add(F(r.Effort[j][i])); cells.Add(F(r.Power[j][i])); }
                 }
                 if (r.Dynamic) { cells.Add(F(r.Kinetic[i])); cells.Add(F(r.Potential[i])); for (int f = 0; f < r.ForceNames.Length; f++) cells.Add(F(r.ForceValue[f][i])); }
+                for (int j = 0; j < r.ReactionJoints.Length; j++) { var fv = r.ReactionForce[j][i]; var mv = r.ReactionMoment[j][i]; cells.Add(F(fv.X)); cells.Add(F(fv.Y)); cells.Add(F(fv.Z)); cells.Add(F(mv.X)); cells.Add(F(mv.Y)); cells.Add(F(mv.Z)); }
                 foreach (int b in shown) { var p = r.Path[b][i]; cells.Add(F(p.X)); cells.Add(F(p.Y)); cells.Add(F(p.Z)); cells.Add(F(r.Speed[b][i])); cells.Add(F(r.Accel[b][i])); }
                 lines.Add(string.Join(",", cells));
             }

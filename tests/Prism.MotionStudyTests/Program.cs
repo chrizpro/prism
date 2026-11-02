@@ -256,6 +256,54 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
     s.CancelCommand();
 }
 
+// ---------------------------------------------------------------- a piston: closed loop made in the assembly, reactions, and a load for a Static study
+{
+    var s = new CadSession();
+    var floor = Part(s, "Block", Occ.Translate(Occ.Box(400, 100, 10), new Vec3(150, 0, -10)), true);
+    var crank = Part(s, "Crank", Occ.Translate(Occ.Box(50, 10, 20), new Vec3(25, 0, 0)), false);
+    var rod = Part(s, "Rod", Occ.Translate(Occ.Box(150, 10, 20), new Vec3(125, 0, 0)), false);
+    var piston = Part(s, "Piston", Occ.Translate(Occ.Box(30, 30, 20), new Vec3(200, 0, 0)), false);
+    Joint(s, "j1", "Main bearing", JointType.Revolute, floor, crank, new Vec3(0, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j2", "Crank pin", JointType.Revolute, crank, rod, new Vec3(50, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j3", "Wrist pin", JointType.Revolute, rod, piston, new Vec3(200, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j4", "Cylinder wall", JointType.Slider, floor, piston, new Vec3(200, 0, 10), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+
+    s.StartCommand(() => new MotionStudyCommand(true)); var cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Main bearing").Index = 1; Num(cmd, "Speed", "Main bearing").Value = 1800;
+    Num(cmd, "Duration").Value = 0.2; Num(cmd, "Output interval").Value = 0.005; Pick(cmd, "Gravity").Index = 0;
+    Run(cmd);
+    var r = cmd.Result!;
+    Check(r != null && Text(cmd).Contains("set by the loop") && Text(cmd).Contains("Reaction at"), "a piston made from ordinary joints runs: the loop is closed and the reactions reported");
+    int pi = Array.FindIndex(r!.Bodies, b => b.Name == "Piston 1");
+    double worst = 0; for (int i = 0; i < r.Samples; i++) { double th = 2 * Math.PI * 5 * r.Time[i]; worst = Math.Max(worst, Math.Abs((r.Path[pi][i].X) - (50 * Math.Cos(th) + Math.Sqrt(150 * 150 - 2500 * Math.Sin(th) * Math.Sin(th))))); }
+    Check(worst < 1e-6, $"the real piston follows r·cosθ + √(L² − r²sin²θ) (worst miss {worst:G2} mm)");
+    Check(r.Effort[0].Select(Math.Abs).Max() > 0 && Text(cmd).Contains("drive torque"), "the motor torque to turn the crank is reported");
+    int wall = Array.IndexOf(r.ReactionJoints, "Cylinder wall"); double peak = r.ReactionForce[wall].Max(f => f.Length);
+    Check(peak > 0.1 && r.ReactionForce[wall].All(f => Math.Abs(f.X) < 1e-6 * peak + 1e-9 && Math.Abs(f.Z) < 1e-3 * peak + 1e-6), $"the cylinder wall pushes the piston sideways only, up to {peak:0.###} N");
+    cmd.Params.OfType<NumberParam>().First(p => p.Label.StartsWith("Show the motion")).Value = 50;
+    var overlay = new Overlay(); s.BuildOverlay(overlay);
+    Check(overlay.Labels.Any(l => l.Text.EndsWith(" N")), "arrows at the joints show the forces they hold at the moment shown");
+    var posed = cmd.TryBuild()!;
+    Check(posed.Replace.Any(x => x.Old.Id == piston.Id) && posed.Replace.Any(x => x.Old.Id == rod.Id), "the whole linkage, including the parts the loop moves, is posed for that moment");
+    cmd.Params.OfType<TextParam>().First().Value = Path.Combine(Path.GetTempPath(), "piston.csv"); cmd.Params.OfType<ActionParam>().First(p => p.Label == "Save results").Run!();
+    Check(File.ReadAllLines(Path.Combine(Path.GetTempPath(), "piston.csv"))[0].Contains("Cylinder wall reaction fy_N"), "the reactions are in the CSV");
+    s.CancelCommand();
+    Check(s.LastMotion == r, "the study is remembered after its panel closes");
+
+    // the cylinder wall force becomes a Static study load on the piston
+    s.StartCommand(() => new MotionLoadToStaticCommand()); var bridge = s.ActiveCommand!;
+    Pick(bridge, "Joint").Index = Array.IndexOf(Pick(bridge, "Joint").Options.ToArray(), "Cylinder wall");
+    bridge.Slots[0].TryAdd(FaceFacing(s, s.Find(piston.Id)!, new Vec3(0, 1, 0)));
+    bridge.OnChanged();
+    Check(Text(bridge).Contains("Cylinder wall") && Text(bridge).Contains("Force"), "Load from Motion shows the force it will apply");
+    s.CommitCommand();
+    var study = s.Studies.Single();
+    var load = study.Loads.Single();
+    Check(Math.Abs(load.Value - peak) < 1e-9 * peak + 1e-12 && load.Faces.Count == 1 && Near(load.Direction.Length, 1, 1e-9) && Math.Abs(Math.Abs(load.Direction.Y) - 1) < 1e-6, $"a Static study “{study.Name}” holds the peak side load ({load.Value:0.###} N) on the piston's face");
+    int at = Array.IndexOf(r.ReactionForce[wall].Select(f => f.Length).ToArray(), peak);
+    Check(Math.Abs(((JointInfo)s.JointObjects.First(j => j.joint.Key == "j1").joint).Value - r.Pos[0][at]) < 1e-6, "and the assembly is moved to the moment of that peak, so the part sits as it did");
+}
+
 // ---------------------------------------------------------------- help
 {
     foreach (var dyn in new[] { false, true })

@@ -304,4 +304,133 @@ Xform At(Vec3 t) => Xform.Translation(t);
     Check(Near(Math.Abs(held.Effort[0][0]), 1.5 * 9.80665 * 0.5, 1e-6) && Near(Math.Abs(held.Effort[1][0]), 1.5 * 9.80665 * 0.2, 1e-6), "an arm stretched out holding 1.5 kg needs m·g·reach at the shoulder and m·g·(reach from the elbow) at the elbow");
 }
 
+// ---------------------------------------------------------------- closed loops: a crank and slider (a piston), a four-bar
+{
+    const double r = 50, L = 150, w = 2 * Math.PI * 5;                         // crank, rod, crank speed (rad/s)
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["crank"] = Xform.Identity, ["rod"] = At(new Vec3(r, 0, 0)), ["piston"] = At(new Vec3(r + L, 0, 0)) };
+    var z = new Vec3(0, 0, 1); var x = new Vec3(1, 0, 0);
+    var j1 = Joint("j1", JointType.Revolute, "base", "crank", Vec3.Zero, Vec3.Zero, z, x);
+    var j2 = Joint("j2", JointType.Revolute, "crank", "rod", new Vec3(r, 0, 0), Vec3.Zero, z, x);
+    var j3 = Joint("j3", JointType.Revolute, "rod", "piston", new Vec3(L, 0, 0), Vec3.Zero, z, x);
+    var j4 = Joint("j4", JointType.Slider, "base", "piston", new Vec3(r + L, 0, 0), Vec3.Zero, x, new Vec3(0, 1, 0));         // closes the loop
+    double Mp = 0.5;
+    var crank = new MotionBody("crank", "Crank", 0, new Vec3(r / 2, 0, 0), new double[9]); var rod = new MotionBody("rod", "Rod", 0, new Vec3(L / 2, 0, 0), new double[9]);
+    var piston = new MotionBody("piston", "Piston", Mp, Vec3.Zero, new double[9]);
+    double X(double th) => (r * Math.Cos(th) + Math.Sqrt(L * L - r * r * Math.Sin(th) * Math.Sin(th))) * 1e-3;             // piston position, m
+    double D1(double th) { const double h = 1e-5; return (X(th + h) - X(th - h)) / (2 * h); }
+    double D2(double th) { const double h = 1e-4; return (X(th + h) - 2 * X(th) + X(th - h)) / (h * h); }
+    MotionEngine Engine(IEnumerable<MotionDof> dofs) => new(start, new HashSet<string> { "base" }, [j1, j2, j3, j4], [], [crank, rod, piston], dofs);
+    var dofs0 = MotionEngine.DofsOf([j1, j2, j3, j4], []); dofs0[0].Mode = DriveMode.Constant; dofs0[0].Rate = w * 180 / Math.PI;
+    var eng = Engine(dofs0);
+    Check(dofs0[0].Dependent == false && dofs0.Skip(1).All(d => d.Dependent), "the loop leaves the driven crank free and fixes the other three joint values");
+    var k = eng.Run(new MotionSettings(0.2, 0.002, false, Vec3.Zero));
+    int pi = Array.FindIndex(k.Bodies, b => b.Name == "Piston");
+    double worst = 0, worstV = 0, worstA = 0;
+    for (int i = 0; i < k.Samples; i++)
+    {
+        double th = w * k.Time[i];
+        worst = Math.Max(worst, Math.Abs(k.Path[pi][i].X * 1e-3 - X(th)));
+        worstV = Math.Max(worstV, Math.Abs(k.Speed[pi][i] - Math.Abs(D1(th)) * w));
+        worstA = Math.Max(worstA, Math.Abs(k.Accel[pi][i] - Math.Abs(D2(th)) * w * w));
+    }
+    Check(worst < 1e-9, $"a piston driven by a crank through a rod follows x = r·cosθ + √(L² − r²sin²θ) over a full turn (worst miss {worst * 1e3:G2} mm)");
+    Check(worstV < 2e-4 * w * r * 1e-3 * 4 + 1e-6 && worstA < 5e-3 * w * w * r * 1e-3 * 2, $"and its speed and acceleration match the derivatives of that formula (worst {worstV:G2} m/s, {worstA:G2} m/s²)");
+    Check(k.Pos[1].Zip(k.Pos[1].Skip(1), (a, b) => Math.Abs(b - a)).Max() < 20, "the rod keeps to one branch through the whole turn (no sudden flips)");
+
+    // the motor torque is the piston's inertia force times the crank-to-piston leverage: τ·ω = m·a·v
+    var d2 = MotionEngine.DofsOf([j1, j2, j3, j4], []); d2[0].Mode = DriveMode.Constant; d2[0].Rate = w * 180 / Math.PI;
+    var dyn = Engine(d2).Run(new MotionSettings(0.2, 0.002, true, Vec3.Zero));
+    double worstT = 0, peakT = 0;
+    for (int i = 0; i < dyn.Samples; i++)
+    {
+        double th = w * dyn.Time[i], tau = Mp * D2(th) * D1(th) * w * w; peakT = Math.Max(peakT, Math.Abs(tau));
+        worstT = Math.Max(worstT, Math.Abs(dyn.Effort[0][i] - tau));
+    }
+    Check(worstT < 2e-3 * peakT, $"the motor torque to drive a piston is m·x″·x′·ω² (peak {peakT:G4} N·m, worst difference {worstT / peakT:P2})");
+    // forces through the massless rod: the base pushes the crank with the rod's force, and the cylinder wall pushes the piston sideways
+    int ja = Array.IndexOf(dyn.ReactionJoints, "j1"), js = Array.IndexOf(dyn.ReactionJoints, "j4");
+    double worstR = 0, worstS = 0;
+    for (int i = 0; i < dyn.Samples; i++)
+    {
+        double th = w * dyn.Time[i], a = D2(th) * w * w, tanPhi = r * Math.Sin(th) / Math.Sqrt(L * L - r * r * Math.Sin(th) * Math.Sin(th));
+        var expect = new Vec3(Mp * a, -Mp * a * tanPhi, 0);
+        worstR = Math.Max(worstR, (dyn.ReactionForce[ja][i] - expect).Length);
+        worstS = Math.Max(worstS, Math.Abs(dyn.ReactionForce[js][i].Y - Mp * a * tanPhi) + Math.Abs(dyn.ReactionForce[js][i].X) + Math.Abs(dyn.ReactionForce[js][i].Z));
+    }
+    double scaleF = Mp * w * w * r * 1e-3;
+    Check(worstR < 3e-3 * scaleF && worstS < 3e-3 * scaleF, $"the piston's side load on its cylinder is m·a·tanφ, and the main bearing carries the rod force (worst miss {Math.Max(worstR, worstS) / scaleF:P2} of m·r·ω²)");
+    Check(dyn.ReactionMoment[ja].All(m => Math.Abs(m.X) < 1e-6 && Math.Abs(m.Y) < 1e-6), "a flat linkage puts no moment on its bearings about the axes in the plane");
+
+    // a crank given nothing to drive it, with weight on the piston, finds the equilibrium and conserves energy while it rocks
+    var free = MotionEngine.DofsOf([j1, j2, j3, j4], []); free[0].Mode = DriveMode.Free; free[0].Start = 60;
+    var fr = Engine(free).Run(new MotionSettings(0.6, 0.002, true, new Vec3(0, 0, 0)));
+    Check(fr.Pos[0].All(v => Math.Abs(v - 60) < 1e-9), "with no force on it a free crank stays where it is");
+    // with a flywheel on the crank (without one the piston alone has no inertia at top dead centre), a free crank spinning the piston keeps its energy
+    var flywheel = new MotionBody("crank", "Crank", 0.2, Vec3.Zero, [0, 0, 0, 0, 0, 0, 0, 0, 2e-4]);
+    var spinning = MotionEngine.DofsOf([j1, j2, j3, j4], []); spinning[0].Mode = DriveMode.Free; spinning[0].Start = 0; spinning[0].Rate = 1800;
+    var spin = new MotionEngine(start, new HashSet<string> { "base" }, [j1, j2, j3, j4], [], [flywheel, rod, piston], spinning).Run(new MotionSettings(0.4, 0.002, true, Vec3.Zero));
+    double e1 = spin.Kinetic[0], drift = 0; for (int i = 0; i < spin.Samples; i++) drift = Math.Max(drift, Math.Abs(spin.Kinetic[i] + spin.Potential[i] - e1 - spin.Potential[0]));
+    Check(drift < 1e-4 * e1 && spin.Pos[0][^1] > 300, $"a flywheel crank driving a piston keeps its energy as the piston's leverage changes (drift {drift / e1:P3})");
+}
+{
+    // a four-bar linkage: crank 40, coupler 110, rocker 80, pivots 100 apart
+    double alpha = Math.Acos(2100 / 9600.0);
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["crank"] = Xform.Identity, ["coupler"] = At(new Vec3(40, 0, 0)), ["rocker"] = At(new Vec3(100, 0, 0)) * Xform.RotZ(alpha) };
+    var z = new Vec3(0, 0, 1); var x = new Vec3(1, 0, 0);
+    var tipLocal = new Vec3(80 * Math.Cos(alpha) + 100 - 40, 80 * Math.Sin(alpha), 0);
+    var j1 = Joint("j1", JointType.Revolute, "base", "crank", Vec3.Zero, Vec3.Zero, z, x);
+    var j2 = Joint("j2", JointType.Revolute, "crank", "coupler", new Vec3(40, 0, 0), Vec3.Zero, z, x);
+    var j3 = Joint("j3", JointType.Revolute, "base", "rocker", new Vec3(100, 0, 0), Vec3.Zero, z, x) with { ZeroAngle = alpha * 180 / Math.PI };
+    var j4 = Joint("j4", JointType.Revolute, "coupler", "rocker", tipLocal, new Vec3(80, 0, 0), z, x) with { ZeroAngle = alpha * 180 / Math.PI };
+    var pin = new MotionPoint("Pin", "crank", new Vec3(40, 0, 0), 0); var tip = new MotionPoint("Tip", "rocker", new Vec3(80, 0, 0), 0);
+    var dofs = MotionEngine.DofsOf([j1, j2, j3, j4], []); dofs[0].Mode = DriveMode.Constant; dofs[0].Rate = 360;
+    var res = new MotionEngine(start, new HashSet<string> { "base" }, [j1, j2, j3, j4], [], [], dofs, null, [pin, tip]).Run(new MotionSettings(1.0, 0.005, false, Vec3.Zero));
+    int ip = Array.FindIndex(res.Bodies, b => b.Name == "Pin"), it = Array.FindIndex(res.Bodies, b => b.Name == "Tip");
+    double coupler = res.Time.Select((_, i) => (res.Path[ip][i] - res.Path[it][i]).Length).Max(), couplerMin = res.Time.Select((_, i) => (res.Path[ip][i] - res.Path[it][i]).Length).Min();
+    Check(Math.Abs(coupler - 110) < 1e-6 && Math.Abs(couplerMin - 110) < 1e-6, "in a four-bar the coupler keeps its length through a whole turn of the crank");
+    double around = res.Time.Select((_, i) => Math.Abs((res.Path[it][i] - new Vec3(100, 0, 0)).Length - 80)).Max();
+    Check(around < 1e-6, "and the rocker's tip stays on its circle about the fixed pivot");
+    var angles = res.Path[it].Select(p => Math.Atan2(p.Y, p.X - 100) * 180 / Math.PI).ToArray();
+    Check(angles.Max() - angles.Min() < 120 && angles.Max() - angles.Min() > 20 && angles.Zip(angles.Skip(1), (a, b) => Math.Abs(b - a)).Max() < 8, $"the rocker rocks through {angles.Max() - angles.Min():0}° without jumping branches");
+}
+{
+    // a crank-slider that cannot reach is reported
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["crank"] = Xform.Identity, ["rod"] = At(new Vec3(80, 0, 0)), ["piston"] = At(new Vec3(130, 0, 0)) };
+    var z = new Vec3(0, 0, 1); var x = new Vec3(1, 0, 0);
+    var j1 = Joint("j1", JointType.Revolute, "base", "crank", Vec3.Zero, Vec3.Zero, z, x); var j2 = Joint("j2", JointType.Revolute, "crank", "rod", new Vec3(80, 0, 0), Vec3.Zero, z, x);
+    var j3 = Joint("j3", JointType.Revolute, "rod", "piston", new Vec3(50, 0, 0), Vec3.Zero, z, x); var j4 = Joint("j4", JointType.Slider, "base", "piston", new Vec3(130, 0, 0), Vec3.Zero, x, new Vec3(0, 1, 0));
+    var d = MotionEngine.DofsOf([j1, j2, j3, j4], []); d[0].Mode = DriveMode.Constant; d[0].Rate = 90;
+    bool stuck = false; try { new MotionEngine(start, new HashSet<string> { "base" }, [j1, j2, j3, j4], [], [], d).Run(new MotionSettings(2.0, 0.1, false, Vec3.Zero)); } catch (InvalidOperationException e) { stuck = e.Message.Contains("cannot close"); }
+    Check(stuck, "a linkage that runs out of reach (a crank longer than its rod cannot turn a full circle) says it cannot close instead of returning a broken pose");
+    var dd = MotionEngine.DofsOf([j1, j2, j3, j4], []); dd[1].Mode = DriveMode.Constant; bool refused = false;
+    try { new MotionEngine(start, new HashSet<string> { "base" }, [j1, j2, j3, j4], [], [], dd); } catch (InvalidOperationException e) { refused = true; }
+    Check(!refused, "driving a joint inside the loop is fine when it is one of the loop's free coordinates");
+}
+
+// ---------------------------------------------------------------- reactions at joints without loops
+{
+    var (pos, idx) = Box(-5, 5, -5, 5, -200, 0); var rodBody = MotionMass.FromMesh("rod", "Rod", pos, idx, 7.85e-6, out _);
+    var start = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["rod"] = Xform.Identity };
+    var hinge = Joint("hinge", JointType.Revolute, "base", "rod", Vec3.Zero, Vec3.Zero, new Vec3(0, 1, 0), new Vec3(1, 0, 0));
+    var dofs = MotionEngine.DofsOf([hinge], []); dofs[0].Start = 60;
+    var held = new MotionEngine(start, new HashSet<string> { "base" }, [hinge], [], [rodBody], dofs).Run(new MotionSettings(0.1, 0.05, true, new Vec3(0, 0, -9.80665)));
+    var f = held.ReactionForce[0][0]; var mm = held.ReactionMoment[0][0];
+    Check(Math.Abs(f.Z - rodBody.Mass * 9.80665) < 1e-9 && Math.Abs(f.X) < 1e-9 && Math.Abs(f.Y) < 1e-9, $"a hinge holding a rod at an angle carries its weight: {f.Z:0.####} N up");
+    Check(Math.Abs(mm.X) < 1e-9 && Math.Abs(mm.Z) < 1e-9 && Math.Abs(mm.Y) < 1e-9, "and no moment, because the motor holds the turning moment (the hinge's free direction is not reported)");
+    var swing = MotionEngine.DofsOf([hinge], []); swing[0].Mode = DriveMode.Free; swing[0].Start = 0; swing[0].Rate = 300;
+    var sw = new MotionEngine(start, new HashSet<string> { "base" }, [hinge], [], [rodBody], swing).Run(new MotionSettings(0.05, 0.01, true, new Vec3(0, 0, -9.80665)));
+    double wr = 300 * Math.PI / 180, dcm = 0.1;
+    Check(Math.Abs(sw.ReactionForce[0][0].Z - rodBody.Mass * (9.80665 + wr * wr * dcm)) < 1e-6, $"a rod swinging through the bottom at 300°/s pulls on its hinge with m·(g + ω²·d) = {sw.ReactionForce[0][0].Z:0.###} N");
+
+    // a cantilever on a rigid joint: the joint carries the weight and the bending moment
+    var other = new MotionBody("arm", "Arm", 0, Vec3.Zero, new double[9]);
+    var (p2, i2) = Box(0, 200, -5, 5, -5, 5); var beam = MotionMass.FromMesh("beam", "Beam", p2, i2, 7.85e-6, out _);
+    var st2 = new Dictionary<string, Xform> { ["base"] = Xform.Identity, ["beam"] = Xform.Identity, ["arm"] = Xform.Identity };
+    var weld = Joint("weld", JointType.Rigid, "base", "beam", Vec3.Zero, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var pivot = Joint("pivot", JointType.Revolute, "base", "arm", new Vec3(0, 100, 0), new Vec3(0, 0, 0), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var c = new MotionEngine(st2, new HashSet<string> { "base" }, [weld, pivot], [], [beam, other], MotionEngine.DofsOf([weld, pivot], [])).Run(new MotionSettings(0.1, 0.05, true, new Vec3(0, 0, -9.80665)));
+    int wi = Array.IndexOf(c.ReactionJoints, "weld"); double W = beam.Mass * 9.80665;
+    Check(Math.Abs(c.ReactionForce[wi][0].Z - W) < 1e-9 && Math.Abs(c.ReactionMoment[wi][0].Y + 0.1 * W) < 1e-9 && Math.Abs(c.ReactionMoment[wi][0].X) < 1e-9, $"a welded cantilever carries its weight ({W:0.###} N) and the moment W·d = {0.1 * W:0.####} N·m");
+}
+
 Console.WriteLine($"{checks} checks passed");

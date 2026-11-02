@@ -14,6 +14,11 @@ public sealed partial class CadSession
     public int MotionSample { get; private set; }
     public bool ShowMotionPaths { get; set; } = true;
 
+    /// <summary>The latest study, kept after its panel closes so its reaction forces can be turned into loads.</summary>
+    public MotionResult? LastMotion { get; private set; }
+    public void RememberMotion(MotionResult? result) => LastMotion = result;
+    public bool ShowReactionArrows { get; set; } = true;
+
     public void ShowMotion(MotionResult? result, int sample = 0)
     {
         Motion = result; MotionSample = sample;
@@ -31,6 +36,7 @@ public sealed partial class CadSession
 
     void BuildMotionOverlay(Overlay o)
     {
+        if (Motion is { } mr && ShowReactionArrows && mr.ReactionJoints.Length > 0) DrawReactions(o, mr);
         if (Motion is not { } m || !ShowMotionPaths) return;
         int colour = 0;
         for (int b = 0; b < m.Bodies.Length; b++)
@@ -43,6 +49,29 @@ public sealed partial class CadSession
             o.AddPolyline(path, c, 1.8f);
             o.AddDot(path[Math.Clamp(MotionSample, 0, path.Length - 1)], 0xFFFFFFFF, 7);
             o.AddLabel(path[^1], m.Bodies[b].Name, true, 0);
+        }
+    }
+
+    /// <summary>Arrows at each joint for the force it holds at the time shown. The longest is a fraction of the assembly's size; labels give the force in newtons.</summary>
+    void DrawReactions(Overlay o, MotionResult m)
+    {
+        int i = Math.Clamp(MotionSample, 0, m.Samples - 1);
+        var comps = Components.ToDictionary(c => c.Component!.Key, c => c.Component!.Placement);
+        var values = m.PoseAt(i);
+        var joints = JointObjects.Select(j => values.TryGetValue(j.joint.Key, out var v) ? j.joint with { Value = v.v1, Value2 = v.v2 } : j.joint).ToList();
+        var grounded = Components.Where(c => c.Component!.Grounded).Select(c => c.Component!.Key).ToHashSet();
+        var pose = AssemblyKinematics.Solve(comps, grounded, joints, Couplings, []);
+        double size = 0; foreach (var c in Components) { var mesh = c.Mesh; size = Math.Max(size, (mesh.Max - mesh.Min).Length); }
+        double peak = 0; for (int j = 0; j < m.ReactionJoints.Length; j++) foreach (var f in m.ReactionForce[j]) peak = Math.Max(peak, f.Length);
+        if (peak < 1e-12) return;
+        for (int j = 0; j < m.ReactionJoints.Length; j++)
+        {
+            var jo = joints.FirstOrDefault(x => x.Name == m.ReactionJoints[j]); if (jo == null || !pose.TryGetValue(jo.ParentKey, out var parent)) continue;
+            var f = m.ReactionForce[j][i]; if (f.Length < peak * 0.02) continue;
+            var at = (parent * jo.A).T; var tip = at + f / peak * (size * 0.35);
+            o.AddLine(at, tip, 0xFFFF6B6F, 2.6f); var d = (tip - at).Normalized(); var side = Xform.AnyPerpendicular(d) * size * 0.02;
+            o.AddLine(tip, tip - d * size * 0.05 + side, 0xFFFF6B6F, 2.6f); o.AddLine(tip, tip - d * size * 0.05 - side, 0xFFFF6B6F, 2.6f);
+            o.AddLabel(tip, $"{f.Length:G3} N", true, 1);
         }
     }
 
