@@ -1581,6 +1581,7 @@ public sealed partial class CadSession : ObservableObject
             }
         }
         Sketch?.BuildOverlay(this, o);
+        DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
         ActiveTool?.BuildOverlay(this, o);
@@ -1784,19 +1785,37 @@ public sealed partial class CadSession : ObservableObject
 
     public void ExportStl(string path) => ExportMesh(path);
 
-    /// <summary>Import a mesh file (STL, OBJ, PLY, 3MF) as a mesh object.</summary>
-    public SceneObject ImportMesh(string path)
+    /// <summary>Import a mesh file (STL, OBJ, PLY, 3MF) as a mesh object. Returns the first object when the file is split into several bodies (all of them are selected).</summary>
+    public SceneObject ImportMesh(string path, Meshing.MeshImportOptions? options = null) => ImportMeshAll(path, options)[0];
+
+    /// <summary>Synchronous import of every body in the file.</summary>
+    public List<SceneObject> ImportMeshAll(string path, Meshing.MeshImportOptions? options = null) => AddImportedMesh(Meshing.MeshImporter.Import(path, options), path);
+
+    /// <summary>Read and process on a background thread (progress and cancellation supported); the bodies are added on the calling thread.</summary>
+    public async System.Threading.Tasks.Task<List<SceneObject>> ImportMeshAsync(string path, Meshing.MeshImportOptions? options = null, IProgress<Meshing.ImportProgress>? progress = null, System.Threading.CancellationToken ct = default)
+        => AddImportedMesh(await Meshing.MeshImporter.ImportAsync(path, options, progress, ct), path);
+
+    /// <summary>Add the bodies of a finished mesh import as one history step.</summary>
+    public List<SceneObject> AddImportedMesh(Meshing.MeshImportResult r, string path)
     {
-        var m = Meshing.MeshIO.Load(path);
-        if (m.TriCount == 0) throw new InvalidDataException("That file contains no triangles.");
+        if (r.Parts.Count == 0) throw new InvalidDataException("That file contains no triangles.");
         Checkpoint("Import mesh", "mesh-import");
-        var o = new SceneObject(Guid.NewGuid(), NextName(Path.GetFileNameWithoutExtension(path) is { Length: > 0 } n ? n : "Mesh"), null, ObjKind.Mesh, 0xFFC8D0DA, true, null, null, null, null, m);
-        Objects = Objects.Add(o);
-        _selection.Clear(); _selection.Add(SelItem.Of(o));
+        var created = new List<SceneObject>();
+        foreach (var part in r.Parts)
+        {
+            string baseName = r.Parts.Count == 1 ? (Path.GetFileNameWithoutExtension(path) is { Length: > 0 } n ? n : "Mesh") : part.Name;
+            var o = new SceneObject(Guid.NewGuid(), NextName(baseName), null, ObjKind.Mesh, part.Color ?? 0xFFC8D0DA, true, null, null, null, null, part.Mesh);
+            Objects = Objects.Add(o); created.Add(o);
+        }
+        _selection.Clear(); foreach (var o in created) _selection.Add(SelItem.Of(o));
         RaiseScene(); SelectionChanged?.Invoke(); ZoomExtents();
-        var r = Meshing.MeshAnalysis.Report(m);
-        Say($"Imported {m.TriCount:#,0} triangles from {Path.GetFileName(path)}" + (r.Printable ? "" : " - the mesh has problems; try Mesh > Repair."));
-        return o;
+        int tris = r.TriCount;
+        var rep = Meshing.MeshAnalysis.Report(r.Parts.Count == 1 ? r.Parts[0].Mesh : Meshing.TriMesh.Merge(r.Parts.Select(p => p.Mesh)));
+        string msg = $"Imported {tris:#,0} triangles" + (created.Count > 1 ? $" in {created.Count} bodies" : "") + $" from {Path.GetFileName(path)}";
+        if (r.SizeWarning != null) msg += ". " + r.SizeWarning;
+        else if (!rep.Printable) msg += " - the mesh has problems; try Mesh > Repair.";
+        Say(msg);
+        return created;
     }
 
     // ------------------------------------------------------------ analysis display state
@@ -1866,8 +1885,14 @@ public sealed partial class CadSession : ObservableObject
     }
     public void ClearField(Guid id) { if (Fields.Remove(id)) Invalidate(); }
 
+    /// <summary>Persistent mesh defect highlights (Mesh Quality); stays after the command closes until cleared.</summary>
+    public Action<Overlay>? DefectOverlay { get; private set; }
+    public void SetDefects(Action<Overlay>? draw) { DefectOverlay = draw; Invalidate(); }
+    public void ClearDefects() => SetDefects(null);
+
     public void ClearAnalysis()
     {
+        DefectOverlay = null;
         foreach (var k in Fields.Where(f => !f.Value.IsSelection).Select(f => f.Key).ToList()) Fields.Remove(k);
         Analysis = AnalysisKind.None; Zebra = false; Clip = null; ShowBounds = false;
         Invalidate(); Say("Analysis display cleared");

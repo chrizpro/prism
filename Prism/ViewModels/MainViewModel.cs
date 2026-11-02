@@ -234,9 +234,30 @@ public sealed partial class MainViewModel : ViewModelBase
     public async void ImportMesh()
     {
         if (PickOpenFile == null) return;
-        var path = await PickOpenFile("Import mesh", Meshing.MeshIO.ReadPatterns);
-        if (path != null) Guard(() => Session.ImportMesh(path));
+        var path = await PickOpenFile("Import mesh or point cloud", [.. Meshing.MeshIO.ReadPatterns, "*.xyz", "*.pts", "*.xyzn", "*.csv"]);
+        if (path == null) return;
+        try { if (await Commands.PointCloudCommands.TryBeginAsync(Session, path)) return; } catch (Exception e) { Session.Say(e.Message, true); return; }
+        StartMeshImport(path);
     }
+
+    /// <summary>Pick a scan (XYZ, PTS, CSV or point-only PLY) and open Reconstruct Surface on it.</summary>
+    public async void ImportPointCloud()
+    {
+        if (PickOpenFile == null) return;
+        var path = await PickOpenFile("Import point cloud", Commands.PointCloudCommands.ImportPatterns);
+        if (path == null) return;
+        try { if (!await Commands.PointCloudCommands.TryBeginAsync(Session, path)) Session.Say("That PLY file has faces; use Import Mesh.", true); }
+        catch (Exception e) { Session.Say(e.Message, true); }
+    }
+
+    /// <summary>Reconstruct a surface from the last imported cloud, asking for a file when there is none.</summary>
+    public void ReconstructSurface()
+    {
+        if (Commands.PointCloudStore.Current == null) ImportPointCloud(); else Session.StartCommand(() => new Commands.ReconstructSurfaceCommand());
+    }
+
+    /// <summary>Open the import options step for a mesh file (or import straight away with the remembered options when the user turned the step off).</summary>
+    void StartMeshImport(string path) => Guard(() => Session.StartCommand(new ImportMeshCommand(path, !Commands.MeshImportPrefs.Load().Ask)));
 
     /// <summary>One Import button for every supported format (STEP, IGES, BREP, DXF, STL, OBJ, PLY, 3MF).</summary>
     public async void ImportFile()
@@ -252,6 +273,7 @@ public sealed partial class MainViewModel : ViewModelBase
     /// </summary>
     async Task ImportPath(string path)
     {
+        if (Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj" or ".ply" or ".3mf") { StartMeshImport(path); return; }
         if (Path.GetExtension(path).ToLowerInvariant() is not (".step" or ".stp" or ".iges" or ".igs" or ".brep")) { Guard(() => Session.ImportFile(path)); return; }
         bool finished = false;
         var progress = new Progress<string>(m => { if (!finished) Session.Say(m); });
@@ -913,16 +935,21 @@ public sealed partial class MainViewModel : ViewModelBase
             [
                 G("Get a mesh",
                     Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
-                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes.")),
+                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes."),
+                    Btn("Import Point\nCloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY) and turn it into a mesh.", RibbonSize.Large, () => !IsSketching),
+                    Btn("Reconstruct\nSurface", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim.", RibbonSize.Large, () => !IsSketching)),
                 G("Repair",
                     Cmd("Repair", "mesh-repair", () => new MeshRepairCommand(), "Merge vertices, remove junk, fix normals and fill holes."),
                     Cmd("Fill\nHoles", "mesh-holes", () => new MeshRepairCommand(true), "Close the open holes in a mesh."),
-                    Cmd("Print\nCheck", "mesh-check", () => new MeshCheckCommand(), "Pre-flight check: watertight, fits your printer, supports, weight.")),
+                    Cmd("Print\nCheck", "mesh-check", () => new MeshCheckCommand(), "Pre-flight check: watertight, fits your printer, supports, weight."),
+                    Cmd("Mesh\nQuality", "mesh-quality", () => new MeshQualityCommand(), "Triangle quality, self-intersections and persistent defect highlights.")),
                 G("Edit",
                     Cmd("Reduce", "mesh-reduce", () => new MeshDecimateCommand(), "Simplify a dense mesh while keeping its shape."),
                     Cmd("Smooth", "mesh-smooth", () => new MeshSmoothCommand(), "Remove scanner noise without shrinking the part."),
                     Cmd("Offset", "mesh-offset", () => new MeshOffsetCommand(), "Grow or shrink the surface (tolerances, clearances)."),
-                    Cmd("Split", "mesh-cut", () => new MeshCutCommand(), "Cut with a plane and cap the halves.")),
+                    Cmd("Split", "mesh-cut", () => new MeshCutCommand(), "Cut with a plane and cap the halves."),
+                    Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Rebuild with even, well-shaped triangles of a chosen size."),
+                    Cmd("Mesh\nBoolean", "mesh-boolean", () => new MeshBooleanCommand(), "Join, subtract or intersect two closed meshes.")),
                 G("Select & trace",
                     Cmd("Select\nRegion", "mesh-select", () => new MeshRegionCommand(), "Pick triangles on a scan: smart patch, brush, rectangle or lasso."),
                     Cmd("Fit Surface\nto Region", "mesh-patch", () => new MeshFitSurfaceCommand(), "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch."),
@@ -933,6 +960,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Reverse engineering",
                     Cmd("Segment\n& Fit", "mesh-fit", () => new MeshSegmentCommand(), "Find planes, cylinders, spheres and cones in a scan and create CAD geometry from them."),
                     Cmd("Section\nCurves", "mesh-section", () => new MeshSectionCommand(), "Slice the mesh into curves to rebuild with extrude, loft or sweep."),
+                    Cmd("Rebuild\nfrom Scan", "mesh-fit", () => new MeshRebuildCommand(), "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan."),
+                    Cmd("Section Lines\n& Arcs", "mesh-section", () => new MeshSectionFitCommand(), "Slice the scan and fit clean lines and arcs to each outline."),
                     Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Drop on the bed, lay a face flat, or best-fit onto a CAD body."),
                     Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare a scan with its CAD model and show the error as colors."),
                     Cmd("Mesh to\nSolid", "mesh-solid", () => new MeshToSolidCommand(), "Convert a mesh into a CAD body (one face per triangle).")),
@@ -1127,12 +1156,19 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Preparation",Cmd("FDM check","print3d",()=>new FdmCheckCommand(),"Check nozzle-based walls, overhangs, bed contact, build fit and filament weight on CAD bodies or meshes."),
                 Cmd("Orient part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Rotate the model for bed contact, supports and layer strength."),
                 Cmd("Split mesh","mesh",()=>new MeshCutCommand(),"Split an imported mesh to fit the build volume.")),
+            G("Mesh preparation",Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
+                Cmd("Mesh\nQuality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                Cmd("Overhang &\nOrientation","mesh-overhang",()=>new MeshOverhangCommand(),"Find what needs supports and the best way to lay the part down."),
+                Cmd("Wall\nThickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness.")),
             G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY and open in your slicer."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
             G("Nozzle review",Cmd("Import nozzle path","gcode",()=>new ImportGcodeCommand(),"Read linear G0/G1 output from an external slicer."),Cmd("Playback","animation",()=>new CamPlaybackCommand(),"Animate nozzle travel and extrusion paths."),Cmd("Layer view","toolpath",()=>new ToolpathViewCommand(),"Inspect imported print layers."))]};
         var resin = new RibbonTab {Title="3D Resin",Groups=[
             G("Resin preparation",Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
                 Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck."),
                 Cmd("Drain / vent hole","pcb-hole",()=>new HoleCommand(),"Cut a plain drainage or vent hole through a selected face or exact body.")),
+            G("Mesh preparation",Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
+                Cmd("Mesh\nQuality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                Cmd("Wall\nThickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness.")),
             G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
                 Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
