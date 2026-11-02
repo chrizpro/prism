@@ -76,6 +76,9 @@ public static partial class ToolHelp
         "cae-fluid" => Topic(icon, "Pipe Flow", "Estimate pressure drop and Reynolds number in a round pipe.", "Start: a pipe", "Result: pressure falling along the pipe",
             "1. Enter the pipe size, length and fluid.\n2. Set the flow rate.\n3. Read the pressure drop and Reynolds number.",
             "A quick hand calculation, not 3D CFD. It does not model bends, valves or changes in size."),
+        "cae-fatigue" => Topic(icon, "Fatigue", "Estimate how many load cycles a part survives, and where it would crack first.", "Start: the solved static stress", "Result: colored by fatigue safety margin",
+            "1. Run a static study with a material assigned.\n2. Choose Fatigue and set the load ratio (−1 for fully reversed) and the required life.\n3. Read the shortest life and safety factor, then choose Show on model.",
+            "An estimate from the material's ultimate strength, not test data. The static load is treated as the peak of a repeating cycle. Stress peaks at supports and point loads depend on the mesh."),
         _ => null
     };
 
@@ -114,7 +117,7 @@ public static partial class ToolHelp
                 var after = Colorize(Deform(Beam(12), p => p + new Vec3(0, 0, -6 * Math.Pow((p.X + 20) / 40, 2))), (p, n) => p.X);
                 return new(Src(Beam(12), topic.BeforeLabel, null, [3], Green), Src(after, topic.AfterLabel));
             }
-            case "sim-safety":
+            case "sim-safety" or "cae-fatigue":
             {
                 var before = Colorize(Beam(), (p, n) => 1 - (p.X + 20) / 40);
                 var after = Colorize(Beam(), (p, n) => Math.Pow(1 - (p.X + 20) / 40, 4));

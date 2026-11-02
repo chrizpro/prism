@@ -1,5 +1,5 @@
 {
-  "sourceHash": "B2E6DA317CEEF677178DE912CA062D6F9E67D1D00680712C038DB91FB06BFBC5",
+  "sourceHash": "37955D320567DAB387C0484B228E4C0251DCF2E543452CED4DC1A3E8C82381B1",
   "workspaces": [
     {
       "Id": "design",
@@ -3956,6 +3956,12 @@
               "id": "sim-safety|Factor of Safety",
               "label": "Factor of Safety",
               "description": "Yield strength divided by stress: below 1 means yielding.",
+              "shortcut": ""
+            },
+            {
+              "id": "cae-fatigue|Fatigue",
+              "label": "Fatigue",
+              "description": "Fatigue life and safety factor of the solved study under repeated loading (stress-life).",
               "shortcut": ""
             },
             {

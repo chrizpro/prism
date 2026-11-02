@@ -458,7 +458,7 @@ public sealed partial class AutomationApi
         ["cam_select_setup"] = () => new SelectCamSetupCommand(), ["cam_operation_order"] = () => new CamProgramOrderCommand(), ["resin_export"] = () => new PrintExportCommand(true), ["print_export"] = () => new PrintExportCommand(),
         ["cam_tool_library"] = () => new CamToolLibraryCommand(),
         ["cnc_rough"] = () => new Rough3DCommand(),
-        ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(),
+        ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(), ["cae_fatigue"] = () => new FatigueCommand(),
         ["pcb_board"] = () => new PcbBoardCommand(), ["pcb_from_outline"] = () => new PcbOutlineCommand(), ["component_envelope"] = () => new ComponentEnvelopeCommand(), ["pcb_hole"] = () => new PcbHoleCommand(),
         ["match_surface"] = () => new MatchSurfaceCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
         ["pattern_linear"] = () => new LinearPatternCommand(), ["pattern_circular"] = () => new CircularPatternCommand(), ["pattern_curve"] = () => new CurvePatternCommand(),

@@ -67,8 +67,11 @@ public sealed class ResultView
     /// <summary>Scale that shows the biggest movement as about 5% of the model size (never below 1x, i.e. never shrinking the truth).</summary>
     public static double AutoScale(StudyResults r, double modelSize) => r.MaxDisplacement <= 1e-12 ? 1 : Math.Clamp(0.05 * modelSize / r.MaxDisplacement, 1, 5000);
 
-    public static ResultView Build(StudyResults r, Guid body, ResultKind kind, double scale, double modelSize)
+    /// <param name="field">For <see cref="ResultKind.Scalar"/>: one value per FEM node, painted over the range lo..hi (lo may exceed hi to put high values at the cold end).</param>
+    public static ResultView Build(StudyResults r, Guid body, ResultKind kind, double scale, double modelSize,
+        double[]? field = null, string fieldTitle = "", string fieldUnit = "", double lo = 0, double hi = 1)
     {
+        if(kind==ResultKind.Scalar && (field==null||field.Length<r.Mesh.NodeCount))throw new ArgumentException("A scalar result needs one value per node.",nameof(field));
         if(kind==ResultKind.SafetyFactor && !double.IsFinite(r.Yield))throw new InvalidOperationException("A yield-based factor of safety is unavailable for this material.");
         var m = r.Mesh; var sol = r.Solution;
         var map = new Dictionary<int, int>(); var nodes = new List<int>();
@@ -99,6 +102,7 @@ public sealed class ResultView
                 ResultKind.Displacement => (float)u.Length,
                 ResultKind.DisplacementX => (float)u.X, ResultKind.DisplacementY => (float)u.Y, ResultKind.DisplacementZ => (float)u.Z,
                 ResultKind.SafetyFactor => (float)r.SafetyFactor[node],
+                ResultKind.Scalar => (float)field![node],
                 _ => 0f,
             };
         }
@@ -144,6 +148,7 @@ public sealed class ResultView
             case ResultKind.DisplacementX: case ResultKind.DisplacementY: case ResultKind.DisplacementZ:
                 mn = val.Min(); mx = val.Max(); if (mx - mn < 1e-12) mx = mn + 1e-6f; title = "Displacement " + kind.ToString()[^1]; unit = "mm"; break;
             case ResultKind.SafetyFactor: mx = (float)Math.Min(r.MinSafety, 5); mn = 5; title = "Factor of safety"; unit = ""; if (r.MinSafety >= 5) mx = 4.99f; break;
+            case ResultKind.Scalar: title = fieldTitle; unit = fieldUnit; mn = (float)lo; mx = (float)hi; if (Math.Abs(mx - mn) < 1e-9) mx = mn + 1e-6f; break;
             default: title = "Mesh"; break;
         }
         return new ResultView { Mesh = d, BodySnapshot=r.SourceBody, BodyId = body, Kind = kind, Min = mn, Max = mx, Title = title, Unit = unit, Scale = scale, Source = r, NodeOfVertex = [.. nodes], Values = val, Positions = pos };

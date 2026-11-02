@@ -921,6 +921,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Btn("von Mises\nStress", "sim-stress", () => SetResultKind(ResultKind.VonMises), "Color by equivalent stress.", RibbonSize.Large, () => HasResult),
                     Btn("Displace-\nment", "sim-displacement", () => SetResultKind(ResultKind.Displacement), "Color by how far each point moves.", RibbonSize.Large, () => HasResult),
                     Btn("Factor of\nSafety", "sim-safety", () => SetResultKind(ResultKind.SafetyFactor), "Yield strength divided by stress: below 1 means yielding.", RibbonSize.Large, () => HasResult),
+                    Btn("Fatigue", "cae-fatigue", () => Session.StartCommand(new FatigueCommand()), "Fatigue life and safety factor of the solved study under repeated loading (stress-life).", RibbonSize.Large, () => HasResult),
                     Btn("Probe", "sim-probe", () => Session.StartCommand(new ProbeCommand()), "Click the result to read values.", RibbonSize.Large, () => HasResult),
                     Btn("Clear\nResults", "clear-analysis", ClearResults, "Show the normal model again.", RibbonSize.Large, () => Session.Result != null)),
             ],
