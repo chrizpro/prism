@@ -44,7 +44,7 @@ No requirement IDs have been allocated or approved.
 
 ## Traceability and history
 
-- **Feature story:** Pending link.
+- **Feature story:** [Story #7 — Surface Extrude review](https://github.com/chrizpro/prism/issues/7).
 - **Implementation:** [`Prism/Commands/SolidCommands.cs`](../../../Prism/Commands/SolidCommands.cs), `ExtrudeCommand(surface: true)`.
 - **Tests:** Relevant existing test coverage not established. No tests authored or run.
 - **Delivery:** Future completed stories must link the pinned approved spec commit/tag; future changes get new issues.
