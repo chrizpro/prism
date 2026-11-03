@@ -22,9 +22,9 @@ Describe the normal user path in plain language. Link shared behavior to its can
 
 Only write concrete acceptance criteria after the owner has reviewed intended behavior. Until then, mark rows proposed, never infer approval from existing implementation.
 
-| ID (optional) | Proposed or approved behavior | Review state | Related issue |
-| --- | --- | --- | --- |
-| — | [Describe the user-visible behavior] | Proposed — awaiting owner review | — |
+| ID (optional) | Proposed or approved behavior | Review state |
+| --- | --- | --- |
+| — | [Describe the user-visible behavior] | Proposed — awaiting owner review |
 
 ### Decisions needed
 
@@ -41,6 +41,13 @@ Do not create a test just to fill the table; do not state a historical result as
 ## Known limitations
 
 Describe current gaps accurately. Link actionable work to GitHub Issues as they are created.
+
+## Related stories and change history
+
+- **Feature story:** [Issue #...]; link the current spec for navigation.
+- **Delivered versions:** [Story #...] → [commit SHA/tag containing its approved specification]. Don't rewrite closed-story acceptance criteria after future changes.
+- **Later changes / bugs:** [New linked issues, if any]. Keep issue lists at feature level instead of one column per requirement.
+- **Significant rationale:** [Short explanation of semantic change; rely on Git history for exact diffs].
 
 ## Related resources
 
