@@ -8,6 +8,7 @@ Use [the requirements and testing workflow](../engineering/requirements-and-test
 
 | Area | Guide | Coverage |
 | --- | --- | --- |
+| Solid modeling | [Solid Extrude (review draft)](solid/extrude.md) | First detailed feature specification; proposed requirements pending owner review |
 | Direct modeling | [Direct Modeling](direct-modeling/README.md) | Editing existing exact geometry, gizmos and history |
 | Surfaces and styling | [Surface and NURBS](surface-and-nurbs/README.md) | Curves, surfaces, NURBS and continuity |
 | Sheet metal, electronics and scripting | [Sheet Metal, ECAD and Script](script/README.md) | Separate workflows grouped in one guide |
