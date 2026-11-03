@@ -40,3 +40,7 @@ The panel keeps what the ribbon has no room for, and only shows what fits the se
 - **Scan tools**, when the document has a scan
 
 Invert and Select All come from **Invert** in the Select section, and undo is Ctrl+Z.
+
+## Feature requirement reviews
+
+- [Extrude Profile](extrude.md) — draft owner-review specification, linked to [Story #8](https://github.com/chrizpro/prism/issues/8). Distinct from **Modify → Extrude** on a selected cage; that operation needs a separate behavior review.

@@ -51,3 +51,7 @@ The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface
 - Drag every merged tool in the running app; these results come from headless tests.
 - Compare Warp with the old Deform on NURBS surfaces. Deform moved control points directly, and Warp's result has not been compared.
 - A second rail steers rotation only. It does not stretch the profile to reach the rail.
+
+## Feature requirement reviews
+
+- [Surface Extrude](extrude.md) — draft owner-review specification, linked to [Story #7](https://github.com/chrizpro/prism/issues/7). This is not a claim of approved behavior or passing tests.
