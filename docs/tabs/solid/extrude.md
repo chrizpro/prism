@@ -31,8 +31,8 @@ Source: [`Prism/Commands/SolidCommands.cs`](../../../Prism/Commands/SolidCommand
 
 ### Related feature variants
 
-- [Surface and NURBS tab](../surface-and-nurbs/README.md): exposes Extrude and uses the same command class with surface output; should have its own approved scope.
-- [Freeform tab](../freeform/README.md): cage-based extrusion uses a different command; no Solid behavior should be assumed for it.
+- [Surface Extrude draft](../surface-and-nurbs/extrude.md) ([Story #7](https://github.com/chrizpro/prism/issues/7)): exposes Extrude and uses the same command class with surface output; should have its own approved scope.
+- [Freeform Extrude Profile draft](../freeform/extrude.md) ([Story #8](https://github.com/chrizpro/prism/issues/8)): cage-based extrusion uses a different command; no Solid behavior should be assumed for it.
 - [Sheet Metal / ECAD / Script](../script/README.md): Sheet Metal includes an Extrude cut-out entry; confirm whether it uses Solid semantics before sharing any requirements.
 
 ## Proposed acceptance criteria — **not approved**
