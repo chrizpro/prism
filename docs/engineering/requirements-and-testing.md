@@ -65,6 +65,12 @@ Prism uses .NET 10, Avalonia, native Open CASCADE and additional native/CAE depe
 
 On an environment without those dependencies, review source, Markdown, references and lightweight static checks; explicitly report unexecuted native tests. Never fabricate test results.
 
+## First feature-review pilot
+
+- [Solid Extrude draft](../tabs/solid/extrude.md) and [review story #6](https://github.com/chrizpro/prism/issues/6) demonstrate the living-specification approach.
+- The draft is **not approved**, no requirement IDs have been assigned, and no new tests should be written solely from its proposals.
+- Solid, Surface and Freeform extrusion are distinct feature behaviors even where the same command name appears.
+
 ## Agent handoff
 
 All coding agents should read this file and the relevant existing docs before changing behavior. Agent-specific entry points are `AGENTS.md` (Codex and general agents), `CLAUDE.md` (Claude), and `DEVIN.md` (SWE-2 / Devin Desktop). Keep substantive policy here to prevent agent instructions from drifting.
