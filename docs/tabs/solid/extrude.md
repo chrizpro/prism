@@ -70,7 +70,7 @@ Review these before requesting desktop agents to implement or add tests.
 - **Existing user documentation:** [modeling guide](../../../site/guide/modeling.md) documents profile selection and the distinction between open surface chains and closed solid profiles.
 - **Existing tests:** Not verified for this specific feature. Do not infer that a particular test project covers the requirements above.
 - **Tests run for this draft:** None. Native OCCT integration and Avalonia workflow checks require the configured workstation.
-- **Feature story:** To be linked once created.
+- **Feature story:** [Story #6 — Solid Extrude requirements review](https://github.com/chrizpro/prism/issues/6). This tracks owner review; it does not certify implementation or testing.
 - **Delivery history:** No approved delivery version recorded by this draft. Future closed stories should link the exact reviewed specification commit or release tag as well as this living page.
 
 ## Known documentation limits
