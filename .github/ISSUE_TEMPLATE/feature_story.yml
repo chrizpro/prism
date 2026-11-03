@@ -1,0 +1,54 @@
+name: Feature story
+description: Track a defined Prism feature and its documentation, implementation, and verification
+title: "[Story] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A story tracks a specific body of work or feature review. The linked Markdown is the living specification; completed stories retain historical scope. Do not use this form as proof that requirements are approved.
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose and scope
+      description: Which feature or coherent change does this story represent? Distinguish Solid, Surface and Freeform variants when their behavior differs.
+    validations:
+      required: true
+  - type: input
+    id: specification
+    attributes:
+      label: Current or proposed specification
+      description: Link the canonical Markdown feature guide (branch-specific link is okay for a review draft).
+      placeholder: docs/tabs/... or a GitHub URL
+    validations:
+      required: true
+  - type: dropdown
+    id: requirements
+    attributes:
+      label: Requirements review state
+      options:
+        - Proposed — awaiting owner review
+        - Needs decision
+        - Approved — link to recorded owner decision
+        - No behavior change
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Existing implementation and tests
+      description: Link verified file paths only. State "not identified" when unknown. Do not invent test coverage.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Story completion criteria
+      description: Track review/delivery tasks, not a duplicate copy of every Markdown requirement.
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Delivered specification version (fill when completed)
+      description: Link the exact merged commit SHA or release tag that captures the approved specification. Also link the PR. Keep this historical reference stable.
+  - type: textarea
+    id: related
+    attributes:
+      label: Related bugs, changes and follow-up stories
+      description: Link existing issues as needed. New changes after closure receive new issues rather than rewriting this story's original scope.
