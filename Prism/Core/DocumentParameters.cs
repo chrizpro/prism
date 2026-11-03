@@ -15,7 +15,7 @@ public static class ParameterValues
     public static Dictionary<string, double> Evaluate(IEnumerable<DocumentParameter> definitions)
     {
         var source = new Dictionary<string, DocumentParameter>(StringComparer.OrdinalIgnoreCase);
-        string[] reserved = ["t", "pi", "e", "tau", "mm", "cm", "inch", "deg"];
+        string[] reserved = ["t", "pi", "e", "tau", "mm", "cm", "inch", "deg", "doc"];   // doc. is how a sketch dimension names a document parameter explicitly
         foreach (var p in definitions)
         {
             if (!Regex.IsMatch(p.Name, "^[a-zA-Z][a-zA-Z0-9_]*$") || reserved.Contains(p.Name.ToLowerInvariant()))
@@ -72,43 +72,67 @@ public sealed partial class CadSession
         return ParameterValues.EvaluateFormula(formula, name => values.TryGetValue(name, out var v) ? v : throw new FormatException($"Unknown parameter '{name}'."));
     }
 
-    public bool ApplyDocumentParameters(IEnumerable<DocumentParameter> definitions)
+    /// <summary>
+    /// Apply new parameter definitions, and optionally renamed or re-formula'd sketch dimensions, then rebuild everything they drive:
+    /// features bound to parameters and sketches whose dimension formulas use them, followed by the steps built on those. All checks run
+    /// before anything changes, so a bad formula, an out-of-range value or an unsolvable sketch leaves the document as it was.
+    /// </summary>
+    public bool ApplyDocumentParameters(IEnumerable<DocumentParameter> definitions, IEnumerable<Sketching.SketchDimEdit>? sketchEdits = null)
     {
         if (Sketch != null || ActiveCommand != null) { Say("Finish the active operation before applying document parameters.", true); return false; }
         var proposed = definitions.ToImmutableList();
+        var edits = sketchEdits?.ToList();
         try
         {
             var values = ParameterValues.Evaluate(proposed);
             double Eval(string formula) => ParameterValues.EvaluateFormula(formula, name => values.TryGetValue(name, out var v) ? v : throw new FormatException($"Unknown parameter '{name}'."));
             var path = HistoryPath().Past;
             HistoryNode? first = null;
-            foreach (var node in path.Where(n => n.Recipe?.Expressions?.Count > 0))
+            var seenSketches = new Dictionary<Guid, SketchEntry>();
+            foreach (var node in path)
             {
-                var recipe = node.Recipe!; var command = recipe.Make();
-                foreach (var (index, formula) in recipe.Expressions!)
+                bool moved = false;
+                if (node.Recipe?.Expressions?.Count > 0)
                 {
-                    double value = Eval(formula);
-                    if (index >= command.Params.Count || command.Params[index] is not NumberParam number || value < number.Min || value > number.Max)
-                        throw new FormatException($"{node.Label}: '{formula}' is outside the allowed range.");
-                    if (recipe.Values[index] is double old && Math.Abs(value - old) > 1e-10) first ??= node;
+                    var recipe = node.Recipe; var command = recipe.Make();
+                    foreach (var (index, formula) in recipe.Expressions!)
+                    {
+                        double value = Eval(formula);
+                        if (index >= command.Params.Count || command.Params[index] is not NumberParam number || value < number.Min || value > number.Max)
+                            throw new FormatException($"{node.Label}: '{formula}' is outside the allowed range.");
+                        if (recipe.Values[index] is double old && Math.Abs(value - old) > 1e-10) moved = true;
+                    }
                 }
+                if (SketchesMoved(node, values, edits, seenSketches)) moved = true;
+                if (moved) first ??= node;
             }
-            if (DocumentParameters.SequenceEqual(proposed)) return true;
+            if (DocumentParameters.SequenceEqual(proposed) && first == null) return true;
             var back = Current;
             if (first != null) GoTo(first.Parent!);
             DocumentParameters = proposed;
             Checkpoint("Document parameters", "feature-edit"); RaiseScene();
-            if (first != null)
+            _sketchEdits = edits;
+            try
             {
-                var recipe = first.Recipe!; var command = recipe.Make(); command.Factory = recipe.Make;
-                command.EditMode = true; command.EditingNode = first; command.ReturnNode = back; command.RebuildEnd = back;
-                StartCommand(command); command.Restore(recipe); CommitCommand();
-                if (ActiveCommand != null)
+                if (first?.Recipe != null)
                 {
-                    string why = Status; CancelCommand(); Say(why, true); return false;
+                    var recipe = first.Recipe; var command = recipe.Make(); command.Factory = recipe.Make;
+                    command.EditMode = true; command.EditingNode = first; command.ReturnNode = back; command.RebuildEnd = back;
+                    StartCommand(command); command.Restore(recipe); CommitCommand();
+                    if (ActiveCommand != null)
+                    {
+                        string why = Status; CancelCommand(); Say(why, true); return false;
+                    }
+                    return !StatusIsError;
                 }
-                return !StatusIsError;
+                if (first != null)
+                {
+                    // the first thing to change is a sketch: run it and everything after it again with the new values
+                    ReplayAfterEdit(first.Parent!, "Document parameters", back);
+                    return !StatusIsError;
+                }
             }
+            finally { _sketchEdits = null; }
             Say("Document parameters updated."); return true;
         }
         catch (Exception e) when (e is FormatException or ArgumentException)

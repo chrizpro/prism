@@ -54,6 +54,10 @@ public sealed class SkConstraint
     public double? LabelU { get; set; }
     public double? LabelV { get; set; }
     public bool IsDimension { get; set; }
+    /// <summary>Optional name of a dimension, unique within its sketch (case-insensitive). Other dimensions and other sketches refer to it as <c>name</c> or <c>sketch1.name</c>.</summary>
+    public string? Name { get; set; }
+    /// <summary>Optional expression that drives <see cref="Value"/>: numbers, units, named dimensions of this sketch, document parameters (<c>wall</c> or <c>doc.wall</c>) and dimensions of earlier sketches (<c>sketch1.width</c>).</summary>
+    public string? Formula { get; set; }
     public bool Hidden { get; set; }
     /// <summary>Switched off by the user for troubleshooting: the solver ignores it, but it stays in the sketch and can be switched back on.</summary>
     public bool Disabled { get; set; }
@@ -96,7 +100,7 @@ public sealed class SketchModel
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });
-        foreach (var c in Constraints) m.Constraints.Add(new SkConstraint { Id = c.Id, Type = c.Type, Refs = (int[])c.Refs.Clone(), Value = c.Value, V2 = c.V2, IsDimension = c.IsDimension, Hidden = c.Hidden, Disabled = c.Disabled, LabelU=c.LabelU,LabelV=c.LabelV });
+        foreach (var c in Constraints) m.Constraints.Add(new SkConstraint { Id = c.Id, Type = c.Type, Refs = (int[])c.Refs.Clone(), Value = c.Value, V2 = c.V2, IsDimension = c.IsDimension, Name = c.Name, Formula = c.Formula, Hidden = c.Hidden, Disabled = c.Disabled, LabelU=c.LabelU,LabelV=c.LabelV });
         return m;
     }
 
