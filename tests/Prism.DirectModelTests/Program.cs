@@ -8,6 +8,11 @@ using Prism.Kernel;
 
 AppBuilder.Configure<Application>().UseHeadless(new AvaloniaHeadlessPlatformOptions()).SetupWithoutStarting();
 NativeSearch.Initialize();
+if (args.Contains("--extrude-evidence"))
+{
+    Environment.ExitCode = ExtrudeEvidence.Run();
+    return;
+}
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); Console.WriteLine("PASS " + message); }
 double[] identity = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
