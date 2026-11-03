@@ -6,7 +6,7 @@ This is the shared working agreement for humans and coding agents. It describes 
 
 - `README.md`: project setup and orientation.
 - `docs/`: human-readable feature behavior, design notes, known limitations and verification guidance. Prefer extending existing pages (for example `docs/tabs/`, `docs/cae-studies/`, and `docs/gizmo-workflows/`) instead of creating duplicate documents.
-- GitHub Issues: actionable changes, bugs, questions and decisions, with links to relevant documentation.
+- GitHub Issues: time-bounded stories, bugs, changes, questions and decisions, with links to canonical feature documentation. A closed issue documents what was delivered at that time; it is not the living specification.
 - Code and executable checks under `tests/`: what is actually implemented and verified; tests do not define product intent.
 - Pull requests: reviewable changes linking the relevant issue(s), documentation and verification.
 
@@ -30,6 +30,18 @@ Do not invent requirements from an implementation, a test name, or an AI suggest
 
 For important, independently checkable rules use a stable ID such as `SKETCH-001` or `CAE-THERMAL-001`; do not renumber IDs or assign one to every trivial case. Use an ID only after the behavior is sufficiently specified. A future xUnit test could carry multiple `[Trait("Requirement", "SKETCH-001")]` attributes, but **do not assume Prism's existing executable test projects are xUnit**. Test metadata and requirement coverage tooling are future proposals, not installed infrastructure. No automatic traceability is claimed yet.
 
+## Living specifications and immutable delivery history
+
+**The latest owner-approved Markdown on the default branch describes current intended behavior.** The specification can evolve; a closed story should not be rewritten to describe behavior delivered by later stories.
+
+- A feature may have a bookkeeping **feature story** that links its Markdown specification, relevant implementation and real existing test paths. Distinct implementations (for example Solid versus Freeform Extrude) may have distinct stories, even when they share a tool name. No one-issue-per-requirement or one-issue-per-test rule.
+- New requirements, enhancements and corrections get **new stories, change issues or bugs**. Closed issues preserve their original scope and acceptance context; do not edit old acceptance criteria to retroactively match new behavior. If a closed issue contains incorrect administrative information, clarify it with an explicitly dated comment instead.
+- Proposed behavior is reviewed in a **documentation-only PR** first when substantial or ambiguous. After owner approval, a delivery PR updates the living Markdown and authorized code/tests. Do not mark pending requirements as approved merely because a PR exists.
+- A delivery issue should reference a **permanent commit SHA or release tag** that captures its accepted specification, not only a moving `main` link. The issue can additionally link the current spec for convenient navigation; clearly label the two.
+- Git's diff, blame and PR history are the primary audit trail. Add concise **why/decision** notes for meaningful semantic changes; do not duplicate a full changelog in every requirement row. Keep stable IDs when the requirement means the same thing; replace or retire an ID when its meaning fundamentally changes.
+- Bugs found later get new bug issues and link to the relevant feature story or doc; they do not reopen or rewrite the original delivery story by default.
+- GitHub sub-issues may be used where practical, but link relationships must remain understandable even when a particular agent connector cannot manipulate the native hierarchy. Avoid keeping completed stories open solely to behave as permanent feature records.
+
 ## Review gate: requirements before tests
 
 1. Identify the affected docs and existing behavior. Classify changes as bug fix, existing approved behavior, or proposed behavior.
@@ -43,7 +55,7 @@ For important, independently checkable rules use a stable ID such as `SKETCH-001
 
 ## GitHub conventions
 
-Issue bodies should link the canonical doc and relevant tests *when those tests exist*. Do not create a separate issue for every test result. A bug that merits tracking should have reproduction steps, observed and expected behavior, environment and acceptance criteria; record uncertainty rather than guessing. A feature proposal should include alternatives and an explicit owner decision.
+Issue bodies should link the canonical doc and relevant tests *when those tests exist*. A closed delivery issue should also link to the version of the approved spec it actually delivered (commit SHA or release tag). Do not create a separate issue for every test result. A bug that merits tracking should have reproduction steps, observed and expected behavior, environment and acceptance criteria; record uncertainty rather than guessing. A feature proposal should include alternatives and an explicit owner decision.
 
 Keep PRs focused; work on a branch instead of pushing directly to `main`. Use `Fixes #N` only when the PR actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same PR after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
 
