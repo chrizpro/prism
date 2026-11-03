@@ -53,7 +53,7 @@ No requirements have been approved or given stable IDs.
 
 ## Traceability and history
 
-- **Feature story:** Pending link.
+- **Feature story:** [Story #8 — Freeform Extrude Profile review](https://github.com/chrizpro/prism/issues/8).
 - **Implementation:** [`Prism/Commands/FormShapeCommands.cs`](../../../Prism/Commands/FormShapeCommands.cs), `FormExtrudeCommand`; existing [Freeform guide](README.md) describes Modify → Extrude separately.
 - **Tests:** Coverage for these specific behaviors not verified. No tests added or run.
 - **Delivery:** When approved and delivered, closed stories link their pinned specification version; future changes get new stories or bugs.
