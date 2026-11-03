@@ -2,6 +2,8 @@
 
 This is the shared working agreement for humans and coding agents. It describes the process, **not** approved behavior for any Prism feature.
 
+**Current owner override (2026-11-03):** work directly on the repository's default branch, `main`, for now. Feature branches and pull requests are not required until the owner reinstates that workflow. This overrides branch/PR requirements below and in agent-specific instructions. Preserve unrelated local work and continue running relevant checks. The owner has also authorized tests characterizing existing observable behavior; unresolved new product requirements still require review.
+
 ## Sources of truth
 
 - `README.md`: project setup and orientation.
