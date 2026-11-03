@@ -1,0 +1,32 @@
+name: Feature or behavior proposal
+description: Track a feature idea or proposed change pending requirements review
+title: "[Proposal] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or goal
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and alternatives
+      description: Do not treat this as approved requirements.
+    validations:
+      required: true
+  - type: input
+    id: documentation
+    attributes:
+      label: Canonical documentation path
+      placeholder: docs/... or to be drafted
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions needed from owner
+  - type: checkboxes
+    id: approval
+    attributes:
+      label: Requirements review
+      options:
+        - label: The owner has reviewed and approved this behavior (check only after explicit review).

@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible Prism defect
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Observed behavior
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Include model conditions and input values when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Link an approved requirement if one exists; otherwise mark the expectation as proposed.
+    validations:
+      required: true
+  - type: input
+    id: documentation
+    attributes:
+      label: Relevant documentation
+      placeholder: docs/... (or unknown)
+  - type: input
+    id: test
+    attributes:
+      label: Existing test path (if any)
+      placeholder: tests/... (or none)
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and evidence
+      description: OS, build/commit, native dependencies, screenshots, logs; redact sensitive data.
