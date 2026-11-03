@@ -3,8 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Prism.Core.Scripting;
 using Prism.ViewModels;
@@ -21,9 +23,8 @@ public partial class ScriptPanel : UserControl
     public ScriptPanel()
     {
         InitializeComponent();
-        LangBox.ItemsSource = ScriptLanguages.All.Select(l => l.Name).ToList();
-        LangBox.SelectedIndex = 0;
         Editor.TextChanged += (_, _) => OnEditorChanged();
+        ActualThemeVariantChanged += (_, _) => Highlight();
         DataContextChanged += (_, _) => Bind();
     }
 
@@ -41,7 +42,7 @@ public partial class ScriptPanel : UserControl
 
     void OnEditorChanged()
     {
-        UpdateGutter();
+        UpdateGutter(); Highlight();
         if (_loading || _bound == null) return;
         _bound.Text = Editor.Text ?? ""; _bound.Dirty = true; Refresh();
     }
@@ -50,6 +51,29 @@ public partial class ScriptPanel : UserControl
     {
         int lines = (Editor.Text ?? "").Split('\n').Length;
         Gutter.Text = string.Join("\n", Enumerable.Range(1, lines));
+    }
+
+    IBrush Brush(string key) => this.TryFindResource(key, ActualThemeVariant, out var value) && value is IBrush brush ? brush : Brushes.Gray;
+
+    /// <summary>Redraw the colored copy of the text that sits under the editor. A very long file stays plain, so typing never lags.</summary>
+    void Highlight()
+    {
+        var text = Editor.Text ?? "";
+        var plain = Brush("Ink");
+        var inlines = new InlineCollection();
+        void Add(string segment, IBrush brush)
+        {
+            var lines = segment.Replace("\r", "").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (i > 0) inlines.Add(new LineBreak());
+                if (lines[i].Length > 0) inlines.Add(new Run(lines[i]) { Foreground = brush });
+            }
+        }
+        if (text.Length > 200_000) Add(text, plain);
+        else foreach (var span in PythonHighlighter.Tokenize(text))
+            Add(text.Substring(span.Start, span.Length), span.Kind == SyntaxKind.Text ? plain : Brush("Syntax" + span.Kind));
+        Code.Inlines = inlines;
     }
 
     void Refresh()
@@ -84,8 +108,17 @@ public partial class ScriptPanel : UserControl
     void OnClose(object? sender, RoutedEventArgs e) { if (Vm != null) Vm.ShowScriptPanel = false; }
     void OnClear(object? sender, RoutedEventArgs e) { _console.Clear(); Console.Text = ""; }
     void OnNew(object? sender, RoutedEventArgs e) => _bound?.New();
-    void OnVsCode(object? sender, RoutedEventArgs e) => Vm?.OpenScriptInEditor("vscode");
-    void OnPyCharm(object? sender, RoutedEventArgs e) => Vm?.OpenScriptInEditor("pycharm");
+
+    void OnEditInMenu(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control anchor) return;
+        MenuItem Item(string header, Action run) { var item = new MenuItem { Header = header }; item.Click += (_, _) => run(); return item; }
+        new MenuFlyout
+        {
+            Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft,
+            ItemsSource = new object[] { Item("VS Code", () => Vm?.OpenScriptInEditor("vscode")), Item("PyCharm", () => Vm?.OpenScriptInEditor("pycharm")), new Separator(), Item("Scripts folder", () => Vm?.OpenScriptsFolder()) },
+        }.ShowAt(anchor);
+    }
 
     async void OnSave(object? sender, RoutedEventArgs e) => await SaveAsync();
 
@@ -136,7 +169,7 @@ public partial class ScriptPanel : UserControl
         var text = Editor.Text ?? ""; int caret = Editor.CaretIndex;
         if (e.Key == Key.Tab && Editor.SelectionStart == Editor.SelectionEnd)
         {
-            Editor.Text = text.Insert(caret, "    "); Editor.CaretIndex = caret + 4; e.Handled = true; return;
+            Editor.SelectedText = "    "; e.Handled = true; return;   // typed in place, so Undo still works
         }
         if (e.Key == Key.Enter && Editor.SelectionStart == Editor.SelectionEnd)
         {
@@ -144,7 +177,7 @@ public partial class ScriptPanel : UserControl
             int ls = text.LastIndexOf('\n', Math.Max(caret - 1, 0)); ls = caret == 0 ? 0 : ls + 1;
             var line = text[ls..caret]; var indent = new string(line.TakeWhile(c => c == ' ').ToArray());
             if (line.TrimEnd().EndsWith(':')) indent += "    ";
-            Editor.Text = text.Insert(caret, "\n" + indent); Editor.CaretIndex = caret + 1 + indent.Length; e.Handled = true;
+            Editor.SelectedText = "\n" + indent; e.Handled = true;
         }
     }
 }

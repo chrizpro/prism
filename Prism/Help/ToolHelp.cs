@@ -35,8 +35,10 @@ public static partial class ToolHelp
         Commands.ExportStudyCommand => Find("sim-export"),
         Commands.CaeSolveCommand solve => Find(solve.IsThermal ? "cae-thermal" : "cae-modal"),
         Commands.PipeFlowCommand => Find("cae-fluid"),
+        Commands.PipeNetworkCommand => Find("cae-network"),
+        Commands.FlowStudyCommand => Find("cae-flow"),
         Commands.FatigueCommand => Find("cae-fatigue"),
-        Commands.MotionStudyCommand motion => Find(motion.IsRobot ? "motion-robot" : motion.IsDynamic ? "motion-dynamics" : "motion-kinematics"),
+        Commands.MotionStudyCommand => Find("motion-dynamics"),
         Commands.MotionSpringCommand => Find("motion-spring"),
         Commands.MotionLoadCommand => Find("motion-force"),
         Commands.CamSetupCommand => Find("cam-setup"),
@@ -72,6 +74,7 @@ public static partial class ToolHelp
         Commands.InterferenceCommand => Find("interference"),
         Commands.CheckCommand => Find("check-geometry"),
         Commands.CurvatureCommand => Find("curvature"),
+        Commands.CurveCurvatureCommand => Find("curvature"),
         Commands.DraftCommand => Find("draft"),
         Commands.DrawingCommand => Find("drawing"),
         Commands.TransformCommand when command.Title is "Move" or "Rotate" or "Scale" => Find(command.Title.ToLowerInvariant()),
@@ -151,7 +154,7 @@ public static partial class ToolHelp
     public static string? ForButton(string tab, string icon) => icon switch
     {
         // Shared buttons: the same instance appears on several tabs, so these cannot depend on the tab.
-        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" => Find(icon)?.Icon,
+        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" or "sel-rect" or "sel-lasso" or "sel-invert" or "xray" or "zebra" => Find(icon)?.Icon,
         _ => ForTabButton(tab, icon)
     };
 

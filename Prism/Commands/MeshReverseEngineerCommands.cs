@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Prism.Core;
+using Prism.Core.Sketching;
 using Prism.Kernel;
 using Prism.Meshing;
 
@@ -81,11 +82,26 @@ public sealed class MeshRebuildCommand : MeshCommand
         Row("Faces built", $"{faces.Count} from {regs.Count - failed} of {regs.Count} regions", failed == 0 ? 1 : 2);
 
         Shape? result = null;
-        if (_create.Index == 3 && faces.Count > 1)
+        if (_create.Index == 3 && SolidFromRegions.Build(regs, m) is { } exact)
+        {
+            result = exact;
+            Row("Solid", "exact solid: every edge is a true intersection, so it can be edited directly", 1);
+            o.Add.Add(new(result, obj.Name + " rebuilt", ObjKind.Solid, null, null, null, obj.Look));
+        }
+        else if (_create.Index == 3 && faces.Count > 1)
         {
             try
             {
-                result = Occ.Sew(faces, _sew.Value, true);
+                // fitted faces stop about half a triangle short of each other, so the gap to close depends on the mesh, not only on the setting
+                double edge = MeshRemesh.MeanEdge(m), used = _sew.Value;
+                result = Occ.Sew(faces, used, true);
+                foreach (double wider in new[] { edge * 0.5, edge, edge * 1.5, edge * 2.5 })
+                {
+                    if (result.HasSolids) break;
+                    if (wider <= used) continue;
+                    used = wider; result = Occ.Sew(faces, used, true);
+                }
+                if (used > _sew.Value) Row("Sewing tolerance", $"widened to {used:0.###} mm to match the mesh's triangle size", result.HasSolids ? 1 : 2);
                 Row("Sewing", result.HasSolids ? "closed solid" : "open shell - some faces do not meet within the sewing tolerance (faces are bounded by their fitted extent, not by the true region borders)", result.HasSolids ? 1 : 2);
                 o.Add.Add(new(result, obj.Name + " rebuilt", result.HasSolids ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));
             }
@@ -267,6 +283,134 @@ public sealed class MeshRebuildCommand : MeshCommand
 }
 
 /// <summary>Fits lines and arcs to mesh section outlines and creates them as curves.</summary>
+/// <summary>Puts a plane on the scan, slices it there and makes a real sketch of fitted lines, arcs and circles, ready to extrude or revolve.</summary>
+public sealed class MeshSectionSketchCommand : MeshCommand
+{
+    readonly SelectionSlot _ref;
+    readonly ChoiceParam _plane;
+    readonly NumberParam _offset, _spacing, _tol;
+    readonly IntParam _count;
+    readonly List<List<Vec3>> _overlay = [];
+
+    public MeshSectionSketchCommand() : base("Mesh")
+    {
+        _plane = Choice("Plane", 0, "XY (horizontal)", "XZ", "YZ", "A construction plane or flat face", "Fitted to the selected region");
+        _ref = Slot(new SelectionSlot { Label = "Plane or flat face", Filter = SelFilter.Plane | SelFilter.Face, Optional = true });
+        _offset = Num("Offset from the plane", 0);
+        _count = Add(new IntParam { Label = "Number of sketches", Value = 1, Min = 1, Max = 50 });
+        _spacing = Num("Spacing", 5, 0.01);
+        _tol = Num("Fit tolerance", 0.05, 0.0005, 5, 0.01);
+        UpdateVisibility();
+    }
+
+    public override string Title => "Section Sketch";
+    public override string Hint => "Put a plane on the scan and get an editable sketch of the outline there: straight lines, arcs and circles fitted within the tolerance, not thousands of tiny segments. Use a world plane, a construction plane or face, or the area you selected with Select Region. Extrude or revolve the sketch, then use Deviation to see how close you are.";
+    public override string Icon => "mesh-section";
+    public override string OkText => "Create sketch";
+    protected override void UpdateVisibility() { if (_ref == null) return; _spacing.IsVisible = _count.Value > 1; _ref.IsVisible = _plane.Index == 3; }
+
+    /// <summary>The plane to slice on, or null while it still needs a pick.</summary>
+    Plane3? Frame(TriMesh m)
+    {
+        static Plane3 On(Vec3 origin, Vec3 n) { var (u, v) = SurfaceMath.Basis(n.Normalized()); return new Plane3(origin, u, v); }
+        switch (_plane.Index)
+        {
+            case 0: return Plane3.XY;
+            case 1: return Plane3.XZ;
+            case 2: return Plane3.YZ;
+            case 3:
+            {
+                if (_ref.Items.Count == 0) return null;
+                var it = _ref.Items[0];
+                if (S.Find(it.Obj) is { Kind: ObjKind.Plane, SketchPlane: { } p }) return p;
+                return S.FaceFrame(it) is { } f ? On(f.point, f.normal) : null;
+            }
+            default:
+            {
+                var sel = S.RegionSel;
+                if (sel == null || sel.IsEmpty || !ReferenceEquals(sel.Mesh, m)) return null;
+                Vec3 sum = Vec3.Zero, centre = Vec3.Zero; double area = 0;
+                foreach (int t in sel.Tris)
+                {
+                    var (a, b, c) = m.Tri(t); var pa = m.P(a); var pb = m.P(b); var pc = m.P(c);
+                    var w = Vec3.Cross(pb - pa, pc - pa); double ta = w.Length / 2;
+                    sum += w / 2; centre += (pa + pb + pc) / 3 * ta; area += ta;
+                }
+                return sum.Length < 1e-12 ? null : On(centre / area, sum);
+            }
+        }
+    }
+
+    /// <summary>Fitted elements as sketch entities, sharing their end points so the outline stays closed when it is edited.</summary>
+    internal static void AddToSketch(SketchModel model, List<SketchSeg> segs, bool closed)
+    {
+        if (closed && segs.Count == 2 && segs.All(s => s.IsArc) && Math.Abs(segs[0].Radius - segs[1].Radius) < 0.02 * segs[0].Radius
+            && Math.Abs(segs[0].Center.x - segs[1].Center.x) + Math.Abs(segs[0].Center.y - segs[1].Center.y) < 0.02 * segs[0].Radius)
+        {
+            model.AddCircle(model.AddPoint((segs[0].Center.x + segs[1].Center.x) / 2, (segs[0].Center.y + segs[1].Center.y) / 2), (segs[0].Radius + segs[1].Radius) / 2);
+            return;
+        }
+        int first = model.AddPoint(segs[0].P0.x, segs[0].P0.y), last = first;
+        for (int i = 0; i < segs.Count; i++)
+        {
+            var s = segs[i];
+            int end = closed && i == segs.Count - 1 ? first : model.AddPoint(s.P1.x, s.P1.y);
+            if (s.IsArc)
+            {
+                int c = model.AddPoint(s.Center.x, s.Center.y);
+                if (s.SweepDeg >= 0) model.AddArc(c, last, end); else model.AddArc(c, end, last);       // arcs run counter-clockwise
+            }
+            else model.AddLine(last, end);
+            last = end;
+        }
+    }
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear(); _overlay.Clear();
+        var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
+        var m = obj.Tri!;
+        if (Frame(m) is not { } frame)
+        {
+            Row("Plane", _plane.Index == 3 ? "pick a construction plane or a flat face" : "select an area with Select Region first, then come back", 2);
+            return null;
+        }
+        var n = frame.Normal;
+        var made = new List<(Shape shape, Plane3 plane, SketchModel model)>();
+        int loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0;
+        for (int k = 0; k < _count.Value; k++)
+        {
+            var plane = frame with { Origin = frame.Origin + n * (_offset.Value + k * _spacing.Value) };
+            var model = new SketchModel(); int found = 0;
+            foreach (var l in MeshOps.Section(m, plane.Origin, n))
+            {
+                if (l.Points.Count < 3) continue;
+                var p2 = l.Points.Select(p => plane.Project(p)).Select(p => (x: p.u, y: p.v)).ToList();
+                var segs = LineArcFit.Fit(p2, l.Closed, _tol.Value);
+                if (segs.Count == 0) continue;
+                loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, LineArcFit.MaxDeviation(p2, segs));
+                lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
+                _overlay.Add(segs.SelectMany(s => (s.IsArc ? new[] { s.P0, s.Mid, s.P1 } : new[] { s.P0, s.P1 }).Select(q => plane.PointAt(q.x, q.y))).ToList());
+                AddToSketch(model, segs, l.Closed);
+            }
+            if (found == 0) continue;
+            made.Add((Occ.Profile(model.ToShapes(plane), faces: false), plane, model));
+        }
+        if (loops == 0) { Row("Nothing here", "the plane does not cut the mesh", 2); return null; }
+        Row("Sketches", made.Count.ToString(), 1);
+        Row("Outlines", loops.ToString());
+        Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
+        Row("Largest deviation", N(worst, "mm"), worst <= _tol.Value * 1.5 ? 1 : 2);
+        return new CommandOutput
+        {
+            Label = Title, Icon = Icon,
+            After = s => { foreach (var (shape, plane, model) in made) s.AddObject(shape, "Section sketch", ObjKind.Sketch, plane: plane, checkpoint: false, sketch: model); },
+        };
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o) { foreach (var l in _overlay) o.AddPolyline(l, 0xFF35B6FF, 2.4f, false); }
+}
+
 public sealed class MeshSectionFitCommand : MeshCommand
 {
     readonly ChoiceParam _plane;

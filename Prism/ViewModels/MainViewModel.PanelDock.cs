@@ -23,7 +23,7 @@ public sealed partial class MainViewModel
     public static string PanelTitle(string id) => id switch
     {
         "command" => "Command", "sketch" => "Sketch", "appearance" => "Appearance", "diagnostics" => "Diagnostics",
-        "references" => "References", "parameters" => "Parameters", "script" => "Script", "simulation" => "Simulation", "library" => "Parts library", "gizmo"=>"Gizmo", _ => "Properties",
+        "references" => "References", "parameters" => "Parameters", "script" => "Script", "data" => "Data", "simulation" => "Simulation", "library" => "Parts library", "gizmo"=>"Gizmo", _ => "Properties",
     };
 
     partial void OnSelectedRightPanelChanged(string value)
@@ -40,7 +40,7 @@ public sealed partial class MainViewModel
 
     public void SetRightPanelEnabled(string id, bool enabled)
     {
-        if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "script" or "library" or "gizmo")) return;
+        if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "script" or "data" or "library" or "gizmo")) return;
         if (id == "properties" && !enabled) return;
         if (enabled) _openRightPanels.Add(id); else _openRightPanels.Remove(id);
         if (enabled) SelectedRightPanel = ContextPanelId == id ? "context" : id;
@@ -80,10 +80,10 @@ public sealed partial class MainViewModel
             ShowProperties = content == "properties";
             ShowSimPanel = content == "simulation";
             var tabs = new List<RightPanelTab> { new("context", PanelTitle(context), SelectedRightPanel == "context") };
-            foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script", "library", "gizmo" })
+            foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script", "data", "library", "gizmo" })
                 if (_openRightPanels.Contains(id) && id != context) tabs.Add(new(id, PanelTitle(id), SelectedRightPanel == id));
             if (!RightPanelTabs.SequenceEqual(tabs)) { RightPanelTabs.Clear(); foreach (var tab in tabs) RightPanelTabs.Add(tab); }
-            OnPropertyChanged(nameof(AnyStudioVisible)); OnPropertyChanged(nameof(ShowScriptEditor));
+            OnPropertyChanged(nameof(AnyStudioVisible)); OnPropertyChanged(nameof(ShowScriptEditor)); OnPropertyChanged(nameof(ShowDataEditor));
         }
         finally { _syncingRightPanels = false; }
     }

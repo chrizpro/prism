@@ -49,13 +49,16 @@ public sealed class Load
     public bool Total { get; set; } = true;
 }
 
-/// <summary>A simulation: one body, its fixtures and loads, mesh size and the latest results.</summary>
+/// <summary>A simulation: its body (and any others bonded to it, each with its own material), fixtures and loads, mesh size and the latest results.</summary>
 public sealed class StudyDef
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Name { get; set; } = "Static 1";
     public StudyType Type { get; set; }
     public Guid BodyId { get; set; }
+    /// <summary>More bodies in the study, bonded where they touch. Empty for a one-body study.</summary>
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)] public List<Guid> OtherBodies { get; } = [];
+    public bool Has(Guid body) => body == BodyId || OtherBodies.Contains(body);
     [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)] public List<Fixture> Fixtures { get; } = [];
     [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)] public List<Load> Loads { get; } = [];
     public string? ShapeSignature { get; set; }
@@ -68,6 +71,8 @@ public sealed class StudyDef
 public sealed class StudyResults
 {
     public SceneObject? SourceBody { get; init; }
+    /// <summary>The other bodies of a multi-body study, as they were when it was solved.</summary>
+    public SceneObject[] OtherBodies { get; init; } = [];
     public required FemMesh Mesh { get; init; }
     public required FemMesh.StaticResult Solution { get; init; }
     /// <summary>Outward normal of each boundary triangle (from the CAD surface).</summary>

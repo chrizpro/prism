@@ -52,6 +52,15 @@ public static partial class ToolHelp
         "sel-vertex" => Topic(icon, "Select Vertex", "Pick individual corner points.", "Start: a body", "Result: one corner selected",
             "1. Choose Vertex.\n2. Click a corner in the viewport.\n3. Hold Ctrl to add more.",
             "Use it for measuring to a corner or editing freeform cage points."),
+        "sel-rect" => Topic(icon, "Rectangle Select", "Drag a rectangle to select everything inside it.", "Start: a body", "Result: what the rectangle covered is selected",
+            "1. Choose Rectangle.\n2. Drag across the view. Left to right takes only what is completely inside; right to left takes whatever it touches.\n3. Hold Shift to add, Ctrl to take away.",
+            "Turn on Through to also take faces and edges hidden behind others."),
+        "sel-lasso" => Topic(icon, "Lasso Select", "Draw around what you want to select.", "Start: a body", "Result: what the loop touched is selected",
+            "1. Choose Lasso.\n2. Draw a loop around the faces, edges or bodies you want.\n3. Hold Shift to add, Ctrl to take away.",
+            "A lasso follows odd shapes better than a rectangle. Turn on Through to reach hidden faces too."),
+        "sel-invert" => Topic(icon, "Invert Selection", "Select everything that is not selected.", "Start: a few faces selected", "Result: all the other faces selected",
+            "1. Select the faces you want to leave out.\n2. Choose Invert.\n3. The rest of the body is selected instead.",
+            "With nothing selected, Invert selects everything. Faces and edges invert within the bodies you picked from."),
         "move" => Topic(icon, "Move", "Slide objects to a new position.", "Start: a gap beside the post", "Result: moved to touch the post",
             "1. Select the objects.\n2. Drag an arrow, or type a distance.\n3. Check the preview, then accept.",
             "Type exact distances for precise placement. Snaps help line faces up."),
@@ -163,6 +172,18 @@ public static partial class ToolHelp
             {
                 var colored = Colorize(GridBox(40, 14, 10, 10, 3, 2), (p, n) => 1 - (p.X + 20) / 40);
                 return new(Src(colored, topic.BeforeLabel), Src(GridBox(40, 14, 10, 10, 3, 2), topic.AfterLabel));
+            }
+            case "sel-rect" or "sel-lasso" or "sel-invert":
+            {
+                using var body = Occ.Box(30, 20, 14);
+                var mesh = body.Tessellate();
+                var some = FacesAt(mesh, 2, 14);
+                return new(Src(mesh, topic.BeforeLabel), key switch
+                {
+                    "sel-invert" => Src(mesh, topic.AfterLabel, null, Enumerable.Range(0, mesh.FaceCount).Except(some).ToArray(), Blue),
+                    "sel-rect" => Src(mesh, topic.AfterLabel, null, AllFaces(mesh), Blue),
+                    _ => Src(mesh, topic.AfterLabel, null, some, Blue)
+                });
             }
             case "sel-object" or "sel-face" or "sel-edge" or "sel-vertex":
             {

@@ -449,7 +449,7 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh, "uDraftSin", (float)Math.Sin(s.DraftMin * Math.PI / 180));
         U1(_mesh, "uCurvRange", (float)s.CurvRange);
 
-        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && o.Id != s.Result?.BodyId).ToList();
+        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true).ToList();
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
         foreach (var vo in visible) SyncCurvature(fineShading && vo.Kind is not (ObjKind.Curve or ObjKind.Sketch) ? vo.FineMesh : vo.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
         foreach (var pv in s.Preview.Concat(s.ContextItems)) SyncCurvature(pv.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);

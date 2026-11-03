@@ -155,7 +155,7 @@ learnMore.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 Check(popup.Child!.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Online tool guides are coming soon." && t.IsVisible), "Learn More handles the unpublished guide");
 window.MouseMove(new Point(300, 690)); Pump(800);
 Check(!popup.IsOpen, "tooltip dismisses on leaving");
-window.MouseMove(Center(ToolButton("offset"))); Pump(650);
+window.MouseMove(Center(ToolButton("knit"))); Pump(650);
 Check(popup.IsOpen && !popup.Child!.GetVisualDescendants().OfType<GeometryPreview>().Any() && popup.Child!.GetVisualDescendants().OfType<Button>().Any(), "tools without examples retain a local tooltip and Learn More");
 Prism.Core.AppSettings.Current.ToolDocumentationBaseUrl = "https://example.test/prism/tools";
 Check(ToolDocumentation.LinkFor("sweep|Sweep 2 rails")?.AbsoluteUri == "https://example.test/prism/tools/sweep%7CSweep%202%20rails", "online links preserve tool identity");

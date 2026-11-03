@@ -163,8 +163,8 @@ public sealed partial class CadSession : ObservableObject
     public void Invalidate() => ViewChanged?.Invoke();
     void RaiseScene()
     {
-        foreach(var study in Studies)if(study.Results is {SourceBody: {} source} && !ReferenceEquals(Find(study.BodyId),source)){study.Results=null;Result=null;StudyChanged?.Invoke();}
-        if (Result != null && (Find(Result.BodyId) == null || (Result.BodySnapshot != null && !ReferenceEquals(Find(Result.BodyId), Result.BodySnapshot)))) { Result = null; StudyChanged?.Invoke(); }
+        foreach(var study in Studies)if(study.Results is {SourceBody: {} source} solved && (!ReferenceEquals(Find(study.BodyId),source)||solved.OtherBodies.Any(o=>!ReferenceEquals(Find(o.Id),o)))){study.Results=null;Result=null;StudyChanged?.Invoke();}
+        if (Result != null && (Find(Result.BodyId) == null || (Result.BodySnapshot != null && !ReferenceEquals(Find(Result.BodyId), Result.BodySnapshot)) || Result.OtherBodies.Any(o => !ReferenceEquals(Find(o.Id), o)))) { Result = null; StudyChanged?.Invoke(); }
         // A mutation that announced itself becomes a new history node; quiet edits (e.g. visibility) fold into the current one.
         if (!_navigating)
         {
@@ -323,6 +323,7 @@ public sealed partial class CadSession : ObservableObject
         DocumentParameters = []; RebuildIssue = null; PartInfo = new(); PartInfoChanged?.Invoke();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
+        DataSheets.Clear(); DataChanged?.Invoke();
         FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
     }
     // ------------------------------------------------------------ mutation
@@ -806,6 +807,8 @@ public sealed partial class CadSession : ObservableObject
     /// parks the request until the user finishes, discards or keeps editing. Scripts may leave this off.
     /// </summary>
     public bool ProtectPendingCommand { get; set; }
+    /// <summary>True while the Direct Modeling tab is open: edits made there are not recorded as history unless the body is tracked.</summary>
+    public bool DirectEditing { get; set; }
     Action? _deferred;
     bool _pendingStepOnly;
     /// <summary>Plain-words explanation shown over the viewport while a request waits on an unfinished command; null when nothing waits.</summary>
@@ -931,7 +934,9 @@ public sealed partial class CadSession : ObservableObject
         ClearPreview();
         Hover = null;
         _handleDrag = false;
-        var recipe = c.Capture();
+        // Direct edits are plain undo steps unless the body they change has history tracking turned on.
+        bool tracked = res.Replace.Any(r => r.Old.TrackHistory);
+        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
@@ -1206,7 +1211,8 @@ public sealed partial class CadSession : ObservableObject
             try
             {
                 var model = sk.ExportModel();
-                var shapes = model.ToShapes(sk.RootPlane, includeConstruction: model.ShowConstruction);
+                // construction curves are reference geometry: the view draws them dashed, and they stay out of the shape so a profile never picks them up
+                var shapes = model.ToShapes(sk.RootPlane);
                 var compound = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(sk.RootPlane.Origin);
                 if (sk.EditingId is { } id && Find(id) is { } old)
                 {
@@ -1265,18 +1271,18 @@ public sealed partial class CadSession : ObservableObject
         {
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
             var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; return true; }
-            var r = Pick(p.X, p.Y, ActiveFilter);
-            if (r != null) { var cmd = ActiveCommand; if (cmd.PickPoint(r.Value, p.Ctrl || p.Shift)) { } else if (cmd.Pick(r.Value.Item, p.Ctrl || p.Shift) && cmd.CommitOnPick) CommitCommand(); }
+            if (TryBeginRegion(p)) return true;
+            ClickAt(p);
             return true;
         }
-        var hit = Pick(p.X, p.Y, ActiveFilter);
-        if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return true; }
-        SetSelection(hit.Value.Item, p.Ctrl || p.Shift);
+        if (TryBeginRegion(p)) return true;
+        ClickAt(p);
         return true;
     }
 
     public void PointerMove(PointerInfo p)
     {
+        if (_region != null && p.Left && RegionMove(p)) return;
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
         if (DatumVisible) Datum!.PointerMove(this, p);
         if (_cmdGrab && p.Left && ActiveCommand != null) { ActiveCommand.GrabMove(this, p.X, p.Y, p.Alt); Invalidate(); return; }
@@ -1289,7 +1295,7 @@ public sealed partial class CadSession : ObservableObject
         ActiveTool?.PointerMove(this, p);
     }
     bool _cmdGrab;
-    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
+    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (RegionUp(p)) return; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
 
     // ------------------------------------------------------------ grab handle (pull an arrow to set a distance)
     bool _handleDrag, _handleHover;
@@ -1396,7 +1402,7 @@ public sealed partial class CadSession : ObservableObject
             double lo = h.ShowRange ? h.Param.Min : double.NegativeInfinity, hi = h.ShowRange ? h.Param.Max : double.PositiveInfinity;
             Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
             bool hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
-            uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : GizmoVisual.Accent;
+            uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
             o.AddDot(grip, colour, _handleDrag ? 13 : 11);
             o.AddLabel(grip, active && _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}  -  drag or type", true, 4);
             return;
@@ -1408,7 +1414,7 @@ public sealed partial class CadSession : ObservableObject
             Assembly.JointVisuals.Range(o, h.Origin, h.Dir, null, hs, h.Param.Min / h.Mul, h.Param.Max / h.Mul, h.Param.Value / h.Mul);
         }
         var tip = HandleTip(h); var A = h.Dir.Normalized();
-        uint col = GizmoVisual.Accent;
+        uint col = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
         double ps = Camera.PixelSizeAt(tip);
         o.AddDot(h.Origin, col, 7);
         o.AddLine(h.Origin, tip, col, GizmoSettings.Current.Stroke + (_handleDrag || _handleHover ? 1.5f : 0));
@@ -1480,6 +1486,7 @@ public sealed partial class CadSession : ObservableObject
             case "Delete":
                 if (ActiveCommand == null && Sketch is { } sketch) return sketch.DeleteSelected(this);
                 if (ActiveCommand == null && Sketch == null) { DeleteSelection(); return true; }
+                if (ActiveCommand is Commands.DirectEditCommand direct && Sketch == null) return direct.DeletePicked();
                 return false;
         }
         return false;
@@ -1586,6 +1593,7 @@ public sealed partial class CadSession : ObservableObject
         DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
+        BuildRegionOverlay(o);
         ActiveTool?.BuildOverlay(this, o);
         if (DatumVisible) Datum!.BuildOverlay(this, o);
         (ActiveTool as ClickTool)?.BuildHud(this, o);
@@ -1597,7 +1605,7 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -1646,7 +1654,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null);
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
@@ -1666,7 +1674,13 @@ public sealed partial class CadSession : ObservableObject
             if (fd.Frozen is { } fz) for (int i = 0; i + 2 < fz.Length; i += 3) sm.Frozen.Add((fz[i], fz[i + 1], fz[i + 2]));
             return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d));
         }
-        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, Occ.FromBrep(d.Brep!), Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap };
+        var shape = Occ.FromBrep(d.Brep!);
+        // older files stored construction curves inside the sketch's shape, where they showed as solid lines and joined the profile
+        if (d.Sketch != null && plane is { } root && Enum.Parse<ObjKind>(d.Kind) == ObjKind.Sketch && d.Sketch.Entities.Any(e => e.Construction))
+        {
+            try { var shapes = d.Sketch.ToShapes(root); shape = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(root.Origin); } catch (KernelException) { }
+        }
+        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap };
     }
 
     public void Open(string path)
@@ -1689,6 +1703,7 @@ public sealed partial class CadSession : ObservableObject
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
+        DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);

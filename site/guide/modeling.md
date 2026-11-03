@@ -52,6 +52,6 @@ Each ribbon keeps specialized tools while sharing the same Transform and Inspect
 
 ## Position and inspect
 
-**Transform** keeps Move visible and places Rotate, Scale, Mirror, and Duplicate under **More transforms**. **Inspect** keeps Measure visible, with Properties and Section Analysis under **More inspection**.
+**Transform** is one dropdown with Move, Rotate, Scale, Mirror, and Duplicate. It shows the tool you used last. **Inspect** keeps Measure visible, with Properties and Section Analysis under **More inspection**.
 
 Assembly component positioning and sketch editing retain their own semantics. They are not interchangeable with transforming a standalone body.

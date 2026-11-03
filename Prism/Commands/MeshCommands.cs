@@ -635,7 +635,7 @@ public sealed class MeshSegmentCommand : MeshCommand
         PreviewButton();
     }
     public override string Title => "Segment & Fit";
-    public override string Hint => "Finds the flat faces, holes, bosses, balls and tapers hiding in a scan. Each region is colored and measured; create exact CAD planes, cylinders, spheres and cones from them to rebuild the part.";
+    public override string Hint => "Finds the flat faces, holes, bosses, balls and tapers hiding in a scan. Each region is colored and measured, so you can read off a hole's size or a fillet's radius. Creates each region as a separate exact surface to build from; use Rebuild from Scan to sew a whole part.";
     public override string Icon => "mesh-fit";
     public override string OkText => "Create";
     public override void OnCancel() { foreach (var o in Meshes()) S.ClearField(o.Id); }
@@ -668,10 +668,20 @@ public sealed class MeshSegmentCommand : MeshCommand
         var o = new CommandOutput { Label = "Fit geometry", Icon = Icon };
         var pick = _create.Index == 1 ? found.Where((_, i) => i + 1 == _region.Value).ToList() : found;
         if (_create.Index == 1 && pick.Count == 0) { Row("Region", $"{_region.Value} does not exist", 2); return NoOp(); }
+        var graph = RegionGraph.Build(m, found);
         foreach (var r in pick)
         {
-            try { var nObj = BuildGeometry(r, m); if (nObj != null) o.Add.Add(nObj); }
-            catch (KernelException e) { Row("Could not build", $"{r.Describe()}: {e.Message}", 2); }
+            try
+            {
+                // the real extent of the region: a plate keeps its outline and holes, and a hole stays a hole instead of becoming a solid peg
+                var faces = MeshRebuildCommand.BuildFaces(r, m, graph, found.IndexOf(r), _tol.Value);
+                foreach (var face in faces) o.Add.Add(new(face, r.Kind + " fit", ObjKind.Surface, Palette.Surface));
+            }
+            catch (KernelException)
+            {
+                try { if (BuildGeometry(r, m) is { } rough) o.Add.Add(rough); }
+                catch (KernelException e) { Row("Could not build", $"{r.Describe()}: {e.Message}", 2); }
+            }
         }
         return o;
     }

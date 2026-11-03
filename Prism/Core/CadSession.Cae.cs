@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -24,6 +25,7 @@ public sealed partial class CadSession
         if(Cae is {Running:true}) throw new InvalidOperationException("Stop the current CAE run before starting another.");
         Cae?.Outcome?.Prepared.Mesh.Dispose();
         ShowResult(null);
+        var others=(settings.OtherBodies??[]).Select(id=>Find(id)??throw new InvalidOperationException("A body in this run was deleted.")).ToList();
         var job=new CaeJob();Cae=job; CaeChanged?.Invoke();
         string folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Prism","CAE",DateTime.Now.ToString("yyyyMMdd_HHmmss")+"_"+Guid.NewGuid().ToString("N")[..6]);
         _=Run();
@@ -32,10 +34,10 @@ public sealed partial class CadSession
             try
             {
                 var outcome=await Task.Run(()=>CaeSolver.Solve(body,settings,folder,job.Cancellation.Token,
-                    status=>Dispatcher.UIThread.Post(()=>{job.Status=status;if(ReferenceEquals(Cae,job))CaeChanged?.Invoke();})));
+                    status=>Dispatcher.UIThread.Post(()=>{job.Status=status;if(ReferenceEquals(Cae,job))CaeChanged?.Invoke();}),others));
                 job.Cancellation.Token.ThrowIfCancellationRequested();
                 job.Outcome=outcome;job.Status="Complete — results in "+folder;
-                if(ReferenceEquals(Cae,job) && ReferenceEquals(Find(body.Id),body)) ShowResult(ResultView.Field(outcome));
+                if(ReferenceEquals(Cae,job) && ReferenceEquals(Find(body.Id),body) && others.All(o=>ReferenceEquals(Find(o.Id),o))) ShowResult(ResultView.Field(outcome));
                 else job.Status="Complete; source body changed, so results were not applied. Files: "+folder;
             }
             catch(OperationCanceledException){job.Status="Canceled";}

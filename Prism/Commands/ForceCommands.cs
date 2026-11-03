@@ -87,7 +87,7 @@ public sealed class MotionSpringCommand : Command
     public override string Title => "Spring / Actuator";
     public override string Icon => "motion-spring";
     public override string OkText => "Add";
-    public override string Hint => "A spring, damper or actuator along the line between two points. Stiffness and damping make a spring-damper (a suspension, a return spring); an actuator push makes a cylinder that pushes its ends apart with a constant force (its pressure times its area). The second end can be on a fixed body to anchor it in space. Used by Motion Dynamics.";
+    public override string Hint => "A spring, damper or actuator along the line between two points. Stiffness and damping make a spring-damper (a suspension, a return spring); an actuator push makes a cylinder that pushes its ends apart with a constant force (its pressure times its area). The second end can be on a fixed body to anchor it in space. It acts when a Motion Study includes masses and forces.";
 
     protected override void UpdateVisibility() { if (_rest != null) _rest.IsVisible = !_auto.Value; }
 
@@ -130,18 +130,21 @@ public sealed class MotionSpringCommand : Command
 /// <summary>A force or torque on a part, constant or changing in time.</summary>
 public sealed class MotionLoadCommand : Command
 {
-    readonly bool _torque;
     readonly SelectionSlot _where;
-    readonly ChoiceParam _dir, _shape;
+    readonly ChoiceParam _kind, _dir, _shape;
     readonly BoolParam _fixed;
-    readonly NumberParam _value, _start, _length, _freq;
+    readonly NumberParam _force, _moment, _start, _length, _freq;
 
-    public MotionLoadCommand(bool torque)
+    bool Torque => _kind.Index == 1;
+    double Size => Torque ? _moment.Value : _force.Value;
+
+    public MotionLoadCommand(bool torque = false)
     {
-        _torque = torque;
-        _where = Slot(new SelectionSlot { Label = torque ? "The part it turns (any face, edge or body of it)" : "Where it acts (a face, circle or edge of a part)", Filter = SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject });
-        _value = Num(torque ? "Torque" : "Force", torque ? 1 : 10, -1e9, 1e9, torque ? 0.1 : 1, torque ? "N·m" : "N");
-        _dir = Choice(torque ? "About the axis" : "Direction", 4, MotionPicks.AxisNames);
+        _where = Slot(new SelectionSlot { Label = "Where it acts (a face, circle or edge of a part)", Filter = SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject });
+        _kind = Choice("Load", torque ? 1 : 0, "Force", "Torque");
+        _force = Num("Force", 10, -1e9, 1e9, 1, "N");
+        _moment = Num("Torque", 1, -1e9, 1e9, 0.1, "N·m");
+        _dir = Choice("Direction or axis", 4, MotionPicks.AxisNames);
         _fixed = Check("Turns with the part", false);
         _shape = Choice("In time", 0, "Constant", "Pulse (on for a while)", "Sine (alternating)");
         _start = Num("Starts at", 0, 0, 1e6, 0.1, "s");
@@ -149,16 +152,15 @@ public sealed class MotionLoadCommand : Command
         _freq = Num("Frequency", 1, 0.0001, 1e6, 0.5, "Hz");
     }
 
-    public override string Title => _torque ? "Torque Load" : "Force Load";
+    public override string Title => "Force / Torque";
     public override string Icon => "motion-force";
     public override string OkText => "Add";
-    public override string Hint => _torque
-        ? "A turning moment on a part, for Motion Dynamics. It can be constant, a pulse or alternating. Its axis is fixed in space, or turns with the part."
-        : "A force on a point of a part, for Motion Dynamics: a push, a weight, a wind load. It can be constant, a pulse or alternating. Its direction is fixed in space, or turns with the part.";
+    public override string Hint => "A push or a turning moment on a part: a weight, a wind load, a punch stroke. It can be constant, a pulse or alternating, and its direction is fixed in space or turns with the part. It acts when a Motion Study includes masses and forces.";
 
     protected override void UpdateVisibility()
     {
         if (_shape == null) return;
+        _force.IsVisible = !Torque; _moment.IsVisible = Torque;
         _start.IsVisible = _length.IsVisible = _shape.Index == 1; _freq.IsVisible = _shape.Index == 2;
     }
 
@@ -172,10 +174,10 @@ public sealed class MotionLoadCommand : Command
         if (_dir.Index < MotionPicks.Axes.Length) dir = MotionPicks.Axes[_dir.Index];
         else dir = (S.FrameOf(_where.Items[0])?.z ?? S.FaceFrame(_where.Items[0])?.normal) ?? throw new FormatException("That pick has no direction. Choose an axis instead.");
         if (_fixed.Value) dir = comp.Component!.Placement.Inverse().Rotate(dir);
-        string name = _torque ? "Torque" : "Force";
-        var info = new LoadInfo(CadSession.NewKey(), name, _torque, comp.Component!.Key, MotionPicks.Local(comp, world), [dir.X, dir.Y, dir.Z], _fixed.Value, _value.Value, _shape.Index, _start.Value, _length.Value, _freq.Value);
+        string name = Torque ? "Torque" : "Force";
+        var info = new LoadInfo(CadSession.NewKey(), name, Torque, comp.Component!.Key, MotionPicks.Local(comp, world), [dir.X, dir.Y, dir.Z], _fixed.Value, Size, _shape.Index, _start.Value, _length.Value, _freq.Value);
         Results.Add(new ResultLine("On", comp.Name));
-        Results.Add(new ResultLine(name, $"{_value.Value:0.###} {(_torque ? "N·m" : "N")}, {_shape.Selected.ToLowerInvariant()}"));
+        Results.Add(new ResultLine(name, $"{Size:0.###} {(Torque ? "N·m" : "N")}, {_shape.Selected.ToLowerInvariant()}"));
         var o = new CommandOutput { Label = name, Icon = Icon };
         o.Add.Add(new(Occ.Line(world, world + new Vec3(0, 0, 0.01)), name, ObjKind.Joint, Asm: info));
         return o;

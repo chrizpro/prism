@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Prism.Kernel;
 
@@ -35,6 +36,33 @@ public sealed record BodyTorque(string Name, string Body, Vec3 Axis, bool BodyFi
 
 /// <summary>A marked point on a part: a payload when it has mass (kg), or a tool point to follow when it has none.</summary>
 public sealed record MotionPoint(string Name, string BodyKey, Vec3 Local, double Mass);
+
+/// <summary>Reads a joint's motion as rows of time and position, typed or from a file: a cam's lift, a recorded road, any motion no other drive describes.</summary>
+public static class MotionTable
+{
+    public static (double[] Times, double[] Values) Read(string text, bool repeat, double duration)
+    {
+        string source = text.Trim();
+        if (source.IndexOfAny(['\n', ';']) < 0 && System.IO.File.Exists(source)) source = System.IO.File.ReadAllText(source);
+        var t = new List<double>(); var v = new List<double>();
+        foreach (var row in source.Split(['\n', '\r', ';'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var cols = row.Split([',', '\t', ' '], StringSplitOptions.RemoveEmptyEntries);
+            if (cols.Length >= 2 && double.TryParse(cols[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a)
+                && double.TryParse(cols[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var b)) { t.Add(a); v.Add(b); }   // anything else is a header
+        }
+        if (t.Count < 2) throw new InvalidOperationException("A motion table needs at least two rows of time and position.");
+        for (int i = 1; i < t.Count; i++) if (t[i] <= t[i - 1]) throw new InvalidOperationException($"The times in a motion table must increase (see the row at {t[i]:0.###} s).");
+        if (repeat)
+        {
+            if (Math.Abs(v[^1] - v[0]) > 1e-9) throw new InvalidOperationException("To repeat, a motion table must end at the position it starts from.");
+            double t0 = t[0], period = t[^1] - t0; int n = t.Count;
+            for (int cycle = 1; t0 + cycle * period < duration; cycle++)
+                for (int i = 1; i < n; i++) { t.Add(t[i] + cycle * period); v.Add(v[i]); }
+        }
+        return (t.ToArray(), v.ToArray());
+    }
+}
 
 /// <summary>A natural cubic spline through (time, value) samples: smooth position, speed and acceleration for a joint that follows a planned path.</summary>
 public sealed class CubicSpline

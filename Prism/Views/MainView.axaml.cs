@@ -194,8 +194,8 @@ public partial class MainView : UserControl
         HookSession(null, vm.Session);
         vm.SessionSwapped += (old, s) => { HookSession(old, s); UpdateModeButtons(); EmptyHint.IsVisible = s.Objects.Count == 0 && string.IsNullOrWhiteSpace(vm.BrowserFilter); QueueSync(); };
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.ShowHistoryPanel)) UpdateTabs(); };
-        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312); };
-        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.ShowDataEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312); };
+        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312);
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.HasActiveAssistance)) UpdateContextLocation(); };
         BuildStatusBar(); UpdateContextLocation(); AppSettings.Changed += BuildStatusBar; AppSettings.Changed += UpdateContextLocation;
         HistoryList.DoubleTapped += (_, _) => { if (HistoryList.SelectedItem is HistoryItem hi) EditHistoryStep(hi); };
@@ -320,6 +320,12 @@ public partial class MainView : UserControl
         if (objs.Count == 1 && objs[0].ObjKind == ObjKind.Sketch) items.Add(Mi("Edit sketch", () => vm.EditSketchNode(objs[0])));
         if (objs.Count == 1 && vm.Session.FeatureNodeFor(objs[0].ObjectId) is { } feature)
             items.Add(Mi("Edit feature…", () => vm.Session.EditFeature(feature), !vm.IsSketching));
+        var tracking = objs.Select(o => vm.Session.Find(o.ObjectId)).Where(o => o is { Kind: ObjKind.Solid, HasBrep: true }).Select(o => o!).ToList();
+        if (tracking.Count > 0)
+        {
+            bool on = tracking.All(o => o.TrackHistory);
+            items.Add(Mi(on ? "Stop tracking history" : "Track history", () => vm.SetTrackHistory(tracking.Select(o => o.Id), !on)));
+        }
         if (objs.Count == 1) items.Add(Mi("Rename            F2", () => objs[0].BeginRename()));
         if (objs.Count > 0)
         {

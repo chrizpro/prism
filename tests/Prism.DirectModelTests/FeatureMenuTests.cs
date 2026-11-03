@@ -9,7 +9,16 @@ static class FeatureMenuTests
         var vm = new MainViewModel(); var s = vm.Session;
         var groups = vm.Tabs.Single(t => t.Title == "Direct Modeling").Groups.Select(g => g.Title).ToList();
         int At(string g) => groups.IndexOf(g);
-        check(At("Select") < At("Datum") && At("Datum") < At("Add") && At("Add") < At("Edit faces") && At("Edit faces") < At("Edit features") && At("Edit features") < At("Repair") && At("Repair") < At("Transform") && At("Transform") < At("Inspect") && At("Inspect") < At("Appearance"), "the Direct Modeling tab reads Select, Datum, Add, Edit faces, Edit features, Repair, Transform, Inspect, Appearance");
+        check(At("Select") < At("Datum") && At("Datum") < At("Edit") && At("Edit") < At("Repair") && At("Repair") < At("Transform") && At("Transform") < At("Inspect") && At("Inspect") < At("Appearance") && At("Appearance") < At("Exit") && groups.Count(g => g is "Add" or "Edit faces" or "Edit features" or "History" or "Body") == 0, "the Direct Modeling tab reads Select, Datum, Edit, Repair, Transform, Inspect, Appearance, Exit");
+        var directTab = vm.Tabs.Single(t => t.Title == "Direct Modeling");
+        check(directTab.IsContextual && !directTab.IsVisible, "the Direct Modeling tab stays hidden until Direct Edit opens it");
+        var solidGroups = vm.Tabs.Single(t => t.Title == "Solid").Groups.Select(g => g.Title).ToList();
+        check(solidGroups.IndexOf("Modify") < solidGroups.IndexOf("Direct Edit") && solidGroups.IndexOf("Direct Edit") < solidGroups.IndexOf("Combine"), "the Solid tab has a Direct Edit section right after Modify");
+        vm.SelectedTab = vm.Tabs.Single(t => t.Title == "Solid");
+        vm.EnterDirectEdit();
+        check(directTab.IsVisible && vm.SelectedTab == directTab && vm.IsDirectEditing, "Direct Edit opens the Direct Modeling tab");
+        vm.ExitDirectEdit();
+        check(!directTab.IsVisible && vm.SelectedTab?.Title == "Solid" && !vm.IsDirectEditing, "Finish Editing closes it and returns to the Solid tab");
         var (_, plate) = FeatureTests.BuildPlate();
         var body = s.AddObject(plate.Shape, "Plate", ObjKind.Solid);
         var slot = FeatureFinder.Features(body).First(f => f.Kind == FeatureKind.Slot);

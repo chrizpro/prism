@@ -8,84 +8,93 @@ using Prism.Kernel;
 namespace Prism.Commands;
 
 /// <summary>
-/// Gear pair or rack and pinion: ties the motion of two existing joints together. Set the two shafts up as revolute joints first
-/// (a rack as a slider), then couple them here; whatever drives the first joint drives the second.
+/// One joint follows another at a ratio: gears, belts and chains between turning joints; a rack, pulley or screw between a turning and a sliding joint;
+/// a lever or cable between sliding joints. Make the two joints first; whatever moves the first moves the second.
 /// </summary>
 public sealed class CouplingCommand : Command
 {
-    readonly bool _rack;
-    ChoiceParam _leader = null!, _follower = null!, _mesh = null!;
-    NumberParam _sizeA = null!, _sizeB = null!;
-    readonly List<JointInfo> _leaders = [], _followers = [];
+    ChoiceParam _leader = null!, _follower = null!, _travel = null!, _direction = null!;
+    NumberParam _sizeA = null!, _sizeB = null!, _length = null!, _ratio = null!;
+    readonly List<JointInfo> _joints = [];
 
-    public CouplingCommand(bool rack) => _rack = rack;
-
-    public override string Title => _rack ? "Rack and Pinion" : "Gear Pair";
-    public override string Icon => _rack ? "joint-rack" : "joint-gear";
+    public override string Title => "Couple";
+    public override string Icon => "joint-gear";
     public override string OkText => "Couple joints";
-    public override string Hint => _rack
-        ? "Make a rack follow a pinion. First create a revolute joint for the pinion and a slider joint for the rack, then pick them here with the pinion's pitch diameter. Turning the pinion (or driving it in Kinematics or Motion Dynamics) slides the rack π × diameter per turn."
-        : "Make one shaft follow another through gears. First create a revolute joint for each gear, then pick them here with the tooth counts (or pitch diameters) of the two gears. The driven gear turns driving ÷ driven times as far, opposite way for external gears. The gears are ideal: no tooth contact, backlash or friction.";
+    public override string Hint => "Make one joint follow another at a ratio. Two turning joints work as gears, a belt or a chain. A turning and a sliding joint work as a rack, a pulley or a screw. Two sliding joints work as a lever or a cable. The link is ideal: no tooth contact, backlash, slip or friction.";
+
+    JointInfo? Leader => _joints.Count == 0 ? null : _joints[Math.Clamp(_leader.Index, 0, _joints.Count - 1)];
+    JointInfo? Follower => _joints.Count == 0 ? null : _joints[Math.Clamp(_follower.Index, 0, _joints.Count - 1)];
 
     protected override void OnBegin()
     {
-        _leaders.Clear(); _followers.Clear();
-        foreach (var (_, j) in S.JointObjects)
-        {
-            if (j.Type is JointType.Revolute or JointType.Cylindrical) _leaders.Add(j);
-            if (_rack ? j.Type is JointType.Slider or JointType.Cylindrical : j.Type is JointType.Revolute or JointType.Cylindrical) _followers.Add(j);
-        }
-        string[] Names(List<JointInfo> l) => l.Count == 0 ? ["No suitable joints yet"] : l.Select(j => j.Name).ToArray();
-        _leader = Choice(_rack ? "Pinion (revolute joint)" : "Driving gear (revolute joint)", 0, Names(_leaders));
-        _follower = Choice(_rack ? "Rack (slider joint)" : "Driven gear (revolute joint)", _rack || _followers.Count < 2 ? 0 : 1, Names(_followers));
-        _mesh = Choice(_rack ? "Rack moves along its +z when the pinion turns" : "Meshing", 0, _rack ? ["Positively (+)", "Negatively (−)"] : ["External gears (opposite directions)", "Internal gear or belt (same direction)"]);
-        _sizeA = Num(_rack ? "Pinion pitch diameter" : "Driving gear size (teeth or pitch diameter)", 20, 0.001, 1e6, 1, _rack ? "mm" : "");
-        if (!_rack) _sizeB = Num("Driven gear size (same unit)", 40, 0.001, 1e6, 1, "");
+        _joints.Clear();
+        _joints.AddRange(S.JointObjects.Select(j => j.joint).Where(j => j.Type is JointType.Revolute or JointType.Cylindrical or JointType.Slider));
+        string[] names = _joints.Count == 0 ? ["No suitable joints yet"] : _joints.Select(j => j.Name).ToArray();
+        _leader = Choice("Leading joint", 0, names);
+        _follower = Choice("Following joint", _joints.Count < 2 ? 0 : 1, names);
+        _sizeA = Num("Leading size (teeth, or pulley or pitch diameter)", 20, 0.001, 1e6, 1, "");
+        _sizeB = Num("Following size (same unit)", 40, 0.001, 1e6, 1, "");
+        _travel = Choice("Travel set by", 0, "Pitch diameter (rack, pulley, winch)", "Lead per turn (screw)");
+        _length = Num("Diameter or lead", 20, 0.001, 1e6, 1, "mm");
+        _ratio = Num("Following travel per mm of leading travel", 1, 1e-6, 1e6, 0.1, "");
+        _direction = Choice("Direction", Leader?.UsesAngle == true && Follower?.UsesAngle == true ? 1 : 0, "Same way (belt, chain, internal gear)", "Opposite way (external gears)");
+        UpdateVisibility();
     }
+
+    protected override void UpdateVisibility()
+    {
+        if (_direction == null || Leader is not { } a || Follower is not { } b) return;
+        _sizeA.IsVisible = _sizeB.IsVisible = a.UsesAngle && b.UsesAngle;
+        _travel.IsVisible = _length.IsVisible = a.UsesAngle != b.UsesAngle;
+        _ratio.IsVisible = !a.UsesAngle && !b.UsesAngle;
+    }
+
+    double TravelPerDegree => _travel.Index == 0 ? CouplingInfo.RackRatio(_length.Value) : CouplingInfo.LeadRatio(_length.Value);
 
     public CouplingInfo? Plan()
     {
-        if (_leaders.Count == 0 || _followers.Count == 0 || _leader == null) return null;
-        var a = _leaders[Math.Clamp(_leader.Index, 0, _leaders.Count - 1)];
-        var b = _followers[Math.Clamp(_follower.Index, 0, _followers.Count - 1)];
+        if (Leader is not { } a || Follower is not { } b || _joints.Count < 2) return null;
         if (a.Key == b.Key) throw new FormatException("Pick two different joints.");
         if (S.Couplings.Any(c => c.FollowerKey == b.Key)) throw new FormatException($"{b.Name} already follows another joint.");
         if (S.Couplings.Any(c => c.FollowerKey == a.Key && c.LeaderKey == b.Key)) throw new FormatException("These two joints are already coupled the other way round.");
-        string name = _rack ? $"Rack {S.Couplings.Count(c => c.Kind == CouplingKind.RackPinion) + 1}" : $"Gear pair {S.Couplings.Count(c => c.Kind == CouplingKind.Gear) + 1}";
-        return _rack
-            ? new CouplingInfo(CadSession.NewKey(), name, CouplingKind.RackPinion, a.Key, b.Key, CouplingInfo.RackRatio(_sizeA.Value), _mesh.Index == 1)
-            : new CouplingInfo(CadSession.NewKey(), name, CouplingKind.Gear, a.Key, b.Key, CouplingInfo.GearRatio(_sizeA.Value, _sizeB.Value), _mesh.Index == 0);
+        var (kind, ratio) = (a.UsesAngle, b.UsesAngle) switch
+        {
+            (true, true) => (CouplingKind.Gear, CouplingInfo.GearRatio(_sizeA.Value, _sizeB.Value)),
+            (true, false) => (CouplingKind.RackPinion, TravelPerDegree),
+            (false, true) => (CouplingKind.RackPinion, 1 / TravelPerDegree),
+            _ => (CouplingKind.Ratio, _ratio.Value),
+        };
+        return new CouplingInfo(CadSession.NewKey(), $"Coupling {S.Couplings.Count() + 1}", kind, a.Key, b.Key, ratio, _direction.Index == 1);
     }
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
         var info = Plan();
-        if (info == null) { Results.Add(new ResultLine("Joints", "create the revolute joints (or a slider for a rack) in the Joints tab first.", 2)); return null; }
-        var a = _leaders.First(j => j.Key == info.LeaderKey); var b = _followers.First(j => j.Key == info.FollowerKey);
+        if (info == null) { Results.Add(new ResultLine("Joints", "this needs two turning or sliding joints. Create them first.", 2)); return null; }
+        var a = Leader!; var b = Follower!;
         Results.Add(new ResultLine("Between", $"{a.Name}  →  {b.Name}"));
-        if (_rack) Results.Add(new ResultLine("Rack travel", $"{Math.Abs(info.Ratio) * 360:0.###} mm per turn of the pinion"));
-        else
-        {
+        if (a.UsesAngle && b.UsesAngle)
             Results.Add(new ResultLine("Ratio", $"{_sizeA.Value:0.###} : {_sizeB.Value:0.###}  =  {_sizeB.Value / _sizeA.Value:0.###} : 1 {(_sizeB.Value > _sizeA.Value ? "(reduction)" : _sizeB.Value < _sizeA.Value ? "(speed up)" : "")}"));
-            Results.Add(new ResultLine("Direction", info.Reverse ? "driven gear turns the opposite way" : "driven gear turns the same way"));
-        }
+        else if (a.UsesAngle != b.UsesAngle) Results.Add(new ResultLine("Travel", $"{TravelPerDegree * 360:0.###} mm per turn"));
+        else Results.Add(new ResultLine("Ratio", $"{_ratio.Value:0.###} mm for each mm"));
+        Results.Add(new ResultLine("Direction", info.Reverse ? "the following joint moves the opposite way" : "the following joint moves the same way"));
         string? fit = Fit(a, b);
         if (fit != null) Results.Add(new ResultLine("Check", fit, 2));
         var o = new CommandOutput { Label = info.Name, Icon = Icon };
         var frame = S.ComponentByKey(a.ParentKey)?.Component is { } pc ? (pc.Placement * a.A).T : Vec3.Zero;
-        o.Add.Add(new(Occ.Line(frame, frame + new Vec3(0, 0, 0.01)), _rack ? "Rack and pinion" : "Gear pair", ObjKind.Joint, Asm: info));
+        o.Add.Add(new(Occ.Line(frame, frame + new Vec3(0, 0, 0.01)), "Coupling", ObjKind.Joint, Asm: info));
         o.After = s => s.SolveAssembly();
         return o;
     }
 
-    /// <summary>A hint when the two shafts cannot sensibly mesh (not parallel, for gears) or sit at a distance that does not match the sizes.</summary>
+    /// <summary>For two turning joints: a note when the shafts are not parallel, or how their spacing compares with the sizes.</summary>
     string? Fit(JointInfo a, JointInfo b)
     {
+        if (!a.UsesAngle || !b.UsesAngle) return null;
         var pa = S.ComponentByKey(a.ParentKey)?.Component; var pb = S.ComponentByKey(b.ParentKey)?.Component;
         if (pa == null || pb == null) return null;
         var fa = pa.Placement * a.A; var fb = pb.Placement * b.A;
-        if (_rack) return null;
         double parallel = Math.Abs(Vec3.Dot(fa.AxisZ.Normalized(), fb.AxisZ.Normalized()));
         if (parallel < 0.999) return "The two shafts are not parallel, so these are not spur gears.";
         var d = fb.T - fa.T; d -= fa.AxisZ * Vec3.Dot(d, fa.AxisZ);

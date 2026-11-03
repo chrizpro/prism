@@ -38,6 +38,7 @@ public sealed class FatigueCommand : AnalysisCommand
     {
         var st = S.ActiveStudy ?? throw new InvalidOperationException("Create and run a static study first.");
         var r = st.Results ?? throw new InvalidOperationException("Run the static study first: fatigue reads its stress result.");
+        if (st.OtherBodies.Count > 0) throw new InvalidOperationException("Fatigue works on a one-body study for now: each material has its own curve.");
         var body = S.Find(st.BodyId) ?? throw new InvalidOperationException("The study's body no longer exists.");
         StudySetup.Validate(body, st.ShapeSignature, []);
         var material = body.Material ?? throw new InvalidOperationException("Assign a material before running fatigue.");

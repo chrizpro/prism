@@ -67,8 +67,10 @@ public sealed partial class MainViewModel
         var body = s.SelectedObjects.FirstOrDefault(o => o.Kind is ObjKind.Solid or ObjKind.Form)
                    ?? (s.Objects.Count(o => o.Kind == ObjKind.Solid) == 1 ? s.Objects.First(o => o.Kind == ObjKind.Solid) : null);
         if (body == null) { s.Say("Select the solid body to study first (or have exactly one solid in the model).", true); return; }
-        s.NewStudy(body);
-        s.Say($"Created {s.ActiveStudy!.Name} for {body.Name}. Add a Fixed Support and a load, then Run Study.");
+        var study = s.NewStudy(body);
+        var others = s.SelectedObjects.Where(o => o.Kind == ObjKind.Solid && o.Id != body.Id).ToList();
+        study.OtherBodies.AddRange(others.Select(o => o.Id));
+        s.Say(others.Count == 0 ? $"Created {study.Name} for {body.Name}. Add a Fixed Support and a load, then Run Study." : $"Created {study.Name} for {others.Count + 1} bodies, bonded where they touch. Give each a material, add a Fixed Support and a load, then Run Study.");
         UpdatePanels();
     }
 
@@ -179,7 +181,7 @@ public sealed partial class MainViewModel
             var data = await Task.Run(() => StudyRunner.Mesh(Session, st));
             _prepared = data; _preparedStudy = st.Id; _preparedSize = st.ElementSize;
             var body = data.Body;
-            var fake = new StudyResults { Mesh = data.Mesh, Solution = new Prism.Kernel.FemMesh.StaticResult(new double[data.Mesh.NodeCount * 3], new double[data.Mesh.NodeCount * 6], new double[data.Mesh.NodeCount], 0, 0, Prism.Kernel.Vec3.Zero, 0), BoundaryNormal = data.BoundaryNormal, Notes = [$"{data.Mesh.TetCount:#,0} tetrahedra, {data.Mesh.NodeCount:#,0} nodes, element size {data.Maxh:0.##} mm."] };
+            var fake = new StudyResults { OtherBodies = data.Parts?.Skip(1).Select(x => x.Body).ToArray() ?? [], Mesh = data.Mesh, Solution = new Prism.Kernel.FemMesh.StaticResult(new double[data.Mesh.NodeCount * 3], new double[data.Mesh.NodeCount * 6], new double[data.Mesh.NodeCount], 0, 0, Prism.Kernel.Vec3.Zero, 0), BoundaryNormal = data.BoundaryNormal, Notes = [$"{data.Mesh.TetCount:#,0} tetrahedra, {data.Mesh.NodeCount:#,0} nodes, element size {data.Maxh:0.##} mm."] };
             var view = ResultView.Build(fake, body.Id, ResultKind.MeshOnly, 1, body.Mesh.Max.DistanceTo(body.Mesh.Min));
             Session.ShowResult(view);
             SimStatus = $"Mesh ready: {data.Mesh.TetCount:#,0} elements";
@@ -193,7 +195,7 @@ public sealed partial class MainViewModel
     {
         st.Results = res; _prepared = null;
         var body = Session.Find(st.BodyId)!;
-        double size = body.Mesh.Max.DistanceTo(body.Mesh.Min);
+        double size = res.OtherBodies.Select(o => o.Mesh).Prepend(body.Mesh).Max(m => m.Max.DistanceTo(m.Min));
         _syncSim = true; DeformScale = Math.Round(ResultView.AutoScale(res, size), 1); ResultKindIndex = 0; _syncSim = false;
         var view = ResultView.Build(res, body.Id, ResultKind.VonMises, DeformScale, size);
         view.ShowEdges = ShowMeshEdges;
@@ -225,7 +227,7 @@ public sealed partial class MainViewModel
             var prep = _prepared != null && ReferenceEquals(_prepared.Body, Session.Find(st.BodyId)) && _preparedStudy == st.Id && Math.Abs(_preparedSize - st.ElementSize) < 1e-12 ? _prepared : null;
             var res = await Task.Run(() =>
             {
-                var mesh=prep??StudyRunner.Mesh(source,setup.ElementSize);
+                var mesh=prep??StudyRunner.Mesh(runSession,setup);
                 try{return StudyRunner.Run(runSession,setup,mesh,Status);}catch{if(prep==null)mesh.Mesh.Dispose();throw;}
             });
             if(!ReferenceEquals(Session,runSession)||!ReferenceEquals(runSession.Find(st.BodyId),source)||runSession.ActiveStudy!=st||System.Text.Json.JsonSerializer.Serialize(st)!=setupJson)

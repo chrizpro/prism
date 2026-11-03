@@ -13,6 +13,7 @@ public sealed class MeshRegionCommand : MeshCommand
     public readonly ChoiceParam Mode;
     readonly NumberParam _angle, _radius, _tolerance;
     readonly BoolParam _front, _through;
+    readonly ChoiceParam _patch;
 
     public MeshRegionCommand() : base("Mesh (click it)")
     {
@@ -29,6 +30,8 @@ public sealed class MeshRegionCommand : MeshCommand
         Add(new ActionParam { Label = "Clear selection", Run = () => Edit(s => s.Clear()) });
         Add(new ActionParam { Label = "Extract selection as a new mesh", Run = ExtractSel });
         Add(new ActionParam { Label = "Delete selected triangles", Run = DeleteSel });
+        _patch = Choice("Patch", 0, "Smooth (follows the surface around it)", "Flat");
+        Add(new ActionParam { Label = "Delete and patch", Run = DeleteAndPatch });
         Tool = new RegionTool(this);
     }
 
@@ -98,6 +101,20 @@ public sealed class MeshRegionCommand : MeshCommand
         var res = new CommandOutput { Label = "Delete region", Icon = "mesh-select" };
         res.ReplaceMeshes.Add((o, rest));
         S.Apply(res); S.Say("Deleted the selected triangles. Use Fill Holes to close the opening.");
+        S.DropRegion(); OnChanged();
+    }
+
+    /// <summary>Remove the selection and close only the openings that leaves; holes elsewhere in the mesh stay as they are.</summary>
+    void DeleteAndPatch()
+    {
+        var o = Target; var s = Sel();
+        if (o == null || s == null || s.IsEmpty) { S.Say("Select some triangles first.", true); return; }
+        if (s.Tris.Count == s.Mesh.TriCount) { S.Say("That is the whole mesh, so there is nothing to patch it to.", true); return; }
+        var patched = MeshPatch.DeleteAndPatch(s.Mesh, s.Tris, _patch.Index == 0);
+        var res = new CommandOutput { Label = "Delete and patch", Icon = "mesh-select" };
+        res.ReplaceMeshes.Add((o, patched.Mesh));
+        S.Apply(res);
+        S.Say(patched.Openings == 0 ? "Deleted the triangles. They left no opening to patch." : $"Deleted the selection and patched {patched.Openings} opening{(patched.Openings == 1 ? "" : "s")} with {Count(patched.NewTriangles)} triangles.");
         S.DropRegion(); OnChanged();
     }
 

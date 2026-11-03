@@ -619,19 +619,21 @@ public sealed class TablePatternCommand : PatternCommand
     public TablePatternCommand() : base(false)
     {
         _kind = Choice("Rows are", 0, "Offsets from the original", "Absolute positions of the center");
-        _rows = Text("Positions", "30, 0, 0\n60, 0, 0, 45\n90, 20, 0", "One per line: x, y, z [, rotation about Z in degrees]");
+        _rows = Text("Positions", "30, 0, 0\n60, 0, 0, 45\n90, 20, 0", "One per line: x, y, z [, rotation about Z in degrees]. Or @ and the name of a sheet in the Data panel, or a file path");
         AddCommonControls();
     }
 
     public override string Title => "Table Pattern";
-    public override string Hint => "Place copies at exactly the positions you type, one per line: x, y, z and optionally a rotation about Z. Good for irregular layouts or data from a drawing.";
+    public override string Hint => "Place copies at exactly the positions you type, one per line: x, y, z and optionally a rotation about Z. Good for irregular layouts or data from a drawing. To read the rows from the Data panel, type @ and the sheet's name, or give the path of a CSV or Excel file.";
     public override string Icon => "pattern-table";
 
     protected override List<Placement> Layout(Vec3 r, Vec3 min, Vec3 max)
     {
         var list = new List<Placement> { Placement.Move(Vec3.Zero, r) };
         int line = 0;
-        foreach (var raw in _rows.Value.Split(['\n', ';'], StringSplitOptions.RemoveEmptyEntries))
+        string text = _rows.Value;
+        if (Prism.Core.Data.DataSource.IsReference(text)) { try { text = Prism.Core.Data.DataSource.WithoutHeaders(Prism.Core.Data.DataSource.Expand(S, text)); } catch (FormatException e) { Row("Table", e.Message, 2); return list; } }
+        foreach (var raw in text.Split(['\n', ';'], StringSplitOptions.RemoveEmptyEntries))
         {
             line++;
             var f = raw.Split([',', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries)

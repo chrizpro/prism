@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Prism.Views.DataPanel">
+    <UserControl.Styles>
+        <!-- the theme paints a focused text box solid; a cell keeps the grid lines and shows its focus with an outline -->
+        <Style Selector="TextBox.cell /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.cell:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.cell:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource AppBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+        </Style>
+        <Style Selector="ListBox#RowList ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox#RowList ListBoxItem:selected /template/ ContentPresenter, ListBox#RowList ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+    </UserControl.Styles>
+    <Border Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+            <!-- the sheets of this document -->
+            <Border Grid.Row="0" Padding="14,10,14,6">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Data" Classes="panelTitle"/>
+                    <WrapPanel Name="SheetBar" Orientation="Horizontal"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="1" Padding="14,0,14,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+                <StackPanel Spacing="6">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Name" Classes="faint" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
+                        <TextBlock DockPanel.Dock="Right" Name="ReferenceText" Classes="faint" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"/>
+                        <TextBox Name="NameBox" Watermark="Sheet name" FontSize="12.5" Padding="8,4"/>
+                    </DockPanel>
+                    <WrapPanel Orientation="Horizontal">
+                        <Button Classes="ghost" Content="Open…" Click="OnOpen" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Bring in a CSV, text or Excel file. Every sheet of a workbook comes in."/>
+                        <Button Classes="ghost" Content="Paste" Click="OnPaste" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Paste cells copied from Excel or any text table, starting at the selected cell (Ctrl+V does the same)."/>
+                        <Button Classes="ghost" Content="Copy" Click="OnCopy" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Copy the whole sheet so it can be pasted into Excel."/>
+                        <Button Classes="ghost" Content="Save CSV…" Click="OnSave" Padding="10,4" FontSize="12" Margin="0,0,12,4"/>
+                        <Button Classes="ghost" Content="+ Row" Click="OnAddRow" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Insert a row above the selected cell."/>
+                        <Button Classes="ghost" Content="+ Column" Click="OnAddColumn" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Insert a column left of the selected cell."/>
+                        <Button Classes="ghost" Content="− Row" Click="OnDeleteRow" Padding="10,4" FontSize="12" Margin="0,0,4,4"/>
+                        <Button Classes="ghost" Content="− Column" Click="OnDeleteColumn" Padding="10,4" FontSize="12" Margin="0,0,12,4"/>
+                        <Button Classes="primary" Content="Make curve" Click="OnMakeCurve" Padding="12,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Draw a curve through the points in this sheet (x, y, z per row)."/>
+                        <Button Classes="ghost" Content="Delete sheet" Click="OnDeleteSheet" Padding="10,4" FontSize="12" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- column letters, kept in step with the grid below when it scrolls sideways -->
+            <ScrollViewer Grid.Row="2" Name="HeaderScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Background="{DynamicResource PanelAlt}">
+                <StackPanel Name="HeaderRow" Orientation="Horizontal"/>
+            </ScrollViewer>
+
+            <ListBox Grid.Row="3" Name="RowList" Background="{DynamicResource AppBg}" BorderThickness="0" Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
+            <Border Grid.Row="4" Padding="14,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+                <TextBlock Name="StatusText" Classes="faint" FontSize="11" TextWrapping="Wrap"/>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

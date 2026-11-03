@@ -4,10 +4,10 @@ using System.Linq;
 
 namespace Prism.Core.Assembly;
 
-public enum CouplingKind { Gear, RackPinion }
+public enum CouplingKind { Gear, RackPinion, Ratio }
 
 /// <summary>
-/// Ties the motion of one joint to another: a gear pair (two revolute joints) or a rack and pinion (a revolute joint and a slider).
+/// Ties the motion of one joint to another: gears, belts and chains (two turning joints), a rack, pulley or screw (turning and sliding), or a lever or cable (two sliding joints).
 /// The leader moves freely (or is driven); the follower is set from it: follower = Factor × leader, in degrees or millimetres.
 /// </summary>
 public sealed record CouplingInfo(string Key, string Name, CouplingKind Kind, string LeaderKey, string FollowerKey, double Ratio, bool Reverse) : AssemblyData
@@ -20,6 +20,8 @@ public sealed record CouplingInfo(string Key, string Name, CouplingKind Kind, st
     public static double GearRatio(double leaderSize, double followerSize) => leaderSize / followerSize;
     /// <summary>Rack travel (mm) per degree of pinion turn for a pinion of this pitch diameter.</summary>
     public static double RackRatio(double pitchDiameter) => Math.PI * pitchDiameter / 360.0;
+    /// <summary>Travel (mm) per degree of a screw with this lead (mm per turn).</summary>
+    public static double LeadRatio(double lead) => lead / 360.0;
 }
 
 public static class CouplingSolver

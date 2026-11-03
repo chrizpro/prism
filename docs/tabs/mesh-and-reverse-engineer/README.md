@@ -1,0 +1,55 @@
+# Mesh and Reverse Engineer tabs
+
+The two tabs do different jobs. **Mesh** fixes a mesh, and the result is still a mesh. **Reverse Engineer** turns a mesh into CAD you can edit. Drawing clean faces over a scan belongs to Freeform, because a quad cage is what Freeform edits: use Freeform from Scan, Create Face and the scan tools in Edit Freeform.
+
+## Mesh
+
+- **Select, Datum:** shared sections
+- **Get a mesh:** Import Mesh, Solid to Mesh, Import Point Cloud / Reconstruct Surface
+- **Region:** Select Region
+- **Repair:** Repair (with Fill holes as a setting), Print Check, Mesh Quality
+- **Reshape:** Reduce, Remesh, Smooth, More (Offset, Split, Mesh Boolean)
+- **Print analysis:** Wall Thickness, Overhang & Orientation
+- **Display:** Clear Colors
+- **Transform, Inspect, Appearance:** shared sections
+
+### Removing something from a mesh
+
+Open **Select Region**, pick the area with smart patch, brush, rectangle or lasso, and press **Delete and patch**. Only the openings that leaves are closed; other holes stay as they are.
+
+- **Smooth** adds points at the mesh's own size and follows a curved surface fitted to the mesh around the opening.
+- **Flat** only triangulates the opening.
+
+Repair's Fill holes closes every hole up to a size limit, which is what you want before printing.
+
+## Reverse Engineer
+
+- **Select, Datum:** shared sections
+- **Set up:** Align, Select Region
+- **Sketch from scan:** Section Sketch
+- **Fit:** Segment & Fit / Fit Surface to Region, Rebuild from Scan
+- **Check:** Deviation, Clear Colors
+- **Convert:** Freeform from Scan, Mesh to Solid
+- **Transform, Inspect, Appearance:** shared sections
+
+### Three ways to get CAD
+
+| Route | Result | Use it when |
+|---|---|---|
+| Section Sketch | An editable sketch of lines, arcs and circles | You want to rebuild the part with your own features |
+| Rebuild from Scan, then Direct Edit | A solid with no history | You want a whole part quickly, then change it |
+| Segment & Fit | Separate exact surfaces, with their sizes | You want to read a size, or need one face or cylinder |
+
+**Section Sketch** slices on XY, XZ or YZ, on a construction plane or flat face, or on a plane fitted to the area picked in Select Region.
+
+**Rebuild from Scan** makes an exact solid when every region is a plane, cylinder, cone or sphere: each fitted surface slices a block around the scan, and the pieces inside the scan are joined. Open **Direct Edit** on the Solid tab to change it. Parts with free-form, torus, extruded or revolved regions are sewn instead, so they may stay open and their edges may not work with Direct Edit.
+
+**Mesh to Solid** makes one face per triangle. It is heavy and hard to edit, so it is a last resort.
+
+## Tested on
+
+Generated parts only: a drilled plate, an L bracket and a plate with a boss, remeshed and given up to ±0.2 mm of random noise. Each rebuilt to a valid solid with the right faces, within 0.3% of the volume, and Direct Edit pulled a face as it does on the original. No real scan has been tried, and real scans have holes, missing sides and uneven noise.
+
+Section Sketch does not add constraints yet, so its sketches have no parallel, equal or tangent relations.
+
+The older commands (Fill Holes, Section Curves, Section Lines & Arcs) are off the ribbon but still work from scripts.

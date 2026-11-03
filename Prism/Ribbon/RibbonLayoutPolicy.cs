@@ -9,18 +9,25 @@ public static class RibbonLayoutPolicy
 {
     public static readonly IReadOnlyList<string> SectionOrder = Array.AsReadOnly(new[]
     {
-        "Document", "Select", "Datum", "References", "Setup", "Study", "Board", "Get a mesh", "Write",
-        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Joint",
-        "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "CNC", "Preparation",
-        "Modify", "Add", "Edit faces", "Edit features", "Direct", "Faces", "Edit", "Repair", "Cut-outs", "Edit curves",
+        // what you pick and draw with
+        "Document", "Select", "Datum", "References", "Curves", "Edit curves", "Setup", "Study", "Board", "Get a mesh", "Region", "Set up", "Sketch from scan", "Fit", "Write",
+        // making things
+        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Mechanism", "Joint", "Couple",
+        "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "3D flow", "CNC", "Preparation", "Resin preparation", "Mesh preparation",
+        // changing things
+        "Modify", "Direct Edit", "Add", "Edit faces", "Edit features", "Direct", "Faces", "Edit", "Repair", "Reshape", "Cut-outs",
         "Curves from surfaces", "Surfaces", "Fill", "Shape", "Detail", "Loops", "Lock and align",
-        "Topology", "Symmetry", "Continuity", "Finish", "Convert", "Combine", "Transform", "Pattern",
-        "Constrain", "Dimension", "Supports", "Loads", "Solve", "Generative", "Study workflow",
+        "Topology", "Symmetry", "Quality", "Validate", "Continuity", "Finish", "Convert", "Combine", "Pattern",
+        // setting up and running analysis
+        "Constrain", "Dimension", "Supports", "Loads", "Springs and loads", "Solve", "Simulate", "Generative", "Study workflow",
+        // reading the results
         "Saved workflow", "Results", "Review", "Motion", "Nozzle review", "Mechanical checks",
-        "Mold inspection", "Print analysis", "Select & trace", "Reverse engineering", "Inspect",
-        "Bounds", "Section", "Check", "Surface quality", "Quality", "Validate", "Analyze",
-        "Appearance", "Image", "Apply", "Library", "Orientation", "Navigate", "Layout", "Display",
-        "Show", "Drawing", "Exchange", "Output", "Share", "Your own editor", "Close", "Exit",
+        "Mold inspection", "Print analysis", "Orientation & inspection", "Select & trace", "Reverse engineering",
+        "Bounds", "Check", "Surface quality", "Analyze",
+        "Image", "Apply", "Library", "Orientation", "Navigate", "Layout", "Display",
+        "Show", "Section", "Drawing", "Exchange", "Export", "Output", "Share", "Your own editor",
+        // always the last three, then the way out
+        "Transform", "Inspect", "Appearance", "Close", "Exit",
     });
 
     public static int Rank(string section)

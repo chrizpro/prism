@@ -324,21 +324,35 @@ public sealed class ConstructionPlaneCommand : Command
 /// <summary>The curve(s) where two planes, faces or surfaces cross: plane-and-plane gives a straight line; a plane through a body gives its outline.</summary>
 public sealed class IntersectCurvesCommand : Command
 {
+    const SelFilter Solids = SelFilter.Plane | SelFilter.Face | SelFilter.SurfaceObj | SelFilter.Solid | SelFilter.Form;
+    const SelFilter Curves = SelFilter.AnyCurve | SelFilter.Edge;
     readonly SelectionSlot _a, _b;
+    readonly ChoiceParam _between;
     readonly BoolParam _separate;
+    CurveIntersectCommand? _curves;
 
     public IntersectCurvesCommand()
     {
-        const SelFilter any = SelFilter.Plane | SelFilter.Face | SelFilter.SurfaceObj | SelFilter.Solid | SelFilter.Form;
-        _a = Slot(new SelectionSlot { Label = "First plane, face or body", Filter = any });
-        _b = Slot(new SelectionSlot { Label = "Second plane, face or body", Filter = any });
+        _a = Slot(new SelectionSlot { Label = "First", Filter = Solids });
+        _b = Slot(new SelectionSlot { Label = "Second", Filter = Solids });
+        _between = Choice("Between", 0, "Planes, faces or bodies", "Two flat curves (projected)");
         _separate = Check("Make each curve its own object", false);
     }
 
     public override string Title => "Intersection Curve";
     public override string Icon => "section";
     public override string OkText => "Create curve";
-    public override string Hint => "Pick two planes, flat or curved faces, or bodies. The curve where they cross is created: two planes give a straight line, a plane through a body gives the outline of the cut. Use it for sweep rails, loft guides and sketch references.";
+    public override string Hint => "Pick two planes, flat or curved faces, or bodies: the curve where they cross is created. Two planes give a straight line, a plane through a body gives the outline of the cut. Or choose Two flat curves: each curve on its own plane is projected along that plane's normal and the shared 3D curve is created. Use it for sweep rails, loft guides and sketch references.";
+
+    protected override void UpdateVisibility()
+    {
+        var filter = _between.Index == 1 ? Curves : Solids;
+        if (_a.Filter == filter) return;
+        _a.Filter = _b.Filter = filter;
+        _a.Items.Clear(); _b.Items.Clear();
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o) { if (_between.Index == 1) _curves?.BuildOverlay(s, o); }
 
     Shape ShapeFor(SelectionSlot slot)
     {
@@ -357,6 +371,19 @@ public sealed class IntersectCurvesCommand : Command
     {
         Results.Clear();
         if (_a.Items.Count == 0 || _b.Items.Count == 0) return null;
+        if (_between.Index == 1)
+        {
+            var curves = _curves = new CurveIntersectCommand();
+            curves.Begin(S);
+            curves.ConfigureInputs(() =>
+            {
+                curves.Slots[0].TryAdd(_a.Items[0]); curves.Slots[1].TryAdd(_b.Items[0]);
+                curves.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Separate")).Value = _separate.Value;
+            });
+            var output = curves.TryBuild() ?? throw new FormatException(curves.Error ?? "Those curves have no shared curve.");
+            foreach (var line in curves.Results) Results.Add(line);
+            return output;
+        }
         var cut = Occ.Intersect(ShapeFor(_a), ShapeFor(_b));
         int edges = cut.Count(SubKind.Edge);
         if (edges == 0) throw new FormatException("Those two do not cross each other.");

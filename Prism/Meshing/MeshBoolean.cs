@@ -467,7 +467,7 @@ public static class MeshBoolean
     // ================================================================= point in mesh (ray parity, majority over three directions)
     static readonly Vec3[] RayDirs = [new Vec3(0.5773, 0.3411, 0.7391).Normalized(), new Vec3(-0.2718, 0.8123, 0.4547).Normalized(), new Vec3(0.1414, -0.6180, 0.9269).Normalized()];
 
-    static bool Inside(Vec3 p, TriMesh m)
+    public static bool Inside(Vec3 p, TriMesh m)
     {
         double step = 1e-9 * Math.Max(1, m.Size.Length);
         int votes = 0;

@@ -26,6 +26,9 @@ public sealed class BoundarySurfaceCommand : Command
     readonly NumberParam _tol;
     /// <summary>Per-edge "order:weight" pairs, hidden: it carries the dynamic pair values through feature recipes.</summary>
     readonly TextParam _edgeCfg;
+    readonly ChoiceParam _fill, _inside;
+    readonly IntParam _samples, _degree, _density, _iter;
+    readonly NumberParam _full;
     readonly List<(ChoiceParam g, NumberParam w)> _pairs = [];
     readonly List<SelItem> _pairOf = [];
     bool _syncing;
@@ -37,12 +40,19 @@ public sealed class BoundarySurfaceCommand : Command
         _join = Check("Join the patch to the boundary surfaces (closes into a solid when it can)", true); _join.Section = "Join";
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01); _tol.Section = "Join";
         _edgeCfg = Text("Edge continuity", ""); _edgeCfg.IsVisible = false;
+        _fill = Choice("Fill with", 0, "Automatic (flat if the loop is flat)", "Flat surface", "Smooth surface");
+        _inside = Choice("Inside curves", 0, "Follow them exactly", "Fit through points on them"); _inside.Section = "Inside curves";
+        _samples = Add(new IntParam { Label = "Points taken along each curve", Value = 24, Min = 6, Max = 120, Section = "Inside curves" });
+        _degree = Add(new IntParam { Label = "Surface degree", Value = 3, Min = 3, Max = 8, Section = "Inside curves" });
+        _density = Add(new IntParam { Label = "Fit density", Value = 15, Min = 8, Max = 60, Section = "Inside curves" });
+        _iter = Add(new IntParam { Label = "Smoothing passes", Value = 3, Min = 1, Max = 12, Section = "Inside curves" });
+        _full = Num("Fullness", 1, 0.1, 4, 0.1, ""); _full.Section = "Blend";
     }
 
     public override string Title => "Boundary Surface";
     public override string Icon => "patch";
     public override string OkText => "Create";
-    public override string Hint => "Pick the curves and surface edges around the new surface. Clicking one open edge fills the whole opening it belongs to; picking a surface fills every opening. Each boundary edge has its own continuity (G0/G1/G2) and weight; guide curves shape the inside.";
+    public override string Hint => "Pick the curves and surface edges around the new surface. A flat loop of curves becomes a flat surface, with loops inside it as holes; anything else becomes a smooth surface. Clicking one open edge fills the whole opening it belongs to; picking a surface fills every opening. Pick an edge on each of two separate surfaces to blend between them. Each boundary edge has its own continuity (G0/G1/G2) and weight; guide curves shape the inside.";
 
     /// <summary>Edges of objects with faces and whole surfaces get a continuity+weight pair; free curves are always G0.</summary>
     bool HasEdgeSettings(SelItem it)
@@ -52,7 +62,25 @@ public sealed class BoundarySurfaceCommand : Command
         return it.Kind == SelKind.Edge && o != null && o.HasBrep && o.Shape.Count(SubKind.Face) > 0;
     }
 
-    protected override void UpdateVisibility() => SyncItemParams();
+    protected override void UpdateVisibility()
+    {
+        if (_full == null || S == null) return;
+        SyncItemParams();
+        bool blend = IsBlend(), inside = _guides.Items.Count > 0;
+        _fill.IsVisible = !blend && !inside;
+        _full.IsVisible = blend;
+        _inside.IsVisible = inside;
+        _samples.IsVisible = _degree.IsVisible = _density.IsVisible = _iter.IsVisible = inside && _inside.Index == 1;
+    }
+
+    /// <summary>Two surface edges that do not touch: there is no closed loop, so the surface spans the gap between them.</summary>
+    bool IsBlend()
+    {
+        if (_boundary.Items.Count != 2 || _guides.Items.Count > 0 || _boundary.Items.Any(i => i.Kind != SelKind.Edge || !HasEdgeSettings(i))) return false;
+        var a = Occ.EdgeInfoOf(S.ShapeOf(_boundary.Items[0])!); var b = Occ.EdgeInfoOf(S.ShapeOf(_boundary.Items[1])!);
+        foreach (var p in new[] { a.Start, a.End }) foreach (var q in new[] { b.Start, b.End }) if (p.DistanceTo(q) < 1e-6) return false;
+        return true;
+    }
 
     /// <summary>Keep one continuity + weight row per param-bearing boundary item; values persist via <see cref="_edgeCfg"/>.</summary>
     void SyncItemParams()
@@ -148,10 +176,54 @@ public sealed class BoundarySurfaceCommand : Command
 
     Shape FillOnce(FillReq f, List<Shape> guides)
     {
+        bool freeLoop = f.Hosts.Count == 0 && guides.Count == 0;
+        if (_fill.Index == 1 && !freeLoop) throw new FormatException("Flat surface works on a loop of free curves or sketches, with no surface edges or guide curves.");
+        if (freeLoop && _fill.Index != 2)
+        {
+            Shape? flat = null;
+            try { flat = Occ.Profile(f.Free, true); } catch (KernelException) when (_fill.Index == 0) { }
+            if (flat is { HasFaces: true }) return flat;
+            if (_fill.Index == 1) throw new FormatException("The curves do not form a closed flat loop. Choose Smooth surface for a bent boundary.");
+        }
         // Pure curve boundaries keep the proven Edge Surface behaviour (ruled / Coons); everything else uses the plate fill.
         if (f.Hosts.Count == 0 && f.Free.Count is >= 2 and <= 4 && guides.Count == 0)
             return Occ.EdgeSurface(f.Free);
+        if (guides.Count > 0)
+        {
+            if (_inside.Index == 1) return Fitted(f, guides);
+            try { return Occ.BoundaryFill(f.Hosts, f.Ids.ToArray(), f.Orders.ToArray(), f.Weights.ToArray(), f.Free, guides); }
+            catch (KernelException)
+            {
+                Results.Add(new ResultLine("Inside curves", "could not be followed exactly, so the surface was fitted through points on them", 2));
+                return Fitted(f, guides);
+            }
+        }
         return Occ.BoundaryFill(f.Hosts, f.Ids.ToArray(), f.Orders.ToArray(), f.Weights.ToArray(), f.Free, guides);
+    }
+
+    /// <summary>A surface that follows the outline exactly and passes close to points sampled on the inside curves.</summary>
+    Shape Fitted(FillReq f, List<Shape> guides)
+    {
+        var outline = f.Free.Concat(f.Hosts.Select((h, i) => h.Sub(SubKind.Edge, f.Ids[i]))).ToList();
+        var points = new List<Vec3>();
+        foreach (var g in guides) points.AddRange(Occ.CurveDivide(g, _samples.Value).points);
+        var shape = Occ.PatchThrough(outline, points, _degree.Value, _density.Value, _iter.Value, 1e-3);
+        // a plate through few points can balloon far outside the outline and the points it is meant to follow; refuse that instead of returning a wrong surface
+        var box = Occ.Compound(outline).Props(); var res = shape.Props();
+        var lo = box.Min; var hi = box.Max;
+        foreach (var p in points) { lo = new Vec3(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new Vec3(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); }
+        double over = new[] { lo.X - res.Min.X, lo.Y - res.Min.Y, lo.Z - res.Min.Z, res.Max.X - hi.X, res.Max.Y - hi.Y, res.Max.Z - hi.Z, 0 }.Max();
+        Results.Add(new ResultLine("Overshoot past the curves", $"{over:0.###} mm", over > 0.15 * (hi - lo).Length ? 3 : 1));
+        if (over > 0.15 * (hi - lo).Length) throw new FormatException("The surface bulges far outside its curves. Add more curves across it, or raise the points taken along each curve.");
+        return shape;
+    }
+
+    /// <summary>Span the gap between two surface edges. The lower of the two continuities is used, as the blend has one setting for both ends.</summary>
+    Shape Blend()
+    {
+        var a = _boundary.Items[0]; var b = _boundary.Items[1];
+        int order = Math.Min(_pairs[PairIndex(a)].g.Index, _pairs[PairIndex(b)].g.Index);
+        return Occ.BlendSurface(S.Find(a.Obj)!.Shape, a.Index, S.Find(b.Obj)!.Shape, b.Index, order, _full.Value);
     }
 
     protected override CommandOutput? Build()
@@ -159,8 +231,10 @@ public sealed class BoundarySurfaceCommand : Command
         Results.Clear();
         if (_boundary.Items.Count == 0) return null;
         var guides = _guides.Items.Select(i => SurfaceUtil.CurveShape(S, i)).ToList();
-        var fills = Resolve();
+        bool blend = IsBlend();
+        var fills = blend ? [] : Resolve();
         var patches = new List<Shape>();
+        if (blend) patches.Add(Blend());
         foreach (var f in fills)
         {
             Shape? patch;
@@ -182,7 +256,7 @@ public sealed class BoundarySurfaceCommand : Command
         }
         if (patches.Count == 0) throw new FormatException("No boundary could be filled. Try lower continuity or a different selection.");
         if (patches.Count < fills.Count) Results.Add(new ResultLine("Boundaries filled", $"{patches.Count} of {fills.Count}", 2));
-        var sources = fills.SelectMany(f => f.Sources).Distinct().ToList();
+        var sources = blend ? _boundary.Items.Select(i => S.Find(i.Obj)!).Distinct().ToList() : fills.SelectMany(f => f.Sources).Distinct().ToList();
         var o = new CommandOutput { Label = "Boundary surface", Icon = "patch" };
         if (_join.Value && sources.Count > 0)
         {

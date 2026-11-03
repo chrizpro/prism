@@ -36,6 +36,16 @@ public sealed partial class CadSession
         return (shape, bodies[0].Color, bodies[0].Look);
     }
 
+    /// <summary>Turn a plain body of this document into a part where it stands, so joints can connect it. If nothing is grounded yet, this part is. Part of the step in progress unless checkpoint is set.</summary>
+    public SceneObject MakePart(Guid id, bool checkpoint = false)
+    {
+        var o = Find(id) ?? throw new InvalidOperationException("That body no longer exists.");
+        if (o.Component != null) return o;
+        bool ground = !Components.Any(c => c.Component!.Grounded);
+        Update(id, v => v.WithAsm(new ComponentInfo(NewKey(), v.Name, null, Xform.Identity.ToArray(), ground), v.Shape), checkpoint, "Make Part");
+        return Find(id)!;
+    }
+
     /// <summary>The component's geometry in its own coordinates (cached; derived from where it sits now when needed).</summary>
     public Shape LocalShapeOf(SceneObject comp)
     {
@@ -78,7 +88,7 @@ public sealed partial class CadSession
     public SceneObject AddCoupling(CouplingInfo info)
     {
         var marker = Occ.Line(Vec3.Zero, new Vec3(0, 0, 0.01));
-        var obj = new SceneObject(Guid.NewGuid(), NextName(info.Kind == CouplingKind.Gear ? "Gear pair" : "Rack and pinion"), marker, ObjKind.Joint, Palette.JointColor, true, null, null, null, null, null, info);
+        var obj = new SceneObject(Guid.NewGuid(), NextName(info.Kind switch { CouplingKind.Gear => "Gear pair", CouplingKind.RackPinion => "Rack and pinion", _ => "Coupling" }), marker, ObjKind.Joint, Palette.JointColor, true, null, null, null, null, null, info);
         Objects = Objects.Add(obj);
         SolveAssembly();
         RaiseScene();

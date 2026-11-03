@@ -89,6 +89,15 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
 
     int Mode => cmd.TransformMode.Index;     // 0 move, 1 rotate, 2 scale
 
+    /// <summary>Control points inside a rectangle or lasso: Ctrl takes them away, otherwise they are added.</summary>
+    void SelectInside(CadSession s, RegionSelect.Region region, bool remove)
+    {
+        var m = cmd.Model; if (m == null) return;
+        for (int i = 0; i < m.Points.Length; i++)
+            if (s.Camera.Project(m.Points[i]) is { } q && region.Contains(q.x, q.y)) { if (remove) Selected.Remove(i); else Selected.Add(i); }
+        cmd.SelectionChanged(); s.Invalidate();
+    }
+
     public void Reset() { Binding.Reset();Selected.Clear(); _hot = -1; _drag = Drag.None; cmd.SelectionChanged(); }
 
     // ---------------------------------------------------------------- gizmo geometry
@@ -208,7 +217,12 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         }
 
         int i = Picking.NearestPoint(s.Camera, m.Points, p.X, p.Y, 12);
-        if (i < 0) { if (!p.Shift) { Selected.Clear(); cmd.SelectionChanged(); } s.Invalidate(); return true; }
+        if (i < 0)
+        {
+            if (!p.Shift && !p.Ctrl) { Selected.Clear(); cmd.SelectionChanged(); }
+            s.BeginToolRegion(p, (region, up) => SelectInside(s, region, up.Ctrl));
+            s.Invalidate(); return true;
+        }
         if (p.Shift) { if (!Selected.Remove(i)) Selected.Add(i); }
         else if (!Selected.Contains(i)) { Selected.Clear(); Selected.Add(i); }
         cmd.SelectionChanged();

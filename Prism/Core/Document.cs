@@ -44,6 +44,8 @@ public sealed class SceneObject
     public bool Visible { get; }
     public Plane3? SketchPlane { get; }
     public FlatPatternMap? FlatMap { get; init; }
+    /// <summary>Direct edits of this body are recorded as editable history steps. Off by default: they are plain undo steps unless the user turns tracking on.</summary>
+    public bool TrackHistory { get; init; }
     /// <summary>Control cage for Form objects (null otherwise).</summary>
     public SubdMesh? Form { get; }
     /// <summary>Parametric definition for Sketch objects (so they can be edited again).</summary>
@@ -76,7 +78,8 @@ public sealed class SceneObject
     public static ObjKind Classify(Shape s) => s.HasSolids ? ObjKind.Solid : s.HasFaces ? ObjKind.Surface : ObjKind.Curve;
 
     SceneObject Copy(string? name = null, uint? color = null, bool? visible = null, Appearance? look = null) => new(Id, name ?? Name, _shape, Kind, color ?? Color, visible ?? Visible, SketchPlane, Form, SketchData, look ?? Look, Tri, Asm)
-    { _mesh = _mesh, FlatMap = FlatMap };
+    { _mesh = _mesh, FlatMap = FlatMap, TrackHistory = TrackHistory };
+    public SceneObject WithTracking(bool on) => new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, TrackHistory = on };
     public SceneObject WithName(string n) => Copy(name: n);
     public SceneObject WithColor(uint c) => Copy(color: c);
     public SceneObject WithVisible(bool v) => Copy(visible: v);
@@ -86,9 +89,9 @@ public sealed class SceneObject
     /// <summary>Assign a library material: its colour and finish come with it.</summary>
     public SceneObject WithMaterial(Material m) => Copy(color: m.Color, look: m.Look);
     /// <summary>Same identity (id, name, colour), new exact geometry (a Form becomes a regular B-rep object).</summary>
-    public SceneObject WithShape(Shape s) => new(Id, Name, s, Kind is ObjKind.Sketch or ObjKind.Plane or ObjKind.Joint or ObjKind.Animation or ObjKind.Toolpath ? Kind : Classify(s), Color, Visible, SketchPlane, null, null, Look, null, Asm) { FlatMap=FlatMap };
+    public SceneObject WithShape(Shape s) => new(Id, Name, s, Kind is ObjKind.Sketch or ObjKind.Plane or ObjKind.Joint or ObjKind.Animation or ObjKind.Toolpath ? Kind : Classify(s), Color, Visible, SketchPlane, null, null, Look, null, Asm) { FlatMap=FlatMap, TrackHistory = TrackHistory };
     /// <summary>Same identity with new assembly data (and optionally new geometry, e.g. after the component moved).</summary>
-    public SceneObject WithAsm(Assembly.AssemblyData a, Shape? shape = null) => new(Id, Name, shape ?? _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, a) { _mesh = shape == null ? _mesh : null };
+    public SceneObject WithAsm(Assembly.AssemblyData? a, Shape? shape = null) => new(Id, Name, shape ?? _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, a) { _mesh = shape == null ? _mesh : null, FlatMap = FlatMap, TrackHistory = TrackHistory };
     /// <summary>Same identity, new sketch geometry and definition.</summary>
     /// <summary>A picture on a plane: the plane object keeps the frame outline, the info holds the picture and how it is shown.</summary>
     public SceneObject WithImage(Assembly.ImageInfo info, Shape frame, Plane3 plane) => new(Id, Name, frame, ObjKind.Plane, Color, Visible, plane, null, null, Look, null, info);

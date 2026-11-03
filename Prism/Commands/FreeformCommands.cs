@@ -101,7 +101,8 @@ public sealed class NurbsPatchCommand : Command
         _relief = Num("Initial relief", 12);
         _off = Num("Plane offset", 0);
     }
-    public override string Title => "NURBS Patch";
+    public override string Title => "Control Grid";
+    public override string Icon => "nurbs-patch";
     public override string Hint => "Creates an editable grid of control points. Shape it with Edit Points or Sculpt.";
 
     protected override CommandOutput? Build()
@@ -126,26 +127,32 @@ public sealed class NurbsPatchCommand : Command
 
 public sealed class CurveByPointsCommand : Command
 {
-    readonly bool _through;
     readonly ChoiceParam _plane;
     readonly NumberParam _off;
-    readonly IntParam? _deg;
-    readonly BoolParam? _closed;
+    readonly ChoiceParam _type;
+    readonly IntParam _deg;
+    readonly BoolParam _closed;
     readonly PlacePointsTool _tool;
     readonly bool _3d;
     /// <summary>3D sketch: the drawing plane follows the last point, Tab turns it, and points snap to existing edges, so a path can climb through space.</summary>
     public bool Is3D => _3d;
     public CurveByPointsCommand(bool through, bool sketch3D = false)
     {
-        _through = through; _3d = sketch3D;
+        _3d = sketch3D;
         _plane = Choice(sketch3D ? "Draw on plane (Tab turns it)" : "Draw on plane", 0, "XY (ground)", "XZ (front)", "YZ (side)");
         _off = Num("Plane offset", 0);
         if (sketch3D) _off.IsVisible = false;
-        if (through) _closed = Check("Closed", false); else _deg = Add(new IntParam { Label = "Degree", Value = 3, Min = 1, Max = 5 });
+        _closed = Check("Closed", false);
+        _deg = Add(new IntParam { Label = "Degree", Value = 3, Min = 1, Max = 5 });
+        _type = Choice("Curve type", through ? 0 : 1, "Through the points", "Control points");
+        if (sketch3D) _type.IsVisible = false;
         Tool = _tool = new PlacePointsTool(this);
+        UpdateVisibility();
     }
-    public override string Title => _3d ? "3D Sketch" : _through ? "Curve Through Points" : "Control-Point Curve";
-    public override string Hint => _3d ? "3D sketch: click points in space. The drawing plane passes through your last point, so a click keeps its height; press Tab to turn the plane (ground, front, side), or snap to the ends of existing edges. Right-click or Create to finish." : _through ? "Click points the curve must pass through. Right-click or OK to finish." : "Click to place control points. Right-click or OK to finish.";
+    public override string Title => _3d ? "3D Sketch" : "Curve";
+    public override string Icon => "curve-through";
+    public override string Hint => _3d ? "3D sketch: click points in space. The drawing plane passes through your last point, so a click keeps its height; press Tab to turn the plane (ground, front, side), or snap to the ends of existing edges. Right-click or Create to finish." : "Click to place points. Curve type chooses whether the curve passes through them or is pulled toward them as control points. Right-click or OK to finish.";
+    protected override void UpdateVisibility() { _closed.IsVisible = Through; _deg.IsVisible = !Through; }
     public override string OkText => "Create";
 
     public Plane3 Plane
@@ -159,7 +166,7 @@ public sealed class CurveByPointsCommand : Command
     }
     public override Plane3? WorkPlane => Plane;
     public List<Vec3> Points => _tool.Points;
-    public bool Through => _through;
+    public bool Through => _type.Index == 0;
     public void Changed() => OnChanged();
     public void NextPlane() { _plane.Index = (_plane.Index + 1) % 3; OnChanged(); }
     public void SetPoints(IEnumerable<Vec3> pts) { Points.Clear(); Points.AddRange(pts); OnChanged(); }
@@ -167,7 +174,7 @@ public sealed class CurveByPointsCommand : Command
     protected override CommandOutput? Build()
     {
         if (Points.Count < 2) return null;
-        var shape = _through ? Occ.Spline(Points, _closed!.Value && Points.Count > 2) : Occ.NurbsCurve(Points, _deg!.Value);
+        var shape = Through ? Occ.Spline(Points, _closed.Value && Points.Count > 2) : Occ.NurbsCurve(Points, _deg.Value);
         var o = new CommandOutput();
         o.Add.Add(new(shape, "Curve", ObjKind.Curve));
         return o;
@@ -177,6 +184,15 @@ public sealed class CurveByPointsCommand : Command
 // ---------------------------------------------------------------- edit control points
 public sealed class EditPointsCommand : Command
 {
+    /// <summary>Select every control point that is not selected.</summary>
+    public void InvertPoints()
+    {
+        if (Model == null) return;
+        var next = Enumerable.Range(0, Model.Points.Length).Where(i => !_tool.Selected.Contains(i)).ToList();
+        _tool.Selected.Clear(); foreach (int i in next) _tool.Selected.Add(i);
+        SelectionChanged(); S.Invalidate();
+    }
+
     readonly SelectionSlot _src;
     public readonly NumberParam Radius;
     public readonly ChoiceParam FalloffMode, TransformMode;

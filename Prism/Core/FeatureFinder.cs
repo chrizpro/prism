@@ -203,8 +203,8 @@ public static class FeatureFinder
             if (Ring(a, seed, d, true) is { } ring)
             {
                 var set = ring.ToHashSet();
-                // a boss stands on something: some ring face meets a flat face square to the axis in an inside corner (a plain box exterior has none)
-                bool stands = ring.Any(f => a.Adj[f].Any(l => !set.Contains(l.To) && l.Class == Edge.Concave && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999));
+                // a boss stands on something: most of the ring meets a flat face square to the axis in an inside corner. One side alone is the end of a plate against a wall, not a boss
+                bool stands = ring.Count(f => a.Adj[f].Any(l => !set.Contains(l.To) && l.Class == Edge.Concave && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999)) * 2 > ring.Count;
                 if (stands)
                 {
                     // the boss's top: a flat face square to the axis that meets most of the ring in an outside corner

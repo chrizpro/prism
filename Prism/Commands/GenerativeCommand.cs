@@ -52,7 +52,7 @@ public sealed class GenerativeCommand : Command
     public override string OkText => "Create the shape";
     public override string Hint => "Uses the supports and loads of the study you set up in this workspace (Study, Fixed Support, Force...). Choose how much of the volume to keep, press Generate and watch the material settle into load paths. Stop whenever it looks right, then Create the shape. The result is a mesh: smooth it, convert it to a solid, and run a normal study on it to check the stress.";
 
-    SceneObject Body() => S.Find(S.ActiveStudy?.BodyId ?? Guid.Empty) ?? throw new InvalidOperationException("Start a study first (Simulate > New Study), add a support and a load, then come back.");
+    SceneObject Body() => S.ActiveStudy is { OtherBodies.Count: > 0 } ? throw new InvalidOperationException("Generative Design works on a one-body study for now.") : S.Find(S.ActiveStudy?.BodyId ?? Guid.Empty) ?? throw new InvalidOperationException("Start a study first (Simulate > New Study), add a support and a load, then come back.");
 
     void Start()
     {

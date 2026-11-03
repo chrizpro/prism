@@ -115,7 +115,7 @@ public sealed partial class SelectionSlot : ObservableObject
     public string Label { get; init; } = "";
     public string? Caption { get; init; }
     public string DisplayLabel => Caption ?? Label;
-    public SelFilter Filter { get; init; } = SelFilter.AnyObject;
+    public SelFilter Filter { get; set; } = SelFilter.AnyObject;
     public bool Multi { get; init; }
     /// <summary>Clicking a face selects what it belongs to (a hole, slot, pocket, boss...), by the chosen <see cref="Intent"/>, instead of the one face.</summary>
     public bool SmartPick { get; init; }
@@ -196,7 +196,7 @@ public sealed class CommandOutput
 /// A grab handle for a distance-like value: an arrow from Origin along Dir whose tip sits at Param/Mul. Dragging it sets the value.
 /// With a Ref direction it is a turning handle instead: Dir is the axis, Param is an angle in degrees, and the tip rides an arc of the given Radius starting from Ref.
 /// </summary>
-public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1, Vec3? Ref = null, double Radius = 0, bool ShowRange = false);
+public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1, Vec3? Ref = null, double Radius = 0, bool ShowRange = false, uint Colour = 0);
 
 /// <summary>Everything needed to run a command again: how to make it, its picks and its numbers. Stored on the history step the command created.</summary>
 public sealed record FeatureRecipe(Func<Command> Make, string Title, List<object?> Values, List<List<SelItem>> Slots, Dictionary<int, string>? Expressions = null);
@@ -229,7 +229,7 @@ public abstract partial class Command : ObservableObject
         NumberParam n=>(object)(n.Value,n.Formula),IntParam i=>i.Value,ChoiceParam c=>c.Index,
         BoolParam b=>b.Value,TextParam t=>t.Value,_=>null,
     }).ToArray();
-    public bool HasInputChanges=>_initialValues!=null && (!InputValues().SequenceEqual(_initialValues)
+    public virtual bool HasInputChanges=>_initialValues!=null && (!InputValues().SequenceEqual(_initialValues)
         || _initialSlots==null || Slots.Count!=_initialSlots.Length
         || Slots.Where((s,i)=>!s.Items.SequenceEqual(_initialSlots[i])).Any());
 

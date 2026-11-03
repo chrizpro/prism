@@ -45,12 +45,15 @@ public sealed class ResultView
         d.Min=new(positions.Min(p=>p.X),positions.Min(p=>p.Y),positions.Min(p=>p.Z));d.Max=new(positions.Max(p=>p.X),positions.Max(p=>p.Y),positions.Max(p=>p.Z));
         d.Scalars=values;d.TriFace=new int[m.BoundaryCount*4];d.FaceTriStart=[0,m.BoundaryCount*4];d.EdgeSegStart=[0];
         float min=values.Min(), high=values.Max(); if(high-min<1e-6)high=min+1e-6f;
-        return new ResultView { Mesh=d,BodySnapshot=p.Body,BodyId=p.Body.Id,Kind=ResultKind.Scalar,Min=min,Max=high,Title=thermal?"Temperature":$"Mode {mode+1}: {outcome.Frequencies[mode]:0.###} Hz",
+        return new ResultView { Mesh=d,BodySnapshot=p.Body,BodyId=p.Body.Id,OtherBodies=p.Parts?.Skip(1).Select(x=>x.Body).ToArray()??[],Kind=ResultKind.Scalar,Min=min,Max=high,Title=thermal?"Temperature":$"Mode {mode+1}: {outcome.Frequencies[mode]:0.###} Hz",
             Unit=thermal?"°C":"relative magnitude",Values=values,Positions=positions,NodeOfVertex=Enumerable.Range(0,m.NodeCount).ToArray(),Scale=scale };
     }
     public required MeshData Mesh { get; init; }
     public SceneObject? BodySnapshot { get; init; }
     public Guid BodyId { get; init; }
+    /// <summary>The other bodies this result covers, as they were when it was solved. The result is drawn in their place.</summary>
+    public SceneObject[] OtherBodies { get; init; } = [];
+    public bool Covers(Guid id) => id == BodyId || OtherBodies.Any(o => o.Id == id);
     public ResultKind Kind { get; init; }
     public float Min { get; init; }
     public float Max { get; init; }
@@ -151,6 +154,6 @@ public sealed class ResultView
             case ResultKind.Scalar: title = fieldTitle; unit = fieldUnit; mn = (float)lo; mx = (float)hi; if (Math.Abs(mx - mn) < 1e-9) mx = mn + 1e-6f; break;
             default: title = "Mesh"; break;
         }
-        return new ResultView { Mesh = d, BodySnapshot=r.SourceBody, BodyId = body, Kind = kind, Min = mn, Max = mx, Title = title, Unit = unit, Scale = scale, Source = r, NodeOfVertex = [.. nodes], Values = val, Positions = pos };
+        return new ResultView { Mesh = d, BodySnapshot=r.SourceBody, BodyId = body, OtherBodies = r.OtherBodies, Kind = kind, Min = mn, Max = mx, Title = title, Unit = unit, Scale = scale, Source = r, NodeOfVertex = [.. nodes], Values = val, Positions = pos };
     }
 }

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Prism.Kernel;
@@ -53,6 +55,19 @@ public sealed unsafe class FemMesh : IDisposable
         MinQuality = mq; MeanQuality = aq;
     }
 
+    FemMesh(IReadOnlyList<FemMesh> parts)
+    {
+        NodeCount = parts.Sum(p => p.NodeCount); CornerCount = parts.Sum(p => p.CornerCount); TetCount = parts.Sum(p => p.TetCount); BoundaryCount = parts.Sum(p => p.BoundaryCount);
+        Nodes = parts.SelectMany(p => p.Nodes).ToArray();
+        var tets = new List<int>(TetCount * 10); var boundary = new List<int>(BoundaryCount * 6); int offset = 0;
+        foreach (var p in parts) { tets.AddRange(p.Tets.Select(n => n + offset)); boundary.AddRange(p.Boundary.Select(n => n + offset)); offset += p.NodeCount; }
+        Tets = [.. tets]; Boundary = [.. boundary];
+        MinQuality = parts.Min(p => p.MinQuality); MeanQuality = parts.Average(p => p.MeanQuality);
+    }
+
+    /// <summary>Several meshes as one list of nodes and elements, for a solver that takes each body's own material. It holds no native mesh, so SolveStatic and StartTopology do not apply.</summary>
+    public static FemMesh Merge(IReadOnlyList<FemMesh> parts) => new(parts);
+
     static string LastError() => Marshal.PtrToStringUTF8(SimNative.sim_last_error()) ?? "Unknown error.";
 
     /// <summary>Mesh the volume enclosed by a closed triangle surface (9 floats per triangle). maxh = target element size in mm.</summary>
@@ -82,6 +97,7 @@ public sealed unsafe class FemMesh : IDisposable
     public StaticResult SolveStatic(double E, double nu, double density, int[] fixNode, int[] fixMask, double[]? fixVal,
         int[] forceNode, double[] forceVec, int[] tracTri, double[] tracVec, double[]? gravity)
     {
+        if (_h == IntPtr.Zero) throw new InvalidOperationException("A merged mesh has more than one material, so it is solved through CalculiX.");
         var mat = new[] { E, nu, density };
         var u = new double[NodeCount * 3]; var s = new double[NodeCount * 6]; var vm = new double[NodeCount]; var info = new double[8];
         int ok;

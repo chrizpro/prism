@@ -64,26 +64,31 @@ static class NurbsUtil
 /// <summary>Round or chamfer the corners of a flat curve.</summary>
 public sealed class CurveFilletCommand : Command
 {
-    readonly bool _chamfer;
     readonly SelectionSlot _curve;
-    readonly NumberParam _size;
+    readonly ChoiceParam _corner;
+    readonly NumberParam _radius, _distance;
     readonly BoolParam _keep;
+    bool Chamfer => _corner.Index == 1;
 
     public CurveFilletCommand(bool chamfer)
     {
-        _chamfer = chamfer;
         _curve = Slot(new SelectionSlot { Label = "Flat curve or sketch", Filter = SelFilter.AnyCurve | SelFilter.Edge });
-        _size = Num(chamfer ? "Chamfer distance" : "Fillet radius", chamfer ? 3 : 5, 0.001);
+        _corner = Choice("Corners", chamfer ? 1 : 0, "Fillet (round)", "Chamfer (cut)");
+        _radius = Num("Fillet radius", 5, 0.001);
+        _distance = Num("Chamfer distance", 3, 0.001);
         _keep = Check("Keep the original curve", true);
+        UpdateVisibility();
     }
-    public override string Title => _chamfer ? "Chamfer Curve" : "Fillet Curve";
-    public override string Icon => _chamfer ? "chamfer" : "fillet";
+    public override string Title => "Fillet / Chamfer Curve";
+    public override string Icon => "fillet";
     public override string Hint => "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. An open curve keeps its two ends. The curve has to lie in one plane.";
+    protected override void UpdateVisibility() { _radius.IsVisible = !Chamfer; _distance.IsVisible = Chamfer; }
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var item = _curve.Items[0];
-        var o = NurbsUtil.Curves(NurbsUtil.Wires(NurbsUtil.Curve(S, item)).Select(w => Occ.WireFillet(w, _size.Value, _chamfer)).ToList(), _chamfer ? "Chamfered curve" : "Filleted curve");
+        double size = Chamfer ? _distance.Value : _radius.Value;
+        var o = NurbsUtil.Curves(NurbsUtil.Wires(NurbsUtil.Curve(S, item)).Select(w => Occ.WireFillet(w, size, Chamfer)).ToList(), Chamfer ? "Chamfered curve" : "Filleted curve");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, [item]);
         return o;
     }
@@ -209,7 +214,9 @@ public sealed class ExplodeCurveCommand : Command
 public sealed class TrimCurveCommand : Command
 {
     readonly SelectionSlot _curve;
+    readonly ChoiceParam _action;
     readonly NumberParam _from, _to;
+    readonly TextParam _at;
     readonly BoolParam _keep;
     public TrimCurveCommand()
     {
@@ -217,15 +224,32 @@ public sealed class TrimCurveCommand : Command
         _from = Num("Keep from (%)", 0, 0, 100, 5, "%");
         _to = Num("Keep to (%)", 70, 0, 100, 5, "%");
         _keep = Check("Keep the original", false);
+        _action = Choice("Action", 0, "Keep one part", "Cut into pieces");
+        _at = Text("Split at (% , separated)", "50", "e.g. 25, 50, 75");
+        UpdateVisibility();
     }
     public override string Title => "Trim Curve";
     public override string Icon => "trim";
-    public override string Hint => "Keep the part of the curve between two positions, given as a percentage of its length range.";
+    public override string Hint => "Keep the part of the curve between two positions, or cut it into pieces at one or more positions, given as percentages along it.";
+    protected override void UpdateVisibility() { _from.IsVisible = _to.IsVisible = _action.Index == 0; _at.IsVisible = _action.Index == 1; }
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var shape = NurbsUtil.Curve(S, _curve.Items[0]);
         if (shape.Count(SubKind.Edge) != 1) throw new KernelException("Trim works on one segment. Use Explode Curve first.");
+        if (_action.Index == 1)
+        {
+            var cuts = _at.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v / 100 : double.NaN)
+                .Where(v => v > 0.001 && v < 0.999).Distinct().OrderBy(v => v).ToList();
+            if (cuts.Count == 0) throw new KernelException("Give one or more positions between 0 and 100 percent.");
+            var ends = new List<double> { 0 }; ends.AddRange(cuts); ends.Add(1);
+            var pieces = Enumerable.Range(0, ends.Count - 1).Select(i => Occ.CurveTrim(shape, ends[i], ends[i + 1])).ToList();
+            var split = NurbsUtil.Curves(pieces, "Curve piece");
+            if (!_keep.Value) NurbsUtil.RemoveSources(S, split, _curve.Items);
+            Results.Clear(); Results.Add(new ResultLine("Pieces", pieces.Count.ToString()));
+            return split;
+        }
         var o = NurbsUtil.Curves([Occ.CurveTrim(shape, _from.Value / 100, _to.Value / 100)], "Trimmed curve");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curve.Items);
         return o;

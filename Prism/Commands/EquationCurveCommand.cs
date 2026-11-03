@@ -14,7 +14,8 @@ namespace Prism.Commands;
 /// </summary>
 public sealed class EquationCurveCommand : Command
 {
-    readonly bool _table;
+    readonly ChoiceParam _source;
+    bool Table => _source.Index == 1;
     // formula mode
     readonly ChoiceParam _system = null!, _angles = null!;
     readonly TextParam _e1 = null!, _e2 = null!, _e3 = null!;
@@ -28,49 +29,54 @@ public sealed class EquationCurveCommand : Command
     readonly BoolParam _closed;
     readonly NumberParam _ox, _oy, _oz;
 
+    /// <summary>Read the points from a sheet of the Data panel.</summary>
+    public void UseSheet(string name) { _source.Index = 1; _rows.Value = "@" + name; OnChanged(); }
+
     public EquationCurveCommand(bool table)
     {
-        _table = table;
-        if (!table)
-        {
-            _system = Choice("Coordinates", 0, "Cartesian  x, y, z", "Cylindrical  r, θ, z", "Spherical  ρ, θ (from Z), φ");
-            _e1 = Text("x  |  r  |  ρ", "20*cos(t*720)", "formula of t, e.g. 20*cos(t*360)");
-            _e2 = Text("y  |  θ  |  θ", "20*sin(t*720)", "angles in degrees unless set below");
-            _e3 = Text("z  |  z  |  φ", "40*t", "use pi, sqrt, abs, exp, ln, atan2, ...");
-            _t0 = Num("t from", 0, step: 0.1, unit: "");
-            _t1 = Num("t to", 1, step: 0.1, unit: "");
-            _count = Add(new IntParam { Label = "Points", Min = 4, Max = 5000, Value = 120 });
-            _angles = Choice("Angles in", 0, "Degrees", "Radians");
-        }
-        else
-        {
-            _rows = Text("Points", "0,0,0; 20,10,5; 40,0,10; 60,-10,15", "x,y,z per point, separated by ; or new lines (x,y works too)");
-            _file = Text("…or read a file", "", "path to a .csv / .txt with x,y,z per row");
-            _scale = Num("Scale", 1, 1e-6, 1e6, 0.1, "×");
-        }
+        _source = Choice("Points from", table ? 1 : 0, "Equation", "Table or file");
+        _system = Choice("Coordinates", 0, "Cartesian  x, y, z", "Cylindrical  r, θ, z", "Spherical  ρ, θ (from Z), φ");
+        _e1 = Text("x  |  r  |  ρ", "20*cos(t*720)", "formula of t, e.g. 20*cos(t*360)");
+        _e2 = Text("y  |  θ  |  θ", "20*sin(t*720)", "angles in degrees unless set below");
+        _e3 = Text("z  |  z  |  φ", "40*t", "use pi, sqrt, abs, exp, ln, atan2, ...");
+        _t0 = Num("t from", 0, step: 0.1, unit: "");
+        _t1 = Num("t to", 1, step: 0.1, unit: "");
+        _count = Add(new IntParam { Label = "Points", Min = 4, Max = 5000, Value = 120 });
+        _angles = Choice("Angles in", 0, "Degrees", "Radians");
+        _rows = Text("Points", "0,0,0; 20,10,5; 40,0,10; 60,-10,15", "x,y,z per point, separated by ; or new lines (x,y works too)");
+        _file = Text("…or read a file or sheet", "", "a .csv, .txt or .xlsx file, or @ and the name of a sheet in the Data panel");
+        _scale = Num("Scale", 1, 1e-6, 1e6, 0.1, "×");
         _kind = Choice("Curve", 0, "Smooth through the points", "NURBS control points", "Straight segments");
         _closed = Check("Closed", false);
         _ox = Num("Move X", 0); _oy = Num("Move Y", 0); _oz = Num("Move Z", 0);
+        UpdateVisibility();
     }
 
-    public override string Title => _table ? "Curve from Table" : "Curve from Equation";
+    protected override void UpdateVisibility()
+    {
+        _system.IsVisible = _e1.IsVisible = _e2.IsVisible = _e3.IsVisible = _t0.IsVisible = _t1.IsVisible = _count.IsVisible = _angles.IsVisible = !Table;
+        _rows.IsVisible = _file.IsVisible = _scale.IsVisible = Table;
+    }
+
+    public override string Title => "Curve from Data";
     public override string Icon => "curve-through";
     public override string OkText => "Create curve";
-    public override string Hint => _table
-        ? "Type or paste points (x,y,z per row) or point at a file. The curve passes through them, follows them as control points, or joins them with straight segments."
+    public override string Hint => Table
+        ? "Type or paste points (x,y,z per row), or read a file (CSV, text or Excel) or a sheet of the Data panel with @ and its name. The curve passes through them, follows them as control points, or joins them with straight segments."
         : "Describe the curve with formulas of t. Cartesian, cylindrical and spherical coordinates are supported; t runs from the first value to the last, so a full turn of a helix is x=r*cos(t*360), y=r*sin(t*360) for t from 0 to 1.";
 
     List<Vec3> Points()
     {
         var pts = new List<Vec3>();
-        if (_table)
+        if (Table)
         {
             string text = _rows.Value;
             if (!string.IsNullOrWhiteSpace(_file.Value))
             {
-                if (!File.Exists(_file.Value)) throw new FormatException($"Cannot find the file {_file.Value}.");
-                text = File.ReadAllText(_file.Value);
+                if (!_file.Value.TrimStart().StartsWith('@') && !File.Exists(_file.Value)) throw new FormatException($"Cannot find the file {_file.Value}.");
+                text = Prism.Core.Data.DataSource.Expand(S, _file.Value);
             }
+            else if (Prism.Core.Data.DataSource.IsReference(text)) text = Prism.Core.Data.DataSource.Expand(S, text);
             foreach (var row in text.Split(['\n', '\r', ';'], StringSplitOptions.RemoveEmptyEntries))
             {
                 var cols = row.Split([',', '\t', ' '], StringSplitOptions.RemoveEmptyEntries);
@@ -131,7 +137,7 @@ public sealed class EquationCurveCommand : Command
         Results.Add(new ResultLine("Points", clean.Count.ToString()));
         Results.Add(new ResultLine("Approx. length", $"{len:0.##} mm"));
         var o = new CommandOutput();
-        o.Add.Add(new(shape, _table ? "Table Curve" : "Equation Curve", ObjKind.Curve));
+        o.Add.Add(new(shape, Table ? "Table Curve" : "Equation Curve", ObjKind.Curve));
         o.Icon = "curve-through";
         return o;
     }
@@ -139,7 +145,7 @@ public sealed class EquationCurveCommand : Command
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         // show the sample points of a table so a wrong column order is obvious
-        if (!_table) return;
+        if (!Table) return;
         try { foreach (var p in Points()) o.AddDot(p, 0xFFFF8A1F, 6); } catch { }
     }
 }

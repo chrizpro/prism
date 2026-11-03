@@ -206,8 +206,9 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if (mode == FormMode.Face && PickFace(s, p.X, p.Y) is var f && f >= 0) {Toggle(cmd.Faces, f, p.Shift); return Selected(); }
 
         // empty space: start a box selection
-        _drag = p.Ctrl ? Drag.Lasso : Drag.Box; _bx0 = _bx1 = p.X; _by0 = _by1 = p.Y;
-        _lasso.Clear(); if (p.Ctrl) _lasso.Add((p.X, p.Y));
+        bool lasso = p.Ctrl || s.Method == SelectMethod.Lasso;
+        _drag = lasso ? Drag.Lasso : Drag.Box; _bx0 = _bx1 = p.X; _by0 = _by1 = p.Y;
+        _lasso.Clear(); if (lasso) _lasso.Add((p.X, p.Y));
         if (!p.Shift) cmd.ClearSelection();
         return true;
     }

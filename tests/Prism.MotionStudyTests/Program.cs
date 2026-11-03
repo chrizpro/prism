@@ -45,7 +45,7 @@ string Text(Command c) => string.Join("\n", c.Results.Select(r => r.Label + ": "
 
     s.StartCommand(() => new MotionStudyCommand(true));
     var cmd = (MotionStudyCommand)s.ActiveCommand!;
-    Check(cmd.Title == "Motion Dynamics" && Text(cmd).Contains("press Run study"), "Motion Dynamics opens on the assembly and asks for a run");
+    Check(cmd.Title == "Motion Study" && Text(cmd).Contains("press Run study"), "Motion Study opens on the assembly and asks for a run");
     Pick(cmd, "Hinge").Index = 3;                                // free
     Num(cmd, "Starting position", "Hinge").Value = 3;
     Num(cmd, "Duration").Value = 2; Num(cmd, "Output interval").Value = 0.005;
@@ -75,7 +75,7 @@ string Text(Command c) => string.Join("\n", c.Results.Select(r => r.Label + ": "
     Pick(cmd, "Hinge").Index = 3; Run(cmd);
     Num(cmd, "Duration").Value = 3;
     Check(Text(cmd).Contains("Settings changed"), "changing a setting after a run warns that the results are old");
-    cmd.Params.OfType<TextParam>().First().Value = Path.Combine(Path.GetTempPath(), "motion-test.csv");
+    cmd.Params.OfType<TextParam>().First(p => p.Label.StartsWith("Save results")).Value = Path.Combine(Path.GetTempPath(), "motion-test.csv");
     cmd.Params.OfType<ActionParam>().First(p => p.Label == "Save results").Run!();
     var csv = File.ReadAllLines(Path.Combine(Path.GetTempPath(), "motion-test.csv"));
     Check(csv.Length > 100 && csv[0].Contains("Hinge position_°") && csv[0].Contains("kinetic_J") && csv[1].Split(',').Length == csv[0].Split(',').Length, "results save to a CSV with a column for every joint and part");
@@ -104,10 +104,10 @@ string Text(Command c) => string.Join("\n", c.Results.Select(r => r.Label + ": "
     var ja = Joint(s, "ja", "Shaft A", JointType.Revolute, housing, g1, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
     var jb = Joint(s, "jb", "Shaft B", JointType.Revolute, housing, g2, new Vec3(30, 0, 0), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
 
-    s.StartCommand(() => new CouplingCommand(false)); var gear = s.ActiveCommand!;
-    Check(Pick(gear, "Driving gear").Options.Count == 2 && Pick(gear, "Driven gear").Index == 1, "Gear Pair lists the revolute joints and proposes the second as driven");
-    Num(gear, "Driving gear size (teeth or pitch diameter)").Value = 20; Num(gear, "Driven gear size (same unit)").Value = 40;
-    Check(Text(gear).Contains("2 : 1") && Text(gear).Contains("opposite") && Text(gear).Contains("module"), "Gear Pair shows the ratio, direction and the shaft spacing");
+    s.StartCommand(() => new CouplingCommand()); var gear = s.ActiveCommand!;
+    Check(Pick(gear, "Leading joint").Options.Count == 2 && Pick(gear, "Following joint").Index == 1, "Couple lists the joints and proposes the second as the follower");
+    Num(gear, "Leading size").Value = 20; Num(gear, "Following size").Value = 40;
+    Check(Text(gear).Contains("2 : 1") && Text(gear).Contains("opposite") && Text(gear).Contains("module"), "two turning joints couple as gears: ratio, direction and shaft spacing");
     s.CommitCommand();
     Check(s.Couplings.Count() == 1 && s.Couplings.Single().Ratio == 0.5 && s.Couplings.Single().Reverse, "the gear pair is stored in the assembly");
 
@@ -200,7 +200,7 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
 
     // a smooth move and a motor curve from the study panel
     s.StartCommand(() => new MotionStudyCommand(false)); cmd = (MotionStudyCommand)s.ActiveCommand!;
-    Pick(cmd, "Slide").Index = 3;                                                                 // kinematics: hold, speed, oscillate, move
+    Pick(cmd, "Slide").Index = 4;
     Num(cmd, "Move to", "Slide").Value = 80; Num(cmd, "Move starts at", "Slide").Value = 0.5; Num(cmd, "Move takes", "Slide").Value = 2; Num(cmd, "Duration").Value = 3;
     Run(cmd);
     Check(Near(cmd.Result!.Pos[0][^1], 80, 1e-6) && cmd.Result.Vel[0][0] == 0, "a smooth move to a position starts and stops at rest");
@@ -230,7 +230,7 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
         c.Slots[0].TryAdd(tipFace); c.Slots[1].TryAdd(SelItem.Of(s.Find(pathObj.Id)!));
         Num(c, "Starting position", "Shoulder").Value = 20; Num(c, "Starting position", "Elbow").Value = -40;
         Num(c, "Tool speed").Value = 150; Num(c, "Acceleration along the path").Value = 600; Num(c, "Payload carried at the tool").Value = payload;
-        c.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Work out the joint torques")).Value = torques;
+        c.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Include masses and forces")).Value = torques;
         Pick(c, "Gravity").Index = 2;                                                              // −Y: the arm stands in the XY plane
         Run(c); return c;
     }
@@ -285,7 +285,7 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
     Check(overlay.Labels.Any(l => l.Text.EndsWith(" N")), "arrows at the joints show the forces they hold at the moment shown");
     var posed = cmd.TryBuild()!;
     Check(posed.Replace.Any(x => x.Old.Id == piston.Id) && posed.Replace.Any(x => x.Old.Id == rod.Id), "the whole linkage, including the parts the loop moves, is posed for that moment");
-    cmd.Params.OfType<TextParam>().First().Value = Path.Combine(Path.GetTempPath(), "piston.csv"); cmd.Params.OfType<ActionParam>().First(p => p.Label == "Save results").Run!();
+    cmd.Params.OfType<TextParam>().First(p => p.Label.StartsWith("Save results")).Value = Path.Combine(Path.GetTempPath(), "piston.csv"); cmd.Params.OfType<ActionParam>().First(p => p.Label == "Save results").Run!();
     Check(File.ReadAllLines(Path.Combine(Path.GetTempPath(), "piston.csv"))[0].Contains("Cylinder wall reaction fy_N"), "the reactions are in the CSV");
     s.CancelCommand();
     Check(s.LastMotion == r, "the study is remembered after its panel closes");
@@ -304,15 +304,163 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
     Check(Math.Abs(((JointInfo)s.JointObjects.First(j => j.joint.Key == "j1").joint).Value - r.Pos[0][at]) < 1e-6, "and the assembly is moved to the moment of that peak, so the part sits as it did");
 }
 
+// ---------------------------------------------------------------- a mechanism modeled and jointed in one file
+{
+    var s = new CadSession();
+    var a = s.AddObject(Occ.Box(40, 40, 10), "Base", ObjKind.Solid);
+    var b = s.AddObject(Occ.Translate(Occ.Box(10, 10, 100), new Vec3(0, 0, 60)), "Arm", ObjKind.Solid);
+    var c = s.AddObject(Occ.Translate(Occ.Box(10, 10, 10), new Vec3(100, 0, 0)), "Spare", ObjKind.Solid);
+
+    s.StartCommand(() => new JointCommand(JointType.Revolute)); var joint = s.ActiveCommand!;
+    joint.Slots[0].TryAdd(FaceFacing(s, s.Find(a.Id)!, new Vec3(0, 0, 1))); joint.Slots[1].TryAdd(FaceFacing(s, s.Find(b.Id)!, new Vec3(0, 0, -1)));
+    joint.OnChanged();
+    Check(s.Find(a.Id)!.Component != null && s.Find(b.Id)!.Component != null, "picking plain bodies with a joint tool makes them parts");
+    s.CancelCommand();
+    Check(s.Components.Count() == 0, "cancelling the joint puts the bodies back as they were");
+
+    s.StartCommand(() => new JointCommand(JointType.Revolute)); joint = s.ActiveCommand!;
+    joint.Slots[0].TryAdd(FaceFacing(s, s.Find(a.Id)!, new Vec3(0, 0, 1))); joint.Slots[1].TryAdd(FaceFacing(s, s.Find(b.Id)!, new Vec3(0, 0, -1)));
+    joint.OnChanged(); s.CommitCommand();
+    Check(s.JointObjects.Count() == 1 && s.Find(a.Id)!.Component!.Grounded && !s.Find(b.Id)!.Component!.Grounded, "the first body picked is grounded and the joint is made");
+
+    s.StartCommand(() => new MakePartCommand()); var make = s.ActiveCommand!;
+    make.Slots[0].Items.Clear(); make.Slots[0].TryAdd(SelItem.Of(s.Find(c.Id)!)); make.OnChanged(); s.CommitCommand();
+    Check(s.Find(c.Id)!.Component is { Grounded: false, SourcePath: null } && s.Components.Count() == 3, "Make Part turns a body into a part where it stands");
+    s.Undo();
+    Check(s.Find(c.Id)!.Component == null, "undo takes Make Part back");
+    Check((s.Find(b.Id)!.Mesh.Max.Z) > 100, "the arm keeps its place");
+}
+
+// ---------------------------------------------------------------- one study: masses optional, free joints, tables, tool path
+{
+    var s = new CadSession();
+    var floor = Part(s, "Floor", Occ.Box(300, 60, 10), true, null, null);
+    var block = Part(s, "Follower", Occ.Translate(Occ.Box(20, 20, 20), new Vec3(0, 0, 15)), false, null, null);
+    Joint(s, "slide", "Slide", JointType.Slider, floor, block, new Vec3(0, 0, 25), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+
+    s.StartCommand(() => new MotionStudyCommand()); var cmd = (MotionStudyCommand)s.ActiveCommand!;
+    var forces = cmd.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Include masses and forces"));
+    Check(!forces.Value && !Pick(cmd, "Gravity").IsVisible, "with no materials the study starts without masses, and hides gravity");
+    Pick(cmd, "Slide").Index = 3; cmd.OnChanged();
+    Check(Pick(cmd, "Gravity").IsVisible, "a free joint brings the forces in");
+    Run(cmd);
+    Check(Text(cmd).Contains("Assign a material to") && Text(cmd).Contains("Follower"), "which then asks for the material it needs");
+
+    // a cam's lift as a table that repeats
+    Pick(cmd, "Slide").Index = 5; cmd.OnChanged();
+    var table = cmd.Params.OfType<TextParam>().First(p => p.Section == "Slide");
+    table.Value = "time, lift\n0, 0\n0.25, 10\n0.5, 20\n0.75, 10\n1, 0";
+    cmd.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Repeat")).Value = true;
+    Num(cmd, "Duration").Value = 3; Num(cmd, "Output interval").Value = 0.05;
+    Run(cmd);
+    var r = cmd.Result!;
+    Check(Near(r.Pos[0][r.SampleAt(1.5)], 20, 0.02) && Math.Abs(r.Pos[0][r.SampleAt(2.0)]) < 0.2 && Near(r.Pos[0][r.SampleAt(2.5)], 20, 0.02), "a table with a header repeats over the study, like a cam");
+    Check(r.Vel[0].Select(Math.Abs).Max() > 30 && !r.Dynamic, "its speed comes from the table, with no masses needed");
+    table.Value = "0, 0; 1, 10";
+    Run(cmd);
+    Check(Text(cmd).Contains("must end at the position it starts"), "a table that cannot repeat says so");
+    table.Value = "0, 0; 0, 10"; cmd.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Repeat")).Value = false;
+    Run(cmd);
+    Check(Text(cmd).Contains("must increase"), "times have to increase");
+    s.CancelCommand();
+
+    // a table from a file, on a joint with a start of its own
+    string file = Path.Combine(Path.GetTempPath(), "motion-table.csv"); File.WriteAllLines(file, ["t,x", "0,5", "2,25"]);
+    s.StartCommand(() => new MotionStudyCommand()); cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Slide").Index = 5; cmd.Params.OfType<TextParam>().First(p => p.Section == "Slide").Value = file; Num(cmd, "Duration").Value = 2;
+    Run(cmd);
+    Check(Near(cmd.Result!.Pos[0][0], 5, 1e-6) && Near(cmd.Result.Pos[0][^1], 25, 1e-6), "a table can come from a file, and the joint starts where it does");
+    s.CancelCommand();
+
+    // the tool path is a drive on the joints that should follow it, in the same study
+    var arm = new CadSession();
+    var baseP = Part(arm, "Base", Occ.Box(60, 60, 10), true, null, null);
+    var l1 = Part(arm, "Link 1", Occ.Translate(Occ.Box(300, 20, 20), new Vec3(150, 0, 15)), false, null, null);
+    var l2 = Part(arm, "Link 2", Occ.Translate(Occ.Box(200, 20, 20), new Vec3(400, 0, 15)), false, null, null);
+    Joint(arm, "j1", "Shoulder", JointType.Revolute, baseP, l1, Vec3.Zero, new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(arm, "j2", "Elbow", JointType.Revolute, l1, l2, new Vec3(300, 0, 0), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    var path = arm.AddObject(Occ.Line(new Vec3(420, 80, 25), new Vec3(420, -80, 25)), "Path", ObjKind.Curve);
+    arm.StartCommand(() => new MotionStudyCommand()); cmd = (MotionStudyCommand)arm.ActiveCommand!;
+    Check(!cmd.Slots[0].IsVisible && Num(cmd, "Duration").IsVisible, "tool and path picks stay hidden until a joint follows the path");
+    Pick(cmd, "Shoulder").Index = 6; Pick(cmd, "Elbow").Index = 6; cmd.OnChanged();
+    Check(cmd.Slots[0].IsVisible && cmd.Slots[1].IsVisible && !Num(cmd, "Duration").IsVisible, "choosing Follow the tool path shows them");
+    cmd.Slots[0].TryAdd(FaceFacing(arm, arm.Find(l2.Id)!, new Vec3(1, 0, 0))); cmd.Slots[1].TryAdd(SelItem.Of(arm.Find(path.Id)!));
+    Num(cmd, "Starting position", "Shoulder").Value = 20; Num(cmd, "Starting position", "Elbow").Value = -40;
+    Run(cmd);
+    Check(Text(cmd).Contains("Reached all"), "the same study plans the joints for the path");
+    arm.CancelCommand();
+}
+
+// ---------------------------------------------------------------- Couple: a screw, a rack and a lever from one tool
+{
+    var s = new CadSession();
+    var frame = Part(s, "Frame", Occ.Box(300, 60, 10), true);
+    var screw = Part(s, "Screw", Occ.Translate(Occ.Cylinder(5, 8), new Vec3(0, 0, 20)), false);
+    var nut = Part(s, "Nut", Occ.Translate(Occ.Box(20, 20, 20), new Vec3(60, 0, 30)), false);
+    var carriage = Part(s, "Carriage", Occ.Translate(Occ.Box(20, 20, 20), new Vec3(120, 0, 30)), false);
+    Joint(s, "js", "Screw turn", JointType.Revolute, frame, screw, new Vec3(0, 0, 20), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "jn", "Nut slide", JointType.Slider, frame, nut, new Vec3(60, 0, 30), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+    Joint(s, "jc", "Carriage slide", JointType.Slider, frame, carriage, new Vec3(120, 0, 30), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+
+    s.StartCommand(() => new CouplingCommand()); var c = s.ActiveCommand!;
+    Pick(c, "Following joint").Index = 1; c.OnChanged();
+    Check(!Num(c, "Leading size").IsVisible && Num(c, "Diameter or lead").IsVisible, "a turning and a sliding joint ask for travel, not gear sizes");
+    Pick(c, "Travel set by").Index = 1; Num(c, "Diameter or lead").Value = 5;
+    Check(Text(c).Contains("5 mm per turn"), "a screw's lead is its travel per turn");
+    s.CommitCommand();
+    Check(s.Couplings.Single().Kind == CouplingKind.RackPinion && Near(s.Couplings.Single().Follow(360), 5, 1e-9), "one turn moves the nut one lead");
+
+    s.StartCommand(() => new CouplingCommand()); c = s.ActiveCommand!;
+    Pick(c, "Leading joint").Index = 1; Pick(c, "Following joint").Index = 2; c.OnChanged();
+    Check(Num(c, "Following travel per mm").IsVisible, "two sliding joints take a plain ratio, like a lever");
+    Num(c, "Following travel per mm").Value = 2; s.CommitCommand();
+
+    s.StartCommand(() => new MotionStudyCommand(false)); var cmd = (MotionStudyCommand)s.ActiveCommand!;
+    Pick(cmd, "Screw turn").Index = 1; Num(cmd, "Speed", "Screw turn").Value = 720; Num(cmd, "Duration").Value = 1; Num(cmd, "Output interval").Value = 0.1;
+    Run(cmd);
+    Check(Near(cmd.Result!.Pos[1][^1], 10, 1e-6) && Near(cmd.Result.Pos[2][^1], 20, 1e-6), "couplings chain: 2 turns of the screw move the nut 10 mm and the carriage 20 mm");
+    s.CancelCommand();
+
+    s.StartCommand(() => new MotionLoadCommand()); var load = s.ActiveCommand!;
+    load.Slots[0].TryAdd(SelItem.Of(s.Find(carriage.Id)!));
+    Pick(load, "Load").Index = 1; load.OnChanged();
+    Check(!Num(load, "Force").IsVisible && Num(load, "Torque").IsVisible, "Force / Torque is one tool");
+    Num(load, "Torque").Value = 2; s.CommitCommand();
+    Check(s.Loads.Single().IsTorque && s.Loads.Single().Magnitude == 2, "the torque is stored as one");
+}
+
+// ---------------------------------------------------------------- dragging a closed loop by hand
+{
+    var s = new CadSession();
+    var floor = Part(s, "Block", Occ.Translate(Occ.Box(400, 100, 10), new Vec3(150, 0, -10)), true);
+    var crank = Part(s, "Crank", Occ.Translate(Occ.Box(50, 10, 20), new Vec3(25, 0, 0)), false);
+    var rod = Part(s, "Rod", Occ.Translate(Occ.Box(150, 10, 20), new Vec3(125, 0, 0)), false);
+    var piston = Part(s, "Piston", Occ.Translate(Occ.Box(30, 30, 20), new Vec3(200, 0, 0)), false);
+    Joint(s, "j1", "Main bearing", JointType.Revolute, floor, crank, new Vec3(0, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j2", "Crank pin", JointType.Revolute, crank, rod, new Vec3(50, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j3", "Wrist pin", JointType.Revolute, rod, piston, new Vec3(200, 0, 10), new Vec3(0, 0, 1), new Vec3(1, 0, 0));
+    Joint(s, "j4", "Cylinder wall", JointType.Slider, floor, piston, new Vec3(200, 0, 10), new Vec3(1, 0, 0), new Vec3(0, 1, 0));
+
+    s.StartCommand(() => new DriveJointsCommand()); var drive = s.ActiveCommand!;
+    Num(drive, "Main bearing").Value = 90;
+    Check(Near(Num(drive, "Cylinder wall").Value, Math.Sqrt(150 * 150 - 50 * 50) - 200, 1e-6), "turning the crank by hand slides the piston to r·cosθ + √(L² − r²sin²θ)");
+    Check(!Text(drive).Contains("not enforced"), "and the loop is closed, not skipped");
+    s.CommitCommand();
+    var j4 = s.JointObjects.First(j => j.joint.Key == "j4").joint;
+    Check(Near(j4.Value, Math.Sqrt(150 * 150 - 50 * 50) - 200, 1e-6) && Near(s.Find(piston.Id)!.Component!.Placement.T.X, j4.Value, 1e-6), "Keep positions stores the closed linkage");
+
+    s.StartCommand(() => new DriveJointsCommand()); drive = s.ActiveCommand!;
+    Num(drive, "Cylinder wall").Value = -500;
+    Check(Text(drive).Contains("Cannot go there") && Near(Num(drive, "Main bearing").Value, 90, 1e-6), "a slide past what the linkage can reach is refused, and the crank stays put");
+    s.CancelCommand();
+}
+
 // ---------------------------------------------------------------- help
 {
-    foreach (var dyn in new[] { false, true })
-    {
-        var topic = Prism.Help.ToolHelp.ForCommand(new MotionStudyCommand(dyn));
-        Check(topic != null && topic.Title == (dyn ? "Motion Dynamics" : "Kinematics"), $"{(dyn ? "Motion Dynamics" : "Kinematics")} has a help topic");
-        var example = Prism.Help.ToolHelp.Example(topic!);
-        Check(example.Before != null && example.After != null, "its before/after example can be drawn");
-    }
+    var topic = Prism.Help.ToolHelp.ForCommand(new MotionStudyCommand());
+    Check(topic != null && topic.Title == "Motion Study", "Motion Study has a help topic");
+    var example = Prism.Help.ToolHelp.Example(topic!);
+    Check(example.Before != null && example.After != null, "its before/after example can be drawn");
 }
 
 Console.WriteLine($"SUCCESS: {checks} checks");

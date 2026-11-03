@@ -63,7 +63,7 @@ public sealed class PlanarSurfaceCommand : Command
     {
         if (!Complete) return null;
         var shapes = ObjectsOf(_loops).Select(o => o.Shape).ToList();
-        var f = Occ.Profile(shapes, true);
+        var f = ProfileUtil.Closed(shapes);
         if (!f.HasFaces) throw new KernelException("The selected curves do not form a closed planar loop.");
         return SurfaceUtil.Single(f);
     }
@@ -86,18 +86,33 @@ public sealed class RuledSurfaceCommand : Command
     }
 }
 
-/// <summary>Fills a closed boundary of curves with a smooth patch.</summary>
+/// <summary>
+/// Fills a closed boundary of curves, sketches or edges. A flat loop gets an exact flat surface (nested loops become holes); anything bent gets a
+/// smooth patch. "Fill with" can force either one. This replaces the separate Planar Surface tool, which stays available to scripts.
+/// </summary>
 public sealed class PatchCommand : Command
 {
     readonly SelectionSlot _edges;
-    public PatchCommand() { _edges = Slot(new SelectionSlot { Label = "Boundary curves", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 }); }
+    readonly ChoiceParam _kind;
+    public PatchCommand()
+    {
+        _edges = Slot(new SelectionSlot { Label = "Boundary: curves, sketches or edges", Filter = SelFilter.AnyCurve | SelFilter.Edge | SelFilter.SketchObj, Multi = true, SelectionRuleIndex = 1 });
+        _kind = Choice("Fill with", 0, "Automatic (flat if the loop is flat)", "Flat surface", "Smooth patch");
+    }
     public override string Title => "Patch";
-    public override string Hint => "Pick the curves/edges that surround the hole to fill.";
+    public override string Hint => "Pick the curves, sketches or edges that surround the area to fill. A flat loop becomes a flat surface (loops inside it become holes); a bent loop becomes a smooth patch. Use “Fill with” to choose.";
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var edges = _edges.Items.Select(i => SurfaceUtil.CurveShape(S, i)).ToList();
-        return SurfaceUtil.Single(Occ.Patch(edges));
+        var shapes = _edges.Items.Select(i => i.Kind == SelKind.Object && S.Find(i.Obj) is { } o ? o.Shape : SurfaceUtil.CurveShape(S, i)).ToList();
+        if (_kind.Index != 2)
+        {
+            Shape? flat = null;
+            try { flat = ProfileUtil.Closed(shapes); } catch (KernelException) when (_kind.Index == 0) { }
+            if (flat is { HasFaces: true }) return SurfaceUtil.Single(flat);
+            if (_kind.Index == 1) throw new KernelException("The selected curves do not form a closed flat loop. Choose Smooth patch for a bent boundary.");
+        }
+        return SurfaceUtil.Single(Occ.Patch(shapes));
     }
 }
 

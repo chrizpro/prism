@@ -154,6 +154,12 @@ public sealed partial class MainViewModel
             if (objs.Exists(o => o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form))
                 list.Add(new("Hole…", () => s.StartCommand(() => new HoleCommand())));
             if (objs.Count == 1 && s.FeatureNodeFor(objs[0].Id) is { } fn) list.Add(new("Edit feature: " + fn.Label, () => s.EditFeature(fn)));
+            var solids = objs.Where(o => o is { Kind: ObjKind.Solid, HasBrep: true }).ToList();
+            if (solids.Count > 0)
+            {
+                bool tracked = solids.All(o => o.TrackHistory);
+                list.Add(new(tracked ? "Stop tracking history" : "Track history", () => SetTrackHistory(solids.Select(o => o.Id), !tracked)));
+            }
             list.Add(new("Duplicate", () => s.Duplicate()));
             list.Add(new("Hide", () => { foreach (var o in objs) ToggleVisible(o.Id, false); }));
             list.Add(new("Delete", () => s.DeleteSelection(), Gesture: "Del"));

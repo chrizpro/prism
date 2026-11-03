@@ -11,7 +11,21 @@ namespace Prism.Simulation;
 /// <summary>Meshes the study's body, turns fixtures and loads into nodal data, runs the solver and gathers results.</summary>
 public static class StudyRunner
 {
-    public sealed record Prepared(FemMesh Mesh, int[] FaceOfBoundary, Vec3[] BoundaryNormal, double[] BoundaryArea, SceneObject Body, double Maxh);
+    public sealed record Prepared(FemMesh Mesh, int[] FaceOfBoundary, Vec3[] BoundaryNormal, double[] BoundaryArea, SceneObject Body, double Maxh)
+    {
+        /// <summary>The CAD surface, used to find where bodies touch.</summary>
+        public TriMesh? Surface { get; init; }
+        /// <summary>The bodies of a multi-body mesh; null for one body. FaceOfBoundary then counts on through each body's faces (see FaceCode).</summary>
+        public IReadOnlyList<MeshPart>? Parts { get; init; }
+        public IReadOnlyList<BondedFaces> Bonds { get; init; } = [];
+        /// <summary>The number FaceOfBoundary uses for a face of a body in this mesh, or -1 when the body is not in it.</summary>
+        public int FaceCode(FaceRef f)
+        {
+            if (Parts == null) return f.Obj == Body.Id ? f.Face : -1;
+            foreach (var part in Parts) if (part.Body.Id == f.Obj) return part.FaceOffset + f.Face;
+            return -1;
+        }
+    }
 
     public static double AutoSize(SceneObject body) => Math.Max(body.Mesh.Max.DistanceTo(body.Mesh.Min) / 14.0, 0.05);
 
@@ -19,7 +33,10 @@ public static class StudyRunner
     public static Prepared Mesh(CadSession s, StudyDef st)
     {
         var body = s.Find(st.BodyId) ?? throw new InvalidOperationException("The study's body no longer exists.");
-        return Mesh(body, st.ElementSize);
+        if (st.OtherBodies.Count == 0) return Mesh(body, st.ElementSize);
+        var all = new List<SceneObject> { body };
+        foreach (var id in st.OtherBodies) all.Add(s.Find(id) ?? throw new InvalidOperationException("A body in this study no longer exists."));
+        return CaeAssembly.Mesh(all, st.ElementSize);
     }
 
     public static Prepared Mesh(SceneObject body, double elementSize)
@@ -50,7 +67,7 @@ public static class StudyRunner
             face[i] = md.TriFace[hit.Value.Tri];
             nrm[i] = tess.FaceNormal(hit.Value.Tri);
         }
-        return new Prepared(mesh, face, nrm, area, body, maxh);
+        return new Prepared(mesh, face, nrm, area, body, maxh) { Surface = tess };
     }
 
     /// <summary>The boundary triangles that lie on the given faces of the prepared body.</summary>
@@ -63,7 +80,7 @@ public static class StudyRunner
 
     static Dictionary<int, int> NodesOn(Prepared p, IEnumerable<FaceRef> faces, out List<int> tris)
     {
-        var set = faces.Where(f => f.Obj == p.Body.Id).Select(f => f.Face).ToHashSet();
+        var set = faces.Select(p.FaceCode).Where(f => f >= 0).ToHashSet();
         tris = [];
         var nodes = new Dictionary<int, int>();
         for (int i = 0; i < p.FaceOfBoundary.Length; i++)
@@ -149,10 +166,67 @@ public static class StudyRunner
         return new Boundary(fixNode, fixMask, tt, tv, g);
     }
 
+    /// <summary>Several bodies with their own materials, bonded where they touch.</summary>
+    static StudyResults RunBodies(CadSession s, StudyDef st, SceneObject source, Prepared? prepared, Action<string>? progress)
+    {
+        var sw = Stopwatch.StartNew();
+        var others = st.OtherBodies.Select(id => s.Find(id) ?? throw new InvalidOperationException("A body in this study no longer exists.")).ToArray();
+        var all = new[] { source }.Concat(others).ToArray();
+        foreach (var body in all)
+        {
+            var material = body.Material ?? throw new InvalidOperationException($"Assign a material to {body.Name} before running this study.");
+            MaterialRules.Structural(material);
+        }
+        if (st.Fixtures.Count == 0) throw new InvalidOperationException("Add at least one fixture before solving.");
+        if (st.Loads.Count == 0) throw new InvalidOperationException("Add at least one load before solving.");
+        var refs = st.Fixtures.SelectMany(f => f.Faces).Concat(st.Loads.SelectMany(l => l.Faces)).ToList();
+        StudySetup.Validate(source, st.ShapeSignature, refs.Where(f => f.Obj == source.Id).Select(f => f.Face).ToArray());
+        foreach (var body in others) StudySetup.Validate(body, null, refs.Where(f => f.Obj == body.Id).Select(f => f.Face).ToArray());
+        if (!System.IO.File.Exists(CaeSolver.Executable)) throw new System.IO.FileNotFoundException("Studies of several bodies use CalculiX, which is not installed. Run tools/Install-CaeSolver.ps1 or set PRISM_CCX to ccx.exe.");
+        progress?.Invoke("Meshing…");
+        var p = prepared ?? Mesh(s, st);
+        try
+        {
+            var notes = new List<string>(); var m = p.Mesh;
+            var cond = Conditions(p, st, notes);
+            progress?.Invoke($"Solving {m.TetCount:#,0} elements with CalculiX…");
+            string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "CAE", DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + Guid.NewGuid().ToString("N")[..6]);
+            var sol = CaeAssembly.SolveStatic(p, cond, folder);
+            var yieldOf = new double[m.NodeCount]; var sf = new double[m.NodeCount];
+            foreach (var part in p.Parts!)
+                for (int n = part.NodeStart; n < part.NodeStart + part.NodeCount; n++)
+                {
+                    double y = part.Body.Material!.Yield; yieldOf[n] = y; double v = sol.VonMises[n];
+                    sf[n] = !double.IsFinite(y) ? double.NaN : v < 1e-9 ? 1000.0 : Math.Min(y / v, 1000.0);
+                }
+            int iv = 0, id = 0; double mv = 0, md = 0;
+            for (int i = 0; i < m.NodeCount; i++)
+            {
+                double d = Math.Sqrt(sol.Displacement[3 * i] * sol.Displacement[3 * i] + sol.Displacement[3 * i + 1] * sol.Displacement[3 * i + 1] + sol.Displacement[3 * i + 2] * sol.Displacement[3 * i + 2]);
+                if (sol.VonMises[i] > mv) { mv = sol.VonMises[i]; iv = i; }
+                if (d > md) { md = d; id = i; }
+            }
+            var finite = yieldOf.Where(double.IsFinite).ToArray(); var safe = sf.Where(double.IsFinite).ToArray();
+            double eq = sol.Applied > 1e-9 ? Math.Abs(sol.Reaction.Length - sol.Applied) / sol.Applied : 0;
+            if (eq > 0.02) notes.Add($"The supports react with {sol.Reaction.Length:0.##} N but the loads add up to {sol.Applied:0.##} N ({eq * 100:0.#}% apart): check the setup.");
+            notes.Add($"{all.Length} bodies bonded at {p.Bonds.Count} joint{(p.Bonds.Count == 1 ? "" : "s")}: touching faces act as one, with no sliding, gap or separation. Each body's stress is read against its own material.");
+            notes.Add($"{m.TetCount:#,0} elements, {m.NodeCount:#,0} nodes (10-node tetrahedra), element size {p.Maxh:0.##} mm. Solved with CalculiX in {sol.SolveSeconds:0.#} s. Files: {folder}");
+            notes.Add("Stress peaks right at supports, point-like loads and the edges of a joint can grow with finer meshes (singularities); judge the stress away from them.");
+            return new StudyResults
+            {
+                SourceBody = source, OtherBodies = others, Mesh = m, Solution = sol, BoundaryNormal = p.BoundaryNormal, SafetyFactor = sf, Yield = finite.Length > 0 ? finite.Min() : double.NaN,
+                MaxVonMises = mv, MaxDisplacement = md, MaxVonMisesNode = iv, MaxDisplacementNode = id, MinSafety = safe.Length > 0 ? safe.Min() : double.NaN, SolveSeconds = sw.Elapsed.TotalSeconds,
+                MaterialName = string.Join(" + ", all.Select(b => b.Material!.Name).Distinct()), Notes = notes,
+            };
+        }
+        catch { if (prepared == null) p.Mesh.Dispose(); throw; }
+    }
+
     public static StudyResults Run(CadSession s, StudyDef st, Prepared? prepared = null, Action<string>? progress = null)
     {
         var sw = Stopwatch.StartNew();
         var source = prepared?.Body ?? s.Find(st.BodyId) ?? throw new InvalidOperationException("The study's body no longer exists.");
+        if (st.OtherBodies.Count > 0) return RunBodies(s, st, source, prepared, progress);
         var mat = source.Material ?? throw new InvalidOperationException("Assign a material before running a structural study.");
         MaterialRules.Structural(mat);
         if (st.Fixtures.Count == 0) throw new InvalidOperationException("Add at least one fixture before solving.");

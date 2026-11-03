@@ -32,7 +32,7 @@ public sealed partial class MainViewModel
     [
         new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"]),
         new("ecad", "ECAD", "Electronic boards, component envelopes and enclosure integration.", ["Home", "ECAD", "Analyze", "View"], "ECAD"),
-        new("scan", "Scan", "Meshes and reverse engineering. Print preparation is in CAM.", ["Home", "Mesh", "Solid", "Surface", "Direct Modeling", "Analyze", "View"], "Mesh"),
+        new("scan", "Scan", "Clean up meshes, and rebuild scans as CAD. Print preparation is in CAM.", ["Home", "Mesh", "Reverse Engineer", "Solid", "Surface", "Freeform", "Direct Modeling", "Analyze", "View"], "Mesh"),
         new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies, mechanism kinematics and motion, and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Motion", "Fluids", "Analyze", "View"], "Static"),
         new("assemble", "Assemble", "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.", ["Home", "Assemble", "Joints", "Animate", "Analyze", "View"], "Assemble"),
         new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "Animate", "View"], "Render"),
@@ -86,7 +86,7 @@ public sealed partial class MainViewModel
         if (t.UserHidden) return false;
         if (t.IsCustom || WorkspaceId == "all") return true;
         if (Current.Tabs.Contains(t.Title)) return true;
-        return t.Title == "Mesh" && Session.Objects.Any(o => o.Tri != null);
+        return t.Title is "Mesh" or "Reverse Engineer" && Session.Objects.Any(o => o.Tri != null);
     }
 
     void ApplyWorkspace()

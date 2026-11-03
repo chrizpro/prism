@@ -150,6 +150,47 @@ public sealed partial class CadSession
         }
     }
 
+    /// <summary>
+    /// The joint values that close the assembly's loops for these joint values, keeping the joint just moved where it was put; null when there is no loop.
+    /// The moved joint walks there from where it was, so a big step stays on the linkage's branch. Nothing needs masses, so it is quick enough to run during a drag.
+    /// </summary>
+    public Dictionary<string, (double v1, double v2)>? CloseLoops(IReadOnlyDictionary<string, JointInfo> overrides, string? moved, (double v1, double v2) from, out string? problem)
+    {
+        problem = null;
+        var current = JointObjects.Select(j => overrides.TryGetValue(j.joint.Key, out var ov) ? ov : j.joint).ToList();
+        var start = Components.ToDictionary(o => o.Component!.Key, o => o.Component!.Placement);
+        var grounded = Components.Where(o => o.Component!.Grounded).Select(o => o.Component!.Key).ToHashSet();
+        var closing = new List<JointInfo>();
+        AssemblyKinematics.Solve(start, grounded, current, Couplings, [], null, closing);
+        if (closing.Count == 0 || MotionEngine.DofsOf(current, Couplings).All(d => d.Follower)) return null;
+        int at = moved == null ? -1 : current.FindIndex(j => j.Key == moved);
+        var target = at < 0 ? null : current[at];
+        int steps = 1;
+        if (target != null)
+        {
+            double Size(double change, bool angle) => Math.Abs(change) / (angle ? 10 : 5);        // 10° or 5 mm at a time
+            double span = Math.Max(Size(target.Value - from.v1, target.UsesAngle), target.HasSecond ? Size(target.Value2 - from.v2, target.SecondIsAngle) : 0);
+            steps = Math.Clamp((int)Math.Ceiling(span), 1, 36);
+        }
+        var res = new Dictionary<string, (double v1, double v2)>();
+        for (int step = 1; step <= steps; step++)
+        {
+            if (target != null) { double f = (double)step / steps; current[at] = target with { Value = from.v1 + (target.Value - from.v1) * f, Value2 = from.v2 + (target.Value2 - from.v2) * f }; }
+            var dofs = MotionEngine.DofsOf(current, Couplings);
+            foreach (var d in dofs) if (d.JointKey == moved && !d.Follower) d.Mode = DriveMode.Constant;
+            try { _ = new MotionEngine(start, grounded, current, Couplings, [], dofs); }
+            catch (InvalidOperationException e) { problem = e.Message; return null; }
+            foreach (var d in dofs.Where(d => d.Dependent))
+            {
+                if (d.Limited && (d.Start < d.Lo || d.Start > d.Hi)) { problem = $"{d.Name} would go past its limit."; return null; }
+                int ji = current.FindIndex(x => x.Key == d.JointKey);
+                current[ji] = d.Second ? current[ji] with { Value2 = d.Start } : current[ji] with { Value = d.Start };
+                res[d.JointKey] = (current[ji].Value, current[ji].Value2);
+            }
+        }
+        return res;
+    }
+
     /// <summary>The assembly as the motion engine sees it: every component with its mass, the joints and couplings that connect them, and the springs and loads acting on it.</summary>
     public MotionEngine BuildMotionEngine(IEnumerable<MotionDof> dofs, bool dynamic, out List<string> notes, out List<MotionBody> bodies, IEnumerable<MotionPoint>? points = null)
     {

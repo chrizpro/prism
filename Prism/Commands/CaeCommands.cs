@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Prism.Core;
+using Prism.Kernel;
 using Prism.Simulation;
 
 namespace Prism.Commands;
@@ -9,20 +10,25 @@ public sealed class CaeSolveCommand : AnalysisCommand
 {
     readonly bool _thermal;
     public bool IsThermal => _thermal;
-    readonly SelectionSlot _body,_first,_second;
-    readonly ChoiceParam _type;
-    readonly NumberParam _hot,_cold,_initial,_duration,_size;
+    readonly SelectionSlot _body,_first,_second,_heated,_cooled;
+    readonly ChoiceParam _type,_coolant;
+    readonly NumberParam _hot,_cold,_initial,_duration,_size,_power,_film,_ambient,_emissivity;
     readonly IntParam _modes,_showMode;
     readonly TextParam _name;
     string? _setupError;
     public CaeSolveCommand(bool thermal)
     {
         _thermal=thermal;
-        _body=Slot(new SelectionSlot {Label="Solid body",Filter=SelFilter.Solid});
-        _first=Slot(new SelectionSlot {Label=thermal?"First temperature faces":"Fixed support faces",Filter=SelFilter.Face,Multi=true});
-        _second=Slot(new SelectionSlot {Label="Second temperature faces",Filter=SelFilter.Face,Multi=true,IsVisible=thermal,Optional=!thermal});
+        _body=Slot(new SelectionSlot {Label="Solid bodies (touching bodies are bonded)",Filter=SelFilter.Solid,Multi=true});
+        _first=Slot(new SelectionSlot {Label=thermal?"First temperature faces (optional)":"Fixed support faces",Filter=SelFilter.Face,Multi=true,Optional=thermal});
+        _second=Slot(new SelectionSlot {Label="Second temperature faces (optional)",Filter=SelFilter.Face,Multi=true,IsVisible=thermal,Optional=true});
+        _heated=Slot(new SelectionSlot {Label="Heated faces (optional)",Filter=SelFilter.Face,Multi=true,IsVisible=thermal,Optional=true});
+        _cooled=Slot(new SelectionSlot {Label="Cooled faces (optional)",Filter=SelFilter.Face,Multi=true,IsVisible=thermal,Optional=true});
         _type=Choice("Thermal analysis",0,"Steady conduction","Transient conduction");
         _hot=Num("First temperature",100,-273.14,100000,5,"°C"); _cold=Num("Second temperature",20,-273.14,100000,5,"°C");
+        _power=Num("Heat power",10,0,1e9,1,"W");
+        _coolant=Choice("Cooling",0,"Still air (about 10 W/m²·K)","Air from a fan (about 50 W/m²·K)","Moving water (about 1000 W/m²·K)","Custom");
+        _film=Num("Cooling coefficient",25,0,1e7,5,"W/m²·K");_ambient=Num("Surrounding temperature",20,-273.14,100000,5,"°C");_emissivity=Num("Radiation emissivity (0 = none)",0,0,1,.1,"");
         _initial=Num("Initial temperature",20,-273.14,100000,5,"°C"); _duration=Num("Duration",60,.001,1e9,1,"s");
         _size=Num("Element size (0 = automatic)",0,0,10000,1);
         _modes=Add(new IntParam {Label="Number of modes",Min=1,Max=20,Value=6});
@@ -41,14 +47,21 @@ public sealed class CaeSolveCommand : AnalysisCommand
     }
     public override string Title=>_thermal?"Thermal Analysis":"Natural Frequencies";
     public override string Icon=>_thermal?"cae-thermal":"cae-modal";
-    public override string Hint=>_thermal?"Prescribed-temperature conduction in one homogeneous solid. Pick separated boundary faces; other faces are insulated. Assign a material, then Run analysis. Transient mode uses a uniform initial temperature.":
-        "Linear free-vibration frequencies and mode shapes for one homogeneous solid with fixed faces. Assign a material. Displayed mode amplitude is arbitrary; this is not a forced or impact response.";
+    public override string Hint=>_thermal?"Heat through a solid. Pick one body, or several touching bodies with their own materials: they are bonded with perfect heat flow across the joint. Hold faces at a temperature, put heat into faces, or cool faces with air, water and radiation. Faces you leave alone are insulated. Cooling values are typical figures, so use your own when you have them. Transient mode uses a uniform initial temperature.":
+        "Linear free-vibration frequencies and mode shapes with fixed faces. Pick one body, or several touching bodies with their own materials: they are bonded. Assign materials. Displayed mode amplitude is arbitrary; this is not a forced or impact response.";
     protected override void OnBegin(){S.CaeChanged+=Refresh;}
     public override void OnEnd(){S.CaeChanged-=Refresh;}
     void Refresh(){if(ReferenceEquals(S.ActiveCommand,this))OnChanged();}
     protected override void UpdateVisibility()
     {
         _type.IsVisible=_hot.IsVisible=_cold.IsVisible=_thermal;
+        if(_coolant!=null)
+        {
+            _power.IsVisible=_thermal&&_heated.Items.Count>0;
+            _coolant.IsVisible=_ambient.IsVisible=_emissivity.IsVisible=_thermal&&_cooled.Items.Count>0;
+            _film.IsVisible=_thermal&&_cooled.Items.Count>0&&_coolant.Index==3;
+            _hot.IsVisible=_thermal&&_first.Items.Count>0;_cold.IsVisible=_thermal&&_second.Items.Count>0;
+        }
         _initial.IsVisible=_duration.IsVisible=_thermal&&_type.Index==1;
         _modes.IsVisible=_showMode.IsVisible=!_thermal;
         foreach(var p in Params.OfType<ActionParam>()) if(p.Label=="Show mode")p.IsVisible=!_thermal;
@@ -65,23 +78,27 @@ public sealed class CaeSolveCommand : AnalysisCommand
     }
     (SceneObject,CaeSettings) Settings()
     {
-            if(_body.Items.Count==0||_first.Items.Count==0||(_thermal&&_second.Items.Count==0))throw new InvalidOperationException("Choose a body and its boundary faces first.");
-            var body=S.Find(_body.Items[0].Obj)!;
-            if(body.Material==null)throw new InvalidOperationException("Assign a material before running CAE.");
+            if(_body.Items.Count==0||(!_thermal&&_first.Items.Count==0))throw new InvalidOperationException("Choose a body and its boundary faces first.");
+            var bodies=_body.Items.Select(i=>i.Obj).Distinct().Select(id=>S.Find(id)!).ToList();
+            var body=bodies[0];
+            foreach(var part in bodies)if(part.Material==null)throw new InvalidOperationException($"Assign a material to {part.Name} before running CAE.");
+            var offset=new System.Collections.Generic.Dictionary<Guid,int>();int total=0;
+            foreach(var part in bodies){offset[part.Id]=total;total+=part.Shape.Count(SubKind.Face);}
             int[] Faces(SelectionSlot slot)
             {
-                if(slot.Items.Any(i=>i.Obj!=body.Id))throw new InvalidOperationException("All boundary faces must belong to the selected body.");
-                return slot.Items.Select(i=>i.Index).Distinct().ToArray();
+                if(slot.Items.Any(i=>!offset.ContainsKey(i.Obj)))throw new InvalidOperationException("All boundary faces must belong to the selected bodies.");
+                return slot.Items.Select(i=>offset[i.Obj]+i.Index).Distinct().ToArray();
             }
             var settings=new CaeSettings(_thermal?(_type.Index==0?CaeKind.SteadyThermal:CaeKind.TransientThermal):CaeKind.Modal,
-                Faces(_first),_thermal?Faces(_second):[],_hot.Value,_cold.Value,_initial.Value,_duration.Value,_modes.Value,_size.Value);
-            StudySetup.Validate(body,null,settings.FirstFaces.Concat(settings.SecondFaces).ToArray());
+                Faces(_first),_thermal?Faces(_second):[],_hot.Value,_cold.Value,_initial.Value,_duration.Value,_modes.Value,_size.Value,bodies.Count>1?bodies.Skip(1).Select(b=>b.Id).ToArray():null,
+                _thermal?Faces(_heated):null,_power.Value,_thermal?Faces(_cooled):null,_coolant.Index switch{0=>10,1=>50,2=>1000,_=>_film.Value},_ambient.Value,_emissivity.Value);
+            foreach(var part in bodies)StudySetup.Validate(part,null,[.. _first.Items.Concat(_second.Items).Concat(_heated.Items).Concat(_cooled.Items).Where(i=>i.Obj==part.Id).Select(i=>i.Index)]);
             if(settings.Kind!=CaeKind.Modal&&settings.FirstFaces.Intersect(settings.SecondFaces).Any())throw new InvalidOperationException("Temperature boundaries must not overlap.");
             return (body,settings);
     }
     void SaveSetup()
     {
-        try{_setupError=null;var(body,settings)=Settings();if(string.IsNullOrWhiteSpace(_name.Value))throw new InvalidOperationException("Enter a setup name.");var setup=new SavedCaeCase(_name.Value.Trim(),body.Id,settings,StudySetup.Signature(body));S.CaeCases.RemoveAll(c=>c.Name==setup.Name);S.CaeCases.Add(setup);S.Dirty=true;S.Say("Saved CAE setup: "+setup.Name);Refresh();}
+        try{_setupError=null;var(body,settings)=Settings();if(settings.OtherBodies!=null)throw new InvalidOperationException("Saved setups cover one body for now. Run this one directly.");if(string.IsNullOrWhiteSpace(_name.Value))throw new InvalidOperationException("Enter a setup name.");var setup=new SavedCaeCase(_name.Value.Trim(),body.Id,settings,StudySetup.Signature(body));S.CaeCases.RemoveAll(c=>c.Name==setup.Name);S.CaeCases.Add(setup);S.Dirty=true;S.Say("Saved CAE setup: "+setup.Name);Refresh();}
         catch(Exception e){_setupError=e.Message;S.Say(e.Message,true);Refresh();}
     }
     protected override void Analyze()
@@ -90,8 +107,8 @@ public sealed class CaeSolveCommand : AnalysisCommand
         if(S.Cae is not { } job){Row("Setup","Assign material, pick body and faces, then Run analysis.");return;}
         Row("Status",job.Status,job.Error==null?0:3);
         if(job.Outcome is not { } r)return;
-        Row("Source body",r.Prepared.Body.Name);Row("Mesh",$"{r.Prepared.Mesh.NodeCount:N0} nodes, {r.Prepared.Mesh.TetCount:N0} quadratic tetrahedra");
-        if(r.Temperatures.Length>0){Row("Minimum temperature",$"{r.Temperatures.Min():G6} °C");Row("Maximum temperature",$"{r.Temperatures.Max():G6} °C");}
+        Row(r.Prepared.Parts==null?"Source body":"Bodies",r.Prepared.Parts==null?r.Prepared.Body.Name:string.Join(", ",r.Prepared.Parts.Select(p=>$"{p.Body.Name} ({p.Body.Material?.Name})")));if(r.Prepared.Bonds.Count>0)Row("Joints",$"{r.Prepared.Bonds.Count} bonded");Row("Mesh",$"{r.Prepared.Mesh.NodeCount:N0} nodes, {r.Prepared.Mesh.TetCount:N0} quadratic tetrahedra");
+        if(r.Temperatures.Length>0){Row("Cooling note","Cooling coefficients are typical figures. Real values depend on the air or water flow around the part.");Row("Minimum temperature",$"{r.Temperatures.Min():G6} °C");Row("Maximum temperature",$"{r.Temperatures.Max():G6} °C");}
         for(int i=0;i<r.Frequencies.Length;i++)Row($"Mode {i+1}",$"{r.Frequencies[i]:G6} Hz");
         Row("Result files",r.Folder);
     }

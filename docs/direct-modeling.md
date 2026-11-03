@@ -1,13 +1,15 @@
 # Direct modeling
 
-Direct modeling edits the geometry you have, with no history needed. It works on any exact body, including parts imported from STEP, IGES or BREP. Open the **Direct Modeling** tab.
+Direct modeling edits the geometry you have, with no history needed. It works on any exact body, including parts imported from STEP, IGES or BREP. On the Solid tab, click **Direct Edit** to open the **Direct Modeling** tab; **Finish Editing** on its far right goes back.
 
-The tab reads left to right: **Select, Datum, Add, Edit faces, Edit features, Repair, Transform, Inspect, Appearance.**
+The tab reads left to right: **Select, Datum, Edit, Repair, Transform, Inspect, Appearance, Exit.** Adding holes, fillets, chamfers, shells and drafts is on the Solid tab. Here you change what exists.
 
-- **Add** makes new geometry: Hole, Fillet, Chamfer, Shell, Split Body.
-- **Edit faces** changes existing faces.
-- **Edit features** changes whole holes, slots, pockets, bosses, fillets and patterns.
+- **The gizmo** is open whenever the tab is: click a face or feature and drag its handles. Coloured arrows move it, the orange handle pulls the faces along their normals, the purple arc tilts a flat face. **Delete** removes the picked feature.
+- **Edit** has Edit Feature, Replace Face, Match Face, Extend / Trim Face, Split Face, Draft, Edit Pattern and Mirror Feature.
 - **Repair** checks and heals imported parts.
+- **History:** direct edits are plain undo steps. Right-click a body and choose **Track history** to make its direct edits editable later.
+
+The tool tables below describe what each tool does; the gizmo uses Push / Pull, Move Face, Offset Face and Rotate Face behind its handles.
 
 ## Click a face, get the whole feature
 

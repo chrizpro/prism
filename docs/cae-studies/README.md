@@ -10,9 +10,22 @@ The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dy
 
 **Dynamics:** CalculiX solves linear natural frequencies and mode shapes of one homogeneous isotropic solid with fully fixed faces. Request 1–20 modes, then choose a returned mode and press Show mode. Frequency is in Hz; deformation is scaled for visibility and the scalar field is relative magnitude. Mode amplitude is arbitrary, not a predicted vibration amplitude. This is modal free vibration, not forced response, impact, contact or nonlinear transient dynamics.
 
-**Fluids:** Pipe Flow calculates steady, fully developed, incompressible flow through a circular full pipe. It reports velocity, Reynolds number, Darcy friction factor, pressure drop, head loss and hydraulic power, with a total minor-loss coefficient. Laminar flow uses 64/Re; turbulent flow solves Colebrook–White. The uncertain 2000–4000 Reynolds transition range is rejected explicitly. Inputs use bore/length/roughness in mm, flow in L/min, density in kg/m³ and viscosity in Pa·s. This is a reduced-order pipe calculation, not 3D CFD, compressible flow, entrance flow, a network solver or conjugate heat transfer.
+**Fluids:** see [docs/tabs/fluids](../tabs/fluids/README.md) for Pipe Network and the 3D Flow Study. Pipe Flow calculates steady, fully developed, incompressible flow through a circular full pipe. It reports velocity, Reynolds number, Darcy friction factor, pressure drop, head loss and hydraulic power, with a total minor-loss coefficient. Laminar flow uses 64/Re; turbulent flow solves Colebrook–White. The uncertain 2000–4000 Reynolds transition range is rejected explicitly. Inputs use bore/length/roughness in mm, flow in L/min, density in kg/m³ and viscosity in Pa·s. This is a reduced-order pipe calculation, not 3D CFD, compressible flow, entrance flow, a network solver or conjugate heat transfer.
 
 **Motion:** kinematics and rigid-body motion of an assembly. The mechanism is built in the Assemble workspace (see [docs/motion-analysis.md](../motion-analysis.md)); the Motion tab adds what moves it. It needs no external solver.
+
+## Several bodies and materials
+
+Static, Thermal and Natural Frequencies can study several touching bodies, each with its own material. For Static, select the bodies, then New Study. For Thermal and Natural Frequencies, pick them in the Solid bodies slot.
+
+- Each body is meshed on its own, and CalculiX bonds the touching faces, so the meshes do not need to match.
+- A joint is perfect: no sliding, gap, separation or thermal contact resistance. Press fits, bolts and contact are not modeled.
+- Each body's stress is read against its own material, so the factor of safety is per body. Stress right at the edge of a joint can grow as the mesh gets finer.
+- Bodies that overlap, or that touch nothing, are refused.
+- A multi-body Static study always uses CalculiX, so it needs the solver installed.
+- Fatigue, Generative Design, mesh convergence and saved setups stay on one body for now.
+
+Checked against hand calculations in `tests/Prism.CaeTests`: heat through aluminum and steel in series gives a joint temperature of 83.40 °C against 83.42 °C by hand; the same bar in tension carries 10 MPa in both materials, and stretches 0.00428 mm against 0.00437 mm by hand (1.9% lower, which the fixed end explains in part); a bar cut in two and bonded vibrates at 819.4 Hz against 819.3 Hz for the whole bar.
 
 ## Dependency and execution
 

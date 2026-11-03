@@ -1,0 +1,53 @@
+# Surface and NURBS tabs
+
+The two tabs do different jobs. **Surface** builds surfaces from curves, edges and faces. **NURBS** is the styling workflow: draw with Create Sketch (K), then shape with control points. Point editing stays on NURBS.
+
+They share one definition of **Curves**, **Edit curves**, Sweep and Boundary Surface, so those tools behave the same on both. Inspect on both adds Zebra, Curvature Map and Curvature Graph.
+
+Solid and Freeform take a smaller Curves section: Curve, Curve from Data and Intersection Curve. Freeform also has Edit curves (Join, Trim, Extend, Rebuild, Blend) and Zebra.
+
+Home has one **Curves** dropdown with every tool from Curves and Edit curves, because you may not have chosen a workflow yet.
+
+## Surface
+
+- **Select, Datum:** shared sections
+- **References:** Create Sketch, Construction Plane
+- **Curves:** Curve, Curve from Data, Intersection Curve, Project, Isocurves, Contour, Duplicate Edge
+- **Create:** Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
+- **Modify:** Trim, Sew, More (Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
+- **Edit curves:** Fillet / Chamfer, Offset, Blend, Join, Explode, Trim, Extend, Rebuild, Divide
+- **Convert:** Convert to NURBS
+- **Transform, Inspect, Appearance:** shared sections
+
+## NURBS
+
+- **Select, Datum:** shared sections
+- **References:** Create Sketch (K), Construction Plane
+- **Curves, Edit curves:** same as Surface
+- **Surfaces:** Control Grid, Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
+- **Shape:** Edit Points, Sculpt, Rebuild Surface, Warp (direct buttons)
+- **Detail:** Add Detail, Raise Degree
+- **Convert:** Convert to NURBS
+- **Continuity:** Match Surface, Check Seam
+- **Finish:** Sew, Unsew, Thicken, Trim, Untrim, Extend, Reverse Normal, Offset
+- **Transform, Inspect, Appearance:** shared sections
+
+## One tool, several jobs
+
+| Tool | What it covers |
+|---|---|
+| Boundary Surface | A flat loop becomes a flat surface, with loops inside it as holes. Two to four curves span a surface. Other loops fill smoothly. Curves across the inside are followed exactly, or fitted through points. Two separate surface edges are blended. |
+| Sweep | One path, or a path plus a second rail that steers how the profile turns. |
+| Curve | Through the points, or control points. |
+| Curve from Data | An equation, or a table or file of points. |
+| Fillet / Chamfer | Rounds or cuts the corners of a flat curve. |
+| Trim Curve | Keeps one part, or cuts the curve into pieces. |
+| Intersection Curve | Between planes, faces, surfaces or bodies, or two flat curves on different planes. |
+
+The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface, Blend Surface, Split Curve, Deform, Intersect Surfaces, Curve Intersect) are off the ribbon but still work from scripts.
+
+## Still to check
+
+- Drag every merged tool in the running app; these results come from headless tests.
+- Compare Warp with the old Deform on NURBS surfaces. Deform moved control points directly, and Warp's result has not been compared.
+- A second rail steers rotation only. It does not stretch the profile to reach the rail.

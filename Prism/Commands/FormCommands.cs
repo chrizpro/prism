@@ -125,6 +125,8 @@ public sealed class EditFormCommand : Command
     public readonly ChoiceParam Mode;
     readonly NumberParam _dist, _crease, _px, _py, _pz;
     NumberParam _angleLimit = null!, _slideAmt = null!;
+    ChoiceParam _bevelKind = null!, _selectBy = null!;
+    readonly HashSet<ActionParam> _ribbonActions = [];
     BoolParam _showPoles = null!;
     readonly BoolParam _showTriangles;
     public bool ShowTriangles => _showTriangles.Value;
@@ -158,7 +160,7 @@ public sealed class EditFormCommand : Command
     public bool LoopArmed { get; private set; }
     public int LoopCount => _loopCount.Value;
     public double LoopPosition => _loopPos.Value;
-    public void DisarmLoop() { if (!LoopArmed) return; LoopArmed = false; _tool.ResetLoopPreview(); S?.RaiseState(); }
+    public void DisarmLoop() { if (!LoopArmed) return; LoopArmed = false; _tool.ResetLoopPreview(); OnChanged(); S?.RaiseState(); }
 
     public EditFormCommand()
     {
@@ -186,6 +188,7 @@ public sealed class EditFormCommand : Command
         _loopPos = Num("Loop position along the edge (0..1)", 0.5, 0.02, 0.98, 0.05, "");
         _loopCount.Changed = _loopPos.Changed = () => _tool?.ResetLoopPreview();
         _bevelW = Num("Bevel width", 2, 0.01, 1e4, 0.5);
+        _bevelKind = Choice("Bevel type", 0, "Flat (cuts the corner off)", "Tight (support loops either side)");
         _insetAmt = Num("Inset amount", 3, 0.01, 1e4, 0.5);
         _insetDepth = Num("Inset depth (push out +, in -)", 0, -1e4, 1e4, 0.5);
         _insetEach = Check("Inset each face on its own", false);
@@ -210,50 +213,43 @@ public sealed class EditFormCommand : Command
         _alignRange = Num("Only points within (0 = any distance)", 0, 0, 1e5, 1);
         _showPoles = Check("Mark poles, triangles and n-gons", false);
         _showTriangles = Check("Show surface triangles", false);
-        _angleLimit = Num("Flood-select angle limit", 30, 0, 180, 5, "°");
+        _selectBy = Choice("Select by", 0, "Angle from the selected faces", "Open (boundary) edges", "Creased edges");
+        _angleLimit = Num("Angle limit", 30, 0, 180, 5, "°");
+        Add(new ActionParam { Label = "Select matching", Run = () => Do(() => SelectOp(_selectBy.Index switch { 0 => "angle", 1 => "boundary", _ => "creased" }), undoable: false) });
         Add(new ActionParam { Label = "Grow selection", Run = () => Do(() => SelectOp("grow"), undoable: false) });
         Add(new ActionParam { Label = "Shrink selection", Run = () => Do(() => SelectOp("shrink"), undoable: false) });
-        Add(new ActionParam { Label = "Invert selection", Run = () => Do(() => SelectOp("invert"), undoable: false) });
         Add(new ActionParam { Label = "Select everything", Run = () => Do(() => SelectOp("all"), undoable: false) });
-        Add(new ActionParam { Label = "Flood-select faces by angle", Run = () => Do(() => SelectOp("angle"), undoable: false) });
-        Add(new ActionParam { Label = "Select open (boundary) edges", Run = () => Do(() => SelectOp("boundary"), undoable: false) });
-        Add(new ActionParam { Label = "Select creased edges", Run = () => Do(() => SelectOp("creased"), undoable: false) });
         Add(new ActionParam { Label = "Select edge loop or ring (kind: Edge selection)", Run = () => Do(() => SelectLoop(_loopKind.Index == 1), undoable: false) });
         Add(new ActionParam { Label = "Bridge the two selected edge groups", Run = () => Do(BridgeSel) });
-        Add(new ActionParam { Label = "Freeze selection (lock it)", Run = () => Do(() => FreezeSel(true)) });
-        Add(new ActionParam { Label = "Unfreeze selection", Run = () => Do(() => FreezeSel(false)) });
-        Add(new ActionParam { Label = "Unfreeze everything", Run = () => Do(() => Work!.Frozen.Clear()) });
         Add(new ActionParam { Label = "Align to the curve", Run = () => Do(AlignToCurve) });
         Add(new ActionParam { Label = "Wrap selection onto the scan", Run = () => Do(() => ScanSurface.Wrap(S, Work!, MovingOrAll(), _wrapStrength.Value, _scanOffset.Value)) });
-        Add(new ActionParam { Label = "Relax selection (even out the quads)", Run = () => Do(() => ScanSurface.Relax(S, Work!, MovingOrAll(), _relaxPasses.Value, _scanOffset.Value, ScanSurface.Any(S))) });
         Add(new ActionParam { Label = "Extrude selection", Run = () => Do(() => { MirrorSel(); ExtrudeSel(); }) });
         Add(new ActionParam { Label = "Inset selected faces", Run = () => Do(() => { MirrorSel(); InsetSel(); }) });
-        Add(new ActionParam { Label = "Bevel selected edges (tighten them)", Run = () => Do(() => { MirrorSel(); BevelSel(); }) });
         Add(new ActionParam { Label = "Rotate selection by the angle above", Run = () => Do(() => TransformNumeric(FormTransform.RotateAbout(PivotPoint(), Axis(_rotAxis.Index), _rotAngle.Value * Math.PI / 180))) });
         Add(new ActionParam { Label = "Scale selection by the factor above", Run = () => Do(() => TransformNumeric(FormTransform.ScaleAbout(PivotPoint(), _scaleFactor.Value, _scaleFactor.Value, _scaleFactor.Value))) });
         Add(new ActionParam { Label = "Fill holes (cap open borders)", Run = () => Do(() => { int n = FormOps.FillHoles(Work!); if (n == 0) throw new InvalidOperationException("There are no open borders to fill."); ClearSelection(); S.Say($"Filled {n} hole(s)."); }) });
         Add(new ActionParam { Label = "Thicken (give the cage wall thickness: Bevel width)", Run = () => Do(() => { FormOps.Solidify(Work!, _bevelW.Value); ClearSelection(); S.Say($"Added a second skin {_bevelW.Value:0.##} mm inside the cage."); }) });
-        Add(new ActionParam { Label = "Merge selected faces into one", Run = () => Do(() => { if (!FormOps.MergeFaces(Work!, Faces)) throw new InvalidOperationException("Select two or more touching faces (Select: Faces) that form one patch."); ClearSelection(); }) });
         _slideAmt = Num("Slide amount (-1..1)", 0.3, -1, 1, 0.1, "");
-        Add(new ActionParam { Label = "Chamfer selected edges (width = Bevel width)", Run = () => Do(() => { MirrorSel(); var es = SelectedEdgeList(); if (es.Count == 0) throw new InvalidOperationException("Select inner edges (Select: Edges) to chamfer."); int n = FormOps.ChamferEdges(Work!, es, _bevelW.Value); if (n == 0) throw new InvalidOperationException("Chamfer needs inner edges that run through the form."); ClearSelection(); S.Say($"Chamfered: {n} new face(s)."); }) });
         Add(new ActionParam { Label = "Slide selected edge loop (Slide amount)", Run = () => Do(() => { MirrorSel(); var es = Edges.Select(SubdMesh.Unkey).ToList(); if (es.Count == 0) throw new InvalidOperationException("Select an edge loop (Select: Edges, then Select edge loop) to slide."); int n = FormOps.SlideEdges(Work!, es, _slideAmt.Value); if (n == 0) throw new InvalidOperationException("Those edges have no quad rails to slide along."); S.Say($"Slid {n} point(s)."); }) });
-        Add(new ActionParam { Label = "Crease selected points (sharp corners)", Run = () => Do(() => { MirrorSel(); int n = FormOps.SetVertexCrease(Work!, MovingVertices(), _crease.Value); S.Say($"Set the corner crease on {n} point(s)."); }) });
-        Add(new ActionParam { Label = "Merge selected edges (join the faces either side)", Run = () => Do(() => { var es = SelectedEdgeList(); if (es.Count == 0) throw new InvalidOperationException("Select inner edges (Select: Edges) to merge."); int n = FormOps.MergeEdges(Work!, es); if (n == 0) throw new InvalidOperationException("Those edges are not shared by two faces that can be joined."); ClearSelection(); S.Say($"Merged {n} edge(s)."); }) });
         Add(new ActionParam { Label = "Unweld selected edges (open a seam)", Run = () => Do(() => { MirrorSel(); var es = Edges.Select(SubdMesh.Unkey).ToList(); if (es.Count == 0) throw new InvalidOperationException("Select the edges to unweld (Select: Edges)."); int n = FormOps.UnweldEdges(Work!, es); if (n == 0) throw new InvalidOperationException("Nothing to split: pick edges that run through the form, not around one point."); ClearSelection(); S.Say($"Opened a seam ({n} point(s) duplicated). Move the two sides apart."); }) });
         Add(new ActionParam { Label = "Pull points onto the smooth surface", Run = () => Do(() => { MirrorSel(); int n = FormOps.PullToLimit(Work!, MovingOrAll().ToHashSet()); S.Say($"Pulled {n} point(s) onto the smooth surface."); }) });
-        Add(new ActionParam { Label = "Collapse selected edges to points", Run = () => Do(() => { MirrorSel(); var es = SelectedEdgeList(); if (es.Count == 0) throw new InvalidOperationException("Select edges (or faces) to collapse."); FormOps.CollapseEdges(Work!, es); ClearSelection(); }) });
         Add(new ActionParam { Label = "Split face between two selected points", Run = () => Do(() => { var vs = MovingVertices().ToList(); if (vs.Count != 2) throw new InvalidOperationException("Select exactly two points on the same face."); var fi = Enumerable.Range(0, Work!.F.Count).FirstOrDefault(f => Work.F[f].Contains(vs[0]) && Work.F[f].Contains(vs[1]) && FormOps.SplitFace(Work, f, vs[0], vs[1]), -1); if (fi < 0) throw new InvalidOperationException("Those two points need to be non-neighbouring corners of one face."); ClearSelection(); }) });
-        Add(new ActionParam { Label = "Smooth selection (relax toward neighbours)", Run = () => Do(() => { MirrorSel(); FormOps.SmoothVertices(Work!, MovingOrAll().ToHashSet(), 0.5, Math.Max(1, _relaxPasses.Value)); }) });
+        Add(new ActionParam { Label = "Smooth selection (relax toward neighbours)", Run = () => Do(() => { MirrorSel(); if (StickToScan) ScanSurface.Relax(S, Work!, MovingOrAll(), _relaxPasses.Value, _scanOffset.Value, ScanSurface.Any(S)); else FormOps.SmoothVertices(Work!, MovingOrAll().ToHashSet(), 0.5, Math.Max(1, _relaxPasses.Value)); }) });
         Add(new ActionParam { Label = "Flatten selection onto a plane", Run = () => Do(() => { MirrorSel(); if (!FormOps.FlattenVertices(Work!, MovingVertices().ToHashSet())) throw new InvalidOperationException("Select at least three points (or faces) to flatten."); }) });
         Add(new ActionParam { Label = "Insert edge loop", Run = ArmLoop });
         Add(new ActionParam { Label = "Subdivide (choose divisions, selected faces or everything)", Run = OpenSubdivide });
         Add(new ActionParam { Label = "Smooth surface on or off", Run = () => Do(ToggleSmooth) });
         Add(new ActionParam { Label = "Delete selection", Run = () => Do(() => { MirrorSel(); DeleteSel(); }) });
-        Add(new ActionParam { Label = "Weld selected vertices", Run = () => Do(() => { MirrorSel(); var v = MovingVertices().ToList(); Work!.Weld(v); ClearSelection(); }) });
-        Add(new ActionParam { Label = "Apply crease to selected edges", Run = () => Do(() => { MirrorSel(); FormOps.SetCrease(Work!, SelectedEdgeList(), _crease.Value); }) });
         Add(new ActionParam { Label = "Flip normals", Run = () => Do(() => FormOps.FlipNormals(Work!)) });
         Add(new ActionParam { Label = "Mirror and weld", Run = () => Do(() => { var n = _mirror.Index == 0 ? Vec3.UnitZ : _mirror.Index == 1 ? Vec3.UnitY : Vec3.UnitX; FormOps.MirrorWeld(Work!, Vec3.Zero, n); ClearSelection(); }) });
-        Add(new ActionParam { Label = "Undo last form step", Run = () => TryUndo() });
+        // one tool per job: each reads the selection and does what fits it
+        Add(new ActionParam { Label = "Freeze or unfreeze selection", Run = () => Do(ToggleFreeze) });
+        Add(new ActionParam { Label = "Bevel selection", Run = () => Do(() => { MirrorSel(); if (_bevelKind.Index == 1) BevelSel(); else ChamferSel(); }) });
+        Add(new ActionParam { Label = "Merge selection", Run = () => Do(MergeSel) });
+        Add(new ActionParam { Label = "Weld selection", Run = () => Do(() => { MirrorSel(); WeldSel(); }) });
+        // the panel keeps what the ribbon has no room for; the ribbon runs the rest through these same actions
+        string[] panel = ["Grow selection", "Shrink selection", "Select matching", "Rotate selection", "Scale selection", "Wrap selection", "Place symmetry", "Put symmetry"];
+        _ribbonActions.UnionWith(Params.OfType<ActionParam>().Where(a => !panel.Any(a.Label.StartsWith)));
         Tool = _tool = new FormEditTool(this);
     }
 
@@ -272,8 +268,8 @@ public sealed class EditFormCommand : Command
             if (Work != null) { _level.Value = Work.Level; LoadSymmetry(); }
         }
         bool scan = ScanSurface.Any(S);
-        _stick.IsVisible = _scanOffset.IsVisible = _wrapStrength.IsVisible = _relaxPasses.IsVisible = scan;
-        foreach (var a in Params.OfType<ActionParam>().Where(a => a.Label.Contains("scan", StringComparison.OrdinalIgnoreCase) || a.Label.StartsWith("Relax"))) a.IsVisible = scan;
+        _stick.IsVisible = _scanOffset.IsVisible = _wrapStrength.IsVisible = scan;
+        foreach (var a in Params.OfType<ActionParam>().Where(a => a.Label.Contains("scan", StringComparison.OrdinalIgnoreCase))) a.IsVisible = scan;
         bool any = Work != null && MovingVertices().Any();
         _px.IsVisible = _py.IsVisible = _pz.IsVisible = any;
         if (any) SyncFields();
@@ -284,12 +280,16 @@ public sealed class EditFormCommand : Command
         _radial.IsVisible = _sym.Index == 4;
         _fall.IsVisible = _soft.Value > 0;
         _insetAmt.IsVisible = _insetDepth.IsVisible = _insetEach.IsVisible = SelMode == FormMode.Face;
+        _dist.IsVisible = SelMode is FormMode.Face or FormMode.Edge;
+        _slideAmt.IsVisible = _loopKind.IsVisible = _bevelKind.IsVisible = SelMode == FormMode.Edge;
+        _loopCount.IsVisible = _loopPos.IsVisible = LoopArmed;
+        _angleLimit.IsVisible = _selectBy.Index == 0;
         foreach (var a in Params.OfType<ActionParam>())
         {
-            if (a.Label.StartsWith("Rotate selection")) a.IsVisible = TransformMode.Index == 1;
+            if (_ribbonActions.Contains(a)) a.IsVisible = false;
+            else if (a.Label.StartsWith("Rotate selection")) a.IsVisible = TransformMode.Index == 1;
             else if (a.Label.StartsWith("Scale selection")) a.IsVisible = TransformMode.Index == 2;
-            else if (a.Label.StartsWith("Inset selected")) a.IsVisible = SelMode == FormMode.Face;
-            if (a.Label is "Apply crease to selected edges" or "Crease selected points (sharp corners)") a.IsVisible=false;
+            else if (a.Label.StartsWith("Place symmetry") || a.Label.StartsWith("Put symmetry")) a.IsVisible = _sym.Index > 0;
         }
         _crease.IsVisible=false;
         if(!HasPanelStep)_subU.IsVisible=_subV.IsVisible=false;
@@ -537,14 +537,53 @@ public sealed class EditFormCommand : Command
         ClearSelection();
     }
 
-    void FreezeSel(bool freeze)
+    /// <summary>Freezes the selection, or unfreezes it if all of it is frozen already. With nothing selected it unfreezes everything.</summary>
+    void ToggleFreeze()
     {
         var m = Work!; var vs = new HashSet<int>(Verts);
         foreach (var k in Edges) { var (a, b) = SubdMesh.Unkey(k); vs.Add(a); vs.Add(b); }
         foreach (var f in Faces) if (f < m.F.Count) foreach (var v in m.F[f]) vs.Add(v);
-        if (vs.Count == 0) throw new InvalidOperationException("Select faces, edges or points first.");
+        if (vs.Count == 0)
+        {
+            if (m.Frozen.Count == 0) throw new InvalidOperationException("Select faces, edges or points to freeze.");
+            m.Frozen.Clear(); S.Say("Unfroze everything."); return;
+        }
+        bool freeze = !vs.All(m.IsFrozen);
         if (freeze) m.Freeze(vs); else m.Unfreeze(vs);
         S.Say(freeze ? $"Froze {vs.Count} points: they will not move until unfrozen (shown in blue)." : $"Unfroze {vs.Count} points.");
+    }
+
+    /// <summary>Faces join into one; edges are removed, joining the faces either side.</summary>
+    void MergeSel()
+    {
+        if (SelMode == FormMode.Face)
+        {
+            if (!FormOps.MergeFaces(Work!, Faces)) throw new InvalidOperationException("Select two or more touching faces that form one patch.");
+            ClearSelection(); return;
+        }
+        var es = SelectedEdgeList();
+        if (es.Count == 0) throw new InvalidOperationException("Select faces or inner edges to merge.");
+        int n = FormOps.MergeEdges(Work!, es);
+        if (n == 0) throw new InvalidOperationException("Those edges are not shared by two faces that can be joined.");
+        ClearSelection(); S.Say($"Merged {n} edge(s).");
+    }
+
+    /// <summary>Points weld into one; edges and faces collapse to points.</summary>
+    void WeldSel()
+    {
+        if (SelMode == FormMode.Vertex) { Work!.Weld(MovingVertices().ToList()); ClearSelection(); return; }
+        var es = SelectedEdgeList();
+        if (es.Count == 0) throw new InvalidOperationException("Select points, edges or faces to weld.");
+        FormOps.CollapseEdges(Work!, es); ClearSelection();
+    }
+
+    void ChamferSel()
+    {
+        var es = SelectedEdgeList();
+        if (es.Count == 0) throw new InvalidOperationException("Select inner edges (Select: Edges) to bevel.");
+        int n = FormOps.ChamferEdges(Work!, es, _bevelW.Value);
+        if (n == 0) throw new InvalidOperationException("A flat bevel needs inner edges that run through the form.");
+        ClearSelection(); S.Say($"Beveled: {n} new face(s).");
     }
 
     void AlignToCurve()
@@ -613,7 +652,7 @@ public sealed class EditFormCommand : Command
         if (selected) Do(() => InsertLoopThrough(SelectedEdgeList(), SelMode == FormMode.Face, true));
         LoopArmed = true;
         if (!selected) S.Say("Insert edge loop: click an edge to add a loop across it. Press Esc or choose another tool to finish.");
-        _tool.ResetLoopPreview(); S.RaiseState();
+        _tool.ResetLoopPreview(); OnChanged(); S.RaiseState();
     }
 
     /// <summary>One click of the Insert edge loop tool.</summary>

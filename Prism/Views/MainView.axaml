@@ -831,6 +831,8 @@
 
                     <v:ScriptPanel IsVisible="{Binding ShowScriptEditor}"/>
 
+                    <v:DataPanel IsVisible="{Binding ShowDataEditor}"/>
+
                 </Panel>
 
                 </DockPanel>

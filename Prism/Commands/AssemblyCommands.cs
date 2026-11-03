@@ -124,12 +124,12 @@ public sealed class JointCommand : Command
     public override string OkText => "Create joint";
     public override string Hint => _type switch
     {
-        JointType.Rigid => "Pick a face or circle on each component. The second component snaps so the two points coincide and then stays locked to the first.",
-        JointType.Revolute => "Pick a circle edge or round face (a pin and its hole) on each component. The second turns about that axis.",
-        JointType.Slider => "Pick a face on each component. The second slides along the direction of the picked face's normal (or a round feature's axis).",
-        JointType.Ball => "Pick a point (a circle centre or a face) on each component. The second pivots about that point: spin about the picked axis and tilt away from it.",
-        JointType.Planar => "Pick a flat face on each component. The second slides over the first in two directions, staying flat against it.",
-        _ => "Pick a round feature on each component. The second turns about the axis and slides along it.",
+        JointType.Rigid => "Pick a face or circle on each part (a plain body becomes a part when you pick it). The second part snaps so the two points coincide and then stays locked to the first.",
+        JointType.Revolute => "Pick a circle edge or round face (a pin and its hole) on each part (a plain body becomes a part when you pick it). The second turns about that axis.",
+        JointType.Slider => "Pick a face on each part (a plain body becomes a part when you pick it). The second slides along the direction of the picked face's normal (or a round feature's axis).",
+        JointType.Ball => "Pick a point (a circle centre or a face) on each part (a plain body becomes a part when you pick it). The second pivots about that point: spin about the picked axis and tilt away from it.",
+        JointType.Planar => "Pick a flat face on each part (a plain body becomes a part when you pick it). The second slides over the first in two directions, staying flat against it.",
+        _ => "Pick a round feature on each part (a plain body becomes a part when you pick it). The second turns about the axis and slides along it.",
     };
 
     protected override void UpdateVisibility()
@@ -142,11 +142,21 @@ public sealed class JointCommand : Command
     // what Build worked out, shown in the viewport
     Xform? _frameA, _frameB;
 
+    readonly List<Guid> _madeParts = [];
+
+    /// <summary>The part a pick is on. A plain solid body in this file becomes a part on the spot, so a mechanism can be modeled and jointed in one file.</summary>
     SceneObject Owner(SelectionSlot slot)
     {
         var o = S.Find(slot.Items[0].Obj);
-        if (o?.Component == null) throw new FormatException("The pick must be on a component. Insert the parts first (Assemble tab > Insert).");
-        return o;
+        if (o?.Component != null) return o;
+        if (o?.Kind != ObjKind.Solid) throw new FormatException("Pick a face or edge on a solid body or a part.");
+        _madeParts.Add(o.Id);
+        return S.MakePart(o.Id);
+    }
+
+    public override void OnCancel()
+    {
+        foreach (var id in _madeParts) S.Update(id, v => v.WithAsm(null, v.Shape), false);
     }
 
     static Xform WorldFrame((Vec3 origin, Vec3 z) f) => Xform.FromFrame(f.origin, Xform.AnyPerpendicular(f.z), f.z);
@@ -210,9 +220,31 @@ public sealed class JointCommand : Command
 }
 
 // =================================================================== Drive joints (test the motion, set values)
+/// <summary>Turns bodies modeled in this file into parts where they stand, ready for joints. The first is grounded if nothing is.</summary>
+public sealed class MakePartCommand : Command
+{
+    readonly SelectionSlot _bodies;
+    public MakePartCommand() => _bodies = Slot(new SelectionSlot { Label = "Bodies", Filter = SelFilter.Solid, Multi = true });
+
+    public override string Title => "Make Part";
+    public override string Icon => "component";
+    public override string OkText => "Make parts";
+    public override string Hint => "Turn solid bodies in this file into parts, so joints can connect them. They stay where they are and keep their names. If nothing is grounded yet, the first one is. Picking a body with a joint tool does the same thing, so this is only needed to set the parts up first.";
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        var ids = _bodies.Items.Select(i => i.Obj).Distinct().Where(id => S.Find(id)?.Component == null).ToList();
+        if (ids.Count == 0) return null;
+        Results.Add(new ResultLine("Parts to make", ids.Count.ToString()));
+        return new CommandOutput { Label = Title, Icon = Icon, After = s => { foreach (var id in ids) s.MakePart(id); } };
+    }
+}
+
 public sealed class DriveJointsCommand : Command
 {
     readonly List<(JointInfo joint, NumberParam v1, NumberParam? v2)> _rows = [];
+    readonly Dictionary<string, (double v1, double v2)> _last = [];
 
     /// <summary>Drag a joint in the viewport: an arc to turn it, an arrow to slide it. It stops at its limits.</summary>
     public override IReadOnlyList<HandleSpec> Handles => JointHandles.Build(S, _rows);
@@ -236,22 +268,42 @@ public sealed class DriveJointsCommand : Command
                 p2 = Add(new NumberParam { Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
             }
             _rows.Add((j, p1, p2));
+            _last[j.Key] = (p1.Value, p2?.Value ?? j.Value2);
         }
     }
+
+    static void SetQuietly(NumberParam p, double value) { var changed = p.Changed; p.Changed = null; p.Value = value; p.Changed = changed; }
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
         if (_rows.Count == 0) { Results.Add(new ResultLine("Joints", "none yet. Create joints first (Joints tab).")); return null; }
         var over = _rows.ToDictionary(r => r.joint.Key, r => r.joint with { Value = r.v1.Value, Value2 = r.v2?.Value ?? r.joint.Value2 });
+        // the joint just moved stays where it was put; the rest of its loop follows, as in a motion study
+        string? moved = _rows.Where(r => Math.Abs(r.v1.Value - _last[r.joint.Key].v1) > 1e-12 || r.v2 != null && Math.Abs(r.v2.Value - _last[r.joint.Key].v2) > 1e-12).Select(r => r.joint.Key).FirstOrDefault();
+        var closed = S.CloseLoops(over, moved, moved == null ? default : _last[moved], out var problem);
+        if (problem != null)
+        {
+            foreach (var r in _rows) over[r.joint.Key] = r.joint with { Value = _last[r.joint.Key].v1, Value2 = _last[r.joint.Key].v2 };
+            Results.Add(new ResultLine("Cannot go there", problem, 2));
+        }
+        else if (closed != null)
+            foreach (var r in _rows)
+                if (closed.TryGetValue(r.joint.Key, out var v))
+                {
+                    over[r.joint.Key] = r.joint with { Value = v.v1, Value2 = v.v2 };
+                    SetQuietly(r.v1, v.v1); if (r.v2 != null) SetQuietly(r.v2, v.v2);
+                }
+        foreach (var r in _rows) _last[r.joint.Key] = (over[r.joint.Key].Value, over[r.joint.Key].Value2);
         var placements = S.SolvePlacements(over, out var notes);
+        if (closed != null) notes.RemoveAll(n => n.Contains("closed loop"));
         var o = new CommandOutput { Label = "Drive joints", Icon = "joint-revolute", ReplaceIsMove = true };
         foreach (var comp in S.Components)
         {
             var p = placements[comp.Component!.Key];
             if (p.DistanceTo(comp.Component.Placement) > 1e-9) o.Replace.Add((comp, p.Apply(S.LocalShapeOf(comp))));
         }
-        var values = _rows.ToDictionary(r => r.joint.Key, r => (r.v1.Value, r.v2?.Value ?? r.joint.Value2));
+        var values = _rows.ToDictionary(r => r.joint.Key, r => (over[r.joint.Key].Value, over[r.joint.Key].Value2));
         o.After = s => s.SetJointValues(values);
         Results.Add(new ResultLine("Moved parts", o.Replace.Count.ToString()));
         foreach (var n in notes.Distinct()) Results.Add(new ResultLine("Note", n, 1));

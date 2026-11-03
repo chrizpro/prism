@@ -64,7 +64,7 @@ public sealed class ConvergenceCommand : AnalysisCommand
         if(_running)return;
         try
         {
-            var original=S.ActiveStudy??throw new InvalidOperationException("Create a static study first.");var body=S.Find(original.BodyId)??throw new InvalidOperationException("The study body was deleted.");
+            var original=S.ActiveStudy??throw new InvalidOperationException("Create a static study first.");if(original.OtherBodies.Count>0)throw new InvalidOperationException("Mesh convergence works on a one-body study for now.");var body=S.Find(original.BodyId)??throw new InvalidOperationException("The study body was deleted.");
             var st=new StudyDef{BodyId=body.Id,ShapeSignature=original.ShapeSignature};
             st.Fixtures.AddRange(original.Fixtures.Select(f=>new Fixture{Name=f.Name,Kind=f.Kind,Faces=[..f.Faces],LockX=f.LockX,LockY=f.LockY,LockZ=f.LockZ}));
             st.Loads.AddRange(original.Loads.Select(l=>new Load{Name=l.Name,Kind=l.Kind,Faces=[..l.Faces],Direction=l.Direction,AlongNormal=l.AlongNormal,Value=l.Value,Total=l.Total}));

@@ -13,6 +13,13 @@
                 <SolidColorBrush x:Key="InkSoft">#9CA9BC</SolidColorBrush>
                 <SolidColorBrush x:Key="InkFaint">#8A98AD</SolidColorBrush>
                 <SolidColorBrush x:Key="Accent">#4C94FF</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxKeyword">#C586F0</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxBuiltin">#4FC1C9</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxString">#9CCF8A</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxComment">#7C8BA1</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxNumber">#E8B06A</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxFunction">#6FB1FF</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxDecorator">#E0A0C8</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentDark">#3A7DE6</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentSoft">#1D3556</SolidColorBrush>
                 <SolidColorBrush x:Key="HoverBg">#283140</SolidColorBrush>
@@ -54,6 +61,13 @@
                 <SolidColorBrush x:Key="InkSoft">#4A576A</SolidColorBrush>
                 <SolidColorBrush x:Key="InkFaint">#58677C</SolidColorBrush>
                 <SolidColorBrush x:Key="Accent">#2F7BF0</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxKeyword">#7A2FB5</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxBuiltin">#0B7A82</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxString">#2F7A34</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxComment">#5F6E82</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxNumber">#A85A00</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxFunction">#1F5FBF</SolidColorBrush>
+                <SolidColorBrush x:Key="SyntaxDecorator">#A32C78</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentDark">#1F63CC</SolidColorBrush>
                 <SolidColorBrush x:Key="AccentSoft">#D5E4FA</SolidColorBrush>
                 <SolidColorBrush x:Key="HoverBg">#E0E7F0</SolidColorBrush>

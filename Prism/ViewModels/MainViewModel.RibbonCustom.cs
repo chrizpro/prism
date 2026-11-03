@@ -19,7 +19,7 @@ public sealed partial class MainViewModel
     void OrganizeRibbons(Func<RibbonGroup> transform, Func<RibbonGroup> inspect,
         Func<RibbonGroup> appearance, Func<RibbonGroup> select)
     {
-        var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "ECAD" };
+        var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "Reverse Engineer", "ECAD" };
         foreach (var tab in Tabs)
         {
             // Look At lives in the viewport toolbar and the View tab.
@@ -42,12 +42,22 @@ public sealed partial class MainViewModel
             {
                 if (tab.Groups.All(g => g.Title != "Inspect")) tab.Groups.Add(inspect());
                 if (tab.Groups.All(g => g.Title != "Select")) tab.Groups.Add(select());
-                var references = tab.Groups.Where(g => g.Title is "Sketch" or "Planes" or "Curves").ToList();
+                // Reading a surface's smoothness matters where surfaces are shaped by eye; the Analyze tab has these for everything else.
+                var inspectGroup = tab.Groups.Single(g => g.Title == "Inspect");
+                if (tab.Title is "Surface" or "NURBS" or "Freeform")
+                    inspectGroup.Items.Add(Btn("Zebra\nStripes", "zebra", () => Session.Zebra = !Session.Zebra, "Show reflection stripes: smooth, continuous stripes mean a smooth surface.", RibbonSize.Large, null, () => Session.Zebra));
+                if (tab.Title is "Surface" or "NURBS")
+                {
+                    inspectGroup.Items.Add(Cmd("Curvature\nMap", "curvature", () => new CurvatureCommand(), "Color surfaces by curvature."));
+                    inspectGroup.Items.Add(Cmd("Curvature\nGraph", "curvature", () => new CurveCurvatureCommand(), "Show a comb of hairs along a curve to judge how smooth it is."));
+                }
+                var references = tab.Groups.Where(g => g.Title is "Sketch" or "Planes").ToList();
                 if (references.Count > 0)
                 {
                     var tools = references.SelectMany(g => g.Items).OfType<RibbonButton>().ToArray();
                     foreach (var group in references) tab.Groups.Remove(group);
-                    tab.Groups.Add(G("References", tools[0], ToolMenu("Curves & planes", "origin-plane",
+                    // one reference tool is a plain button; a dropdown of one is just an extra click
+                    tab.Groups.Add(tools.Length == 2 ? G("References", tools) : G("References", tools[0], ToolMenu("Curves & planes", "origin-plane",
                         "Create spatial curves and work with construction references.", tools.Skip(1).ToArray())));
                 }
             }
@@ -56,7 +66,7 @@ public sealed partial class MainViewModel
                 var primitives = tab.Groups.Single(g => g.Title is "Create" or "Primitives");
                 var features = tab.Groups.Single(g => g.Title == "Features");
                 tab.Groups.Remove(primitives); tab.Groups.Remove(features);
-                tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items.Where(b => b is RibbonButton { Icon: "extrude" or "revolve" or "rib" })).ToArray()));
+                tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items).ToArray()));
             }
             if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
             if(modeling.Contains(tab.Title) || tab.Title=="Sketch")
@@ -133,11 +143,11 @@ public sealed partial class MainViewModel
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
-                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
                 if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
-                int keep = group.Title is "Transform" or "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
+                int keep = tab.Title == "Mesh" && group.Title == "Reshape" ? 3 : tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));
-                string label = group.Title == "Transform" ? "More transforms" : group.Title == "Inspect" ? "More inspection" : keep == 0 ? group.Title : "More";
+                string label = group.Title == "Inspect" ? "More inspection" : keep == 0 ? group.Title : "More";
                 var menu = ToolMenu(label, buttons[keep].Icon,
                     "Related tools in this section. Every command is also available in command search.", buttons.Skip(keep).ToArray());
                 menu.Id = "menu:" + tab.Title + ":" + group.Title;

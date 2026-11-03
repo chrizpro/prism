@@ -40,7 +40,7 @@ Check(vm.Tabs.Single(t => t.Title == "Render").Groups.Select(g => g.Title).ToLis
 string Signature(RibbonGroup group) => string.Join(";", group.Items.OfType<RibbonButton>().Where(b=>b.Icon!="sel-vertex").Select(b => b.Label + ":" + b.Size + ":" + string.Join(",", b.Menu?.Select(v => v.Label) ?? [])));
 foreach (var name in new[] { "Transform", "Inspect", "Appearance", "Select" })
 {
-    var groups = vm.Tabs.Where(t => !t.IsContextual).SelectMany(t => t.Groups).Where(g => g.Title == name).ToArray();
+    var groups = vm.Tabs.Where(t => !t.IsContextual && !(name == "Inspect" && t.Title is "Surface" or "NURBS" or "Freeform")).SelectMany(t => t.Groups).Where(g => g.Title == name).ToArray();   // the three styling tabs add surface-quality checks
     Check(groups.Select(Signature).Distinct().Count() == 1, name + " uses the same tools, order and grouping across ribbons");
 }
 foreach (var tab in vm.Tabs)
@@ -53,8 +53,13 @@ foreach (var tab in vm.Tabs.Where(t => t.Groups.Any(g => g.Title == "Transform")
 {
     var group = tab.Groups.Single(g => g.Title == "Transform");
     var buttons = group.Items.OfType<RibbonButton>().ToArray();
-    Check(buttons.Length == 2 && buttons[0].Label == "Move" && buttons[1].Menu!.Select(b => b.Label).SequenceEqual(new[] { "Rotate", "Scale", "Mirror", "Duplicate" }), tab.Title + " keeps Move visible with four transform variants");
+    Check(buttons.Length == 1 && buttons[0].Label == "Move" && buttons[0].Menu!.Select(b => b.Label).SequenceEqual(new[] { "Move", "Rotate", "Scale", "Mirror", "Duplicate" }), tab.Title + " keeps all five transforms in one dropdown that opens on Move");
 }
+var homeTab = vm.Tabs.Single(t => t.Title == "Home");
+var homeCurves = homeTab.Groups.Single(g => g.Title == "Curves").Items.OfType<RibbonButton>().Single();
+var homeCurveTools = homeCurves.Menu!.Select(b => b.Label.Replace("\n", " ")).ToArray();
+Check(new[] { "Curve", "Curve from Data", "Intersection Curve", "Project", "Isocurves", "Contour", "Duplicate Edge", "Fillet / Chamfer", "Offset Curve", "Blend Curve", "Join", "Explode", "Trim Curve", "Extend Curve", "Rebuild Curve", "Divide" }.All(homeCurveTools.Contains) && homeCurveTools.Length == 16, "Home has one Curves dropdown with every curve tool");
+Check(homeTab.Groups.Single(g => g.Title == "References").Items.OfType<RibbonButton>().All(b => !b.HasMenu && !b.Label.Contains("Intersection")), "Home's References are plain buttons, with Intersection Curve moved to Curves");
 Check(vm.Workspaces.Select(w => w.Name).SequenceEqual(vm.Workspaces.Select(w => w.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)), "workspaces are alphabetized");
 Check(vm.Workspaces.Where(w => w.Id is "script" or "ecad" or "assemble" or "simulate" or "make").All(w => !w.IsPinned), "specialist workspaces remain available without occupying the default bar");
 AppSettings.Current.AccentColor = "Purple";
@@ -75,7 +80,7 @@ var patterns=solidTab.Groups.Single(g=>g.Title=="Pattern").Items.OfType<RibbonBu
 Check(patterns.Count==1&&patterns[0].Menu!.Select(b => b.Icon).SequenceEqual(new[]{"pattern-linear","pattern-circular","pattern-curve","pattern-fill","pattern-table"}),"Solid groups all five pattern methods in one menu");
 var solidCreate = solidTab.Groups.Single(g => g.Title == "Create").Items.OfType<RibbonButton>().ToArray();
 Check(new[] { "Extrude", "Revolve" }.All(n => solidCreate.Any(b => b.Label == n && !b.HasMenu)), "Solid exposes Extrude and Revolve");
-Check(solidTab.Buttons.All(b => b.Label is not ("Sweep" or "Loft" or "Edit\nFeature")), "Solid omits Sweep, Loft and Edit Feature");
+Check(solidTab.Buttons.Any(b => b.Label == "Sweep") && solidTab.Buttons.Any(b => b.Label == "Loft") && solidTab.Buttons.All(b => b.Label != "Edit\nFeature"), "Solid has Sweep and Loft and omits Edit Feature");
 var solidModify = solidTab.Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>().ToArray();
 var edge = solidModify.Single(b => b.Menu?.Any(v => v.Label == "Chamfer") == true);
 Check(edge.IsSplit && edge.Label == "Chamfer" && edge.Menu!.Select(v => v.Label).SequenceEqual(new[] { "Chamfer", "Fillet" }), "Solid defaults its edge tools to Chamfer");
@@ -86,7 +91,7 @@ Check(restored.Label == "Fillet" && restored.Current?.Label == "Fillet", "last e
 AppSettings.Current.LastPicks.Remove("split:solid-edge");
 var surfaceCreate = vm.Tabs.Single(t => t.Title == "Surface").Groups.Single(g => g.Title == "Create").Items.OfType<RibbonButton>().ToArray();
 var freeformSelect=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().ToArray();
-Check(freeformSelect.Length==2 && freeformSelect[0].Icon=="sel-object" && freeformSelect.All(b=>b.IsSmall) && freeformSelect[1].IsSplit && freeformSelect[1].Menu!.Select(b=>b.Icon).SequenceEqual(new[]{"sel-face","sel-edge","sel-vertex"}),"Freeform stacks Object and the component selector in one column");
+Check(freeformSelect.Length==5 && freeformSelect[0].Icon=="sel-object" && freeformSelect.All(b=>b.IsSmall) && freeformSelect[1].IsSplit && freeformSelect[1].Menu!.Select(b=>b.Icon).SequenceEqual(new[]{"sel-face","sel-edge","sel-vertex"}),"Freeform stacks Object, the component selector, the Rectangle/Lasso dropdown, Invert and Through in one column");
 foreach(var title in new[]{"Home","Solid","Surface","Freeform","NURBS","Sketch"})
 {
     var datum=vm.Tabs.Single(t=>t.Title==title).Groups.Single(g=>g.Title=="Datum").Items.OfType<RibbonButton>().Single();
@@ -135,10 +140,21 @@ foreach (var title in vm.Tabs.Where(t => !t.IsFile).Select(t => t.Title).ToArray
 var ecad = vm.Tabs.Single(t => t.Title == "ECAD");
 var cae=MainViewModel.WorkspaceDefs.Single(w=>w.Id=="simulate");
 Check(cae.Name=="CAE"&&new[]{"Static","Thermal","Dynamics","Motion","Fluids"}.All(cae.Tabs.Contains),"CAE workspace includes the five analysis areas");
+foreach(var tab in vm.Tabs)foreach(var group in tab.Groups)Check(RibbonLayoutPolicy.SectionOrder.Contains(group.Title),$"{tab.Title}: section {group.Title} has a place in the shared order");
+foreach(var (tab,order) in new[]{("Motion",new[]{"Mechanism","Springs and loads","Simulate","Review","Appearance"}),("Joints",new[]{"Select","Joint","Couple","Motion"}),("Mesh",new[]{"Get a mesh","Region","Repair","Reshape","Print analysis","Display"}),("View",new[]{"Orientation","Navigate","Layout","Display","Show","Section"})})
+    Check(vm.Tabs.Single(t=>t.Title==tab).Groups.Select(g=>g.Title).Where(order.Contains).SequenceEqual(order),$"{tab} reads in workflow order");
+foreach(var title in new[]{"Surface","NURBS","Freeform"})
+    Check(vm.Tabs.Single(t=>t.Title==title).Groups.Select(g=>g.Title).Take(5).SequenceEqual(new[]{"Select","Datum","References","Curves","Edit curves"}),$"{title} keeps its curve sections together on the left");
+var fluidsTab=vm.Tabs.Single(t=>t.Title=="Fluids");
+foreach(var label in new[]{"Pipe Network","Pipe Flow","Flow Study"})Check(fluidsTab.Buttons.Any(b=>b.Label.Replace("\n"," ")==label),"Fluids tab exposes "+label);
 var motionTab=vm.Tabs.Single(t=>t.Title=="Motion");
-foreach(var label in new[]{"Kinematics","Motion Dynamics","Robot Path","Spring / Actuator","Force","Torque","Load from Motion","Gear Pair","Rack and Pinion","Ground","Drive Joints","Insert Component"})
+foreach(var label in new[]{"Motion Study","Spring / Actuator","Force / Torque","Load from Motion","Couple","Ground","Drive Joints","Make Part","Insert Component","Parts Library"})
     Check(motionTab.Buttons.Any(b=>b.Label.Replace("\n"," ")==label),"Motion tab exposes "+label);
-Check(vm.Tabs.Single(t=>t.Title=="Joints").Buttons.Any(b=>b.Label.Replace("\n"," ")=="Gear Pair")&&vm.Tabs.Single(t=>t.Title=="Joints").Buttons.Any(b=>b.Label.Replace("\n"," ")=="Rack and Pinion"),"Joints tab (Assemble) can couple gears and racks");
+foreach(var label in new[]{"Kinematics","Motion Dynamics","Robot Path","Gear Pair","Rack and Pinion","Force","Torque"})
+    Check(motionTab.Buttons.All(b=>b.Label.Replace("\n"," ")!=label),"Motion tab has no separate "+label);
+Check(motionTab.Groups.Where(g=>g.Title!="Appearance").SelectMany(g=>g.Items).OfType<RibbonButton>().Count()==10,"Motion tab fits ten buttons, with joints and parts in dropdowns");
+Check(vm.Tabs.Single(t=>t.Title=="Joints").Buttons.Any(b=>b.Label=="Couple"),"Joints tab (Assemble) has the one Couple tool");
+Check(vm.Tabs.Single(t=>t.Title=="Assemble").Buttons.Any(b=>b.Label.Replace("\n"," ")=="Make Part"),"Assemble can make parts from bodies in the file");
 foreach (var label in new[] { "Rectangular board", "Board from outline", "Mounting Hole", "Component Envelope", "Interference", "Import STEP", "Export STEP" })
     Check(ecad.Buttons.Any(b => b.Label.Replace("\n", " ") == label), "ECAD exposes " + label);
 // A menu click must open its choices without executing a modeling command first.

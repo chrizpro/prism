@@ -43,10 +43,10 @@ var loops=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Loop
 Console.WriteLine(string.Join("|",loops.Select(b=>b.Label+":"+b.HasMenu+":"+b.IsEnabled)));foreach(var n in new[]{"Insert Edge","Inset","Bridge"})Check(loops.Any(b=>b.Label.Replace("\n"," ")==n&&!b.HasMenu&&b.IsEnabled),"Loops has "+n);
 Check(loops.Any(b=>b.Label.Replace("\n"," ")=="Select Loop"&&!b.HasMenu&&!b.IsSplit)&&!loops.Any(b=>b.IsSplit),"Loop and ring selection is one Loops button");
 var more=modify.Single(b=>b.HasMenu).Menu!.ToList();
-foreach(var n in new[]{"Chamfer","Delete","Merge faces","Collapse","Split face","Bevel","Smooth","Flatten","Fill holes","Thicken"})Check(more.Any(b=>b.Label==n),"More menu has "+n);
+foreach(var n in new[]{"Bevel","Delete","Split face","Smooth","Flatten","Fill holes","Thicken"})Check(more.Any(b=>b.Label==n),"More menu has "+n);
 Check(more.All(b=>b.IsEnabled)&&modify.All(b=>b.Label!="Grow selection"),"More menu items are enabled and Grow stays panel-only");
 {
-var splitSel=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().Single(b=>b.IsSplit);
+var splitSel=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().First(b=>b.IsSplit);
 form.Mode.Index=(int)FormMode.Edge;vm.RefreshRibbon();Check(splitSel.Label=="Edge"&&splitSel.IsChecked,"ribbon selector label follows the panel mode (Edge)");
 form.Mode.Index=(int)FormMode.Face;vm.RefreshRibbon();Check(splitSel.Label=="Face","ribbon selector label follows the panel mode (Face)");
 var cube=FormOps.Box(10,10,10,1,1,1);int fcount=cube.F.Count;

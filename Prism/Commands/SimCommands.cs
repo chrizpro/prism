@@ -37,8 +37,8 @@ public sealed class FixtureCommand : Command
         if (S.ActiveStudy == null) { Error = "Create a study first (Simulate > New Study)."; return null; }
         if (!Complete) return null;
         var st = S.ActiveStudy;
-        var faces = _faces.Items.Where(i => i.Kind == SelKind.Face && i.Obj == st.BodyId).Select(i => new FaceRef(i.Obj, i.Index)).ToList();
-        if (faces.Count == 0) { Error = "Pick faces of the study's body."; return null; }
+        var faces = _faces.Items.Where(i => i.Kind == SelKind.Face && st.Has(i.Obj)).Select(i => new FaceRef(i.Obj, i.Index)).ToList();
+        if (faces.Count == 0) { Error = "Pick faces of the study's bodies."; return null; }
         var kind = _kind; bool lx = _x.Value, ly = _y.Value, lz = _z.Value;
         return new CommandOutput
         {
@@ -49,9 +49,9 @@ public sealed class FixtureCommand : Command
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
-        var st = s.ActiveStudy; var body = st == null ? null : s.Find(st.BodyId); if (body == null) return;
-        foreach (var it in _faces.Items.Where(i => i.Kind == SelKind.Face && i.Obj == body.Id))
-            if (StudyOverlay.FaceInfo(body, it.Index) is { } fi) o.AddDot(fi.center, 0xFF2EA043, 11);
+        var st = s.ActiveStudy; if (st == null) return;
+        foreach (var it in _faces.Items.Where(i => i.Kind == SelKind.Face && st.Has(i.Obj)))
+            if (s.Find(it.Obj) is { } body && StudyOverlay.FaceInfo(body, it.Index) is { } fi) o.AddDot(fi.center, 0xFF2EA043, 11);
     }
 }
 
@@ -97,7 +97,7 @@ public sealed class LoadCommand : Command
     {
         if (S.ActiveStudy == null) { Error = "Create a study first (Simulate > New Study)."; return null; }
         var st = S.ActiveStudy;
-        var faces = _faces?.Items.Where(i => i.Kind == SelKind.Face && i.Obj == st.BodyId).Select(i => new FaceRef(i.Obj, i.Index)).ToList() ?? [];
+        var faces = _faces?.Items.Where(i => i.Kind == SelKind.Face && st.Has(i.Obj)).Select(i => new FaceRef(i.Obj, i.Index)).ToList() ?? [];
         if (_kind != LoadKind.Gravity && faces.Count == 0) { Error = null; return null; }
         var ld = new Load { Kind = _kind, Faces = faces, Value = _value.Value, Total = _total.Value };
         if (_kind == LoadKind.Force) { ld.AlongNormal = _dir.Index == 0; if (!ld.AlongNormal) ld.Direction = Dirs[_dir.Index - 1]; }
@@ -108,9 +108,9 @@ public sealed class LoadCommand : Command
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
-        var st = s.ActiveStudy; var body = st == null ? null : s.Find(st.BodyId); if (body == null || _faces == null) return;
-        foreach (var it in _faces.Items.Where(i => i.Kind == SelKind.Face && i.Obj == body.Id))
-            if (StudyOverlay.FaceInfo(body, it.Index) is { } fi) o.AddDot(fi.center, 0xFFE5484D, 11);
+        var st = s.ActiveStudy; if (st == null || _faces == null) return;
+        foreach (var it in _faces.Items.Where(i => i.Kind == SelKind.Face && st.Has(i.Obj)))
+            if (s.Find(it.Obj) is { } body && StudyOverlay.FaceInfo(body, it.Index) is { } fi) o.AddDot(fi.center, 0xFFE5484D, 11);
     }
 }
 

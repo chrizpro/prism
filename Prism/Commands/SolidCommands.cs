@@ -174,19 +174,73 @@ public sealed class TorusCommand : PrimitiveCommand
 }
 
 // ---------------------------------------------------------------- profile helpers
-static class ProfileUtil
+public static class ProfileUtil
 {
-    public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelectionSlot slot, bool wantFaces)
+    static bool Loose(Shape profile)
+    {
+        int faceWires = Enumerable.Range(0, profile.Count(SubKind.Face)).Sum(i => profile.Sub(SubKind.Face, i).Count(SubKind.Wire));
+        return !profile.HasFaces || profile.Count(SubKind.Wire) > faceWires;
+    }
+
+    /// <summary>
+    /// Edges made into closed faces, whatever else was drawn. Joining edges end to end fails where three meet, as with a diagonal across a rectangle, and leaves loose lines.
+    /// So a sheet is cut along all the edges, and the pieces that do not reach its rim are the closed regions. By default they are joined into the outline; separate gives them one by one.
+    /// </summary>
+    public static Shape Closed(IReadOnlyList<Shape> shapes, bool separate = false)
+    {
+        var plain = Occ.Profile(shapes, true);
+        if (!Loose(plain)) return plain;
+        var edges = shapes.SelectMany(sh => Enumerable.Range(0, sh.Count(SubKind.Edge)).Select(i => sh.Sub(SubKind.Edge, i))).ToList();
+        var ends = edges.SelectMany(e => { var info = Occ.EdgeInfoOf(e); return new[] { info.Start, info.End }; }).ToList();
+        var mid = edges.Select(e => e.Props().Center).Concat(ends).ToList();
+        var a = mid[0]; var b = mid.MaxBy(p => (p - a).Length); var along = (b - a).Normalized();
+        var far = mid.MaxBy(p => Vec3.Cross(p - a, along).Length);
+        var normal = Vec3.Cross(far - a, along);
+        if (normal.Length < 1e-9) return plain;
+        normal = normal.Normalized();
+        if (mid.Any(p => Math.Abs(Vec3.Dot(p - a, normal)) > 1e-4)) return plain;       // only a flat sketch has regions
+        var side = Vec3.Cross(normal, along).Normalized();
+        var centre = mid.Aggregate(Vec3.Zero, (x, y) => x + y) / mid.Count;
+        double reach = mid.Max(p => (p - centre).Length) * 2 + 10;
+        Shape sheet = Occ.Profile([Occ.Polyline([centre - along * reach - side * reach, centre + along * reach - side * reach, centre + along * reach + side * reach, centre - along * reach + side * reach], true)], true);
+        // the kernel cuts a face with faces, not with lines lying in it, so each edge stands up as a wall through the sheet
+        var walls = edges.Select(e => Occ.Extrude(Occ.Translate(e, normal * -reach), normal * (2 * reach))).ToList();
+        var cut = Occ.Split(sheet, Occ.Compound(walls));
+        var cells = new List<Shape>();
+        for (int i = 0; i < cut.Count(SubKind.Face); i++)
+        {
+            var cell = cut.Sub(SubKind.Face, i); var box = cell.Props();
+            if ((box.Max - centre).Length < reach && (box.Min - centre).Length < reach) cells.Add(cell);
+        }
+        if (cells.Count == 0) return plain;
+        int closedFaces = plain.Count(SubKind.Face);
+        if (cells.Count == closedFaces) return Occ.Compound(Enumerable.Range(0, closedFaces).Select(i => plain.Sub(SubKind.Face, i)).ToList());     // the extra lines only dangle: drop them
+        if (separate) return Occ.Compound(cells);
+        var whole = cells.Aggregate(Occ.Fuse);
+        try { whole = Occ.UnifyFaces(whole, Enumerable.Range(0, whole.Count(SubKind.Face)).ToArray()); } catch (KernelException) { }
+        // a loop that stood on its own inside the outline, like a circle, is still a hole
+        var outer = whole.Props();
+        for (int i = 0; i < closedFaces; i++)
+        {
+            var loop = plain.Sub(SubKind.Face, i); var box = loop.Props(); double gap = 1e-3;
+            bool clear = (box.Min.X > outer.Min.X + gap || outer.Size.X < gap) && (box.Min.Y > outer.Min.Y + gap || outer.Size.Y < gap) && (box.Min.Z > outer.Min.Z + gap || outer.Size.Z < gap)
+                && (box.Max.X < outer.Max.X - gap || outer.Size.X < gap) && (box.Max.Y < outer.Max.Y - gap || outer.Size.Y < gap) && (box.Max.Z < outer.Max.Z - gap || outer.Size.Z < gap);
+            if (clear) whole = Occ.Cut(whole, loop);
+        }
+        return whole;
+    }
+
+    public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelectionSlot slot, bool wantFaces, bool separate = false)
     {
         if (slot.Items.Count == 1 && slot.Items[0].Kind != SelKind.Edge)
         {
-            var resolved = Resolve(s, slot.Items[0], wantFaces);
+            var resolved = Resolve(s, slot.Items[0], wantFaces, separate);
             ValidateClosed(resolved.shape, wantFaces);
             return resolved;
         }
         if (slot.Items.Count == 0) throw new KernelException("Pick a profile first.");
         var shapes = slot.Items.Select(item => s.ShapeOf(item) ?? throw new KernelException("A profile edge no longer exists.")).ToList();
-        var profile = Occ.Profile(shapes, wantFaces);
+        var profile = wantFaces ? Closed(shapes, separate) : Occ.Profile(shapes, false);
         ValidateClosed(profile, wantFaces);
         var owner = s.Find(slot.Items[0].Obj);
         return (profile, owner?.SketchPlane?.Normal ?? NormalOf(profile) ?? Vec3.UnitZ);
@@ -194,12 +248,11 @@ static class ProfileUtil
     static void ValidateClosed(Shape profile, bool wantFaces)
     {
         if (!wantFaces) return;
-        int faceWires = Enumerable.Range(0, profile.Count(SubKind.Face)).Sum(i => profile.Sub(SubKind.Face, i).Count(SubKind.Wire));
-        if (!profile.HasFaces || profile.Count(SubKind.Wire) > faceWires)
+        if (Loose(profile))
             throw new KernelException("A solid needs a closed profile. Add the missing edges, or use the Surface command for an open chain.");
     }
     /// <summary>Resolves a selected sketch/curve/face into a profile shape and its natural extrusion direction.</summary>
-    public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelItem item, bool wantFaces)
+    public static (Shape shape, Vec3 normal) Resolve(CadSession s, SelItem item, bool wantFaces, bool separate = false)
     {
         var obj = s.Find(item.Obj) ?? throw new KernelException("Profile no longer exists.");
         if (item.Kind == SelKind.Face)
@@ -216,11 +269,11 @@ static class ProfileUtil
             foreach (var (model, frame) in document.DrawingModels(root))
             {
                 var edges = model.ToShapes(frame, includeSections: false);
-                if (edges.Count > 0) pieces.Add(Occ.Profile(edges, wantFaces));
+                if (edges.Count > 0) pieces.Add(wantFaces ? Closed(edges, separate) : Occ.Profile(edges, false));
             }
             prof = Occ.Compound(pieces);
         }
-        else prof = Occ.Profile([sh], wantFaces);
+        else prof = wantFaces ? Closed([sh], separate) : Occ.Profile([sh], false);
         Vec3 n;
         if (obj.SketchPlane is { } pl) n = pl.Normal;
         else n = NormalOf(prof) ?? Vec3.UnitZ;
@@ -349,7 +402,7 @@ public sealed class ExtrudeCommand : BodyCommand
         if (pick > 0 && pick <= n) return order[pick - 1].f;
         if (_profile.Items.Count > 0 && S.Find(_profile.Items[0].Obj)?.SketchData is { Sections.Count: > 0 })
             throw new KernelException("This sketch has multiple drawing planes. Choose one Region to extrude normal to that profile.");
-        return prof;
+        return ProfileUtil.Resolve(S, _profile, !_surface).shape;
     }
 
     Vec3 RegionNormal(Shape profile, Vec3 fallback) => _profile.Items.Count > 0 && S.Find(_profile.Items[0].Obj)?.SketchData is { Sections.Count: > 0 }
@@ -362,7 +415,7 @@ public sealed class ExtrudeCommand : BodyCommand
         int selection = _profile.Items.Aggregate(17, (hash, item) => HashCode.Combine(hash, item));
         if (!Equals(_hc.item, it) || _hcRegion != (int)_region.Value || _hcSelection != selection)
         {
-            try { var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface); prof = PickRegion(prof); _hcRegion = (int)_region.Value; _hcSelection = selection; _hc = (it, CenterOf(prof), RegionNormal(prof, n)); }
+            try { var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface, separate: true); prof = PickRegion(prof); _hcRegion = (int)_region.Value; _hcSelection = selection; _hc = (it, CenterOf(prof), RegionNormal(prof, n)); }
             catch (Exception e) when (e is not OutOfMemoryException) { return false; }
         }
         return true;
@@ -448,7 +501,7 @@ public sealed class ExtrudeCommand : BodyCommand
     {
         if (!Complete) return null;
         Results.Clear();
-        var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface);
+        var (prof, n) = ProfileUtil.Resolve(S, _profile, !_surface, separate: true);
         int regions = prof.HasFaces ? prof.Count(SubKind.Face) : 0;
         prof = PickRegion(prof);
         n = RegionNormal(prof, n);
@@ -594,7 +647,7 @@ public sealed class RevolveCommand : BodyCommand
 public sealed class SweepCommand : BodyCommand
 {
     readonly bool _surface;
-    readonly SelectionSlot _profile, _path;
+    readonly SelectionSlot _profile, _path, _rail;
     readonly ChoiceParam _orient;
     readonly NumberParam _endScale;
     public SweepCommand(bool surface = false)
@@ -602,18 +655,21 @@ public sealed class SweepCommand : BodyCommand
         _surface = surface;
         _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
+        _rail = Slot(new SelectionSlot { Label = "Second rail (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
-    public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains.";
+    public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
-    // each click replaces the pick: a sweep has exactly one profile and one path
+    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _rail.Items.Count == 0; }
+
+    // each click replaces the pick: a sweep has exactly one profile, one path and at most one second rail
     public override bool PickPoint(PickResult hit, bool additive)
     {
         var slot = ActiveSlot;
-        if (slot != _profile && slot != _path || slot.IsPartialLoop) return false;
+        if (slot != _profile && slot != _path && slot != _rail || slot.IsPartialLoop) return false;
         try
         {
             ConfigureInputs(() =>
@@ -634,15 +690,17 @@ public sealed class SweepCommand : BodyCommand
     {
         if (slot.Items.Count == 1 && slot.Items[0].Kind != SelKind.Edge)
             return ProfileUtil.Resolve(S, slot.Items[0], wantFaces).shape;
-        return Occ.Profile(slot.Items.Select(i => S.ShapeOf(i)!).ToList(), wantFaces);
+        var picked = slot.Items.Select(i => S.ShapeOf(i)!).ToList();
+        return wantFaces ? ProfileUtil.Closed(picked) : Occ.Profile(picked, false);
     }
 
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var prof = SlotShape(_profile, !_surface);
         var path = SlotShape(_path, false);
-        var shape = Occ.Sweep2(prof, path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
+        var shape = _rail.Items.Count > 0
+            ? Occ.SweepRails(SlotShape(_profile, false), path, SlotShape(_rail, false), !_surface)
+            : Occ.Sweep2(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Sweep");
     }
@@ -812,7 +870,8 @@ static class GuidedLoft
         var pts = samples[0].Select(s => s.p).ToList();
         // the rail runs from the first section to the last: make sure of that
         if (Occ.Distance(secs[0], rails[0]).Distance > Occ.Distance(secs[^1], rails[0]).Distance) pts.Reverse();
-        var wires = new List<Shape>();
+        bool wantClosed = IsClosed(secs[0]);
+        var wires = new List<Shape>(); var sizes = new List<double>(); int skipped = 0;
         for (int i = 0; i < pts.Count; i++)
         {
             Shape w;
@@ -821,15 +880,59 @@ static class GuidedLoft
             else
             {
                 var t = (pts[i + 1] - pts[i - 1]).Normalized();
-                try { w = Occ.Section(skin, pts[i], t); }
-                catch (KernelException) { continue; }                          // a cut that misses the skin is simply skipped
+                try
+                {
+                    // the kernel hands back the cut as loose edges; a loft needs them joined into one wire, or it takes only the first edge and fails
+                    w = Occ.Profile([Occ.Section(skin, pts[i], t)], false);
+                    if (w.Count(SubKind.Wire) != 1) { skipped++; continue; }              // a cut that falls into pieces is not a section
+                    if (wantClosed && !IsClosed(w)) { skipped++; continue; }              // a tilted plane near an end can leave the shape and cut it open
+                    w = Plain(w);
+                }
+                catch (KernelException) { skipped++; continue; }                          // a cut that misses the skin is simply skipped
             }
-            wires.Add(Fit(w, pts[i], rails));
+            var fitted = Fit(w, pts[i], rails);
+            wires.Add(fitted); sizes.Add(fitted.Props().Size.Length);
+        }
+        // a section whose size jumps away from both neighbours was fitted to the wrong place on a rail: leave it out
+        for (int i = wires.Count - 2; i >= 1; i--)
+        {
+            double around = (sizes[i - 1] + sizes[i + 1]) / 2;
+            if (sizes[i] > around * 1.3 || sizes[i] < around / 1.3) { wires.RemoveAt(i); sizes.RemoveAt(i); skipped++; }
         }
         if (wires.Count < 2) throw new KernelException("The guide rail does not run along the shape.");
-        return Occ.Loft(wires, solid, ruled);
+        try { return Occ.Loft(wires, solid, ruled); }
+        catch (KernelException)
+        {
+            throw new KernelException($"The guide rails could not steer a loft through these sections ({wires.Count} of {pts.Count} cuts were usable). Each rail should touch the outline of every section and run roughly along the loft; a rail that bends sharply fails near its ends.");
+        }
     }
 
+    /// <summary>
+    /// The cut of a loft skin is a dense approximation of a plane crossing a spline surface, hundreds of poles for what is a straight line or a gentle curve.
+    /// Lofting through those makes a surface so heavy that drawing it takes about 50 seconds. Each edge is rebuilt as a line when it is straight, or a 16-point spline when it is not.
+    /// </summary>
+    static Shape Plain(Shape wire)
+    {
+        var edges = new List<Shape>();
+        foreach (var samples in Occ.CurveSamples(wire, 17, 64))
+        {
+            var pts = samples.Select(s => s.p).ToList();
+            if (pts.Count < 2) continue;
+            var a = pts[0]; var b = pts[^1]; double chord = (b - a).Length;
+            if (chord > 1e-9 && pts.All(p => Vec3.Cross(p - a, (b - a) / chord).Length < 1e-4 * chord + 1e-7)) edges.Add(Occ.Line(a, b));
+            else if (chord < 1e-9) edges.Add(Occ.Spline(pts.Take(pts.Count - 1).ToList(), true));      // a closed curve, such as a circle
+            else edges.Add(Occ.Spline(pts));
+        }
+        return edges.Count == 0 ? wire : Occ.Profile(edges, false);
+    }
+
+    /// <summary>True when every end point of the edges is shared by another edge, so the chain has no loose ends.</summary>
+    static bool IsClosed(Shape w)
+    {
+        var ends = new List<Vec3>();
+        for (int i = 0; i < w.Count(SubKind.Edge); i++) { var e = Occ.EdgeInfoOf(w.Sub(SubKind.Edge, i)); ends.Add(e.Start); ends.Add(e.End); }
+        return ends.Count > 0 && ends.All(p => ends.Count(q => (q - p).Length < 1e-5) % 2 == 0);
+    }
     static Shape Fit(Shape w, Vec3 railPoint, List<Shape> rails)
     {
         var a1 = Occ.Distance(w, rails[0]);
