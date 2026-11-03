@@ -38,7 +38,7 @@ The generator uses the Windows Segoe UI Semibold font for the wordmark.
 
 The local MCP bridge is configured in `.mcp.json`. Build it with `dotnet build Prism.Mcp -c Release`. Automation environment variables use the `PRISM_` prefix.
 
-The maintained Unit and Headless suites are included in `Prism.slnx`. See the [test guide](tests/README.md) for readable Extrude/Revolve examples, test IDs, dependencies and the planned Integration layer. Run them with `./tools/test.ps1`. Existing standalone executable checks remain available below.
+The maintained Unit and Headless suites live under `Prism.Tests/` and are included in `Prism.slnx`. See the [test guide](Prism.Tests/README.md) for readable Extrude/Revolve examples, test IDs, dependencies and the planned Integration layer. Run them with `./tools/test.ps1`. Existing standalone executable checks remain under `tests/` and are available below.
 
 For example, run an existing executable check with:
 

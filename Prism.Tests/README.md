@@ -1,9 +1,9 @@
 # Prism tests
 
-Start here to read, find or run the maintained tests. They appear under **Tests → Unit / Headless / Integration** in `Prism.slnx`.
+Start here to read, find or run the maintained tests. They live in the top-level `Prism.Tests/` directory and appear under **Prism.Tests → Unit / Headless / Integration** in `Prism.slnx`. Older standalone test programs remain separately under `tests/`.
 
 ```text
-tests/
+Prism.Tests/
   Unit/                         Prism.UnitTests.csproj
     Extrude/                    ExtrudeDirectionMathTests.cs
     Revolve/                    RevolveAxisMathTests.cs
@@ -12,7 +12,6 @@ tests/
     Revolve/                    SolidRevolveTests.cs
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
   Integration/                  Planned viewport workflows; README only for now
-  Prism.*Tests/                 Existing standalone executable suites, preserved
 ```
 
 ## The three layers
@@ -34,8 +33,8 @@ Unit tests cover supporting production math, not a second implementation of Extr
 ./tools/test.ps1 -List                        # list descriptive IDs and test names
 
 # Standard test runner commands also work, including Rider's test explorer:
-dotnet test tests/Unit/Prism.UnitTests.csproj
-dotnet test tests/Headless/Prism.HeadlessTests.csproj --filter "TestId=EXT-H001"
+dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj
+dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj --filter "TestId=EXT-H001"
 ```
 
 The focused runner builds the test projects and their dependencies; it does not require Android/iOS workloads from the full solution. Headless tests look upward from the test assembly for `Prism.slnx`, then load `native/bin`. Set `PRISM_NATIVE_DIR` to an absolute DLL directory to override it, including when using a separate worktree. Missing dependencies fail with an explicit message instead of reporting passing/skipped geometry tests.

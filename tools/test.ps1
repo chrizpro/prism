@@ -20,7 +20,7 @@ $layers = if ($Layer -eq 'All') { @('Unit', 'Headless') } else { @($Layer) }
 $failed = $false
 foreach ($name in $layers) {
     $projectName = if ($name -eq 'Unit') { 'Prism.UnitTests' } else { 'Prism.HeadlessTests' }
-    $projectPath = Join-Path $root "tests/$name/$projectName.csproj"
+    $projectPath = Join-Path $root "Prism.Tests/$name/$projectName.csproj"
     $testArguments = @('test', $projectPath, '-c', 'Release', '--logger', 'console;verbosity=normal')
     if ($Feature -ne 'All') { $testArguments += @('--filter', "Feature=$Feature") }
     if ($List) { $testArguments += '--list-tests' }

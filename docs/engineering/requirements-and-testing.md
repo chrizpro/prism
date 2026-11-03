@@ -9,7 +9,7 @@ This is the shared working agreement for humans and coding agents. It describes 
 - `README.md`: project setup and orientation.
 - `docs/`: human-readable feature behavior, design notes, known limitations and verification guidance. Prefer extending existing pages (for example `docs/tabs/`, `docs/cae-studies/`, and `docs/gizmo-workflows/`) instead of creating duplicate documents.
 - GitHub Issues: time-bounded stories, bugs, changes, questions and decisions, with links to canonical feature documentation. A closed issue documents what was delivered at that time; it is not the living specification.
-- Code and executable checks under `tests/`: what is actually implemented and verified; tests do not define product intent.
+- Maintained solution-managed tests under `Prism.Tests/` and older executable checks under `tests/`: what is actually implemented and verified; tests do not define product intent. See [the maintained test guide](../../Prism.Tests/README.md) for Unit, Headless and planned Integration coverage.
 - Pull requests: reviewable changes linking the relevant issue(s), documentation and verification.
 
 **Proposed behavior is not approved behavior.** If the owner has not approved new or changed requirements, mark them **Proposed — awaiting owner review** and do not implement or test them as settled behavior.

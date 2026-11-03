@@ -1,15 +1,15 @@
 <Solution>
-  <Folder Name="/Tests/">
-    <File Path="tests/README.md" />
+  <Folder Name="/Prism.Tests/">
+    <File Path="Prism.Tests/README.md" />
   </Folder>
-  <Folder Name="/Tests/Integration/">
-    <File Path="tests/Integration/README.md" />
+  <Folder Name="/Prism.Tests/Integration/">
+    <File Path="Prism.Tests/Integration/README.md" />
   </Folder>
-  <Folder Name="/Tests/Headless/">
-    <Project Path="tests/Headless/Prism.HeadlessTests.csproj" />
+  <Folder Name="/Prism.Tests/Headless/">
+    <Project Path="Prism.Tests/Headless/Prism.HeadlessTests.csproj" />
   </Folder>
-  <Folder Name="/Tests/Unit/">
-    <Project Path="tests/Unit/Prism.UnitTests.csproj" />
+  <Folder Name="/Prism.Tests/Unit/">
+    <Project Path="Prism.Tests/Unit/Prism.UnitTests.csproj" />
   </Folder>
   <Project Path="Prism.Android/Prism.Android.csproj">
     <Deploy />
