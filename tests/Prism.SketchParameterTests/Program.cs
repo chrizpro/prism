@@ -41,6 +41,7 @@ void Extrude(CadSession session, SceneObject sketch, double distance)
     session.SelectItems([SelItem.Of(sketch)]);
     session.StartCommand(() => new ExtrudeCommand());
     session.ActiveCommand!.Params.OfType<NumberParam>().Single(p => p.Label == "Distance").Value = distance;
+    session.ActiveCommand!.Params.OfType<ChoiceParam>().Single(p => p.Label == "Operation").Index = 0;   // New body: a second sketch on the same plane would otherwise cut into the first body
     session.CommitCommand();
 }
 SkConstraint Dim(SceneObject sketch, string name) => sketch.SketchData!.Constraints.Single(c => c.Name == name);
@@ -138,4 +139,10 @@ sealed class TestApp : Application
         Styles.Add(new FluentTheme());
         Styles.Add(new StyleInclude(new Uri("avares://Prism/")) { Source = new Uri("avares://Prism/Styles/Theme.axaml") });
     }
+}
+
+static class NativeSearch
+{
+    [System.Runtime.InteropServices.DllImport("kernel32", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] static extern bool SetDllDirectory(string path);
+    public static void Initialize() => SetDllDirectory(System.IO.Path.GetFullPath("native/bin"));
 }

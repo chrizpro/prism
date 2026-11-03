@@ -7,6 +7,7 @@ using Prism.Kernel;
 using Prism.Simulation;
 
 // The Motion tab on a real assembly: parts from the CAD kernel, joints and gears made as in the Assemble workspace, studies run through the commands.
+NativeSearch.Initialize();
 AppBuilder.Configure<Application>().UseHeadless(new AvaloniaHeadlessPlatformOptions()).SetupWithoutStarting();
 int checks = 0;
 void Check(bool ok, string text) { if (!ok) throw new Exception("FAIL " + text); Console.WriteLine("PASS " + text); checks++; }
@@ -464,3 +465,9 @@ SelItem FaceFacing(CadSession s, SceneObject o, Vec3 normal)
 }
 
 Console.WriteLine($"SUCCESS: {checks} checks");
+
+static class NativeSearch
+{
+    [System.Runtime.InteropServices.DllImport("kernel32", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] static extern bool SetDllDirectory(string path);
+    public static void Initialize() => SetDllDirectory(System.IO.Path.GetFullPath("native/bin"));
+}

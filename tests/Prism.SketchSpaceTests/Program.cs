@@ -104,7 +104,9 @@ var snapSession = new CadSession(); snapSession.EnterSketch(Plane3.XY,alignView:
 var snap = snapSession.Sketch!;
 var external = snapSession.AddObject(Occ.Line(new(30,0,0),new(80,0,0)),"External curve",ObjKind.Curve);
 var screen = snapSession.Camera.Project(new(50,0,0))!.Value;
-Check(snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.Grid, "cross-sketch snapping is optional and off by default");
+Check(snap.SnapOtherCurves && snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.External, "cross-sketch snapping is on by default");
+snap.SnapOtherCurves = false;
+Check(snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.Grid, "and can be switched off");
 snap.SnapOtherCurves = true;
 Check(snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.External, "enabled snapping finds a curve in another object");
 Check(snap.Snap(snapSession,screen.x,screen.y,allow:false)!.Value.Kind == SnapKind.Grid, "Alt bypass also disables external curve snapping");
@@ -112,7 +114,7 @@ snapSession.Update(external.Id,o=>o.WithVisible(false));
 Check(snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.Grid, "hidden curves do not attract external snaps");
 snapSession.AddObject(Occ.Line(new(30,0,20),new(80,0,20)),"Off plane curve",ObjKind.Curve);
 Check(snap.Snap(snapSession,screen.x,screen.y)!.Value.Kind == SnapKind.Grid, "off-plane snaps are rejected unless projection is explicitly enabled");
-snap.ProjectOtherCurves = true;
+snap.ProjectOtherCurves = true; snap.Set3DEnabled(snapSession,true,adjustView:false);   // projecting a curve from another plane only happens in 3D sketches
 var projected = snap.Snap(snapSession,screen.x,screen.y)!.Value;
 Check(projected.Kind == SnapKind.Projected && Math.Abs(projected.U-50)<1e-4 && Math.Abs(projected.V)<1e-4, "off-plane projection is explicit and lands on the active plane");
 int point = snap.PointFor(projected);
@@ -449,7 +451,7 @@ ClickWorld(fluidVm.Session,SketchModel.To3(fluidSketch.Plane,fluidSketch.Model.P
 Check(fluidSketch.GeometryEditing&&fluidSketch.GizmoTargetConfirmed&&fluidSketch.SelPoints.Contains(fluidPoint),"clicking a NURBS point in Select binds its gizmo while drawing flat");
 Check(fluidSketch.GizmoFrame.Origin.DistanceTo(SketchModel.To3(fluidSketch.Plane,fluidSketch.Model.P(fluidPoint)))<1e-6,"flat drawing point gizmo is centered on the clicked point");
 var defaultSession=new CadSession();defaultSession.StartCommand(new CreateSketchCommand());defaultSession.CommitCommand();
-Check(defaultSession.Sketch is { Is3DEnabled:true,IsDrawingFlat:false },"ordinary Create Sketch defaults to drawing in space");defaultSession.ExitSketch(false);
+Check(defaultSession.Sketch is { Is3DEnabled:false,IsDrawingFlat:true },"ordinary Create Sketch is a plain 2D sketch; 3D is opt-in");defaultSession.ExitSketch(false);
 fluidVm.Session.ExitSketch(true);var sharedCurve=fluidVm.Session.Objects.Single(o=>o.SketchData?.SharedNurbsCurves==true);
 fluidVm.Session.Update(sharedCurve.Id,o=>o.WithName("Renamed curves"));
 fluidVm.SelectedTab=fluidVm.Tabs.Single(t=>t.Title=="NURBS");fluidVm.StartFluidSketch();

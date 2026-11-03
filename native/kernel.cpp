@@ -308,12 +308,45 @@ CK_API void* ck_polyline(const double* xyz, int n, int closed) {
         return wrap(p.Wire());
     CATCH(nullptr)
 }
+#include <math_Gauss.hxx>
+#include <math_Matrix.hxx>
+#include <math_Vector.hxx>
+// Closed cubic curve through the points, periodic with a knot at every point (chord-length parameters, closing chord included).
+// OCCT's own periodic interpolation comes out lopsided, so the pole system is solved here.
+static Handle(Geom_BSplineCurve) periodic_spline(const std::vector<gp_Pnt>& q) {
+    const int n = (int)q.size();
+    std::vector<double> t(n + 1, 0.0);
+    for (int i = 0; i < n; ++i) t[i + 1] = t[i] + std::max(q[i].Distance(q[(i + 1) % n]), 1e-9);
+    TColStd_Array1OfReal knots(1, n + 1);
+    TColStd_Array1OfInteger mults(1, n + 1);
+    for (int i = 0; i <= n; ++i) { knots(i + 1) = t[i]; mults(i + 1) = 1; }
+    auto basis = [&](int j) {
+        TColgp_Array1OfPnt poles(1, n);
+        for (int k = 0; k < n; ++k) poles(k + 1) = gp_Pnt(k == j ? 1.0 : 0.0, 0, 0);
+        return new Geom_BSplineCurve(poles, knots, mults, 3, true);
+    };
+    math_Matrix a(1, n, 1, n);
+    for (int j = 0; j < n; ++j) { Handle(Geom_BSplineCurve) c = basis(j); for (int i = 0; i < n; ++i) a(i + 1, j + 1) = c->Value(t[i]).X(); }
+    math_Gauss solver(a);
+    if (!solver.IsDone()) return nullptr;
+    math_Vector bx(1, n), by(1, n), bz(1, n), x(1, n), y(1, n), z(1, n);
+    for (int i = 0; i < n; ++i) { bx(i + 1) = q[i].X(); by(i + 1) = q[i].Y(); bz(i + 1) = q[i].Z(); }
+    solver.Solve(bx, x); solver.Solve(by, y); solver.Solve(bz, z);
+    TColgp_Array1OfPnt poles(1, n);
+    for (int k = 0; k < n; ++k) poles(k + 1) = gp_Pnt(x(k + 1), y(k + 1), z(k + 1));
+    return new Geom_BSplineCurve(poles, knots, mults, 3, true);
+}
 // Curve interpolating the points (cubic NURBS).
 CK_API void* ck_spline(const double* xyz, int n, int closed) {
     TRY
         if (n < 2) { fail("A spline needs at least two points."); return nullptr; }
         Handle(TColgp_HArray1OfPnt) pts = new TColgp_HArray1OfPnt(1, n);
         for (int i = 0; i < n; ++i) pts->SetValue(i + 1, gp_Pnt(xyz[3 * i], xyz[3 * i + 1], xyz[3 * i + 2]));
+        if (closed && n >= 3) {
+            std::vector<gp_Pnt> q; for (int i = 0; i < n; ++i) q.push_back(pts->Value(i + 1));
+            Handle(Geom_BSplineCurve) c = periodic_spline(q);
+            if (!c.IsNull()) return wrap(BRepBuilderAPI_MakeEdge(c).Edge());
+        }
         GeomAPI_Interpolate it(pts, closed != 0, 1e-6);
         it.Perform();
         if (!it.IsDone()) { fail("Spline interpolation failed."); return nullptr; }

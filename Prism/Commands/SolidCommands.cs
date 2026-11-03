@@ -871,15 +871,22 @@ static class GuidedLoft
         // the rail runs from the first section to the last: make sure of that
         if (Occ.Distance(secs[0], rails[0]).Distance > Occ.Distance(secs[^1], rails[0]).Distance) pts.Reverse();
         bool wantClosed = IsClosed(secs[0]);
-        var wires = new List<Shape>(); var sizes = new List<double>(); int skipped = 0;
+        // cut parallel to the sections, not square to the rail: where a rail leans, a cut square to it is an oblique slice of the profile and comes out larger
+        Vec3? n0 = SectionNormal(secs[0]), n1 = SectionNormal(secs[^1]);
+        var along = (pts[^1] - pts[0]).Normalized();
+        if (n0 is { } a0 && Vec3.Dot(a0, along) < 0) n0 = -a0;
+        if (n1 is { } a1 && Vec3.Dot(a1, along) < 0) n1 = -a1;
+        bool parallel = n0 != null && n1 != null && Vec3.Dot(n0.Value, n1.Value) > 0.5 && Vec3.Dot(n0.Value, along) > 0.3;
+        Vec3 CutNormal(int i) => parallel ? (n0!.Value * (1 - (double)i / (pts.Count - 1)) + n1!.Value * ((double)i / (pts.Count - 1))).Normalized() : (pts[i + 1] - pts[i - 1]).Normalized();
+        double refSign = Winding(secs[0], parallel ? n0!.Value : (pts[1] - pts[0]).Normalized());        var wires = new List<Shape>(); var sizes = new List<double>(); int skipped = 0;
         for (int i = 0; i < pts.Count; i++)
         {
-            Shape w;
+            Shape w; Vec3 axis = i == 0 || i == pts.Count - 1 ? Vec3.Zero : CutNormal(i);
             if (i == 0) w = secs[0];
             else if (i == pts.Count - 1) w = secs[^1];
             else
             {
-                var t = (pts[i + 1] - pts[i - 1]).Normalized();
+                var t = axis;
                 try
                 {
                     // the kernel hands back the cut as loose edges; a loft needs them joined into one wire, or it takes only the first edge and fails
@@ -891,6 +898,7 @@ static class GuidedLoft
                 catch (KernelException) { skipped++; continue; }                          // a cut that misses the skin is simply skipped
             }
             var fitted = Fit(w, pts[i], rails);
+            if (axis.Length > 0) fitted = Seam(fitted, Occ.Distance(fitted, rails[0]).A, axis, refSign);
             wires.Add(fitted); sizes.Add(fitted.Props().Size.Length);
         }
         // a section whose size jumps away from both neighbours was fitted to the wrong place on a rail: leave it out
@@ -924,6 +932,46 @@ static class GuidedLoft
             else edges.Add(Occ.Spline(pts));
         }
         return edges.Count == 0 ? wire : Occ.Profile(edges, false);
+    }
+
+    /// <summary>The normal of a flat section, or null when it is not flat (found from the point farthest from the middle and the one farthest from that line).</summary>
+    static Vec3? SectionNormal(Shape w)
+    {
+        var pts = Occ.CurveSamples(w, 17, 64).SelectMany(e => e.Select(s => s.p)).ToList();
+        if (pts.Count < 3) return null;
+        var c = new Vec3(pts.Average(p => p.X), pts.Average(p => p.Y), pts.Average(p => p.Z));
+        var far = pts.MaxBy(p => (p - c).Length); var u = far - c; if (u.Length < 1e-9) return null;
+        var other = pts.MaxBy(p => Vec3.Cross(u, p - c).Length); var n = Vec3.Cross(u, other - c);
+        if (n.Length < 1e-9 * u.Length * u.Length) return null;
+        n = n.Normalized();
+        return pts.All(p => Math.Abs(Vec3.Dot(p - c, n)) < 1e-4 * u.Length + 1e-7) ? n : null;
+    }
+
+    /// <summary>Which way a closed section runs around the axis: +1 or -1, 0 when it is open or flat.</summary>
+    static double Winding(Shape w, Vec3 axis)
+    {
+        if (w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 17, 1) is not { Count: 1 } samples) return 0;
+        var pts = samples[0].Select(s => s.p).ToList();
+        if ((pts[0] - pts[^1]).Length > 1e-6) return 0;
+        double area = 0; for (int i = 0; i + 1 < pts.Count; i++) area += Vec3.Dot(axis, Vec3.Cross(pts[i], pts[i + 1]));
+        return Math.Abs(area) < 1e-9 ? 0 : Math.Sign(area);
+    }
+
+    /// <summary>
+    /// A smooth closed section is a single edge whose start is wherever its cut happened to begin. Lofting through several such sections twists
+    /// them or fails, so each is rebuilt to start where the first rail touches it and run the same way round as the first section.
+    /// </summary>
+    static Shape Seam(Shape w, Vec3 start, Vec3 axis, double refSign)
+    {
+        if (refSign == 0 || w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 17, 1) is not { Count: 1 } samples) return w;
+        var pts = samples[0].Select(s => s.p).ToList();
+        if ((pts[0] - pts[^1]).Length > 1e-6) return w;
+        pts.RemoveAt(pts.Count - 1);
+        int k = 0; for (int i = 1; i < pts.Count; i++) if ((pts[i] - start).Length < (pts[k] - start).Length) k = i;
+        pts = pts.Skip(k).Concat(pts.Take(k)).ToList(); pts[0] = start;
+        double area = 0; for (int i = 0; i < pts.Count; i++) area += Vec3.Dot(axis, Vec3.Cross(pts[i], pts[(i + 1) % pts.Count]));
+        if (Math.Sign(area) == -refSign) pts = pts.Take(1).Concat(Enumerable.Reverse(pts.Skip(1))).ToList();
+        return Occ.Profile([Occ.Spline(pts, true)], false);
     }
 
     /// <summary>True when every end point of the edges is shared by another edge, so the chain has no loose ends.</summary>

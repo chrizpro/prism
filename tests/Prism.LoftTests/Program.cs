@@ -202,13 +202,12 @@ var splineLoft = Make(s, false, [splineA, splineB], [splineRailA, splineRailB]);
 var splineClock = System.Diagnostics.Stopwatch.StartNew();
 var splineOut = splineLoft.TryBuild();
 Check(splineClock.Elapsed.TotalSeconds < 20, $"smooth closed sections with two straight rails answer quickly, built or refused ({splineClock.Elapsed.TotalSeconds:0.#} s)");
+Check(splineOut != null, "smooth closed sections with two rails build: " + splineLoft.Error);
 if (splineOut != null)
 {
     var g = ShapeOf(splineOut);
-    Check(Occ.Check(g).Valid && g.HasSolids && splinePlain != null && Near(VolumeOf(splineOut), splinePlain.Value.v, .2), $"smooth closed sections with two rails: a valid solid close to the unguided one ({VolumeOf(splineOut):0} against {splinePlain?.v:0})");
-}
-else Check((splineLoft.Error ?? "").Contains("guide rails"), "smooth closed sections with two rails: refused with a message about the rails (a known limitation: rails that do not run exactly through a rounded section's outline cannot steer it): " + splineLoft.Error);
-// a rail that bows away from the profiles: the loft follows it, and the accuracy setting says how many sections do the following.
+    Check(Occ.Check(g).Valid && g.HasSolids && splinePlain != null && Near(VolumeOf(splineOut), splinePlain.Value.v, .05), $"and are a valid solid close to the unguided one ({VolumeOf(splineOut):0} against {splinePlain?.v:0})");
+}// a rail that bows away from the profiles: the loft follows it, and the accuracy setting says how many sections do the following.
 // A rail that bows along an edge of the profile (still touching it) steers nothing, so this one bows out of the profile, 2 mm at the middle.
 Shape Bow() => Occ.Arc3(new Vec3(0, 0, 0), new Vec3(0, -2, 10), new Vec3(0, 0, 20));
 var bow = Curve(Bow(), "Bowed rail");
@@ -230,8 +229,8 @@ if (bowed.Count == 4)
 {
     Check(bowed.Values.All(x => x.dy < -.9 && x.dy > -1.8), $"the loft follows the rail: its centre shifts about 1.3 towards it ({string.Join(", ", bowed.OrderBy(k => k.Key).Select(k => $"{k.Key}: {k.Value.dy:0.##}"))})");
     Check(bowed.Values.All(x => x.minY < -1.5 && x.minY > -2.6), $"and it reaches out to the rail's 2 mm bow at the middle ({string.Join(", ", bowed.OrderBy(k => k.Key).Select(k => $"{k.Key}: {k.Value.minY:0.##}"))})");
-    // the cuts are made square to the rail, so where the rail leans (up to 23° here) each cut is an oblique slice of the profile and a little larger: by design, 1/cos of the lean
-    Check(bowed.Values.All(x => x.v > 2426.67 * .995 && x.v < 2426.67 * 1.10), $"bending the loft changes its volume by at most the oblique-cut effect, +0 to +10% ({bowed.Values.Min(x => x.v):0} to {bowed.Values.Max(x => x.v):0} against 2427)");
+    // the cuts are parallel to the sections, not square to the rail, so a leaning rail does not enlarge them (they used to be oblique slices, up to 7% too big at a 23° lean)
+    Check(bowed.Values.All(x => Near(x.v, 2426.67, .005)), $"bending the loft keeps its volume ({bowed.Values.Min(x => x.v):0} to {bowed.Values.Max(x => x.v):0} against 2427)");
     Check(Math.Abs(bowed[32].dy - bowed[16].dy) <= Math.Abs(bowed[8].dy - bowed[4].dy) + .02, $"more sections settle the answer: 4→8 moves the centre {Math.Abs(bowed[8].dy - bowed[4].dy):0.###}, 16→32 moves it {Math.Abs(bowed[32].dy - bowed[16].dy):0.###}");
 }
 var threeRails = Make(s, false, [a, b], [rail1, rail2, bow]);
@@ -334,6 +333,16 @@ Check(first != null && second != null && Near(VolumeOf(first), VolumeOf(second),
 P<BoolParam>(live2, "Straight").Value = true; P<BoolParam>(live2, "Straight").Value = false;
 Check(live2.TryBuild() is { } toggled && Near(VolumeOf(toggled), baseVolume, .005), "switching a setting on and off again returns to the same solid");
 
+// a closed curve through points must be as even as its points: it was once lopsided (four corners gave x from -32 to 26)
+{
+    Vec3[] corners = [new(-20, -20, 0), new(20, -20, 0), new(20, 20, 0), new(-20, 20, 0)];
+    var loop = Occ.Spline(corners, true); var lb = loop.Props();
+    Check(Math.Abs(lb.Min.X + lb.Max.X) < .01 && Math.Abs(lb.Min.Y + lb.Max.Y) < .01 && Math.Abs(lb.Max.X - lb.Max.Y) < .01, $"a closed spline through four corners is symmetric: x {lb.Min.X:0.##}..{lb.Max.X:0.##}, y {lb.Min.Y:0.##}..{lb.Max.Y:0.##}");
+    Check(corners.All(p => Occ.Distance(Occ.Vertex(p), loop).Distance < 1e-6), "and passes through every point");
+    var ellipse = Enumerable.Range(0, 8).Select(a => new Vec3(30 * Math.Cos(a * Math.PI / 4), 20 * Math.Sin(a * Math.PI / 4), 0)).ToArray();
+    var eb = Occ.Spline(ellipse, true).Props();
+    Check(Math.Abs(eb.Max.X - 30) < .02 && Math.Abs(eb.Min.X + 30) < .02 && Math.Abs(eb.Max.Y - 20) < .02 && Math.Abs(eb.Min.Y + 20) < .02, $"eight points on an ellipse stay within 0.02 of it: x {eb.Min.X:0.###}..{eb.Max.X:0.###}");
+}
 Check(slowest < 1.5, $"every result in this suite was drawn in under 1.5 s (slowest {slowest:0.##} s)");
 Console.WriteLine();
 Console.WriteLine(failures == 0 ? $"SUCCESS: {checks} checks" : $"{checks - failures} of {checks} checks passed, {failures} failed");

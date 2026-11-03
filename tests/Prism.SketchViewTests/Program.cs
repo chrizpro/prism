@@ -100,11 +100,11 @@ void ClickAt(double u, double v, bool shift) { var px = s.Camera.Project(edit.Pl
 ClickAt(-30, 0, false);
 Check(edit.GizmoTargetConfirmed && !edit.GizmoEditing && edit.SelPoints.Count == 1, "the first click in Edit Geometry binds the gizmo");
 ClickAt(30, 0, false);
-Check(edit.SelPoints.Count == 1, "a plain click on another point does not retarget a bound gizmo");
-ClickAt(30, 0, true);
+Check(edit.SelPoints.Count == 1 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(30, 0)) < 1e-6 && edit.GizmoTargetConfirmed, "a plain click on another point retargets the bound gizmo to it");
+ClickAt(-30, 0, true);
 Check(edit.SelPoints.Count == 2 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(0, 0)) < 1e-6 && edit.GizmoTargetConfirmed, "Shift-click adds the point and the gizmo moves to the average");
-ClickAt(30, 0, true);
-Check(edit.SelPoints.Count == 1 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(-30, 0)) < 1e-6, "Shift-click on a bound point takes it out again");
+ClickAt(-30, 0, true);
+Check(edit.SelPoints.Count == 1 && edit.GizmoFrame.Origin.DistanceTo(edit.Plane.PointAt(30, 0)) < 1e-6, "Shift-click on a bound point takes it out again");
 s.ExitSketch(false);
 
 // the tint over a closed shape follows the shape when its corners are dragged
@@ -158,7 +158,7 @@ foreach (bool threeD in new[] { false, true })
 
 // the gizmo panel: opening never unbinds, fields act on what the gizmo is bound to, and scale has three fields
 s.EnterSketch(Plane3.XY); Settle();
-var bound = s.Sketch!; bound.Set3DEnabled(s, true); s.Camera.Distance = 120;
+var bound = s.Sketch!; bound.Set3DEnabled(s, true); bound.FreeEditing = false; s.Camera.Distance = 120;   // points stay on their plane (new sketches start free), so Z has nothing to scale
 int low = bound.Model.AddPoint(0, -20), high = bound.Model.AddPoint(0, 20); bound.Model.AddPointEntity(low); bound.Model.AddPointEntity(high); bound.Solve(s);
 bound.SetTool(s, new SketchGeometryEditTool());
 Check(!vm.ToolPanelFocused && vm.ToolSections.Count == 1 && vm.ToolSections[0].Title == "Sketch tool", "Edit Geometry keeps the sketch panel (Sketch tool: Box | Lasso) instead of opening its own panel");

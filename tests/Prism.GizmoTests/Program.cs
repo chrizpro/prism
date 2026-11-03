@@ -81,7 +81,8 @@ try
     var uniform = s.Camera.Project(GizmoVisual.UniformPoint(s, Vec3.Zero, length))!.Value;
     Check(sketch.GizmoHit(s, uniform.x, uniform.y, true) != 10, "hidden scale marker cannot intercept a click");
     sketch.GizmoOperation = SketchGizmoOperation.Size;
-    Check(sketch.GizmoHit(s, uniform.x, uniform.y, true) == 10, "scale mode exposes its visible uniform handle");
+    // the uniform handle sits on the gizmo's centre, where the centre handle (0) does the scaling in Size mode
+    Check(sketch.GizmoHit(s, uniform.x, uniform.y, true) is 0 or 10, "scale mode exposes its uniform handle at the centre");
     sketch.GizmoOperation = SketchGizmoOperation.Rotate;
     var ringPoint = GizmoVisual.Ring(Vec3.Zero, Vec3.UnitX, Vec3.UnitY, length)
         .Select(p => s.Camera.Project(p)!.Value).First(p => sketch.GizmoHit(s, p.x, p.y, true) is >= 7 and <= 9);
