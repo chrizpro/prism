@@ -1052,6 +1052,7 @@ public sealed partial class CadSession : ObservableObject
                 bool safe = modified.All(o => o.Kind == ObjKind.Sketch && o.SketchData != null ||
                     before.TryGetValue(o.Id, out var prev) && prev.Form == o.Form && ReferenceEquals(prev.Tri, o.Tri) && (o.Tri != null || o.Form != null || ReferenceEquals(prev.Shape, o.Shape)));
                 if (!safe) { ok = false; why = "it changed geometry without an editable feature definition"; }
+                else if (!TryReevaluateSketches(added.Concat(modified), out var fresh, out var sketchProblem)) { ok = false; why = sketchProblem; }
                 else
                 {
                     Checkpoint(step.Label, step.Icon);
@@ -1062,7 +1063,8 @@ public sealed partial class CadSession : ObservableObject
                         if (index < 0) continue;
                         var now = Objects[index]; var prev = before[old.Id];
                         if (old.Kind == ObjKind.Sketch && old.SketchData != null)
-                            now = now.WithSketch(old.Shape, old.SketchData.Clone(), old.SketchPlane!.Value);
+                            now = fresh.TryGetValue(old.Id, out var driven) ? now.WithSketch(driven.Shape, driven.Model, old.SketchPlane!.Value)       // formula-driven dimensions follow the parameters
+                                : now.WithSketch(old.Shape, old.SketchData.Clone(), old.SketchPlane!.Value);
                         if (old.Name != prev.Name) now = now.WithName(old.Name);
                         if (old.Color != prev.Color) now = now.WithColor(old.Color);
                         if (old.Look != prev.Look) now = now.WithLook(old.Look);
@@ -1071,7 +1073,7 @@ public sealed partial class CadSession : ObservableObject
                     }
                     var deleted = step.Parent.After.Where(o => step.After.All(a => a.Id != o.Id)).Select(o => map.GetValueOrDefault(o.Id, o.Id)).ToHashSet();
                     Objects = Objects.RemoveAll(o => deleted.Contains(o.Id));
-                    Objects = Objects.AddRange(added.Where(a => Find(a.Id) == null));
+                    Objects = Objects.AddRange(added.Where(a => Find(a.Id) == null).Select(a => fresh.TryGetValue(a.Id, out var drivenNew) && a.SketchPlane is { } drivenPlane ? a.WithSketch(drivenNew.Shape, drivenNew.Model, drivenPlane) : a));
                     RaiseScene(); Current.Pin = step.Pin; ok = true;
                 }
             }
@@ -1210,6 +1212,8 @@ public sealed partial class CadSession : ObservableObject
         {
             try
             {
+                // dimensions driven by formulas are brought up to date first: other sketches or parameters may have moved since they were typed
+                try { sk.RefreshFormulas(this); } catch (FormatException e) { Say(e.Message, true); }
                 var model = sk.ExportModel();
                 // construction curves are reference geometry: the view draws them dashed, and they stay out of the shape so a profile never picks them up
                 var shapes = model.ToShapes(sk.RootPlane);

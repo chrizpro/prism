@@ -153,6 +153,7 @@ public sealed partial class MainViewModel
     public ObservableCollection<ParameterDraft> VisibleParameterRows { get; } = [];
     public ObservableCollection<ParameterDraft> PinnedParameterRows { get; } = [];
     public ObservableCollection<FeatureChoice> ParameterUseFeatures { get; } = [];
+    public ObservableCollection<string> ParameterUseSketches { get; } = [];
     [ObservableProperty] public partial ParameterDraft? SelectedParameterDraft { get; set; }
     [ObservableProperty] public partial string ParameterSearch { get; set; } = "";
     [ObservableProperty] public partial bool AddingParameter { get; set; }
@@ -162,7 +163,15 @@ public sealed partial class MainViewModel
     partial void OnParameterSearchChanged(string value) => UpdateParameterPresentation();
     partial void OnSelectedParameterDraftChanged(ParameterDraft? value)
     {
-        OnPropertyChanged(nameof(HasParameterSelection)); ParameterUseFeatures.Clear();
+        OnPropertyChanged(nameof(HasParameterSelection)); ParameterUseFeatures.Clear(); ParameterUseSketches.Clear();
+        if (value != null)
+        {
+            // sketch dimensions whose formula uses this parameter: bare name or doc.name, not sketch1.name (that is another sketch's dimension)
+            var use = new Regex(@"(?<![\w.])(?:doc\.)?" + Regex.Escape(value.Name) + @"(?![\w.(])", RegexOptions.IgnoreCase);
+            foreach (var o in Session.Objects.Where(x => x.Kind == ObjKind.Sketch && x.SketchData != null))
+                foreach (var (_, c) in Prism.Core.Sketching.SketchParameters.Dimensions(o.SketchData!))
+                    if (!string.IsNullOrWhiteSpace(c.Formula) && use.IsMatch(c.Formula)) ParameterUseSketches.Add($"{o.Name} · {Prism.Core.Sketching.SketchParameters.Label(c)}");
+        }
         if (value != null)
             foreach (var node in Session.HistoryPath().Past.Where(n => n.Recipe?.Expressions?.Values.Any(f => Regex.IsMatch(f, @"\b" + Regex.Escape(value.Name) + @"\b", RegexOptions.IgnoreCase)) == true)) ParameterUseFeatures.Add(new(node));
     }

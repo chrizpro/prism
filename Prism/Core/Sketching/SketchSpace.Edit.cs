@@ -291,7 +291,7 @@ public sealed partial class SketchContext
             foreach(var constraint in moved.Constraints)
             {
                 if(constraint.Type==CType.Fixed){constraint.Value*=factor;constraint.V2*=factor;}
-                else if(constraint.IsDimension&&constraint.Type!=CType.Angle)constraint.Value*=factor;
+                else if(constraint.IsDimension&&constraint.Type!=CType.Angle){constraint.Value*=factor;if(Math.Abs(factor-1)>1e-12)constraint.Formula=null;}       // a deliberate resize replaces what a formula said
             }
             var frame=new Plane3(Transform(original.Plane.Origin),Turn(original.Plane.U).Normalized(),Turn(original.Plane.V).Normalized());
             if(entities.Count==source.Entities.Count)

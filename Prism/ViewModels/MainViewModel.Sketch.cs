@@ -316,9 +316,10 @@ public sealed partial class MainViewModel
         {
             var ip = SketchModel.RefIsPoint(c.Type, c.Refs.Length);
             string value = c.IsDimension ? (c.Type == CType.Angle ? $"{Math.Abs(c.Value):0.##}°" : c.Type is CType.Radius ? $"R {c.Value:0.##}" : c.Type is CType.Diameter ? $"Ø {c.Value:0.##}" : $"{Math.Abs(c.Value):0.##} mm") : "";
+            if (c.IsDimension && !string.IsNullOrWhiteSpace(c.Formula)) value += "  ƒ " + c.Formula;                  // a formula drives this dimension
             return new ConstraintRow
             {
-                Id = c.Id, Active = !c.Disabled, IsDimension = c.IsDimension, Glyph = c.IsDimension ? "↔" : SketchModel.Glyph(c.Type), Title = SketchModel.Describe(c.Type), Indent = indent,
+                Id = c.Id, Active = !c.Disabled, IsDimension = c.IsDimension, Glyph = c.IsDimension ? "↔" : SketchModel.Glyph(c.Type), Title = SketchModel.Describe(c.Type) + (c.IsDimension && !string.IsNullOrEmpty(c.Name) ? $" · {c.Name}" : ""), Indent = indent,
                 Detail = string.Join(" · ", c.Refs.Select((id, i) => name(ip[i], id))), Value = value,
             };
         }

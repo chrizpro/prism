@@ -640,21 +640,63 @@ public sealed partial class SketchContext
     }
 
     // ---------------------------------------------------------------- dimension editing
+    static readonly System.Text.RegularExpressions.Regex NamedValue = new(@"^\s*([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Ask for a dimension's value. A number fixes it; an expression (wall * 2, sketch1.width / 2, 2 * radius) drives it from parameters
+    /// and other dimensions; "name = value" also names the dimension so that others can refer to it.
+    /// </summary>
     public void EditDimension(CadSession s, SkConstraint c)
     {
-        string fmt = c.Type == CType.Angle ? $"{c.Value:0.###}" : $"{c.Value:0.####}";
-        s.RequestInput($"{SketchModel.Describe(c.Type)}" + (c.Type == CType.Angle ? " (degrees)" : " (mm)"), fmt, text =>
+        string current = !string.IsNullOrWhiteSpace(c.Formula) ? c.Formula : c.Type == CType.Angle ? $"{c.Value:0.###}" : $"{c.Value:0.####}";
+        if (!string.IsNullOrEmpty(c.Name)) current = $"{c.Name} = {current}";
+        s.RequestInput($"{SketchModel.Describe(c.Type)}" + (c.Type == CType.Angle ? " (degrees)" : " (mm)") + ": a number, a formula such as wall * 2, or name = value", current, text =>
         {
             if (text == null) return;
-            if (!double.TryParse(text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) || v <= 0 && c.Type != CType.Angle && c.Type != CType.HDistance && c.Type != CType.VDistance)
-            { s.Say("That is not a valid dimension value.", true); return; }
-            var before = Model.Clone(); Push();
+            string? name = c.Name; string body = text.Trim();
+            if (NamedValue.Match(body) is { Success: true } named) { name = named.Groups[1].Value; body = named.Groups[2].Value; }
+            bool literal = double.TryParse(body.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v);
+            bool signed = c.Type is CType.Angle or CType.HDistance or CType.VDistance;
+            if (body.Length == 0 || literal && v <= 0 && !signed) { s.Say("That is not a valid dimension value.", true); return; }
+            if (name != null && !SketchParameters.ValidName(name)) { s.Say($"'{name}' is not an available dimension name.", true); return; }
+            if (name != null && SketchParameters.Dimensions(ExportModel()).Any(d => !(d.Section == _activeSection && d.C.Id == c.Id) && string.Equals(d.C.Name, name, StringComparison.OrdinalIgnoreCase)))
+            { s.Say($"Another dimension in this sketch is already called '{name}'.", true); return; }
+
+            var before = Model.Clone(); var planes = _sections.Select(section => section.Model.Clone()).ToList(); Push();
+            void Revert() { Model = before; for (int i = 0; i < _sections.Count && i < planes.Count; i++) if (i != _activeSection) _sections[i].Model = planes[i]; _undo.Pop(); Solve(s); }
             var cc = Model.Constraints.First(x => x.Id == c.Id);
-            cc.Value = c.Type is CType.Angle or CType.HDistance or CType.VDistance ? (c.Value < 0 ? -v : v) : v;
-            if (!Commit(s, before, "That dimension")) _undo.Pop();
-            else s.Say($"{SketchModel.Describe(c.Type)} set to {v:0.###}");
+            cc.Name = name;
+            if (literal) SketchParameters.SetLiteral(cc, v); else cc.Formula = body;
+            try
+            {
+                // every formula is worked out again: this dimension may feed others, and they may feed it
+                var work = ExportModel();
+                SketchParameters.EvaluateValues(work, s.SketchScopeFor(EditingId));
+                foreach (var (section, wc) in SketchParameters.Dimensions(work))
+                    if (_sections[section].Model.Constraints.FirstOrDefault(x => x.Id == wc.Id) is { } live) live.Value = wc.Value;
+            }
+            catch (FormatException e) { Revert(); s.Say(e.Message, true); return; }
+            if (!Commit(s, before, "That dimension")) { for (int i = 0; i < _sections.Count && i < planes.Count; i++) if (i != _activeSection) _sections[i].Model = planes[i]; _undo.Pop(); return; }
+            for (int i = 0; i < _sections.Count; i++)
+                if (i != _activeSection && !SketchSolver.Solve(_sections[i].Model).Converged) { Revert(); s.Say("The dimensions on another drawing plane cannot hold with that value.", true); return; }
+            s.Say($"{SketchModel.Describe(c.Type)} set to {Math.Abs(cc.Value):0.###}" + (literal ? "" : " (formula)"));
         });
     }
+
+    /// <summary>Bring formula-driven dimensions up to date against the current parameters and earlier sketches, then solve again.</summary>
+    public void RefreshFormulas(CadSession s)
+    {
+        var work = ExportModel();
+        if (!SketchParameters.HasFormulas(work)) return;
+        if (!SketchParameters.EvaluateValues(work, s.SketchScopeFor(EditingId))) return;
+        foreach (var (section, wc) in SketchParameters.Dimensions(work))
+            if (_sections[section].Model.Constraints.FirstOrDefault(x => x.Id == wc.Id) is { } live) live.Value = wc.Value;
+        foreach (var section in _sections) SketchSolver.Solve(section.Model);
+        Solve(s);
+    }
+
+    /// <summary>A dimension's label in the view: its name when it has one, and a mark when a formula drives it.</summary>
+    static string DimTag(SkConstraint c, string text) => !string.IsNullOrEmpty(c.Name) ? $"{c.Name} = {text}" : !string.IsNullOrWhiteSpace(c.Formula) ? $"ƒ {text}" : text;
 
     // ---------------------------------------------------------------- overlay
     static readonly uint ColFree = 0xFF4C94FF, ColFixed = 0xFFEAF0FA, ColConstr = 0xFFB79CFF, ColSel = 0xFFFFC53D, ColHover = 0xFF35B6FF, ColConflict = 0xFFFF6B6F;
@@ -920,7 +962,7 @@ public sealed partial class SketchContext
                 }
                 default: continue;
             }
-            o.AddLabel(labelPos, text, true, 1);
+            o.AddLabel(labelPos, DimTag(c, text), true, 1);
             _dimLabels.Add((c, labelPos));
         }
     }

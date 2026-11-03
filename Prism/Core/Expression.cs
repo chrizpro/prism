@@ -154,7 +154,8 @@ public sealed class Expression
             if (char.IsLetter(c))
             {
                 int st = _i;
-                while (_i < s.Length && (char.IsLetterOrDigit(s[_i]) || s[_i] == '_')) _i++;
+                // a dot followed by a letter continues the name, so a dimension can be reached as sketch1.width or doc.wall
+                while (_i < s.Length && (char.IsLetterOrDigit(s[_i]) || s[_i] == '_' || (s[_i] == '.' && _i + 1 < s.Length && char.IsLetter(s[_i + 1])))) _i++;
                 string name = s[st.._i].ToLowerInvariant();
                 if (Peek() == '(')
                 {

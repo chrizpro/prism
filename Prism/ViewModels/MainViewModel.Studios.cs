@@ -42,6 +42,28 @@ public sealed partial class ParameterDraft : ObservableObject
     [ObservableProperty] public partial bool Pinned { get; set; }
     [ObservableProperty] public partial string Result { get; set; } = "";
 }
+/// <summary>One dimension of a sketch in the Parameters panel. Formulas here see the sketch's own named dimensions, document parameters and earlier sketches (sketch1.width).</summary>
+public sealed partial class SketchDimDraft : ObservableObject
+{
+    public Guid ObjectId { get; init; }
+    public int Section { get; init; }
+    public int ConstraintId { get; init; }
+    public string SketchName { get; init; } = "";
+    public string SketchKey { get; init; } = "";
+    public string Kind { get; init; } = "";
+    public string Unit { get; init; } = "";
+    public bool ShowHeader { get; init; }
+    public string Header => $"{SketchName}  ·  {SketchKey}.*";
+    public string OriginalName { get; init; } = "";
+    public string OriginalFormula { get; init; } = "";
+    [ObservableProperty] public partial string Name { get; set; } = "";
+    [ObservableProperty] public partial string Formula { get; set; } = "";
+    [ObservableProperty] public partial string Result { get; set; } = "";
+    /// <summary>How other formulas refer to this dimension.</summary>
+    public string Reference => string.IsNullOrWhiteSpace(Name) ? "unnamed: give it a name to use it elsewhere" : $"{SketchKey}.{Name.Trim()}";
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(Reference));
+    public bool Changed => (Name ?? "").Trim() != OriginalName || (Formula ?? "").Trim() != OriginalFormula;
+}
 public sealed partial class FeatureValueRow : ObservableObject
 {
     public int Index { get; init; }
@@ -210,6 +232,45 @@ public sealed partial class MainViewModel
     public ObservableCollection<ParameterDraft> DocumentParameterRows { get; } = [];
     public ObservableCollection<FeatureChoice> StudioFeatures { get; } = [];
     public ObservableCollection<FeatureValueRow> FeatureValueRows { get; } = [];
+    public ObservableCollection<SketchDimDraft> SketchDimRows { get; } = [];
+    public bool HasSketchDims => SketchDimRows.Count > 0;
+    List<(Guid, SketchModel)> _sketchSnapshot = [];
+    List<(Guid, SketchModel)> CurrentSketchSnapshot() => Session.Objects.Where(o => o.Kind == ObjKind.Sketch && o.SketchData != null).Select(o => (o.Id, o.SketchData!)).ToList();
+    void LoadSketchDimensions()
+    {
+        _sketchSnapshot = CurrentSketchSnapshot();
+        SketchDimRows.Clear();
+        foreach (var o in Session.Objects.Where(x => x.Kind == ObjKind.Sketch && x.SketchData != null))
+        {
+            bool header = true;
+            foreach (var (section, c) in SketchParameters.Dimensions(o.SketchData!))
+            {
+                string value = Math.Abs(c.Value).ToString("0.####", CultureInfo.InvariantCulture);
+                SketchDimRows.Add(new SketchDimDraft
+                {
+                    ObjectId = o.Id, Section = section, ConstraintId = c.Id, SketchName = o.Name, SketchKey = SketchParameters.ScopeKey(o.Name), ShowHeader = header,
+                    Kind = SketchModel.Describe(c.Type) + (section > 0 ? $" · plane {section + 1}" : ""), Unit = c.Type == CType.Angle ? "°" : "mm",
+                    OriginalName = c.Name ?? "", OriginalFormula = c.Formula ?? value, Name = c.Name ?? "", Formula = c.Formula ?? value, Result = value,
+                });
+                header = false;
+            }
+        }
+        OnPropertyChanged(nameof(HasSketchDims));
+    }
+    /// <summary>The dimensions whose name or formula was changed in the panel.</summary>
+    List<SketchDimEdit> SketchDimEdits() => SketchDimRows.Where(r => r.Changed).Select(r => new SketchDimEdit(r.ObjectId, r.Section, r.ConstraintId, (r.Name ?? "").Trim(), (r.Formula ?? "").Trim())).ToList();
+    /// <summary>Show what every sketch dimension would become; returns the reason when a formula or a sketch does not work.</summary>
+    string? PreviewSketchDimensions(IReadOnlyCollection<DocumentParameter> definitions)
+    {
+        if (SketchDimRows.Count == 0) return null;
+        try
+        {
+            var values = Session.PreviewSketchDimensions(definitions, SketchDimEdits());
+            foreach (var r in SketchDimRows) r.Result = values.TryGetValue((r.ObjectId, r.Section, r.ConstraintId), out var v) ? v.ToString("0.###", CultureInfo.InvariantCulture) : "—";
+            return null;
+        }
+        catch (FormatException e) { foreach (var r in SketchDimRows) r.Result = "—"; return e.Message; }
+    }
     [ObservableProperty] public partial FeatureChoice? SelectedStudioFeature { get; set; }
     [ObservableProperty] public partial string NewParameterName { get; set; } = "";
     [ObservableProperty] public partial string NewParameterFormula { get; set; } = "";
@@ -220,6 +281,7 @@ public sealed partial class MainViewModel
         SelectedParameterDraft = null;
         DocumentParameterRows.Clear();
         foreach (var p in Session.DocumentParameters) AddParameterDraft(p);
+        LoadSketchDimensions();
         PreviewDocumentParameters(StudioPanel == "parameters");
     }
     public void AddStudioParameter()
@@ -247,15 +309,17 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var values = ParameterValues.Evaluate(DocumentParameterRows.Select(p => new DocumentParameter(p.Name, p.Formula, p.Pinned)));
+            var definitions = DocumentParameterRows.Select(p => new DocumentParameter(p.Name, p.Formula, p.Pinned)).ToList();
+            var values = ParameterValues.Evaluate(definitions);
             foreach (var p in DocumentParameterRows) p.Result = values[p.Name].ToString("0.###", CultureInfo.InvariantCulture);
-            if (announce) StudioMessage = "Expressions valid. Apply to save and rebuild bound features.";
+            string? sketchProblem = PreviewSketchDimensions(definitions);
+            if (announce || sketchProblem != null) StudioMessage = sketchProblem ?? "Expressions valid. Apply to save and rebuild bound features and sketches.";
         }
         catch (FormatException e) { foreach (var p in DocumentParameterRows) p.Result = "—"; StudioMessage = e.Message; }
     }
     public void ApplyStudioParameters()
     {
-        bool ok = Session.ApplyDocumentParameters(DocumentParameterRows.Select(p => new DocumentParameter(p.Name, p.Formula, p.Pinned)).ToList());
+        bool ok = Session.ApplyDocumentParameters(DocumentParameterRows.Select(p => new DocumentParameter(p.Name, p.Formula, p.Pinned)).ToList(), SketchDimEdits());
         StudioMessage = Session.Status;
         if (ok) { LoadDocumentParameters(); RebuildStudioFeatures(); StudioMessage = Session.Status; }
     }
@@ -317,6 +381,7 @@ public sealed partial class MainViewModel
                 SelectedStudioIssue = null; SelectedStudioReference = null; SelectedStudioFeature = null; SelectedParameterDraft = null; LoadDocumentParameters();
             }
             else if (!ReferenceEquals(_parameterSnapshot, Session.DocumentParameters)) LoadDocumentParameters();
+            if (StudioPanel == "parameters" && !_sketchSnapshot.SequenceEqual(CurrentSketchSnapshot())) LoadSketchDimensions();
             if (StudioPanel == "references") RebuildStudioReferences();
             if (StudioPanel == "parameters") RebuildStudioFeatures();
             RefreshStudioActivity(); UpdateStudioCounts();
