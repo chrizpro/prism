@@ -49,22 +49,23 @@ For example, [EXT-H001](Headless/Extrude/SolidExtrudeTests.cs) creates a 10 × 6
 
 Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fixture dimensions and short setup/action/assert sections. Avoid anonymous scenario tables with numeric mode indices and avoid tests that merely assert a command returned something.
 
-## Extrude / Revolve pilot inventory
+## Feature issues and tests
 
-| Test IDs | File | Coverage |
+| Feature issues | Unit | Headless |
 |---|---|---|
-| EXT-U001–004 | [Extrude math](Unit/Extrude/ExtrudeDirectionMathTests.cs) | XY normal; scaled axes; winding reversal; offset XZ profile coordinates |
-| REV-U001–004 | [Revolve math](Unit/Revolve/RevolveAxisMathTests.cs) | Axis normalization; tangent direction; reversed axis; signed axial projection |
-| EXT-H001–004 | [Extrude commands](Headless/Extrude/SolidExtrudeTests.cs) | Distance; reverse; symmetric; two sides; analytic volumes and full bounds |
-| EXT-H005–008 | [Extrude commands](Headless/Extrude/SolidExtrudeTests.cs) | Open-profile rejection; Surface area/topology; commit/undo/redo; feature edit/save/reopen |
-| REV-H001–004 | [Revolve commands](Headless/Revolve/SolidRevolveTests.cs) | Full; quarter; reverse quarter; symmetric half; analytic volumes and full bounds |
-| REV-H005–008 | [Revolve commands](Headless/Revolve/SolidRevolveTests.cs) | Picked origin axis; zero symmetric angle; Surface area/topology; commit/undo/redo |
-| EXT-I001, REV-I001 | [Integration plan](Integration/README.md) | Reserved; not implemented or counted as passing tests |
+| Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [SolidExtrudeTests.cs](Headless/Extrude/SolidExtrudeTests.cs), including the named Surface case |
+| Revolve: [#12](https://github.com/chrizpro/prism/issues/12) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case |
+
+Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
+
+[Freeform Extrude Profile #8](https://github.com/chrizpro/prism/issues/8) currently links legacy executable characterization. It has no dedicated maintained Unit/Headless classes yet; the exact Solid/Surface tests above do not establish Freeform coverage.
+
+Integration remains [planned](Integration/README.md) and is deferred for now. When implemented, attach useful viewport images to the relevant feature/bug issue with test ID and source revision. Reserved integration IDs are not implemented or counted as passing tests.
 
 ## Scope and authorization
 
 Local verification on 2026-11-03: **8 Unit tests and 16 Headless tests passed**, with no skipped tests. The solution lists both projects; Integration remains planned. Tested with .NET SDK 10.0.102 and the workstation's installed OCCT binaries, without rebuilding native code. `prism_kernel.dll` SHA256: `07D37FF1F5F7E9F7E008801A919703CF6F49364BC20329207B97576A74CB7B19`. Headless execution produced no viewport screenshots. The existing standalone suites were left unchanged and were not rerun for this structure-only pilot.
 
-The owner explicitly requested this new solution-managed structure and existing-behavior examples on 2026-11-03. These tests characterize observable implementation; they do not approve all proposed requirements. Related references: [Solid Extrude draft](../docs/tabs/solid/extrude.md), [Story #6](https://github.com/chrizpro/prism/issues/6), [Surface Story #7](https://github.com/chrizpro/prism/issues/7), [modeling guide](../site/guide/modeling.md), and the actual [ExtrudeCommand / RevolveCommand implementation](../Prism/Commands/SolidCommands.cs). Surface/Freeform draft docs remain in PR #9. This pilot preserves the earlier executable suites and does not change product behavior.
+The owner explicitly requested this new solution-managed structure and existing-behavior examples on 2026-11-03. These tests characterize observable implementation; they do not approve all proposed requirements. Related references: [Solid Extrude draft](../docs/tabs/solid/extrude.md), [Surface Extrude draft](../docs/tabs/surface-and-nurbs/extrude.md), [Freeform Profile draft](../docs/tabs/freeform/extrude.md), [modeling guide](../site/guide/modeling.md), and the actual [ExtrudeCommand / RevolveCommand implementation](../Prism/Commands/SolidCommands.cs). The feature issues above track review and test links. This pilot preserves the earlier executable suites and does not change product behavior.
 
 This is representative coverage, not complete feature certification. Extrude Boolean/target/taper/regions, additional Revolve world/picked axes, two-sided angles, feature regeneration/persistence and invalid profiles, Freeform variants and desktop workflows need further coverage. New/unclear behavior still requires owner review. Retire existing executable suites only after their useful checks are inventoried and replaced deliberately.

@@ -30,7 +30,7 @@ Do not invent requirements from an implementation, a test name, or an AI suggest
 
 ### Optional requirement identifiers
 
-For important, independently checkable rules use a stable ID such as `SKETCH-001` or `CAE-THERMAL-001`; do not renumber IDs or assign one to every trivial case. Use an ID only after the behavior is sufficiently specified. A future xUnit test could carry multiple `[Trait("Requirement", "SKETCH-001")]` attributes, but **do not assume Prism's existing executable test projects are xUnit**. Test metadata and requirement coverage tooling are future proposals, not installed infrastructure. No automatic traceability is claimed yet.
+For important, independently checkable rules use a stable ID such as `SKETCH-001` or `CAE-THERMAL-001`; do not renumber IDs or assign one to every trivial case. Use an ID only after the behavior is sufficiently specified. Maintained tests under `Prism.Tests/` already use `Fact`/`AvaloniaFact` display names plus `Feature`, `Layer` and `TestId` traits. Test IDs identify tests, not approved requirements. Additional `Requirement` traits and automatic requirement-coverage tooling remain optional future proposals. **Do not assume the older executable projects under `tests/` are xUnit.**
 
 ## Living specifications and immutable delivery history
 
@@ -58,6 +58,10 @@ For important, independently checkable rules use a stable ID such as `SKETCH-001
 ## GitHub conventions
 
 Issue bodies should link the canonical doc and relevant tests *when those tests exist*. A closed delivery issue should also link to the version of the approved spec it actually delivered (commit SHA or release tag). Do not create a separate issue for every test result. A bug that merits tracking should have reproduction steps, observed and expected behavior, environment and acceptance criteria; record uncertainty rather than guessing. A feature proposal should include alternatives and an explicit owner decision.
+
+Use the same story sections: **Purpose → Scope → Specification → Acceptance criteria → Tests and evidence → Open decisions**. Group related issues with a simple feature label, such as `extrude` or `revolve`; a parent/epic is not required. Link to relevant test files or feature folders once per layer. Individual options, expected results and cases belong in the test code and its existing names/traits, rather than a manually maintained issue-to-option or issue-to-test matrix. Clearly identify variants with no maintained tests and distinguish legacy executable coverage.
+
+Owner direction (2026-11-03): integration testing is deferred. When it is introduced, attach representative actual viewport images to the relevant issue with the test ID and source revision. Record dated execution evidence separately from acceptance criteria; do not imply that a historical pass count is a live test status.
 
 Keep PRs focused; work on a branch instead of pushing directly to `main`. Use `Fixes #N` only when the PR actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same PR after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
 
