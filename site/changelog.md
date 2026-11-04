@@ -15,5 +15,7 @@
 - AR Export and Stop Sharing moved to Home, Assemble, Render, and Animate.
 - Installer infrastructure for Windows, macOS, and Linux.
 - VitePress guides and an application-generated, searchable tool catalog.
+- A documentation page for every ribbon tool, with the inputs, settings and script call taken from the app; workflow guides for sketching, solids, surfaces, freeform, assemblies, simulation, manufacturing, rendering, scanning and ECAD; and a scripting and API section covering `cadkit`, the HTTP protocol, the MCP bridge and every automation tool and command.
+- A promotional website.
 
 This page records user-visible changes. Update it alongside changes to the app rather than treating it as a fixed product description.

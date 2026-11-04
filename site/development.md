@@ -41,6 +41,8 @@ npm run dev
 npm run build
 ```
 
+Refresh the command, automation-tool and `cadkit` snapshots behind the tool pages and API reference with `python site/scripts/sync-api.py` while Prism is running.
+
 The build detects stale ribbon data when running from the CAD repository. CI regenerates and compares the catalog so changed tools cannot silently leave outdated reference data. Update the relevant narrative guides and changelog in the same change as the app.
 
 The generated static site is in `site/.vitepress/dist`. A standalone hosting checkout can build from the committed catalog. Hosting identity is in `site/.openai/hosting.json`.

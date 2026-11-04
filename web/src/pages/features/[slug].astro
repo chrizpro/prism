@@ -1,0 +1,115 @@
+---
+import { Image } from 'astro:assets'
+import Base from '../../layouts/Base.astro'
+import { features, type Feature } from '../../data/features'
+import { ownGroups, toolUrl, toolsIn } from '../../data/catalog'
+import { docs, href } from '../../config'
+
+export function getStaticPaths() {
+  return features.map(feature => ({ params: { slug: feature.slug }, props: { feature } }))
+}
+
+const { feature: f } = Astro.props as { feature: Feature }
+const index = features.indexOf(f)
+const next = features[(index + 1) % features.length]
+const ribbons = f.tabs.map(t => ({ title: t, groups: ownGroups(t) })).filter(r => r.groups.length)
+---
+<Base title={f.name} description={f.lede}>
+  <section class="hero" style={`--accent:${f.accent}`}>
+    <div class="glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <a class="crumb" href={href('/features')}>← All features</a>
+      <span class="kicker" style="color:var(--accent)">{f.kicker}</span>
+      <h1>{f.title}</h1>
+      <p class="lede">{f.lede}</p>
+      <div class="cta">
+        <a class="btn btn-primary" href={docs(f.docs)}>Read the guide</a>
+        <a class="btn btn-ghost" href={href('/download')}>Download Prism</a>
+      </div>
+    </div>
+    {f.image && (
+      <div class="wrap">
+        <div class="shot"><Image src={f.image} alt={f.alt ?? ''} widths={[800, 1500]} sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" /></div>
+      </div>
+    )}
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="highlights">
+        {f.highlights.map(h => (
+          <div class="hl" style={`--accent:${f.accent}`}>
+            <h3>{h.title}</h3>
+            <p class="muted">{h.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {ribbons.length > 0 && (
+    <section class="section tools">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="kicker">In the app</span>
+          <h2>{toolsIn(...f.tabs)} tools on {f.tabs.length === 1 ? 'the' : ''} {f.tabs.join(', ')} {f.tabs.length === 1 ? 'ribbon' : 'ribbons'}</h2>
+          <p>Every tool has a step-by-step page in the documentation.</p>
+        </div>
+        {ribbons.map(r => (
+          <div class="ribbon">
+            <h3>{r.title}</h3>
+            <div class="groups">
+              {r.groups.map(g => (
+                <div class="group">
+                  <h4>{g.title}</h4>
+                  <div class="chips">
+                    {g.tools.map(t => <a class="chip" href={docs(toolUrl(r.title, g.title, t.label))} title={t.description}>{t.label}</a>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <section class="section">
+    <div class="wrap">
+      <a class="next" href={href(`/features/${next.slug}`)} style={`--accent:${next.accent}`}>
+        <span class="muted">Next</span>
+        <strong>{next.name}</strong>
+        <span class="muted">{next.title}</span>
+      </a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero { position: relative; padding: 72px 0 0; overflow: hidden; }
+  .glow { position: absolute; inset: -30% 0 auto; height: 800px; background: radial-gradient(45% 45% at 30% 30%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 70%); pointer-events: none; }
+  .hero .wrap { position: relative; }
+  .crumb { display: block; width: fit-content; margin-bottom: 28px; color: var(--muted); text-decoration: none; font-size: 0.92rem; }
+  .crumb:hover { color: var(--text); }
+  h1 { font-size: clamp(2.4rem, 6vw, 4.4rem); margin: 14px 0 20px; max-width: 18ch; }
+  .lede { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--muted); max-width: 720px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 32px 0 56px; }
+
+  .highlights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .hl { padding: 26px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); }
+  .hl h3 { font-size: 1.15rem; margin-bottom: 10px; }
+  .hl p { font-size: 0.95rem; }
+
+  .tools { background: var(--bg-2); border-block: 1px solid var(--line); }
+  .ribbon + .ribbon { margin-top: 40px; }
+  .ribbon > h3 { font-size: 1.4rem; margin-bottom: 16px; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .group { padding: 18px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  h4 { margin: 0 0 12px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  a.chip { text-decoration: none; color: var(--text); }
+  a.chip:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .next { display: grid; gap: 6px; padding: 32px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+  .next strong { font-family: var(--display); font-size: 1.8rem; color: var(--accent); }
+  .next:hover { border-color: var(--accent); }
+</style>

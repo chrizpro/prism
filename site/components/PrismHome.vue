@@ -34,9 +34,9 @@ import { withBase } from 'vitepress'
       </figure>
     </section>
     <section class="prism-paths" aria-label="Explore Prism">
-      <a :href="withBase('/guide/modeling')"><span class="prism-path-symbol">⌁</span><h2>Start with a sketch</h2><p>Planes, dimensions, constraints, and your first solid feature.</p><span>Modeling guide ↗</span></a>
-      <a :href="withBase('/reference/ribbons')"><span class="prism-path-symbol">◈</span><h2>Find the right tool</h2><p>Explore the actual tools and sections shipped in Prism.</p><span>Browse the catalog ↗</span></a>
-      <a :href="withBase('/guide/ar')"><span class="prism-path-symbol">◇</span><h2>See it in your space</h2><p>Export your model for AR and share it with a nearby phone.</p><span>AR and sharing ↗</span></a>
+      <a :href="withBase('/guide/getting-started')"><span class="prism-path-symbol">⌁</span><h2>Start with a sketch</h2><p>Planes, dimensions, constraints, and your first solid feature.</p><span>Getting started ↗</span></a>
+      <a :href="withBase('/tools/')"><span class="prism-path-symbol">◈</span><h2>Learn every tool</h2><p>What each tool does, what it asks for and every setting, for every ribbon.</p><span>Tool reference ↗</span></a>
+      <a :href="withBase('/api/')"><span class="prism-path-symbol">◇</span><h2>Script it</h2><p>Drive Prism from Python, any language over HTTP, or an AI assistant over MCP.</p><span>Scripting and API ↗</span></a>
     </section>
     <section class="prism-workflow">
       <h2>A familiar place for each action.</h2>

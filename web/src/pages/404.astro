@@ -1,0 +1,14 @@
+---
+import Base from '../layouts/Base.astro'
+import { href } from '../config'
+---
+<Base title="Not found">
+  <section class="section">
+    <div class="wrap" style="text-align:center">
+      <span class="kicker">404</span>
+      <h1 style="font-size:clamp(2.4rem,6vw,4rem);margin:12px 0 16px">This page isn't in the model.</h1>
+      <p class="muted" style="margin-bottom:32px">It may have moved. Try the features overview instead.</p>
+      <a class="btn btn-primary" href={href('/features')}>See features</a>
+    </div>
+  </section>
+</Base>

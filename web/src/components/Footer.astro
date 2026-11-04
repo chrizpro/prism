@@ -1,0 +1,49 @@
+---
+import mark from '../assets/prism-mark.svg?raw'
+import { docs, href, repoUrl, version } from '../config'
+import { features } from '../data/features'
+---
+<footer>
+  <div class="wrap grid">
+    <div class="about">
+      <a class="brand" href={href('/')}><span class="mark" set:html={mark} />Prism</a>
+      <p class="muted">Design, simulate and make in one place. Currently a {version}.</p>
+    </div>
+    <div>
+      <h3>Features</h3>
+      <ul>{features.slice(0, 6).map(f => <li><a href={href(`/features/${f.slug}`)}>{f.name}</a></li>)}</ul>
+    </div>
+    <div>
+      <h3>More</h3>
+      <ul>{features.slice(6).map(f => <li><a href={href(`/features/${f.slug}`)}>{f.name}</a></li>)}</ul>
+    </div>
+    <div>
+      <h3>Learn</h3>
+      <ul>
+        <li><a href={docs('/guide/getting-started')}>Getting started</a></li>
+        <li><a href={docs('/tools/')}>Tool reference</a></li>
+        <li><a href={docs('/api/')}>Scripting &amp; API</a></li>
+        <li><a href={docs('/changelog')}>What's new</a></li>
+        <li><a href={href('/download')}>Download</a></li>
+        <li><a href={repoUrl}>Source on GitHub</a></li>
+        <li><a href={`${repoUrl}/issues`}>Report an issue</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap legal muted">© {new Date().getFullYear()} Prism. Geometry by Open CASCADE Technology.</div>
+</footer>
+
+<style>
+  footer { border-top: 1px solid var(--line); background: var(--bg-2); padding: 64px 0 32px; margin-top: 64px; }
+  .grid { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 32px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 1.2rem; margin-bottom: 12px; }
+  .mark { width: 28px; height: 28px; }
+  .mark :global(svg) { width: 100%; height: 100%; }
+  .about p { max-width: 300px; font-size: 0.95rem; }
+  h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 14px; font-family: var(--font); }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  ul a { text-decoration: none; color: var(--text); opacity: 0.85; font-size: 0.95rem; }
+  ul a:hover { opacity: 1; color: var(--cyan); }
+  .legal { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 0.85rem; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } .about { grid-column: 1 / -1; } }
+</style>

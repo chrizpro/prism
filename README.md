@@ -55,7 +55,7 @@ Shared ribbon sections follow one workflow order across the app. Transform keeps
 
 See [packaging](packaging/README.md) for Windows setup, macOS DMG, and Linux DEB builds. Packaging defaults to a self-contained desktop app and requires matching native libraries. Windows is the locally verified target; Mac and Linux require validation on those systems.
 
-The [Prism documentation website](https://prism-cad-guide.christopherbfwilliam.chatgpt.site) is published privately from the VitePress source in `site`. Regenerate its tool reference after changing ribbon definitions:
+The [Prism website](https://chrizpro.github.io/prism/) and [documentation](https://chrizpro.github.io/prism/docs/) are published to GitHub Pages by the `Publish websites` workflow on every push to `main` that changes `web` or `site`. The guide is built from the VitePress source in `site`. Regenerate its tool reference after changing ribbon definitions:
 
 ```powershell
 dotnet run --project tools/Prism.DocsCatalog -- .
@@ -65,4 +65,18 @@ npm run dev
 npm run build
 ```
 
-The docs workflow checks catalog freshness and builds the site. Narrative guides and the changelog should change with the app. The installer workflow builds target-specific packages when manually dispatched; it does not publish a public release.
+Refresh the command and API snapshots behind the per-tool pages and API reference while Prism is running:
+
+```powershell
+python site/scripts/sync-api.py
+```
+
+The promotional website is an Astro site in `web`, separate from the guide. It reads the same tool catalog. See [its README](web/README.md).
+
+```powershell
+cd web
+npm ci
+npm run dev
+```
+
+The docs workflow checks catalog freshness and builds both sites. Narrative guides and the changelog should change with the app. The installer workflow builds target-specific packages when manually dispatched; it does not publish a public release.

@@ -1,0 +1,1825 @@
+[
+ {
+  "name": "assistant",
+  "description": "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Claude login, 1 Codex login, 2 Claude API key, 3 OpenAI API key).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "open | close | send | transcript | new | provider",
+     "type": "string"
+    },
+    "text": {
+     "description": "Message for send.",
+     "type": "string"
+    },
+    "index": {
+     "description": "Provider index.",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "batch",
+  "description": "Run several tool calls in order in one round trip. Stops at the first error. calls: [{tool, args}].",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "calls": {
+     "description": "[{\"tool\": \"...\", \"args\": {...}}, ...]",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "calls"
+   ]
+  }
+ },
+ {
+  "name": "cae_state",
+  "description": "CAE solver status and results. Start cae_thermal or cae_modal with run_command(commit=false), configure body/faces/material and parameters, then command_set with 'Run analysis':true. action: status | stop. Case files remain in resultFolder. Fluids currently use the separate cae_pipe_flow reduced-order command.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "status (default) | stop",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "command_cancel",
+  "description": "Cancel the active command (or the sketch if one is open and no command is active).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "command_commit",
+  "description": "Press OK on the active command.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "command_set",
+  "description": "Change parameters and/or selection slots of the command currently open in the panel (live preview updates).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "params": {
+     "description": "Parameter label -> value.",
+     "type": "object"
+    },
+    "slots": {
+     "description": "Slot label -> selection.",
+     "type": "object"
+    }
+   }
+  }
+ },
+ {
+  "name": "delete_objects",
+  "description": "Delete objects by name.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "objects": {
+     "description": "Object names.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "objects"
+   ]
+  }
+ },
+ {
+  "name": "describe_command",
+  "description": "What a command needs before you run it: its selection slots (what each accepts, whether it is optional or takes several) and its parameters (type, default, unit, range, options). Nothing is started or changed. Then pass slots and params to run_command using these labels.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "description": "Command name from list_commands.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ {
+  "name": "document_close",
+  "description": "Close a document tab (discards unsaved changes).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "document": {
+     "description": "Index or title.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "document"
+   ]
+  }
+ },
+ {
+  "name": "document_list",
+  "description": "The open documents (tabs).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "document_new",
+  "description": "Open a new empty document in its own tab.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "document_switch",
+  "description": "Bring a document tab to the front by index (0-based) or title.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "document": {
+     "description": "Index or title.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "document"
+   ]
+  }
+ },
+ {
+  "name": "drawing_export",
+  "description": "Produce an engineering drawing of the model and save it as .svg, .pdf or .dxf (chosen by the extension). Hidden-line-removed orthographic views in third-angle layout (front, top, right, iso by default; first_angle:true to swap) at an automatic standard scale, with overall dimensions, hole callouts (Ø, count, THRU or depth), centerlines and locating dimensions, optional section and detail views, hand-placed annotations (dimension, diameter, radius, note, balloon, datum, gdt frames, surface finish), a bill of materials when several bodies are drawn, general tolerance and notes, and a title block. Drawn from the named objects, or every visible solid/surface/Freeform when none are named. View coordinates in sections/details/annotations are the view's drawing coordinates in mm: front x = model X, y = model Z; top x = X, y = Y; right x = Y, y = Z.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "path": {
+     "description": "Output file: .svg, .pdf or .dxf.",
+     "type": "string"
+    },
+    "objects": {
+     "description": "Object names to draw (default: all visible bodies).",
+     "type": "array",
+     "items": {}
+    },
+    "views": {
+     "description": "front | back | top | bottom | left | right | iso (default front, top, right, iso).",
+     "type": "array",
+     "items": {}
+    },
+    "sheet": {
+     "description": "A4 | A3 (default) | A2 | A1 | A0 | Letter | Tabloid | ANSI-C | ANSI-D.",
+     "type": "string"
+    },
+    "scale": {
+     "description": "Drawing scale, e.g. 0.5 for 1:2 (default: automatic).",
+     "type": "number"
+    },
+    "units": {
+     "description": "mm (default) or in: dimension text units.",
+     "type": "string"
+    },
+    "title": {
+     "description": "Title (default: the object name).",
+     "type": "string"
+    },
+    "part_number": {
+     "description": "Part number.",
+     "type": "string"
+    },
+    "material": {
+     "description": "Material note (default: the first object's material).",
+     "type": "string"
+    },
+    "drawn_by": {
+     "description": "Drawn by.",
+     "type": "string"
+    },
+    "company": {
+     "description": "Company name.",
+     "type": "string"
+    },
+    "revision": {
+     "description": "Revision letter (default A).",
+     "type": "string"
+    },
+    "notes": {
+     "description": "General note lines.",
+     "type": "array",
+     "items": {}
+    },
+    "tolerance": {
+     "description": "General tolerance text (default LINEAR ±0.1 ANGULAR ±0.5°).",
+     "type": "string"
+    },
+    "dimensions": {
+     "description": "Overall dimensions (default true).",
+     "type": "boolean"
+    },
+    "hole_callouts": {
+     "description": "Ø callouts for holes and bosses (default true).",
+     "type": "boolean"
+    },
+    "centerlines": {
+     "description": "Centerlines and center marks (default true).",
+     "type": "boolean"
+    },
+    "locating_dimensions": {
+     "description": "Hole position dimensions (default true).",
+     "type": "boolean"
+    },
+    "first_angle": {
+     "description": "First-angle projection.",
+     "type": "boolean"
+    },
+    "bom": {
+     "description": "Bill of materials table (default: when more than one part).",
+     "type": "boolean"
+    },
+    "sections": {
+     "description": "Section views: [{parent:'front', direction:'vertical'|'horizontal', offset: position in the parent view's mm coordinates (default the middle)}]. Lettered A-A, B-B, hatched, with the cutting line on the parent.",
+     "type": "array",
+     "items": {}
+    },
+    "details": {
+     "description": "Detail views: [{parent:'front', center:[x,y], radius, ratio (magnification relative to the sheet scale, default 3)}].",
+     "type": "array",
+     "items": {}
+    },
+    "annotations": {
+     "description": "Hand-placed items: {type: dimension|diameter|radius|note|balloon|datum|gdt|finish, view, from:[x,y], to:[x,y], at:[x,y], center:[x,y], radius, angle, offset, orientation: horizontal|vertical|aligned, text, tolerance (e.g. '+0.1/-0.05'), number (balloon), symbol (gdt: flatness, straightness, circularity, cylindricity, perpendicularity, parallelism, angularity, position, concentricity, symmetry, runout, total_runout, profile_line, profile_surface), datums:'A|B'}.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "path"
+   ]
+  }
+ },
+ {
+  "name": "edit_feature",
+  "description": "Edit an earlier feature (the model rolls back to before it and its command reopens with the same picks and numbers; change values with command_set, then command_commit rebuilds the later steps). action: list (steps that can be edited) | open (step = history step id; omitted = the step that made the selected object).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "list | open",
+     "type": "string"
+    },
+    "step": {
+     "description": "History step id from list or history_tree.",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "file",
+  "description": "Document I/O. action: new | open | save | save_as | import_step | import_file (by extension: STEP, IGES, BREP, DXF, STL, OBJ, PLY, 3MF) | export_step | export_iges | export_brep | export_glb | export_dxf | export_stl (also .3mf/.obj/.ply by extension). 'path' required except for new/save.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "Action.",
+     "type": "string"
+    },
+    "path": {
+     "description": "File path.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "form_analyze",
+  "description": "Surface quality of a Form: cage statistics (quads, triangles, n-gons, poles with their positions, edge lengths, stretched quads), curvature of the smooth surface (mean, tightest radius and where), and optionally the deviation to a reference object (scan, body, form): within-tolerance percentage, RMS, bias, largest gaps. display:true also colors the form by that deviation in the viewport.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Form object name.",
+     "type": "string"
+    },
+    "reference": {
+     "description": "Object to compare the smooth surface with.",
+     "type": "string"
+    },
+    "tolerance": {
+     "description": "Deviation tolerance in mm (default 0.2).",
+     "type": "number"
+    },
+    "range": {
+     "description": "Color range ± in mm (default 1).",
+     "type": "number"
+    },
+    "display": {
+     "description": "Color the form by deviation.",
+     "type": "boolean"
+    },
+    "poles": {
+     "description": "Include pole positions (default true).",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "form_find",
+  "description": "Find cage components by geometry so you do not have to read the whole cage. kind: vertices | faces | edges (default faces). Filters (all optional, combined with AND): box [[x0,y0,z0],[x1,y1,z1]] (a vertex, or a face/edge centre, inside), near [x,y,z] + radius, facing [dx,dy,dz] + angle (faces whose normal is within angle degrees, default 30), open:true (edges used by one face only), all:true. Returns 0-based indices ready for form_op / form_select, with centres (and normals for faces).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Form object name.",
+     "type": "string"
+    },
+    "kind": {
+     "description": "vertices | faces | edges.",
+     "type": "string"
+    },
+    "box": {
+     "description": "[[x0,y0,z0],[x1,y1,z1]]",
+     "type": "array",
+     "items": {}
+    },
+    "near": {
+     "description": "[x,y,z]",
+     "type": "array",
+     "items": {}
+    },
+    "radius": {
+     "description": "With near: distance (mm).",
+     "type": "number"
+    },
+    "facing": {
+     "description": "Faces whose outward normal points this way [dx,dy,dz].",
+     "type": "array",
+     "items": {}
+    },
+    "angle": {
+     "description": "With facing: tolerance in degrees (default 30).",
+     "type": "number"
+    },
+    "open": {
+     "description": "Edges with one face only (boundary).",
+     "type": "boolean"
+    },
+    "all": {
+     "description": "Every component.",
+     "type": "boolean"
+    },
+    "limit": {
+     "description": "Maximum results (default 200).",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "form_info",
+  "description": "Read a Form object (subdivision cage): vertices, faces (vertex index lists, 0-based, CCW from outside), creased edges, smoothing level. Indices here are 0-based and are what form_op expects.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Form object name.",
+     "type": "string"
+    },
+    "summary": {
+     "description": "Counts and bounding box only (no vertex or face lists).",
+     "type": "boolean"
+    },
+    "only": {
+     "description": "Vertex indices: return only the positions of these vertices.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "form_op",
+  "description": "Edit a Form cage (undoable). op: chamfer (edges or faces, amount: replaces each inner edge with a strip of faces) | slide (edges, amount -1..1: slide an edge loop along its rails) | crease_vertices (vertices, value: sharp corner points) | set_symmetry (symmetry x|y|z|radial:N|off, enforce:true makes the cage exactly symmetric from the + side, keep_positive:false for the - side) | move | rotate | scale | bridge | fill_holes | merge_faces | merge_edges | unweld_edges | pull | collapse_edges | split_face | smooth | flatten | set_vertices | extrude_faces | extrude_edges | inset | bevel | insert_loop | subdivide | delete_faces | weld | flip | crease | mirror | add_face | thicken | level. A form with a persistent symmetry (set_symmetry) repeats extrude/inset/bevel/delete/crease/flatten/smooth/weld/collapse/unweld/pull/insert_loop/merge_faces on the mirror images of whatever you select; pass symmetry:off to bypass it for one call. pull: vertices (or all) move onto the smooth limit surface (strength 0..1). merge_edges: edges:[[a,b]..] removes inner edges, joining the faces either side. unweld_edges: edges (or faces) split the cage along them so each side gets its own points. bridge: faces:[a,b] removes two separate equal-corner cap faces and joins their loops (for integrated handles), or edges:[[a,b],...] selects two separate boundary chains. move/rotate/scale act on the vertices of whatever you select and accept soft_radius (+ falloff smooth|linear|sharp) and symmetry (x | y | z mirror, or radial:N around Z; mirrored points follow). rotate: axis X|Y|Z, angle (degrees), optional pivot [x,y,z] (default the selection centre). scale: factor, or scale [sx,sy,sz], optional pivot. inset: faces, amount, optional depth and individual:true. bevel: edges or faces, amount (support loops that tighten the edge). insert_loop: edge [a,b], optional count and position (0..1 from a). Components are 0-based indices from form_info: vertices:[i..], faces:[i..], edges:[[a,b]..]. move: delta [dx,dy,dz] applied to the vertices of whatever you select. set_vertices: positions {\"3\":[x,y,z]}. extrude_faces/edges: distance. insert_loop: edge [a,b]. crease: value (0 clears). mirror: plane XY|XZ|YZ (welds the seam). add_face: vertices [ids] and/or points [[x,y,z]] (new corners) - ids first. level: value 1-4.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Form object name.",
+     "type": "string"
+    },
+    "op": {
+     "description": "Operation.",
+     "type": "string"
+    },
+    "vertices": {
+     "description": "Vertex indices.",
+     "type": "array",
+     "items": {}
+    },
+    "faces": {
+     "description": "Face indices.",
+     "type": "array",
+     "items": {}
+    },
+    "edges": {
+     "description": "Edges as [a,b] pairs.",
+     "type": "array",
+     "items": {}
+    },
+    "edge": {
+     "description": "One edge [a,b].",
+     "type": "array",
+     "items": {}
+    },
+    "delta": {
+     "description": "[dx,dy,dz].",
+     "type": "array",
+     "items": {}
+    },
+    "distance": {
+     "description": "Extrude distance.",
+     "type": "number"
+    },
+    "value": {
+     "description": "Crease sharpness or smoothing level.",
+     "type": "number"
+    },
+    "plane": {
+     "description": "Mirror plane.",
+     "type": "string"
+    },
+    "positions": {
+     "description": "Vertex index -> [x,y,z].",
+     "type": "object"
+    },
+    "points": {
+     "description": "New corner points.",
+     "type": "array",
+     "items": {}
+    },
+    "angle": {
+     "description": "rotate: degrees.",
+     "type": "number"
+    },
+    "axis": {
+     "description": "rotate: X | Y | Z.",
+     "type": "string"
+    },
+    "factor": {
+     "description": "scale: uniform factor.",
+     "type": "number"
+    },
+    "scale": {
+     "description": "scale: [sx,sy,sz].",
+     "type": "array",
+     "items": {}
+    },
+    "pivot": {
+     "description": "rotate/scale pivot [x,y,z].",
+     "type": "array",
+     "items": {}
+    },
+    "soft_radius": {
+     "description": "Soft selection radius (mm; 0 = off).",
+     "type": "number"
+    },
+    "falloff": {
+     "description": "smooth | linear | sharp.",
+     "type": "string"
+    },
+    "symmetry": {
+     "description": "x | y | z | radial:N | off.",
+     "type": "string"
+    },
+    "all": {
+     "description": "move/rotate/scale/smooth/flatten: act on every vertex when nothing is selected.",
+     "type": "boolean"
+    },
+    "amount": {
+     "description": "inset / bevel size (mm).",
+     "type": "number"
+    },
+    "depth": {
+     "description": "inset: push out (+) or in (-).",
+     "type": "number"
+    },
+    "individual": {
+     "description": "inset each face on its own.",
+     "type": "boolean"
+    },
+    "count": {
+     "description": "insert_loop: number of loops.",
+     "type": "integer"
+    },
+    "position": {
+     "description": "insert_loop: 0..1 from the first vertex of the edge.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "object",
+    "op"
+   ]
+  }
+ },
+ {
+  "name": "form_select",
+  "description": "While Edit Freeform is open (run_command edit_form with commit=false), select cage components so the manipulator and highlights show. mode: vertices|edges|faces. Indices are 0-based as in form_info.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "mode": {
+     "description": "vertices | edges | faces",
+     "type": "string"
+    },
+    "all": {
+     "description": "Select every component of that kind.",
+     "type": "boolean"
+    },
+    "op": {
+     "description": "grow | shrink | invert | all | angle (flood faces from the selection) | boundary | creased: selection tools applied after any indices given.",
+     "type": "string"
+    },
+    "angle": {
+     "description": "With op angle: dihedral limit in degrees (default 30).",
+     "type": "number"
+    },
+    "vertices": {
+     "description": "Vertex indices.",
+     "type": "array",
+     "items": {}
+    },
+    "edges": {
+     "description": "[[a,b],..]",
+     "type": "array",
+     "items": {}
+    },
+    "faces": {
+     "description": "Face indices.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "mode"
+   ]
+  }
+ },
+ {
+  "name": "form_to_nurbs",
+  "description": "Convert a Form into exact NURBS geometry (a solid if the cage is closed, otherwise a surface). The result can be used with booleans, fillets, STEP export, etc.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Form object name.",
+     "type": "string"
+    },
+    "detail": {
+     "description": "exact (default) | fewer: one fitted patch per irregular face instead of four, for lighter models.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "get_control_points",
+  "description": "Read the NURBS control net of a curve or single-patch surface (rows x cols, row-major).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "get_log",
+  "description": "Recent status/error messages shown in the status bar (newest last).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "count": {
+     "description": "How many entries (default 30).",
+     "type": "integer"
+    }
+   }
+  }
+ },
+ {
+  "name": "get_state",
+  "description": "Full snapshot: objects (with bounding boxes), selection, active command and its parameters/slots, sketch, camera, display flags, status line.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "fields": {
+     "description": "Only these top-level keys, e.g. [\"objects\",\"selection\",\"status\"]. Default: all.",
+     "type": "array",
+     "items": {}
+    },
+    "objects": {
+     "description": "full (default) | names (one 'name [kind]' string per object, far smaller) | none.",
+     "type": "string"
+    },
+    "limit": {
+     "description": "Most objects to list; objectsTotal gives the real count.",
+     "type": "integer"
+    }
+   }
+  }
+ },
+ {
+  "name": "history",
+  "description": "Undo or redo.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "undo | redo",
+     "type": "string"
+    },
+    "count": {
+     "description": "Repeat count (default 1).",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "history_goto",
+  "description": "Jump to a history step by id (see history_tree). Use this to switch between branches.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "description": "Node id.",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ },
+ {
+  "name": "history_group",
+  "description": "Fold a run of steps into ONE undo step. Call with action:begin, make changes, then action:end with a label. Groups nest.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "begin | end",
+     "type": "string"
+    },
+    "label": {
+     "description": "Name of the history step (end).",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "history_tree",
+  "description": "The full history tree: every step with its parent, label, time, checkpoint name and which one is current. Branches exist when an edit was made after rolling back.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "history_view",
+  "description": "Inspect or resize the design history panel. Collapsed mode shows a compact, interactive trail of the active branch.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "expanded": {
+     "description": "Show the full branch graph, or the compact trail when false.",
+     "type": "boolean"
+    },
+    "height": {
+     "description": "Expanded graph height, clamped to 100–360.",
+     "type": "number"
+    }
+   }
+  }
+ },
+ {
+  "name": "list_commands",
+  "description": "List the command names run_command accepts, optionally only those containing 'query' (case-insensitive). Without a query returns the count and the first 60.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "description": "Text the name contains, e.g. 'fillet' or 'cam'.",
+     "type": "string"
+    },
+    "limit": {
+     "description": "Most names to return (default 60).",
+     "type": "integer"
+    }
+   }
+  }
+ },
+ {
+  "name": "list_ribbon",
+  "description": "List every ribbon tab, group and button (label, enabled, checked). Use with ribbon_click.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "marking_menu",
+  "description": "The right-click marking menu. action: settings (open the Settings window) | menu (the 6 o'clock plain menu) | list (the eight entries for what is selected right now, clockwise from the top), open (show it at x,y in the viewport), run (index 0-7: do that entry).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "list | open | run",
+     "type": "string"
+    },
+    "index": {
+     "description": "Entry 0-7 for run.",
+     "type": "integer"
+    },
+    "x": {
+     "description": "Viewport x for open.",
+     "type": "number"
+    },
+    "y": {
+     "description": "Viewport y for open.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "material_apply",
+  "description": "Give an object a library material (color, finish and density come with it), or just set its finish/color. 'material' is an id or name from material_list; omit it to only change metal/gloss/color. Returns the object's mass when it is a solid.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    },
+    "material": {
+     "description": "Material id or name.",
+     "type": "string"
+    },
+    "metal": {
+     "description": "0..1",
+     "type": "number"
+    },
+    "gloss": {
+     "description": "0..1",
+     "type": "number"
+    },
+    "color": {
+     "description": "Hex colour override like #C87941.",
+     "type": "string"
+    },
+    "clear": {
+     "description": "Remove the material.",
+     "type": "boolean"
+    },
+    "pattern": {
+     "description": "Automatic | Plain | Wood | Brushed | Cast | CarbonWeave. Appearance only.",
+     "type": "string"
+    },
+    "patternScale": {
+     "description": "Pattern size in mm, 0.1–10000.",
+     "type": "number"
+    },
+    "patternAngle": {
+     "description": "Pattern angle about world Z, degrees.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "material_list",
+  "description": "List library materials with engineering data (density g/cm3, modulus GPa, yield/tensile MPa, conductivity, expansion, max temp, ratings). Short by default (id, name, category, density); pass brief:false for the full engineering data. Optional 'category' or 'search' filter.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "category": {
+     "description": "e.g. Steel, Aluminum, Plastic.",
+     "type": "string"
+    },
+    "search": {
+     "description": "Text to match in name, family or uses.",
+     "type": "string"
+    },
+    "brief": {
+     "description": "Default true: id, name, category and density only.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
+  "name": "materials_panel",
+  "description": "Open (open=true) or close the Materials workspace tab. Optionally select a library material in it.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "open": {
+     "description": "Default true.",
+     "type": "boolean"
+    },
+    "material": {
+     "description": "Material id to highlight in the list.",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "mesh_export",
+  "description": "Export meshes/bodies to STL, 3MF, OBJ or PLY (chosen by the extension). Exports the selection, or everything when nothing is selected.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "path": {
+     "description": "Output path.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "path"
+   ]
+  }
+ },
+ {
+  "name": "mesh_import",
+  "description": "Import a mesh file (STL, OBJ, PLY, 3MF) as one or more mesh objects. Without options it imports as-is (mm, Z-up, no repair). Colours and parts in the file are kept.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "path": {
+     "description": "Full path of the file.",
+     "type": "string"
+    },
+    "units": {
+     "description": "auto (default: the 3MF's own unit, else mm) | mm | cm | m | inch.",
+     "type": "string"
+    },
+    "up_axis": {
+     "description": "z (default, keep) | y (rotate Y-up to Z-up) | x (rotate X-up to Z-up).",
+     "type": "string"
+    },
+    "weld_tolerance": {
+     "description": "Merge vertices closer than this many mm (default 0: identical corners only).",
+     "type": "number"
+    },
+    "auto_repair": {
+     "description": "Merge, clean, fix normals and fill small holes (default false).",
+     "type": "boolean"
+    },
+    "split": {
+     "description": "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces).",
+     "type": "string"
+    }
+   },
+   "required": [
+    "path"
+   ]
+  }
+ },
+ {
+  "name": "mesh_region",
+  "description": "Select triangles on a mesh (the region later used by mesh_fit_surface, extract and delete). action: smart (flood a smooth patch from the triangle nearest 'at', with 'angle'), brush (triangles within 'radius' of 'at'), box (triangles whose centroid is inside 'min'/'max'), grow, shrink, invert, all, clear, extract (new mesh), delete. mode: replace (default) | add | subtract.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Mesh object name.",
+     "type": "string"
+    },
+    "action": {
+     "description": "smart | brush | box | grow | shrink | invert | all | clear | extract | delete",
+     "type": "string"
+    },
+    "at": {
+     "description": "[x,y,z] point on or near the surface.",
+     "type": "array",
+     "items": {}
+    },
+    "angle": {
+     "description": "Edge angle in degrees for organic surfaces (default 20).",
+     "type": "number"
+    },
+    "tolerance": {
+     "description": "Surface tolerance in mm for the shape fit (default 0.3% of the mesh size).",
+     "type": "number"
+    },
+    "radius": {
+     "description": "Brush radius in mm.",
+     "type": "number"
+    },
+    "min": {
+     "description": "[x,y,z] box corner.",
+     "type": "array",
+     "items": {}
+    },
+    "max": {
+     "description": "[x,y,z] box corner.",
+     "type": "array",
+     "items": {}
+    },
+    "mode": {
+     "description": "replace | add | subtract",
+     "type": "string"
+    }
+   },
+   "required": [
+    "object",
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "object_info",
+  "description": "Detailed information about one object: volume, area, size, center, validity, sketch plane.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "object_update",
+  "description": "Rename, recolor or show/hide an object.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    },
+    "name": {
+     "description": "New name.",
+     "type": "string"
+    },
+    "color": {
+     "description": "Hex colour like #E5484D.",
+     "type": "string"
+    },
+    "visible": {
+     "description": "Visibility.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "origin",
+  "description": "Show or hide the origin helpers (they also appear in the browser): planes, axes, origin point.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "planes": {
+     "description": "XY/XZ/YZ planes.",
+     "type": "boolean"
+    },
+    "axes": {
+     "description": "X/Y/Z axes.",
+     "type": "boolean"
+    },
+    "point": {
+     "description": "Origin point.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
+  "name": "pointer",
+  "description": "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'drag', x,y,z, x2,y2,z2 (drag end)}]. Returns the active command's grab handle (origin, tip, value) and the camera.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "events": {
+     "description": "Event objects.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "events"
+   ]
+  }
+ },
+ {
+  "name": "render_control",
+  "description": "Inspect or control the current document's render. action: status | stop | save | close. Start with run_command(name=render, commit=false), then command_set parameters including 'Start render'. Status reports sample progress, completion and errors; save writes completed samples to PNG.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "status | stop | save | close",
+     "type": "string"
+    },
+    "path": {
+     "description": "Optional full PNG path for save.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "ribbon_click",
+  "description": "Click a ribbon button by its label (exactly what a user would click). Optionally pass 'tab' to disambiguate (e.g. 'Extrude' exists on Solid and Surface). Commands open their panel; use command_set / command_commit next.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "label": {
+     "description": "Button label, e.g. 'Box', 'Create Sketch', 'Finish Sketch'.",
+     "type": "string"
+    },
+    "tab": {
+     "description": "Tab name, e.g. 'Solid', 'Surface', 'Freeform'.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "label"
+   ]
+  }
+ },
+ {
+  "name": "run_command",
+  "description": "Run a modeling command end-to-end: start it, fill selection slots and parameters, then (by default) commit. Find names with list_commands(query). 'slots' maps a slot label to an object name, {object,face|edge} or an array of those; 'params' maps parameter labels to values. For curve_control/curve_through pass 'points' as [[x,y,z],...]. Use get_state afterwards, or call with commit=false to preview first.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "description": "Command name.",
+     "type": "string"
+    },
+    "slots": {
+     "description": "Slot label -> selection.",
+     "type": "object"
+    },
+    "params": {
+     "description": "Parameter label -> value.",
+     "type": "object"
+    },
+    "points": {
+     "description": "Curve points for curve_control / curve_through.",
+     "type": "array",
+     "items": {}
+    },
+    "commit": {
+     "description": "Commit immediately (default true).",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "name"
+   ]
+  }
+ },
+ {
+  "name": "screenshot",
+  "description": "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "viewport": {
+     "description": "Only the 3D viewport.",
+     "type": "boolean"
+    },
+    "max_width": {
+     "description": "Scale down to at most this many pixels wide.",
+     "type": "integer"
+    },
+    "wait_ms": {
+     "description": "Milliseconds to wait for a fresh frame before capturing (default 250).",
+     "type": "integer"
+    }
+   }
+  }
+ },
+ {
+  "name": "script_dialog",
+  "description": "Show a dialog and wait for the user: fields [{key, label, type: number|text|check|choice, value, min, max, step, options, unit}]. Returns {ok:true, values:{key: value}} or {ok:false} when cancelled. Meant for scripts that need input.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "description": "Dialog title.",
+     "type": "string"
+    },
+    "fields": {
+     "description": "Field definitions.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "fields"
+   ]
+  }
+ },
+ {
+  "name": "select",
+  "description": "Set the document selection (outside of commands). Items are object names, or {object, face} / {object, edge} (1-based).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "items": {
+     "description": "Selection items.",
+     "type": "array",
+     "items": {}
+    },
+    "additive": {
+     "description": "Add to the existing selection.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "items"
+   ]
+  }
+ },
+ {
+  "name": "set_control_points",
+  "description": "Replace the control points of a curve/surface (same count and order as get_control_points). Undoable.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    },
+    "points": {
+     "description": "[[x,y,z],...] - same length as get_control_points.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "object",
+    "points"
+   ]
+  }
+ },
+ {
+  "name": "sketch_add",
+  "description": "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}. Add \"construction\":true for reference geometry.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entities": {
+     "description": "List of entity objects.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "entities"
+   ]
+  }
+ },
+ {
+  "name": "sketch_begin",
+  "description": "Start a sketch. plane: 'XY', 'XZ' or 'YZ' (optional offset along the normal), a planar face {object, face}, or an origin plane name. To edit an existing sketch pass edit:'Sketch 1' (its constraints and dimensions are preserved).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "plane": {
+     "description": "'XY' | 'XZ' | 'YZ' | the name of a construction plane | {object, face}"
+    },
+    "offset": {
+     "description": "Offset along the plane normal (mm).",
+     "type": "number"
+    },
+    "edit": {
+     "description": "Name of an existing sketch object to edit.",
+     "type": "string"
+    },
+    "look_normal": {
+     "description": "Align the camera when starting; false preserves the current 3D view.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
+  "name": "sketch_constrain",
+  "description": "Add a geometric constraint. type: horizontal | vertical | coincident | parallel | perpendicular | tangent | equal | midpoint | concentric | collinear | symmetric | fix. refs: ids like 'e3' (entity) and 'p5' (point) - e.g. horizontal ['e3'] or ['p1','p2']; coincident ['p1','p2'] or ['p1','e4'] (point on curve); parallel ['e1','e2']; midpoint ['p3','e1']; symmetric ['p1','p2','e5']; fix ['p1'] or ['e2'].",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "description": "Constraint type.",
+     "type": "string"
+    },
+    "refs": {
+     "description": "Point/entity ids, e.g. [\"e1\",\"p3\"].",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "type",
+    "refs"
+   ]
+  }
+ },
+ {
+  "name": "sketch_delete",
+  "description": "Delete sketch entities ('e3') or constraints (by id).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entities": {
+     "description": "Entity ids, e.g. [\"e3\"].",
+     "type": "array",
+     "items": {}
+    },
+    "constraints": {
+     "description": "Constraint ids (integers).",
+     "type": "array",
+     "items": {}
+    }
+   }
+  }
+ },
+ {
+  "name": "sketch_dimension",
+  "description": "Add a driving dimension; the sketch is solved to match. type: length (line) | distance (two points) | hdistance | vdistance | radius | diameter | angle (two lines, degrees) | point_line. refs like constrain. value in mm (or degrees).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "description": "Dimension type.",
+     "type": "string"
+    },
+    "refs": {
+     "description": "Ids, e.g. [\"e1\"] or [\"p1\",\"p2\"].",
+     "type": "array",
+     "items": {}
+    },
+    "value": {
+     "description": "Target value.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "type",
+    "refs",
+    "value"
+   ]
+  }
+ },
+ {
+  "name": "sketch_finish",
+  "description": "Finish the open sketch (keep=true creates/updates the Sketch object, false discards it). Returns a short status; verbose:true returns the whole document state.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "keep": {
+     "description": "Default true.",
+     "type": "boolean"
+    },
+    "verbose": {
+     "description": "Return the full state.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
+  "name": "sketch_input",
+  "description": "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "tool": {
+     "description": "Tool to activate first.",
+     "type": "string"
+    },
+    "events": {
+     "description": "List of event objects.",
+     "type": "array",
+     "items": {}
+    },
+    "type": {
+     "description": "Event types, see above.",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "sketch_mirror",
+  "description": "Mirror sketch entities across a line entity. live=true keeps the copy tied to the original with symmetry constraints.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entities": {
+     "description": "Entity ids like ['e3','e4'].",
+     "type": "array",
+     "items": {}
+    },
+    "axis": {
+     "description": "Line entity id to mirror across, like 'e7'.",
+     "type": "string"
+    },
+    "live": {
+     "description": "Keep symmetric (default true).",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "entities",
+    "axis"
+   ]
+  }
+ },
+ {
+  "name": "sketch_pattern",
+  "description": "Repeat sketch entities. type linear: offset [du,dv] between copies. type circular: center [u,v] and optionally angle (degrees between copies; default = evenly around 360). count = total copies including the original.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entities": {
+     "description": "Entity ids like ['e3','e4'].",
+     "type": "array",
+     "items": {}
+    },
+    "type": {
+     "description": "linear | circular",
+     "type": "string"
+    },
+    "count": {
+     "description": "Total copies including the original.",
+     "type": "integer"
+    },
+    "offset": {
+     "description": "Linear: [du,dv].",
+     "type": "array",
+     "items": {}
+    },
+    "center": {
+     "description": "Circular: [u,v].",
+     "type": "array",
+     "items": {}
+    },
+    "angle": {
+     "description": "Circular: degrees between copies.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "entities",
+    "type",
+    "count"
+   ]
+  }
+ },
+ {
+  "name": "sketch_plane",
+  "description": "Control the unified sketch work plane. Actions: select (1-based index), new, xy, xz, yz, origin ([x,y,z] mm), rotate ([x,y,z] world degrees), size (display multiplier), snapping (other_curves and project), normal, gizmo, edit. Existing curves retain their original drawing planes.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "Plane action.",
+     "type": "string"
+    },
+    "index": {
+     "description": "1-based plane index.",
+     "type": "integer"
+    },
+    "value": {
+     "description": "[x,y,z] for origin/rotate; number for size."
+    },
+    "other_curves": {
+     "description": "Enable external curve snaps.",
+     "type": "boolean"
+    },
+    "project": {
+     "description": "Allow explicitly labeled off-plane projection.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
+  "name": "sketch_project",
+  "description": "Bring geometry from outside into the open sketch (locked in place). mode edge: project one edge of an object (object name or id, edge index) | body: project all edges of an object | section: the curves where an object crosses the sketch plane. Good for lofts: copy or slice an existing body to get matching profiles.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name or id.",
+     "type": "string"
+    },
+    "mode": {
+     "description": "edge | body | section",
+     "type": "string"
+    },
+    "edge": {
+     "description": "Edge index (edge mode).",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "object",
+    "mode"
+   ]
+  }
+ },
+ {
+  "name": "sketch_set_dimension",
+  "description": "Change the value of an existing dimension (by constraint id from sketch_state) - the sketch updates parametrically.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "constraint": {
+     "description": "Constraint id.",
+     "type": "integer"
+    },
+    "value": {
+     "description": "New value.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "constraint",
+    "value"
+   ]
+  }
+ },
+ {
+  "name": "sketch_state",
+  "description": "The open sketch's model: points, entities (ids), constraints and dimensions, degrees of freedom and solver status. Refs use 'p<id>' for points and 'e<id>' for entities.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "sketch_trim",
+  "description": "Trim a line, arc or circle: removes the part of curve 'e3' nearest to the point at:[u,v], cutting back to the crossing curves on each side (a curve nothing crosses is deleted).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "entity": {
+     "description": "Entity id like 'e3'.",
+     "type": "string"
+    },
+    "at": {
+     "description": "Point [u,v] on the part to remove.",
+     "type": "array",
+     "items": {}
+    }
+   },
+   "required": [
+    "entity",
+    "at"
+   ]
+  }
+ },
+ {
+  "name": "solid_check",
+  "description": "Cheap verification of a body, or measurement between two things. With only 'object': validity, volume, area, bounding box, size, centre of mass, counts of faces/edges/shells/solids and open (free) edges. With 'a' and 'b' (each an object name or {object, face|edge}): the minimum distance between them and the two closest points; if they overlap, 'overlap' is true and the volume of the overlap is reported when both are solids.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object to check (also used as 'a' when only 'b' is given).",
+     "type": "string"
+    },
+    "a": {
+     "description": "First item for a distance."
+    },
+    "b": {
+     "description": "Second item for a distance."
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "solid_find",
+  "description": "Find faces or edges of a solid/surface by geometry instead of by index. kind: faces (default) | edges. Filters (all optional, AND): type (Plane, Cylinder, Cone, Sphere, Torus, ... for faces; Line, Circle, ... for edges; prefix match), facing [dx,dy,dz] + angle (faces whose normal is within angle degrees, default 5), direction [dx,dy,dz] + angle (straight edges parallel to it, default 5), radius (+ radius_tol, default 0.001), box [[x0,y0,z0],[x1,y1,z1]] (centre inside), near [x,y,z] + distance (centre within distance), of_face N (edges bounding face N, 1-based), min_size / max_size (area for faces, length for edges). sort: size | -size | x | -x | y | -y | z | -z (centre coordinate), limit (default 40). select:true selects the hits (and they are listed 1-based, ready for run_command slots {object, face|edge}). summary:true returns only counts per type. Returns total, shown and the hits with type, centre, area/length, normal/direction, radius.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name.",
+     "type": "string"
+    },
+    "kind": {
+     "description": "faces | edges.",
+     "type": "string"
+    },
+    "type": {
+     "description": "Surface/curve type.",
+     "type": "string"
+    },
+    "facing": {
+     "description": "Face normal direction.",
+     "type": "array",
+     "items": {}
+    },
+    "direction": {
+     "description": "Straight-edge direction.",
+     "type": "array",
+     "items": {}
+    },
+    "angle": {
+     "description": "Tolerance in degrees for facing/direction.",
+     "type": "number"
+    },
+    "radius": {
+     "description": "Radius of cylindrical/spherical faces or circular edges.",
+     "type": "number"
+    },
+    "radius_tol": {
+     "description": "Radius tolerance.",
+     "type": "number"
+    },
+    "box": {
+     "description": "Centre must lie inside this box.",
+     "type": "array",
+     "items": {}
+    },
+    "near": {
+     "description": "Point for distance filter.",
+     "type": "array",
+     "items": {}
+    },
+    "distance": {
+     "description": "Max centre distance from near.",
+     "type": "number"
+    },
+    "of_face": {
+     "description": "Only edges of this face (1-based).",
+     "type": "integer"
+    },
+    "min_size": {
+     "description": "Min area/length.",
+     "type": "number"
+    },
+    "max_size": {
+     "description": "Max area/length.",
+     "type": "number"
+    },
+    "sort": {
+     "description": "Sort order.",
+     "type": "string"
+    },
+    "limit": {
+     "description": "Max hits listed (default 40).",
+     "type": "integer"
+    },
+    "select": {
+     "description": "Select the hits.",
+     "type": "boolean"
+    },
+    "summary": {
+     "description": "Counts only.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "study_new",
+  "description": "Start a static study on a solid body (the selected one, or the named one). Then add fixtures and loads with run_command sim_fixed / sim_roller / sim_force / sim_pressure / sim_torque / sim_gravity and call study_run.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Body name (default: the selection).",
+     "type": "string"
+    },
+    "element_size": {
+     "description": "Target element size in mm (0 = automatic).",
+     "type": "number"
+    }
+   }
+  }
+ },
+ {
+  "name": "study_run",
+  "description": "Mesh and solve the active study (blocks until done) and return the key results. Optionally switch the displayed result: von Mises, displacement, safety.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "show": {
+     "description": "von Mises | displacement | safety",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "study_state",
+  "description": "The active static study: fixtures, loads, mesh size and (if solved) the key results and notes.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "view",
+  "description": "Control the camera and display. preset: front|back|left|right|top|bottom|iso. Or yaw/pitch in degrees. fit=true zooms to extents.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "preset": {
+     "description": "Standard view.",
+     "type": "string"
+    },
+    "yaw": {
+     "description": "Yaw degrees.",
+     "type": "number"
+    },
+    "pitch": {
+     "description": "Pitch degrees.",
+     "type": "number"
+    },
+    "fit": {
+     "description": "Zoom to extents.",
+     "type": "boolean"
+    },
+    "orthographic": {
+     "description": "Projection.",
+     "type": "boolean"
+    },
+    "display": {
+     "description": "shaded | shaded_edges | wireframe",
+     "type": "string"
+    },
+    "xray": {
+     "description": "Enable or disable translucent X-ray, independently of display style.",
+     "type": "boolean"
+    },
+    "zebra": {
+     "description": "Zebra stripes.",
+     "type": "boolean"
+    },
+    "grid": {
+     "description": "Grid visibility.",
+     "type": "boolean"
+    },
+    "select_mode": {
+     "description": "object | face | edge",
+     "type": "string"
+    },
+    "distance": {
+     "description": "Camera distance.",
+     "type": "number"
+    },
+    "target": {
+     "description": "Camera target [x,y,z].",
+     "type": "array",
+     "items": {}
+    },
+    "look_at": {
+     "description": "Look straight at the selected plane, face or sketch (or the open sketch).",
+     "type": "boolean"
+    },
+    "layout": {
+     "description": "single | dual (model + top) | quad (front, right, top + model)",
+     "type": "string"
+    },
+    "link": {
+     "description": "Link pan/zoom between the views of a multi-view layout.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
+  "name": "wait_idle",
+  "description": "Wait until the view has stopped animating (after view, a tool that turns the camera, Tab in 3D sketch...) so the next pointer event or screenshot sees the final camera. Optional extra ms to wait afterwards.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "timeout_ms": {
+     "description": "Longest wait (default 3000).",
+     "type": "integer"
+    },
+    "extra_ms": {
+     "description": "Extra pause after it settles (default 100).",
+     "type": "integer"
+    }
+   }
+  }
+ },
+ {
+  "name": "workflow_state",
+  "description": "Saved CAE setups, named selections, CAM setup and live path playback. Optional staticStudy selects a static study by name.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "staticStudy": {
+     "description": "Optional saved static study name.",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "workspace",
+  "description": "Switch workspace: design | scan | cae (or simulate) | assemble | render | ar | make | script | all. CAE includes Static, Thermal, Dynamics, Motion (kinematics and rigid-body motion of an assembly) and Fluids. make opens Manufacture/CAM.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "description": "Workspace id; cae opens CAE, make opens CAM.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id"
+   ]
+  }
+ }
+]

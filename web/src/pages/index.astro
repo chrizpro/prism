@@ -1,0 +1,213 @@
+---
+import { Image } from 'astro:assets'
+import Base from '../layouts/Base.astro'
+import FeatureCard from '../components/FeatureCard.astro'
+import { features } from '../data/features'
+import { tabs, workspaces, uniqueTools } from '../data/catalog'
+import { docs, href, version } from '../config'
+import heroShot from '../assets/shots/freeform-iron.png'
+import render from '../assets/shots/azure-hdpe-studio.png'
+import stress from '../assets/shots/cae-stress-vp.png'
+import mouse from '../assets/shots/nurbs-mouse-vp.png'
+
+const showcase = features.filter(f => f.image && ['modeling', 'surfacing', 'simulation', 'rendering'].includes(f.slug))
+const stats = [
+  { value: workspaces.length, label: 'workspaces' },
+  { value: tabs.length, label: 'ribbons' },
+  { value: uniqueTools, label: 'tools' },
+  { value: 1, label: 'file for everything' },
+]
+---
+<Base>
+  <section class="hero">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="wrap hero-copy">
+      <a class="badge" href={docs('/changelog')}><span>New</span> Prism {version} · see what's inside →</a>
+      <h1>Design it. Prove it.<br /><span class="grad">Make it.</span></h1>
+      <p class="lede">Prism is one desktop CAD application for solids, surfaces, freeform shapes and sketches, with simulation, CNC, 3D printing, rendering and Python built in.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href={href('/download')}>Download Prism</a>
+        <a class="btn btn-ghost" href={href('/features')}>Explore features</a>
+      </div>
+      <p class="platforms muted">Windows · macOS and Linux in preparation</p>
+    </div>
+    <div class="wrap stage">
+      <div class="shot main"><Image src={heroShot} alt="Prism's Design workspace with a freeform steam iron, the model browser, ribbon and properties panel." widths={[800, 1500]} sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" /></div>
+      <div class="shot float left"><Image src={render} alt="Studio render of a blue detergent bottle." width={420} /></div>
+      <div class="shot float right"><Image src={stress} alt="Stress result on a bracket." width={420} /></div>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="wrap stats-grid">
+      {stats.map(s => <div><strong>{s.value}</strong><span>{s.label}</span></div>)}
+    </div>
+  </section>
+
+  {showcase.map((f, i) => (
+    <section class:list={['section', 'row', { flip: i % 2 }]}>
+      <div class="wrap row-grid">
+        <div class="row-copy">
+          <span class="kicker" style={`color:${f.accent}`}>{f.kicker}</span>
+          <h2>{f.title}</h2>
+          <p class="muted">{f.lede}</p>
+          <ul>{f.highlights.slice(0, 3).map(h => <li><strong>{h.title}.</strong> {h.text}</li>)}</ul>
+          <a class="more" href={href(`/features/${f.slug}`)}>More about {f.name.toLowerCase()} →</a>
+        </div>
+        <div class="shot" style={`--accent:${f.accent}`}><Image src={f.image!} alt={f.alt!} widths={[700, 1200]} sizes="(max-width: 900px) 100vw, 640px" /></div>
+      </div>
+    </section>
+  ))}
+
+  <section class="section freeform-band">
+    <div class="wrap band">
+      <div>
+        <span class="kicker">Freeform to NURBS</span>
+        <h2>Sculpt the idea. Keep the precision.</h2>
+        <p class="muted">Push a subdivision cage until the shape feels right, then convert it to exact NURBS and carry on with fillets, holes and shells, or send it straight to simulation.</p>
+        <a class="btn btn-ghost" href={href('/features/freeform')}>See Freeform</a>
+      </div>
+      <div class="shot"><Image src={mouse} alt="A NURBS computer mouse shell with a scroll wheel." widths={[600, 900]} sizes="(max-width: 900px) 100vw, 560px" /></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Everything in one place</span>
+        <h2>From the first sketch to the shop floor.</h2>
+        <p>Every workspace shares the same model, selection and history. Switch from Design to CAE to CAM without exporting a thing.</p>
+      </div>
+      <div class="cards">{features.map(f => <FeatureCard feature={f} />)}</div>
+    </div>
+  </section>
+
+  <section class="section workspaces">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Workspaces</span>
+        <h2>The right tools for the job, and only those.</h2>
+        <p>Pick a workspace and the ribbon shows the tabs for that task. Home and View come with you everywhere.</p>
+      </div>
+      <div class="ws-grid">
+        {workspaces.map(w => (
+          <div class="ws">
+            <h3>{w.Name}</h3>
+            <p class="muted">{w.Tip}</p>
+            <div class="chips">{w.Tabs.filter(t => !['Home', 'View', 'Analyze'].includes(t)).map(t => <span class="chip">{t}</span>)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section automation">
+    <div class="wrap band">
+      <div>
+        <span class="kicker">Scripting &amp; AI</span>
+        <h2>Anything you can click, you can script.</h2>
+        <p class="muted">Write Python beside the model, run it with F5 and undo it in one step. The same local API lets AI assistants model, simulate and take screenshots through the Model Context Protocol.</p>
+        <div class="cta">
+          <a class="btn btn-ghost" href={docs('/api/')}>Read the API docs</a>
+          <a class="more" href={href('/features/automation')}>How it works →</a>
+        </div>
+      </div>
+      <pre class="code" aria-label="Python example"><code><span class="k">import</span> cadkit <span class="k">as</span> cad
+
+<span class="k">with</span> cad.history(<span class="s">"Bracket"</span>):
+    <span class="k">with</span> cad.sketch(<span class="s">"XZ"</span>) <span class="k">as</span> s:
+        s.polyline([(<span class="n">0</span>, <span class="n">25</span>), (<span class="n">0</span>, <span class="n">0</span>), (<span class="n">50</span>, <span class="n">0</span>), (<span class="n">50</span>, <span class="n">25</span>)])
+    body = cad.flange(s.obj, thickness=<span class="n">2</span>,
+                      bend_radius=<span class="n">3</span>, width=<span class="n">40</span>)
+    cad.flat_pattern(body)
+
+<span class="c"># One undo step. Every command, every tool.</span></code></pre>
+    </div>
+  </section>
+
+  <section class="section final">
+    <div class="wrap final-inner">
+      <h2>Ready to make something?</h2>
+      <p class="muted">Get the preview, follow the getting-started guide and have a part on screen in minutes.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href={href('/download')}>Download Prism</a>
+        <a class="btn btn-ghost" href={docs('/guide/getting-started')}>Getting started</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero { position: relative; padding: 88px 0 0; text-align: center; overflow: hidden; }
+  .glow {
+    position: absolute; inset: -20% -10% auto; height: 900px; pointer-events: none;
+    background:
+      radial-gradient(40% 40% at 30% 30%, rgba(57, 200, 237, 0.22), transparent 70%),
+      radial-gradient(40% 45% at 70% 35%, rgba(119, 98, 237, 0.25), transparent 70%),
+      radial-gradient(50% 40% at 50% 80%, rgba(64, 136, 237, 0.2), transparent 70%);
+  }
+  .hero-copy { position: relative; }
+  .badge {
+    display: inline-flex; gap: 10px; align-items: center; padding: 6px 14px 6px 6px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); font-size: 0.88rem; text-decoration: none; color: var(--muted);
+  }
+  .badge span { background: var(--cyan); color: var(--slate); font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; }
+  h1 { font-size: clamp(2.8rem, 8vw, 6rem); margin: 28px auto 24px; max-width: 14ch; }
+  .grad { background: linear-gradient(100deg, var(--ice), var(--cyan) 30%, var(--blue) 60%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: clamp(1.05rem, 2vw, 1.3rem); color: var(--muted); max-width: 680px; margin: 0 auto; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 36px; align-items: center; }
+  .platforms { margin-top: 16px; font-size: 0.88rem; }
+
+  .stage { position: relative; margin-top: 72px; padding-bottom: 40px; }
+  .main { position: relative; z-index: 2; transform: perspective(2000px) rotateX(6deg); transform-origin: top center; }
+  .float { position: absolute; z-index: 3; width: 300px; bottom: -10px; }
+  .float.left { left: -60px; transform: rotate(-4deg); }
+  .float.right { right: -60px; transform: rotate(4deg); }
+  @media (max-width: 1100px) { .float { display: none; } }
+
+  .stats { border-block: 1px solid var(--line); background: var(--bg-2); }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; }
+  .stats-grid div { padding: 32px 8px; display: grid; gap: 4px; }
+  .stats-grid div + div { border-left: 1px solid var(--line); }
+  .stats-grid strong { font-family: var(--display); font-size: clamp(2rem, 5vw, 3rem); background: linear-gradient(120deg, var(--ice), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stats-grid span { color: var(--muted); font-size: 0.9rem; }
+  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr 1fr; } .stats-grid div:nth-child(3) { border-left: 0; } .stats-grid div:nth-child(n+3) { border-top: 1px solid var(--line); } }
+
+  .row-grid { display: grid; grid-template-columns: 5fr 7fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
+  .flip .row-copy { order: 2; }
+  .row-copy h2 { font-size: clamp(1.9rem, 4vw, 2.8rem); margin: 12px 0 18px; }
+  .row-copy ul { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 12px; color: var(--muted); }
+  .row-copy li { padding-left: 18px; position: relative; }
+  .row-copy li::before { content: ''; position: absolute; left: 0; top: 0.6em; width: 7px; height: 7px; border-radius: 2px; background: var(--cyan); transform: rotate(45deg); }
+  .row-copy li strong { color: var(--text); }
+  .row .shot { box-shadow: 0 40px 100px -40px var(--accent), 0 30px 60px -30px rgba(0, 0, 0, 0.8); }
+  .more { color: var(--cyan); text-decoration: none; font-weight: 600; }
+  .more:hover { text-decoration: underline; }
+  @media (max-width: 900px) { .row-grid { grid-template-columns: 1fr; } .flip .row-copy { order: 0; } }
+
+  .band { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
+  .band h2 { font-size: clamp(1.9rem, 4vw, 2.8rem); margin: 12px 0 18px; }
+  .band p { margin-bottom: 28px; }
+  .band .cta { justify-content: flex-start; margin-top: 0; }
+  @media (max-width: 900px) { .band { grid-template-columns: 1fr; } }
+  .freeform-band { background: linear-gradient(180deg, transparent, rgba(119, 98, 237, 0.08), transparent); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+  .workspaces { background: var(--bg-2); border-block: 1px solid var(--line); }
+  .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .ws { padding: 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); display: grid; gap: 12px; align-content: start; }
+  .ws h3 { font-size: 1.25rem; }
+  .ws p { font-size: 0.92rem; }
+
+  .code {
+    margin: 0; padding: 28px; border-radius: var(--radius); background: #0b1322; border: 1px solid var(--line);
+    font-size: clamp(0.78rem, 1.4vw, 0.95rem); line-height: 1.7; overflow-x: auto; color: #cbd5e1;
+    box-shadow: 0 40px 100px -40px rgba(57, 200, 237, 0.5);
+  }
+  .k { color: #c4b5fd; } .s { color: #7dd3fc; } .n { color: #fbbf24; } .c { color: #64748b; font-style: italic; }
+
+  .final { text-align: center; }
+  .final-inner { padding: 72px 24px; border-radius: 28px; background: radial-gradient(60% 120% at 50% 0%, rgba(64, 136, 237, 0.35), transparent 70%), var(--panel); border: 1px solid var(--line); }
+  .final h2 { font-size: clamp(2rem, 5vw, 3.4rem); margin-bottom: 16px; }
+</style>

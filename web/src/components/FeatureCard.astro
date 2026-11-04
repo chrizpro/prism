@@ -1,0 +1,33 @@
+---
+import type { Feature } from '../data/features'
+import { href } from '../config'
+import { toolsIn } from '../data/catalog'
+
+interface Props { feature: Feature }
+const { feature: f } = Astro.props
+const count = toolsIn(...f.tabs)
+---
+<a class="card" href={href(`/features/${f.slug}`)} style={`--accent:${f.accent}`}>
+  <span class="dot" aria-hidden="true"></span>
+  <h3>{f.name}</h3>
+  <p>{f.kicker}{count ? ` · ${count} tools` : ''}</p>
+  <span class="go" aria-hidden="true">→</span>
+</a>
+
+<style>
+  .card {
+    position: relative; display: grid; gap: 6px; padding: 24px; border-radius: var(--radius);
+    background: var(--panel); border: 1px solid var(--line); text-decoration: none; overflow: hidden;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .card::after {
+    content: ''; position: absolute; inset: auto -40% -60% auto; width: 200px; height: 200px; border-radius: 50%;
+    background: var(--accent); opacity: 0.08; filter: blur(40px); transition: opacity 0.2s ease;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card:hover::after { opacity: 0.25; }
+  .dot { width: 12px; height: 12px; border-radius: 3px; background: var(--accent); transform: rotate(45deg); margin-bottom: 10px; }
+  h3 { font-size: 1.2rem; }
+  p { color: var(--muted); font-size: 0.9rem; }
+  .go { position: absolute; right: 20px; top: 20px; color: var(--accent); font-size: 1.2rem; }
+</style>

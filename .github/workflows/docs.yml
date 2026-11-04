@@ -1,9 +1,9 @@
 name: Prism documentation
 on:
   push:
-    paths: ['site/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
+    paths: ['site/**', 'web/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
   pull_request:
-    paths: ['site/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
+    paths: ['site/**', 'web/**', 'Prism/**', 'tools/Prism.DocsCatalog/**', '.github/workflows/docs.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,12 +21,22 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: |
+            site/package-lock.json
+            web/package-lock.json
       - run: npm ci
         working-directory: site
       - run: npm run build
         working-directory: site
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
       - uses: actions/upload-artifact@v4
         with:
           name: prism-documentation
           path: site/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prism-website
+          path: web/dist
