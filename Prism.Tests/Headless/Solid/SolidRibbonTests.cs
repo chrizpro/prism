@@ -9,6 +9,9 @@ using Xunit;
 namespace Prism.HeadlessTests.Solid;
 
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/solid/README.md">Solid ribbon guide.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/interface/selection/README.md">Selection controls.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/interface/inspection/README.md">Appearance entry.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/construction-planes/README.md">Datum entry.</seealso>
 [Trait("Feature", "Solid")]
 [Trait("Layer", "Headless")]
 public class SolidRibbonTests
@@ -103,7 +106,7 @@ public class SolidRibbonTests
         Assert.True(vm.ShowGizmoPanel);
     }
 
-    static IReadOnlyList<RibbonButton> SolidButtons(MainViewModel vm) =>
+    internal static IReadOnlyList<RibbonButton> SolidButtons(MainViewModel vm) =>
         Buttons(vm.Tabs.Single(tab => tab.Title == "Solid").Buttons)
             .Where(button => !button.HasMenu).Distinct().ToList();
 

@@ -8,6 +8,10 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 namespace Prism.HeadlessTests.Solid;
 
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/solid/README.md">Solid ribbon guide.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/sketches/README.md">Sketch entry.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/construction-planes/README.md">Construction planes.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/curves/README.md">Curve creation.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/interface/inspection/README.md">Inspection.</seealso>
 [Trait("Feature", "Solid")]
 [Trait("Layer", "Headless")]
 public class SharedToolTests

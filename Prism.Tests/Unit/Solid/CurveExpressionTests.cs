@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Prism.UnitTests.Solid;
 
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/solid/README.md">Shared curve workflow.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/curves/README.md">Shared curve workflow.</seealso>
 [Trait("Feature", "Solid")]
 [Trait("Layer", "Unit")]
 public class CurveExpressionTests

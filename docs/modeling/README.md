@@ -7,6 +7,12 @@ Each shared modeling feature has one living guide. Use the variant sections for 
 - [Sweep](sweep/README.md)
 - [Loft](loft/README.md)
 
+## Shared tools
+
+- [Sketch entry and reference points](sketches/README.md)
+- [Construction planes and sketch datums](construction-planes/README.md)
+- [Curve creation](curves/README.md)
+
 ## Workflows
 
 - [Solid ribbon and feature guides](solid/README.md)

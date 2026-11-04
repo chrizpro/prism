@@ -5,3 +5,5 @@
 - [Data panel](data/README.md)
 - [Script panel](script/README.md)
 - [Sketch hotkeys](../sketch-hotkeys.md)
+- [Selection](selection/README.md)
+- [Inspect and Appearance](inspection/README.md)

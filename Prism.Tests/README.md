@@ -9,7 +9,7 @@ Prism.Tests/
     Revolve/                    RevolveAxisMathTests.cs
     Sweep/                      SweepPathMathTests.cs
     Loft/                       LoftSectionMathTests.cs
-    Solid/                      PatternGeometryTests.cs, CurveExpressionTests.cs
+    Solid/                      PatternGeometryTests.cs, CurveExpressionTests.cs, SelectionRegionTests.cs
     StaticAnalysis/             StaticLoadMathTests.cs
   Headless/                     Prism.HeadlessTests.csproj
     Extrude/                    SolidExtrudeTests.cs, ExtrudeToObjectTests.cs
@@ -69,7 +69,7 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | Revolve: [Solid #12](https://github.com/chrizpro/prism/issues/12), [Surface #13](https://github.com/chrizpro/prism/issues/13), [NURBS #15](https://github.com/chrizpro/prism/issues/15) | [Revolve README](../docs/modeling/revolve/README.md) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
 | Sweep: [Surface #18](https://github.com/chrizpro/prism/issues/18), [Freeform #19](https://github.com/chrizpro/prism/issues/19), [NURBS #20](https://github.com/chrizpro/prism/issues/20) | [Sweep README](../docs/modeling/sweep/README.md) | [Sweep math](Unit/Sweep/) | [Sweep commands](Headless/Sweep/), including representative exact and cage cases; NURBS workflow unverified |
 | Loft: [Surface #22](https://github.com/chrizpro/prism/issues/22), [Freeform #23](https://github.com/chrizpro/prism/issues/23), [NURBS #24](https://github.com/chrizpro/prism/issues/24) | [Loft README](../docs/modeling/loft/README.md) | [Loft math](Unit/Loft/) | [Loft commands](Headless/Loft/), including representative exact and cage cases; NURBS workflow unverified |
-| Solid ribbon [#31](https://github.com/chrizpro/prism/issues/31) | [Solid ribbon and linked feature guides](../docs/modeling/solid/README.md) | [Pattern and curve logic](Unit/Solid/) | [Solid ribbon and command tests](Headless/Solid/) |
+| Solid ribbon [#31](https://github.com/chrizpro/prism/issues/31) | [Solid ribbon and linked feature guides](../docs/modeling/solid/README.md) | [Pattern, curve and selection logic](Unit/Solid/) | [Solid ribbon and command tests](Headless/Solid/) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
