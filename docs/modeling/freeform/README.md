@@ -48,3 +48,9 @@ Invert and Select All come from **Invert** in the Select section, and undo is Ct
 ## Feature requirement reviews
 
 - [Extrude Profile](../extrude/README.md#freeform-extrusion) — draft owner-review specification, linked to [Story #8](https://github.com/chrizpro/prism/issues/8). Distinct from **Modify → Extrude** on a selected cage; that operation needs a separate behavior review.
+
+## Maintained option coverage
+
+[Freeform build tests](../../../Prism.Tests/Headless/Surfacing/FreeformBuildTests.cs) launch Extrude Profile and Revolve from Freeform. They verify cage counts and closure, direction or axis, taper or angle, and smoothness on simple profiles. [Cage unit tests](../../../Prism.Tests/Unit/Freeform/CageTopologyTests.cs) check grid segmentation and cylinder caps without the native kernel.
+
+Run `./tools/test.ps1 -Feature Freeform`. Open-profile extrusion, Pipe, additional primitive controls, cage edits, topology tools, conversion and selection-dependent options remain coverage work. [Issue #46](https://github.com/chrizpro/prism/issues/46) tracks it.

@@ -4,7 +4,7 @@ This is the canonical requirements document for **Solid, Surface, Freeform and N
 
 **Requirements status:** Proposed — awaiting owner review (2026-11-03). The controls below are observed in the current source, not automatically approved guarantees. Existing-behavior characterization is authorized; new or disputed behavior still needs an owner decision.
 
-**Verification status:** Representative exact Solid/Surface command cases have run headlessly. Freeform Revolve and the NURBS tab workflow have not been verified by the maintained suite. Integration and viewport testing remain deferred.
+**Verification status:** Representative exact Solid/Surface command cases have run headlessly. Freeform Revolve has maintained cage checks. NURBS Revolve still needs tab-specific verification. Integration and viewport testing remain deferred.
 
 ## Variants and implementation
 
@@ -80,7 +80,7 @@ The implementation creates rows of resampled points, builds a cage grid, welds t
 
 **Proposed expectations for review:** Supported profiles should create editable cages with predictable seams/boundaries; sampling and smoothing controls should have documented effects; unsupported/degenerate inputs should preserve the document and provide feedback.
 
-**Open decisions:** Profiles on or across the axis, seam welding tolerance, cap behavior, winding/manifoldness, self-intersections, topology limits and the distinction between display smoothness and cage topology. No dedicated maintained Freeform Revolve tests were identified in this review.
+**Open decisions:** Profiles on or across the axis, seam welding tolerance, cap behavior, winding/manifoldness, self-intersections, topology limits and the distinction between display smoothness and cage topology. [Maintained Freeform Revolve checks](../../../Prism.Tests/Headless/Surfacing/FreeformBuildTests.cs) cover world axes, full and partial turns, cap choice and cage counts using straight open profiles.
 
 Story: [Freeform Revolve #14](https://github.com/chrizpro/prism/issues/14).
 

@@ -59,3 +59,9 @@ The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface
 ## Feature requirement reviews
 
 - [Surface Extrude](../extrude/README.md#surface-and-nurbs-extrude) — draft owner-review specification, linked to [Story #7](https://github.com/chrizpro/prism/issues/7). This is not a claim of approved behavior or passing tests.
+
+## Maintained option coverage
+
+[Surface and NURBS headless tests](../../../Prism.Tests/Headless/Surfacing/SurfaceOptionTests.cs) launch the tools from both ribbons. They check signed planar Offset and Thicken, single and multiple Isocurves in both directions, and NURBS Control Grid plane, dimensions, grid counts, degree and offset on flat examples.
+
+Run `./tools/test.ps1 -Layer Headless -Feature Surfacing`. Boundary Surface modes, Pipe, trimming and sewing options, curve editing, NURBS control-point editing and continuity, and curved or invalid inputs remain coverage work. [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) track it.

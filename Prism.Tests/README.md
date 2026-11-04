@@ -76,13 +76,15 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | Solid ribbon [#31](https://github.com/chrizpro/prism/issues/31) | [Solid ribbon and linked feature guides](../docs/modeling/solid/README.md) | [Pattern, curve and selection logic](Unit/Solid/) | [Solid ribbon and command tests](Headless/Solid/) |
 | Sketch [#38](https://github.com/chrizpro/prism/issues/38), Rectangle [#39](https://github.com/chrizpro/prism/issues/39) | [Sketch](../docs/modeling/sketches/README.md) · [Rectangle](../docs/modeling/sketches/rectangle/README.md) | — | [Drawing modes](Headless/Sketch/) |
 | Direct Modeling [#40](https://github.com/chrizpro/prism/issues/40) | [Direct Modeling](../docs/modeling/direct-modeling/README.md) | — | [Face edits and caps](Headless/DirectModeling/) |
+| [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) | [Surface and NURBS](../docs/modeling/surface-and-nurbs/README.md) | — | [Surface and NURBS options](Headless/Surfacing/SurfaceOptionTests.cs) |
+| [Freeform #46](https://github.com/chrizpro/prism/issues/46) | [Freeform](../docs/modeling/freeform/README.md) | [Cage topology](Unit/Freeform/) | [Freeform build options](Headless/Surfacing/FreeformBuildTests.cs) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
 
-[Freeform Extrude Profile #8](https://github.com/chrizpro/prism/issues/8) currently links legacy executable characterization. It has no dedicated maintained Unit/Headless classes yet; the exact Solid/Surface tests above do not establish Freeform coverage.
+[Freeform Extrude Profile #8](https://github.com/chrizpro/prism/issues/8) has [maintained cage checks](Headless/Surfacing/FreeformBuildTests.cs) alongside legacy executable characterization.
 
-[Freeform Revolve #14](https://github.com/chrizpro/prism/issues/14) has no identified dedicated maintained tests. Its canonical behavior and open decisions live with all four variants in the [Revolve README](../docs/modeling/revolve/README.md). The Surface/NURBS Extrude specification is shared in [its living guide](../docs/modeling/extrude/README.md#surface-and-nurbs-extrude).
+[Freeform Revolve #14](https://github.com/chrizpro/prism/issues/14) has [maintained cage checks](Headless/Surfacing/FreeformBuildTests.cs). Its canonical behavior and open decisions live with all four variants in the [Revolve README](../docs/modeling/revolve/README.md). The Surface/NURBS Extrude specification is shared in [its living guide](../docs/modeling/extrude/README.md#surface-and-nurbs-extrude).
 
 Integration remains [planned](Integration/README.md) and is deferred for now. When implemented, attach useful viewport images to the relevant feature/bug issue with test ID and source revision. Reserved integration IDs are not implemented or counted as passing tests.
 
@@ -103,3 +105,5 @@ The Sweep/Loft expansion does not establish rails, complex/closed paths, Loft en
 Contextual coverage on 2026-11-03: 20 Unit and 119 Headless cases passed locally on Windows with installed native binaries. The 33 added Headless cases cover Sketch drawing modes and Direct Modeling face edits and caps. The guides identify options still awaiting maintained verification.
 
 Option coverage follow-up on 2026-11-03: 20 Unit and 135 Headless cases passed locally on Windows using installed native binaries. The 16 new headless cases cover sketch edits and dimensions, direct hole feature and pattern actions, and primitive result operations.
+
+Surfacing and Freeform option coverage added 5 Unit and 22 Headless cases. The full Windows run passed 25 Unit and 157 Headless cases using installed native binaries. A follow-up rerun of all 22 new Headless cases passed after tightening the Isocurve position and direction assertions.
