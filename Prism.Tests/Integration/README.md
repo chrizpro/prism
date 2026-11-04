@@ -16,6 +16,9 @@ Set `PRISM_INTEGRATION_BIN` to an absolute folder containing both binaries to us
 | EXT-I001 | MCP initialization and discovery, rejection of unauthenticated and cross-origin HTTP requests, rectangle sketch, Extrude preview edit, committed analytic volume and bounds, undo and redo. |
 | REV-I001 | Rectangle sketch, world-Z Revolve preview, forward and reversed 90° results, analytic volume and quadrant bounds. |
 | SFC-I001 | MCP error propagation, flat NURBS Control Grid, Thicken, analytic area and solid volume, native document save and reopen. |
+| SKT-I001 | Horizontal and Vertical constraints on an oblique line, driving length, solver and endpoint assertions, glyph and dimension capture. |
+| LFT-I001 | Surface Loft preview and commit for Smooth and Ruled transitions, with analytic sheet area and bounds. |
+| SWP-I001 | Surface Sweep preview and commit for Follow the path and Keep parallel on a straight path, with analytic area and bounds. |
 
 Each run captures real viewport PNGs under `artifacts/tests/integration/<test-id>/<run-id>/`. The [checked-in evidence](../../docs/integration-evidence/README.md) contains reviewed captures organized by test ID. API assertions cover model state and dimensions. The images provide separate visual evidence for preview and committed states. These scenarios drive command slots and options through MCP. Mouse picking, dragging, and broader workflow coverage remain open.
 

@@ -30,4 +30,29 @@ The flat grid has 60 mm² of area. Thickening by 2 mm follows this grid's negati
 
 [Integration tracking issue #56](https://github.com/chrizpro/prism/issues/56)
 
-The final local Windows run passed all 3 integration cases with zero failures or skips. This first set covers Solid Extrude and Revolve and a NURBS-to-solid document roundtrip. Assembly, CAE, CAM, and interactive viewport input are outside this set.
+The initial local Windows suite passed all 3 integration cases with zero failures or skips. This first set covers Solid Extrude and Revolve and a NURBS-to-solid document roundtrip. Assembly, CAE, CAM, and interactive viewport input are outside this set.
+
+## Sketch constraints · SKT-I001
+
+The API verifies the applied constraint type and entity reference, solver convergence, and the solved endpoints before and after adding a driving 30 mm line length. Both axis glyphs were visible in the desktop viewport. The images show the original oblique line, the applied constraint, and the dimension.
+
+![Horizontal constraint glyph and 30 mm dimension](SKT-I001/horizontal/03-constraint-and-dimension.png)
+
+- Horizontal: [before](SKT-I001/horizontal/01-unconstrained.png) · [glyph](SKT-I001/horizontal/02-constraint.png) · [glyph and dimension](SKT-I001/horizontal/03-constraint-and-dimension.png)
+- Vertical: [before](SKT-I001/vertical/01-unconstrained.png) · [glyph](SKT-I001/vertical/02-constraint.png) · [glyph and dimension](SKT-I001/vertical/03-constraint-and-dimension.png)
+
+## Surface Loft · LFT-I001
+
+Two straight sections produce a valid 120 mm² sheet with 10 × 0 × 12 mm bounds. The fixture is planar in both transition modes.
+
+- Smooth: [sections](LFT-I001/smooth/01-sections.png) · [preview](LFT-I001/smooth/02-preview.png) · [commit](LFT-I001/smooth/03-committed.png)
+- Ruled: [sections](LFT-I001/ruled/01-sections.png) · [preview](LFT-I001/ruled/02-preview.png) · [commit](LFT-I001/ruled/03-committed.png)
+
+## Surface Sweep · SWP-I001
+
+A three-edge profile on a straight path produces a valid 312 mm² sheet with 10 × 6 × 12 mm bounds in both orientation modes.
+
+- Follow the path: [inputs](SWP-I001/follow/01-profile-and-path.png) · [preview](SWP-I001/follow/02-preview.png) · [commit](SWP-I001/follow/03-committed.png)
+- Keep parallel: [inputs](SWP-I001/parallel/01-profile-and-path.png) · [preview](SWP-I001/parallel/02-preview.png) · [commit](SWP-I001/parallel/03-committed.png)
+
+The six new cases passed locally through the same Windows Desktop/MCP build and kernel recorded above. Constraint application used MCP entity references. Picking glyphs, curved Sweep orientation, and guide-rail Loft remain open.

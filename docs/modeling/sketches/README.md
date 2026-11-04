@@ -33,3 +33,6 @@ Remaining option-level work includes drawing modifiers and numeric fields, Slot 
 Offset copies the selected geometry at a specified distance. Horizontal and Vertical constraints align a line or two selected points. Dimension offers Smart, Horizontal and Vertical modes. Smart uses the selection and label position to choose the measurement.
 
 [Maintained edit tests](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs) exercise a single-line offset, both line axis constraints, and all three dimension modes on an oblique line. [Issue #43](https://github.com/chrizpro/prism/issues/43) tracks remaining modification modes, pick combinations, and invalid inputs.
+
+
+Desktop integration: [SKT-I001 viewport evidence](../../integration-evidence/README.md#sketch-constraints--skt-i001) covers Horizontal and Vertical glyphs and a driving line dimension.

@@ -2,7 +2,7 @@
 
 This README is the canonical requirements document for Surface, Freeform and NURBS Sweep. Keep reviewed requirements current here; issues track defined work and link to this document rather than duplicating it.
 
-**Review state:** Proposed — awaiting owner review (2026-11-03). Current controls below are source observations. Existing-behavior characterization is authorized; unreviewed behavior must not silently become a product contract. Integration remains deferred.
+**Review state:** Proposed — awaiting owner review (2026-11-03). Current controls below are source observations. Existing-behavior characterization is authorized; unreviewed behavior must not silently become a product contract.
 
 ## Variants
 
@@ -58,4 +58,7 @@ Use `./tools/test.ps1 -Feature Sweep`. Individual cases and expectations live in
 
 Local verification on 2026-11-03: **2 Unit and 6 Headless Sweep cases passed**, including solid-output compatibility, Surface and Freeform cases. Windows/.NET SDK 10.0.102 with installed OCCT DLLs; no native rebuild. Rails, curved/closed paths, Keep upright, Booleans and full history/persistence remain unverified by this pilot. NURBS shares the surface implementation, but its UI workflow remains unverified. Existing standalone suites were preserved and not rerun.
 
-Keep approved changes and open decisions here. Completed stories preserve the reviewed spec commit/release; later changes get new issues. Integration is deferred; later actual viewport images should be attached to the relevant issue with test ID and source revision. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+Keep approved changes and open decisions here. Completed stories preserve the reviewed spec commit/release; later changes get new issues. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+
+
+Desktop integration: [SWP-I001 viewport evidence](../../integration-evidence/README.md#surface-sweep--swp-i001) covers straight-path Surface Sweep with Follow the path and Keep parallel.

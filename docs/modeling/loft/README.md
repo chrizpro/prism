@@ -2,7 +2,7 @@
 
 This is the canonical requirements document for Surface, Freeform and NURBS Loft. Update this README as requirements evolve; issue descriptions link here and preserve their delivered scope.
 
-**Review state:** Proposed — awaiting owner review (2026-11-03). Controls below describe source-observed implementation, not blanket owner approval. Characterization of existing behavior is authorized; integration remains deferred.
+**Review state:** Proposed — awaiting owner review (2026-11-03). Controls below describe source-observed implementation, not blanket owner approval. Characterization of existing behavior is authorized.
 
 ## Variants
 
@@ -61,4 +61,7 @@ Use `./tools/test.ps1 -Feature Loft`. Detailed options and cases remain in facts
 
 Local verification on 2026-11-03: **2 Unit and 6 Headless Loft cases passed**, including solid-output compatibility, Surface and Freeform cases. Windows/.NET SDK 10.0.102 with installed OCCT DLLs; no native rebuild. Additional rails, endpoints, regeneration, Booleans, closed lofts and error paths remain coverage work. NURBS entry-point behavior is not separately verified. Existing standalone suites were preserved and not rerun.
 
-Update this living document when approved requirements change. Closed stories pin their reviewed spec commit/release; future changes get separate issues. Integration and viewport images remain deferred. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+Update this living document when approved requirements change. Closed stories pin their reviewed spec commit/release; future changes get separate issues. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+
+
+Desktop integration: [LFT-I001 viewport evidence](../../integration-evidence/README.md#surface-loft--lft-i001) covers straight-section Surface Loft with Smooth and Ruled transitions.
