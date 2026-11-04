@@ -80,6 +80,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | [Freeform #46](https://github.com/chrizpro/prism/issues/46) | [Freeform](../docs/modeling/freeform/README.md) | [Cage topology](Unit/Freeform/) | [Freeform build options](Headless/Surfacing/FreeformBuildTests.cs) |
 | [Boundary Surface #50](https://github.com/chrizpro/prism/issues/50) | [Boundary Surface, Ruled and Patch](../docs/modeling/boundary-surface/README.md) | — | [Boundary options](Headless/Surfacing/BoundarySurfaceTests.cs) |
 | [Pipe #49](https://github.com/chrizpro/prism/issues/49) | [Pipe](../docs/modeling/pipe/README.md) | — | [Exact and cage Pipe](Headless/Surfacing/PipeTests.cs) |
+| [CAM #52](https://github.com/chrizpro/prism/issues/52) | [CAM guide](../docs/cam/README.md) | [Linear G-code](Unit/Cam/LinearGcodeTests.cs) | [Setup and import](Headless/Cam/CamWorkflowTests.cs) |
+| [ECAD #53](https://github.com/chrizpro/prism/issues/53) | [ECAD guide](../docs/ecad/README.md) | — | [Board and envelope](Headless/Ecad/BoardTests.cs) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
@@ -109,3 +111,5 @@ Contextual coverage on 2026-11-03: 20 Unit and 119 Headless cases passed locally
 Option coverage follow-up on 2026-11-03: 20 Unit and 135 Headless cases passed locally on Windows using installed native binaries. The 16 new headless cases cover sketch edits and dimensions, direct hole feature and pattern actions, and primitive result operations.
 
 Surfacing and Freeform option coverage added 5 Unit and 22 Headless cases. The full Windows run passed 25 Unit and 157 Headless cases using installed native binaries. A follow-up rerun of all 22 new Headless cases passed after tightening the Isocurve position and direction assertions.
+
+CAM and ECAD follow-up: the full Unit suite passed 38 cases and an isolated Windows headless run passed all 14 new CAM and ECAD cases with installed native binaries.

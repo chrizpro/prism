@@ -52,3 +52,9 @@ This is a focused three-axis CAM/preparation workflow, not complete industrial C
 Also run `Prism.PrintExportTests`, `Prism.RibbonTests`, `Prism.ApiCoverageTests` and `Prism.WorkflowTests` after CAM changes. Real slicer and CNC machine testing remain outstanding.
 
 Resin design references: [Formlabs cups](https://formlabs.com/support/Preventing-suction-cups-in-PreForm/), [Formlabs orientation](https://formlabs.com/support/Model-Orientation/), [Prusa hollowing](https://help.prusa3d.com/article/hollowing_117285?product=sl1s-speed). Controller reference: [LinuxCNC G7/G8](https://www.linuxcnc.org/docs/2.8/html/gcode/g-code.html), [Mach3 Turn manual](https://www.machsupport.com/ftp/Docs/Mach3Turn_1.84.pdf).
+
+## Maintained CAM checks
+
+[Linear G-code unit tests](../../Prism.Tests/Unit/Cam/LinearGcodeTests.cs) verify units, modal coordinates, G92 offsets, extrusion, layer starts, feed and rejection of unsupported input. [CAM workflow headless tests](../../Prism.Tests/Headless/Cam/CamWorkflowTests.cs) check committed stock bounds and both G54 choices, plus successful nozzle import and history preservation when an arc is rejected. Run `./tools/test.ps1 -Feature CAM`. [Issue #52](https://github.com/chrizpro/prism/issues/52).
+
+Maintained cases for generation options, setup switching and persistence, posts, stock review and both print workflows remain open. The standalone CAM tests above have separate coverage.
