@@ -9,6 +9,16 @@ namespace Prism.HeadlessTests.Support;
 /// <summary>Fixture mechanics only. Expected dimensions and volumes stay in the named tests.</summary>
 internal static class ModelingScenario
 {
+    public static SceneObject CreateCurve(CadSession session, IReadOnlyList<Vec3> points, bool closed = false) =>
+        session.AddObject(Occ.Polyline(points.ToList(), closed), "Test curve", ObjKind.Curve);
+
+    public static void SetSelection(Command command, string label, params SceneObject[] objects)
+    {
+        var slot = command.Slots.Single(item => item.Label == label);
+        slot.Items.Clear();
+        foreach (var obj in objects) Assert.True(slot.TryAdd(SelItem.Of(obj)), $"'{label}' must accept '{obj.Name}'.");
+    }
+
     public static SceneObject CreateBoxBody(CadSession session, Vec3 minimum,
         double width, double depth, double height)
     {

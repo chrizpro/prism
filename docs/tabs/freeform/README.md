@@ -4,6 +4,8 @@ The most common tools have their own buttons. The next most common sit in a drop
 
 Living Revolve requirements are maintained in the [Freeform Revolve section](../revolve/README.md#freeform-revolve); this cage command is separate from exact Solid, Surface and NURBS Revolve.
 
+Living [Sweep](../sweep/README.md#freeform-sweep) and [Loft](../loft/README.md#freeform-loft) requirements also distinguish cage creation from exact Solid/Surface/NURBS commands.
+
 ## Ribbon
 
 - **Select, Datum, References, Curves:** shared sections

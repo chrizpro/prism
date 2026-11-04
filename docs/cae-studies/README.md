@@ -1,5 +1,7 @@
 # CAE workspace — first implementation
 
+The current living requirements and maintained tests for Static structural studies are linked from [the Static analysis specification](../tabs/static-analysis/README.md). This document retains the broader historical CAE implementation/study context.
+
 The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dynamics**, **Motion** and **Fluids** tabs. The internal workspace id `simulate` remains compatible; MCP also accepts `cae`.
 
 ## Working analysis types

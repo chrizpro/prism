@@ -7,9 +7,15 @@ Prism.Tests/
   Unit/                         Prism.UnitTests.csproj
     Extrude/                    ExtrudeDirectionMathTests.cs
     Revolve/                    RevolveAxisMathTests.cs
+    Sweep/                      SweepPathMathTests.cs
+    Loft/                       LoftSectionMathTests.cs
+    StaticAnalysis/             StaticLoadMathTests.cs
   Headless/                     Prism.HeadlessTests.csproj
-    Extrude/                    SolidExtrudeTests.cs
+    Extrude/                    SolidExtrudeTests.cs, ExtrudeToObjectTests.cs
     Revolve/                    SolidRevolveTests.cs
+    Sweep/                      SweepCommandTests.cs
+    Loft/                       LoftCommandTests.cs
+    StaticAnalysis/             StaticStudyTests.cs
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
   Integration/                  Planned viewport workflows; README only for now
 ```
@@ -18,11 +24,11 @@ Prism.Tests/
 
 | Layer | What runs | What it establishes | Dependencies |
 |---|---|---|---|
-| Unit | Real managed `Plane3`/`Vec3` operations used by Extrude/Revolve | Plane normal, profile coordinates, axis normalization, tangent and axial projection math | .NET 10; no native DLLs or Avalonia |
-| Headless | Real commands, CadSession and native OCCT on an Avalonia dispatcher | Result geometry, command modes, history and representative persistence | .NET 10, Windows, `native/bin` DLLs; no viewport |
+| Unit | Real managed `Plane3`/`Vec3` operations supporting modeling and structural loads | Profile coordinates, path/axis directions, interpolation and boundary area math | .NET 10; no native DLLs or Avalonia |
+| Headless | Real commands, CadSession, OCCT and single-body static solving on an Avalonia dispatcher | Geometry, command modes, cage topology, history, persistence and independent structural benchmarks | .NET 10, Windows, OCCT plus `prism_sim` for structural cases; no viewport |
 | Integration | Future scripted desktop selection → preview → commit workflows | Visible model, selection, handles and application state together | Desktop app and automation bridge; [planned scenarios](Integration/README.md) |
 
-Unit tests cover supporting production math, not a second implementation of Extrude/Revolve. Their success alone says nothing about whether the commands build valid solids. Headless command tests provide that next layer. Screenshots remain a separate source of evidence.
+Unit tests cover supporting production math, not a second implementation of the modeling commands or structural solver. Headless checks provide the next layer through actual commands and numerical solves. Screenshots remain a separate source of evidence.
 
 ## Run and discover
 
@@ -30,6 +36,7 @@ Unit tests cover supporting production math, not a second implementation of Extr
 ./tools/test.ps1                              # Unit + Headless; TRX reports under artifacts/tests
 ./tools/test.ps1 -Layer Unit                  # no native runtime needed
 ./tools/test.ps1 -Layer Headless -Feature Revolve
+./tools/test.ps1 -Layer Headless -Feature StaticAnalysis
 ./tools/test.ps1 -List                        # list descriptive IDs and test names
 
 # Standard test runner commands also work, including Rider's test explorer:
@@ -57,6 +64,9 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 |---|---|---|---|
 | Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7), [NURBS #16](https://github.com/chrizpro/prism/issues/16) | [Solid](../docs/tabs/solid/extrude.md) · [Surface / NURBS](../docs/tabs/surface-and-nurbs/extrude.md) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [Extrude headless tests](Headless/Extrude/), including To object body references and the named Surface case; NURBS shares the Surface command but its tab workflow is unverified |
 | Revolve: [Solid #12](https://github.com/chrizpro/prism/issues/12), [Surface #13](https://github.com/chrizpro/prism/issues/13), [NURBS #15](https://github.com/chrizpro/prism/issues/15) | [Revolve README](../docs/tabs/revolve/README.md) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
+| Sweep: [Solid #17](https://github.com/chrizpro/prism/issues/17), [Surface #18](https://github.com/chrizpro/prism/issues/18), [Freeform #19](https://github.com/chrizpro/prism/issues/19), [NURBS #20](https://github.com/chrizpro/prism/issues/20) | [Sweep README](../docs/tabs/sweep/README.md) | [Sweep math](Unit/Sweep/) | [Sweep commands](Headless/Sweep/), including representative exact and cage cases; NURBS workflow unverified |
+| Loft: [Solid #21](https://github.com/chrizpro/prism/issues/21), [Surface #22](https://github.com/chrizpro/prism/issues/22), [Freeform #23](https://github.com/chrizpro/prism/issues/23), [NURBS #24](https://github.com/chrizpro/prism/issues/24) | [Loft README](../docs/tabs/loft/README.md) | [Loft math](Unit/Loft/) | [Loft commands](Headless/Loft/), including representative exact and cage cases; NURBS workflow unverified |
+| Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/tabs/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
 
@@ -72,6 +82,10 @@ Initial pilot verification on 2026-11-03: **8 Unit tests and 16 Headless tests p
 
 Follow-up on 2026-11-03: **14 Extrude Headless tests passed**, including six added To object body-target checks. Run with `./tools/test.ps1 -Layer Headless -Feature Extrude`. Unit and Revolve tests were not rerun for this follow-up; no product behavior changed. Body-target characterization does not establish face/plane/curved-target coverage.
 
+Sweep/Loft/Static expansion on 2026-11-03: **14 Unit and 39 Headless tests passed**, no failures/skips. Sweep and Loft each add 2 Unit and 6 Headless cases; static structural analysis adds 2 Unit and 5 Headless cases. Tests used installed native DLLs without rebuilding them; integration and the legacy executable suites were not run for this expansion.
+
 The owner explicitly requested this new solution-managed structure and existing-behavior examples on 2026-11-03. These tests characterize observable implementation; they do not approve all proposed requirements. Related references: [Solid Extrude draft](../docs/tabs/solid/extrude.md), [Surface Extrude draft](../docs/tabs/surface-and-nurbs/extrude.md), [Freeform Profile draft](../docs/tabs/freeform/extrude.md), [modeling guide](../site/guide/modeling.md), and the actual [ExtrudeCommand / RevolveCommand implementation](../Prism/Commands/SolidCommands.cs). The feature issues above track review and test links. This pilot preserves the earlier executable suites and does not change product behavior.
 
 This is representative coverage, not complete feature certification. Extrude Boolean/taper/regions and additional face/plane/curved-target cases, additional Revolve world/picked axes, two-sided angles, feature regeneration/persistence and invalid profiles, Freeform variants and desktop workflows need further coverage. New/unclear behavior still requires owner review. Retire existing executable suites only after their useful checks are inventoried and replaced deliberately.
+
+The Sweep/Loft expansion does not establish rails, complex/closed paths, Loft endpoints/closed lofts or complete cage validity. Static coverage is a single-body axial benchmark plus pressure/scaling and setup checks; bending, torsion, general mesh convergence, contact and multi-body solving remain outside this pilot. Canonical READMEs hold the current limitations and owner decisions.
