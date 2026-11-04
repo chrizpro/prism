@@ -9,4 +9,6 @@ export const href = (path: string) => `${base}${path}`
 
 export const version = '0.1 development preview'
 
-export const repoUrl = 'https://github.com/chrizpro/prism'
+export const repo = process.env.PRISM_REPO ?? 'chrizpro/prism'
+
+export const repoUrl = `https://github.com/${repo}`

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://chrizpro.github.io/prism/docs/
+    about: How to use every tool, plus the scripting and API reference.
+  - name: Roadmap and contribution policy
+    url: https://github.com/chrizpro/prism#roadmap
+    about: Prism currently accepts bug reports and essential modeling feature requests only.

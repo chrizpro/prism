@@ -1,5 +1,5 @@
 name: Feature or behavior proposal
-description: Track a feature idea or proposed change pending requirements review
+description: "Maintainers only: track a feature idea pending requirements review"
 title: "[Proposal] "
 body:
   - type: textarea

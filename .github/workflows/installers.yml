@@ -1,5 +1,9 @@
 name: Build Prism installers
+# Push a tag like v0.1.0 to build every platform and publish a GitHub release (marked pre-release).
+# Run it by hand to build one platform; tick "publish" to release that run as well.
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
@@ -11,6 +15,10 @@ on:
         description: Target to build and validate
         options: [windows, macos, linux, all]
         default: windows
+      publish:
+        type: boolean
+        description: Publish the result as a GitHub release
+        default: false
 permissions:
   contents: read
 jobs:
@@ -19,27 +27,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { platform: windows, os: windows-2022, runtime: win-x64, triplet: x64-windows-release }
-          - { platform: macos, os: macos-14, runtime: osx-x64, triplet: x64-osx-dynamic }
-          - { platform: linux, os: ubuntu-24.04, runtime: linux-x64, triplet: x64-linux-dynamic }
+          - { platform: windows, os: windows-2022, runtime: win-x64, triplet: x64-windows-release, asset: Prism-windows-x64-Setup.exe }
+          - { platform: macos, os: macos-15, runtime: osx-arm64, triplet: arm64-osx-dynamic, asset: Prism-macos-arm64.dmg }
+          - { platform: macos, os: macos-15-intel, runtime: osx-x64, triplet: x64-osx-dynamic, asset: Prism-macos-x64.dmg }
+          - { platform: linux, os: ubuntu-24.04, runtime: linux-x64, triplet: x64-linux-dynamic, asset: Prism-linux-x64.deb }
     runs-on: ${{ matrix.os }}
     env:
-      PRISM_PACKAGE_VERSION: ${{ inputs.version }}
+      PRISM_PACKAGE_VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+      SELECTED: ${{ github.event_name == 'push' || inputs.platform == 'all' || inputs.platform == matrix.platform }}
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
       - uses: actions/setup-dotnet@v4
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
         with:
           dotnet-version: '10.0.x'
+      - name: Version
+        if: env.SELECTED == 'true'
+        run: |
+          $version = $env:PRISM_PACKAGE_VERSION.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version '$version' must be major.minor.patch" }
+          "PRISM_PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
       - name: Linux build prerequisites
-        if: matrix.platform == 'linux' && (inputs.platform == 'linux' || inputs.platform == 'all')
+        if: env.SELECTED == 'true' && matrix.platform == 'linux'
         run: sudo apt-get update; sudo apt-get install -y autoconf automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
       - name: Native dependencies and shims
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
         run: |
           $nativeVcpkg = Join-Path $env:RUNNER_TEMP 'prism-vcpkg'
           git clone https://github.com/microsoft/vcpkg.git $nativeVcpkg
@@ -53,16 +69,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native dependency install failed' }
           ./native/build.ps1 -Vcpkg $nativeVcpkg -Triplet '${{ matrix.triplet }}'
       - name: NSIS compiler
-        if: matrix.platform == 'windows' && (inputs.platform == 'windows' || inputs.platform == 'all')
+        if: env.SELECTED == 'true' && matrix.platform == 'windows'
         run: |
           choco install nsis --yes --no-progress
           if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
           "C:/Program Files (x86)/NSIS" >> $env:GITHUB_PATH
       - name: Publish and package
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
         run: ./packaging/Build-Installer.ps1 -Runtime '${{ matrix.runtime }}' -Version $env:PRISM_PACKAGE_VERSION
       - name: Verify native runtime in published app
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
         run: |
           $binary = if ($IsWindows) { 'Prism.Desktop.exe' } else { 'Prism.Desktop' }
           $path = "./artifacts/installers/${{ matrix.runtime }}/publish/$binary"
@@ -73,13 +89,45 @@ jobs:
             & $path --verify-runtime
             if ($LASTEXITCODE -ne 0) { throw 'Published native runtime verification failed' }
           }
+      - name: Name the download
+        # A fixed file name lets the website link to releases/latest/download/<name>.
+        if: env.SELECTED == 'true'
+        run: |
+          $package = Get-ChildItem ./artifacts/installers -File | Where-Object { $_.Name -match '(Setup\.exe|\.dmg|\.deb)$' } | Select-Object -First 1
+          if (!$package) { throw 'No installer was produced' }
+          New-Item -ItemType Directory -Force ./release | Out-Null
+          Copy-Item $package.FullName "./release/${{ matrix.asset }}"
+          $hash = (Get-FileHash "./release/${{ matrix.asset }}" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  ${{ matrix.asset }}" | Set-Content -NoNewline "./release/${{ matrix.asset }}.sha256"
       - uses: actions/upload-artifact@v4
-        if: inputs.platform == matrix.platform || inputs.platform == 'all'
+        if: env.SELECTED == 'true'
         with:
           name: prism-${{ matrix.runtime }}
-          path: |
-            artifacts/installers/*-Setup.exe
-            artifacts/installers/*.dmg
-            artifacts/installers/*.deb
-            artifacts/installers/*.sha256
+          path: release/*
           if-no-files-found: error
+
+  release:
+    needs: package
+    # Only when every selected platform built, so a release never misses a platform silently.
+    if: success() && (github.event_name == 'push' || inputs.publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Publish the release
+        run: |
+          ls -l release
+          [ -n "$(ls release)" ] || { echo "No installers were built"; exit 1; }
+          gh release create "$VERSION" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Prism ${VERSION#v}" --prerelease --generate-notes
+      - name: Refresh the download page
+        # Releases made with the workflow token do not trigger other workflows, so start Pages directly.
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

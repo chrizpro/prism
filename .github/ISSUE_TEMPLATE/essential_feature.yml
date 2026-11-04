@@ -1,0 +1,35 @@
+name: Essential feature request
+description: Something modeling work cannot be done without, that Prism is missing
+title: "[Essential] "
+labels: ["essential-feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Prism is focused on polishing the tools it already has (see the [roadmap](https://github.com/chrizpro/prism#roadmap)). We consider feature requests only when they are **essential for modeling work**: a real part or project cannot be finished without them. Other requests will usually be closed.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What were you trying to make?
+      description: Describe the part, assembly or project, and the step where you got stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing?
+      description: The capability you need, in terms of the result rather than a specific button.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What have you tried?
+      description: Tools in Prism you tried, and why they did not get you there. Check the tool reference first, since the feature may exist under another name.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Prism version and system
+      placeholder: "Prism 0.1.0, Windows 11"

@@ -4,7 +4,7 @@ Prism is under active development. A tool appearing in the catalog does not impl
 
 ## Platforms
 
-Windows is the locally verified desktop platform. The repository includes packaging paths for macOS and Linux, but those releases require matching native geometry and simulation libraries and validation on their target systems. There are no published Mac or Linux downloads yet.
+Windows is the most thoroughly tested desktop platform. Installers for macOS (Apple silicon and Intel) and Linux are built by the release workflow on those systems and check that the native geometry and simulation libraries load, but they have had less hands-on testing. Preview builds are not code-signed or notarized.
 
 ## Geometry and history
 

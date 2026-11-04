@@ -25,6 +25,17 @@ The native build requires Open CASCADE, Eigen, and Netgen. The desktop publish d
 ./packaging/Build-Installer.ps1 -Runtime linux-x64 -Version 0.1.0 -NativeDirectory ./native/stage/linux-x64
 ```
 
+## Publish a release
+
+Push a version tag to build installers for Windows, both Mac architectures and Linux on GitHub Actions and publish them as a pre-release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow uploads each installer under a fixed name (`Prism-windows-x64-Setup.exe`, `Prism-macos-arm64.dmg`, `Prism-macos-x64.dmg`, `Prism-linux-x64.deb`) with a SHA-256 file, then rebuilds the website so its download page links to the new files. A release is published only if every platform builds. To try one platform without releasing, run **Build Prism installers** by hand from the Actions tab.
+
 Pass `-OutputDirectory` to place build output on another drive, and `-SkipPublish -PublishDirectory` to package an already published build. The script checks the target platform and required native libraries before creating an installer. macOS signing/notarization and Windows signing require your release credentials and are not enabled by default.
 
 ## Keep the site aligned with the app

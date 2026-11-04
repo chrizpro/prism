@@ -1,5 +1,5 @@
 name: Feature story
-description: Track a defined Prism feature and its documentation, implementation, and verification
+description: "Maintainers only: track a defined feature and its documentation, implementation and verification"
 title: "[Story] "
 body:
   - type: markdown

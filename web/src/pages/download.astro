@@ -1,50 +1,66 @@
 ---
 import Base from '../layouts/Base.astro'
 import { docs, repoUrl, version } from '../config'
+import { latestRelease } from '../data/release'
 
-const platforms = [
-  { name: 'Windows', detail: 'Windows 10 and 11, x64', pkg: 'Setup .exe', status: 'Preview builds available', ready: true },
-  { name: 'macOS', detail: 'Apple Silicon and Intel', pkg: '.app in .dmg', status: 'Packaging in preparation', ready: false },
-  { name: 'Linux', detail: 'x64', pkg: '.deb', status: 'Packaging in preparation', ready: false },
-]
+const { release, downloads } = await latestRelease()
+const available = downloads.filter(d => d.url)
+const mb = (bytes?: number) => bytes ? `${(bytes / 1048576).toFixed(0)} MB` : ''
+const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
 ---
-<Base title="Download" description="Download Prism for Windows. macOS and Linux packages are in preparation.">
+<Base title="Download" description="Download Prism for Windows, macOS and Linux.">
   <section class="section">
     <div class="wrap">
       <div class="section-head">
         <span class="kicker">Download</span>
         <h1>Get Prism</h1>
-        <p>Prism is a {version}. A public release has not been published yet; preview installers are prepared from the repository for testers.</p>
+        {release
+          ? <p>{release.name}{release.prerelease ? ' (preview)' : ''}, released {date}. Free to download for Windows, macOS and Linux.</p>
+          : <p>Prism is a {version}. The first downloadable release has not been published yet. Until it is, you can build Prism from source.</p>}
       </div>
 
+      {available.length > 0 && (
+        <div class="primary" id="recommended" hidden>
+          <a class="btn btn-primary big" id="recommended-link" href="#">Download</a>
+          <p class="muted" id="recommended-detail"></p>
+        </div>
+      )}
+
       <div class="platforms">
-        {platforms.map(p => (
-          <div class:list={['platform', { ready: p.ready }]}>
-            <h2>{p.name}</h2>
-            <p class="muted">{p.detail}</p>
-            <span class="pkg">{p.pkg}</span>
-            <span class="status">{p.status}</span>
+        {downloads.map(d => (
+          <div class:list={['platform', { ready: d.url }]} data-id={d.id} data-os={d.os}>
+            <h2>{d.label}</h2>
+            <p class="muted">{d.detail}</p>
+            {d.url
+              ? <>
+                  <a class="btn btn-primary" href={d.url}>Download {mb(d.size) && <span class="size">{mb(d.size)}</span>}</a>
+                  {d.sha256Url && <a class="sha" href={d.sha256Url}>SHA-256 checksum</a>}
+                </>
+              : <span class="status">{release ? 'Not in this release' : 'Coming with the first release'}</span>}
           </div>
         ))}
       </div>
 
       <div class="notes">
         <div>
-          <h3>What's in the installer</h3>
-          <p class="muted">A self-contained desktop app with the .NET runtime, the native geometry and simulation libraries, the MCP automation bridge and the Python <code>cadkit</code> library. It installs per user, adds a Start menu shortcut and includes an uninstaller that leaves your documents and preferences in place.</p>
+          <h3>Installing</h3>
+          <p class="muted"><strong>Windows:</strong> run the setup program. It installs for your user only and includes an uninstaller. The preview is not code-signed yet, so Windows may show a SmartScreen warning: choose <em>More info › Run anyway</em>.</p>
+          <p class="muted"><strong>macOS:</strong> open the .dmg and drag Prism to Applications. The preview is not notarized yet, so the first time, right-click Prism and choose <em>Open</em>.</p>
+          <p class="muted"><strong>Linux:</strong> <code>sudo apt install ./Prism-linux-x64.deb</code></p>
         </div>
         <div>
-          <h3>Optional extras</h3>
-          <p class="muted">Thermal and modal studies use an external CalculiX installation. Rendering animations to MP4 uses ffmpeg. Scripts need Python 3.</p>
+          <h3>What's included</h3>
+          <p class="muted">A self-contained desktop app with the .NET runtime, the geometry and simulation libraries, the MCP automation bridge and the Python <code>cadkit</code> library. Your documents and preferences stay in place when you uninstall.</p>
+          <p class="muted">Optional: thermal and modal studies use CalculiX, MP4 output uses ffmpeg, and scripts need Python 3.</p>
         </div>
         <div>
           <h3>Build from source</h3>
-          <p class="muted">Clone the <a href={repoUrl}>repository on GitHub</a>, install the .NET 10 SDK and the native toolchain, build the native libraries, then run the desktop project. The <a href={docs('/development')}>build guide</a> has every step.</p>
+          <p class="muted">Fork or clone the <a href={repoUrl}>repository on GitHub</a>, install the .NET 10 SDK and the native toolchain, build the native libraries, then run the desktop project. The <a href={`${repoUrl}#run-prism-from-a-fork`}>README</a> and the <a href={docs('/development')}>build guide</a> have every step.</p>
         </div>
       </div>
 
       <div class="cta">
-        <a class="btn btn-primary" href={docs('/download')}>Installation guide</a>
+        <a class="btn btn-ghost" href={`${repoUrl}/releases`}>All releases</a>
         <a class="btn btn-ghost" href={docs('/guide/getting-started')}>Getting started</a>
         <a class="btn btn-ghost" href={docs('/changelog')}>Release notes</a>
       </div>
@@ -52,18 +68,41 @@ const platforms = [
   </section>
 </Base>
 
+<script>
+  // Put the download for this computer first. Macs cannot reliably report their chip, so both Mac builds stay listed.
+  const ua = navigator.userAgent
+  const os = /Windows/.test(ua) ? 'windows' : /Mac/.test(ua) ? 'macos-arm64' : /Linux|X11/.test(ua) && !/Android/.test(ua) ? 'linux' : ''
+  const card = os && document.querySelector<HTMLElement>(`.platform[data-id="${os}"]`)
+  const link = card?.querySelector<HTMLAnchorElement>('a.btn')
+  const box = document.getElementById('recommended')
+  if (card && link && box) {
+    const anchor = document.getElementById('recommended-link') as HTMLAnchorElement
+    anchor.href = link.href
+    anchor.textContent = `Download for ${card.dataset.os}`
+    document.getElementById('recommended-detail')!.textContent = os === 'macos-arm64' ? 'Apple silicon build. Intel Mac? Use the Intel download below.' : card.querySelector('p')?.textContent ?? ''
+    box.hidden = false
+    card.classList.add('mine')
+  }
+</script>
+
 <style>
   h1 { font-size: clamp(2.6rem, 7vw, 4.6rem); margin: 12px 0 16px; }
-  .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-  .platform { padding: 28px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: grid; gap: 8px; }
-  .platform.ready { border-color: rgba(57, 200, 237, 0.5); background: radial-gradient(80% 100% at 0% 0%, rgba(57, 200, 237, 0.15), transparent 70%), var(--panel); }
-  .platform h2 { font-size: 1.6rem; }
-  .pkg { font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; margin-top: 8px; }
+  .primary { margin: -16px 0 40px; display: grid; gap: 10px; justify-items: start; }
+  .primary[hidden] { display: none; }
+  .big { font-size: 1.1rem; padding: 1rem 1.8rem; }
+  .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .platform { padding: 26px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: grid; gap: 10px; align-content: start; }
+  .platform.ready { border-color: rgba(57, 200, 237, 0.35); }
+  .platform.mine { border-color: var(--cyan); background: radial-gradient(80% 100% at 0% 0%, rgba(57, 200, 237, 0.15), transparent 70%), var(--panel); }
+  .platform h2 { font-size: 1.35rem; }
+  .platform .btn { justify-self: start; margin-top: 6px; }
+  .size { opacity: 0.75; font-weight: 500; font-size: 0.85em; }
+  .sha { font-size: 0.8rem; color: var(--muted); }
   .status { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-  .ready .status { color: var(--cyan); }
   .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 32px; margin: 56px 0 40px; }
   .notes h3 { font-size: 1.15rem; margin-bottom: 10px; }
+  .notes p + p { margin-top: 10px; }
   .notes a { color: var(--cyan); }
-  code { font-size: 0.9em; color: var(--ice); }
+  code { font-size: 0.85em; color: var(--ice); word-break: break-word; }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; }
 </style>

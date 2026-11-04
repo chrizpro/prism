@@ -1,23 +1,46 @@
 # Install Prism
 
-Prism is currently a development preview. Installer builds are prepared from the repository; a public download release has not been published yet.
+Download Prism from the [download page](https://chrizpro.github.io/prism/download) or from [GitHub Releases](https://github.com/chrizpro/prism/releases). Releases are previews while Prism is in development. Keep backups of your model documents.
 
-| Platform | Package | Status |
+| Platform | Download | Notes |
 | --- | --- | --- |
-| Windows x64 | Setup `.exe` | Primary installer target |
-| macOS Apple Silicon / Intel | `.app` in `.dmg` | Packaging configured; target-native dependencies and validation required |
-| Linux x64 | `.deb` | Packaging configured; target-native dependencies and validation required |
+| Windows 10 and 11, x64 | `Prism-windows-x64-Setup.exe` | Per-user installer with Start menu shortcut and uninstaller |
+| macOS, Apple silicon | `Prism-macos-arm64.dmg` | M1 and newer |
+| macOS, Intel | `Prism-macos-x64.dmg` | Intel Macs |
+| Linux x64 | `Prism-linux-x64.deb` | Debian, Ubuntu and derivatives |
+
+Each download has a `.sha256` file next to it so you can check the file.
 
 ## Windows
 
-Run the Prism setup executable supplied with a build. The installer uses a per-user installation, creates a Start menu shortcut, and includes an uninstaller. Desktop shortcut creation is optional. It leaves documents and preferences in place when uninstalling.
+Run the setup program. It installs for your user, creates a Start menu shortcut and, if you choose, a desktop shortcut. The uninstaller removes only the files it installed and leaves your documents and preferences in place.
 
-The release pipeline produces a self-contained application with the .NET runtime included. Native geometry and simulation libraries must be staged before packaging. The preview installer is unsigned.
+Preview builds are not code-signed yet. If Windows SmartScreen warns about an unrecognized app, choose **More info › Run anyway**.
 
-## Build an installer
+## macOS
 
-See [Build and maintain](/development) for the packaging commands and prerequisites. A package built for one operating system is not a substitute for testing on another.
+Open the `.dmg` and drag **Prism** to **Applications**. Preview builds are not notarized yet, so the first time you open Prism, right-click it in Applications and choose **Open**, then confirm.
 
-## Update a preview
+## Linux
 
-Close Prism before installing an updated build. Use the same installation directory. Keep backups of your model documents while using preview releases.
+```bash
+sudo apt install ./Prism-linux-x64.deb
+```
+
+The package declares the system libraries the desktop interface needs, so `apt` installs them for you.
+
+## What is included
+
+The installers contain a self-contained app with the .NET runtime, the native geometry and simulation libraries, the Python `cadkit` library and the MCP bridge. These are optional and installed separately:
+
+- **Python 3** for scripts.
+- **CalculiX** for thermal and modal studies.
+- **ffmpeg** for MP4 animation output.
+
+## Update
+
+Close Prism before installing a newer build, and install to the same location.
+
+## Build from source
+
+See [Build and maintain](/development) and the repository README for building Prism yourself, including from a fork.

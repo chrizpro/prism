@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible Prism defect
+description: Something in Prism is broken or behaves wrongly
 title: "[Bug] "
 labels: ["bug"]
 body:
