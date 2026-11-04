@@ -573,7 +573,6 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
                     Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis."),
-                    Cmd("Pipe", "sweep", () => new PipeCommand(), "A round, optionally tapered rod or tube along a path curve."),
                     Split("split:solid-detail", "Add a rib, or raise or engrave a shape. Click the name (or right-click) for the other.",
                         Cmd("Rib", "rib", () => new RibCommand(), "Add a reinforcing rib from a planar sketch to a solid body."),
                         Cmd("Emboss", "emboss", () => new EmbossCommand(), "Raise text or a sketched shape off a face, or engrave it into the body."))),

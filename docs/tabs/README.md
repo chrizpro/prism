@@ -8,7 +8,7 @@ Use [the requirements and testing workflow](../engineering/requirements-and-test
 
 | Area | Guide | Coverage |
 | --- | --- | --- |
-| Solid modeling | [Extrude](../modeling/extrude/README.md#solid-extrude) · [Revolve](../modeling/revolve/README.md#solid-revolve) | Living feature behavior and open decisions; proposed requirements pending owner review |
+| [Solid modeling](../modeling/solid/README.md) | [Extrude](../modeling/extrude/README.md#solid-extrude) · [Revolve](../modeling/revolve/README.md#solid-revolve) | Living feature behavior and open decisions; proposed requirements pending owner review |
 | Direct modeling | [Direct Modeling](../modeling/direct-modeling/README.md) | Editing existing exact geometry, gizmos and history |
 | Surfaces and styling | [Surface and NURBS](../modeling/surface-and-nurbs/README.md) · [Extrude living specification](../modeling/extrude/README.md#surface-and-nurbs-extrude) · [Revolve](../modeling/revolve/README.md) · [Sweep](../modeling/sweep/README.md) · [Loft](../modeling/loft/README.md) | Surface/NURBS workflows, shared implementations and distinct review scopes |
 | Sheet Metal | [Sheet Metal](../modeling/sheet-metal/README.md) | Flanges, flat patterns and cut-outs |

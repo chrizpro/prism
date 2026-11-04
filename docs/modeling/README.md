@@ -9,6 +9,8 @@ Each shared modeling feature has one living guide. Use the variant sections for 
 
 ## Workflows
 
+- [Solid ribbon and feature guides](solid/README.md)
+
 - [Direct Modeling](direct-modeling/README.md)
 - [Surface and NURBS](surface-and-nurbs/README.md)
 - [Freeform](freeform/README.md)

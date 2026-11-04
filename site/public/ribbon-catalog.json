@@ -1,5 +1,5 @@
 {
-  "sourceHash": "90BCDF488A872408CDC1AEB59DBB5E1B3D5E78803121809E7E6339516290860D",
+  "sourceHash": "DD1434C6DE51F8A8D9C2EFB786188E0E589C49CCFEEF067C48D813F630F9A113",
   "workspaces": [
     {
       "Id": "design",
@@ -857,12 +857,6 @@
               "id": "revolve|Revolve",
               "label": "Revolve",
               "description": "Spin a profile around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "sweep|Pipe",
-              "label": "Pipe",
-              "description": "A round, optionally tapered rod or tube along a path curve.",
               "shortcut": ""
             },
             {
