@@ -60,6 +60,7 @@ No requirement IDs have been allocated or approved.
 - **NURBS workflow story:** [Story #16 — NURBS Extrude review](https://github.com/chrizpro/prism/issues/16).
 - **Implementation:** [`Prism/Commands/SolidCommands.cs`](../../../Prism/Commands/SolidCommands.cs), `ExtrudeCommand(surface: true)`.
 - **Tests:** [SolidExtrudeTests.cs](../../../Prism.Tests/Headless/Extrude/SolidExtrudeTests.cs) contains the named Surface case; [ExtrudeEvidence.cs](../../../tests/Prism.DirectModelTests/ExtrudeEvidence.cs) contains additional legacy Surface extent checks. Individual cases and expectations remain in those files, not a duplicate matrix here. No NURBS-tab-specific maintained tests were identified.
+- **Supporting Unit math:** [ExtrudeDirectionMathTests.cs](../../../Prism.Tests/Unit/Extrude/ExtrudeDirectionMathTests.cs) checks shared plane/vector operations; it does not independently verify Surface or NURBS workflow behavior.
 - **Recorded verification:** Surface cases passed in earlier local runs on 2026-11-03; see the [test guide](../../../Prism.Tests/README.md) and [historical evidence](../../engineering/extrude-testing.md). This documentation update did not execute new tests or verify the NURBS workflow.
 - **Delivery:** Future completed stories must link the pinned approved spec commit/tag; future changes get new issues.
 

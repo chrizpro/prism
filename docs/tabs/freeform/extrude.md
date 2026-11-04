@@ -1,7 +1,7 @@
 # Freeform extrusion — specification review
 
 > **Requirements:** Proposed — awaiting owner review (2026-11-03).  
-> **Verification:** Source and [Freeform tab guide](README.md) inspected; no desktop checks run.
+> **Verification:** Source inspected and legacy Profile characterization recorded; no dedicated maintained Profile tests or full desktop workflow verification. See the evidence links below.
 
 ## Two different Freeform extrusion workflows
 
@@ -55,7 +55,7 @@ No requirements have been approved or given stable IDs.
 
 - **Feature story:** [Story #8 — Freeform Extrude Profile review](https://github.com/chrizpro/prism/issues/8).
 - **Implementation:** [`Prism/Commands/FormShapeCommands.cs`](../../../Prism/Commands/FormShapeCommands.cs), `FormExtrudeCommand`; existing [Freeform guide](README.md) describes Modify → Extrude separately.
-- **Tests:** Coverage for these specific behaviors not verified. No tests added or run.
+- **Tests:** [Existing executable characterization](../../../tests/Prism.DirectModelTests/ExtrudeEvidence.cs) includes Freeform Profile cases; [historical local evidence](../../engineering/extrude-testing.md) records the earlier combined run. No dedicated maintained Freeform Profile Unit/Headless classes exist yet; [the test guide](../../../Prism.Tests/README.md) identifies this gap. Passing legacy cases does not approve the proposed requirements above.
 - **Delivery:** When approved and delivered, closed stories link their pinned specification version; future changes get new stories or bugs.
 
 [Shared requirements policy](../../engineering/requirements-and-testing.md)

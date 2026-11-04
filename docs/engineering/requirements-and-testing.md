@@ -14,6 +14,21 @@ This is the shared working agreement for humans and coding agents. It describes 
 
 **Proposed behavior is not approved behavior.** If the owner has not approved new or changed requirements, mark them **Proposed — awaiting owner review** and do not implement or test them as settled behavior.
 
+## Feature documentation and test maintenance
+
+The feature's canonical README/guide is the living source of truth. A README such as [Revolve](../tabs/revolve/README.md) may cover several clearly separated variants; an existing feature document such as [Solid Extrude](../tabs/solid/extrude.md) serves the same role without being renamed. Avoid parallel copies of requirements.
+
+Agents must follow this flow for feature, bug-fix and test work:
+
+1. **Read:** locate the canonical feature document and relevant variant issue before editing code or tests. Check whether behavior is approved, existing authorized characterization, or a new proposal.
+2. **Decide:** obtain owner review for new/changed or ambiguous product requirements. Existing observable behavior may be characterized under the current authorization; passing tests do not convert proposals into approved requirements.
+3. **Change:** implement authorized work and add focused maintained Unit/Headless tests under `Prism.Tests/` as needed. Preserve older executable suites. Use descriptive facts and existing `Feature`, `Layer`, `TestId` traits to explain cases.
+4. **Maintain the living document:** in the same change, update affected options, intended/observed behavior, limitations, open decisions and verification information. If behavior is unchanged, check the document for accuracy and update links/coverage gaps where needed; do not rewrite unrelated text or invent approved requirements from the implementation.
+5. **Keep the links:** the feature document links to relevant test files or folders, the test class links back to the canonical document in its XML documentation, and the issue links to that document and feature-level tests. Update these links whenever files move. Do not duplicate every option/test in an issue checklist or traceability matrix.
+6. **Verify and finish:** run applicable checks, validate changed links, and record actual dated evidence and remaining gaps. Follow the current `main` workflow override; do not stage unrelated local work. Check the feature document and issue references before calling the task complete.
+
+Feature documents describe current behavior and intended requirements; issues preserve a defined work scope/history, and tests provide executable evidence. Keep these responsibilities distinct. Integration remains deferred; when introduced, attach representative viewport images to the relevant issue with test ID and source revision.
+
 ## Minimal feature document pattern
 
 Use an existing document when practical. A new dedicated Markdown page is justified for sufficiently complex behavior; no mandatory one-file-per-tool rule.
@@ -38,7 +53,7 @@ For important, independently checkable rules use a stable ID such as `SKETCH-001
 
 - A feature may have a bookkeeping **feature story** that links its Markdown specification, relevant implementation and real existing test paths. Distinct implementations (for example Solid versus Freeform Extrude) may have distinct stories, even when they share a tool name. No one-issue-per-requirement or one-issue-per-test rule.
 - New requirements, enhancements and corrections get **new stories, change issues or bugs**. Closed issues preserve their original scope and acceptance context; do not edit old acceptance criteria to retroactively match new behavior. If a closed issue contains incorrect administrative information, clarify it with an explicitly dated comment instead.
-- Proposed behavior is reviewed in a **documentation-only PR** first when substantial or ambiguous. After owner approval, a delivery PR updates the living Markdown and authorized code/tests. Do not mark pending requirements as approved merely because a PR exists.
+- Proposed behavior gets **documentation review first** when substantial or ambiguous. After owner approval, delivery updates the living Markdown and authorized code/tests. Use documentation/delivery PRs when that workflow is in effect; do not mark pending requirements as approved merely because a PR exists.
 - A delivery issue should reference a **permanent commit SHA or release tag** that captures its accepted specification, not only a moving `main` link. The issue can additionally link the current spec for convenient navigation; clearly label the two.
 - Git's diff, blame and PR history are the primary audit trail. Add concise **why/decision** notes for meaningful semantic changes; do not duplicate a full changelog in every requirement row. Keep stable IDs when the requirement means the same thing; replace or retire an ID when its meaning fundamentally changes.
 - Bugs found later get new bug issues and link to the relevant feature story or doc; they do not reopen or rewrite the original delivery story by default.
@@ -49,11 +64,11 @@ For important, independently checkable rules use a stable ID such as `SKETCH-001
 1. Identify the affected docs and existing behavior. Classify changes as bug fix, existing approved behavior, or proposed behavior.
 2. Draft documentation and acceptance criteria; flag unknowns.
 3. Request owner review for new/changed behavior before writing or generating tests that encode those assumptions.
-4. Only after approval, implement and add/adjust focused tests in the repository's established style, when explicitly authorized.
+4. Implement approved behavior and add/adjust focused tests when authorized. Explicitly authorized characterization of existing observable behavior can proceed without approving new requirements.
 5. Run appropriate checks on a machine with the actual SDK/native dependencies; record exact commands and pass/fail/blocked results. Do not claim green checks when not run.
-6. Open a PR referencing issues, approved docs, and verification evidence. Owner reviews and merges.
+6. Complete the feature-documentation maintenance flow and follow the current branch/commit policy. When PRs are in use, link issues, approved docs and verification evidence for owner review.
 
-**Current instruction for this setup PR:** do not add tests or modify application behavior. Do not create GitHub Actions test jobs that will predictably fail without the native environment. CI enhancements need a separately reviewed plan.
+The original workflow-setup restriction on all code/tests applied to that setup change, not subsequent owner-authorized feature work. Do not create GitHub Actions test jobs that will predictably fail without the native environment; CI enhancements need a separately reviewed plan.
 
 ## GitHub conventions
 
@@ -63,7 +78,7 @@ Use the same story sections: **Purpose → Scope → Specification → Acceptanc
 
 Owner direction (2026-11-03): integration testing is deferred. When it is introduced, attach representative actual viewport images to the relevant issue with the test ID and source revision. Record dated execution evidence separately from acceptance criteria; do not imply that a historical pass count is a live test status.
 
-Keep PRs focused; work on a branch instead of pushing directly to `main`. Use `Fixes #N` only when the PR actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same PR after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
+Follow the current owner branch policy, presently direct work on `main`. When PRs are in use, keep them focused and use `Fixes #N` only when the change actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same change after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
 
 ## Local validation versus cloud validation
 

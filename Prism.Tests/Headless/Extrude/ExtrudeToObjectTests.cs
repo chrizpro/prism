@@ -9,6 +9,7 @@ namespace Prism.HeadlessTests.Extrude;
 
 /// <summary>Characterize To object against a planar-sided reference body.
 /// Refs Story #6 and docs/tabs/solid/extrude.md. Curved-target semantics remain under review.</summary>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/solid/extrude.md">Living Solid Extrude specification, including characterized To object behavior.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Extrude")]
 public class ExtrudeToObjectTests

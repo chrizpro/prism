@@ -4,6 +4,7 @@ using Xunit;
 namespace Prism.UnitTests.Revolve;
 
 /// <summary>Managed axis/vector operations used by revolve and its direction handle.</summary>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/revolve/README.md">Canonical living Revolve specification and variant boundaries.</seealso>
 [Trait("Layer", "Unit")]
 [Trait("Feature", "Revolve")]
 public class RevolveAxisMathTests

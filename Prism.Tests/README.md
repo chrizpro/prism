@@ -45,16 +45,18 @@ The new projects use [xUnit](https://xunit.net/docs/getting-started/v2/getting-s
 
 Each test has a descriptive C# method name, a readable runner name, and `TestId`, `Feature` and `Layer` traits. IDs identify tests, not approved requirements. `EXT-H001` means Extrude / Headless / case 001. Numbers stay stable when tests are renamed.
 
+Each maintained feature test class also links back to its canonical living specification with an XML `seealso` link. Feature READMEs/guides link to the test files or folders below. Keep those links current when behavior or file locations change; follow the [agent maintenance flow](../docs/engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+
 For example, [EXT-H001](Headless/Extrude/SolidExtrudeTests.cs) creates a 10 × 6 mm rectangle, sets Distance to 12 mm, and asserts a valid solid with 720 mm³ volume, bounds (0,0,0)..(10,6,12), and six planar faces. Setup, action and expected results are visible together in the method. Shared helpers contain fixture mechanics and numerical tolerance, while expected measurements remain in the individual tests.
 
 Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fixture dimensions and short setup/action/assert sections. Avoid anonymous scenario tables with numeric mode indices and avoid tests that merely assert a command returned something.
 
 ## Feature issues and tests
 
-| Feature issues | Unit | Headless |
-|---|---|---|
-| Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7), [NURBS #16](https://github.com/chrizpro/prism/issues/16) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [Extrude headless tests](Headless/Extrude/), including To object body references and the named Surface case; NURBS shares the Surface command but its tab workflow is unverified |
-| Revolve: [Solid #12](https://github.com/chrizpro/prism/issues/12), [Surface #13](https://github.com/chrizpro/prism/issues/13), [NURBS #15](https://github.com/chrizpro/prism/issues/15) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
+| Feature issues | Living specification | Unit | Headless |
+|---|---|---|---|
+| Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7), [NURBS #16](https://github.com/chrizpro/prism/issues/16) | [Solid](../docs/tabs/solid/extrude.md) · [Surface / NURBS](../docs/tabs/surface-and-nurbs/extrude.md) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [Extrude headless tests](Headless/Extrude/), including To object body references and the named Surface case; NURBS shares the Surface command but its tab workflow is unverified |
+| Revolve: [Solid #12](https://github.com/chrizpro/prism/issues/12), [Surface #13](https://github.com/chrizpro/prism/issues/13), [NURBS #15](https://github.com/chrizpro/prism/issues/15) | [Revolve README](../docs/tabs/revolve/README.md) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
 
