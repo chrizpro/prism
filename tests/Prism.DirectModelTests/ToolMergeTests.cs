@@ -122,7 +122,7 @@ static class ToolMergeTests
         foreach (var tab in new[] { "Surface", "NURBS" })
             check(vm.Tabs.Single(t => t.Title == tab).Groups.Any(g => g.Title == "Curves") && vm.Tabs.Single(t => t.Title == tab).Groups.Any(g => g.Title == "Edit curves"), $"{tab} has the shared Curves and Edit curves sections");
         var solid = Labels("Solid");
-        check(solid.Contains("Sweep") && solid.Contains("Loft") && solid.Contains("Emboss") && solid.Contains("Curve"), "Solid has Sweep, Loft, Emboss and curve creation");
+        check(!solid.Contains("Sweep") && !solid.Contains("Loft") && !solid.Contains("Pipe") && solid.Contains("Emboss") && solid.Contains("Curve"), "Solid has Emboss and curve creation and omits Sweep, Loft and Pipe");
         var inspect = Labels("Surface");
         check(inspect.Contains("Zebra Stripes") && inspect.Contains("Curvature Map") && inspect.Contains("Curvature Graph"), "the curvature checks are in Inspect on Surface");
         foreach (var tab in new[] { "Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "ECAD" })

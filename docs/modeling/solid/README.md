@@ -31,3 +31,7 @@ Run `./tools/test.ps1 -Feature Solid`. Extrude and Revolve retain their own feat
 Local verification on 2026-11-03: `./tools/test.ps1` passed 18 Unit and 78 Headless cases on Windows using the installed native binaries. This includes 4 new Unit and 39 new Headless Solid cases.
 
 Shared-tool follow-up on 2026-11-03: all 51 shipped Solid tool entries, including dropdown choices, have representative coverage across the linked suites. The full local run passed 20 Unit and 86 Headless cases, including 2 new selection unit cases and 8 new shared-tool headless cases.
+
+## Coverage scope
+
+The 51 entries above refer only to the Solid ribbon. The contextual [Sketch](../sketches/README.md#sketch-contextual-tab) and [Direct Modeling](../direct-modeling/README.md#contextual-coverage) tabs add 40 and 35 entries respectively, with shared controls appearing in both. The [Solid option-level issue #41](https://github.com/chrizpro/prism/issues/41) tracks options on the Solid ribbon itself. Sketch and Direct Modeling have separate issues in their guides.

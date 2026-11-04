@@ -18,6 +18,8 @@ Prism.Tests/
     Loft/                       LoftCommandTests.cs
     Solid/                      Primitive, edit, combine, transform, pattern and shared tool checks
     StaticAnalysis/             StaticStudyTests.cs
+    Sketch/                     Rectangle and drawing-mode checks
+    DirectModeling/             Face edit and cap checks
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
   Integration/                  Planned viewport workflows; README only for now
 ```
@@ -40,6 +42,8 @@ Unit tests cover supporting production math, not a second implementation of the 
 ./tools/test.ps1 -Layer Headless -Feature Revolve
 ./tools/test.ps1 -Layer Headless -Feature StaticAnalysis
 ./tools/test.ps1 -Feature Solid
+./tools/test.ps1 -Feature Sketch
+./tools/test.ps1 -Feature DirectModeling
 ./tools/test.ps1 -List                        # list descriptive IDs and test names
 
 # Standard test runner commands also work, including Rider's test explorer:
@@ -70,6 +74,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | Sweep: [Surface #18](https://github.com/chrizpro/prism/issues/18), [Freeform #19](https://github.com/chrizpro/prism/issues/19), [NURBS #20](https://github.com/chrizpro/prism/issues/20) | [Sweep README](../docs/modeling/sweep/README.md) | [Sweep math](Unit/Sweep/) | [Sweep commands](Headless/Sweep/), including representative exact and cage cases; NURBS workflow unverified |
 | Loft: [Surface #22](https://github.com/chrizpro/prism/issues/22), [Freeform #23](https://github.com/chrizpro/prism/issues/23), [NURBS #24](https://github.com/chrizpro/prism/issues/24) | [Loft README](../docs/modeling/loft/README.md) | [Loft math](Unit/Loft/) | [Loft commands](Headless/Loft/), including representative exact and cage cases; NURBS workflow unverified |
 | Solid ribbon [#31](https://github.com/chrizpro/prism/issues/31) | [Solid ribbon and linked feature guides](../docs/modeling/solid/README.md) | [Pattern, curve and selection logic](Unit/Solid/) | [Solid ribbon and command tests](Headless/Solid/) |
+| Sketch [#38](https://github.com/chrizpro/prism/issues/38), Rectangle [#39](https://github.com/chrizpro/prism/issues/39) | [Sketch](../docs/modeling/sketches/README.md) · [Rectangle](../docs/modeling/sketches/rectangle/README.md) | — | [Drawing modes](Headless/Sketch/) |
+| Direct Modeling [#40](https://github.com/chrizpro/prism/issues/40) | [Direct Modeling](../docs/modeling/direct-modeling/README.md) | — | [Face edits and caps](Headless/DirectModeling/) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
@@ -93,3 +99,5 @@ The owner explicitly requested this new solution-managed structure and existing-
 This is representative coverage, not complete feature certification. Extrude Boolean/taper/regions and additional face/plane/curved-target cases, additional Revolve world/picked axes, two-sided angles, feature regeneration/persistence and invalid profiles, Freeform variants and desktop workflows need further coverage. New/unclear behavior still requires owner review. Retire existing executable suites only after their useful checks are inventoried and replaced deliberately.
 
 The Sweep/Loft expansion does not establish rails, complex/closed paths, Loft endpoints/closed lofts or complete cage validity. Static coverage is a single-body axial benchmark plus pressure/scaling and setup checks; bending, torsion, general mesh convergence, contact and multi-body solving remain outside this pilot. Canonical READMEs hold the current limitations and owner decisions.
+
+Contextual coverage on 2026-11-03: 20 Unit and 119 Headless cases passed locally on Windows with installed native binaries. The 33 added Headless cases cover Sketch drawing modes and Direct Modeling face edits and caps. The guides identify options still awaiting maintained verification.

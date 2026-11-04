@@ -42,7 +42,7 @@ Direct edits are plain undo steps by default. Right-click a body (in the viewpor
 
 - Replace / Match / Extend and the two Splits share a dropdown each, but are still separate commands underneath; one command with a mode would be cleaner.
 - Rebuild the browser (WebAssembly) kernel so Merge Faces works there.
-- Walk the whole tab in the running app. Everything here is verified by headless tests only.
+- Walk the whole tab in the running app. See the contextual coverage section for the scope of headless verification.
 - Test Check and Repair and the feature recogniser on large messy imported parts.
 
 ## Selecting
@@ -53,3 +53,19 @@ Selection is the heart of direct modeling, so the Select section is the same on 
 - **What it picks** follows the mode: faces, edges or whole bodies, including curves, sketches and Freeform bodies in Object mode. Inside a tool that is asking for faces or edges, it adds them to that pick. In Edit Points it picks control points, and in Edit Freeform the Lasso choice applies to its empty-space drag.
 - **Through** (X-ray) lets the rectangle and lasso also take faces, edges and bodies hidden behind others, so you can select both sides of a part in one drag. Without it only what you can see is picked. With it on, **Alt-click** steps through what is under the pointer, front to back.
 - **Invert** selects what is not selected. Faces and edges invert within the bodies you picked from, so pick the few you want to leave out, press Invert and get the rest. With nothing selected it selects everything of the current kind.
+
+## Contextual coverage
+
+The shipped Direct Modeling tab has 35 entries including dropdown choices and shared controls. [Issue #40](https://github.com/chrizpro/prism/issues/40) tracks its option-level verification.
+
+- [Maintained Direct Modeling tests](../../../Prism.Tests/Headless/DirectModeling/) exercise Replace Face, planar Match Face, Extend and Trim to a target, splitting and merging a planar face, and all three Fill / Cap modes on a planar opening.
+- [Standalone DirectModelTests](../../../tests/Prism.DirectModelTests/) contain feature recognition, edit actions, direct gizmo, face operations, repair and pattern checks. [Shared Solid tests](../../../Prism.Tests/Headless/Solid/) cover the entry, exit and shared controls.
+
+### Option groups to verify
+
+- Edit Feature offers Move, Resize, Copy, Delete and Change type. Hole conversions include Plain, Counterbore, Countersink and modeled Threaded, with side, size and thread controls.
+- Edit Pattern adjusts spacing and count in two directions, angular step, and individual instance removal. Mirror Feature uses a picked plane or face.
+- Check and Repair separates inspection from healing. It exposes tiny size, sewing gap, healing, tiny/sliver removal and closing a sealed surface into a solid.
+- Fill / Cap offers Automatic, Flat and Smooth patch with a joint tolerance. The current maintained cases use a planar opening for each mode.
+
+Remaining maintained work includes Edit Feature action and type choices, smart-selection scope and gizmo handles, cylindrical and conical Match Face, pattern modes and Mirror Feature, Repair, nonplanar caps and joint tolerances, and rejection, undo and history cases. Desktop interaction remains deferred.
