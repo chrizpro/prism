@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5CC692FB68F636898B197473A8E247B4B053E4CD6636D95C4C7F475A371B3F9C",
+  "sourceHash": "90BCDF488A872408CDC1AEB59DBB5E1B3D5E78803121809E7E6339516290860D",
   "workspaces": [
     {
       "Id": "design",
@@ -32,12 +32,14 @@
     {
       "Id": "scan",
       "Name": "Scan",
-      "Tip": "Meshes and reverse engineering. Print preparation is in CAM.",
+      "Tip": "Clean up meshes, and rebuild scans as CAD. Print preparation is in CAM.",
       "Tabs": [
         "Home",
         "Mesh",
+        "Reverse Engineer",
         "Solid",
         "Surface",
+        "Freeform",
         "Direct Modeling",
         "Analyze",
         "View"
@@ -255,6 +257,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -307,11 +333,106 @@
               "label": "Construction Plane",
               "description": "Make planes: offset (one or a whole stack), angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves",
+          "tools": [
+            {
+              "id": "curve-through|Curve",
+              "label": "Curve",
+              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Data",
+              "label": "Curve from Data",
+              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
             },
             {
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
+              "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Project",
+              "label": "Project",
+              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Isocurves",
+              "label": "Isocurves",
+              "description": "Pull curves of constant U or V out of a surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Contour",
+              "label": "Contour",
+              "description": "Slice a body into evenly spaced section curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Duplicate Edge",
+              "description": "Copy the edges you click as curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve, or cut it into pieces.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Divide",
+              "label": "Divide",
+              "description": "Points at equal distances along a curve; reports the length.",
               "shortcut": ""
             }
           ]
@@ -359,6 +480,12 @@
               "id": "revolve|Revolve",
               "label": "Revolve",
               "description": "Spin a profile around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "emboss|Emboss",
+              "label": "Emboss",
+              "description": "Raise text or a sketched shape off a face, or engrave it into the body.",
               "shortcut": ""
             }
           ]
@@ -410,41 +537,6 @@
           ]
         },
         {
-          "title": "Transform",
-          "tools": [
-            {
-              "id": "move|Move",
-              "label": "Move",
-              "description": "Translate objects.",
-              "shortcut": ""
-            },
-            {
-              "id": "rotate|Rotate",
-              "label": "Rotate",
-              "description": "Rotate objects around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "scale|Scale",
-              "label": "Scale",
-              "description": "Resize objects uniformly.",
-              "shortcut": ""
-            },
-            {
-              "id": "mirror|Mirror",
-              "label": "Mirror",
-              "description": "Reflect objects across a plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "duplicate|Duplicate",
-              "label": "Duplicate",
-              "description": "Copy the selected objects.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Pattern",
           "tools": [
             {
@@ -475,40 +567,6 @@
               "id": "pattern-table|Table",
               "label": "Table",
               "description": "Place copies at positions from a table.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Inspect",
-          "tools": [
-            {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
-              "shortcut": ""
-            },
-            {
-              "id": "properties|Properties",
-              "label": "Properties",
-              "description": "Volume, mass, center of mass and moments of inertia.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section Analysis",
-              "label": "Section Analysis",
-              "description": "Cut the model with a plane to see inside.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -552,6 +610,75 @@
               "shortcut": ""
             }
           ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
         }
       ]
     },
@@ -584,6 +711,30 @@
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -637,11 +788,28 @@
               "label": "Construction Plane",
               "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves",
+          "tools": [
+            {
+              "id": "curve-through|Curve",
+              "label": "Curve",
+              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Data",
+              "label": "Curve from Data",
+              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
             },
             {
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
+              "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
               "shortcut": ""
             }
           ]
@@ -686,15 +854,27 @@
               "shortcut": ""
             },
             {
+              "id": "revolve|Revolve",
+              "label": "Revolve",
+              "description": "Spin a profile around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep|Pipe",
+              "label": "Pipe",
+              "description": "A round, optionally tapered rod or tube along a path curve.",
+              "shortcut": ""
+            },
+            {
               "id": "rib|Rib",
               "label": "Rib",
               "description": "Add a reinforcing rib from a planar sketch to a solid body.",
               "shortcut": ""
             },
             {
-              "id": "revolve|Revolve",
-              "label": "Revolve",
-              "description": "Spin a profile around an axis.",
+              "id": "emboss|Emboss",
+              "label": "Emboss",
+              "description": "Raise text or a sketched shape off a face, or engrave it into the body.",
               "shortcut": ""
             }
           ]
@@ -741,6 +921,17 @@
           ]
         },
         {
+          "title": "Direct Edit",
+          "tools": [
+            {
+              "id": "pushpull|Direct Edit",
+              "label": "Direct Edit",
+              "description": "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Combine",
           "tools": [
             {
@@ -759,41 +950,6 @@
               "id": "intersect|Intersect",
               "label": "Intersect",
               "description": "Keep only the shared volume.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Transform",
-          "tools": [
-            {
-              "id": "move|Move",
-              "label": "Move",
-              "description": "Translate objects.",
-              "shortcut": ""
-            },
-            {
-              "id": "rotate|Rotate",
-              "label": "Rotate",
-              "description": "Rotate objects around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "scale|Scale",
-              "label": "Scale",
-              "description": "Resize objects uniformly.",
-              "shortcut": ""
-            },
-            {
-              "id": "mirror|Mirror",
-              "label": "Mirror",
-              "description": "Reflect objects across a plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "duplicate|Duplicate",
-              "label": "Duplicate",
-              "description": "Copy the selected objects.",
               "shortcut": ""
             }
           ]
@@ -829,6 +985,41 @@
               "id": "pattern-table|Table",
               "label": "Table",
               "description": "Place copies at positions you type: irregular layouts.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
               "shortcut": ""
             }
           ]
@@ -899,6 +1090,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -951,41 +1166,111 @@
               "label": "Construction Plane",
               "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves",
+          "tools": [
+            {
+              "id": "curve-through|Curve",
+              "label": "Curve",
+              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Data",
+              "label": "Curve from Data",
+              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
             },
             {
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
+              "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
               "shortcut": ""
             },
             {
-              "id": "section|Curve Intersect",
-              "label": "Curve Intersect",
-              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "id": "section|Project",
+              "label": "Project",
+              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
               "shortcut": ""
             },
             {
-              "id": "curve-cp|Control Curve",
-              "label": "Control Curve",
-              "description": "Place control points; the curve is pulled toward them.",
+              "id": "curve-through|Isocurves",
+              "label": "Isocurves",
+              "description": "Pull curves of constant U or V out of a surface.",
               "shortcut": ""
             },
             {
-              "id": "curve-through|Curve through Points",
-              "label": "Curve through Points",
-              "description": "Place points the curve must pass through.",
+              "id": "section|Contour",
+              "label": "Contour",
+              "description": "Slice a body into evenly spaced section curves.",
               "shortcut": ""
             },
             {
-              "id": "curve-equation|Curve from Equation",
-              "label": "Curve from Equation",
-              "description": "Define a curve with formulas of t.",
+              "id": "curve-through|Duplicate Edge",
+              "label": "Duplicate Edge",
+              "description": "Copy the edges you click as curves.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Edit curves",
+          "tools": [
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch.",
               "shortcut": ""
             },
             {
-              "id": "curve-table|Curve from Table",
-              "label": "Curve from Table",
-              "description": "Make a curve from a table of x,y,z points.",
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve, or cut it into pieces.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Divide",
+              "label": "Divide",
+              "description": "Points at equal distances along a curve; reports the length.",
               "shortcut": ""
             }
           ]
@@ -1008,13 +1293,13 @@
             {
               "id": "sweep-surface|Sweep",
               "label": "Sweep",
-              "description": "Sweep a curve along a path.",
+              "description": "Carry a profile along a path. Add a second rail to steer how it turns.",
               "shortcut": ""
             },
             {
               "id": "sweep-surface|Pipe",
               "label": "Pipe",
-              "description": "A round tube along a path curve; set the radius, or make it a solid.",
+              "description": "A round, optionally tapered tube along a path curve; set the radius, or make it a solid.",
               "shortcut": ""
             },
             {
@@ -1026,7 +1311,7 @@
             {
               "id": "patch|Boundary Surface",
               "label": "Boundary Surface",
-              "description": "Span a surface over curves and surface edges with G0/G1/G2 continuity per edge, a weight per edge, and optional guide curves.",
+              "description": "Fill or span a boundary of curves, sketches and surface edges. A flat loop gives a flat surface; curves across the inside and G0/G1/G2 per edge shape the rest. Two separate surface edges are blended.",
               "shortcut": ""
             }
           ]
@@ -1034,6 +1319,18 @@
         {
           "title": "Modify",
           "tools": [
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Sew",
+              "label": "Sew",
+              "description": "Sew (stitch) surfaces together; closed shells become solids.",
+              "shortcut": ""
+            },
             {
               "id": "offset|Offset",
               "label": "Offset",
@@ -1047,21 +1344,9 @@
               "shortcut": ""
             },
             {
-              "id": "knit|Sew",
-              "label": "Sew",
-              "description": "Sew (stitch) surfaces together; closed shells become solids.",
-              "shortcut": ""
-            },
-            {
               "id": "unstitch|Unsew",
               "label": "Unsew",
               "description": "Take a sewn shell, or just some of its faces, apart into separate surfaces.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim",
-              "label": "Trim",
-              "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
               "shortcut": ""
             },
             {
@@ -1098,46 +1383,6 @@
               "id": "warp|Warp",
               "label": "Warp",
               "description": "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Fill",
-          "tools": [
-            {
-              "id": "planar|Planar",
-              "label": "Planar",
-              "description": "Fill closed sketches with a flat surface.",
-              "shortcut": ""
-            },
-            {
-              "id": "ruled|Ruled",
-              "label": "Ruled",
-              "description": "Join two curves with straight rulings.",
-              "shortcut": ""
-            },
-            {
-              "id": "patch|Patch",
-              "label": "Patch",
-              "description": "Fill a boundary loop with a smooth patch.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Continuity",
-          "tools": [
-            {
-              "id": "nurbs-patch|Match Surface",
-              "label": "Match Surface",
-              "description": "Match position, tangency or curvature to a fixed patch boundary.",
-              "shortcut": ""
-            },
-            {
-              "id": "curvature|Check Seam",
-              "label": "Check Seam",
-              "description": "Measure sampled seam gap, normal angle and cross-boundary curvature.",
               "shortcut": ""
             }
           ]
@@ -1208,6 +1453,24 @@
               "label": "Section Analysis",
               "description": "Cut the model with a plane to see inside.",
               "shortcut": ""
+            },
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Show reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Graph",
+              "label": "Curvature Graph",
+              "description": "Show a comb of hairs along a curve to judge how smooth it is.",
+              "shortcut": ""
             }
           ]
         },
@@ -1253,6 +1516,30 @@
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -1306,41 +1593,63 @@
               "label": "Construction Plane",
               "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves",
+          "tools": [
+            {
+              "id": "curve-through|Curve",
+              "label": "Curve",
+              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Data",
+              "label": "Curve from Data",
+              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
             },
             {
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
+              "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Edit curves",
+          "tools": [
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
               "shortcut": ""
             },
             {
-              "id": "section|Curve Intersect",
-              "label": "Curve Intersect",
-              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve, or cut it into pieces.",
               "shortcut": ""
             },
             {
-              "id": "curve-cp|Control Curve",
-              "label": "Control Curve",
-              "description": "Place control points; the curve is pulled toward them.",
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
               "shortcut": ""
             },
             {
-              "id": "curve-through|Curve through Points",
-              "label": "Curve through Points",
-              "description": "Place points the curve must pass through.",
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
               "shortcut": ""
             },
             {
-              "id": "curve-equation|Curve from Equation",
-              "label": "Curve from Equation",
-              "description": "Define a curve with formulas of t.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-table|Curve from Table",
-              "label": "Curve from Table",
-              "description": "Make a curve from a table of x,y,z points.",
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
               "shortcut": ""
             }
           ]
@@ -1444,9 +1753,9 @@
               "shortcut": ""
             },
             {
-              "id": "chamfer|Chamfer",
-              "label": "Chamfer",
-              "description": "Cut a flat bevel along the selected inner edges. The width is \u0027Bevel width\u0027 in the panel.",
+              "id": "chamfer|Bevel",
+              "label": "Bevel",
+              "description": "Bevel the selected edges: flat, or tight with support loops either side. Type and width are in the panel.",
               "shortcut": ""
             },
             {
@@ -1456,27 +1765,9 @@
               "shortcut": ""
             },
             {
-              "id": "form-weld|Merge faces",
-              "label": "Merge faces",
-              "description": "Join the selected touching faces into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "form-weld|Collapse",
-              "label": "Collapse",
-              "description": "Shrink the selected edges to single points.",
-              "shortcut": ""
-            },
-            {
               "id": "form-subdivide|Split face",
               "label": "Split face",
               "description": "Cut a face in two between two selected corners.",
-              "shortcut": ""
-            },
-            {
-              "id": "form-crease|Bevel",
-              "label": "Bevel",
-              "description": "Add support loops beside the selected edges to tighten them.",
               "shortcut": ""
             },
             {
@@ -1540,13 +1831,7 @@
             {
               "id": "form-freeze|Freeze",
               "label": "Freeze",
-              "description": "Lock the selected faces, edges or points so they cannot move (shown in blue).",
-              "shortcut": ""
-            },
-            {
-              "id": "form-freeze|Unfreeze",
-              "label": "Unfreeze",
-              "description": "Release the selected points.",
+              "description": "Lock the selected faces, edges or points so they cannot move (shown in blue). Press it on a frozen selection to release it, or with nothing selected to release everything.",
               "shortcut": ""
             },
             {
@@ -1569,7 +1854,7 @@
             {
               "id": "form-weld|Weld",
               "label": "Weld",
-              "description": "Merge the selected vertices into one.",
+              "description": "Pull the selection into one point: selected points weld together; edges and faces collapse.",
               "shortcut": ""
             },
             {
@@ -1579,9 +1864,9 @@
               "shortcut": ""
             },
             {
-              "id": "form-weld|Merge edges",
-              "label": "Merge edges",
-              "description": "Remove the selected inner edges, joining the faces on either side.",
+              "id": "form-weld|Merge",
+              "label": "Merge",
+              "description": "Join selected faces into one, or remove selected inner edges and join the faces either side.",
               "shortcut": ""
             },
             {
@@ -1616,18 +1901,40 @@
           ]
         },
         {
-          "title": "Finish",
+          "title": "Quality",
           "tools": [
             {
-              "id": "form-nurbs|Convert fewer faces",
-              "label": "Convert fewer faces",
-              "description": "Like Convert to NURBS, but each irregular face becomes one fitted patch instead of four: a lighter solid that is quicker for booleans and fillets, a little less exact near poles.",
+              "id": "form-edit|Check Quality",
+              "label": "Check Quality",
+              "description": "Mark poles, triangles and n-gons, see how stretched the quads are and how the curvature varies, and color the surface by its distance to a reference.",
               "shortcut": ""
-            },
+            }
+          ]
+        },
+        {
+          "title": "Validate",
+          "tools": [
+            {
+              "id": "check|Check Cage",
+              "label": "Check Cage",
+              "description": "Check manifold topology, winding, degenerate faces and extraordinary points.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Finish",
+          "tools": [
             {
               "id": "form-nurbs|Convert to NURBS",
               "label": "Convert to NURBS",
               "description": "Turn the selected form into exact NURBS surfaces / a solid for CAD operations.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-nurbs|Convert fewer faces",
+              "label": "Convert fewer faces",
+              "description": "Like Convert to NURBS, but each irregular face becomes one fitted patch instead of four: a lighter solid that is quicker for booleans and fillets, a little less exact near poles.",
               "shortcut": ""
             }
           ]
@@ -1687,27 +1994,11 @@
               "label": "Section Analysis",
               "description": "Cut the model with a plane to see inside.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Quality",
-          "tools": [
+            },
             {
-              "id": "form-edit|Check Quality",
-              "label": "Check Quality",
-              "description": "Mark poles, triangles and n-gons, see how stretched the quads are and how the curvature varies, and color the surface by its distance to a reference.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Validate",
-          "tools": [
-            {
-              "id": "check|Check Cage",
-              "label": "Check Cage",
-              "description": "Check manifold topology, winding, degenerate faces and extraordinary points.",
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Show reflection stripes: smooth, continuous stripes mean a smooth surface.",
               "shortcut": ""
             }
           ]
@@ -1755,6 +2046,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -1797,51 +2112,62 @@
           "title": "References",
           "tools": [
             {
-              "id": "sketch|Draw (K)",
-              "label": "Draw (K)",
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
               "description": "Draw flat, then shape curves in space.",
-              "shortcut": ""
+              "shortcut": "K"
             },
             {
               "id": "origin-plane|Construction Plane",
               "label": "Construction Plane",
               "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Curves",
+          "tools": [
+            {
+              "id": "curve-through|Curve",
+              "label": "Curve",
+              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-equation|Curve from Data",
+              "label": "Curve from Data",
+              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "shortcut": ""
             },
             {
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
+              "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
               "shortcut": ""
             },
             {
-              "id": "section|Curve Intersect",
-              "label": "Curve Intersect",
-              "description": "Combine planar curves from two different planes into their shared 3D curve.",
+              "id": "section|Project",
+              "label": "Project",
+              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
               "shortcut": ""
             },
             {
-              "id": "curve-cp|Control Curve",
-              "label": "Control Curve",
-              "description": "Place control points; the curve is pulled toward them.",
+              "id": "curve-through|Isocurves",
+              "label": "Isocurves",
+              "description": "Pull curves of constant U or V out of a surface.",
               "shortcut": ""
             },
             {
-              "id": "curve-through|Curve through Points",
-              "label": "Curve through Points",
-              "description": "Place points the curve must pass through.",
+              "id": "section|Contour",
+              "label": "Contour",
+              "description": "Slice a body into evenly spaced section curves.",
               "shortcut": ""
             },
             {
-              "id": "curve-equation|Curve from Equation",
-              "label": "Curve from Equation",
-              "description": "Define a curve with formulas of t: Cartesian, cylindrical or spherical. Springs, spirals, cams, wave profiles.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-table|Curve from Table",
-              "label": "Curve from Table",
-              "description": "Make a curve from a table of x,y,z points typed, pasted or read from a file.",
+              "id": "curve-through|Duplicate Edge",
+              "label": "Duplicate Edge",
+              "description": "Copy the edges you click as curves.",
               "shortcut": ""
             }
           ]
@@ -1850,15 +2176,9 @@
           "title": "Edit curves",
           "tools": [
             {
-              "id": "fillet|Fillet Curve",
-              "label": "Fillet Curve",
-              "description": "Round the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "chamfer|Chamfer Curve",
-              "label": "Chamfer Curve",
-              "description": "Cut the corners of a flat curve or sketch.",
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch.",
               "shortcut": ""
             },
             {
@@ -1888,13 +2208,7 @@
             {
               "id": "trim|Trim Curve",
               "label": "Trim Curve",
-              "description": "Keep part of a curve.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Split Curve",
-              "label": "Split Curve",
-              "description": "Cut a curve in several pieces.",
+              "description": "Keep part of a curve, or cut it into pieces.",
               "shortcut": ""
             },
             {
@@ -1918,88 +2232,11 @@
           ]
         },
         {
-          "title": "Curves from surfaces",
-          "tools": [
-            {
-              "id": "section|Project",
-              "label": "Project",
-              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-through|Isocurves",
-              "label": "Isocurves",
-              "description": "Pull curves of constant U or V out of a surface.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Intersect",
-              "label": "Intersect",
-              "description": "Curves where two surfaces or bodies cross.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Contour",
-              "label": "Contour",
-              "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-through|Duplicate Edge",
-              "label": "Duplicate Edge",
-              "description": "Copy the edges you click as curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "curvature|Curvature Graph",
-              "label": "Curvature Graph",
-              "description": "Show a comb of hairs along a curve to judge how smooth it is.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Surfaces",
           "tools": [
             {
-              "id": "patch|Boundary Surface",
-              "label": "Boundary Surface",
-              "description": "Span a surface over curves and surface edges with G0/G1/G2 continuity per edge, a weight per edge, and optional guide curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "patch|Blend Surface",
-              "label": "Blend Surface",
-              "description": "A surface between two surface edges with tangent or curvature continuity.",
-              "shortcut": ""
-            },
-            {
-              "id": "sweep-surface|Pipe",
-              "label": "Pipe",
-              "description": "A round, optionally tapered pipe along a curve.",
-              "shortcut": ""
-            },
-            {
-              "id": "sweep-surface|Sweep 2 rails",
-              "label": "Sweep 2 rails",
-              "description": "Carry a profile along two rails.",
-              "shortcut": ""
-            },
-            {
-              "id": "raise-degree|Rebuild Surface",
-              "label": "Rebuild Surface",
-              "description": "Redraw a surface as one patch with a chosen grid of points.",
-              "shortcut": ""
-            },
-            {
-              "id": "patch|Network Surface",
-              "label": "Network Surface",
-              "description": "A surface inside a closed outline that also passes through curves running across it.",
-              "shortcut": ""
-            },
-            {
-              "id": "nurbs-patch|NURBS Patch",
-              "label": "NURBS Patch",
+              "id": "nurbs-patch|Control Grid",
+              "label": "Control Grid",
               "description": "Create a grid of control points to shape freely.",
               "shortcut": ""
             },
@@ -2018,7 +2255,13 @@
             {
               "id": "sweep-surface|Sweep",
               "label": "Sweep",
-              "description": "Sweep a curve along a path.",
+              "description": "Carry a profile along a path. Add a second rail to steer how it turns.",
+              "shortcut": ""
+            },
+            {
+              "id": "sweep-surface|Pipe",
+              "label": "Pipe",
+              "description": "A round, optionally tapered tube along a path curve; set the radius, or make it a solid.",
               "shortcut": ""
             },
             {
@@ -2028,9 +2271,9 @@
               "shortcut": ""
             },
             {
-              "id": "patch|Patch",
-              "label": "Patch",
-              "description": "Fill a boundary loop with a smooth patch.",
+              "id": "patch|Boundary Surface",
+              "label": "Boundary Surface",
+              "description": "Fill or span a boundary of curves, sketches and surface edges. A flat loop gives a flat surface; curves across the inside and G0/G1/G2 per edge shape the rest. Two separate surface edges are blended.",
               "shortcut": ""
             }
           ]
@@ -2051,9 +2294,15 @@
               "shortcut": ""
             },
             {
-              "id": "sculpt|Deform",
-              "label": "Deform",
-              "description": "Bend, twist, taper or stretch curves and surfaces along an axis.",
+              "id": "raise-degree|Rebuild Surface",
+              "label": "Rebuild Surface",
+              "description": "Redraw a surface as one patch with a chosen grid of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "warp|Warp",
+              "label": "Warp",
+              "description": "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.",
               "shortcut": ""
             }
           ]
@@ -2071,12 +2320,6 @@
               "id": "raise-degree|Raise Degree",
               "label": "Raise Degree",
               "description": "Increase the polynomial degree for smoother, more flexible surfaces.",
-              "shortcut": ""
-            },
-            {
-              "id": "to-nurbs|Convert to NURBS",
-              "label": "Convert to NURBS",
-              "description": "Convert the selection to editable NURBS geometry.",
               "shortcut": ""
             }
           ]
@@ -2144,15 +2387,20 @@
               "shortcut": ""
             },
             {
-              "id": "patch|Boundary Surface",
-              "label": "Boundary Surface",
-              "description": "Fill openings or span a boundary of edges and curves, with G0/G1/G2 continuity per edge.",
-              "shortcut": ""
-            },
-            {
               "id": "offset|Offset",
               "label": "Offset",
               "description": "Create a parallel copy of a surface or face.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Convert",
+          "tools": [
+            {
+              "id": "to-nurbs|Convert to NURBS",
+              "label": "Convert to NURBS",
+              "description": "Convert the selection to editable NURBS geometry.",
               "shortcut": ""
             }
           ]
@@ -2212,12 +2460,7 @@
               "label": "Section Analysis",
               "description": "Cut the model with a plane to see inside.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Analyze",
-          "tools": [
+            },
             {
               "id": "zebra|Zebra Stripes",
               "label": "Zebra Stripes",
@@ -2228,6 +2471,12 @@
               "id": "curvature|Curvature Map",
               "label": "Curvature Map",
               "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Graph",
+              "label": "Curvature Graph",
+              "description": "Show a comb of hairs along a curve to judge how smooth it is.",
               "shortcut": ""
             }
           ]
@@ -2247,7 +2496,7 @@
     },
     {
       "title": "Direct Modeling",
-      "contextual": false,
+      "contextual": true,
       "groups": [
         {
           "title": "Select",
@@ -2274,6 +2523,30 @@
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -2314,30 +2587,36 @@
           ]
         },
         {
-          "title": "Add",
+          "title": "Edit",
           "tools": [
             {
-              "id": "hole|Hole",
-              "label": "Hole",
-              "description": "Add a new plain or threaded hole to an exact body, including imported parts.",
+              "id": "movehole|Edit Feature",
+              "label": "Edit Feature",
+              "description": "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature.",
               "shortcut": ""
             },
             {
-              "id": "fillet|Fillet",
-              "label": "Fillet",
-              "description": "Add a round to selected edges.",
+              "id": "replaceface|Replace Face",
+              "label": "Replace Face",
+              "description": "Make faces lie on another plane or face.",
               "shortcut": ""
             },
             {
-              "id": "chamfer|Chamfer",
-              "label": "Chamfer",
-              "description": "Add a bevel to selected edges.",
+              "id": "replaceface|Match Face",
+              "label": "Match Face",
+              "description": "Give faces the plane, cylinder radius or cone angle of a source face.",
               "shortcut": ""
             },
             {
-              "id": "shell|Shell",
-              "label": "Shell",
-              "description": "Hollow out a body, optionally opening faces.",
+              "id": "pushpull|Extend / Trim Face",
+              "label": "Extend / Trim Face",
+              "description": "Grow or shrink flat faces until they meet a target plane or face.",
+              "shortcut": ""
+            },
+            {
+              "id": "splitbody|Split Face",
+              "label": "Split Face",
+              "description": "Divide a face along a plane, edge or sketch; the shape stays the same.",
               "shortcut": ""
             },
             {
@@ -2345,117 +2624,23 @@
               "label": "Split Body",
               "description": "Cut a body into separate pieces with a plane, face or surface.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit faces",
-          "tools": [
-            {
-              "id": "pushpull|Push / Pull",
-              "label": "Push / Pull",
-              "description": "Edit existing faces, holes and bosses by dragging them out or in. No history needed. Can include matching features or the whole pattern.",
-              "shortcut": ""
-            },
-            {
-              "id": "moveface|Move Face",
-              "label": "Move Face",
-              "description": "Edit existing flat faces: slide and tilt them; the body stretches to follow. Can include matching features or the whole pattern.",
-              "shortcut": ""
-            },
-            {
-              "id": "pushpull|Offset Face",
-              "label": "Offset Face",
-              "description": "Edit existing faces, holes and bosses: move every picked face along its own normal by a distance; neighbours extend or trim.",
-              "shortcut": ""
-            },
-            {
-              "id": "moveface|Rotate Face",
-              "label": "Rotate Face",
-              "description": "Edit existing flat faces: turn them about a straight edge, the face\u0027s own direction or a world axis; the body follows.",
-              "shortcut": ""
-            },
-            {
-              "id": "replaceface|Replace Face",
-              "label": "Replace Face",
-              "description": "Edit existing faces so they lie on another plane or face.",
-              "shortcut": ""
-            },
-            {
-              "id": "pushpull|Extend / Trim Face",
-              "label": "Extend / Trim Face",
-              "description": "Edit existing flat faces: grow or shrink them in their own plane until they meet a target plane or face.",
-              "shortcut": ""
-            },
-            {
-              "id": "replaceface|Match Face",
-              "label": "Match Face",
-              "description": "Edit existing faces so they take the source face\u0027s plane, cylinder radius or cone angle.",
-              "shortcut": ""
             },
             {
               "id": "draft|Draft",
               "label": "Draft",
-              "description": "Edit existing walls: lean them away from a pull direction.",
-              "shortcut": ""
-            },
-            {
-              "id": "splitbody|Split Face",
-              "label": "Split Face",
-              "description": "Edit existing geometry: divide a face in two along a plane, edge or sketch; the shape stays the same.",
-              "shortcut": ""
-            },
-            {
-              "id": "replaceface|Merge Faces",
-              "label": "Merge Faces",
-              "description": "Edit existing geometry: join neighbouring faces on the same surface into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "deleteface|Delete Face",
-              "label": "Delete Face",
-              "description": "Remove an existing hole, fillet, pocket or boss and let the neighbouring faces close the gap. Can include matching features or the whole pattern.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit features",
-          "tools": [
-            {
-              "id": "movehole|Edit Feature",
-              "label": "Edit Feature",
-              "description": "Edit an existing hole, slot, pocket, boss or fillet: move, copy, resize or delete it. One click picks the whole feature; Select by can take every feature of the same size or the whole pattern.",
+              "description": "Lean walls away from a pull direction.",
               "shortcut": ""
             },
             {
               "id": "pattern-linear|Edit Pattern",
               "label": "Edit Pattern",
-              "description": "Edit an existing line, grid or circle of holes, slots, pockets or bosses: change the spacing or count, or drop one instance.",
+              "description": "Change the spacing or count of a line, grid or circle of features, or drop one.",
               "shortcut": ""
             },
             {
               "id": "mirror|Mirror Feature",
               "label": "Mirror Feature",
-              "description": "Edit an existing part by copying holes, slots, pockets or bosses across a plane or flat face.",
-              "shortcut": ""
-            },
-            {
-              "id": "deleteface|Remove Fillets",
-              "label": "Remove Fillets",
-              "description": "Edit existing geometry: remove fillets and rounds (picked chains or all up to a radius) and let the neighbours close the gap.",
-              "shortcut": ""
-            },
-            {
-              "id": "form-edit|Edit Freeform",
-              "label": "Edit Freeform",
-              "description": "Freeform bodies are shaped by their cage: pick faces, edges or points and extrude, inset, delete or move them.",
-              "shortcut": ""
-            },
-            {
-              "id": "move|Move Body",
-              "label": "Move Body",
-              "description": "Move or turn a body while keeping a face flush, two holes coaxial or a round face tangent to another body.",
+              "description": "Copy holes, slots, pockets or bosses across a plane or flat face.",
               "shortcut": ""
             }
           ]
@@ -2472,7 +2657,13 @@
             {
               "id": "patch|Fill / Cap",
               "label": "Fill / Cap",
-              "description": "Edit existing geometry: cap an open loop of edges with a flat face or smooth patch so the body closes.",
+              "description": "Cap an open loop of edges with a flat face or smooth patch so the body closes.",
+              "shortcut": ""
+            },
+            {
+              "id": "replaceface|Merge Faces",
+              "label": "Merge Faces",
+              "description": "Join neighbouring faces on the same surface into one.",
               "shortcut": ""
             }
           ]
@@ -2545,6 +2736,17 @@
               "shortcut": ""
             }
           ]
+        },
+        {
+          "title": "Exit",
+          "tools": [
+            {
+              "id": "finish|Finish Editing",
+              "label": "Finish Editing",
+              "description": "Leave Direct Edit and go back to where you were.",
+              "shortcut": ""
+            }
+          ]
         }
       ]
     },
@@ -2577,6 +2779,30 @@
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -2630,12 +2856,6 @@
               "label": "Construction Plane",
               "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
               "shortcut": ""
-            },
-            {
-              "id": "section|Intersection Curve",
-              "label": "Intersection Curve",
-              "description": "The curve where two planes, faces or bodies cross each other.",
-              "shortcut": ""
             }
           ]
         },
@@ -2666,9 +2886,9 @@
               "shortcut": ""
             },
             {
-              "id": "subtract|Subtract",
-              "label": "Subtract",
-              "description": "Cut one body out of another.",
+              "id": "hole|Hole",
+              "label": "Hole",
+              "description": "Cut a round or threaded hole through the metal.",
               "shortcut": ""
             },
             {
@@ -2786,6 +3006,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -2825,6 +3069,23 @@
           ]
         },
         {
+          "title": "References",
+          "tools": [
+            {
+              "id": "sketch|Create Sketch",
+              "label": "Create Sketch",
+              "description": "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Construction Plane",
+              "label": "Construction Plane",
+              "description": "Make planes: offset, angled, midway, square to a curve, or through three points. Sketch on them or use them as references.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Board",
           "tools": [
             {
@@ -2854,6 +3115,34 @@
               "id": "component|Component Envelope",
               "label": "Component Envelope",
               "description": "Place a package envelope or mechanical keepout, with top/bottom side and rotation.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Mechanical checks",
+          "tools": [
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find overlapping components or enclosure bodies. This is a mechanical check, not an electrical design rule.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Exchange",
+          "tools": [
+            {
+              "id": "import|Import STEP",
+              "label": "Import STEP",
+              "description": "Import board/component models exported by an ECAD application.",
+              "shortcut": ""
+            },
+            {
+              "id": "export|Export STEP",
+              "label": "Export STEP",
+              "description": "Export visible board and component geometry for mechanical exchange.",
               "shortcut": ""
             }
           ]
@@ -2894,29 +3183,6 @@
           ]
         },
         {
-          "title": "Mechanical checks",
-          "tools": [
-            {
-              "id": "interference|Interference",
-              "label": "Interference",
-              "description": "Find overlapping components or enclosure bodies.",
-              "shortcut": ""
-            },
-            {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure board size, connector positions and gaps.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section analysis",
-              "label": "Section analysis",
-              "description": "Inspect internal component clearances.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Inspect",
           "tools": [
             {
@@ -2940,18 +3206,12 @@
           ]
         },
         {
-          "title": "Exchange",
+          "title": "Appearance",
           "tools": [
             {
-              "id": "import|Import STEP",
-              "label": "Import STEP",
-              "description": "Import board/component models exported by an ECAD application.",
-              "shortcut": ""
-            },
-            {
-              "id": "export|Export STEP",
-              "label": "Export STEP",
-              "description": "Export visible board and component geometry for mechanical exchange.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -2965,6 +3225,12 @@
         {
           "title": "Write",
           "tools": [
+            {
+              "id": "script|Script Editor",
+              "label": "Script Editor",
+              "description": "Show or hide the script editor and its console.",
+              "shortcut": ""
+            },
             {
               "id": "script-new|New Script",
               "label": "New Script",
@@ -3161,29 +3427,6 @@
           ]
         },
         {
-          "title": "Nozzle review",
-          "tools": [
-            {
-              "id": "gcode|Import nozzle path",
-              "label": "Import nozzle path",
-              "description": "Read linear G0/G1 output from an external slicer.",
-              "shortcut": ""
-            },
-            {
-              "id": "animation|Playback",
-              "label": "Playback",
-              "description": "Animate nozzle travel and extrusion paths.",
-              "shortcut": ""
-            },
-            {
-              "id": "toolpath|Layer view",
-              "label": "Layer view",
-              "description": "Inspect imported print layers.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Mesh preparation",
           "tools": [
             {
@@ -3208,6 +3451,29 @@
               "id": "mesh-thickness|Wall Thickness",
               "label": "Wall Thickness",
               "description": "Color the part by wall thickness.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Nozzle review",
+          "tools": [
+            {
+              "id": "gcode|Import nozzle path",
+              "label": "Import nozzle path",
+              "description": "Read linear G0/G1 output from an external slicer.",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Playback",
+              "label": "Playback",
+              "description": "Animate nozzle travel and extrusion paths.",
+              "shortcut": ""
+            },
+            {
+              "id": "toolpath|Layer view",
+              "label": "Layer view",
+              "description": "Inspect imported print layers.",
               "shortcut": ""
             }
           ]
@@ -3347,28 +3613,29 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Inspect",
-          "tools": [
+            },
             {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
               "shortcut": ""
             },
             {
-              "id": "properties|Properties",
-              "label": "Properties",
-              "description": "Volume, mass, center of mass and moments of inertia.",
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
               "shortcut": ""
             },
             {
-              "id": "section|Section Analysis",
-              "label": "Section Analysis",
-              "description": "Cut the model with a plane to see inside.",
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -3445,6 +3712,29 @@
               "shortcut": ""
             }
           ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
+              "shortcut": ""
+            },
+            {
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
+              "shortcut": ""
+            }
+          ]
         }
       ]
     },
@@ -3477,6 +3767,30 @@
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -3546,12 +3860,52 @@
           ]
         },
         {
-          "title": "Edit",
+          "title": "Region",
+          "tools": [
+            {
+              "id": "mesh-select|Select Region",
+              "label": "Select Region",
+              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Repair",
+          "tools": [
+            {
+              "id": "mesh-repair|Repair",
+              "label": "Repair",
+              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-quality|Mesh Quality",
+              "label": "Mesh Quality",
+              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Reshape",
           "tools": [
             {
               "id": "mesh-reduce|Reduce",
               "label": "Reduce",
               "description": "Simplify a dense mesh while keeping its shape.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-remesh|Remesh",
+              "label": "Remesh",
+              "description": "Rebuild with even, well-shaped triangles of a chosen size.",
               "shortcut": ""
             },
             {
@@ -3573,12 +3927,6 @@
               "shortcut": ""
             },
             {
-              "id": "mesh-remesh|Remesh",
-              "label": "Remesh",
-              "description": "Rebuild with even, well-shaped triangles of a chosen size.",
-              "shortcut": ""
-            },
-            {
               "id": "mesh-boolean|Mesh Boolean",
               "label": "Mesh Boolean",
               "description": "Join, subtract or intersect two closed meshes.",
@@ -3587,30 +3935,29 @@
           ]
         },
         {
-          "title": "Repair",
+          "title": "Print analysis",
           "tools": [
             {
-              "id": "mesh-repair|Repair",
-              "label": "Repair",
-              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "id": "mesh-thickness|Wall Thickness",
+              "label": "Wall Thickness",
+              "description": "Color the part by wall thickness.",
               "shortcut": ""
             },
             {
-              "id": "mesh-holes|Fill Holes",
-              "label": "Fill Holes",
-              "description": "Close the open holes in a mesh.",
+              "id": "mesh-overhang|Overhang \u0026 Orientation",
+              "label": "Overhang \u0026 Orientation",
+              "description": "Find what needs supports and the best way to lay the part down.",
               "shortcut": ""
-            },
+            }
+          ]
+        },
+        {
+          "title": "Display",
+          "tools": [
             {
-              "id": "mesh-check|Print Check",
-              "label": "Print Check",
-              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-quality|Mesh Quality",
-              "label": "Mesh Quality",
-              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "id": "clear-analysis|Clear Colors",
+              "label": "Clear Colors",
+              "description": "Remove analysis colors from meshes.",
               "shortcut": ""
             }
           ]
@@ -3651,29 +3998,168 @@
           ]
         },
         {
-          "title": "Print analysis",
+          "title": "Inspect",
           "tools": [
             {
-              "id": "mesh-thickness|Wall Thickness",
-              "label": "Wall Thickness",
-              "description": "Color the part by wall thickness.",
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
               "shortcut": ""
             },
             {
-              "id": "mesh-overhang|Overhang \u0026 Orientation",
-              "label": "Overhang \u0026 Orientation",
-              "description": "Find what needs supports and the best way to lay the part down.",
+              "id": "properties|Properties",
+              "label": "Properties",
+              "description": "Volume, mass, center of mass and moments of inertia.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section Analysis",
+              "label": "Section Analysis",
+              "description": "Cut the model with a plane to see inside.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Select \u0026 trace",
+          "title": "Appearance",
           "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Reverse Engineer",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Select",
+          "tools": [
+            {
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-vertex|Vertex",
+              "label": "Vertex",
+              "description": "Select cage vertices (1 while editing Freeform).",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Datum",
+          "tools": [
+            {
+              "id": "move|Gizmo",
+              "label": "Gizmo",
+              "description": "Position and bind the gizmo; adjust its handles and snapping.",
+              "shortcut": ""
+            },
+            {
+              "id": "sketch-point|Point",
+              "label": "Point",
+              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-axis|Axis",
+              "label": "Axis",
+              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Plane",
+              "label": "Plane",
+              "description": "Save the current sketch datum plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-plane|Save gizmo",
+              "label": "Save gizmo",
+              "description": "Save the current gizmo as a sketch datum.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Set up",
+          "tools": [
+            {
+              "id": "mesh-align|Align",
+              "label": "Align",
+              "description": "Drop on the bed, lay a face flat, or best-fit onto a CAD body.",
+              "shortcut": ""
+            },
             {
               "id": "mesh-select|Select Region",
               "label": "Select Region",
-              "description": "Pick triangles on a scan: smart patch, brush, rectangle or lasso.",
+              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Sketch from scan",
+          "tools": [
+            {
+              "id": "mesh-section|Section Sketch",
+              "label": "Section Sketch",
+              "description": "Put a plane on the scan and get an editable sketch of fitted lines, arcs and circles to extrude or revolve.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Fit",
+          "tools": [
+            {
+              "id": "mesh-fit|Segment \u0026 Fit",
+              "label": "Segment \u0026 Fit",
+              "description": "Find planes, cylinders, spheres and cones in a scan, read their sizes, and make them exact surfaces.",
               "shortcut": ""
             },
             {
@@ -3683,46 +4169,33 @@
               "shortcut": ""
             },
             {
-              "id": "form-scan|Freeform from Scan",
-              "label": "Freeform from Scan",
-              "description": "Wrap an editable quad cage around the scan.",
+              "id": "mesh-fit|Rebuild from Scan",
+              "label": "Rebuild from Scan",
+              "description": "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Reverse engineering",
+          "title": "Convert",
           "tools": [
             {
-              "id": "mesh-fit|Segment \u0026 Fit",
-              "label": "Segment \u0026 Fit",
-              "description": "Find planes, cylinders, spheres and cones in a scan and create CAD geometry from them.",
+              "id": "form-scan|Freeform from Scan",
+              "label": "Freeform from Scan",
+              "description": "Wrap an editable quad cage around the scan.",
               "shortcut": ""
             },
             {
-              "id": "mesh-section|Section Curves",
-              "label": "Section Curves",
-              "description": "Slice the mesh into curves to rebuild with extrude, loft or sweep.",
+              "id": "mesh-solid|Mesh to Solid",
+              "label": "Mesh to Solid",
+              "description": "Last resort: a CAD body with one face per triangle. Heavy, and hard to edit.",
               "shortcut": ""
-            },
-            {
-              "id": "mesh-fit|Rebuild from Scan",
-              "label": "Rebuild from Scan",
-              "description": "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-section|Section Lines \u0026 Arcs",
-              "label": "Section Lines \u0026 Arcs",
-              "description": "Slice the scan and fit clean lines and arcs to each outline.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-align|Align",
-              "label": "Align",
-              "description": "Drop on the bed, lay a face flat, or best-fit onto a CAD body.",
-              "shortcut": ""
-            },
+            }
+          ]
+        },
+        {
+          "title": "Check",
+          "tools": [
             {
               "id": "mesh-deviation|Deviation",
               "label": "Deviation",
@@ -3730,9 +4203,44 @@
               "shortcut": ""
             },
             {
-              "id": "mesh-solid|Mesh to Solid",
-              "label": "Mesh to Solid",
-              "description": "Convert a mesh into a CAD body (one face per triangle).",
+              "id": "clear-analysis|Clear Colors",
+              "label": "Clear Colors",
+              "description": "Remove analysis colors from meshes.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Transform",
+          "tools": [
+            {
+              "id": "move|Move",
+              "label": "Move",
+              "description": "Translate objects.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Rotate",
+              "label": "Rotate",
+              "description": "Rotate objects around an axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "scale|Scale",
+              "label": "Scale",
+              "description": "Resize objects uniformly.",
+              "shortcut": ""
+            },
+            {
+              "id": "mirror|Mirror",
+              "label": "Mirror",
+              "description": "Reflect objects across a plane.",
+              "shortcut": ""
+            },
+            {
+              "id": "duplicate|Duplicate",
+              "label": "Duplicate",
+              "description": "Copy the selected objects.",
               "shortcut": ""
             }
           ]
@@ -3761,12 +4269,12 @@
           ]
         },
         {
-          "title": "Display",
+          "title": "Appearance",
           "tools": [
             {
-              "id": "clear-analysis|Clear Colors",
-              "label": "Clear Colors",
-              "description": "Remove analysis colors from meshes.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -3803,6 +4311,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -3812,7 +4344,7 @@
             {
               "id": "sim-study|New Study",
               "label": "New Study",
-              "description": "Start a static stress study on the selected solid body.",
+              "description": "Start a static stress study on the selected solid body. Select several touching bodies to study them together, each with its own material.",
               "shortcut": ""
             }
           ]
@@ -4109,46 +4641,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Review",
-          "tools": [
-            {
-              "id": "motion-force|Load from Motion",
-              "label": "Load from Motion",
-              "description": "Turn the force a joint held in the last Motion Dynamics study into a load in a new Static study.",
-              "shortcut": ""
-            },
-            {
-              "id": "clear-analysis|Clear Results",
-              "label": "Clear Results",
-              "description": "Remove the motion paths from the model.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Mechanism",
           "tools": [
             {
-              "id": "component|Parts Library",
-              "label": "Parts Library",
-              "description": "Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",
+              "id": "component|Make Part",
+              "label": "Make Part",
+              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
               "shortcut": ""
             },
             {
               "id": "component|Insert Component",
               "label": "Insert Component",
               "description": "Place a part from another open document or a part file.",
+              "shortcut": ""
+            },
+            {
+              "id": "component|Parts Library",
+              "label": "Parts Library",
+              "description": "Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",
               "shortcut": ""
             },
             {
@@ -4194,44 +4704,15 @@
               "shortcut": ""
             },
             {
-              "id": "joint-gear|Gear Pair",
-              "label": "Gear Pair",
-              "description": "Make one revolute joint follow another through gears.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-rack|Rack and Pinion",
-              "label": "Rack and Pinion",
-              "description": "Make a slider follow a revolute joint like a rack on a pinion.",
+              "id": "joint-gear|Couple",
+              "label": "Couple",
+              "description": "Make one joint follow another at a ratio: gears, belts and chains, a rack, pulley or screw, or a lever or cable.",
               "shortcut": ""
             },
             {
               "id": "joint-revolute|Drive Joints",
               "label": "Drive Joints",
               "description": "Move the joints by hand to check the mechanism before simulating it.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Simulate",
-          "tools": [
-            {
-              "id": "motion-kinematics|Kinematics",
-              "label": "Kinematics",
-              "description": "Drive joints at a constant speed or oscillate them and see positions, speeds, accelerations, part paths and collisions. No masses or forces needed.",
-              "shortcut": ""
-            },
-            {
-              "id": "motion-dynamics|Motion Dynamics",
-              "label": "Motion Dynamics",
-              "description": "Rigid-body motion with gravity, motor torque, loads and friction: required motor torque and power, energy, and free joints that swing under gravity.",
-              "shortcut": ""
-            },
-            {
-              "id": "motion-robot|Robot Path",
-              "label": "Robot Path",
-              "description": "Move a robot arm\u0027s tool along a curve: inverse kinematics, reach check, joint motion and the torque each joint needs with a payload.",
               "shortcut": ""
             }
           ]
@@ -4246,15 +4727,48 @@
               "shortcut": ""
             },
             {
-              "id": "motion-force|Force",
-              "label": "Force",
-              "description": "A force on a part, constant, a pulse or alternating.",
+              "id": "motion-force|Force / Torque",
+              "label": "Force / Torque",
+              "description": "A force or torque on a part, constant, a pulse or alternating.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Simulate",
+          "tools": [
+            {
+              "id": "motion-dynamics|Motion Study",
+              "label": "Motion Study",
+              "description": "Move any mechanism: choose how each joint moves and read the motion, paths and collisions. With masses and forces on, also motor torque, power, energy and joint reactions.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Review",
+          "tools": [
+            {
+              "id": "motion-force|Load from Motion",
+              "label": "Load from Motion",
+              "description": "Turn the force a joint held in the last Motion Study into a load in a new Static study.",
               "shortcut": ""
             },
             {
-              "id": "motion-force|Torque",
-              "label": "Torque",
-              "description": "A torque on a part, constant, a pulse or alternating.",
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Remove the motion paths from the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -4269,9 +4783,26 @@
           "title": "Pipe flow",
           "tools": [
             {
+              "id": "cae-network|Pipe Network",
+              "label": "Pipe Network",
+              "description": "Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.",
+              "shortcut": ""
+            },
+            {
               "id": "cae-fluid|Pipe Flow",
               "label": "Pipe Flow",
-              "description": "Incompressible circular-pipe pressure drop and Reynolds number. This is a reduced-order calculation, not general 3D CFD.",
+              "description": "Incompressible circular-pipe pressure drop and Reynolds number for one pipe.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "3D flow",
+          "tools": [
+            {
+              "id": "cae-flow|Flow Study",
+              "label": "Flow Study",
+              "description": "Basic 3D flow around a body or through a duct: colors, streamlines, drag and pressure drop. Dependable for slow, smooth flow; a picture for fast, turbulent flow.",
               "shortcut": ""
             }
           ]
@@ -4308,6 +4839,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -4336,6 +4891,12 @@
               "id": "component|Create Part",
               "label": "Create Part",
               "description": "Start a new part inside this assembly. It opens in the Design workspace; press Back to assembly when it is done.",
+              "shortcut": ""
+            },
+            {
+              "id": "component|Make Part",
+              "label": "Make Part",
+              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
               "shortcut": ""
             },
             {
@@ -4454,6 +5015,30 @@
               "label": "Vertex",
               "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
+            },
+            {
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
+              "shortcut": ""
             }
           ]
         },
@@ -4499,6 +5084,17 @@
           ]
         },
         {
+          "title": "Couple",
+          "tools": [
+            {
+              "id": "joint-gear|Couple",
+              "label": "Couple",
+              "description": "Make one joint follow another at a ratio: gears, belts and chains, a rack, pulley or screw, or a lever or cable.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Motion",
           "tools": [
             {
@@ -4511,23 +5107,6 @@
               "id": "interference|Interference",
               "label": "Interference",
               "description": "Check the current pose for overlapping parts.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Couple",
-          "tools": [
-            {
-              "id": "joint-gear|Gear Pair",
-              "label": "Gear Pair",
-              "description": "Make one revolute joint follow another through gears: pick both shafts and the two tooth counts.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-rack|Rack and Pinion",
-              "label": "Rack and Pinion",
-              "description": "Make a slider follow a revolute joint like a rack on a pinion.",
               "shortcut": ""
             }
           ]
@@ -4660,17 +5239,6 @@
           ]
         },
         {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Share",
           "tools": [
             {
@@ -4683,6 +5251,17 @@
               "id": "cancel|Stop Sharing",
               "label": "Stop Sharing",
               "description": "Stop serving the AR page to phones.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Appearance",
+          "tools": [
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -5106,23 +5685,6 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Section",
-          "tools": [
-            {
-              "id": "section|Section View",
-              "label": "Section View",
-              "description": "Cut the model with a plane to look inside. Works in every view.",
-              "shortcut": ""
-            },
-            {
-              "id": "clear-analysis|Clear Section",
-              "label": "Clear Section",
-              "description": "Remove the section cut.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
           "title": "Orientation",
           "tools": [
             {
@@ -5284,9 +5846,32 @@
               "shortcut": ""
             },
             {
+              "id": "table|Data Table",
+              "label": "Data Table",
+              "description": "Show or hide the Data panel: spreadsheets saved with the document. Paste from Excel or open a CSV, text or Excel file, then use a sheet for points, positions or motion with @ and its name.",
+              "shortcut": ""
+            },
+            {
               "id": "zebra|Zebra stripes",
               "label": "Zebra stripes",
               "description": "Reflection stripes for surface quality.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Section",
+          "tools": [
+            {
+              "id": "section|Section View",
+              "label": "Section View",
+              "description": "Cut the model with a plane to look inside. Works in every view.",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Section",
+              "label": "Clear Section",
+              "description": "Remove the section cut.",
               "shortcut": ""
             }
           ]

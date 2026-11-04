@@ -8,7 +8,7 @@ Use [the requirements and testing workflow](../engineering/requirements-and-test
 
 | Area | Guide | Coverage |
 | --- | --- | --- |
-| Solid modeling | [Extrude](solid/extrude.md) · [Revolve](revolve/README.md#solid-revolve) · [Sweep](sweep/README.md#solid-sweep) · [Loft](loft/README.md#solid-loft) | Living feature behavior and open decisions; proposed requirements pending owner review |
+| Solid modeling | [Extrude](solid/extrude.md) · [Revolve](revolve/README.md#solid-revolve) | Living feature behavior and open decisions; proposed requirements pending owner review |
 | Direct modeling | [Direct Modeling](direct-modeling/README.md) | Editing existing exact geometry, gizmos and history |
 | Surfaces and styling | [Surface and NURBS](surface-and-nurbs/README.md) · [Extrude living specification](surface-and-nurbs/extrude.md) · [Revolve living specification](revolve/README.md) | Surface/NURBS workflows, shared implementations and distinct review scopes |
 | Sheet metal, electronics and scripting | [Sheet Metal, ECAD and Script](script/README.md) | Separate workflows grouped in one guide |

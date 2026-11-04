@@ -1,6 +1,6 @@
 # Sweep — living specification
 
-This README is the canonical requirements document for Solid, Surface, Freeform and NURBS Sweep. Keep reviewed requirements current here; issues track defined work and link to this document rather than duplicating it.
+This README is the canonical requirements document for Surface, Freeform and NURBS Sweep. Keep reviewed requirements current here; issues track defined work and link to this document rather than duplicating it.
 
 **Review state:** Proposed — awaiting owner review (2026-11-03). Current controls below are source observations. Existing-behavior characterization is authorized; unreviewed behavior must not silently become a product contract. Integration remains deferred.
 
@@ -8,7 +8,6 @@ This README is the canonical requirements document for Solid, Surface, Freeform 
 
 | Variant | Entry point / implementation | Story |
 |---|---|---|
-| Solid | Solid → Create → Features → Sweep; `SweepCommand()` | [#17](https://github.com/chrizpro/prism/issues/17) |
 | Surface | Surface → Create → Sweep; `SweepCommand(surface: true)` | [#18](https://github.com/chrizpro/prism/issues/18) |
 | Freeform | Freeform → Create → Sweep; `FormSweepCommand()` | [#19](https://github.com/chrizpro/prism/issues/19) |
 | NURBS | NURBS → Surfaces → Sweep; `SweepCommand(surface: true)` | [#20](https://github.com/chrizpro/prism/issues/20) |
@@ -25,13 +24,13 @@ Source: [ribbon](../../../Prism/ViewModels/MainViewModel.cs), [exact commands](.
 | Profile orientation | Follow the path; Keep parallel (no turning); Keep upright (Z stays up) |
 | Scale at the end | 0.01..100; default 1; used without a second rail |
 | Second rail | Optional; switches to `Occ.SweepRails` and hides orientation/end-scale controls |
-| Result | Solid offers New body, Join, Cut, Intersect; Surface adds `ObjKind.Surface` |
+| Result | Surface and NURBS create a surface |
 
-## Solid Sweep
+## Compatibility
+
+The Solid ribbon and sketch marking menu omit Sweep. The solid-output implementation is retained for saved feature recipes and automation. [Former Solid story #17](https://github.com/chrizpro/prism/issues/17).
 
 A profile is carried along a path into exact solid geometry. A rectangular 10 × 6 mm profile along a perpendicular 12 mm straight path has an independent expected volume of 720 mm³. For a linear end-scale factor k on that straight path, the benchmark volume is `A × L × (1 + k + k²) / 3`.
-
-Proposed expectations for review include predictable orientation, valid solids for supported profiles/paths, correct Boolean targets and noncorrupting failure. Open decisions include rail contact rules, self-intersections, closed paths, twists, corner transitions and the intended scale law on curved paths. Simple straight-path checks do not establish those contracts.
 
 ## Surface Sweep
 
@@ -57,6 +56,6 @@ Uses the same exact surface command as Surface; this entry does not add an autom
 
 Use `./tools/test.ps1 -Feature Sweep`. Individual cases and expectations live in facts and Feature/Layer/TestId traits, not a duplicate option-to-test matrix.
 
-Local verification on 2026-11-03: **2 Unit and 6 Headless Sweep cases passed**, including representative Solid, Surface and Freeform cases. Windows/.NET SDK 10.0.102 with installed OCCT DLLs; no native rebuild. Rails, curved/closed paths, Keep upright, Booleans and full history/persistence remain unverified by this pilot. NURBS shares the surface implementation, but its UI workflow remains unverified. Existing standalone suites were preserved and not rerun.
+Local verification on 2026-11-03: **2 Unit and 6 Headless Sweep cases passed**, including solid-output compatibility, Surface and Freeform cases. Windows/.NET SDK 10.0.102 with installed OCCT DLLs; no native rebuild. Rails, curved/closed paths, Keep upright, Booleans and full history/persistence remain unverified by this pilot. NURBS shares the surface implementation, but its UI workflow remains unverified. Existing standalone suites were preserved and not rerun.
 
 Keep approved changes and open decisions here. Completed stories preserve the reviewed spec commit/release; later changes get new issues. Integration is deferred; later actual viewport images should be attached to the relevant issue with test ID and source revision. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).

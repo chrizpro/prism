@@ -54,8 +54,8 @@ public sealed partial class MainViewModel
             case ObjKind.Plane:
                 return [Cm("Create sketch", "sketch", () => new CreateSketchCommand()), Act("Look at", "look-at", () => s.LookAtSelection()), hide, null, del, null, null, null];
             case ObjKind.Sketch:
-                return [Cm("Extrude", "extrude", () => new ExtrudeCommand()), Cm("Revolve", "revolve", () => new RevolveCommand()), Act("Edit sketch", "sketch-edit", EditSelectedSketch), Cm("Sweep", "sweep", () => new SweepCommand()),
-                        del, hide, Cm("Loft", "loft", () => new LoftCommand()), Cm("Flange", "flange", () => new ContourFlangeCommand())];
+                return [Cm("Extrude", "extrude", () => new ExtrudeCommand()), Cm("Revolve", "revolve", () => new RevolveCommand()), Act("Edit sketch", "sketch-edit", EditSelectedSketch), null,
+                        del, hide, null, Cm("Flange", "flange", () => new ContourFlangeCommand())];
             case ObjKind.Surface:
                 return [Cm("Thicken", "thicken", () => new ThickenCommand()), Cm("Offset", "offset", () => new OffsetSurfaceCommand()), Cm("Reverse normal", "reverse-normal", () => new ReverseNormalCommand()), Cm("Trim", "trim", () => new TrimSurfaceCommand()),
                         del, hide, Cm("Unsew", "unstitch", () => new UnstitchCommand()), Cm("Extend", "extend-surface", () => new ExtendSurfaceCommand())];

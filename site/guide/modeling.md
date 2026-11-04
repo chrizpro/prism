@@ -22,7 +22,7 @@ Enable **Snap gizmo transforms** to set move, angle and scale increments. Hold A
 
 ## Build solid features
 
-Home and Solid share a **Create** section. Primitive shapes occupy one menu, and **Features** contains Extrude, Revolve, Sweep, Loft, and feature editing where applicable. Modify contains rounding, beveling, and hollowing tools. Combine groups Union, Subtract, and Intersect.
+Home and Solid share a **Create** section. Primitive shapes occupy one menu, and **Features** contains Extrude, Revolve, and other tools for solid features. Sweep and Loft are available on Surface, Freeform, and NURBS. Modify contains rounding, beveling, and hollowing tools. Combine groups Union, Subtract, and Intersect.
 
 Select a body, face, or edge before starting a tool when it needs a target. Confirm the preview rather than assuming that the current selection is the intended input.
 

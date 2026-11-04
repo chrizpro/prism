@@ -2,6 +2,7 @@
 
 ## Development preview · 0.1.0
 
+- Removed Sweep and Loft from the Solid ribbon and the sketch marking menu.
 - Shared gizmo styling with active-operation, combined and custom visibility; persistent display preferences, live preview, and move/angle/scale snapping.
 - Collapsible context tree with source sketches under their owning body and branch lines that follow the preference accent.
 - Consistent numbered command steps, including Profile → Axis → Extent → Result for Revolve, and shared styling across the right-side studios.

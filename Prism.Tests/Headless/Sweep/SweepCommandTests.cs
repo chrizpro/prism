@@ -8,6 +8,7 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 namespace Prism.HeadlessTests.Sweep;
 
 /// <summary>Actual Sweep commands compared with simple independent straight-path geometry.</summary>
+/// <remarks>Solid-output cases cover the command used by saved feature recipes and automation.</remarks>
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/sweep/README.md">Living Sweep specification and variant boundaries.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Sweep")]

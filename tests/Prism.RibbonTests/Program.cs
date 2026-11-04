@@ -80,7 +80,7 @@ var patterns=solidTab.Groups.Single(g=>g.Title=="Pattern").Items.OfType<RibbonBu
 Check(patterns.Count==1&&patterns[0].Menu!.Select(b => b.Icon).SequenceEqual(new[]{"pattern-linear","pattern-circular","pattern-curve","pattern-fill","pattern-table"}),"Solid groups all five pattern methods in one menu");
 var solidCreate = solidTab.Groups.Single(g => g.Title == "Create").Items.OfType<RibbonButton>().ToArray();
 Check(new[] { "Extrude", "Revolve" }.All(n => solidCreate.Any(b => b.Label == n && !b.HasMenu)), "Solid exposes Extrude and Revolve");
-Check(solidTab.Buttons.Any(b => b.Label == "Sweep") && solidTab.Buttons.Any(b => b.Label == "Loft") && solidTab.Buttons.All(b => b.Label != "Edit\nFeature"), "Solid has Sweep and Loft and omits Edit Feature");
+Check(solidTab.Buttons.All(b => b.Label is not ("Sweep" or "Loft" or "Edit\nFeature")), "Solid omits Sweep, Loft, and Edit Feature");
 var solidModify = solidTab.Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>().ToArray();
 var edge = solidModify.Single(b => b.Menu?.Any(v => v.Label == "Chamfer") == true);
 Check(edge.IsSplit && edge.Label == "Chamfer" && edge.Menu!.Select(v => v.Label).SequenceEqual(new[] { "Chamfer", "Fillet" }), "Solid defaults its edge tools to Chamfer");

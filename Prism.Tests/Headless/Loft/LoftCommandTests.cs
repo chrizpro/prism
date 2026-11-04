@@ -8,6 +8,7 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 namespace Prism.HeadlessTests.Loft;
 
 /// <summary>Actual Loft commands checked against prism/frustum geometry and cage invariants.</summary>
+/// <remarks>Solid-output cases cover the command used by saved feature recipes and automation.</remarks>
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/loft/README.md">Living Loft specification and variant boundaries.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Loft")]

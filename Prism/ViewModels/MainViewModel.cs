@@ -573,10 +573,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
                     Cmd("Revolve", "revolve", () => new RevolveCommand(), "Spin a profile around an axis."),
-                    Split("split:solid-sweep", "Carry a profile along a path, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
-                        Cmd("Sweep", "sweep", () => new SweepCommand(), "Carry a profile along a path. Add a second rail to steer how it turns."),
-                        Cmd("Pipe", "sweep", () => new PipeCommand(), "A round, optionally tapered rod or tube along a path curve.")),
-                    Cmd("Loft", "loft", () => new LoftCommand(), "Connect outlines into a solid that changes shape along its length."),
+                    Cmd("Pipe", "sweep", () => new PipeCommand(), "A round, optionally tapered rod or tube along a path curve."),
                     Split("split:solid-detail", "Add a rib, or raise or engrave a shape. Click the name (or right-click) for the other.",
                         Cmd("Rib", "rib", () => new RibCommand(), "Add a reinforcing rib from a planar sketch to a solid body."),
                         Cmd("Emboss", "emboss", () => new EmbossCommand(), "Raise text or a sketched shape off a face, or engrave it into the body."))),
@@ -1247,6 +1244,9 @@ public sealed partial class MainViewModel : ViewModelBase
         // folded into other tools on the ribbon; scripts and saved steps still reach them
         foreach (Func<Command> make in new Func<Command>[] { () => new SweepTwoRailsCommand(), () => new NetworkSurfaceCommand(), () => new BlendSurfaceCommand(), () => new PatchCommand(), () => new PlanarSurfaceCommand(), () => new RuledSurfaceCommand(), () => new SplitCurveCommand(), () => new DeformCommand(), () => new IntersectSurfacesCommand(), () => new CurveIntersectCommand() }) CommandCatalog.Register(make);
         CommandCatalog.Register(() => new FillOpeningCommand());
+        // Preserve recipe loading for documents saved with the former Solid tools.
+        CommandCatalog.Register(() => new SweepCommand());
+        CommandCatalog.Register(() => new LoftCommand());
         OrganizeRibbons(TransformGrp, InspectGrp, AppearanceGrp, SelectGrp);
         // Buttons that are not commands (and the shared selection and materials buttons) get their help by icon.
         foreach (var t in Tabs.Where(t => !t.IsContextual && !t.IsFile))
