@@ -17,6 +17,7 @@ Each shared modeling feature has one living guide. Use the variant sections for 
 
 ## Workflows
 
+- [Assembly](assembly/README.md)
 - [Solid ribbon and feature guides](solid/README.md)
 
 - [Direct Modeling](direct-modeling/README.md)

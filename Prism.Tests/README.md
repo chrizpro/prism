@@ -67,6 +67,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 
 ## Feature issues and tests
 
+See the [readiness report](../docs/engineering/test-readiness-report.md) for the reasons behind remaining gaps.
+
 | Feature issues | Living specification | Unit | Headless |
 |---|---|---|---|
 | Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7), [NURBS #16](https://github.com/chrizpro/prism/issues/16) | [Solid](../docs/modeling/extrude/README.md#solid-extrude) · [Surface / NURBS](../docs/modeling/extrude/README.md#surface-and-nurbs-extrude) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [Extrude headless tests](Headless/Extrude/), including To object body references and the named Surface case; NURBS shares the Surface command but its tab workflow is unverified |
@@ -82,6 +84,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | [Pipe #49](https://github.com/chrizpro/prism/issues/49) | [Pipe](../docs/modeling/pipe/README.md) | — | [Exact and cage Pipe](Headless/Surfacing/PipeTests.cs) |
 | [CAM #52](https://github.com/chrizpro/prism/issues/52) | [CAM guide](../docs/cam/README.md) | [Linear G-code](Unit/Cam/LinearGcodeTests.cs) | [Setup and import](Headless/Cam/CamWorkflowTests.cs) |
 | [ECAD #53](https://github.com/chrizpro/prism/issues/53) | [ECAD guide](../docs/ecad/README.md) | — | [Board and envelope](Headless/Ecad/BoardTests.cs) |
+| [Assembly #54](https://github.com/chrizpro/prism/issues/54) | [Assembly guide](../docs/modeling/assembly/README.md) | [Kinematics](Unit/Assembly/) | [Components and joints](Headless/Assembly/) |
+| [Fluids #55](https://github.com/chrizpro/prism/issues/55) | [Fluids guide](../docs/cae/fluids/README.md) | [Pipe network solver](Unit/Fluids/) | [Pipe Network command](Headless/Fluids/) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.

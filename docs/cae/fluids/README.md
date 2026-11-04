@@ -55,3 +55,9 @@ Curved walls become stair steps, so a body needs many cells across it to be accu
 ## What it does not do
 
 No turbulence model, free surfaces, compressible flow, moving parts, or heat carried by the fluid into a solid. Serious CFD would be a separate solver, which suits an add-on.
+
+## Maintained Pipe Network verification
+
+[Unit cases](../../../Prism.Tests/Unit/Fluids/PipeNetworkTests.cs) compare signed laminar flow with Hagen–Poiseuille and reject a disconnected branch. [Headless cases](../../../Prism.Tests/Headless/Fluids/PipeNetworkCommandTests.cs) exercise typed mm and kPa conversion and malformed rows without document changes. Run `./tools/test.ps1 -Feature Fluids`. [Issue #55](https://github.com/chrizpro/prism/issues/55).
+
+Pumps, elevation, roughness and flow withdrawals, curve import, turbulent network benchmarks, and 3D flow convergence still need maintained cases.

@@ -1,0 +1,25 @@
+# Prism test readiness report
+
+This report distinguishes maintained Unit/Headless coverage, standalone evidence and work still open. It is organized by workflow and links to the living guides for option-level gaps. A passing case verifies its fixture and assertions. It does not establish readiness for other inputs.
+
+## Coverage and why some checks are deferred
+
+| Area | Evidence available | Why some tools or options are still open |
+| --- | --- | --- |
+| Solid, Sketch and Direct Modeling | Maintained creation and editing checks include independent volume, dimensions, sketch constraints, selection state and some history cases. Standalone Sketch and DirectModel suites cover additional tools. | Remaining geometry and parameter cases are coverage backlog. Combinations involving picks, contextual editing or imported geometry need fixtures that isolate the result. Existing standalone evidence can be reused when porting to maintained suites. [Solid guide](../modeling/solid/README.md) |
+| Surface, NURBS and Freeform | Maintained exact and cage cases cover selected construction, fill, pipe and topology options. The bent-loop Patch discrepancy has a reproduction. | Advanced blends, continuity and control-point edits need numerical or topology checks. A visible patch or a valid BREP alone does not establish continuity. Desktop picking and gizmo drag checks need viewport integration. [Surface/NURBS](../modeling/surface-and-nurbs/README.md), [Freeform](../modeling/freeform/README.md), [Patch bug #51](https://github.com/chrizpro/prism/issues/51) |
+| Assembly | Managed motion cases cover six joint types and bidirectional placement with grounding. Headless cases cover component persistence and rigid and slider joint creation. | Linked sources need temporary part files and refresh/roundtrip fixtures. Couplings, limits on secondary axes, and loop closure need representative mechanisms with independent expected poses. Viewport gizmos, animation playback and visual exploded views need desktop interaction checks. [Assembly guide](../modeling/assembly/README.md) |
+| CAE | Maintained static checks use a real single-body solver with analytic axial and pressure cases. Pipe Network uses an independent laminar benchmark. Standalone CAE and Motion suites and study artifacts cover additional cases. | Modal, thermal and bonded multi-body studies need benchmark tolerances and dependency-controlled runs. External-solver cases need the configured executable. Mesh numbering, raw solver text and exact field pixels would make brittle assertions. Stable checks can use conservation, analytic values or mesh convergence. Flow Study and Motion still need maintained verification across representative inputs. [CAE guide](../cae/README.md) |
+| CAM and ECAD | Maintained checks cover CAM setup and nozzle import, managed G-code parsing, and ECAD geometry and validation. Standalone suites provide additional machining, print and exchange evidence. | CNC generation, posts, stock simulation, ECAD interference and STEP roundtrip are coverage backlog. Machine prove-out and slicer handoff require external environments. Validate generated geometry and program semantics before comparing complete file text. [CAM](../cam/README.md), [ECAD](../ecad/README.md) |
+| Desktop and other workspaces | Standalone checks exist for selected appearance, rendering, workflows and ribbons. Maintained coverage is uneven. | File dialogs, drag/hover, screenshots and platform-specific rendering need desktop fixtures. A test that relies on fixed pixels, timing or local preferences can fail for unrelated reasons. Areas such as document exchange, drawing, rendering, animation and mesh workflows still need a maintained inventory. [Test guide](../../Prism.Tests/README.md) |
+
+## How to read a coverage gap
+
+- **Shared implementation** can reuse the same geometry test. Add a ribbon or context case where routing, defaults or enabled state differ.
+- **Readiness checks** should prioritize cases that could corrupt a document, produce plausible but incorrect geometry, or silently change a calculation. Check rejection, Undo and persistence where relevant.
+- **Proposed behavior** needs owner review before tests encode it. Examples are standalone datums and independent appearance overrides. [Datum #42](https://github.com/chrizpro/prism/issues/42), [Appearance #45](https://github.com/chrizpro/prism/issues/45).
+- **Fragility** changes the assertion or test layer. Prefer stable geometry, state or solver invariants. Keep genuine desktop interactions in the deferred integration layer.
+
+## Latest local verification
+
+The full maintained Windows run passed **49 Unit and 216 Headless cases**, with zero failures or runner skips. This includes 11 new Unit and 5 new Headless Assembly and Fluids cases. The headless run used the installed native binaries. The gaps above describe scenarios with incomplete or absent maintained coverage.

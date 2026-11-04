@@ -8,3 +8,5 @@
 - [Engineering](engineering/requirements-and-testing.md) covers requirements, testing and maintenance.
 
 Use the [ribbon and workspace index](tabs/README.md) to find guides by their location in the app.
+
+See the [test readiness report](engineering/test-readiness-report.md) for maintained coverage and why other workflows still need verification.

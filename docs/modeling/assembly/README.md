@@ -1,0 +1,13 @@
+# Assembly
+
+Make Part turns a body into a component where it stands. The first component is grounded when the assembly has no grounded component. Joints position components from the grounded parts using local joint frames. Rigid, Revolute, Slider, Cylindrical, Ball, and Planar joints each define different motion channels. Joint limits clamp configured channels. When a loop closes, the placement walk reports the closure joint and leaves it unenforced. See [Motion](../../cae/motion/README.md) for motion studies and couplings.
+
+## Verification
+
+- [Kinematics unit tests](../../../Prism.Tests/Unit/Assembly/KinematicsTests.cs) verify all six motion types, slider limits, forward and reverse placement, and closure residuals.
+- [Component headless tests](../../../Prism.Tests/Headless/Assembly/ComponentTests.cs) cover grounding and native document roundtrip, and committing rigid and slider joints with exact box geometry.
+- Run `./tools/test.ps1 -Feature Assembly`. [Issue #54](https://github.com/chrizpro/prism/issues/54).
+
+## Coverage gaps
+
+Add maintained cases for linked parts and source refresh, alternate joint picks and direction options, remaining joint types through the UI, coupled joints, closed-loop diagnostics, animation, exploded view, and parts-list output. Desktop drag and interaction checks remain deferred.
