@@ -53,12 +53,14 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 
 | Feature issues | Unit | Headless |
 |---|---|---|
-| Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [SolidExtrudeTests.cs](Headless/Extrude/SolidExtrudeTests.cs), including the named Surface case |
-| Revolve: [#12](https://github.com/chrizpro/prism/issues/12) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case |
+| Extrude: [Solid #6](https://github.com/chrizpro/prism/issues/6), [Surface #7](https://github.com/chrizpro/prism/issues/7), [NURBS #16](https://github.com/chrizpro/prism/issues/16) | [ExtrudeDirectionMathTests.cs](Unit/Extrude/ExtrudeDirectionMathTests.cs) | [SolidExtrudeTests.cs](Headless/Extrude/SolidExtrudeTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
+| Revolve: [Solid #12](https://github.com/chrizpro/prism/issues/12), [Surface #13](https://github.com/chrizpro/prism/issues/13), [NURBS #15](https://github.com/chrizpro/prism/issues/15) | [RevolveAxisMathTests.cs](Unit/Revolve/RevolveAxisMathTests.cs) | [SolidRevolveTests.cs](Headless/Revolve/SolidRevolveTests.cs), including the named Surface case; NURBS shares this command but its tab workflow is unverified |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.
 
 [Freeform Extrude Profile #8](https://github.com/chrizpro/prism/issues/8) currently links legacy executable characterization. It has no dedicated maintained Unit/Headless classes yet; the exact Solid/Surface tests above do not establish Freeform coverage.
+
+[Freeform Revolve #14](https://github.com/chrizpro/prism/issues/14) has no identified dedicated maintained tests. Its canonical behavior and open decisions live with all four variants in the [Revolve README](../docs/tabs/revolve/README.md). The Surface/NURBS Extrude specification is shared in [its living guide](../docs/tabs/surface-and-nurbs/extrude.md).
 
 Integration remains [planned](Integration/README.md) and is deferred for now. When implemented, attach useful viewport images to the relevant feature/bug issue with test ID and source revision. Reserved integration IDs are not implemented or counted as passing tests.
 

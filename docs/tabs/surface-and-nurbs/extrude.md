@@ -1,13 +1,25 @@
-# Surface Extrude — specification review
+# Surface and NURBS Extrude — living specification
 
 > **Requirements:** Proposed — awaiting owner review (2026-11-03).  
-> **Verification:** Code and existing guides inspected; not run in the desktop application.
+> **Verification:** Shared Surface command cases have run headlessly; the NURBS tab workflow has not been verified. Integration remains deferred.
 
 ## Purpose and current workflow
 
 Create a surface by extending a selected profile or open edge chain. The [Surface and NURBS tab guide](README.md) lists Extrude in both workflows. [The modeling guide](../../../site/guide/modeling.md) explains **Extrude Surface → Single edges** to select an open chain (for example three sides of a rectangle).
 
+This is the canonical living specification for the two exact surface entry points below. Their common controls and unresolved requirements are described once here and evolve with owner decisions.
+
 This is **not** the same contract as [Solid Extrude](../solid/extrude.md) or [Freeform profile extrusion](../freeform/extrude.md).
+
+## Surface Extrude
+
+Surface → Create → Extrude calls `ExtrudeCommand(surface: true)` and creates an exact Surface object. Track this workflow in [Surface Extrude #7](https://github.com/chrizpro/prism/issues/7).
+
+## NURBS Extrude
+
+NURBS → Surfaces → Extrude calls the same `ExtrudeCommand(surface: true)`. Track this workflow separately in [NURBS Extrude #16](https://github.com/chrizpro/prism/issues/16), while sharing the control/behavior description below. The ribbon wiring is in [MainViewModel.cs](../../../Prism/ViewModels/MainViewModel.cs).
+
+This command path does not add a separate conversion step. Shared Surface command tests do not verify the NURBS ribbon, selection workflow, resulting control-point editing or a particular NURBS representation. Whether this entry should remain an alias, and what conversion/parameterization/control-point guarantees it should provide, remain owner decisions.
 
 ## Observed implementation — not yet approved
 
@@ -45,8 +57,10 @@ No requirement IDs have been allocated or approved.
 ## Traceability and history
 
 - **Feature story:** [Story #7 — Surface Extrude review](https://github.com/chrizpro/prism/issues/7).
+- **NURBS workflow story:** [Story #16 — NURBS Extrude review](https://github.com/chrizpro/prism/issues/16).
 - **Implementation:** [`Prism/Commands/SolidCommands.cs`](../../../Prism/Commands/SolidCommands.cs), `ExtrudeCommand(surface: true)`.
-- **Tests:** Relevant existing test coverage not established. No tests authored or run.
+- **Tests:** [SolidExtrudeTests.cs](../../../Prism.Tests/Headless/Extrude/SolidExtrudeTests.cs) contains the named Surface case; [ExtrudeEvidence.cs](../../../tests/Prism.DirectModelTests/ExtrudeEvidence.cs) contains additional legacy Surface extent checks. Individual cases and expectations remain in those files, not a duplicate matrix here. No NURBS-tab-specific maintained tests were identified.
+- **Recorded verification:** Surface cases passed in earlier local runs on 2026-11-03; see the [test guide](../../../Prism.Tests/README.md) and [historical evidence](../../engineering/extrude-testing.md). This documentation update did not execute new tests or verify the NURBS workflow.
 - **Delivery:** Future completed stories must link the pinned approved spec commit/tag; future changes get new issues.
 
 See [the shared policy](../../engineering/requirements-and-testing.md). This page is a review draft, not a verified contract.

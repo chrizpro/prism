@@ -2,6 +2,8 @@
 
 The most common tools have their own buttons. The next most common sit in a dropdown or a small group. **Edit Freeform** holds the rest, so nothing appears in both places.
 
+Living Revolve requirements are maintained in the [Freeform Revolve section](../revolve/README.md#freeform-revolve); this cage command is separate from exact Solid, Surface and NURBS Revolve.
+
 ## Ribbon
 
 - **Select, Datum, References, Curves:** shared sections
