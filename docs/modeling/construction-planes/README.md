@@ -9,3 +9,9 @@ Construction Plane creates exact reference frames from offsets, angles, midplane
 ## Coverage gaps
 
 Angled, tangent and curve-normal planes, alternate datum orientations and desktop reuse need further coverage. See [gizmo workflows](../../gizmo-workflows/README.md). New requirements need owner review.
+
+## Standalone datums
+
+The Datum Gizmo and Construction Plane already work in model space. The Datum menu's Point, Axis, Plane and Save gizmo actions currently require an active sketch. A saved sketch axis belongs to the sketch and the document has no standalone axis object.
+
+**Proposed — awaiting owner review.** Make a standalone Axis available in model space, including placement in empty space. Review how the user specifies the origin and direction, whether the axis persists in the document, and which tools can pick it. Define the corresponding model-space behavior for Point, Plane and Save gizmo. [Issue #42](https://github.com/chrizpro/prism/issues/42).

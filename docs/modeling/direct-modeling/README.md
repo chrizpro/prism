@@ -69,3 +69,7 @@ The shipped Direct Modeling tab has 35 entries including dropdown choices and sh
 - Fill / Cap offers Automatic, Flat and Smooth patch with a joint tolerance. The current maintained cases use a planar opening for each mode.
 
 Remaining maintained work includes Edit Feature action and type choices, smart-selection scope and gizmo handles, cylindrical and conical Match Face, pattern modes and Mirror Feature, Repair, nonplanar caps and joint tolerances, and rejection, undo and history cases. Desktop interaction remains deferred.
+
+### Feature and pattern actions
+
+[Maintained feature action tests](../../../Prism.Tests/Headless/DirectModeling/FeatureActionTests.cs) exercise Delete, Resize, Copy and Move on a drilled hole, plus linear hole spacing, count and instance removal. [Issue #44](https://github.com/chrizpro/prism/issues/44) tracks additional feature and pattern options, including conversions, circular layouts and mirror targets.

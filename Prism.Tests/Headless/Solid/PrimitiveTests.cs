@@ -72,4 +72,36 @@ public class PrimitiveTests
         AssertNear(2 * Math.PI * Math.PI * 20 * 5 * 5, shape.Props().Volume, "Primitive volume (mm³)");
     }
 
+
+    [AvaloniaTheory(DisplayName = "SOL-H006 | Box operation applies to the explicitly picked target")]
+    [InlineData("Join", 1500)]
+    [InlineData("Cut", 500)]
+    [InlineData("Intersect", 500)]
+    [Trait("TestId", "SOL-H006")]
+    public void BoxBooleanUsesPickedBody(string operation, int volume)
+    {
+        var session = new CadSession();
+        var target = CreateBoxBody(session, new Vec3(5, 0, 0), 10, 10, 10);
+        var command = StartCommand(session, target, () => new BoxCommand());
+        command.ConfigureInputs(() =>
+        {
+            SetNumber(command, "Width (X)", 10);
+            SetNumber(command, "Depth (Y)", 10);
+            SetNumber(command, "Height (Z)", 10);
+            using var box = Occ.Box(10, 10, 10);
+            var minimum = box.Props().Min;
+            SetNumber(command, "Position X", -minimum.X);
+            SetNumber(command, "Position Y", -minimum.Y);
+            SetNumber(command, "Position Z", -minimum.Z);
+            SetChoice(command, "Operation", operation);
+            SetSelection(command, "Target body (found automatically)", target);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var replacement = Assert.Single(output.Replace);
+        Assert.Equal(target.Id, replacement.Old.Id);
+        using var shape = replacement.New;
+        AssertValidSolid(shape);
+        AssertNear(volume, shape.Props().Volume, "Boolean volume (mm³)");
+    }
 }

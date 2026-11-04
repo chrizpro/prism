@@ -13,3 +13,5 @@ The headless cases compare all five default primitives with independent volume f
 ## Coverage gaps
 
 Positioning, non-default dimensions, primitive Boolean targets and invalid dimensions still need broader coverage.
+
+The maintained Box cases also check Join, Cut and Intersect against an explicitly selected target, using overlapping boxes with analytic volumes. [Solid options #41](https://github.com/chrizpro/prism/issues/41).

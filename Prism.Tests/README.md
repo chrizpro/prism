@@ -101,3 +101,5 @@ This is representative coverage, not complete feature certification. Extrude Boo
 The Sweep/Loft expansion does not establish rails, complex/closed paths, Loft endpoints/closed lofts or complete cage validity. Static coverage is a single-body axial benchmark plus pressure/scaling and setup checks; bending, torsion, general mesh convergence, contact and multi-body solving remain outside this pilot. Canonical READMEs hold the current limitations and owner decisions.
 
 Contextual coverage on 2026-11-03: 20 Unit and 119 Headless cases passed locally on Windows with installed native binaries. The 33 added Headless cases cover Sketch drawing modes and Direct Modeling face edits and caps. The guides identify options still awaiting maintained verification.
+
+Option coverage follow-up on 2026-11-03: 20 Unit and 135 Headless cases passed locally on Windows using installed native binaries. The 16 new headless cases cover sketch edits and dimensions, direct hole feature and pattern actions, and primitive result operations.

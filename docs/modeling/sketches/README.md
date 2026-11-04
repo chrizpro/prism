@@ -27,3 +27,9 @@ Sketch has 40 shipped ribbon entries. Several tools expose more modes and contro
 The [maintained Sketch suite](../../../Prism.Tests/Headless/Sketch/) covers Rectangle, Line, Ellipse, Arc, Polygon and Spline modes. Existing standalone [Sketch 2D](../../../tests/Prism.Sketch2DTests/Program.cs), [Sketch Space](../../../tests/Prism.SketchSpaceTests/Program.cs), [sketch panel](../../../tests/Prism.SketchPanelWorkflowTests/Program.cs) and [solver](../../../tests/Prism.SketchConstraintTests/) checks provide additional evidence. [Contextual coverage issue #38](https://github.com/chrizpro/prism/issues/38).
 
 Remaining option-level work includes drawing modifiers and numeric fields, Slot and Text controls, Project / Include modes, sketch modifications, each constraint's allowed picks and solve/failure cases, dimension modes, and contextual finish/cancel. The existing executable suites cover some of these paths. Record their evidence separately from maintained coverage.
+
+## Editing, constraints and dimensions
+
+Offset copies the selected geometry at a specified distance. Horizontal and Vertical constraints align a line or two selected points. Dimension offers Smart, Horizontal and Vertical modes. Smart uses the selection and label position to choose the measurement.
+
+[Maintained edit tests](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs) exercise a single-line offset, both line axis constraints, and all three dimension modes on an oblique line. [Issue #43](https://github.com/chrizpro/prism/issues/43) tracks remaining modification modes, pick combinations, and invalid inputs.
