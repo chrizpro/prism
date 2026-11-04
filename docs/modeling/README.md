@@ -7,6 +7,7 @@ Each shared modeling feature has one living guide. Use the variant sections for 
 - [Sweep](sweep/README.md)
 - [Loft](loft/README.md)
 - [Pipe](pipe/README.md)
+- [Boundary Surface, Ruled Surface and Patch](boundary-surface/README.md)
 
 ## Shared tools
 
