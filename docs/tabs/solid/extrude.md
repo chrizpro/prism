@@ -2,9 +2,9 @@
 
 > **Requirements status:** Proposed — awaiting owner review (2026-11-03).
 >
-> **Implementation status:** Source inspected; desktop behavior not validated.
+> **Implementation status:** Representative exact command behavior has been verified headlessly; this is not complete UI or option coverage.
 >
-> This is a draft living specification, **not** an approved contract or an assertion that every option works. Do not generate or change tests from these proposals until the owner approves their intended behavior.
+> This is a draft living specification, **not** an approved contract or an assertion that every option works. The owner authorized characterization of existing observable behavior on 2026-11-03. New or disputed requirements still require review before tests encode them as settled behavior.
 
 ## Purpose and scope
 
@@ -28,6 +28,14 @@ Source: [`Prism/Commands/SolidCommands.cs`](../../../Prism/Commands/SolidCommand
 | Result operation | Solid result behavior delegated to common `BodyCommand` operation handling | Confirm actual operation choices, target selection and multi-body rules |
 | Special case | Plain one-way Cut may reverse automatically toward a body | Should automatic reversal be expected, or should direction always be explicit? |
 | Zero length | Kernel path rejects near-zero length; command may yield no preview | Required user-facing validation and message |
+
+### To object — characterized existing behavior
+
+Select a separate reference body, face or plane in **Extend to (face, plane or body)**. With a 10 × 6 mm profile at Z=0 and a box occupying Z=20..24, **Near side** gives a 20 mm extrusion and **Far side** gives 24 mm. **Offset from the target** is added to that signed forward distance: −2 mm from the near side leaves a 2 mm gap. These are current implementation observations, not approval of all target semantics.
+
+The maintained body-target checks use New body, so the reference remains a separate unchanged solid after commit. A missing selected target produces no output. A target behind the active direction reports an error; Reverse direction can make that target reachable.
+
+For a body target, the current code projects its bounding-box limits onto the extrusion direction. For a planar face or construction plane, it calculates a plane intersection from the profile center. These paths are not a general per-point trim to arbitrary curved geometry. Curved/nonintersecting targets, plane/face selection, offsets and tolerances still need their own review and additional coverage. See the feature-level test links below for the executable checks rather than a duplicated option-to-test matrix.
 
 ### Related feature variants
 
@@ -66,10 +74,10 @@ Review these before requesting desktop agents to implement or add tests.
 
 ## Verification and traceability
 
-- **Existing implementation:** [`ExtrudeCommand`](../../../Prism/Commands/SolidCommands.cs) and shared `BodyCommand` operation logic. Exact source-to-test coverage still needs an inventory on the local desktop.
+- **Existing implementation:** [`ExtrudeCommand`](../../../Prism/Commands/SolidCommands.cs) and shared `BodyCommand` operation logic.
 - **Existing user documentation:** [modeling guide](../../../site/guide/modeling.md) documents profile selection and the distinction between open surface chains and closed solid profiles.
-- **Existing tests:** Not verified for this specific feature. Do not infer that a particular test project covers the requirements above.
-- **Tests run for this draft:** None. Native OCCT integration and Avalonia workflow checks require the configured workstation.
+- **Maintained tests:** [Extrude headless tests](../../../Prism.Tests/Headless/Extrude/) and [Extrude unit math tests](../../../Prism.Tests/Unit/Extrude/). Individual options and expectations are described by the facts and traits in the code. Passing characterization does not approve the draft acceptance criteria above.
+- **Recorded verification:** Representative command checks have run on the configured Windows workstation using the installed OCCT DLLs; see the [test guide](../../../Prism.Tests/README.md). Integration remains deferred, and untested paths are not implied to pass.
 - **Feature story:** [Story #6 — Solid Extrude requirements review](https://github.com/chrizpro/prism/issues/6). This tracks owner review; it does not certify implementation or testing.
 - **Delivery history:** No approved delivery version recorded by this draft. Future closed stories should link the exact reviewed specification commit or release tag as well as this living page.
 

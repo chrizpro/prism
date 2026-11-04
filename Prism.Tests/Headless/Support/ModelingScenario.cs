@@ -9,6 +9,15 @@ namespace Prism.HeadlessTests.Support;
 /// <summary>Fixture mechanics only. Expected dimensions and volumes stay in the named tests.</summary>
 internal static class ModelingScenario
 {
+    public static SceneObject CreateBoxBody(CadSession session, Vec3 minimum,
+        double width, double depth, double height)
+    {
+        using var box = Occ.Box(width, depth, height);
+        // Primitives do not all share an origin convention; place the minimum explicitly.
+        var positioned = Occ.Translate(box, minimum - box.Props().Min);
+        return session.AddObject(positioned, "Reference body", ObjKind.Solid);
+    }
+
     public static SceneObject CreateRectangleSketch(CadSession session, Plane3 plane,
         double width, double height, double startU = 0, double startV = 0, bool closed = true)
     {
