@@ -9,7 +9,7 @@ namespace Prism.HeadlessTests.Revolve;
 
 /// <summary>Revolve a rectangle spanning radius 2..5 mm and height 0..8 mm about world Z.
 /// Full volume is π × (5² − 2²) × 8 = 168π mm³.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/revolve/README.md">Canonical living Solid/Surface Revolve specification and unverified variant boundaries.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/revolve/README.md">Canonical living Solid/Surface Revolve specification and unverified variant boundaries.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Revolve")]
 public class SolidRevolveTests

@@ -1,6 +1,6 @@
 # CAE workspace — first implementation
 
-The current living requirements and maintained tests for Static structural studies are linked from [the Static analysis specification](../tabs/static-analysis/README.md). This document retains the broader historical CAE implementation/study context.
+The current living requirements and maintained tests for Static structural studies are linked from [the Static analysis specification](../cae/static-analysis/README.md). This document retains the broader historical CAE implementation/study context.
 
 The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dynamics**, **Motion** and **Fluids** tabs. The internal workspace id `simulate` remains compatible; MCP also accepts `cae`.
 
@@ -12,7 +12,7 @@ The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dy
 
 **Dynamics:** CalculiX solves linear natural frequencies and mode shapes of one homogeneous isotropic solid with fully fixed faces. Request 1–20 modes, then choose a returned mode and press Show mode. Frequency is in Hz; deformation is scaled for visibility and the scalar field is relative magnitude. Mode amplitude is arbitrary, not a predicted vibration amplitude. This is modal free vibration, not forced response, impact, contact or nonlinear transient dynamics.
 
-**Fluids:** see [docs/tabs/fluids](../tabs/fluids/README.md) for Pipe Network and the 3D Flow Study. Pipe Flow calculates steady, fully developed, incompressible flow through a circular full pipe. It reports velocity, Reynolds number, Darcy friction factor, pressure drop, head loss and hydraulic power, with a total minor-loss coefficient. Laminar flow uses 64/Re; turbulent flow solves Colebrook–White. The uncertain 2000–4000 Reynolds transition range is rejected explicitly. Inputs use bore/length/roughness in mm, flow in L/min, density in kg/m³ and viscosity in Pa·s. This is a reduced-order pipe calculation, not 3D CFD, compressible flow, entrance flow, a network solver or conjugate heat transfer.
+**Fluids:** see [the Fluids guide](../cae/fluids/README.md) for Pipe Network and the 3D Flow Study. Pipe Flow calculates steady, fully developed, incompressible flow through a circular full pipe. It reports velocity, Reynolds number, Darcy friction factor, pressure drop, head loss and hydraulic power, with a total minor-loss coefficient. Laminar flow uses 64/Re; turbulent flow solves Colebrook–White. The uncertain 2000–4000 Reynolds transition range is rejected explicitly. Inputs use bore/length/roughness in mm, flow in L/min, density in kg/m³ and viscosity in Pa·s. This is a reduced-order pipe calculation, not 3D CFD, compressible flow, entrance flow, a network solver or conjugate heat transfer.
 
 **Motion:** kinematics and rigid-body motion of an assembly. The mechanism is built in the Assemble workspace (see [docs/motion-analysis.md](../motion-analysis.md)); the Motion tab adds what moves it. It needs no external solver.
 

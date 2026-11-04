@@ -4,7 +4,7 @@ using Xunit;
 namespace Prism.UnitTests.Sweep;
 
 /// <summary>Production vector/plane operations used when reasoning about sweep paths.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/sweep/README.md">Living Sweep specification.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/sweep/README.md">Living Sweep specification.</seealso>
 [Trait("Layer", "Unit")]
 [Trait("Feature", "Sweep")]
 public class SweepPathMathTests

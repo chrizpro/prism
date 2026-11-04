@@ -7,7 +7,7 @@ This is the shared working agreement for humans and coding agents. It describes 
 ## Sources of truth
 
 - `README.md`: project setup and orientation.
-- `docs/`: human-readable feature behavior, design notes, known limitations and verification guidance. Prefer extending existing pages (for example `docs/tabs/`, `docs/cae-studies/`, and `docs/gizmo-workflows/`) instead of creating duplicate documents.
+- `docs/`: human-readable feature behavior, design notes, known limitations and verification guidance. Use the [documentation index](../README.md) to find the domain. Keep shared modeling tools in one feature guide with variant sections. Link to those sections from the [ribbon index](../tabs/README.md) as needed.
 - GitHub Issues: time-bounded stories, bugs, changes, questions and decisions, with links to canonical feature documentation. A closed issue documents what was delivered at that time; it is not the living specification.
 - Maintained solution-managed tests under `Prism.Tests/` and older executable checks under `tests/`: what is actually implemented and verified; tests do not define product intent. See [the maintained test guide](../../Prism.Tests/README.md) for Unit, Headless and planned Integration coverage.
 - Pull requests: reviewable changes linking the relevant issue(s), documentation and verification.
@@ -16,7 +16,7 @@ This is the shared working agreement for humans and coding agents. It describes 
 
 ## Feature documentation and test maintenance
 
-The feature's canonical README/guide is the living source of truth. A README such as [Revolve](../tabs/revolve/README.md) may cover several clearly separated variants; an existing feature document such as [Solid Extrude](../tabs/solid/extrude.md) serves the same role without being renamed. Avoid parallel copies of requirements.
+The feature's canonical README/guide is the living source of truth. Guides such as [Revolve](../modeling/revolve/README.md) and [Extrude](../modeling/extrude/README.md) document distinct variants in separate sections. Avoid parallel copies of requirements.
 
 Agents must follow this flow for feature, bug-fix and test work:
 
@@ -88,7 +88,7 @@ On an environment without those dependencies, review source, Markdown, reference
 
 ## First feature-review pilot
 
-- [Solid Extrude draft](../tabs/solid/extrude.md) and [review story #6](https://github.com/chrizpro/prism/issues/6) demonstrate the living-specification approach.
+- [Solid Extrude draft](../modeling/extrude/README.md#solid-extrude) and [review story #6](https://github.com/chrizpro/prism/issues/6) demonstrate the living-specification approach.
 - The draft is **not approved**, no requirement IDs have been assigned, and no new tests should be written solely from its proposals.
 - Solid, Surface and Freeform extrusion are distinct feature behaviors even where the same command name appears.
 

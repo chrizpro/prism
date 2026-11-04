@@ -47,4 +47,4 @@ Invert and Select All come from **Invert** in the Select section, and undo is Ct
 
 ## Feature requirement reviews
 
-- [Extrude Profile](extrude.md) — draft owner-review specification, linked to [Story #8](https://github.com/chrizpro/prism/issues/8). Distinct from **Modify → Extrude** on a selected cage; that operation needs a separate behavior review.
+- [Extrude Profile](../extrude/README.md#freeform-extrusion) — draft owner-review specification, linked to [Story #8](https://github.com/chrizpro/prism/issues/8). Distinct from **Modify → Extrude** on a selected cage; that operation needs a separate behavior review.

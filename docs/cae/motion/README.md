@@ -46,7 +46,7 @@ Details are in [motion-analysis.md](../../motion-analysis.md).
 | Drives and coupling | Drive Joints and Couple can control assemblies | Owner approval needed for limit handling, sign conventions and invalid mechanisms |
 | Simulation scope | Contact and flexible-body simulation are out of scope in the existing guide | Confirm intended limitations with owner before making them test requirements |
 
-**No new requirement IDs, GitHub Issues, or tests have been assigned by this pilot.** Review and record specific expectations first. When the owner approves a behavior, add a stable ID only if beneficial and link an existing test or actionable issue (if one exists). See [the tab guide index](../README.md) and [the shared workflow](../../engineering/requirements-and-testing.md).
+**No new requirement IDs, GitHub Issues, or tests have been assigned by this pilot.** Review and record specific expectations first. When the owner approves a behavior, add a stable ID only if beneficial and link an existing test or actionable issue (if one exists). See [the tab guide index](../../tabs/README.md) and [the shared workflow](../../engineering/requirements-and-testing.md).
 
 ### Related detail
 

@@ -4,8 +4,8 @@ using Xunit;
 namespace Prism.UnitTests.Extrude;
 
 /// <summary>Managed plane/vector math used to position extrusion profiles. No OCCT or Avalonia.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/solid/extrude.md">Living Solid Extrude specification.</seealso>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/surface-and-nurbs/extrude.md">Living Surface/NURBS Extrude specification; shared math does not verify those workflows.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/extrude/README.md#solid-extrude">Living Solid Extrude specification.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/extrude/README.md#surface-and-nurbs-extrude">Living Surface/NURBS Extrude specification; shared math does not verify those workflows.</seealso>
 [Trait("Layer", "Unit")]
 [Trait("Feature", "Extrude")]
 public class ExtrudeDirectionMathTests

@@ -4,7 +4,7 @@ using Xunit;
 namespace Prism.UnitTests.Loft;
 
 /// <summary>Supporting managed interpolation/projection math, not a substitute for the Loft command.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/loft/README.md">Living Loft specification.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/loft/README.md">Living Loft specification.</seealso>
 [Trait("Layer", "Unit")]
 [Trait("Feature", "Loft")]
 public class LoftSectionMathTests

@@ -4,7 +4,7 @@ using Xunit;
 namespace Prism.UnitTests.StaticAnalysis;
 
 /// <summary>Production vector operations underlying face-load area/direction calculations.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/static-analysis/README.md">Living static structural analysis specification.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/cae/static-analysis/README.md">Living static structural analysis specification.</seealso>
 [Trait("Layer", "Unit")]
 [Trait("Feature", "StaticAnalysis")]
 public class StaticLoadMathTests

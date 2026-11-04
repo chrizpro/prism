@@ -16,10 +16,10 @@
 
 | Feature | Existing documentation | Coverage families to inventory |
 | --- | --- | --- |
-| Solid Extrude | [Solid Extrude](../tabs/solid/extrude.md), [Story #6](https://github.com/chrizpro/prism/issues/6) | Profiles, signed distance/reverse, two sides, symmetric, to-object, through-all both ways, taper, regions, body operations, invalid input |
-| Surface Extrude | [Surface tab](../tabs/surface-and-nurbs/README.md) | Open/closed edges, direction and extents, multiple selections, resulting sheet topology |
-| Freeform Extrude Profile | [Freeform tab](../tabs/freeform/README.md) | Profile closure, distance, X/Y/Z/profile-normal, end scale, steps, profile point count, cap, smoothness, degenerate normals |
-| Freeform Modify Extrude | [Freeform tab](../tabs/freeform/README.md) | Selected face/edge/vertex semantics, distance, topology invariants and history; requires separate source/UI inventory |
+| Solid Extrude | [Solid Extrude](../modeling/extrude/README.md#solid-extrude), [Story #6](https://github.com/chrizpro/prism/issues/6) | Profiles, signed distance/reverse, two sides, symmetric, to-object, through-all both ways, taper, regions, body operations, invalid input |
+| Surface Extrude | [Surface tab](../modeling/surface-and-nurbs/README.md) | Open/closed edges, direction and extents, multiple selections, resulting sheet topology |
+| Freeform Extrude Profile | [Freeform tab](../modeling/freeform/README.md) | Profile closure, distance, X/Y/Z/profile-normal, end scale, steps, profile point count, cap, smoothness, degenerate normals |
+| Freeform Modify Extrude | [Freeform tab](../modeling/freeform/README.md) | Selected face/edge/vertex semantics, distance, topology invariants and history; requires separate source/UI inventory |
 | Revolve | Existing tab guides and command source (to inspect) | Angle, axis, profile closure, partial/full revolutions, direction, resulting topology, invalid axis/profile |
 | Loft | Existing tab guides and command source (to inspect) | Profile count/order, closed/open profiles, guides, continuity, mismatched sections, invalid lofts |
 | Sweep | Existing tab guides and command source (to inspect) | Profile/path selection, path curvature, orientation, rails, twist, self-intersections, open/closed outputs |

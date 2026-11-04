@@ -9,7 +9,7 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 namespace Prism.HeadlessTests.StaticAnalysis;
 
 /// <summary>Actual single-body static solves compared with axial-bar mechanics and equilibrium.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/static-analysis/README.md">Living structural study specification, benchmark assumptions and tolerances.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/cae/static-analysis/README.md">Living structural study specification, benchmark assumptions and tolerances.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "StaticAnalysis")]
 public class StaticStudyTests

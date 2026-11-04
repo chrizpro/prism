@@ -8,8 +8,8 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 namespace Prism.HeadlessTests.Extrude;
 
 /// <summary>Existing Extrude behavior exercised through real commands and OCCT, without a viewport.</summary>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/solid/extrude.md">Living Solid Extrude specification.</seealso>
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/tabs/surface-and-nurbs/extrude.md">Living Surface/NURBS specification; the named Surface case does not verify the NURBS tab.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/extrude/README.md#solid-extrude">Living Solid Extrude specification.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/extrude/README.md#surface-and-nurbs-extrude">Living Surface/NURBS specification; the named Surface case does not verify the NURBS tab.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Extrude")]
 public class SolidExtrudeTests

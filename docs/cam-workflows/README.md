@@ -27,7 +27,7 @@ Use **Export for printing** or **Export for resin** to save a stable 3MF/STL/OBJ
 
 The geometry fixtures include a solid cube, an analytically known sealed cubic cavity, an open cup, a floor-level side vent, floating material, deliberate CNC gouges/contacts and an automatically generated 3D roughing path. Roundtrip and undo tests cover setups and ordering.
 
-These are sampled geometry screens. The resin grid is bounded to roughly 82 cells per dimension, so narrow drains and thin features may be missed. CNC stock is a heightfield with global tool dimensions, excluding undercuts, machine/fixture geometry and exact swept-volume collision. See [CAM status and remaining scope](../cam-plan.md).
+These are sampled geometry screens. The resin grid is bounded to roughly 82 cells per dimension, so narrow drains and thin features may be missed. CNC stock is a heightfield with global tool dimensions, excluding undercuts, machine/fixture geometry and exact swept-volume collision. See [CAM status and remaining scope](../cam/README.md).
 
 Validation commands:
 

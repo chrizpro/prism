@@ -2,7 +2,7 @@
 
 The owner authorized testing existing observable behavior on 2026-11-03, including in the local handoff. This supersedes the earlier workflow-only restriction on test authoring. It does **not** approve unresolved product requirements or authorize changing application behavior to satisfy assumptions.
 
-Feature references: [Solid Extrude draft](../tabs/solid/extrude.md), [Story #6](https://github.com/chrizpro/prism/issues/6), [Surface Story #7](https://github.com/chrizpro/prism/issues/7), [Freeform Profile Story #8](https://github.com/chrizpro/prism/issues/8). Surface/Freeform draft specifications remain in [open PR #9](https://github.com/chrizpro/prism/pull/9); this work does not copy or merge them. The cloud `test/modeling-feature-evidence` branch has no changes beyond merged `main` at `19da46e`.
+Feature references: [Solid Extrude draft](../modeling/extrude/README.md#solid-extrude), [Story #6](https://github.com/chrizpro/prism/issues/6), [Surface Story #7](https://github.com/chrizpro/prism/issues/7), [Freeform Profile Story #8](https://github.com/chrizpro/prism/issues/8). Surface/Freeform draft specifications remain in [open PR #9](https://github.com/chrizpro/prism/pull/9); this work does not copy or merge them. The cloud `test/modeling-feature-evidence` branch has no changes beyond merged `main` at `19da46e`.
 
 ## Run on Windows
 

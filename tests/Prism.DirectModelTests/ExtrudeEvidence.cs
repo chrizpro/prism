@@ -63,7 +63,7 @@ static class ExtrudeEvidence
         Directory.CreateDirectory(Output);
         int passed = 0, failed = 0;
         var report = new List<string> { "# Extrude local characterization", "", $"Run: {DateTimeOffset.Now:O}",
-            "", "Existing observable behavior; proposed requirements remain awaiting owner review. Refs Stories #6–8; Solid spec: docs/tabs/solid/extrude.md. Surface/Freeform drafts remain in PR #9.",
+            "", "Existing observable behavior; proposed requirements remain awaiting owner review. Refs Stories #6–8; Solid spec: docs/modeling/extrude/README.md. Surface/Freeform drafts remain in PR #9.",
             "", "Images are software renders of actual command geometry using Prism StudioPreview, not interactive OpenGL viewport captures or synthetic tool-help examples. Each image uses automatic fit, so it does not establish relative scale. Geometry is asserted separately.", "", "| Case | Result | Detail |", "|---|---|---|" };
         void Case(string id, Action run)
         {

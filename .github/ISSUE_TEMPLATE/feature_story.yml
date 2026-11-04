@@ -25,7 +25,7 @@ body:
     attributes:
       label: Specification
       description: Link the canonical Markdown guide and implementation. State Proposed, Needs decision, Approved (with owner decision link), or No behavior change. Record the exact reviewed spec commit/release when completed.
-      placeholder: "Guide: docs/tabs/...\nImplementation: Prism/...\nReview state: Proposed — awaiting owner review"
+      placeholder: "Guide: docs/<domain>/<feature>/README.md\nImplementation: Prism/...\nReview state: Proposed — awaiting owner review"
     validations:
       required: true
   - type: textarea

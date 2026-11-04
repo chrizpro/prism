@@ -47,7 +47,7 @@ dotnet run --project tests/Prism.RibbonTests -c Release
 dotnet run --project tests/Prism.WorkflowTests -c Release
 ```
 
-Feature notes and current limitations are in [docs](docs). Generated review artifacts, native model studies under `docs`, local IDE state, and compiled binaries are excluded from source control.
+Feature notes and current limitations are in [the documentation index](docs/README.md). Generated review artifacts, native model studies under `docs`, local IDE state, and compiled binaries are excluded from source control.
 
 ## Ribbons, installers, and the website
 
