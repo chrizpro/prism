@@ -18,7 +18,7 @@ This report distinguishes maintained Unit/Headless coverage, standalone evidence
 - **Shared implementation** can reuse the same geometry test. Add a ribbon or context case where routing, defaults or enabled state differ.
 - **Readiness checks** should prioritize cases that could corrupt a document, produce plausible but incorrect geometry, or silently change a calculation. Check rejection, Undo and persistence where relevant.
 - **Proposed behavior** needs owner review before tests encode it. Examples are standalone datums and independent appearance overrides. [Datum #42](https://github.com/chrizpro/prism/issues/42), [Appearance #45](https://github.com/chrizpro/prism/issues/45).
-- **Fragility** changes the assertion or test layer. Prefer stable geometry, state or solver invariants. Keep genuine desktop interactions in the deferred integration layer.
+- **Fragility** changes the assertion or test layer. Prefer stable geometry, state or solver invariants. Keep genuine desktop interactions in the integration layer. [The first desktop MCP cases](../../Prism.Tests/Integration/README.md) cover Extrude, Revolve and a surface-to-solid roundtrip.
 
 ## Latest local verification
 

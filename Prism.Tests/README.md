@@ -21,7 +21,7 @@ Prism.Tests/
     Sketch/                     Rectangle and drawing-mode checks
     DirectModeling/             Face edit and cap checks
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
-  Integration/                  Planned viewport workflows; README only for now
+  Integration/                  Prism.IntegrationTests.csproj and desktop MCP scenarios
 ```
 
 ## The three layers
@@ -30,7 +30,7 @@ Prism.Tests/
 |---|---|---|---|
 | Unit | Managed geometry, curve expressions and pattern layout | Profile coordinates, path/axis directions, interpolation and boundary area math | .NET 10; no native runtime or Avalonia dispatcher |
 | Headless | Real commands, CadSession, OCCT and single-body static solving on an Avalonia dispatcher | Geometry, command modes, cage topology, history, persistence and independent structural benchmarks | .NET 10, Windows, OCCT plus `prism_sim` for structural cases; no viewport |
-| Integration | Future scripted desktop selection → preview → commit workflows | Visible model, selection, handles and application state together | Desktop app and automation bridge; [planned scenarios](Integration/README.md) |
+| Integration | Real desktop workflows through MCP stdio and the application API | Preview and committed state, analytic geometry, history and reviewed viewport evidence | Windows desktop, native binaries, Prism.Mcp; [run guide](Integration/README.md) |
 
 Unit tests cover supporting production math, not a second implementation of the modeling commands or structural solver. Headless checks provide the next layer through actual commands and numerical solves. Screenshots remain a separate source of evidence.
 
@@ -94,7 +94,7 @@ Keep links at this level. The facts and traits in the files describe individual 
 
 [Freeform Revolve #14](https://github.com/chrizpro/prism/issues/14) has [maintained cage checks](Headless/Surfacing/FreeformBuildTests.cs). Its canonical behavior and open decisions live with all four variants in the [Revolve README](../docs/modeling/revolve/README.md). The Surface/NURBS Extrude specification is shared in [its living guide](../docs/modeling/extrude/README.md#surface-and-nurbs-extrude).
 
-Integration remains [planned](Integration/README.md) and is deferred for now. When implemented, attach useful viewport images to the relevant feature/bug issue with test ID and source revision. Reserved integration IDs are not implemented or counted as passing tests.
+Desktop [integration tests](Integration/README.md) run separately from Unit and Headless. Attach representative viewport images to the relevant issue with test ID and source revision.
 
 ## Scope and authorization
 

@@ -13,6 +13,8 @@ Claude Code  <--stdio MCP-->  Prism.Mcp (bridge)  <--HTTP 127.0.0.1 + token-->  
 * **Bridge** (`Prism.Mcp`): speaks MCP over stdio, fetches the tool catalogue from the app (cached for offline listing)
   and auto-launches the app on the first call if it is not running. Override the exe with `PRISM_EXE`.
 
+The [desktop integration project](../Prism.Tests/Integration/README.md) exercises this bridge and the application API together and saves viewport evidence.
+
 For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same separate absolute JSON-file path in the bridge and app. The normal discovery file stays unchanged. `run_command` also supports `refold`: select an original cylindrical flat pattern and the curves/sketches drawn on it. `object_info`/`get_state` include `flatPattern` dimensions and refoldability. See [Flatten and Refold](flatten-refold.md).
 
 ## Setup

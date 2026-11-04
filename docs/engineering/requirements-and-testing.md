@@ -27,7 +27,7 @@ Agents must follow this flow for feature, bug-fix and test work:
 5. **Keep the links:** the feature document links to relevant test files or folders, the test class links back to the canonical document in its XML documentation, and the issue links to that document and feature-level tests. Update these links whenever files move. Do not duplicate every option/test in an issue checklist or traceability matrix.
 6. **Verify and finish:** run applicable checks, validate changed links, and record actual dated evidence and remaining gaps. Follow the current `main` workflow override; do not stage unrelated local work. Check the feature document and issue references before calling the task complete.
 
-Feature documents describe current behavior and intended requirements; issues preserve a defined work scope/history, and tests provide executable evidence. Keep these responsibilities distinct. Integration remains deferred; when introduced, attach representative viewport images to the relevant issue with test ID and source revision.
+Feature documents describe current behavior and intended requirements; issues preserve a defined work scope/history, and tests provide executable evidence. Keep these responsibilities distinct. For desktop integration, attach representative viewport images to the relevant issue with test ID and source revision.
 
 ## Minimal feature document pattern
 
@@ -76,7 +76,7 @@ Issue bodies should link the canonical doc and relevant tests *when those tests 
 
 Use the same story sections: **Purpose → Scope → Specification → Acceptance criteria → Tests and evidence → Open decisions**. Group related issues with a simple feature label, such as `extrude` or `revolve`; a parent/epic is not required. Link to relevant test files or feature folders once per layer. Individual options, expected results and cases belong in the test code and its existing names/traits, rather than a manually maintained issue-to-option or issue-to-test matrix. Clearly identify variants with no maintained tests and distinguish legacy executable coverage.
 
-Owner direction (2026-11-03): integration testing is deferred. When it is introduced, attach representative actual viewport images to the relevant issue with the test ID and source revision. Record dated execution evidence separately from acceptance criteria; do not imply that a historical pass count is a live test status.
+The owner has authorized desktop integration testing. Attach representative actual viewport images to the relevant issue with the test ID and source revision. Record dated execution evidence separately from acceptance criteria; do not imply that a historical pass count is a live test status.
 
 Follow the current owner branch policy, presently direct work on `main`. When PRs are in use, keep them focused and use `Fixes #N` only when the change actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same change after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
 

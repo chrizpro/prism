@@ -229,3 +229,6 @@ No requirements have been approved or given stable IDs.
 - **Delivery:** When approved and delivered, closed stories link their pinned specification version; future changes get new stories or bugs.
 
 [Shared requirements policy](../../engineering/requirements-and-testing.md)
+
+
+Desktop integration: [EXT-I001 viewport evidence](../../integration-evidence/README.md#ext-i001--extrude) verifies MCP preview, commit, Undo and Redo.

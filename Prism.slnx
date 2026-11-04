@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/Prism.Tests/Integration/">
     <File Path="Prism.Tests/Integration/README.md" />
+    <Project Path="Prism.Tests/Integration/Prism.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/Prism.Tests/Headless/">
     <Project Path="Prism.Tests/Headless/Prism.HeadlessTests.csproj" />

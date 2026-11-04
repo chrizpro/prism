@@ -113,3 +113,6 @@ Integration is deferred. When introduced, attach representative actual viewport 
 Record owner-approved behavior here as requirements change; keep pending decisions visibly pending. Link the corresponding feature issue, enhancement or bug without copying its chronology into the requirements. When a review/delivery story closes, preserve the exact reviewed spec commit or release link in that issue. Future changes receive new issues and update this living document.
 
 See the [shared workflow](../../engineering/requirements-and-testing.md) and [ribbon guide index](../../tabs/README.md).
+
+
+Desktop integration: [REV-I001 viewport evidence](../../integration-evidence/README.md#rev-i001--revolve) verifies MCP preview and forward/reversed commit.
