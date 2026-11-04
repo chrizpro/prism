@@ -10,7 +10,7 @@ Run the maintained, solution-managed tests without building mobile applications 
 #>
 param(
     [ValidateSet('All', 'Unit', 'Headless')][string]$Layer = 'All',
-    [ValidateSet('All', 'Extrude', 'Revolve', 'Sweep', 'Loft', 'Solid', 'Sketch', 'DirectModeling', 'Surfacing', 'Freeform', 'StaticAnalysis')][string]$Feature = 'All',
+    [ValidateSet('All', 'Extrude', 'Revolve', 'Sweep', 'Loft', 'Solid', 'Sketch', 'DirectModeling', 'Surfacing', 'Pipe', 'Freeform', 'StaticAnalysis')][string]$Feature = 'All',
     [switch]$List
 )
 $ErrorActionPreference = 'Stop'

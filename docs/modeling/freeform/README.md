@@ -53,4 +53,4 @@ Invert and Select All come from **Invert** in the Select section, and undo is Ct
 
 [Freeform build tests](../../../Prism.Tests/Headless/Surfacing/FreeformBuildTests.cs) launch Extrude Profile and Revolve from Freeform. They verify cage counts and closure, direction or axis, taper or angle, and smoothness on simple profiles. [Cage unit tests](../../../Prism.Tests/Unit/Freeform/CageTopologyTests.cs) check grid segmentation and cylinder caps without the native kernel.
 
-Run `./tools/test.ps1 -Feature Freeform`. Open-profile extrusion, Pipe, additional primitive controls, cage edits, topology tools, conversion and selection-dependent options remain coverage work. [Issue #46](https://github.com/chrizpro/prism/issues/46) tracks it.
+Run `./tools/test.ps1 -Feature Freeform`. [Pipe](../pipe/README.md) has its own cage checks. Open-profile extrusion, additional primitive controls, cage edits, topology tools, conversion and selection-dependent options remain coverage work. [Issue #46](https://github.com/chrizpro/prism/issues/46) tracks it.

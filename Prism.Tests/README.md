@@ -78,6 +78,7 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 | Direct Modeling [#40](https://github.com/chrizpro/prism/issues/40) | [Direct Modeling](../docs/modeling/direct-modeling/README.md) | — | [Face edits and caps](Headless/DirectModeling/) |
 | [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) | [Surface and NURBS](../docs/modeling/surface-and-nurbs/README.md) | — | [Surface and NURBS options](Headless/Surfacing/SurfaceOptionTests.cs) |
 | [Freeform #46](https://github.com/chrizpro/prism/issues/46) | [Freeform](../docs/modeling/freeform/README.md) | [Cage topology](Unit/Freeform/) | [Freeform build options](Headless/Surfacing/FreeformBuildTests.cs) |
+| [Pipe #49](https://github.com/chrizpro/prism/issues/49) | [Pipe](../docs/modeling/pipe/README.md) | — | [Exact and cage Pipe](Headless/Surfacing/PipeTests.cs) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
 Keep links at this level. The facts and traits in the files describe individual options and expectations; there is no separate option-to-test mapping to maintain. Use `./tools/test.ps1 -List` to see the current cases.

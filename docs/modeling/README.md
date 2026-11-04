@@ -6,6 +6,7 @@ Each shared modeling feature has one living guide. Use the variant sections for 
 - [Revolve](revolve/README.md)
 - [Sweep](sweep/README.md)
 - [Loft](loft/README.md)
+- [Pipe](pipe/README.md)
 
 ## Shared tools
 
