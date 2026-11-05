@@ -15,8 +15,12 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
         <span class="kicker">Download</span>
         <h1>Get Prism</h1>
         {release
-          ? <p>{release.name}{release.prerelease ? ' (preview)' : ''}, released {date}. Free to download for Windows, macOS and Linux.</p>
-          : <p>Prism is a {version}. The first downloadable release has not been published yet. Until it is, you can build Prism from source.</p>}
+          ? <p>{release.name}{release.prerelease ? ' (alpha)' : ''}, released {date}. Free to download for Windows, macOS and Linux.</p>
+          : <p>Prism is at version {version}. The first downloadable release has not been published yet. Until it is, you can build Prism from source.</p>}
+      </div>
+
+      <div class="notice" role="note">
+        <strong>This is alpha software.</strong> Prism is under active development: features and workflows may change between releases, and you may run into bugs. Don't rely on it for production work yet, and keep backups of your models. Check the <a href={docs('/reference/known-issues')}>known issues</a> before you start, and <a href={`${repoUrl}/issues/new?template=bug_report.yml`}>report bugs</a> when you find them.
       </div>
 
       {available.length > 0 && (
@@ -44,8 +48,8 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
       <div class="notes">
         <div>
           <h3>Installing</h3>
-          <p class="muted"><strong>Windows:</strong> run the setup program. It installs for your user only and includes an uninstaller. The preview is not code-signed yet, so Windows may show a SmartScreen warning: choose <em>More info › Run anyway</em>.</p>
-          <p class="muted"><strong>macOS:</strong> open the .dmg and drag Prism to Applications. The preview is not notarized yet, so the first time, right-click Prism and choose <em>Open</em>.</p>
+          <p class="muted"><strong>Windows:</strong> run the setup program. It installs for your user only and includes an uninstaller. Alpha builds are not code-signed yet, so Windows may show a SmartScreen warning: choose <em>More info › Run anyway</em>.</p>
+          <p class="muted"><strong>macOS:</strong> open the .dmg and drag Prism to Applications. Alpha builds are not notarized yet, so the first time, right-click Prism and choose <em>Open</em>.</p>
           <p class="muted"><strong>Linux:</strong> <code>sudo apt install ./Prism-linux-x64.deb</code></p>
         </div>
         <div>
@@ -87,7 +91,9 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
 
 <style>
   h1 { font-size: clamp(2.6rem, 7vw, 4.6rem); margin: 12px 0 16px; }
-  .primary { margin: -16px 0 40px; display: grid; gap: 10px; justify-items: start; }
+  .notice { margin: -16px 0 36px; padding: 16px 20px; border-radius: var(--radius); border: 1px solid rgba(245, 184, 61, 0.35); background: rgba(245, 184, 61, 0.08); color: #f3dfb0; max-width: 820px; }
+  .notice a { color: #ffd77a; }
+  .primary { margin: 0 0 40px; display: grid; gap: 10px; justify-items: start; }
   .primary[hidden] { display: none; }
   .big { font-size: 1.1rem; padding: 1rem 1.8rem; }
   .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }

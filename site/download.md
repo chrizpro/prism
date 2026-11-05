@@ -1,6 +1,8 @@
 # Install Prism
 
-Download Prism from the [download page](https://chrizpro.github.io/prism/download) or from [GitHub Releases](https://github.com/chrizpro/prism/releases). Releases are previews while Prism is in development. Keep backups of your model documents.
+Download Prism from the [download page](https://chrizpro.github.io/prism/download) or from [GitHub Releases](https://github.com/chrizpro/prism/releases). ::: warning Prism is in alpha
+Features and workflows can still change between releases, and you will run into bugs. Prism is not yet ready for production work. Keep backups of your models, check the [known issues](/reference/known-issues), and [report bugs](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) when you find them.
+:::
 
 | Platform | Download | Notes |
 | --- | --- | --- |
@@ -15,11 +17,11 @@ Each download has a `.sha256` file next to it so you can check the file.
 
 Run the setup program. It installs for your user, creates a Start menu shortcut and, if you choose, a desktop shortcut. The uninstaller removes only the files it installed and leaves your documents and preferences in place.
 
-Preview builds are not code-signed yet. If Windows SmartScreen warns about an unrecognized app, choose **More info › Run anyway**.
+Alpha builds are not code-signed yet. If Windows SmartScreen warns about an unrecognized app, choose **More info › Run anyway**.
 
 ## macOS
 
-Open the `.dmg` and drag **Prism** to **Applications**. Preview builds are not notarized yet, so the first time you open Prism, right-click it in Applications and choose **Open**, then confirm.
+Open the `.dmg` and drag **Prism** to **Applications**. Alpha builds are not notarized yet, so the first time you open Prism, right-click it in Applications and choose **Open**, then confirm.
 
 ## Linux
 

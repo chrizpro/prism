@@ -18,7 +18,8 @@
 
 ![Prism's Design workspace with a freeform steam iron](web/src/assets/shots/freeform-iron.png)
 
-> **Development preview.** Prism's feature set is in place and we are now polishing it. Expect rough edges, and keep backups of your models.
+> [!WARNING]
+> **Prism is in alpha.** The feature set is in place and we are now polishing it, so features and workflows can still change between releases and you will run into bugs. Prism is not yet ready for production work. Keep backups of your models, check the [known issues](https://chrizpro.github.io/prism/docs/reference/known-issues), and [report bugs](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) when you find them.
 
 ## What's inside
 
@@ -48,7 +49,7 @@ Get the installer for your system from the [download page](https://chrizpro.gith
 | macOS, Intel | `Prism-macos-x64.dmg` |
 | Linux (Debian, Ubuntu) | `Prism-linux-x64.deb` |
 
-Preview builds are not code-signed yet. On Windows, choose **More info › Run anyway** if SmartScreen warns you. On macOS, right-click Prism and choose **Open** the first time. See the [install guide](https://chrizpro.github.io/prism/docs/download) for details.
+Alpha builds are not code-signed yet. On Windows, choose **More info › Run anyway** if SmartScreen warns you. On macOS, right-click Prism and choose **Open** the first time. See the [install guide](https://chrizpro.github.io/prism/docs/download) for details.
 
 ## Run Prism from a fork
 
@@ -175,8 +176,8 @@ Preview locally with `npm ci` then `npm run dev` in `site` or `web`. See the [si
 Push a version tag to build installers for Windows, macOS (Apple silicon and Intel) and Linux, publish them as a GitHub pre-release and refresh the download page:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.0-alpha.1
+git push origin v0.1.0-alpha.1
 ```
 
 A release is published only if every platform builds. Run **Build Prism installers** by hand from the Actions tab to build one platform without releasing. See [packaging](packaging/README.md) for local installer builds. Windows is the most tested platform; macOS and Linux packages are built and runtime-checked in CI. Code signing and notarization are not set up yet.

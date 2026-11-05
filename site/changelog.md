@@ -1,7 +1,10 @@
 # Changes
 
-## Development preview · 0.1.0
+## 0.1.0 alpha
 
+- Prism is in alpha: an Alpha badge next to the wordmark opens the known issues, and **Report a bug** in the header opens a bug form with your version and system filled in.
+- The AI assistant offers Claude with an API key; Codex can still use your login.
+- MIT license, full third-party notices in installers, and the LGPL library sources attached to each release.
 - Removed Pipe from the Solid ribbon. Removed Sweep and Loft from the Solid ribbon and the sketch marking menu.
 - Shared gizmo styling with active-operation, combined and custom visibility; persistent display preferences, live preview, and move/angle/scale snapping.
 - Collapsible context tree with source sketches under their owning body and branch lines that follow the preference accent.

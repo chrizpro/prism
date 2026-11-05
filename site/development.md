@@ -27,11 +27,11 @@ The native build requires Open CASCADE, Eigen, and Netgen. The desktop publish d
 
 ## Publish a release
 
-Push a version tag to build installers for Windows, both Mac architectures and Linux on GitHub Actions and publish them as a pre-release:
+Push a version tag to build installers for Windows, both Mac architectures and Linux on GitHub Actions and publish them as a pre-release. Use a version with a stage label while Prism is in alpha:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.0-alpha.1
+git push origin v0.1.0-alpha.1
 ```
 
 The workflow uploads each installer under a fixed name (`Prism-windows-x64-Setup.exe`, `Prism-macos-arm64.dmg`, `Prism-macos-x64.dmg`, `Prism-linux-x64.deb`) with a SHA-256 file, then rebuilds the website so its download page links to the new files. A release is published only if every platform builds. To try one platform without releasing, run **Build Prism installers** by hand from the Actions tab.

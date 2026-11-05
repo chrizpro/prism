@@ -7,6 +7,7 @@ import '@fontsource/space-grotesk/700.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '../styles/global.css'
+import AlphaBanner from '../components/AlphaBanner.astro'
 import Nav from '../components/Nav.astro'
 import Footer from '../components/Footer.astro'
 import { href } from '../config'
@@ -28,6 +29,7 @@ const fullTitle = title ? `${title} · Prism` : 'Prism · Design, simulate and m
     <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
   </head>
   <body>
+    <AlphaBanner />
     <Nav />
     <main><slot /></main>
     <Footer />

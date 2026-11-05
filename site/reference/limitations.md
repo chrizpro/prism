@@ -1,6 +1,6 @@
 # Current scope and limitations
 
-Prism is under active development. A tool appearing in the catalog does not imply that every geometric case is supported.
+Prism is in alpha and under active development. For bugs we know about, see [Known issues](/reference/known-issues). A tool appearing in the catalog does not imply that every geometric case is supported.
 
 ## Platforms
 

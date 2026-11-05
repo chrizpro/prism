@@ -652,14 +652,28 @@ public partial class MainView : UserControl
     void OnHelp(object? sender, RoutedEventArgs e)
     {
         if (sender is not Control anchor) return;
-        var version = new MenuItem { Header = "Prism v0.1", IsEnabled = false };
-        var guide = new MenuItem { Header = "Open Prism guide" };
-        guide.Click += (_, _) =>
+        var version = new MenuItem { Header = "Prism " + AppInfo.DisplayVersion, IsEnabled = false };
+        MenuItem Link(string header, Func<string> url)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://chrizpro.github.io/prism/docs/") { UseShellExecute = true }); }
-            catch (Exception ex) { Vm?.Session.Say("Could not open the guide: " + ex.Message, true); }
-        };
-        new MenuFlyout { ItemsSource = new object[] { version, new Separator(), guide }, Placement = PlacementMode.BottomEdgeAlignedRight }.ShowAt(anchor);
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => OpenLink(url(), header);
+            return item;
+        }
+        new MenuFlyout
+        {
+            ItemsSource = new object[] { version, new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl) },
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+        }.ShowAt(anchor);
+    }
+
+    void OnStage(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.KnownIssuesUrl, "known issues");
+
+    void OnReportBug(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.BugReportUrl(), "the bug report form");
+
+    void OpenLink(string url, string what)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) { Vm?.Session.Say($"Could not open {what}: " + ex.Message, true); }
     }
 
     SettingsWindow? _settings;

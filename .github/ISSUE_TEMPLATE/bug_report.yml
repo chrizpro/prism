@@ -3,39 +3,64 @@ description: Something in Prism is broken or behaves wrongly
 title: "[Bug] "
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Prism is in **alpha**, so bugs are expected and every clear report helps.
+        Before you file, check the [known issues](https://chrizpro.github.io/prism/docs/reference/known-issues) and search the [open issues](https://github.com/chrizpro/prism/issues?q=is%3Aissue+is%3Aopen+label%3Abug). **Report a bug** in Prism's header opens this form with your version and system filled in.
   - type: textarea
     id: summary
     attributes:
-      label: Observed behavior
-      description: What happened?
+      label: What happened?
+      description: What you saw, including any message Prism showed.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: Reproduction steps
-      description: Include model conditions and input values when relevant.
+      label: Steps to reproduce
+      description: The tools you used and the values you entered, in order. A small model that shows the problem is the most useful thing you can attach.
+      placeholder: |
+        1. Home › Box, 10 × 10 × 10 mm
+        2. Solid › Shell, select the whole body, Inside, 2 mm
+        3. ...
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
-      description: Link an approved requirement if one exists; otherwise mark the expectation as proposed.
+      label: What did you expect?
     validations:
       required: true
   - type: input
+    id: version
+    attributes:
+      label: Prism version
+      description: Shown in the Help (?) menu.
+      placeholder: 0.1.0 alpha
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: Windows 11 (X64)
+    validations:
+      required: true
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots, files and logs
+      description: Drag files here. If Prism crashed, attach crash.log from %LOCALAPPDATA%\Prism on Windows. Remove anything private first.
+  - type: input
     id: documentation
     attributes:
-      label: Relevant documentation
-      placeholder: docs/... (or unknown)
+      label: Relevant documentation (optional)
+      description: For maintainers. Link the guide or tool page that describes this behavior, if you know it.
+      placeholder: https://chrizpro.github.io/prism/docs/tool/...
   - type: input
     id: test
     attributes:
-      label: Existing test path (if any)
-      placeholder: tests/... (or none)
-  - type: textarea
-    id: environment
-    attributes:
-      label: Environment and evidence
-      description: OS, build/commit, native dependencies, screenshots, logs; redact sensitive data.
+      label: Existing test path (optional)
+      description: For maintainers.
+      placeholder: Prism.Tests/... (or none)

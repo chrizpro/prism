@@ -1,0 +1,23 @@
+---
+import { docs, repoUrl } from '../config'
+---
+<div class="alpha" role="note">
+  <div class="wrap inner">
+    <span class="pill">Alpha</span>
+    <span>Prism is in active development. Features may change and you may run into bugs, so keep backups of your work.</span>
+    <span class="links">
+      <a href={docs('/reference/known-issues')}>Known issues</a>
+      <a href={`${repoUrl}/issues/new?template=bug_report.yml`}>Report a bug</a>
+    </span>
+  </div>
+</div>
+
+<style>
+  .alpha { background: linear-gradient(90deg, rgba(245, 184, 61, 0.14), rgba(245, 184, 61, 0.06)); border-bottom: 1px solid rgba(245, 184, 61, 0.25); color: #f3dfb0; font-size: 0.86rem; }
+  .inner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; }
+  .pill { background: #f5b83d; color: #1c1405; font-weight: 700; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .links { display: flex; gap: 14px; margin-left: auto; }
+  a { color: #ffd77a; font-weight: 600; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media (max-width: 760px) { .links { margin-left: 0; } }
+</style>

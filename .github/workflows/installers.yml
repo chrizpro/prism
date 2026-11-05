@@ -1,5 +1,5 @@
 name: Build Prism installers
-# Push a tag like v0.1.0 to build every platform and publish a GitHub release (marked pre-release).
+# Push a tag like v0.1.0-alpha.1 to build every platform and publish a GitHub release (marked pre-release).
 # Run it by hand to build one platform; tick "publish" to release that run as well.
 on:
   push:
@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Package version (major.minor.patch)
-        default: '0.1.0'
+        description: Release version (major.minor.patch, optionally -alpha.N)
+        default: '0.1.0-alpha.1'
         required: true
       platform:
         type: choice
@@ -48,9 +48,10 @@ jobs:
       - name: Version
         if: env.SELECTED == 'true'
         run: |
+          # Installers need a plain major.minor.patch; the pre-release label (alpha) stays on the tag and release.
           $version = $env:PRISM_PACKAGE_VERSION.TrimStart('v')
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version '$version' must be major.minor.patch" }
-          "PRISM_PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
+          if ($version -notmatch '^(\d+\.\d+\.\d+)(-[0-9A-Za-z.]+)?$') { throw "Version '$version' must be major.minor.patch, optionally with a label such as -alpha.1" }
+          "PRISM_PACKAGE_VERSION=$($Matches[1])" >> $env:GITHUB_ENV
       - name: Linux build prerequisites
         if: env.SELECTED == 'true' && matrix.platform == 'linux'
         run: sudo apt-get update; sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
@@ -143,6 +144,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
       - uses: actions/download-artifact@v4
         with:
           path: release
@@ -151,8 +155,10 @@ jobs:
         run: |
           ls -l release
           [ -n "$(ls release)" ] || { echo "No installers were built"; exit 1; }
+          # v0.1.0-alpha.1 -> "Prism 0.1.0 Alpha 1"
+          title="Prism $(echo "${VERSION#v}" | sed -E 's/-([a-z]+)\.?([0-9]*)$/ \u\1 \2/; s/ +$//')"
           gh release create "$VERSION" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "Prism ${VERSION#v}" --prerelease --generate-notes
+            --title "$title" --prerelease --notes-file .github/release-notes.md --generate-notes
       - name: Refresh the download page
         # Releases made with the workflow token do not trigger other workflows, so start Pages directly.
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
