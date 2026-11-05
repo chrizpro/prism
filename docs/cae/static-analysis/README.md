@@ -51,6 +51,7 @@ Open decisions include mesh convergence targets, incompletely constrained models
 
 - [Unit load/geometry math](../../../Prism.Tests/Unit/StaticAnalysis/) exercises supporting production vector operations without native calls.
 - [Maintained headless static study tests](../../../Prism.Tests/Headless/StaticAnalysis/) exercise real study setup and native solving.
+- [Solver input tests](../../../Prism.Tests/Headless/StaticAnalysis/SolverInputTests.cs) check Prism's side of each solver hand-off without solving: supports and loads given to the native static solver, the CalculiX input for thermal, natural-frequency and bonded multi-body studies (units, elements, boundaries, fluxes, film and radiation, gravity), and reading CalculiX results. They run without CalculiX installed.
 - [Study setup tool tests](../../../Prism.Tests/Headless/StaticAnalysis/StudySetupToolTests.cs) cover the three fixtures, the four loads and their directions, Probe, Save / Recall Face Selection, Export CAE Results and the Pipe Flow calculator.
 - Legacy [CAE checks](../../../tests/Prism.CaeTests/Program.cs) remain available and are not assumed migrated.
 - [Runner and metadata](../../../Prism.Tests/README.md).

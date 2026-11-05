@@ -136,8 +136,8 @@ public static class CaeAssembly
         return res;
     }
 
-    /// <summary>A static study of several bodies, solved with CalculiX because each body has its own material.</summary>
-    public static FemMesh.StaticResult SolveStatic(StudyRunner.Prepared p, StudyRunner.Boundary bc, string folder, CancellationToken token = default)
+    /// <summary>The CalculiX input for a static study of several bodies, and the net applied load it should balance (N).</summary>
+    public static string StaticInput(StudyRunner.Prepared p, StudyRunner.Boundary bc, out Vec3 net)
     {
         static string F(double x) => x.ToString("G12", CultureInfo.InvariantCulture);
         var m = p.Mesh; var parts = p.Parts!;
@@ -150,7 +150,7 @@ public static class CaeAssembly
         for (int i = 0; i < bc.FixNode.Length; i++) for (int d = 0; d < 3; d++) if ((bc.FixMask[i] >> d & 1) != 0) b.AppendLine($"{bc.FixNode[i] + 1},{d + 1},{d + 1}");
         b.AppendLine("*STEP\n*STATIC");
         // a uniform traction on a 6-node triangle loads only its mid-edge nodes, a third of the force on each
-        var load = new Dictionary<int, Vec3>(); var net = Vec3.Zero;
+        var load = new Dictionary<int, Vec3>(); net = Vec3.Zero;
         for (int i = 0; i < bc.TracTri.Length; i++)
         {
             int t = bc.TracTri[i]; var force = new Vec3(bc.TracVec[3 * i], bc.TracVec[3 * i + 1], bc.TracVec[3 * i + 2]) * p.BoundaryArea[t];
@@ -173,8 +173,16 @@ public static class CaeAssembly
             }
         }
         b.AppendLine("*NODE PRINT,NSET=ALLNODES\nU\n*NODE PRINT,NSET=SUPPORT,TOTALS=ONLY\nRF\n*NODE FILE\nU\n*EL FILE\nS\n*END STEP");
+        return b.ToString();
+    }
+
+    /// <summary>A static study of several bodies, solved with CalculiX because each body has its own material.</summary>
+    public static FemMesh.StaticResult SolveStatic(StudyRunner.Prepared p, StudyRunner.Boundary bc, string folder, CancellationToken token = default)
+    {
+        var m = p.Mesh;
+        var input = StaticInput(p, bc, out var net);
         Directory.CreateDirectory(folder);
-        File.WriteAllText(Path.Combine(folder, "analysis.inp"), b.ToString());
+        File.WriteAllText(Path.Combine(folder, "analysis.inp"), input);
         double seconds = CaeSolver.Run(folder, token);
 
         var u = new double[m.NodeCount * 3]; var reaction = Vec3.Zero;
