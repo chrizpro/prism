@@ -53,7 +53,11 @@ jobs:
           "PRISM_PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
       - name: Linux build prerequisites
         if: env.SELECTED == 'true' && matrix.platform == 'linux'
-        run: sudo apt-get update; sudo apt-get install -y autoconf automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
+        run: sudo apt-get update; sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
+      - name: macOS build prerequisites
+        # vcpkg builds some Open CASCADE dependencies with autotools.
+        if: env.SELECTED == 'true' && matrix.platform == 'macos'
+        run: brew install autoconf autoconf-archive automake libtool pkg-config
       - name: Native dependencies and shims
         if: env.SELECTED == 'true'
         run: |

@@ -70,10 +70,16 @@ cd prism
 - CMake and a C++ compiler: Visual Studio Build Tools with the C++ workload on Windows, Xcode command-line tools on macOS, or `build-essential` on Linux
 - [vcpkg](https://github.com/microsoft/vcpkg) for the native geometry and simulation libraries
 
-On Linux, also install the libraries the native build needs:
+On Linux, also install the tools and libraries the native build needs:
 
 ```bash
-sudo apt-get install -y autoconf automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev
+sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev
+```
+
+On macOS, install the autotools vcpkg uses with [Homebrew](https://brew.sh):
+
+```bash
+brew install autoconf autoconf-archive automake libtool pkg-config
 ```
 
 ### 3. Build the native libraries
