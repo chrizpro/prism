@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Prism.Controls" xmlns:vm="using:Prism.ViewModels" x:Class="Prism.Views.DrawingWorkspace">
+  <UserControl.Styles>
+    <Style Selector="Button.draft"><Setter Property="Padding" Value="12,8"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="Button.draft.on"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="TextBlock.caption"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/><Setter Property="Margin" Value="0,9,0,3"/></Style>
+    <Style Selector="ListBox.draft"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  </UserControl.Styles>
+  <DockPanel Background="{DynamicResource PanelBg}">
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+      <DockPanel Margin="8,3">
+        <Button DockPanel.Dock="Right" Content="+ Document" Click="OnNewDocument" Classes="draft"/>
+        <ListBox Classes="draft" ItemsSource="{Binding Documents}" SelectedItem="{Binding ActiveDocument}" MaxHeight="36">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemTemplate><DataTemplate DataType="vm:DocumentTab"><StackPanel Orientation="Horizontal" Spacing="5"><TextBlock Text="{Binding Title}"/><TextBlock Text="•" IsVisible="{Binding IsDirty}" Foreground="{DynamicResource Accent}"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+    <Border DockPanel.Dock="Top" Padding="10,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <StackPanel Orientation="Horizontal" Spacing="3">
+          <TextBlock Text="Drawing" FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" Margin="4,0,20,0"/>
+          <Button Content="Sheet ▾" Tag="sheet" Click="OnMenu" Classes="draft"/>
+          <Button Content="Views ▾" Tag="views" Click="OnMenu" Classes="draft"/>
+          <Button Content="Dimensions ▾" Tag="dimensions" Click="OnMenu" Classes="draft"/>
+          <Button Content="Annotate ▾" Tag="annotate" Click="OnMenu" Classes="draft"/>
+          <Button Content="Tables ▾" Tag="tables" Click="OnMenu" Classes="draft"/>
+          <Button Content="Suggest ▾" Tag="suggest" Click="OnMenu" Classes="draft"/>
+          <Border Width="1" Background="{DynamicResource Line}" Margin="8,3"/>
+          <Button Content="Update drawing" Click="OnUpdate" Classes="draft"/>
+          <Button Content="Export ▾" Tag="export" Click="OnMenu" Classes="draft"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="8,4">
+      <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10">
+        <ScrollViewer Grid.ColumnSpan="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" MaxHeight="38">
+          <ItemsControl Name="SheetTabs"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding Name}" Tag="{Binding Sheet}" Click="OnSheetTab" Classes="draft" Classes.on="{Binding IsCurrent}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3">
+          <Button Content="Sheets" Click="OnToggleBrowser" Classes="draft" ToolTip.Tip="Show or hide sheet browser"/>
+          <Button Content="Select" Click="OnSelectTool" Classes="draft" ToolTip.Tip="Select or drag an item (Esc)"/>
+          <Button Content="Fit" Click="OnFit" Classes="draft" ToolTip.Tip="Fit sheet (F)"/>
+          <Button Content="100%" Click="OnActualSize" Classes="draft" ToolTip.Tip="Nominal physical size at 96 DPI"/>
+        </StackPanel>
+        <TextBlock Name="SheetStatus" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="11"/>
+        <Button Grid.Column="2" Grid.Row="1" Content="Properties" Click="OnToggleProperties" Classes="draft"/>
+      </Grid>
+    </Border>
+    <Border DockPanel.Dock="Top" Padding="14,7" Background="{DynamicResource PanelAlt}">
+      <TextBlock Name="Instruction" Text="Create a sheet to start a drawing." TextWrapping="Wrap" FontSize="12"/>
+    </Border>
+    <Grid Name="DrawingGrid" ColumnDefinitions="206,*,272">
+      <Border Name="BrowserPane" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="10,7" Spacing="4">
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Sheets" FontWeight="SemiBold" VerticalAlignment="Center"/><Button Grid.Column="1" Content="+" Click="OnNewSheet" ToolTip.Tip="Create sheet"/></Grid>
+            <ListBox Name="SheetList" Classes="draft" SelectionChanged="OnSheetSelected" MaxHeight="160"/>
+            <TextBlock Text="Views" Classes="caption"/>
+            <ListBox Name="ViewList" Classes="draft" SelectionChanged="OnViewSelected" MaxHeight="220"/>
+            <TextBlock Text="Annotations" Classes="caption"/>
+            <ListBox Name="AnnotationList" Classes="draft" SelectionChanged="OnAnnotationSelected" MaxHeight="180"/>
+            <Expander Header="Choose model" IsExpanded="True" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="7">
+                <TextBlock Text="Choose bodies for the next base view." TextWrapping="Wrap" FontSize="11"/>
+                <ListBox Name="SourceList" SelectionMode="Multiple,Toggle" Classes="draft" MaxHeight="180"/>
+                <Button Content="Place base view" Tag="base" Click="OnViewAction" HorizontalAlignment="Stretch"/>
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+      <Grid Grid.Column="1">
+        <c:DrawingCanvas Name="Paper"/>
+        <StackPanel Name="EmptyActions" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,130,0,0" Orientation="Horizontal" Spacing="8">
+          <Button Content="Create sheet" Click="OnNewSheet" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}"/>
+        </StackPanel>
+      </Grid>
+      <Border Name="PropertyPane" Grid.Column="2" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="14,12" Spacing="7">
+            <TextBlock Name="PropertyTitle" Text="Sheet properties" FontWeight="SemiBold" FontSize="15"/>
+            <StackPanel Name="PropertyFields" Spacing="5"/>
+            <Button Name="ApplyButton" Content="Apply changes" Click="OnApply" HorizontalAlignment="Stretch"/>
+            <Button Name="DeleteButton" Content="Delete selected item" Click="OnDelete" HorizontalAlignment="Stretch"/>
+            <Button Content="Sheet properties" Click="OnSheetProperties" Classes="draft" HorizontalAlignment="Stretch"/>
+            <Expander Name="SuggestionsPane" Header="Suggestions" IsExpanded="True" HorizontalAlignment="Stretch" IsVisible="False">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Select suggestions to keep. Accepted annotations can be moved or deleted." TextWrapping="Wrap" FontSize="11"/>
+                <ListBox Name="SuggestionList" SelectionMode="Multiple,Toggle" Classes="draft" MaxHeight="220"/>
+                <Button Content="Accept selected" Click="OnAcceptSelected" HorizontalAlignment="Stretch"/>
+                <Button Content="Accept all" Click="OnAcceptAll" HorizontalAlignment="Stretch"/>
+                <Button Content="Dismiss" Click="OnDismissSuggestions" Classes="draft"/>
+              </StackPanel>
+            </Expander>
+            <Expander Header="Review" IsExpanded="True" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="5">
+                <TextBlock Name="ReviewSummary" Text="No sheet selected" FontSize="11" TextWrapping="Wrap"/>
+                <ListBox Name="WarningList" Classes="draft" SelectionChanged="OnWarningSelected" MaxHeight="220">
+                  <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11"/></DataTemplate></ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

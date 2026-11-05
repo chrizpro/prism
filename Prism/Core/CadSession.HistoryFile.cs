@@ -18,7 +18,7 @@ public sealed partial class CadSession
     sealed record SelItemDto(Guid Obj, int Kind, int Index);
     sealed record RecipeDto(string Key, string Title, List<string?> Values, List<List<SelItemDto>> Slots, Dictionary<int, string>? Expressions);
     sealed record RemovedDto(int Index, ObjDto Object);
-    sealed record StepDto(string Label, string Icon, string? Pin, RecipeDto? Recipe, List<DocumentParameter> Parameters, List<Guid> Added, List<ObjDto> Modified, List<RemovedDto> Removed);
+    sealed record StepDto(string Label, string Icon, string? Pin, RecipeDto? Recipe, List<DocumentParameter> Parameters, List<Guid> Added, List<ObjDto> Modified, List<RemovedDto> Removed, string? DrawingState = null);
     sealed record HistoryDto(List<StepDto> Steps);
 
     static bool Persisted(SceneObject o) => o.Asm is not Cam.ToolpathInfo { Transient: true };
@@ -73,7 +73,7 @@ public sealed partial class CadSession
             var modified = after.Where(o => oldById.TryGetValue(o.Id, out var old) && !ReferenceEquals(old, o)).Select(o => ToDto(oldById[o.Id])).ToList();
             var removed = before.Select((o, index) => (o, index)).Where(x => !afterIds.Contains(x.o.Id)).Select(x => new RemovedDto(x.index, ToDto(x.o))).ToList();
             var node = past[i];
-            steps.Add(new StepDto(node.Label, node.Icon, node.Pin, RecipeToDto(node.Recipe), [.. node.Parameters], added, modified, removed));
+            steps.Add(new StepDto(node.Label, node.Icon, node.Pin, RecipeToDto(node.Recipe), [.. node.Parameters], added, modified, removed, node.DrawingState));
         }
         return new HistoryDto(steps);
     }
@@ -98,7 +98,7 @@ public sealed partial class CadSession
         for (int i = 0; i < steps.Count; i++)
         {
             var step = steps[i];
-            var node = new HistoryNode { Id = _nextNodeId++, Parent = previous, Label = step.Label, Icon = step.Icon, Pin = step.Pin, Recipe = DtoToRecipe(step.Recipe), Parameters = [.. step.Parameters], After = afters[i + 1] };
+            var node = new HistoryNode { Id = _nextNodeId++, Parent = previous, Label = step.Label, Icon = step.Icon, Pin = step.Pin, Recipe = DtoToRecipe(step.Recipe), Parameters = [.. step.Parameters], After = afters[i + 1], DrawingState = step.DrawingState };
             previous.Children.Add(node); previous.Preferred = node; previous = node;
         }
         Current = previous;

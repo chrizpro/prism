@@ -94,6 +94,7 @@ public sealed partial class MainViewModel : ViewModelBase
     void OnStateChanged()
     {
         var s = Session;
+        if (IsDrawingWorkspace && (s.ActiveCommand != null || s.Sketch != null)) SetWorkspace("design");
         ActiveCommand = s.ActiveCommand;
         IsSketching = s.Sketch != null;
         RebuildQuickBar();

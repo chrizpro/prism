@@ -115,7 +115,7 @@ public static class DrawingOutput
         return sb.ToString();
     }
 
-    public static byte[] Pdf(IReadOnlyList<Prim> prims, double w, double h)
+    static byte[] PdfContent(IReadOnlyList<Prim> prims, double w, double h)
     {
         const double k = 72 / 25.4;
         var c = new StringBuilder();
@@ -142,17 +142,31 @@ public static class DrawingOutput
             double x = X(t.X) + dx * cs, y = Y(t.Y) + dx * sn;
             c.Append($"BT /{(t.Bold ? "F2" : "F1")} {N(size)} Tf {N(cs)} {N(sn)} {N(-sn)} {N(cs)} {N(x)} {N(y)} Tm ({PdfText(t.S)}) Tj ET\n");
         }
-        var content = Encoding.Latin1.GetBytes(c.ToString());
+        return Encoding.Latin1.GetBytes(c.ToString());
+    }
+
+    public static byte[] Pdf(IReadOnlyList<Prim> prims, double w, double h) => PdfPages([(prims, w, h)]);
+
+    public static byte[] PdfPages(IReadOnlyList<(IReadOnlyList<Prim> Primitives, double Width, double Height)> pages)
+    {
+        if (pages.Count == 0) throw new ArgumentException("Choose at least one sheet.");
+        const double k = 72 / 25.4;
         var ms = new MemoryStream(); var offs = new List<long>();
-        void W(string s) { var b = Encoding.Latin1.GetBytes(s); ms.Write(b, 0, b.Length); }
+        void W(string s) { var b = Encoding.Latin1.GetBytes(s); ms.Write(b); }
         void Obj(int n, string body) { offs.Add(ms.Position); W($"{n} 0 obj\n{body}\nendobj\n"); }
+        int font = 3 + pages.Count * 2;
         W("%PDF-1.4\n");
         Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-        Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-        Obj(3, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {N(w * k)} {N(h * k)}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>");
-        offs.Add(ms.Position); W($"4 0 obj\n<< /Length {content.Length} >>\nstream\n"); ms.Write(content, 0, content.Length); W("\nendstream\nendobj\n");
-        Obj(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
-        Obj(6, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+        Obj(2, $"<< /Type /Pages /Kids [{string.Join(' ', Enumerable.Range(0, pages.Count).Select(i => $"{3 + i * 2} 0 R"))}] /Count {pages.Count} >>");
+        for (int i = 0; i < pages.Count; i++)
+        {
+            var page = pages[i]; int number = 3 + i * 2;
+            Obj(number, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {F(page.Width * k)} {F(page.Height * k)}] /Contents {number + 1} 0 R /Resources << /Font << /F1 {font} 0 R /F2 {font + 1} 0 R >> >> >>");
+            var content = PdfContent(page.Primitives, page.Width, page.Height);
+            offs.Add(ms.Position); W($"{number + 1} 0 obj\n<< /Length {content.Length} >>\nstream\n"); ms.Write(content); W("\nendstream\nendobj\n");
+        }
+        Obj(font, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+        Obj(font + 1, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
         long xref = ms.Position;
         W($"xref\n0 {offs.Count + 1}\n0000000000 65535 f \n");
         foreach (var o in offs) W($"{o:0000000000} 00000 n \n");

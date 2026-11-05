@@ -204,13 +204,13 @@
 
         <!-- ============ ribbon ============ -->
 
-        <rb:RibbonView DockPanel.Dock="Top"/>
+        <rb:RibbonView DockPanel.Dock="Top" IsVisible="{Binding !IsDrawingWorkspace}"/>
 
 
 
         <!-- ============ status bar ============ -->
 
-        <Border DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
 
@@ -226,7 +226,7 @@
 
         <!-- ============ branching design history ============ -->
 
-        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <StackPanel>
 
@@ -304,7 +304,8 @@
 
         <!-- ============ workspace ============ -->
 
-        <Grid Name="WorkGrid" ColumnDefinitions="272,Auto,*,Auto,312">
+        <Grid>
+        <Grid Name="WorkGrid" IsVisible="{Binding !IsDrawingWorkspace}" ColumnDefinitions="272,Auto,*,Auto,312">
 
 
 
@@ -848,6 +849,8 @@
 
             </Border>
 
+        </Grid>
+        <v:DrawingWorkspace Session="{Binding Session}" IsVisible="{Binding IsDrawingWorkspace}"/>
         </Grid>
 
     </DockPanel>

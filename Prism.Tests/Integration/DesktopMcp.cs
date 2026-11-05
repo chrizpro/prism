@@ -12,7 +12,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
     int requestId;
     public string OutputDirectory => output;
 
-    public DesktopMcp(string scenario)
+    public DesktopMcp(string scenario, string? drawingTheme = null)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx")))
@@ -42,6 +42,13 @@ internal sealed class DesktopMcp : IAsyncDisposable
         start.Environment["PRISM_EXE"] = desktop;
         start.Environment["PRISM_AUTOMATION_DISCOVERY"] = discovery;
         start.Environment["PRISM_AUTOMATION"] = "1";
+        if (drawingTheme != null)
+        {
+            string settings = Path.Combine(output, "settings.json");
+            File.WriteAllText(settings, System.Text.Json.JsonSerializer.Serialize(new { Theme = drawingTheme, ShowHomeOnStart = false }));
+            start.Environment["PRISM_SETTINGS_FILE"] = settings;
+            start.Environment["PRISM_NO_HOME"] = "1";
+        }
         bridge = Process.Start(start) ?? throw new InvalidOperationException("Could not start Prism.Mcp.");
         stderr = bridge.StandardError.ReadToEndAsync();
     }
@@ -66,12 +73,12 @@ internal sealed class DesktopMcp : IAsyncDisposable
         return JsonNode.Parse(Text(response)) ?? throw new InvalidOperationException($"Missing result for {name}.");
     }
 
-    public async Task Capture(string stage)
+    public async Task Capture(string stage, bool viewport = true)
     {
         var idle = await Call("wait_idle", new { timeout_ms = 5000, extra_ms = 200 });
         if ((bool?)idle["settled"] != true)
             throw new InvalidOperationException("The camera did not settle.");
-        var response = await Tool("call_api", new { name = "screenshot", arguments = new { viewport = true, max_width = 1000 } });
+        var response = await Tool("call_api", new { name = "screenshot", arguments = new { viewport, max_width = viewport ? 1000 : 1500 } });
         var image = response["content"]!.AsArray().Single(item => (string?)item?["type"] == "image");
         byte[] png = Convert.FromBase64String((string)image!["data"]!);
         if ((string?)image["mimeType"] != "image/png" || !png.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))

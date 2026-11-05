@@ -31,6 +31,7 @@ public sealed partial class MainViewModel
     public static readonly WorkspaceDef[] WorkspaceDefs =
     [
         new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"]),
+        new("drawing", "Drawing", "Edit engineering drawing sheets, views, dimensions and annotations.", ["Home"], "Home"),
         new("ecad", "ECAD", "Electronic boards, component envelopes and enclosure integration.", ["Home", "ECAD", "Analyze", "View"], "ECAD"),
         new("scan", "Scan", "Clean up meshes, and rebuild scans as CAD. Print preparation is in CAM.", ["Home", "Mesh", "Reverse Engineer", "Solid", "Surface", "Freeform", "Direct Modeling", "Analyze", "View"], "Mesh"),
         new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies, mechanism kinematics and motion, and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Motion", "Fluids", "Analyze", "View"], "Static"),
@@ -41,14 +42,18 @@ public sealed partial class MainViewModel
         new("all", "All tabs", "Show every tab.", []),
     ];
 
+    public bool IsDrawingWorkspace => WorkspaceId == "drawing";
+
     public ObservableCollection<WorkspaceItem> Workspaces { get; } = [];
     [ObservableProperty] public partial string WorkspaceId { get; set; } = "design";
 
-    static string UiFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "ui.txt");
+    static string UiFile => Environment.GetEnvironmentVariable("PRISM_SETTINGS_FILE") is { Length: > 0 } custom
+        ? Path.ChangeExtension(custom, ".workspace")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "ui.txt");
 
     void InitWorkspaces()
     {
-        var visible = AppSettings.Current.VisibleWorkspaces ?? ["design", "render", "scan", "all"];
+        var visible = AppSettings.Current.VisibleWorkspaces ?? ["design", "drawing", "render", "scan", "all"];
         foreach (var d in WorkspaceDefs.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
             Workspaces.Add(new WorkspaceItem { Def = d, IsPinned = visible.Contains(d.Id) });
         try { if (File.Exists(UiFile)) { var id = File.ReadAllText(UiFile).Trim(); if (id == "ar") id = "design"; if (WorkspaceDefs.Any(w => w.Id == id)) WorkspaceId = id; } } catch { }
@@ -70,6 +75,8 @@ public sealed partial class MainViewModel
         if (id == "cae") id = "simulate";
         if (id == "cam") id = "make";
         if (WorkspaceDefs.All(w => w.Id != id)) return;
+        if (id == "drawing" && (Session.Sketch != null || Session.ActiveCommand != null)) { Session.Say("Finish the active operation before entering Drawing.", true); return; }
+        if (id == "drawing") CloseHome();
         WorkspaceId = id;
         try { Directory.CreateDirectory(Path.GetDirectoryName(UiFile)!); File.WriteAllText(UiFile, id); } catch { }
         ApplyWorkspace();
@@ -93,6 +100,7 @@ public sealed partial class MainViewModel
     {
         foreach (var w in Workspaces) w.IsCurrent = w.Id == WorkspaceId;
         ModeName = Current.Name;
+        OnPropertyChanged(nameof(IsDrawingWorkspace));
         ShowScriptPanel = WorkspaceId == "script";
         if (ShowScriptPanel) { Prism.Core.Scripting.ScriptPaths.Prepare(); EnsureScriptLoaded(); }
         UpdatePanels();

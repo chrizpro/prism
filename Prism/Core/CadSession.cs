@@ -48,6 +48,8 @@ public sealed class HistoryNode
     public ImmutableList<DocumentParameter> Parameters { get; set; } = [];
     /// <summary>Name given by the user (or "Saved") - a checkpoint you can find again.</summary>
     public string? Pin { get; set; }
+    /// <summary>Drawing snapshot at this step; null inherits the preceding snapshot.</summary>
+    public string? DrawingState { get; set; }
     /// <summary>How the command behind this step was set up, so the step can be edited later (null for steps made another way).</summary>
     public Commands.FeatureRecipe? Recipe { get; set; }
     public List<HistoryNode> Children { get; } = [];
@@ -215,7 +217,7 @@ public sealed partial class CadSession : ObservableObject
         var start = _groupStart; _groupStart = null;
         if (start == null || Current == start || Current.Parent == null) return;
         var first = start.Preferred; if (first == null || first == Current) { if (first != null) first.Label = label; return; }
-        var node = new HistoryNode { Id = _nextNodeId++, Parent = start, Label = label, Icon = "script", After = Objects, Parameters = DocumentParameters };
+        var node = new HistoryNode { Id = _nextNodeId++, Parent = start, Label = label, Icon = "script", After = Objects, Parameters = DocumentParameters, DrawingState = Drawings.Serialize() };
         start.Children.Remove(first); start.Children.Add(node); start.Preferred = node; Current = node;
         TimelineChanged?.Invoke();
     }
@@ -234,6 +236,8 @@ public sealed partial class CadSession : ObservableObject
         Current = node;
         Objects = node.After;
         DocumentParameters = node.Parameters;
+        RestoreDrawings(node);
+        Dirty = true;
         PruneSelection();
         RaiseScene();
         _navigating = false;
@@ -324,6 +328,7 @@ public sealed partial class CadSession : ObservableObject
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
         DataSheets.Clear(); DataChanged?.Invoke();
+        Drawings = new(); _drawingRevisions.Clear(); DrawingsChanged?.Invoke();
         FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
     }
     // ------------------------------------------------------------ mutation
@@ -1609,7 +1614,7 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -1658,7 +1663,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null);
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
@@ -1708,6 +1713,7 @@ public sealed partial class CadSession : ObservableObject
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
+        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke();
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);

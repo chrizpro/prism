@@ -14,6 +14,7 @@ Use [the requirements and testing workflow](../engineering/requirements-and-test
 | Sheet Metal | [Sheet Metal](../modeling/sheet-metal/README.md) | Flanges, flat patterns and cut-outs |
 | ECAD | [ECAD](../ecad/README.md) | Boards, components and mechanical checks |
 | Script | [Script](../interface/script/README.md) | Script editor and external editors |
+| Drawing | [Drawing workspace](../drawing/README.md) | Editable sheets, views, dimensions, annotations and export; approved 2026-11-05 |
 | Freeform | [Freeform](../modeling/freeform/README.md) · [Extrude Profile review](../modeling/extrude/README.md#freeform-extrusion) · [Revolve](../modeling/revolve/README.md#freeform-revolve) · [Sweep](../modeling/sweep/README.md#freeform-sweep) · [Loft](../modeling/loft/README.md#freeform-loft) | Subdivision/cage creation and edits |
 | Mesh and scan reconstruction | [Mesh and Reverse Engineer](../modeling/mesh-and-reverse-engineer/README.md) | Mesh cleanup, region fitting and CAD reconstruction |
 | Mechanisms | [Motion](../cae/motion/README.md) | Joints, drives, couplings and motion studies |

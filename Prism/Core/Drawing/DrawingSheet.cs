@@ -58,6 +58,7 @@ public sealed class DrawingOptions
     public double? Scale;
     public bool Dimensions = true, HoleCallouts = true, Centerlines = true, LocatingDimensions = true, ThirdAngle = true;
     public bool? Bom;
+    public bool DefaultEdgeNote = true;
     public string Units = "mm";
     public string Tolerance = "LINEAR ±0.1   ANGULAR ±0.5°";
     public List<string> Notes = [];
@@ -95,7 +96,7 @@ public sealed class DrawingView
 }
 
 /// <summary>An engineering drawing: projected views with hidden lines, section and detail views, dimensions, centerlines, hole callouts, annotations, BOM and a title block.</summary>
-public sealed class DrawingSheet
+public sealed partial class DrawingSheet
 {
     public DrawingOptions Opt = new();
     public List<DrawingView> Views = [];
@@ -387,12 +388,12 @@ public sealed class DrawingSheet
         }
     }
 
-    void DrawCaption(DrawingView v)
+    void DrawCaption(DrawingView v, double extraBelow = 0)
     {
         var (left, top) = v.P(v.MinX, v.MaxY); var (right, bottom) = v.P(v.MaxX, v.MinY);
         string scale = Math.Abs(v.Scale - Scale) > 1e-9 || v.Kind != "base" ? " (" + ScaleLabel(v.Kind == "detail" ? v.Scale : v.Scale) + ")" : "";
         double dimBelow = v.Kind == "base" && v.Name != "iso" && Opt.Dimensions ? 18 : 9;
-        Text((left + right) / 2, bottom + dimBelow, v.Label + (Math.Abs(v.Scale - Scale) > 1e-9 ? scale : ""), 4, "middle", 0, true);
+        Text((left + right) / 2, bottom + dimBelow + extraBelow, v.Label + (Math.Abs(v.Scale - Scale) > 1e-9 ? scale : ""), 4, "middle", 0, true);
     }
 
     static string ScaleLabel(double s) => s >= 1 ? $"{s:0.##}:1" : $"1:{1 / s:0.##}";
@@ -690,7 +691,7 @@ public sealed class DrawingSheet
         // general notes, bottom left
         var notes = new List<string>(Opt.Notes);
         notes.Insert(0, $"UNLESS OTHERWISE SPECIFIED: DIMENSIONS IN {(Opt.Units.StartsWith("in", StringComparison.OrdinalIgnoreCase) ? "INCHES" : "MILLIMETRES")}.  {Opt.Tolerance}");
-        notes.Add("BREAK ALL SHARP EDGES.  DO NOT SCALE DRAWING.");
+        if (Opt.DefaultEdgeNote) notes.Add("BREAK ALL SHARP EDGES.  DO NOT SCALE DRAWING.");
         double ny = f.H - Margin - 3 - (notes.Count - 1) * 4.2;
         foreach (var n in notes) { Text(Margin + 3, ny, n, 2.8); ny += 4.2; }
     }
