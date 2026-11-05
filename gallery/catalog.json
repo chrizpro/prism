@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "comet-racer",
+      "Name": "Comet number-one racer",
+      "Description": "A playful open-wheel racecar with red bodywork, big slick tires and blue wings.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/comet-racer.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/comet-racer.png?v=a2a0146d01c4a8ff",
+      "Bytes": 419359,
+      "Sha256": "068f0c76d4e3279dfbc3e09dc0053b32001ddc0aa00d4155cc40066aa6f190e1"
+    },
+    {
       "Id": "skylark-aircraft",
       "Name": "Skylark light aircraft",
       "Description": "Light airplane with a sculpted fuselage, lofted wings and three-wheel landing gear.",

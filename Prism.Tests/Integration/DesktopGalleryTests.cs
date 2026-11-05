@@ -9,6 +9,48 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I004 | Comet wheels are symmetric and grounded with clear front and rear wings")]
+    [Trait("TestId", "GAL-I004")]
+    public async Task RacerLayoutAndWingClearances()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I004", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/comet-racer.prism") });
+        var frontWing = await mcp.Call("object_info", new { @object = "Blue front wing" });
+        var rearWing = await mcp.Call("object_info", new { @object = "Blue rear wing" });
+        foreach (string axle in new[] { "Front", "Rear" })
+        {
+            var left = await mcp.Call("object_info", new { @object = axle + " left tire" });
+            var right = await mcp.Call("object_info", new { @object = axle + " right tire" });
+            Assert.True(Math.Abs((double)left["volume"]! - (double)right["volume"]!) < .01);
+            Assert.True(Math.Abs((double)left["min"]![1]! + (double)right["max"]![1]!) < .001);
+            foreach (var tire in new[] { left, right })
+            {
+                Assert.InRange((double)tire["min"]![2]!, -.001, .001);
+                if (axle == "Front") Assert.True((double)tire["min"]![0]! - (double)frontWing["max"]![0]! >= 100);
+                else Assert.True((double)rearWing["min"]![2]! - (double)tire["max"]![2]! >= 200);
+            }
+        }
+        var sidepod = await mcp.Call("object_info", new { @object = "Red sidepod 1" });
+        var rearTire = await mcp.Call("object_info", new { @object = "Rear right tire" });
+        Assert.True((double)rearTire["min"]![1]! - (double)sidepod["max"]![1]! >= 80);
+        var seat = await mcp.Call("object_info", new { @object = "Reclined seat back" });
+        foreach (string name in new[] { "Red roll fairing", "Rear engine cowling" })
+        {
+            var cover = await mcp.Call("object_info", new { @object = name });
+            Assert.True((double)cover["min"]![0]! - (double)seat["max"]![0]! >= 5);
+        }
+        foreach (var angle in new[] { ("front-quarter", -125), ("side", 180), ("rear-quarter", 55) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = 18, fit = true, grid = false, display = "shaded" });
+            await mcp.Call("view", new { distance = 3300 });
+            await mcp.Capture("racer-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I003 | Skylark has mirrored wings, grounded wheels and clear propeller blades")]
     [Trait("TestId", "GAL-I003")]
     public async Task AircraftLayoutAndClearances()
