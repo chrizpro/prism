@@ -253,7 +253,10 @@ public class CamProgramTests
     public void DesignCheck()
     {
         var session = new CadSession();
-        var block = CreateBoxBody(session, Vec3.Zero, 20, 20, 10);
+        // A block with a 10 × 10 pocket 6 mm deep: its floor is open from above but deeper than a 5 mm reach.
+        using var outer = BoxAt(Vec3.Zero, 20, 20, 10);
+        using var pocket = BoxAt(new Vec3(5, 5, 4), 10, 10, 7);
+        var block = session.AddObject(Occ.Cut(outer, pocket), "Pocketed block", ObjKind.Solid);
         var command = Begin(session, () => new CncDesignCheckCommand());
         Pick(command, "Model", block);
         SetNumber(command, "Usable cutter reach", 5);
@@ -263,7 +266,7 @@ public class CamProgramTests
         // probe from a wall runs along the wall itself; that is not asserted. See the CAM guide's coverage gaps.
         double hidden = double.Parse(Result(command, "Top-down inaccessible area").Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
         Assert.True(hidden >= 400 - 1e-6);
-        Assert.StartsWith("400 mm²", Result(command, "Beyond selected reach"));
+        Assert.StartsWith("100 mm²", Result(command, "Beyond selected reach"));
         Assert.Equal("Closed, manifold, outward oriented", Result(command, "Mesh health"));
         Assert.Equal("Use an inside radius of at least 3 mm for this cutter; allow extra radius for smoother engagement.", Result(command, "Inside corner target"));
     }
