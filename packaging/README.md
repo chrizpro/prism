@@ -17,6 +17,12 @@
 
 The installer creates a Start menu shortcut and optional desktop shortcut. Uninstall removes only files listed at build time and never recursively deletes the chosen installation directory. Documents and settings are outside that directory. There is no automatic updater or code-signing configuration yet.
 
+The Windows installer registers `.prism` as a **Prism Document** for the current user and uses the application's embedded icon in Explorer. Prism appears in **Open with** and becomes the fallback when the extension has no registered handler. An existing default app choice takes priority. Double-clicking a document associated with Prism launches it and opens the model. Uninstall removes Prism's registration.
+
+To verify, install the setup EXE and check that a `.prism` file with spaces in its path shows the Prism icon and opens the model on double-click. Uninstall and check that the Prism handler is gone. A development build can also be checked by launching `Prism.Desktop.exe "C:\path with spaces\model.prism"`.
+
+On 2026-11-04, a temporary Windows install built with NSIS 3.11 resolved the embedded icon through the Windows association API, loaded all ten visible bodies from `Kestrel Runabout.prism` when opened through the Windows shell, and removed the association on uninstall.
+
 The Windows self-contained package includes .NET, the C++ runtime DLLs required by the native shims, the geometry and simulation dependencies, the Python scripting library, and the MCP bridge. Optional Python, CalculiX, and ffmpeg installations are external.
 
 ## Native libraries on macOS and Linux

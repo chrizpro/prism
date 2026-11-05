@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -58,6 +60,11 @@ public partial class App : Application
             Core.AppSettings.Changed += () => vm.Session.Invalidate();      // grid style      // the 3D view paints its own background
             var window = new MainWindow { DataContext = vm };
             desktop.MainWindow = window;
+            foreach (var path in desktop.Args ?? Array.Empty<string>())
+            {
+                if (string.Equals(Path.GetExtension(path), ".prism", StringComparison.OrdinalIgnoreCase))
+                    vm.OpenPath(path);
+            }
             var api = new Automation.AutomationApi(vm, window);
             vm.InitAssistant(new Automation.AssistantService(api));
             var server = Automation.AutomationServer.TryStart(api);
