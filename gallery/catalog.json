@@ -1,0 +1,109 @@
+{
+  "SchemaVersion": 1,
+  "Items": [
+    {
+      "Id": "atelier-table",
+      "Name": "Atelier side table",
+      "Description": "Rounded oak shelves on a steel frame, with procedural grain and clear coat.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/atelier-table.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/atelier-table.png",
+      "Bytes": 292889,
+      "Sha256": "24a4d6c0b3d16b634897e0811783ea7b022f58da11ea038bce8bab5c1b6933ae"
+    },
+    {
+      "Id": "halo-pendant",
+      "Name": "Halo pendant",
+      "Description": "A revolved Surface shade, thickened and finished in glazed teal with a brass collar.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/halo-pendant.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/halo-pendant.png",
+      "Bytes": 74430,
+      "Sha256": "1cb2ce5733369725b22735f9d7994448e3a0df5faaf82e3ba0fdc2660570d44f"
+    },
+    {
+      "Id": "cove-chair",
+      "Name": "Cove lounge chair",
+      "Description": "Editable sculpted cushions and soft arms on a brushed steel frame.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/cove-chair.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cove-chair.png",
+      "Bytes": 282879,
+      "Sha256": "d14f3f8ae20bbaa74a660449fe56d2ee7891da33040ce367e6cc00cac784bca4"
+    },
+    {
+      "Id": "camera-lens",
+      "Name": "50 mm camera lens",
+      "Description": "Turned barrel, knurled grip, steel mount and coated glass.",
+      "Workflow": "Solid",
+      "Author": "Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/camera-lens.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/camera-lens.png",
+      "Bytes": 2341124,
+      "Sha256": "a473b5463ab777fceaf16b1e81c8977fc352b6a581335d26acb2385724611bdc"
+    },
+    {
+      "Id": "glide-iron",
+      "Name": "Glide steam iron",
+      "Description": "Sculpted housing, curved grip and a metal soleplate.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/glide-iron.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/glide-iron.png",
+      "Bytes": 42729,
+      "Sha256": "d232cee29776456b36d53234c3c9e9a16ca348516cad93735be1dfa82212e754"
+    },
+    {
+      "Id": "azure-bottle",
+      "Name": "Azure handled bottle",
+      "Description": "A continuous subdivision handle with a separate measuring cap.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/azure-bottle.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/azure-bottle.png",
+      "Bytes": 16351,
+      "Sha256": "4d7d7a3b950e7501dc4f98e07f0b9710adb05f8eabf752bfff59b26666f9c7e3"
+    },
+    {
+      "Id": "arc-mouse",
+      "Name": "Arc mouse",
+      "Description": "A shaped control-grid housing with brushed aluminum appearance.",
+      "Workflow": "NURBS",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/arc-mouse.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/arc-mouse.png",
+      "Bytes": 4035178,
+      "Sha256": "c0a0ccda7d7b08daa7125cd7361d360e0bac22d73798cd151b0025a95db29651"
+    },
+    {
+      "Id": "transition-duct",
+      "Name": "Transition duct",
+      "Description": "Lofted rectangular-to-round duct with a thickened wall and flange.",
+      "Workflow": "Surface / NURBS",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/transition-duct.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/transition-duct.png",
+      "Bytes": 8186822,
+      "Sha256": "83352ab9c4ecb51b151f3e34d69bc4b6b33725ce215c59e228f49d7d85e4b18f"
+    }
+  ]
+}
