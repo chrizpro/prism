@@ -78,6 +78,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 
 ## Feature issues and tests
 
+Startup gallery: [canonical guide](../docs/interface/gallery/README.md), [issue #61](https://github.com/chrizpro/prism/issues/61), [Unit tests](Unit/Gallery/), [Headless tests](Headless/Gallery/) and [desktop/MCP examples](Integration/DesktopGalleryTests.cs). Filter with `--filter Feature=Gallery`.
+
 See the [readiness report](../docs/engineering/test-readiness-report.md) for the reasons behind remaining gaps.
 
 | Feature issues | Living specification | Unit | Headless |

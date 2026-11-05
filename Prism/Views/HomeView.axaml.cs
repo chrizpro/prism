@@ -14,6 +14,8 @@ public partial class HomeView : UserControl
         var workspace = MainViewModel.DefaultWorkspacePath;
         // The browser has no Documents folder (empty path), and String.Replace rejects an empty pattern.
         DefaultLabel.Text = "Use " + (documents.Length > 0 ? workspace.Replace(documents, "Documents") : workspace);
+        AttachedToVisualTree += async (_, _) => { if (Vm is { } vm && vm.HomeOpen) await vm.LoadGallery(); };
+        PropertyChanged += async (_, e) => { if (e.Property == IsVisibleProperty && IsVisible && Vm is { } vm) await vm.LoadGallery(); };
     }
 
     MainViewModel? Vm => DataContext as MainViewModel;
@@ -28,4 +30,6 @@ public partial class HomeView : UserControl
     void OnSettings(object? s, RoutedEventArgs e) => Vm?.RequestSettings?.Invoke();
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseHome();
     void OnOpenFile(object? s, RoutedEventArgs e) { if (s is Button { Tag: string path }) Vm?.OpenPath(path); }
+    async void OnGalleryRefresh(object? s, RoutedEventArgs e) { if (Vm is { } vm) await vm.LoadGallery(refresh: true); }
+    async void OnGalleryOpen(object? s, RoutedEventArgs e) { if (s is Button { Tag: GalleryCard card } && Vm is { } vm) await vm.OpenGalleryCard(card); }
 }
