@@ -161,8 +161,11 @@ def lounge_chair():
             for y in (-190, 220):
                 rounded_box(f"Frame leg {x} {y}", (25, 25, 350), (x, y, 0), 3, **metal)
             rounded_box(f"Seat side rail {x}", (25, 450, 24), (x, 15, 328), 3, **metal)
-            for y in (-145, 210):
-                rounded_box(f"Arm support {x} {y}", (18, 18, 220), (x, y, 345), 2, **metal)
+            # Put the posts under the arms, outside the back cushion's full cage bounds.
+            arm_x = -307 if x < 0 else 307
+            for y in (-145, 160):
+                rounded_box(f"Arm outrigger {x} {y}", (75, 18, 18), ((x + arm_x)/2, y, 340), 2, **metal)
+                rounded_box(f"Arm support {arm_x} {y}", (18, 18, 220), (arm_x, y, 345), 2, **metal)
         for y in (-190, 220):
             rounded_box(f"Seat cross rail {y}", (500, 25, 24), (0, y, 328), 3, **metal)
     return "cove-chair", -35, 15

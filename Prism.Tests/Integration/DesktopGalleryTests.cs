@@ -9,6 +9,36 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I002 | Cove arm posts clear the complete back cushion cage by at least 8 mm")]
+    [Trait("TestId", "GAL-I002")]
+    public async Task ChairPostsStayOutsideBackCushion()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I002", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/cove-chair.prism") });
+        var back = await mcp.Call("object_info", new { @object = "Sculpted back cushion" });
+        // Subdivision stays inside its control-cage bounds. Disjoint X intervals establish clearance
+        // independently of tessellation or a Boolean conversion of the Freeform body.
+        foreach (int x in new[] { -307, 307 })
+            foreach (int y in new[] { -145, 160 })
+            {
+                var post = await mcp.Call("object_info", new { @object = $"Arm support {x} {y}" });
+                double gap = x < 0 ? (double)back["min"]![0]! - (double)post["max"]![0]!
+                    : (double)post["min"]![0]! - (double)back["max"]![0]!;
+                Assert.True(gap >= 8 - .001, $"Post {x}, {y} has only {gap} mm of back clearance.");
+                var arm = await mcp.Call("object_info", new { @object = $"Soft arm {x}" });
+                Assert.True((double)post["min"]![0]! > (double)arm["min"]![0]!);
+                Assert.True((double)post["max"]![0]! < (double)arm["max"]![0]!);
+            }
+        await mcp.Call("view", new { yaw = 145, pitch = 15, fit = true, grid = false, display = "shaded" });
+        await mcp.Capture("chair-rear");
+        await mcp.Call("view", new { yaw = 90, pitch = 5, fit = true, grid = false, display = "shaded" });
+        await mcp.Capture("chair-side");
+    }
+
     [Fact(DisplayName = "GAL-I001 | Curated examples reopen through MCP with valid geometry, closed cages and saved appearance")]
     [Trait("TestId", "GAL-I001")]
     public async Task CuratedModelsOpenWithNativeGeometryAndAppearance()
