@@ -29,7 +29,7 @@ public class MeshToolTests
     ];
 
     /// <summary>A closed, outward-facing 12-triangle box mesh with its minimum corner at <paramref name="min"/>.</summary>
-    static TriMesh BoxMesh(Vec3 min, double sx, double sy, double sz, bool dropLastTriangle = false)
+    internal static TriMesh BoxMesh(Vec3 min, double sx, double sy, double sz, bool dropLastTriangle = false)
     {
         float X(double v) => (float)v;
         float[] v =
@@ -42,13 +42,13 @@ public class MeshToolTests
     }
 
     /// <summary>A finely tessellated, welded sphere mesh of the given radius centred at the origin.</summary>
-    static TriMesh SphereMesh(double radius)
+    internal static TriMesh SphereMesh(double radius)
     {
         using var sphere = Occ.Sphere(radius);
         return MeshAnalysis.FromMeshData(sphere.Tessellate(radius * 0.002));
     }
 
-    static SceneObject AddMesh(CadSession session, TriMesh mesh, string name = "Mesh")
+    internal static SceneObject AddMesh(CadSession session, TriMesh mesh, string name = "Mesh")
     {
         var output = new CommandOutput();
         output.Add.Add(new NewObject(null, name, ObjKind.Mesh, Tri: mesh));
@@ -56,7 +56,7 @@ public class MeshToolTests
         return session.Objects.Last();
     }
 
-    static TriMesh ReplacedMesh(CommandOutput output, SceneObject source)
+    internal static TriMesh ReplacedMesh(CommandOutput output, SceneObject source)
     {
         var (old, mesh) = Assert.Single(output.ReplaceMeshes);
         Assert.Equal(source.Id, old.Id);
@@ -64,7 +64,7 @@ public class MeshToolTests
     }
 
     /// <summary>Slow mesh tools only compute on Preview or when applied; tests run them as an apply would.</summary>
-    static CommandOutput Apply(Command command)
+    internal static CommandOutput Apply(Command command)
     {
         command.Committing = true;
         try { return BuildOutput(command); }
