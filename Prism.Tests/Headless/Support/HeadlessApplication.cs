@@ -15,7 +15,7 @@ public static class HeadlessApplication
     public static AppBuilder BuildAvaloniaApp()
     {
         if (!OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException("Headless OCCT tests currently require the Windows native binaries.");
+            return BuildWithUnixNativeDirectory();
 
         var nativeDirectory = Environment.GetEnvironmentVariable("PRISM_NATIVE_DIR");
         if (string.IsNullOrWhiteSpace(nativeDirectory))
@@ -34,6 +34,28 @@ public static class HeadlessApplication
         if (!SetDllDirectory(nativeDirectory))
             throw new Win32Exception(Marshal.GetLastWin32Error());
 
+        return AppBuilder.Configure<Application>()
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+    }
+
+    /// <summary>
+    /// Non-Windows runs are a developer convenience, not the reference platform: PRISM_NATIVE_DIR must name a directory
+    /// holding a locally built libprism_kernel (and optionally libprism_sim). Preloading by full path lets the
+    /// DllImport("prism_kernel") probes resolve to the already loaded library.
+    /// </summary>
+    static AppBuilder BuildWithUnixNativeDirectory()
+    {
+        var nativeDirectory = Environment.GetEnvironmentVariable("PRISM_NATIVE_DIR");
+        if (string.IsNullOrWhiteSpace(nativeDirectory))
+            throw new PlatformNotSupportedException("Headless OCCT tests on this platform need PRISM_NATIVE_DIR set to a directory containing a locally built libprism_kernel.");
+        var extension = OperatingSystem.IsMacOS() ? ".dylib" : ".so";
+        var kernel = Path.Combine(Path.GetFullPath(nativeDirectory), "libprism_kernel" + extension);
+        if (!File.Exists(kernel))
+            throw new FileNotFoundException($"OCCT runtime missing: {kernel}.");
+        NativeLibrary.Load(kernel);
+        var sim = Path.Combine(Path.GetFullPath(nativeDirectory), "libprism_sim" + extension);
+        if (File.Exists(sim))
+            NativeLibrary.Load(sim);
         return AppBuilder.Configure<Application>()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions());
     }
