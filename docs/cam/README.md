@@ -57,4 +57,11 @@ Resin design references: [Formlabs cups](https://formlabs.com/support/Preventing
 
 [Linear G-code unit tests](../../Prism.Tests/Unit/Cam/LinearGcodeTests.cs) verify units, modal coordinates, G92 offsets, extrusion, layer starts, feed and rejection of unsupported input. [CAM workflow headless tests](../../Prism.Tests/Headless/Cam/CamWorkflowTests.cs) check committed stock bounds and both G54 choices, plus successful nozzle import and history preservation when an arc is rejected. Run `./tools/test.ps1 -Feature CAM`. [Issue #52](https://github.com/chrizpro/prism/issues/52).
 
-Maintained cases for generation options, setup switching and persistence, posts, stock review and both print workflows remain open. The standalone CAM tests above have separate coverage.
+[CNC operation tests](../../Prism.Tests/Headless/Cam/CncOperationTests.cs) check the cut path of Profile on each side, its passes, climb and conventional direction and tabs; Pocket rings and islands; Adaptive Clearing levels and wall finish; Drill depth, pecks and tool warning; Face in both directions; 3D Finish with both cutters; Turning stages and stock; and tool-library presets. [CAM program tests](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) cover 3D Rough, Tool Library, Select CAM Setup, Operation Order, Playback, Review and its setup sheet, Post for each controller, Stock Review, CNC Design Check, FDM and Resin Preparation.
+
+Known gaps found on 2026-11-05:
+
+- CNC Design Check counts the vertical walls of a plain block as "top-down inaccessible", because the upward probe from a wall runs along the wall itself. Only the underside is asserted.
+- Turning sets "Top of the material" while it builds, which re-enters the preview and lists the result rows twice after the first build.
+
+The 3D-print Slice tool, Export for printing and slicer hand-off remain without maintained cases; the standalone suites cover them.

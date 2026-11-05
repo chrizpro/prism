@@ -24,6 +24,7 @@ The tests characterize existing behavior. Open requirements and options remain i
 
 - [Ribbon actions](../../../Prism.Tests/Headless/Solid/SolidRibbonTests.cs) cover the Pipe/Sweep/Loft boundary, Direct Edit entry and exit, selection modes, the Datum Gizmo and Materials entry.
 - [Shared tools](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) cover sketch entry, plane offset, curve creation and inspection results.
+- [Inspect tool tests](../../../Prism.Tests/Headless/Solid/AnalysisToolTests.cs) cover Interference (picked, all, created bodies), Check Geometry, Curvature Map ranges, Draft Analysis directions, Surface Continuity and Match Surface.
 - [Curve expression unit tests](../../../Prism.Tests/Unit/Solid/CurveExpressionTests.cs) exercise formula evaluation.
 
 Run `./tools/test.ps1 -Feature Solid`. Extrude and Revolve retain their own feature filters. The shared checks leave desktop viewport interactions and the tools inside the contextual Sketch and Direct Modeling tabs for their own workflows. See [the ribbon index](../../tabs/README.md) for other workspaces.

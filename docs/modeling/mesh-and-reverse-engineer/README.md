@@ -46,6 +46,15 @@ Repair's Fill holes closes every hole up to a size limit, which is what you want
 
 **Mesh to Solid** makes one face per triangle. It is heavy and hard to edit, so it is a last resort.
 
+## Maintained tests
+
+[Mesh tool tests](../../../Prism.Tests/Headless/Mesh/MeshToolTests.cs) cover Repair and Fill Holes, Print Check (printers, custom volume, materials), Reduce, Smooth, Offset, Split (every plane, flip, open cut, keep options), Section Curves, Wall Thickness, Overhang orientation, Deviation, every Align mode, Mesh Boolean, Remesh, Mesh Quality and both conversions between meshes and solids. [Reverse engineering tests](../../../Prism.Tests/Headless/Mesh/ReverseEngineerTests.cs) cover Segment & Fit, Rebuild from Scan (faces, curves and sewn solid), Section Lines & Arcs, Section Sketch and Select Region actions. Run `./tools/test.ps1 -Feature Mesh`.
+
+Known gaps found on 2026-11-05:
+
+- Section Curves (with "Create curves" off), Section Lines & Arcs (with "Create lines and arcs" off), Segment & Fit ("Nothing - just analyze") and Rebuild from Scan ("Nothing - analysis…") compute their report and then clear it before returning, so the panel shows no rows in those modes. The tests use the creating modes.
+- Solid to Mesh "Coarse" and "Normal" can both return the triangulation already stored on the body (for example the display mesh), so Coarse is not always coarser. Only Fine versus Coarse is asserted.
+
 ## Tested on
 
 Generated parts only: a drilled plate, an L bracket and a plate with a boss, remeshed and given up to ±0.2 mm of random noise. Each rebuilt to a valid solid with the right faces, within 0.3% of the volume, and Direct Edit pulled a face as it does on the original. No real scan has been tried, and real scans have holes, missing sides and uneven noise.

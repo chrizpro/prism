@@ -6,6 +6,8 @@ Curve uses picked points as interpolated points or control points. Curve from Da
 
 [Curve command checks](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) and [expression unit checks](../../../Prism.Tests/Unit/Solid/CurveExpressionTests.cs). [Tracking issue #36](https://github.com/chrizpro/prism/issues/36).
 
+[Curve editing tests](../../../Prism.Tests/Headless/Curves/CurveToolTests.cs) characterize every option of Fillet / Chamfer Curve, Offset Curve, Blend Curve, Join and Explode, Trim, Split and Extend, Divide, Rebuild, Project Curve, Intersect Surfaces, Duplicate Edge and the Curvature Graph, plus Contour in the [surface tool tests](../../../Prism.Tests/Headless/Surfacing/SurfaceToolTests.cs). Run `./tools/test.ps1 -Feature Curves`.
+
 ## Coverage gaps
 
 Closed and control-point curves, import variants, projected intersections and viewport picking need more coverage. New requirements need owner review.

@@ -59,6 +59,7 @@ Selection is the heart of direct modeling, so the Select section is the same on 
 The shipped Direct Modeling tab has 35 entries including dropdown choices and shared controls. [Issue #40](https://github.com/chrizpro/prism/issues/40) tracks its option-level verification.
 
 - [Maintained Direct Modeling tests](../../../Prism.Tests/Headless/DirectModeling/) exercise Replace Face, planar Match Face, Extend and Trim to a target, splitting and merging a planar face, and all three Fill / Cap modes on a planar opening.
+- [Direct edit tests](../../../Prism.Tests/Headless/DirectModeling/DirectEditTests.cs) cover Push / Pull on flat faces, hole walls and surface faces; Move Hole / Boss moves and diameters; Delete Face on solids and surfaces; Offset Face on flat faces and holes; Rotate Face about world axes and a picked edge; Move Face moves and every tilt axis; Remove Fillets by pick and by radius; Move Body flush (touching and aligned) and coaxial; Mirror Feature; and Check & Repair reporting, healing and closing.
 - [Standalone DirectModelTests](../../../tests/Prism.DirectModelTests/) contain feature recognition, edit actions, direct gizmo, face operations, repair and pattern checks. [Shared Solid tests](../../../Prism.Tests/Headless/Solid/) cover the entry, exit and shared controls.
 
 ### Option groups to verify

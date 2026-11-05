@@ -10,6 +10,11 @@ This guide describes observed behavior. Additional requirements are proposed and
 
 The headless cases check exact-body bounds and volume for translation, world-origin rotation, uniform scaling and mirror copy, plus the Duplicate session action.
 
+[Warp tests](../../../Prism.Tests/Headless/Solid/WarpTests.cs) check Stretch with start/end ranges, Taper, Twist, Bend of a line centred on the origin and a stretched solid.
+
 ## Coverage gaps
+
+Known gap found on 2026-11-05: Warp's Bend adds the shape's centre along the bend axis twice, so a shape that is not centred on the origin along that axis jumps when bent (a line from X = 0 to 100 bent 90° ends at X ≈ 113.7 instead of 63.7). The maintained Bend case uses a centred line.
+
 
 Mixed selections, custom transform pivots and desktop gizmo interactions still need coverage.

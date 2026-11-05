@@ -62,6 +62,10 @@ The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface
 
 ## Maintained option coverage
 
+[Surface tool tests](../../../Prism.Tests/Headless/Surfacing/SurfaceToolTests.cs) cover Edge Surface (two and four curves), Blend Surface at each continuity and fullness, Sweep 2 Rails as surface and solid, Rebuild Surface, Network Surface, Planar Surface with a hole, Knit with and without solid and its tolerance, Trim Surface with a solid or a surface on either side, Enclosed Body with listed spaces, Unsew of whole bodies and single faces, both Untrim modes, Extend and Reverse Normal. [Inspect tool tests](../../../Prism.Tests/Headless/Solid/AnalysisToolTests.cs) cover Surface Continuity and Match Surface at G0, G1 and G2.
+
+Known gap found on 2026-11-05: Rebuild Surface's "Largest deviation (approx.)" measures distance to the result's tessellation vertices rather than to its surface, so an exactly reproduced flat sheet reports several millimetres and a warning. The tests do not assert that readout.
+
 [Surface and NURBS headless tests](../../../Prism.Tests/Headless/Surfacing/SurfaceOptionTests.cs) launch the tools from both ribbons. They check signed planar Offset and Thicken, single and multiple Isocurves in both directions, and NURBS Control Grid plane, dimensions, grid counts, degree and offset on flat examples.
 
 Run `./tools/test.ps1 -Layer Headless -Feature Surfacing`. [Pipe](../pipe/README.md) has separate exact and cage checks. [Boundary Surface, Ruled and Patch](../boundary-surface/README.md) have separate option checks. Trimming and sewing options, curve editing, NURBS control-point editing and continuity, and curved or invalid inputs remain coverage work. [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) track it.
