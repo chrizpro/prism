@@ -8,7 +8,7 @@ using static Prism.HeadlessTests.Support.ModelingScenario;
 
 namespace Prism.HeadlessTests.Solid;
 
-/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/interface/inspection/README.md">Inspection and material assignment.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/develop/docs/appearance-studio/README.md">Inspection and material assignment.</seealso>
 [Trait("Feature", "Solid")]
 [Trait("Layer", "Headless")]
 public class AppearanceTests

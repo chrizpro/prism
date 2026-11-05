@@ -46,7 +46,11 @@ public sealed class RenderSetup
     public RenderBg Background { get; set; } = RenderBg.Environment;
     public bool Ground { get; set; } = true;
     public double Exposure { get; set; } = 1;
-    public override bool Equals(object? o) => o is RenderSetup r && r.Env == Env && r.Background == Background && r.Ground == Ground && r.Exposure == Exposure;
+    public string? BackgroundImage { get; set; }
+    public BackgroundFit ImageFit { get; set; } = BackgroundFit.Fill;
+    public double ImageOffsetX { get; set; }
+    public double ImageOffsetY { get; set; }
+    public override bool Equals(object? o) => o is RenderSetup r && r.Env == Env && r.Background == Background && r.Ground == Ground && r.Exposure == Exposure && r.BackgroundImage == BackgroundImage && r.ImageFit == ImageFit && r.ImageOffsetX == ImageOffsetX && r.ImageOffsetY == ImageOffsetY;
     public override int GetHashCode() => HashCode.Combine(Env, Background, Ground, Exposure);
 }
 

@@ -1,7 +1,7 @@
 namespace Prism.Rendering;
 
 /// <summary>GLSL ES 3.00 sources (works on ANGLE/D3D11 on Windows and on desktop GL 3.3+ drivers).</summary>
-static class Shaders
+static partial class Shaders
 {
     const string Head = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
 
@@ -112,6 +112,7 @@ float surfaceVariation(){
     if(uPattern==5){float a=sin(p.x*22.0),b=sin(p.y*22.0);return a*b>=0.0?0.65+0.35*abs(a):0.65+0.35*abs(b);}
     return 1.0;
 }
+" + SurfaceFunctions + @"
 void main(){
     if (uClipOn == 1 && dot(uClip.xyz, vPos) > uClip.w) discard;
     vec3 N = normalize(vNrm);
@@ -119,9 +120,11 @@ void main(){
     vec3 V = normalize(uEye - vPos);
     bool back = dot(N, V) < 0.0;
     if (back) N = -N;
+    vec2 mat=uMat;
     vec3 base = back ? uBack : uColor;
     if(uZebra==0&&uField==0)base=clamp(base*surfaceVariation(),0.0,1.0);
 
+    if(uZebra==0&&uField==0)surfaceLayers(base,N,mat);
     vec3 L1 = normalize(uToEye * 0.75 - uRight * 0.55 + uUp * 0.75);
     vec3 L2 = normalize(uToEye * 0.60 + uRight * 0.85 - uUp * 0.10);
     float d1 = max(dot(N, L1), 0.0);
@@ -131,18 +134,25 @@ void main(){
     vec3 col = base * (amb * 0.62 + vec3(1.0, 0.98, 0.95) * d1 * 0.62 + vec3(0.8, 0.88, 1.0) * d2 * 0.22);
 
     vec3 H = normalize(L1 + V);
-    float spec = pow(max(dot(N, H), 0.0), mix(14.0, 240.0, uMat.y)) * mix(0.10, 0.9, uMat.y);
+    float spec = pow(max(dot(N, H), 0.0), mix(14.0, 240.0, mat.y)) * mix(0.10, 0.9, mat.y);
     float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.10;
-    col *= 1.0 - uMat.x;
+    col *= 1.0 - mat.x;
     vec3 Rf = reflect(-V, N);
     vec3 env = mix(vec3(0.14, 0.14, 0.16), vec3(0.78, 0.85, 0.95), smoothstep(-0.35, 0.85, Rf.z));
-    env += vec3(1.0,0.98,0.95) * smoothstep(mix(0.60,0.86,uMat.y),0.98,dot(Rf,L1))*1.2;
+    env += vec3(1.0,0.98,0.95) * smoothstep(mix(0.60,0.86,mat.y),0.98,dot(Rf,L1))*1.2;
     env += vec3(0.7,0.8,1.0) * smoothstep(0.75,0.97,dot(Rf,L2))*0.5;
-    vec3 f0=mix(vec3(0.04),base,uMat.x);
+    vec3 f0=mix(vec3(0.04),base,mat.x);
     vec3 fresnel=f0+(1.0-f0)*pow(1.0-max(dot(N,V),0.0),5.0);
-    col += env * fresnel * (0.75 + 0.25 * uMat.y);
-    spec *= mix(1.0, 1.6, uMat.x);
-    col += vec3(spec) * mix(vec3(1.0), base * 1.3, uMat.x) + vec3(rim);
+    col += env * fresnel * (0.75 + 0.25 * mat.y);
+    spec *= mix(1.0, 1.6, mat.x);
+    col += vec3(spec) * mix(vec3(1.0), base * 1.3, mat.x) + vec3(rim);
+
+    if(uLayers==1&&uZebra==0&&uField==0&&uSurfaceParams.y>0.0){
+        float coat=uSurfaceParams.y,gloss=1.0-uSurfaceParams.z;
+        float f=0.04+0.96*pow(1.0-max(dot(N,V),0.0),5.0);
+        float highlight=pow(max(dot(N,H),0.0),mix(14.0,240.0,gloss))*mix(0.1,0.9,gloss);
+        col=col*(1.0-coat*f)+coat*(env*f+vec3(highlight)*0.04);
+    }
 
     if (uZebra == 1) {
         vec3 R = reflect(-V, N);

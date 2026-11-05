@@ -10,6 +10,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
     readonly string discovery;
     readonly string output;
     int requestId;
+    public string OutputDirectory => output;
 
     public DesktopMcp(string scenario)
     {

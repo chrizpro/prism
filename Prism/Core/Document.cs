@@ -86,8 +86,12 @@ public sealed class SceneObject
     public SceneObject WithLook(Appearance a) => Copy(look: a);
     /// <summary>Same identity, new triangle mesh.</summary>
     public SceneObject WithTri(Meshing.TriMesh t) => new(Id, Name, null, ObjKind.Mesh, Color, Visible, null, null, null, Look, t);
-    /// <summary>Assign a library material: its colour and finish come with it.</summary>
-    public SceneObject WithMaterial(Material m) => Copy(color: m.Color, look: m.Look);
+    /// <summary>Assign physical data; preserve an explicit visual override, including recognizable legacy finishes.</summary>
+    public bool HasAppearanceOverride => Look.Surface?.Override == true || Look.Surface == null && Material is { } material &&
+        (Color != material.Color || Look.Metal != material.Metal || Look.Gloss != material.Gloss || Look.Pattern != SurfacePattern.Automatic || Look.PatternScale != 12 || Look.PatternAngle != 0);
+    public SceneObject WithMaterial(Material m) => HasAppearanceOverride
+        ? Copy(look: Look with { MaterialId = m.Id, PhysicalSnapshot = m })
+        : Copy(color: m.Color, look: m.Look);
     /// <summary>Same identity (id, name, colour), new exact geometry (a Form becomes a regular B-rep object).</summary>
     public SceneObject WithShape(Shape s) => new(Id, Name, s, Kind is ObjKind.Sketch or ObjKind.Plane or ObjKind.Joint or ObjKind.Animation or ObjKind.Toolpath ? Kind : Classify(s), Color, Visible, SketchPlane, null, null, Look, null, Asm) { FlatMap=FlatMap, TrackHistory = TrackHistory };
     /// <summary>Same identity with new assembly data (and optionally new geometry, e.g. after the component moved).</summary>

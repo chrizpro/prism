@@ -43,6 +43,7 @@ public sealed class AppSettings
     /// <summary>The folder the parts library scans for STEP and Prism files. Null until the user picks one.</summary>
     public string? PartsLibraryPath { get; set; }
     public List<string> RecentFiles { get; set; } = [];
+    public List<uint> SavedAppearanceColors { get; set; } = [];
     public bool ShowHomeOnStart { get; set; } = true;
     /// <summary>Workspace IDs pinned to the top bar; null uses the default selection.</summary>
     public List<string>? VisibleWorkspaces { get; set; }

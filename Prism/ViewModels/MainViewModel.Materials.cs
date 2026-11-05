@@ -94,6 +94,7 @@ public sealed partial class MainViewModel
 
     Ribbon.RibbonTab? _materialsTab;
     [ObservableProperty] public partial bool ShowMaterialsPanel { get; set; }
+    partial void OnShowMaterialsPanelChanged(bool value) { Session.AppearancePreview = value; Session.Invalidate(); }
 
     public void SetFinish(double metal, double gloss, SurfacePattern? pattern = null) { LookMetal = metal; LookGloss = gloss; if(pattern.HasValue)LookPattern=(int)pattern.Value; }
 
@@ -107,7 +108,7 @@ public sealed partial class MainViewModel
     partial void OnMaterialSortIndexChanged(int value) => RefreshMaterialList();
     partial void OnSelectedMaterialRowChanged(MaterialRow? value) { ShowMaterial(value?.Material); RefreshRibbon(); }
     partial void OnLookMetalChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
-    partial void OnLookGlossChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
+    partial void OnLookGlossChanged(double value) { OnPropertyChanged(nameof(LookRoughness)); PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
 
     static string Rating(int n) => new string('●', Math.Clamp(n, 0, 5)) + new string('○', 5 - Math.Clamp(n, 0, 5));
     static string F(double v, string fmt = "#,0.##") => double.IsNaN(v) ? "-" : v.ToString(fmt, CultureInfo.InvariantCulture);
@@ -236,7 +237,7 @@ public sealed partial class MainViewModel
         if (m == null) { Session.Say("Pick a material in the list first.", true); return; }
         var targets = TargetsForLook();
         if (targets.Count == 0) { Session.Say("Select a body or surface first (click it in the viewport or the Model list).", true); return; }
-        foreach (var o in targets) Session.Update(o.Id, x => x.WithMaterial(m), label: $"Material: {m.Name}");
+        EditAppearance(x => x.WithMaterial(m), $"Material: {m.Name}");
         Session.Say($"{m.Name} applied to {(targets.Count == 1 ? targets[0].Name : targets.Count + " objects")}.");
         SyncLook();
     }
@@ -251,33 +252,37 @@ public sealed partial class MainViewModel
 
     public void ApplyColor(uint color)
     {
-        foreach (var o in TargetsForLook()) Session.Update(o.Id, x => x.WithColor(color), label: "Color");
-        SyncLook();
+        EditAppearance(x => x.WithColor(color | 0xFF000000).WithLook(x.Look with { Surface = (x.Look.Surface ?? new()) with { Override = true } }), "Color");
+        SyncLook(); RememberAppearanceColor();
     }
 
     public void ApplyHex(string text)
     {
-        var t = text.Trim().TrimStart('#');
-        if (t.Length == 6 && uint.TryParse(t, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb)) ApplyColor(0xFF000000 | rgb);
-        else Session.Say("Type a color as 6 hex digits, e.g. C87941.", true);
+        if (ColorCode.TryParse(text, out var color)) ApplyColor(color);
+        else Session.Say("Use #RRGGBB, #RGB, rgb(255,128,0), hsl(30,100%,50%) or hsv(30,100%,100%).", true);
     }
 
     void PushLook()
     {
-        if (_syncingLook) return;
-        var look = (m: (float)LookMetal, g: (float)LookGloss);
-        foreach (var o in TargetsForLook()) Session.Update(o.Id, x => x.WithLook(x.Look with { Metal = look.m, Gloss = look.g,
-            Pattern=(SurfacePattern)Math.Clamp(LookPattern,0,5),PatternScale=(float)Math.Clamp(LookPatternScale,.1,10000),PatternAngle=(float)LookPatternAngle }), checkpoint: false);
+        if (_syncingLook || _editingAppearance) return;
+        float metal = (float)Math.Clamp(LookMetal, 0, 1), gloss = (float)Math.Clamp(LookGloss, 0, 1);
+        var pattern = (SurfacePattern)Math.Clamp(LookPattern, 0, 5);
+        float scale = (float)Math.Clamp(LookPatternScale, .1, 10000), angle = (float)LookPatternAngle;
+        EditAppearance(x => x.WithLook(x.Look with { Metal = metal, Gloss = gloss, Pattern = pattern, PatternScale = scale, PatternAngle = angle,
+            Surface = (x.Look.Surface ?? new()) with { Override = true } }), "Surface finish");
     }
 
     /// <summary>Show the finish and material of the current selection in the panel.</summary>
     void SyncLook()
     {
+        if (_editingAppearance) return;
         CanApplyAppearance = TargetsForLook().Count > 0;
         AppearanceColor = TargetsForLook().FirstOrDefault()?.Color ?? 0xFFB9C6D6;
         var objs = TargetsForLook();
         _syncingLook = true;
         if (objs.Count > 0) { LookMetal = objs[0].Look.Metal; LookGloss = objs[0].Look.Gloss; LookPattern=(int)objs[0].Look.Pattern;LookPatternScale=objs[0].Look.PatternScale;LookPatternAngle=objs[0].Look.PatternAngle; ColorHex = (objs[0].Color & 0xFFFFFF).ToString("X6"); }
+        SelectedSurface = objs.FirstOrDefault()?.Look.Surface ?? new();
+        OnPropertyChanged(nameof(AppearanceStatus));
         _syncingLook = false;
         MatTarget = objs.Count == 0 ? "Nothing selected. Click a body, then press Apply." : objs.Count == 1 ? $"Applies to: {objs[0].Name}" : $"Applies to {objs.Count} objects";
         var names = objs.Select(o => o.Material?.Name).Distinct().ToList();

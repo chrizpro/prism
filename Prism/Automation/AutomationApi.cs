@@ -850,9 +850,9 @@ public sealed partial class AutomationApi
                     ["cost"] = m.Cost, ["corrosion"] = m.Corrosion, ["machinability"] = m.Machining, ["uses"] = m.Uses, ["watch_out"] = m.Watch,
                 }).ToArray()) };
             });
-        Add("material_apply", "Give an object a library material (color, finish and density come with it), or just set its finish/color. 'material' is an id or name from material_list; omit it to only change metal/gloss/color. Returns the object's mass when it is a solid.",
+        Add("material_apply", "Give an object a library material (color, finish and density come with it), or just set its finish/color. 'material' is an id or name from material_list; explicit visual overrides survive material assignment. Omit it to only edit appearance. Returns the object's mass when it is a solid.",
             Schema(["object"], ("object", "string", "Object name."), ("material", "string", "Material id or name."), ("metal", "number", "0..1"), ("gloss", "number", "0..1"), ("color", "string", "Hex colour override like #C87941."), ("clear", "boolean", "Remove the material."),
-                ("pattern","string","Automatic | Plain | Wood | Brushed | Cast | CarbonWeave. Appearance only."),("patternScale","number","Pattern size in mm, 0.1–10000."),("patternAngle","number","Pattern angle about world Z, degrees.")), a =>
+                ("pattern","string","Automatic | Plain | Wood | Brushed | Cast | CarbonWeave. Appearance only."),("patternScale","number","Pattern size in mm, 0.1–10000."),("patternAngle","number","Pattern angle about world Z, degrees."), ("roughness","number","0 polished to 1 matte; exclusive with gloss."), ("surface","object","Replace visual layers using SurfaceStyle JSON: Gradient 0..4, Axis 0..2, Color2/3/4 ARGB integers, GradientSize/Offset/Angle, Weathering 0..2, Coverage, PatchSize, WeatheringRoughness, BottomOnly, WeatherHeight, Seed, Bump, Coat, CoatRoughness, TextureSize/Angle and embedded ColorMap/RoughnessMap/BumpMap."), ("resetAppearance","boolean","Restore assigned material/default appearance.")), a =>
             {
                 var o = FindObject(Str(a, "object"));
                 Material? m = null;
@@ -874,7 +874,26 @@ public sealed partial class AutomationApi
                     }
                     if(a["patternScale"]!=null){double value=a["patternScale"]!.GetValue<double>();if(!double.IsFinite(value)||value<.1||value>10000)throw new ArgumentException("Pattern scale must be 0.1–10000 mm.");x=x.WithLook(x.Look with{PatternScale=(float)value});}
                     if(a["patternAngle"]!=null){double value=a["patternAngle"]!.GetValue<double>();if(!double.IsFinite(value))throw new ArgumentException("Pattern angle must be finite.");x=x.WithLook(x.Look with{PatternAngle=(float)(value%360)});}
-                    if (a["color"] != null) x = x.WithColor(0xFF000000 | Convert.ToUInt32(a["color"]!.ToString().TrimStart('#'), 16));
+                    if (a["roughness"] != null)
+                    {
+                        if(a["gloss"]!=null)throw new ArgumentException("Supply roughness or gloss, not both.");
+                        double value=a["roughness"]!.GetValue<double>();if(!double.IsFinite(value)||value<0||value>1)throw new ArgumentException("Roughness must be between 0 and 1.");
+                        x=x.WithLook(x.Look with {Gloss=1-(float)value});
+                    }
+                    if (a["surface"] is { } surface)
+                    {
+                        var style=(System.Text.Json.JsonSerializer.Deserialize<SurfaceStyle>(surface.ToJsonString())??new()).Validated() with {Override=true};
+                        foreach(var data in new[]{style.ColorMap,style.RoughnessMap,style.BumpMap}) if(data!=null)_=Rendering.SurfaceImage.Decode(data);
+                        x=x.WithLook(x.Look with {Surface=style});
+                    }
+                    if (a["color"] != null)
+                    {
+                        if(!ColorCode.TryParse(a["color"]!.ToString(),out uint color))throw new ArgumentException("Invalid color code.");
+                        x=x.WithColor(color);
+                    }
+                    if(new[]{"color","metal","gloss","roughness","pattern","patternScale","patternAngle"}.Any(key=>a[key]!=null))
+                        x=x.WithLook(x.Look with {Surface=(x.Look.Surface??new()) with {Override=true}});
+                    if(Bool(a,"resetAppearance",false))x=x.WithColor(x.Material?.Color??Palette.DefaultFor(x.Kind,0)).WithLook(x.Material?.Look??Appearance.Default);
                     return x;
                 }, label: m != null ? $"Material: {m.Name}" : "Appearance");
                 var n = FindObject(o.Name); var r = new JsonObject { ["object"] = n.Name, ["material"] = n.Material?.Name, ["metal"] = n.Look.Metal, ["gloss"] = n.Look.Gloss, ["color"] = $"#{n.Color & 0xFFFFFF:X6}" };

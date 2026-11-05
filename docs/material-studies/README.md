@@ -1,5 +1,7 @@
 # Materials and appearance improvements
 
+Historical 2026-10-27 study. Current behavior and subsequent verification live in the [Appearance studio guide](../appearance-studio/README.md).
+
 Implemented and exercised in the actual Prism application through its MCP bridge, 2026-10-27. These are application screenshots and renderer output, not generated mockups.
 
 ## Appearance

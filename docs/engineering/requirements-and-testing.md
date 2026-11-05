@@ -16,6 +16,8 @@ This is the shared working agreement for humans and coding agents. It describes 
 
 ## Feature documentation and test maintenance
 
+**Standing owner instruction (2026-11-05):** update the canonical feature README/guide, relevant GitHub issues, and meaningful maintained tests as part of feature delivery without repeated reminders. Explicit owner approval to proceed after discussing a proposal authorizes that scope; record the approval in the living guide. Do not request the same approval again. This does not approve unrelated future product requirements.
+
 The feature's canonical README/guide is the living source of truth. Guides such as [Revolve](../modeling/revolve/README.md) and [Extrude](../modeling/extrude/README.md) document distinct variants in separate sections. Avoid parallel copies of requirements.
 
 Agents must follow this flow for feature, bug-fix and test work:

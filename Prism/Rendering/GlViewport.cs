@@ -122,6 +122,7 @@ public sealed unsafe class GlViewport : Decorator
         var gl = _gl; if (gl == null) return;
         foreach (var m in _cache.Values) FreeMesh(m);
         _cache.Clear();
+        foreach(var tex in _surfaceTex.Values)gl.DeleteTexture(tex); _surfaceTex.Clear();
         gl.DeleteProgram(_bg); gl.DeleteProgram(_mesh); gl.DeleteProgram(_line); gl.DeleteProgram(_point); gl.DeleteProgram(_grid); gl.DeleteProgram(_flat);
         DeleteTargets();
         _gl = null;
@@ -450,6 +451,8 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh, "uCurvRange", (float)s.CurvRange);
 
         var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true).ToList();
+        var usedMaps=visible.SelectMany(o=>new[]{o.Look.Surface?.ColorMap,o.Look.Surface?.RoughnessMap,o.Look.Surface?.BumpMap}).Where(d=>d!=null).ToHashSet();
+        foreach(var key in _surfaceTex.Keys.Where(k=>!usedMaps.Contains(k)).ToArray()){gl.DeleteTexture(_surfaceTex[key]);_surfaceTex.Remove(key);}
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
         foreach (var vo in visible) SyncCurvature(fineShading && vo.Kind is not (ObjKind.Curve or ObjKind.Sketch) ? vo.FineMesh : vo.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
         foreach (var pv in s.Preview.Concat(s.ContextItems)) SyncCurvature(pv.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
@@ -486,12 +489,13 @@ public sealed unsafe class GlViewport : Decorator
         // selection / hover tint (faces)
         gl.PolygonOffset(-0.5f, -0.5f);
         _look = (0f, 0.35f);
-        U1(_mesh,"uPattern",(int)SurfacePattern.Plain);
+        U1(_mesh,"uPattern",(int)SurfacePattern.Plain);ClearSurface();
         foreach (var (dict, col, amount) in new[] { (sel, 0xFFFF8A1Fu, 0.55f), (hov, 0xFF35B6FFu, 0.45f), (preview, 0xFF9BDCFFu, 0.3f) })
         {
             foreach (var o in visible)
             {
                 if (!dict.TryGetValue(o.Id, out var hl)) continue;
+                if (s.AppearancePreview && ReferenceEquals(dict, sel)) continue;
                 if (o.Kind is ObjKind.Curve or ObjKind.Sketch || o.IsAnnotation) continue;
                 if (mode == DisplayMode.Wireframe) continue;
                 if (o.Tri != null && s.Fields.TryGetValue(o.Id, out var fld2) && ReferenceEquals(fld2.Source, o.Tri)) continue;
@@ -553,7 +557,7 @@ public sealed unsafe class GlViewport : Decorator
             }
 
         // ---- simulation result: the deformed, colored surface stands in for the body
-        gl.UseProgram(_mesh);U1(_mesh,"uPattern",(int)SurfacePattern.Plain);
+        gl.UseProgram(_mesh);U1(_mesh,"uPattern",(int)SurfacePattern.Plain);ClearSurface();
         if (s.Result is { } rv)
         {
             var gm = Upload(rv.Mesh);
@@ -633,11 +637,44 @@ public sealed unsafe class GlViewport : Decorator
 
     (float metal, float gloss) _look = (0f, 0.35f);
 
+    readonly Dictionary<string,uint> _surfaceTex = new();
+    uint SurfaceTexture(GL gl,string data)
+    {
+        if (_surfaceTex.TryGetValue(data,out uint tex)) return tex;
+        var image=SurfaceImage.Decode(data);
+        tex=gl.GenTexture(); gl.BindTexture(TextureTarget.Texture2D,tex);
+        fixed(byte* bytes=image.Rgba) gl.TexImage2D(TextureTarget.Texture2D,0,InternalFormat.Rgba8,(uint)image.Width,(uint)image.Height,0,Silk.NET.OpenGL.PixelFormat.Rgba,PixelType.UnsignedByte,bytes);
+        gl.GenerateMipmap(TextureTarget.Texture2D);
+        gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureMinFilter,(int)TextureMinFilter.LinearMipmapLinear);
+        gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureMagFilter,(int)TextureMagFilter.Linear);
+        gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureWrapS,(int)TextureWrapMode.Repeat);
+        gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureWrapT,(int)TextureWrapMode.Repeat);
+        _surfaceTex[data]=tex; return tex;
+    }
+    void ClearSurface() { U1(_mesh,"uLayers",0); }
     void SetSurface(GL gl,SceneObject obj)
     {
         U1(_mesh,"uPattern",(int)MaterialSurface.Pattern(obj.Look));
         U2(_mesh,"uPatternParams",Math.Max(obj.Look.PatternScale,.1f),obj.Look.PatternAngle*(float)Math.PI/180);
         var min=obj.Mesh.Min; U3(_mesh,"uPatternOrigin",(float)min.X,(float)min.Y,(float)min.Z);
+        var style=(obj.Look.Surface??new()).Validated();
+        U1(_mesh,"uLayers",obj.Look.Surface==null?0:1);
+        U1(_mesh,"uGradient",(int)style.Gradient);U1(_mesh,"uGradientAxis",(int)style.Axis);
+        U4(_mesh,"uGradientParams",style.GradientSize,style.GradientOffset,style.GradientAngle*(float)Math.PI/180,0);
+        U3(_mesh,"uColor2",SurfaceLayers.Srgb(style.Color2));U3(_mesh,"uColor3",SurfaceLayers.Srgb(style.Color3));U3(_mesh,"uColor4",SurfaceLayers.Srgb(style.Color4));
+        U1(_mesh,"uWeather",(int)style.Weathering);
+        U4(_mesh,"uWeatherParams",style.Coverage,style.PatchSize,style.WeatheringRoughness,style.BottomOnly?1:0);
+        U1(_mesh,"uSeed",style.Seed%997);U1(_mesh,"uWeatherHeight",style.WeatherHeight);
+        U4(_mesh,"uSurfaceParams",style.Bump,style.Coat,style.CoatRoughness,style.TextureSize);
+        U1(_mesh,"uTextureAngle",style.TextureAngle*(float)Math.PI/180);
+        int unit=0;
+        foreach(var (name,data) in new[]{("Color",style.ColorMap),("Rough",style.RoughnessMap),("Bump",style.BumpMap)})
+        {
+            gl.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0+unit));
+            uint tex=data==null?0:SurfaceTexture(gl,data);
+            gl.BindTexture(TextureTarget.Texture2D,tex);U1(_mesh,"uHas"+name+"Map",tex==0?0:1);U1(_mesh,"u"+name+"Map",unit++);
+        }
+        gl.ActiveTexture(TextureUnit.Texture0);
     }
 
     void DrawFaces(GL gl, GpuMesh g, uint color, uint back, float alpha, (float r, float g, float b, float a) tint, int triStart, int triCount)
@@ -933,4 +970,3 @@ sealed class DesktopGlHost : OpenGlControlBase, IGlViewportHost
     protected override void OnOpenGlDeinit(GlInterface gli) => _owner.GlDeinit();
     protected override void OnOpenGlRender(GlInterface gli, int fb) => _owner.GlRender(fb);
 }
-

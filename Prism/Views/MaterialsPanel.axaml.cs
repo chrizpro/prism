@@ -9,7 +9,19 @@ namespace Prism.Views;
 
 public partial class MaterialsPanel : UserControl
 {
-    public MaterialsPanel() { InitializeComponent(); }
+    public MaterialsPanel()
+    {
+        InitializeComponent();
+        PickerWheel.AddHandler(PointerPressedEvent, (_, _) => Vm?.BeginAppearanceEdit(), RoutingStrategies.Tunnel);
+        PickerWheel.AddHandler(PointerReleasedEvent, (_, _) => Vm?.EndAppearanceEdit(), RoutingStrategies.Bubble, true);
+        PickerWheel.AddHandler(PointerCaptureLostEvent, (_, _) => Vm?.EndAppearanceEdit(), RoutingStrategies.Bubble, true);
+        AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            if (e.Source is Avalonia.Visual v && Avalonia.VisualTree.VisualExtensions.FindAncestorOfType<Slider>(v, true) != null) Vm?.BeginAppearanceEdit();
+        }, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, (_, _) => Vm?.EndAppearanceEdit(), RoutingStrategies.Bubble, true);
+        AddHandler(PointerCaptureLostEvent, (_, _) => Vm?.EndAppearanceEdit(), RoutingStrategies.Bubble, true);
+    }
 
     protected override void OnDataContextChanged(System.EventArgs e)
     {
@@ -33,7 +45,6 @@ public partial class MaterialsPanel : UserControl
     MainViewModel? Vm => DataContext as MainViewModel;
     void OnShowLibrary(object? s, RoutedEventArgs e) { Vm?.ShowAssignedMaterial(); StudioTabs.SelectedIndex = 1; }
     void OnResetFinish(object? s, RoutedEventArgs e) => Vm?.ResetAppearance();
-    void OnTogglePalette(object? s, RoutedEventArgs e) => Swatches.IsVisible = !Swatches.IsVisible;
     void OnFinishPicked(object? s, SelectionChangedEventArgs e)
     {
         if (Vm is { } vm && FinishLibrary.SelectedItem is FinishPreset preset && preset != vm.ActiveFinishPreset)
@@ -44,4 +55,25 @@ public partial class MaterialsPanel : UserControl
     void OnCompare(object? s, RoutedEventArgs e) => Vm?.ToggleCompare();
     void OnListDoubleTapped(object? s, TappedEventArgs e) => Vm?.ApplyMaterial();
     void OnHexKey(object? s, KeyEventArgs e) { if (e.Key == Key.Enter) { Vm?.ApplyHex(HexBox.Text ?? ""); e.Handled = true; } }
+    void OnColorCodeLostFocus(object? s, RoutedEventArgs e) { if (Vm is { } vm && ColorCodeDiffers(vm)) vm.ApplyHex(HexBox.Text ?? ""); }
+    bool ColorCodeDiffers(MainViewModel vm) => !Prism.Core.ColorCode.TryParse(HexBox.Text, out var color) || color != vm.AppearanceColor;
+    void OnRememberedColor(object? s, RoutedEventArgs e) { if (s is Button { Tag: uint color }) Vm?.ApplyColor(color); }
+    void OnSaveColor(object? s, RoutedEventArgs e) => Vm?.SaveAppearanceColor();
+    void OnColorWheelPicked(object? s, System.EventArgs e) { if (s is Controls.ColorWheel wheel) Vm?.ApplyColor(wheel.Color); }
+    async void OnScreenPick(object? s, RoutedEventArgs e)
+    {
+        ChooseColor.Flyout?.Hide();
+        if (MainViewModel.PickScreenColor == null) { Vm?.Session.Say("Screen color sampling is not available on this platform. Use color codes or the wheel.", true); return; }
+        try { var color = await MainViewModel.PickScreenColor(); if (color.HasValue) Vm?.ApplyColor(color.Value); }
+        catch (System.Exception ex) { Vm?.Session.Say("Could not sample the screen: " + ex.Message, true); }
+    }
+    void SetGradientColor(object? source)
+    {
+        if (Vm is not { } vm || source is not TextBox box) return;
+        switch (box.Tag?.ToString()) { case "2": if (box.Text != vm.GradientColor2) vm.GradientColor2 = box.Text ?? ""; break; case "3": if (box.Text != vm.GradientColor3) vm.GradientColor3 = box.Text ?? ""; break; case "4": if (box.Text != vm.GradientColor4) vm.GradientColor4 = box.Text ?? ""; break; }
+    }
+    void OnGradientColorKey(object? s, KeyEventArgs e) { if (e.Key == Key.Enter) { SetGradientColor(s); e.Handled = true; } }
+    void OnGradientColorLostFocus(object? s, RoutedEventArgs e) => SetGradientColor(s);
+    async void OnImportMap(object? s, RoutedEventArgs e) { if (Vm is { } vm && s is Button { Tag: string kind }) await vm.ImportSurfaceMap(kind); }
+    void OnClearMap(object? s, RoutedEventArgs e) { if (s is Button { Tag: string kind }) Vm?.ClearSurfaceMap(kind); }
 }

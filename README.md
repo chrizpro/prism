@@ -36,6 +36,8 @@
 
 Every tool has a page in the [tool reference](https://chrizpro.github.io/prism/docs/tools/).
 
+Appearance is independent of engineering materials: edit color with an on-demand wheel or HEX/RGB/HSL/HSV codes, add gradients, dirt/rust, image textures, bump and clear coat, and reset to the material's default look. Imported render backgrounds work independently of lighting. See the [Appearance studio guide](docs/appearance-studio/README.md) for controls, platform support, limits and verification.
+
 ![A stress study on a bracket in Prism's CAE workspace](web/src/assets/shots/cae-stress.png)
 
 ## Download

@@ -8,7 +8,7 @@ namespace Prism.Core;
 /// <summary>How an object is shaded: a library material (optional), plus metal/gloss finish.</summary>
 public enum SurfacePattern { Automatic, Plain, Wood, Brushed, Cast, CarbonWeave }
 public sealed record Appearance(string? MaterialId = null, float Metal = 0f, float Gloss = 0.35f,
-    SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalSnapshot = null)
+    SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalSnapshot = null, SurfaceStyle? Surface = null)
 {
     public static readonly Appearance Default = new();
 }

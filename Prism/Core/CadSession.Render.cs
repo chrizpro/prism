@@ -28,6 +28,8 @@ public sealed class RenderJob
 
 public sealed partial class CadSession
 {
+    public bool AppearancePreview { get; set; }
+    public Func<Task<string?>>? PickRenderImage { get; set; }
     public RenderJob? Render { get; private set; }
     public event Action? RenderChanged;
 

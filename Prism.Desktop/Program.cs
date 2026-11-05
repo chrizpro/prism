@@ -11,6 +11,7 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (OperatingSystem.IsWindows()) ViewModels.MainViewModel.PickScreenColor = ScreenColorPicker.Pick;
         if (Array.IndexOf(args, "--verify-runtime") >= 0)
         {
             using var shape = Kernel.Occ.Box(10, 10, 10);

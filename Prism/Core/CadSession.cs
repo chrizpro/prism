@@ -1608,7 +1608,7 @@ public sealed partial class CadSession : ObservableObject
     // ------------------------------------------------------------ files
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
-        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null);
+        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
     sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
@@ -1649,7 +1649,7 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface);
 
     public void Save(string path)
     {
@@ -1663,7 +1663,7 @@ public sealed partial class CadSession : ObservableObject
         FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
 
-    static Appearance Look(ObjDto d) => new(d.Material, d.Metal, d.Gloss, d.Pattern, d.PatternScale, d.PatternAngle, d.PhysicalMaterial);
+    static Appearance Look(ObjDto d) => new(d.Material, d.Metal, d.Gloss, d.Pattern, d.PatternScale, d.PatternAngle, d.PhysicalMaterial, d.Surface?.Validated());
 
     static SceneObject FromDto(ObjDto d)
     {

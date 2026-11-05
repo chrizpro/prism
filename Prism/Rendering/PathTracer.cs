@@ -11,7 +11,7 @@ namespace Prism.Rendering;
 
 public enum RenderEnv { Studio, Sky, DarkStudio, LightsOnly }
 /// <summary>What is seen behind the model. Everything but Environment is composited in the picture: the ground then only catches shadows.</summary>
-public enum RenderBg { Environment, White, Transparent, Green, Black, Gradient }
+public enum RenderBg { Environment, White, Transparent, Green, Black, Gradient, Image }
 
 public sealed class RenderSettings
 {
@@ -20,6 +20,9 @@ public sealed class RenderSettings
     public int Bounces = 5;
     public RenderEnv Env = RenderEnv.Studio;
     public RenderBg Background = RenderBg.Environment;
+    public string? BackgroundImage;
+    public BackgroundFit ImageFit = BackgroundFit.Fill;
+    public double ImageOffsetX, ImageOffsetY;
     public bool Ground = true;
     public double Exposure = 1.0;
     /// <summary>Lights dropped into the scene (null: none).</summary>
@@ -33,7 +36,7 @@ public sealed class RenderSettings
 public sealed class PathTracer
 {
     // ---------------------------------------------------------------- scene
-    struct Mat { public Vector3 Albedo, Origin; public float Metal, Rough, Scale, Angle; public uint Color; public SurfacePattern Pattern; }
+    struct Mat { public Vector3 Albedo, Origin; public float Metal, Rough, Scale, Angle; public uint Color; public SurfacePattern Pattern; public SurfaceLayers Layers; }
     readonly List<Mat> _mats = [];
     float[] _p = [];        // 9 floats per triangle (3 vertices)
     float[] _n = [];        // 9 floats per triangle (3 vertex normals)
@@ -58,6 +61,7 @@ public sealed class PathTracer
     readonly List<Lamp> _lamps = [];
     bool Catcher => _s.Ground && _s.Background != RenderBg.Environment;
 
+    SurfaceImage? _backplate;
     readonly RenderSettings _s;
     public PathTracer(RenderSettings s) { _s = s; }
 
@@ -65,6 +69,7 @@ public sealed class PathTracer
 
     public bool LoadScene(CadSession session)
     {
+        _backplate = _s.Background == RenderBg.Image ? SurfaceImage.Decode(_s.BackgroundImage ?? throw new ArgumentException("Import a background image first.")) : null;
         _mats.Clear();
         var P = new List<float>(); var N = new List<float>(); var M = new List<int>();
         _sceneMin = new Vector3(float.MaxValue); _sceneMax = new Vector3(float.MinValue);
@@ -79,7 +84,7 @@ public sealed class PathTracer
             Vector3 albedo = new((float)Math.Pow(r, 2.2), (float)Math.Pow(g, 2.2), (float)Math.Pow(b, 2.2));
             int mid = _mats.Count;
             _mats.Add(new Mat { Albedo = albedo, Metal = Math.Clamp(o.Look.Metal, 0f, 1f), Rough = Math.Clamp(1f - o.Look.Gloss, 0.06f, 1f),
-                Color=o.Color,Origin=new((float)md.Min.X,(float)md.Min.Y,(float)md.Min.Z),Pattern=MaterialSurface.Pattern(o.Look),Scale=o.Look.PatternScale,Angle=o.Look.PatternAngle });
+                Color=o.Color,Origin=new((float)md.Min.X,(float)md.Min.Y,(float)md.Min.Z),Pattern=MaterialSurface.Pattern(o.Look),Scale=o.Look.PatternScale,Angle=o.Look.PatternAngle, Layers = new SurfaceLayers(o.Look.Surface) });
             for (int t = 0; t + 2 < md.Indices.Length; t += 3)
             {
                 for (int k = 0; k < 3; k++)
@@ -330,6 +335,18 @@ public sealed class PathTracer
         var diffuse=albedo*((1-metal)*transmitView*transmitLight/MathF.PI);
         return diffuse+fresnel*(distribution*Smith(nv,alpha)*Smith(nl,alpha)/(4*nv*nl));
     }
+    static Vector3 LayeredBsdf(Vector3 n,Vector3 view,Vector3 light,Vector3 albedo,float metal,float rough,float coat,float coatRough,out float pdf)
+    {
+        var basis=Bsdf(n,view,light,albedo,metal,rough,out pdf);
+        if(coat<=0)return basis;
+        // A dielectric GGX coat; attenuate the base on both legs. The PDF matches the sampled mixture.
+        // Metal=1 gives pure GGX; evaluate with F0=.04 for the dielectric coat.
+        var top=Bsdf(n,view,light,new Vector3(.04f),1,coatRough,out float topPdf);
+        float nv=MathF.Max(0,Vector3.Dot(n,view)),nl=MathF.Max(0,Vector3.Dot(n,light));
+        float fv=.04f+.96f*MathF.Pow(1-nv,5),fl=.04f+.96f*MathF.Pow(1-nl,5);
+        pdf=pdf*(1-.25f*coat)+topPdf*(.25f*coat);
+        return basis*((1-coat*fv)*(1-coat*fl))+top*coat;
+    }
     static Vector3 SampleGgx(Vector3 n,Vector3 view,float rough,ref Rng rng)
     {
         float a=MathF.Max(rough*rough,.0036f),u=rng.Next();
@@ -367,7 +384,7 @@ public sealed class PathTracer
                         radiance+=throughput*light*PowerWeight(previousPdf,1/(2*MathF.PI*(1-cosMax)));
                 break;
             }
-            Vector3 position,n,albedo;float metal,rough;
+            Vector3 position,n,albedo;float metal,rough,coat=0,coatRough=.15f;
             if(ground)
             {
                 position=o+d*groundDistance;n=Vector3.UnitZ;metal=0;rough=.9f;
@@ -383,6 +400,10 @@ public sealed class PathTracer
                 float variation=MaterialSurface.Variation(material.Pattern,position,material.Origin,material.Scale,material.Angle);
                 albedo=material.Pattern==SurfacePattern.Plain?material.Albedo:MaterialSurface.LinearColor(material.Color,variation);
                 if(material.Pattern==SurfacePattern.Cast)rough=MathF.Max(rough,.65f);
+                var surface=material.Layers.Evaluate(position-material.Origin,n,SurfaceLayers.Srgb(material.Color)*variation,metal,rough);
+                albedo=new(MathF.Pow(surface.Color.X,2.2f),MathF.Pow(surface.Color.Y,2.2f),MathF.Pow(surface.Color.Z,2.2f));
+                metal=surface.Metal;rough=surface.Roughness;n=surface.Normal;
+                coat=material.Layers.Style.Coat;coatRough=material.Layers.Style.CoatRoughness;
             }
             if(depth==0&&ground&&mode==0&&Catcher)
             {
@@ -401,7 +422,7 @@ public sealed class PathTracer
             {
                 var wi=RandomInCap(direction,cosMax,ref rng);float nl=Vector3.Dot(n,wi);
                 if(nl<=0||Hit(origin,wi,float.MaxValue,out _,out _,out _,out _,true))continue;
-                var f=Bsdf(n,view,wi,albedo,metal,rough,out float bsdfPdf);
+                var f=LayeredBsdf(n,view,wi,albedo,metal,rough,coat,coatRough,out float bsdfPdf);
                 float lightPdf=1/(2*MathF.PI*(1-cosMax));
                 radiance+=throughput*f*light*(nl/lightPdf*PowerWeight(lightPdf,bsdfPdf));
             }
@@ -428,11 +449,11 @@ public sealed class PathTracer
                 float nl=Vector3.Dot(n,wi);
                 if(nl<=0||mode!=2&&Hit(origin,wi,reach,out _,out _,out _,out _,true))continue;
                 // delta-like lights have no MIS partner: reflected radiance = f * E * cos
-                radiance+=throughput*Bsdf(n,view,wi,albedo,metal,rough,out _)*irradiance*nl;
+                radiance+=throughput*LayeredBsdf(n,view,wi,albedo,metal,rough,coat,coatRough,out _)*irradiance*nl;
             }
-            var next=rng.Next()<.2f+.8f*metal?SampleGgx(n,view,rough,ref rng):CosineHemisphere(n,ref rng);
+            var next=coat>0 && rng.Next()<.25f*coat ? SampleGgx(n,view,coatRough,ref rng) : rng.Next()<.2f+.8f*metal?SampleGgx(n,view,rough,ref rng):CosineHemisphere(n,ref rng);
             float cosine=Vector3.Dot(n,next);if(cosine<=0)break;
-            var bsdf=Bsdf(n,view,next,albedo,metal,rough,out float pdf);if(pdf<1e-15f)break;
+            var bsdf=LayeredBsdf(n,view,next,albedo,metal,rough,coat,coatRough,out float pdf);if(pdf<1e-15f)break;
             throughput*=bsdf*(cosine/pdf);previousPdf=pdf;
             if(!float.IsFinite(throughput.X)||!float.IsFinite(throughput.Y)||!float.IsFinite(throughput.Z))break;
             if(depth>=2){float survival=Math.Clamp(MathF.Max(throughput.X,MathF.Max(throughput.Y,throughput.Z)),.1f,.95f);if(rng.Next()>survival)break;throughput/=survival;}
@@ -520,6 +541,9 @@ public sealed class PathTracer
     {
         switch (_s.Background)
         {
+            case RenderBg.Image:
+                var c=BackgroundPlacement.Sample(_backplate!,x,y,W,H,_s.ImageFit,(float)_s.ImageOffsetX,(float)_s.ImageOffsetY)*255;
+                return (c.X,c.Y,c.Z);
             case RenderBg.White: return (255, 255, 255);
             case RenderBg.Green: return (0, 177, 64);
             case RenderBg.Gradient:

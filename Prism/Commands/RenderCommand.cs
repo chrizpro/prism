@@ -11,12 +11,13 @@ namespace Prism.Commands;
 /// <summary>Make a realistic picture of the scene (a built-in path tracer: soft shadows, reflections, studio or sky light).</summary>
 public sealed class RenderCommand : Command
 {
-    readonly ChoiceParam _size, _env, _bg;
+    readonly ChoiceParam _size, _env, _bg, _fit;
     readonly IntParam _samples, _bounces;
     readonly BoolParam _ground;
-    readonly NumberParam _exposure;
+    readonly NumberParam _exposure, _offsetX, _offsetY;
+    string? _backgroundImage;
     readonly TextParam _save;
-    public static readonly string[] Backgrounds = ["Environment (studio or sky)", "White", "Transparent", "Green screen (chroma key)", "Black", "Studio gradient"];
+    public static readonly string[] Backgrounds = ["Environment (studio or sky)", "White", "Transparent", "Green screen (chroma key)", "Black", "Studio gradient", "Imported image"];
     public static readonly string[] Lightings = ["Studio (soft white boxes)", "Sky and sun", "Dark studio", "Only my lights"];
 
     static readonly (string name, int w, int h)[] Sizes =
@@ -29,6 +30,17 @@ public sealed class RenderCommand : Command
         _bounces = Add(new IntParam { Label = "Light bounces", Min = 1, Max = 12, Value = 5 });
         _env = Choice("Lighting", 0, Lightings);
         _bg = Choice("Background", 0, Backgrounds);
+        Add(new ActionParam { Label = "Import background image…", Run = async () =>
+        {
+            if (S.PickRenderImage == null) { S.Say("Image browsing is unavailable in this host.", true); return; }
+            var path = await S.PickRenderImage(); if (path == null) return;
+            try { _backgroundImage = SurfaceImage.Import(path); _bg.Index = (int)RenderBg.Image; OnChanged(); }
+            catch (Exception e) { S.Say("Could not import background: " + e.Message, true); }
+        } });
+        Add(new ActionParam { Label = "Remove background image", Run = () => { _backgroundImage = null; if (_bg.Index == (int)RenderBg.Image) _bg.Index = 0; OnChanged(); } });
+        _fit = Add(new ChoiceParam { Label = "Image placement", Options = ["Fill (crop)", "Fit (white border)", "Stretch"], IsAdvanced = true });
+        _offsetX = Add(new NumberParam { Label = "Image horizontal offset", Min = -1, Max = 1, Step = .05, Unit = "× width", IsAdvanced = true });
+        _offsetY = Add(new NumberParam { Label = "Image vertical offset", Min = -1, Max = 1, Step = .05, Unit = "× height", IsAdvanced = true });
         _ground = Check("Ground plane with shadows", true);
         _exposure = Num("Exposure", 1, 0.1, 10, 0.1, "×");
         _save = Text("Save to (blank = Documents\\Prism\\Renders)", "", "full path of a .png file");
@@ -42,19 +54,22 @@ public sealed class RenderCommand : Command
     public override bool SupportsPreview => false;
     public override string Icon => "render";
     public override string OkText => "Done";
-    public override string Hint => "Orbit to the view you want, choose size, quality, lighting and background (white, black, green screen, studio gradient or transparent), add your own sun or lamps, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.";
+    public override string Hint => "Orbit to the view you want, choose size, quality, lighting and background (white, black, green screen, studio gradient, imported image or transparent), add your own sun or lamps, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.";
 
     protected override void OnBegin()
     {
         var setup = S.RenderSetup;
         _env.SetSilently((int)setup.Env); _bg.SetSilently((int)setup.Background); _ground.Value = setup.Ground; _exposure.Value = setup.Exposure;
+        _backgroundImage = setup.BackgroundImage; _fit.SetSilently((int)setup.ImageFit); _offsetX.Value = setup.ImageOffsetX; _offsetY.Value = setup.ImageOffsetY;
     }
 
     protected override CommandOutput? Build()
     {
-        var setup = new RenderSetup { Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, Ground = _ground.Value, Exposure = _exposure.Value };
+        var setup = new RenderSetup { Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, Ground = _ground.Value, Exposure = _exposure.Value, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value };
         if (!setup.Equals(S.RenderSetup)) { S.RenderSetup = setup; S.Dirty = true; }
+        _fit.IsVisible = _offsetX.IsVisible = _offsetY.IsVisible = _bg.Index == (int)RenderBg.Image;
         Results.Clear();
+        Results.Add(new ResultLine("Backdrop image", _backgroundImage == null ? "none imported" : "embedded · does not change lighting"));
         int on = S.Lights.Count(l => l.Enabled);
         Results.Add(new ResultLine("Your lights", S.Lights.Count == 0 ? "none: add a sun or lamp from the ribbon" : $"{on} of {S.Lights.Count} on"));
         return new CommandOutput { NoOp = true };
@@ -66,7 +81,7 @@ public sealed class RenderCommand : Command
         var s = new RenderSettings
         {
             Width = w, Height = h, Samples = _samples.Value, Bounces = _bounces.Value, Ground = _ground.Value, Exposure = _exposure.Value,
-            Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index,
+            Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value,
         };
         try { S.StartRender(s); S.Say($"Rendering {w}×{h}…"); } catch (Exception e) { S.Say(e.Message, true); }
     }
@@ -123,7 +138,7 @@ public sealed class RenderAnimationCommand : Command
         {
             Animation = anim, Turntable = turntable, Turns = _turns.Value, Duration = _length.Value, Fps = FpsValues[Math.Clamp(_fps.Index, 0, FpsValues.Length - 1)],
             Gif = _gif.Value, Mp4 = _mp4.Value, Folder = _folder.Value,
-            Settings = new RenderSettings { Width = w, Height = h, Samples = _samples.Value, Bounces = 4, Ground = _ground.Value, Exposure = _exposure.Value, Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index },
+            Settings = new RenderSettings { Width = w, Height = h, Samples = _samples.Value, Bounces = 4, Ground = _ground.Value, Exposure = _exposure.Value, Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = S.RenderSetup.BackgroundImage, ImageFit = S.RenderSetup.ImageFit, ImageOffsetX = S.RenderSetup.ImageOffsetX, ImageOffsetY = S.RenderSetup.ImageOffsetY },
         };
         S.Say("Rendering animation…");
         _ = S.RenderAnimationAsync(opts);
