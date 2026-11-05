@@ -86,7 +86,7 @@ export default defineConfig({
     editLink: { pattern: `${repo}/edit/main/site/:path`, text: 'Edit this page on GitHub' },
     nav: [
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '^/guide/' },
-      { text: 'Tools', link: '/tools/', activeMatch: '^/(tools|reference)/' },
+      { text: 'Tools', link: '/tools/', activeMatch: '^/(tools|tool|reference)/' },
       { text: 'API', link: '/api/', activeMatch: '^/api/' },
       { text: 'Install', link: '/download' },
       { text: 'Development', link: '/development' },
@@ -98,6 +98,7 @@ export default defineConfig({
       '/development': guideSidebar,
       '/reference/limitations': guideSidebar,
       '/tools/': toolSidebar,
+      '/tool/': toolSidebar,
       '/reference/ribbons': toolSidebar,
       '/api/': apiSidebar,
     },

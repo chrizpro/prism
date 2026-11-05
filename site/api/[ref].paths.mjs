@@ -2,11 +2,9 @@
 import cadkit from '../data/cadkit.json' with { type: 'json' }
 import tools from '../data/automation-tools.json' with { type: 'json' }
 import commands from '../data/commands.json' with { type: 'json' }
-import { catalog, slug, toolUrl } from '../tools/catalog-model.mjs'
-import { commandFor } from '../tools/[tab].paths.mjs'
+import { catalog, commandFor, slug, toolUrl } from '../tools/catalog-model.mjs'
+import { accepts, cell, text } from '../tools/render.mjs'
 
-const text = s => String(s ?? '').replace(/</g, '&lt;').replace(/\{\{/g, '&#123;&#123;')
-const cell = s => text(s).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
 
 // Short summaries for cadkit functions whose source has no docstring.
 const notes = {
@@ -140,7 +138,7 @@ function automationPage() {
 const buttonFor = (() => {
   const map = new Map()
   for (const tab of catalog.tabs) for (const g of tab.groups) for (const tool of g.tools) {
-    const c = commandFor(tab.title, tool.label)
+    const c = commandFor(tab.title, tool.label, g.title)
     if (c && !map.has(c.name)) map.set(c.name, { label: `${tab.title} › ${g.title} › ${tool.label}`, url: toolUrl(tab.title, g.title, tool.label) })
   }
   return map
@@ -164,7 +162,7 @@ function commandsPage() {
       lines.push(`### ${c.name} {#${slug(c.name)}}`, '', `**${text(c.title)}**${c.hint ? ` · ${text(c.hint)}` : ''}`, '')
       const button = buttonFor.get(c.name)
       if (button) lines.push(`In the app: [${text(button.label)}](${button.url})`, '')
-      if (c.slots.length) lines.push(`Slots: ${c.slots.map(s => `\`${text(s.label)}\`${s.accepts ? ` (${text(s.accepts)}${s.multi ? ', several' : ''}${s.optional ? ', optional' : ''})` : ''}`).join(' · ')}`, '')
+      if (c.slots.length) lines.push(`Slots: ${c.slots.map(s => `\`${text(s.label)}\`${s.accepts ? ` (${text(accepts(s.accepts))}${s.multi ? ', several' : ''}${s.optional ? ', optional' : ''})` : ''}`).join(' · ')}`, '')
       const params = c.params.filter(p => p.type !== 'action')
       if (params.length) {
         lines.push('| Parameter | Type | Default |', '| --- | --- | --- |')

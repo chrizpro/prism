@@ -10,7 +10,8 @@ The CAD repository is the source of truth. Update guides and `changelog.md` alon
 
 | Pages | Built from | Refresh with |
 | --- | --- | --- |
-| `/tools/<ribbon>`, `/tools/shared` | `public/ribbon-catalog.json` and `data/commands.json`, through `tools/[tab].paths.mjs` | `dotnet run --project tools/Prism.DocsCatalog -- .` (catalog) and `python site/scripts/sync-api.py` (commands) |
+| `/tool/<tool>`, one page per tool | `public/ribbon-catalog.json` and `data/commands.json`, through `tool/[tool].paths.mjs` | `dotnet run --project tools/Prism.DocsCatalog -- .` (catalog) and `python site/scripts/sync-api.py` (commands) |
+| `/tools/<ribbon>`, `/tools/shared`: index pages linking to the tools | `public/ribbon-catalog.json`, through `tools/[tab].paths.mjs` | as above |
 | `/api/python` | `data/cadkit.json` | `python site/scripts/sync-api.py` |
 | `/api/automation` | `data/automation-tools.json` | `python site/scripts/sync-api.py` |
 | `/api/commands` | `data/commands.json` | `python site/scripts/sync-api.py` |
@@ -18,7 +19,7 @@ The CAD repository is the source of truth. Update guides and `changelog.md` alon
 
 Run both refresh commands from the repository root. `sync-api.py` reads `cadkit` from the source tree and asks the running app for its commands and automation tools, so start Prism first; without the app it refreshes only `cadkit.json` and the examples. CI checks that the catalog matches the application, but not the API snapshots, so refresh them whenever commands, their inputs or the automation tools change.
 
-Hand-written parts of the tool pages are in `tools/guide-data.mjs`: ribbon introductions, section tips, and the mapping from a ribbon button to its command where the labels differ. `tools/catalog-model.mjs` decides anchors and which sections are shared; the promo site uses it too, so keep anchors stable.
+Hand-written parts of the tool pages are in `tools/guide-data.mjs`: ribbon introductions, section tips, and the mapping from a ribbon button to its command where the labels differ. `tools/catalog-model.mjs` decides which buttons are the same tool (the same command, or the same button on several ribbons), each tool's page slug, and which sections are shared. The promo site uses it too, so keep slugs stable. `tools/render.mjs` writes the How to use, Settings and Script it sections.
 
 ## Hosting
 

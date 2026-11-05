@@ -3,7 +3,7 @@
 // the links between them and short introductions. Keep it in step with the app.
 
 // Ribbon tool -> automation command, where the button's label differs from the command title.
-// "Tab:Label" entries win over plain "Label" entries.
+// "Tab:Section:Label" entries win over "Tab:Label", which win over plain "Label" entries.
 export const commandMap = {
   'Linear': 'pattern_linear',
   'Circular': 'pattern_circular',
@@ -64,7 +64,7 @@ export const commandMap = {
   'NURBS:Sweep': 'sweep_surface',
   'Surface:Loft': 'loft_surface',
   'NURBS:Loft': 'loft_surface',
-  'Freeform:Plane': 'form_plane',
+  'Freeform:Create:Plane': 'form_plane',
   'Freeform:Box': 'form_box',
   'Freeform:Sphere': 'form_sphere',
   'Freeform:Cylinder': 'form_cylinder',
@@ -132,6 +132,38 @@ export const tabIntros = {
   'Materials': 'Appears while the Materials studio is open. Pick a finish, apply or remove a library material, and compare materials side by side. **Done** closes it.',
   'Sketch': 'Appears while you edit a sketch. Draw, modify, constrain and dimension, then **Finish Sketch**. Blue geometry can still move; white geometry is fully constrained. Type values while drawing: **Tab** moves to the next field and **Enter** accepts.',
   'View': 'Camera, layout and display. These change how you look at the model, never the model itself.',
+}
+
+// The workflow guide for each ribbon, linked from its ribbon and tool pages.
+const g = (text, link) => ({ text, link })
+export const tabGuides = {
+  'File': g('Files and compatibility', '/guide/files'),
+  'Home': g('Solid modeling', '/guide/solid'),
+  'Solid': g('Solid modeling', '/guide/solid'),
+  'Direct Modeling': g('Solid modeling', '/guide/solid#change-your-design'),
+  'Sheet Metal': g('Solid modeling', '/guide/solid#sheet-metal'),
+  'Surface': g('Surfaces and NURBS', '/guide/surfacing'),
+  'NURBS': g('Surfaces and NURBS', '/guide/surfacing'),
+  'Freeform': g('Freeform', '/guide/freeform'),
+  'Sketch': g('Sketching', '/guide/sketching'),
+  'ECAD': g('ECAD integration', '/guide/ecad'),
+  'Script': g('Python scripting', '/api/scripting'),
+  'Subtractive': g('Manufacturing', '/guide/manufacturing#cnc-machining'),
+  '3D FDM': g('Manufacturing', '/guide/manufacturing#fdm-printing'),
+  '3D Resin': g('Manufacturing', '/guide/manufacturing#resin-printing'),
+  'Analyze': g('Solid modeling', '/guide/solid#drawings'),
+  'Mesh': g('Scan, mesh and reverse engineering', '/guide/scan'),
+  'Reverse Engineer': g('Scan, mesh and reverse engineering', '/guide/scan'),
+  'Static': g('Simulation', '/guide/simulation#a-static-study'),
+  'Thermal': g('Simulation', '/guide/simulation#thermal-and-natural-frequencies'),
+  'Dynamics': g('Simulation', '/guide/simulation#thermal-and-natural-frequencies'),
+  'Motion': g('Simulation', '/guide/simulation#motion'),
+  'Fluids': g('Simulation', '/guide/simulation#fluids'),
+  'Assemble': g('Assembly and animation', '/guide/assembly'),
+  'Joints': g('Assembly and animation', '/guide/assembly#joints'),
+  'Animate': g('Assembly and animation', '/guide/assembly#animate'),
+  'Render': g('Rendering and materials', '/guide/rendering'),
+  'Materials': g('Rendering and materials', '/guide/rendering#materials'),
 }
 
 // Extra guidance for sections whose tools are not commands with an input panel.
