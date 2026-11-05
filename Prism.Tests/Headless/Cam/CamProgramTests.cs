@@ -266,7 +266,9 @@ public class CamProgramTests
         // probe from a wall runs along the wall itself; that is not asserted. See the CAM guide's coverage gaps.
         double hidden = double.Parse(Result(command, "Top-down inaccessible area").Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
         Assert.True(hidden >= 400 - 1e-6);
-        Assert.StartsWith("100 mm²", Result(command, "Beyond selected reach"));
+        // The 100 mm² pocket floor sits 6 mm down. Depth is judged per triangle centre, so lower wall triangles can add to it.
+        double deep = double.Parse(Result(command, "Beyond selected reach").Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
+        Assert.True(deep >= 100 - 1e-6);
         Assert.Equal("Closed, manifold, outward oriented", Result(command, "Mesh health"));
         Assert.Equal("Use an inside radius of at least 3 mm for this cutter; allow extra radius for smoother engagement.", Result(command, "Inside corner target"));
     }
