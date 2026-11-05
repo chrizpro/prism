@@ -1,6 +1,8 @@
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
+!define PRISM_DOCUMENT "Prism.Document.1"
+!define PRISM_DOCUMENT_KEY "Software\Classes\${PRISM_DOCUMENT}"
 !ifndef VERSION
   !error "VERSION is required"
 !endif
@@ -51,6 +53,15 @@ Section "Prism application" Main
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Prism" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Prism" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Prism" "NoRepair" 1
+  WriteRegStr HKCU "${PRISM_DOCUMENT_KEY}" "" "Prism Document"
+  WriteRegStr HKCU "${PRISM_DOCUMENT_KEY}\DefaultIcon" "" '$\"$INSTDIR\Prism.Desktop.exe$\",0'
+  WriteRegStr HKCU "${PRISM_DOCUMENT_KEY}\shell\open\command" "" '$\"$INSTDIR\Prism.Desktop.exe$\" $\"%1$\"'
+  WriteRegStr HKCU "Software\Classes\.prism\OpenWithProgids" "${PRISM_DOCUMENT}" ""
+  ReadRegStr $0 HKCR ".prism" ""
+  ${If} $0 == ""
+    WriteRegStr HKCU "Software\Classes\.prism" "" "${PRISM_DOCUMENT}"
+  ${EndIf}
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
 Section /o "Desktop shortcut" DesktopShortcut
@@ -58,6 +69,15 @@ Section /o "Desktop shortcut" DesktopShortcut
 SectionEnd
 
 Section "Uninstall"
+  DeleteRegValue HKCU "Software\Classes\.prism\OpenWithProgids" "${PRISM_DOCUMENT}"
+  DeleteRegKey /ifempty HKCU "Software\Classes\.prism\OpenWithProgids"
+  ReadRegStr $0 HKCU "Software\Classes\.prism" ""
+  ${If} $0 == "${PRISM_DOCUMENT}"
+    DeleteRegValue HKCU "Software\Classes\.prism" ""
+  ${EndIf}
+  DeleteRegKey /ifempty HKCU "Software\Classes\.prism"
+  DeleteRegKey HKCU "${PRISM_DOCUMENT_KEY}"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ; Delete only the installed manifest. Never recursively remove a user-selected directory.
   !include "${UNINSTALL_MANIFEST}"
   Delete "$INSTDIR\Uninstall.exe"
