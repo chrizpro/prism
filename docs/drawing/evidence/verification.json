@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-05",
+  "drawingSourceRevision": "1849f665db6b752b769379560c00a71dd781bdfd",
+  "environment": "Configured Windows workstation; installed native binaries, not rebuilt",
+  "nativeKernelSha256": "07d37ff1f5f7e9f7e008801a919703cf6f49364bc20329207b97576a74cb7b19",
+  "sdk": "10.0.102",
+  "runs": {
+    "Light": "45eeff9626af4b61988c9d6872774346",
+    "Dark": "9e6bb7bce8db4ccd9b963144df6f5611"
+  },
+  "results": {
+    "Unit": {
+      "total": 95,
+      "passed": 95,
+      "failed": 0,
+      "drawing": [
+        {
+          "testName": "DRW-U004 | Projected views stay aligned and view motion carries annotation labels",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U008 | Circle recognition rejects noncircular closed outlines",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U006 | Review selects overlapping, overridden and unresolved annotations",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U001 | Dimensions measure model geometry independently of paper scale",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U002 | Dense circular patterns offer every position and retain accepted placement",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U010 | Section cutting letters do not collide with the parent view caption",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U005 | Duplicate sheet remaps dependent views and annotation identities",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U009 | Changing projection flips aligned views and preserves detached placement",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U007 | Multi-sheet PDF has separate physical page sizes and shared sheet content",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-U003 | Save data retains geometry references, sheet layout and explicit tolerances",
+          "outcome": "Passed"
+        }
+      ]
+    },
+    "Headless": {
+      "total": 240,
+      "passed": 240,
+      "failed": 0,
+      "drawing": [
+        {
+          "testName": "DRW-H008 | HLR and sections leave a perforated source unchanged across save and reopen",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H007 | Suggestions from stale geometry cannot be accepted",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H006 | Grouped model and drawing edits retain one complete undo state",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H005 | Failed drawing edits leave current state and undo history untouched",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H002 | Changed or missing source geometry never silently reattaches dimensions",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H001 | Drawing sheets and view layout undo and reopen with model history",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H003 | Projected views use parent axes and first-angle layout",
+          "outcome": "Passed"
+        },
+        {
+          "testName": "DRW-H004 | Section and detail geometry, markers and hatching survive drawing serialization",
+          "outcome": "Passed"
+        }
+      ]
+    },
+    "Integration": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "drawing": [
+        {
+          "testName": "DRW-I001 | Desktop two-sheet drawing, optional dimensions and export roundtrip in both themes",
+          "outcome": "Passed"
+        }
+      ]
+    }
+  },
+  "checkoutNote": "Unrelated local reporting/native/modeling work was preserved. Full-suite counts include tests outside this Drawing commit; the Drawing source files correspond to the pinned revision."
+}
