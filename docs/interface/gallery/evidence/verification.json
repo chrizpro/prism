@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-05",
+  "platform": "Windows workstation",
+  "sourceRevision": "adcccc0971770f21dc0dd429883b3778cb972a1a",
+  "contentRevision": "22475ca",
+  "workingTree": "Included unrelated pre-existing owner changes; preserved outside gallery commits",
+  "nativeRebuilt": false,
+  "kernelSha256": "35360D1BCE6F7A15079911A815FD18669C43396E90BB084673938EE7E6613063",
+  "unit": { "feature": "Gallery", "passed": 6, "failed": 0, "skipped": 0 },
+  "headless": { "feature": "Gallery", "passed": 2, "failed": 0, "skipped": 0 },
+  "integration": { "testId": "GAL-I001", "passed": 1, "failed": 0, "skipped": 0, "modelsChecked": 8 },
+  "hostedDownloads": { "productionTransport": "GalleryStore.Refresh/GetModel", "verified": 8, "modelBytes": 8875438 },
+  "builds": { "desktopRelease": "passed", "mcpRelease": "passed" },
+  "manualUi": ["Light and Dark gallery", "Download and open Surface pendant", "Repeated cached open creates another working copy", "Catalog failure retains cached cards and Refresh recovers"],
+  "newStudies": [
+    { "id": "atelier-table", "workflow": "Solid", "objects": 14 },
+    { "id": "halo-pendant", "workflow": "Surface", "objects": 7 },
+    { "id": "cove-chair", "workflow": "Freeform / Solid", "objects": 16, "editableCages": 4 }
+  ],
+  "renderPreview": { "width": 960, "height": 540, "samples": 96, "bounces": 6, "denoised": true },
+  "discoveredIssue": "https://github.com/chrizpro/prism/issues/62"
+}

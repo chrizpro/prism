@@ -30,6 +30,23 @@ Eight examples: Atelier side table (Solid), Halo pendant (Surface Revolve and Th
 
 The new studies are exterior furniture/lighting concepts, with no certified strength or electrical/thermal design. Render previews use actual Prism output, not generated illustrations. The local parts-library Freeform extraction limitation discovered with the chair is tracked separately in [#62](https://github.com/chrizpro/prism/issues/62).
 
+## Verification — 2026-11-05
+
+Windows workstation, .NET 10.0.102. Gallery source revision [`adcccc0`](https://github.com/chrizpro/prism/commit/adcccc0971770f21dc0dd429883b3778cb972a1a), content revision [`22475ca`](https://github.com/chrizpro/prism/commit/22475ca). The tested working tree also contained the owner's unrelated pre-existing local changes, which were preserved and excluded from the gallery commits. Native libraries were already staged; this work did not rebuild them. Kernel SHA-256: `35360D1BCE6F7A15079911A815FD18669C43396E90BB084673938EE7E6613063`.
+
+| Executed check | Actual result |
+| --- | --- |
+| `dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj -c Release --filter Feature=Gallery` | 6 passed, no failures/skips. Offline verified cache, independent copies, malformed catalog fallback, altered/truncated/oversized downloads, preview reuse and compatibility. |
+| `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter Feature=Gallery` | 2 passed, no failures/skips. Startup view/search and preserving unsaved work on failed downloads. |
+| `dotnet test Prism.Tests/Integration/Prism.IntegrationTests.csproj -c Release --filter Feature=Gallery` with `PRISM_INTEGRATION_BIN=artifacts/gallery/final-bin` | GAL-I001 passed, no failures/skips. All eight documents reopened through actual MCP; exact geometry validity/positive solid volume, cage topology, saved colors/materials and catalog hashes checked. |
+| Release Desktop and MCP builds to `artifacts/gallery/final-bin/` | Both succeeded. Existing compiler and Desktop package warnings remain. No native rebuild. |
+| `python gallery/update_catalog.py --check` | All eight model lengths/hashes and preview revisions matched. |
+| Production `GalleryStore.Refresh` / `GetModel`, fresh verification cache | Public GitHub catalog and all eight hosted models downloaded and passed production size/SHA-256 checks (8,875,438 model bytes total). |
+
+Manual desktop review checked the [Light gallery](evidence/gallery-home-light.png) and [Dark gallery](evidence/gallery-home-dark.png), downloaded/opened Halo from its card, and reopened its cached card as a separate `halo-pendant-2.prism` copy. A transient catalog timeout kept cached cards usable; Refresh recovered and displayed the newer previews. These manual checks complement GAL-I001; they are not assertions inside that automated test. Offline behavior was verified with deterministic disconnected transports in Unit tests, without changing the workstation's network settings.
+
+Actual new-study viewport evidence: [Atelier table](evidence/atelier-table-viewport.png), [Halo pendant](evidence/halo-pendant-viewport.png), [Cove chair](evidence/cove-chair-viewport.png). Each was built via MCP, saved/reopened and rendered at 960 × 540, 96 samples, six bounces, with final denoising. [Full model renders](../../../gallery/previews/) and [reproducible scripts](../../../gallery/README.md) are hosted with the examples. These sample settings are preview evidence, not a renderer benchmark. Local TRX and MCP transcripts remain under `artifacts/gallery/`; [machine-readable evidence summary](evidence/verification.json) records the scope without embedding images or private endpoint tokens.
+
 ## Open decisions and limits
 
 Community submissions, ratings, accounts and assembly insertion from online cards are future proposals. No automatic replacement of a user's working copy. GitHub availability is needed for uncached downloads; a separate library repository or release assets can be adopted as the collection grows.
