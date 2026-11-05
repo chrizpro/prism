@@ -33,5 +33,8 @@ foreach ($copyright in Get-ChildItem -LiteralPath (Join-Path $prefix 'share') -R
     $license = Join-Path $NativeDirectory "licenses/$name"
     New-Item -ItemType Directory -Path $license -Force | Out-Null
     Copy-Item -LiteralPath $copyright.FullName -Destination $license -Force
+    # Version and upstream source of each library, for the third-party notices.
+    $spdx = Join-Path (Split-Path $copyright.FullName -Parent) 'vcpkg.spdx.json'
+    if (Test-Path -LiteralPath $spdx) { Copy-Item -LiteralPath $spdx -Destination $license -Force }
 }
 Write-Output "Native libraries and license notices staged in $NativeDirectory"

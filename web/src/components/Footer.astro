@@ -27,10 +27,12 @@ import { features } from '../data/features'
         <li><a href={href('/download')}>Download</a></li>
         <li><a href={repoUrl}>Source on GitHub</a></li>
         <li><a href={`${repoUrl}/issues`}>Report an issue</a></li>
+        <li><a href={docs('/reference/credits')}>Credits &amp; licenses</a></li>
+        <li><a href={docs('/reference/privacy')}>Privacy</a></li>
       </ul>
     </div>
   </div>
-  <div class="wrap legal muted">© {new Date().getFullYear()} Prism. Geometry by Open CASCADE Technology.</div>
+  <div class="wrap legal muted">© {new Date().getFullYear()} the Prism authors. Built with Open CASCADE Technology, Avalonia and other <a href={docs('/reference/credits')}>open-source software</a>.</div>
 </footer>
 
 <style>

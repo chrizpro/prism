@@ -40,6 +40,8 @@ Use `-OutputDirectory E:/PrismBuilds/release` to put build and installer output 
 ./packaging/Build-Installer.ps1 -SkipPublish -PublishDirectory /path/to/publish -NativeDirectory /path/to/native -OutputDirectory /path/to/output
 ```
 
+Every package gets a `THIRD-PARTY-NOTICES.txt` with the full license texts of what it ships, written by `Write-Notices.ps1` from the restore output. When packaging a prepared folder with `-SkipPublish`, run `Write-Notices.ps1` on it first. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 `-FrameworkDependent` is available for development packages but requires .NET 10 on the destination. Release builds default to self-contained.
 
 ## Automation

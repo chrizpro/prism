@@ -50,6 +50,8 @@ const guideSidebar = [
   { text: 'About Prism', items: [
     { text: 'Install Prism', link: '/download' },
     { text: 'Current limitations', link: '/reference/limitations' },
+    { text: 'Credits and licenses', link: '/reference/credits' },
+    { text: 'Privacy', link: '/reference/privacy' },
     { text: 'Build and maintain', link: '/development' },
     { text: 'Changes', link: '/changelog' },
   ] },
@@ -97,6 +99,8 @@ export default defineConfig({
       '/changelog': guideSidebar,
       '/development': guideSidebar,
       '/reference/limitations': guideSidebar,
+      '/reference/credits': guideSidebar,
+      '/reference/privacy': guideSidebar,
       '/tools/': toolSidebar,
       '/tool/': toolSidebar,
       '/reference/ribbons': toolSidebar,
@@ -104,6 +108,6 @@ export default defineConfig({
     },
     search: { provider: 'local' },
     outline: [2, 3],
-    footer: { message: 'Prism CAD · Documentation evolves with the application.' },
+    footer: { message: 'Prism CAD · Documentation evolves with the application. · <a href="' + base + 'reference/credits">Credits and licenses</a> · <a href="' + base + 'reference/privacy">Privacy</a>' },
   },
 })

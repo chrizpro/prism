@@ -1,17 +1,22 @@
 # Third-party components
 
-Prism uses .NET, Avalonia, CommunityToolkit.Mvvm, Silk.NET, Open CASCADE Technology, Eigen, Netgen, and their dependencies. Runtime packages retain their bundled notices where present. Native libraries are dynamically linked.
+Installers do not ship this file. `Build-Installer.ps1` runs `Write-Notices.ps1`, which writes `THIRD-PARTY-NOTICES.txt` into the published app with the full license text of every component in that build:
 
-Open CASCADE Technology: https://dev.opencascade.org/ · https://github.com/Open-Cascade-SAS/OCCT
+- every NuGet package that ships, read from the restore output, so build-only packages such as Avalonia's developer tools are left out;
+- the .NET runtime pack's license and third-party notices;
+- every native library staged by `native/build.ps1`, with its version and upstream source from vcpkg's SPDX file;
+- the source-code notice for the LGPL libraries (Open CASCADE Technology and Netgen) and the FreeType credit.
 
-Eigen: https://eigen.tuxfamily.org/
+The native license files are also shipped in the app's `licenses` folder.
 
-Netgen: https://ngsolve.org/ · https://github.com/NGSolve/netgen
+## LGPL source code
 
-.NET: https://github.com/dotnet/runtime
+Open CASCADE Technology and Netgen are LGPL-2.1 and dynamically linked. The release workflow uploads `Prism-LGPL-sources.zip` with each release: the upstream source archives vcpkg built, plus the vcpkg ports (recipes and patches). Keep that asset on every release that ships those libraries.
 
-Avalonia: https://github.com/AvaloniaUI/Avalonia
+## Not bundled
 
-The native build helper copies vcpkg dependency copyright/license files into the staged `licenses` directory. Retain these when distributing packages. Windows packages also include the required Microsoft Visual C++ runtime libraries; their distribution terms are supplied with the Microsoft build tools/runtime distribution.
+CalculiX (GPL-2.0), ffmpeg, Python and slicers are optional tools that users install themselves. Prism runs them as separate programs. Do not add them to the installer without reviewing their licenses.
 
-CalculiX and ffmpeg are optional external tools and are not bundled in the default installer.
+## Credits
+
+The public credits and privacy pages are `site/reference/credits.md` and `site/reference/privacy.md`. Update them when dependencies or network features change.

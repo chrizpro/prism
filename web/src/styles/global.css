@@ -12,7 +12,7 @@
   --muted: #94a3bd;
   --radius: 14px;
   --max: 1200px;
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --display: 'Space Grotesk', var(--font);
   color-scheme: dark;
 }

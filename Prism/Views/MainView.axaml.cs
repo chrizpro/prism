@@ -656,7 +656,7 @@ public partial class MainView : UserControl
         var guide = new MenuItem { Header = "Open Prism guide" };
         guide.Click += (_, _) =>
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://prism-cad-guide.christopherbfwilliam.chatgpt.site") { UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://chrizpro.github.io/prism/docs/") { UseShellExecute = true }); }
             catch (Exception ex) { Vm?.Session.Say("Could not open the guide: " + ex.Message, true); }
         };
         new MenuFlyout { ItemsSource = new object[] { version, new Separator(), guide }, Placement = PlacementMode.BottomEdgeAlignedRight }.ShowAt(anchor);

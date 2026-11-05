@@ -103,6 +103,27 @@ jobs:
           Copy-Item $package.FullName "./release/${{ matrix.asset }}"
           $hash = (Get-FileHash "./release/${{ matrix.asset }}" -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  ${{ matrix.asset }}" | Set-Content -NoNewline "./release/${{ matrix.asset }}.sha256"
+      - name: LGPL source archive
+        # The exact source of the LGPL libraries in this build: upstream archives plus vcpkg's recipes and patches.
+        if: env.SELECTED == 'true' && matrix.platform == 'linux'
+        run: |
+          $vcpkg = Join-Path $env:RUNNER_TEMP 'prism-vcpkg'
+          $staging = Join-Path $env:RUNNER_TEMP 'lgpl-sources'
+          New-Item -ItemType Directory -Force "$staging/archives", "$staging/vcpkg-ports" | Out-Null
+          $archives = Get-ChildItem "$vcpkg/downloads" -File | Where-Object { $_.Name -match '(?i)occt|opencascade|netgen' }
+          if (!$archives) { throw 'No Open CASCADE or Netgen source archives in the vcpkg downloads' }
+          $archives | Copy-Item -Destination "$staging/archives"
+          foreach ($port in 'opencascade', 'netgen') { Copy-Item -Recurse "$vcpkg/ports/$port" "$staging/vcpkg-ports/$port" }
+          @(
+            'Source code of the LGPL-2.1 libraries shipped with Prism ${{ env.PRISM_PACKAGE_VERSION }}.',
+            '',
+            'archives/      upstream source archives, as downloaded by vcpkg',
+            'vcpkg-ports/   the vcpkg build recipes and patches applied to them',
+            '',
+            'vcpkg commit: 817892b0ecbc6af994dd6df999c73faf795adbf2 (https://github.com/microsoft/vcpkg)',
+            'Build each library with: vcpkg install opencascade netgen --overlay-ports=vcpkg-ports'
+          ) | Set-Content "$staging/README.txt"
+          Compress-Archive -Path "$staging/*" -DestinationPath ./release/Prism-LGPL-sources.zip -Force
       - uses: actions/upload-artifact@v4
         if: env.SELECTED == 'true'
         with:
