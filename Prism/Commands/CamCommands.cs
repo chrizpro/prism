@@ -338,7 +338,9 @@ public sealed class TurnCommand : CncOperationCommand
         double rs = _stock.Value > 0 ? _stock.Value / 2 : maxR + 3;
         if (rs < maxR + allow + 0.05) throw new FormatException("The stock is not bigger than the part. Increase the stock diameter.");
         double zFront = profile.ZMax + _facing.Value;
-        TopZ.Value = zFront;
+        // TopZ is hidden for turning; set it without firing its change handler, which would start a nested rebuild.
+        var notify = TopZ.Changed; TopZ.Changed = null;
+        try { TopZ.Value = zFront; } finally { TopZ.Changed = notify; }
         double rClear = rs + Clear.Value;
         Start();
         // 1. face the end: cut from the outside to the centre, a little deeper each time

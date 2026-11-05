@@ -31,6 +31,10 @@ Agents must follow this flow for feature, bug-fix and test work:
 
 Feature documents describe current behavior and intended requirements; issues preserve a defined work scope/history, and tests provide executable evidence. Keep these responsibilities distinct. For desktop integration, attach representative viewport images to the relevant issue with test ID and source revision.
 
+## Testing at a library boundary
+
+When a feature hands work to a third-party library or external program that is slow, needs a separate install or cannot run on every machine (CalculiX, Netgen, the native solvers), test Prism's side of the hand-off instead of, or as well as, the full run: the input Prism builds (units, element types, which nodes and faces, totals such as applied force or heat), its validation of impossible setups, and the parsing of the program's output from a small sample. These tests are fast, run without the dependency, and catch the mistakes most likely to be ours. Benchmarks against independent hand calculations remain the evidence that the whole chain is right. A one-line class summary saying which hand-off a test class covers is enough; do not add comments to every test.
+
 ## Minimal feature document pattern
 
 Use an existing document when practical. A new dedicated Markdown page is justified for sufficiently complex behavior; no mandatory one-file-per-tool rule.

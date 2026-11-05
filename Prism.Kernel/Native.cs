@@ -58,6 +58,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_split(IntPtr s, IntPtr tool);
     [DllImport(Lib)] public static extern IntPtr ck_draft(IntPtr s, int* faces, int n, double* dir, double angle, double* po, double* pn);
     [DllImport(Lib)] public static extern IntPtr ck_make_volumes(IntPtr* shapes, int n);
+    [DllImport(Lib)] public static extern IntPtr ck_copy(IntPtr s);
     [DllImport(Lib)] public static extern IntPtr ck_translate(IntPtr s, double x, double y, double z);
     [DllImport(Lib)] public static extern IntPtr ck_rotate(IntPtr s, double* o, double* axis, double deg);
     [DllImport(Lib)] public static extern IntPtr ck_scale(IntPtr s, double* o, double f);

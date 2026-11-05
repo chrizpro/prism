@@ -82,3 +82,5 @@ The desktop `APP-I001` scenario verifies actual shader display, native save/reop
 The approved rendering follow-up adds HDR environment lighting, final denoising, explicit texture projection/offsets, glass/refraction and directional reflections. See the [Product rendering guide](../rendering/README.md) and [issue #60](https://github.com/chrizpro/prism/issues/60) for current controls, implementation limits and verification. The evidence above records the original #45 delivery.
 
 Full UV editing, arbitrary gradient meshes, per-face appearance, tangent-space normal maps, automatic cavity/edge wear, displacement geometry and subsurface scattering remain future scope. A plausible appearance does not certify an engineering material or manufacturing process.
+
+Combined-source verification on 2026-11-05 passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [release integration report](../engineering/release-readiness-2026-11-05.md) for desktop results and source revisions.

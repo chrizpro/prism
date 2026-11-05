@@ -24,6 +24,7 @@ The tests characterize existing behavior. Open requirements and options remain i
 
 - [Ribbon actions](../../../Prism.Tests/Headless/Solid/SolidRibbonTests.cs) cover the Pipe/Sweep/Loft boundary, Direct Edit entry and exit, selection modes, the Datum Gizmo and Materials entry.
 - [Shared tools](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) cover sketch entry, plane offset, curve creation and inspection results.
+- [Inspect tool tests](../../../Prism.Tests/Headless/Solid/AnalysisToolTests.cs) cover Interference (picked, all, created bodies), Check Geometry, Curvature Map ranges, Draft Analysis directions, Surface Continuity and Match Surface.
 - [Curve expression unit tests](../../../Prism.Tests/Unit/Solid/CurveExpressionTests.cs) exercise formula evaluation.
 
 Run `./tools/test.ps1 -Feature Solid`. Extrude and Revolve retain their own feature filters. The shared checks leave desktop viewport interactions and the tools inside the contextual Sketch and Direct Modeling tabs for their own workflows. See [the ribbon index](../../tabs/README.md) for other workspaces.
@@ -35,3 +36,5 @@ Shared-tool follow-up on 2026-11-03: all 51 shipped Solid tool entries, includin
 ## Coverage scope
 
 The 51 entries above refer only to the Solid ribbon. The contextual [Sketch](../sketches/README.md#sketch-contextual-tab) and [Direct Modeling](../direct-modeling/README.md#contextual-coverage) tabs add 40 and 35 entries respectively, with shared controls appearing in both. The [Solid option-level issue #41](https://github.com/chrizpro/prism/issues/41) tracks options on the Solid ribbon itself. Sketch and Direct Modeling have separate issues in their guides.
+
+Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.

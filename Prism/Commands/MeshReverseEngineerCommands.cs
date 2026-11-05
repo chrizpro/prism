@@ -70,7 +70,7 @@ public sealed class MeshRebuildCommand : MeshCommand
         }
         if (regs.Any(r => r.Kind == PrimKind.Freeform))
             Row("Free-form patches", string.Join(", ", regs.Where(r => r.Kind == PrimKind.Freeform).Select(r => $"rms {r.Patch!.Rms:0.###} / max {r.Patch.MaxError:0.###}")), 2);
-        if (_create.Index == 0) return NoOp();
+        if (_create.Index == 0) return Report();
 
         var o = new CommandOutput { Label = "Rebuild from scan", Icon = Icon };
         var faces = new List<Shape>(); int failed = 0;
@@ -472,7 +472,7 @@ public sealed class MeshSectionFitCommand : MeshCommand
         if (loops == 0) { Row("Nothing here", "the plane does not cut the mesh", 2); return null; }
         Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
         Row("Largest deviation", N(worst, "mm"), worst <= _tol.Value * 1.5 ? 1 : 2);
-        return _create.Value ? o : NoOp();
+        return _create.Value ? o : Report();
     }
 
     public override void BuildOverlay(CadSession s, Overlay o) { foreach (var l in _overlay) o.AddPolyline(l, 0xFF35B6FF, 2.4f, false); }

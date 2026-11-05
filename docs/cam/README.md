@@ -57,4 +57,13 @@ Resin design references: [Formlabs cups](https://formlabs.com/support/Preventing
 
 [Linear G-code unit tests](../../Prism.Tests/Unit/Cam/LinearGcodeTests.cs) verify units, modal coordinates, G92 offsets, extrusion, layer starts, feed and rejection of unsupported input. [CAM workflow headless tests](../../Prism.Tests/Headless/Cam/CamWorkflowTests.cs) check committed stock bounds and both G54 choices, plus successful nozzle import and history preservation when an arc is rejected. Run `./tools/test.ps1 -Feature CAM`. [Issue #52](https://github.com/chrizpro/prism/issues/52).
 
-Maintained cases for generation options, setup switching and persistence, posts, stock review and both print workflows remain open. The standalone CAM tests above have separate coverage.
+[CNC operation tests](../../Prism.Tests/Headless/Cam/CncOperationTests.cs) check the cut path of Profile on each side, its passes, climb and conventional direction and tabs; Pocket rings and islands; Adaptive Clearing levels and wall finish; Drill depth, pecks and tool warning; Face in both directions; 3D Finish with both cutters; Turning stages and stock; and tool-library presets. [CAM program tests](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) cover 3D Rough, Tool Library, Select CAM Setup, Operation Order, Playback, Review and its setup sheet, Post for each controller, Stock Review, CNC Design Check, FDM and Resin Preparation.
+
+Fixed on 2026-11-05:
+
+- CNC Design Check counted the vertical walls of a plain block as "top-down inaccessible", because its upward probe started on the wall's own plane. The probe now starts just outside the face, and faces pointing down count as hidden directly. Tests cover a pocketed block (underside only) and an overhanging shelf.
+- Turning set "Top of the material" while building, which started a nested preview and listed the result rows twice. It is now set without notifying.
+
+The 3D-print Slice tool, Export for printing and slicer hand-off remain without maintained cases; the standalone suites cover them.
+
+Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.

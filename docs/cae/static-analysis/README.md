@@ -51,6 +51,8 @@ Open decisions include mesh convergence targets, incompletely constrained models
 
 - [Unit load/geometry math](../../../Prism.Tests/Unit/StaticAnalysis/) exercises supporting production vector operations without native calls.
 - [Maintained headless static study tests](../../../Prism.Tests/Headless/StaticAnalysis/) exercise real study setup and native solving.
+- [Solver input tests](../../../Prism.Tests/Headless/StaticAnalysis/SolverInputTests.cs) check Prism's side of each solver hand-off without solving: supports and loads given to the native static solver, the CalculiX input for thermal, natural-frequency and bonded multi-body studies (units, elements, boundaries, fluxes, film and radiation, gravity), and reading CalculiX results. They run without CalculiX installed.
+- [Study setup tool tests](../../../Prism.Tests/Headless/StaticAnalysis/StudySetupToolTests.cs) cover the three fixtures, the four loads and their directions, Probe, Save / Recall Face Selection, Export CAE Results and the Pipe Flow calculator.
 - Legacy [CAE checks](../../../tests/Prism.CaeTests/Program.cs) remain available and are not assumed migrated.
 - [Runner and metadata](../../../Prism.Tests/README.md).
 
@@ -71,3 +73,5 @@ This run used 934 nodes and 388 quadratic tetrahedra. The extension differs by a
 Installed `prism_sim.dll` SHA256: `73C2A479C8FEB3713896DB55021BB74215C1590CF656F42DAAFFD920926BC930`. Installed `prism_kernel.dll` SHA256: `07D37FF1F5F7E9F7E008801A919703CF6F49364BC20329207B97576A74CB7B19`. Existing local production changes were preserved; validation uses the current workstation checkout/binaries, not a fresh native build or a clean-checkout certification.
 
 Keep requirements current here and preserve approved spec commits in completed issues. Integration/viewport testing remains deferred; later attach actual result images to the relevant issue with test ID/source revision, alongside quantitative assertions. See the [maintenance flow](../../engineering/requirements-and-testing.md#feature-documentation-and-test-maintenance).
+
+Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.

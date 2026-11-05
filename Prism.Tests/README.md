@@ -16,10 +16,17 @@ Prism.Tests/
     Revolve/                    SolidRevolveTests.cs
     Sweep/                      SweepCommandTests.cs
     Loft/                       LoftCommandTests.cs
-    Solid/                      Primitive, edit, combine, transform, pattern and shared tool checks
-    StaticAnalysis/             StaticStudyTests.cs
+    Solid/                      Primitive, edit, combine, transform, pattern, inspect, Warp and shared tool checks
+    StaticAnalysis/             StaticStudyTests.cs, StudySetupToolTests.cs
     Sketch/                     Rectangle and drawing-mode checks
-    DirectModeling/             Face edit and cap checks
+    DirectModeling/             Face edit, cap and direct edit checks
+    Curves/                     CurveToolTests.cs
+    Surfacing/                  Surface options, surface tools, Freeform build, Boundary and Pipe
+    Mesh/                       MeshToolTests.cs, ReverseEngineerTests.cs
+    SheetMetal/                 SheetMetalTests.cs
+    Freeform/                   FormPrimitiveTests.cs
+    Cam/                        Setup, CNC operations, program and manufacturing checks
+    Assembly/                   Components, joints and assembly tools
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
   Integration/                  Prism.IntegrationTests.csproj and desktop MCP scenarios
 ```
@@ -51,6 +58,10 @@ dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj
 dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj --filter "TestId=EXT-H001"
 ```
 
+`-Feature` also accepts `Curves`, `Mesh` and `SheetMetal`.
+
+On Linux or macOS, headless tests can run against a locally built kernel: set `PRISM_NATIVE_DIR` to a directory holding `libprism_kernel.so` (and optionally `libprism_sim.so` for structural solves). This is a developer convenience; Windows with the staged `native/bin` remains the reference platform.
+
 The focused runner builds the test projects and their dependencies; it does not require Android/iOS workloads from the full solution. Headless tests look upward from the test assembly for `Prism.slnx`, then load `native/bin`. Set `PRISM_NATIVE_DIR` to an absolute DLL directory to override it, including when using a separate worktree. Missing dependencies fail with an explicit message instead of reporting passing/skipped geometry tests.
 
 The new projects use [xUnit](https://xunit.net/docs/getting-started/v2/getting-started) and [Avalonia's headless xUnit support](https://docs.avaloniaui.net/docs/testing/headless-xunit). Existing executable suites keep their original runner and dependencies; `tools/run-tests.ps1` remains their entry point.
@@ -77,17 +88,20 @@ See the [readiness report](../docs/engineering/test-readiness-report.md) for the
 | Sweep: [Surface #18](https://github.com/chrizpro/prism/issues/18), [Freeform #19](https://github.com/chrizpro/prism/issues/19), [NURBS #20](https://github.com/chrizpro/prism/issues/20) | [Sweep README](../docs/modeling/sweep/README.md) | [Sweep math](Unit/Sweep/) | [Sweep commands](Headless/Sweep/), including representative exact and cage cases; NURBS workflow unverified |
 | Loft: [Surface #22](https://github.com/chrizpro/prism/issues/22), [Freeform #23](https://github.com/chrizpro/prism/issues/23), [NURBS #24](https://github.com/chrizpro/prism/issues/24) | [Loft README](../docs/modeling/loft/README.md) | [Loft math](Unit/Loft/) | [Loft commands](Headless/Loft/), including representative exact and cage cases; NURBS workflow unverified |
 | Solid ribbon [#31](https://github.com/chrizpro/prism/issues/31) | [Solid ribbon and linked feature guides](../docs/modeling/solid/README.md) | [Pattern, curve and selection logic](Unit/Solid/) | [Solid ribbon and command tests](Headless/Solid/) |
+| Curves [#36](https://github.com/chrizpro/prism/issues/36) | [Curves](../docs/modeling/curves/README.md) | — | [Curve editing tools](Headless/Curves/CurveToolTests.cs) |
+| Sheet metal and Flatten / Refold | [Sheet Metal](../docs/modeling/sheet-metal/README.md) · [Flatten and Refold](../docs/flatten-refold.md) | — | [Flange, Flat Pattern, Flatten / Refold](Headless/SheetMetal/SheetMetalTests.cs) |
+| Mesh and reverse engineering | [Mesh and Reverse Engineer](../docs/modeling/mesh-and-reverse-engineer/README.md) | — | [Mesh tools and scan-to-CAD](Headless/Mesh/) |
 | Sketch [#38](https://github.com/chrizpro/prism/issues/38), Rectangle [#39](https://github.com/chrizpro/prism/issues/39) | [Sketch](../docs/modeling/sketches/README.md) · [Rectangle](../docs/modeling/sketches/rectangle/README.md) | — | [Drawing modes](Headless/Sketch/) |
-| Direct Modeling [#40](https://github.com/chrizpro/prism/issues/40) | [Direct Modeling](../docs/modeling/direct-modeling/README.md) | — | [Face edits and caps](Headless/DirectModeling/) |
-| [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) | [Surface and NURBS](../docs/modeling/surface-and-nurbs/README.md) | — | [Surface and NURBS options](Headless/Surfacing/SurfaceOptionTests.cs) |
-| [Freeform #46](https://github.com/chrizpro/prism/issues/46) | [Freeform](../docs/modeling/freeform/README.md) | [Cage topology](Unit/Freeform/) | [Freeform build options](Headless/Surfacing/FreeformBuildTests.cs) |
+| Direct Modeling [#40](https://github.com/chrizpro/prism/issues/40) | [Direct Modeling](../docs/modeling/direct-modeling/README.md) | — | [Face edits, caps and direct edits](Headless/DirectModeling/) |
+| [Surface #48](https://github.com/chrizpro/prism/issues/48) and [NURBS #47](https://github.com/chrizpro/prism/issues/47) | [Surface and NURBS](../docs/modeling/surface-and-nurbs/README.md) | — | [Surface and NURBS options](Headless/Surfacing/SurfaceOptionTests.cs), [surface tools](Headless/Surfacing/SurfaceToolTests.cs) |
+| [Freeform #46](https://github.com/chrizpro/prism/issues/46) | [Freeform](../docs/modeling/freeform/README.md) | [Cage topology](Unit/Freeform/) | [Freeform build options](Headless/Surfacing/FreeformBuildTests.cs), [primitives and cage checks](Headless/Freeform/FormPrimitiveTests.cs) |
 | [Boundary Surface #50](https://github.com/chrizpro/prism/issues/50) | [Boundary Surface, Ruled and Patch](../docs/modeling/boundary-surface/README.md) | — | [Boundary options](Headless/Surfacing/BoundarySurfaceTests.cs) |
 | [Pipe #49](https://github.com/chrizpro/prism/issues/49) | [Pipe](../docs/modeling/pipe/README.md) | — | [Exact and cage Pipe](Headless/Surfacing/PipeTests.cs) |
-| [CAM #52](https://github.com/chrizpro/prism/issues/52) | [CAM guide](../docs/cam/README.md) | [Linear G-code](Unit/Cam/LinearGcodeTests.cs) | [Setup and import](Headless/Cam/CamWorkflowTests.cs) |
+| [CAM #52](https://github.com/chrizpro/prism/issues/52) | [CAM guide](../docs/cam/README.md) | [Linear G-code](Unit/Cam/LinearGcodeTests.cs) | [Setup and import](Headless/Cam/CamWorkflowTests.cs), [CNC operations](Headless/Cam/CncOperationTests.cs), [program and manufacturing checks](Headless/Cam/CamProgramTests.cs) |
 | [ECAD #53](https://github.com/chrizpro/prism/issues/53) | [ECAD guide](../docs/ecad/README.md) | — | [Board and envelope](Headless/Ecad/BoardTests.cs) |
 | [Appearance #45](https://github.com/chrizpro/prism/issues/45) | [Appearance studio](../docs/appearance-studio/README.md) | [Color, surface and backdrop math](Unit/Appearance/SurfaceAppearanceTests.cs) | [Layers and persistence](Headless/Solid/AppearanceStudioTests.cs); [desktop integration](Integration/DesktopAppearanceTests.cs) |
 | [Rendering #60](https://github.com/chrizpro/prism/issues/60) | [Product rendering](../docs/rendering/README.md) | [HDR, denoising and scattering](Unit/Rendering/RenderingQualityTests.cs) | [Transport and persistence](Headless/Rendering/RenderingQualityTests.cs); [desktop gallery](Integration/DesktopRenderingTests.cs) |
-| [Assembly #54](https://github.com/chrizpro/prism/issues/54) | [Assembly guide](../docs/modeling/assembly/README.md) | [Kinematics](Unit/Assembly/) | [Components and joints](Headless/Assembly/) |
+| [Assembly #54](https://github.com/chrizpro/prism/issues/54) | [Assembly guide](../docs/modeling/assembly/README.md) | [Kinematics](Unit/Assembly/) | [Components, joints and assembly tools](Headless/Assembly/) |
 | [Fluids #55](https://github.com/chrizpro/prism/issues/55) | [Fluids guide](../docs/cae/fluids/README.md) | [Pipe network solver](Unit/Fluids/) | [Pipe Network command](Headless/Fluids/) |
 | Static structural analysis: [#25](https://github.com/chrizpro/prism/issues/25) | [Static analysis README](../docs/cae/static-analysis/README.md) | [Load/area math](Unit/StaticAnalysis/) | [Static studies](Headless/StaticAnalysis/), real single-body solver and independent axial-bar checks |
 
@@ -120,3 +134,5 @@ Option coverage follow-up on 2026-11-03: 20 Unit and 135 Headless cases passed l
 Surfacing and Freeform option coverage added 5 Unit and 22 Headless cases. The full Windows run passed 25 Unit and 157 Headless cases using installed native binaries. A follow-up rerun of all 22 new Headless cases passed after tightening the Isocurve position and direction assertions.
 
 CAM and ECAD follow-up: the full Unit suite passed 38 cases and an isolated Windows headless run passed all 14 new CAM and ECAD cases with installed native binaries.
+
+Windows integration verification on 2026-11-05 passed 86 Unit and 592 Headless cases with rebuilt native libraries. See the [release integration report](../docs/engineering/release-readiness-2026-11-05.md) for the combined source revisions and remaining platform limits.

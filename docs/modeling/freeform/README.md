@@ -55,4 +55,8 @@ Invert and Select All come from **Invert** in the Select section, and undo is Ct
 
 Run `./tools/test.ps1 -Feature Freeform`. [Pipe](../pipe/README.md) has its own cage checks. Open-profile extrusion, additional primitive controls, cage edits, topology tools, conversion and selection-dependent options remain coverage work. [Issue #46](https://github.com/chrizpro/prism/issues/46) tracks it.
 
+[Freeform primitive tests](../../../Prism.Tests/Headless/Freeform/FormPrimitiveTests.cs) check Plane orientation and counts, Box size, faces and position, Sphere faces per side, Cylinder sides, rings and caps, Torus segments and the clamped tube radius, Check Cage on closed and open cages, and Freeform Quality with and without a reference.
+
 [Bridge unit tests](../../../Prism.Tests/Unit/Freeform/CageBridgeTests.cs) verify open-edge and closed-loop topology and rejection of incompatible selections without modifying the cage. Ribbon selection, face-to-face bridging and additional cage configurations remain open.
+
+Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.

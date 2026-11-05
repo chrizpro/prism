@@ -62,6 +62,7 @@
 #include <BRepBuilderAPI_NurbsConvert.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
+#include <BRepBuilderAPI_Copy.hxx>
 #include <BRepCheck_Analyzer.hxx>
 #include <BRepClass_FaceClassifier.hxx>
 #include <BRepFill.hxx>
@@ -132,8 +133,10 @@
 #include <TopExp_Explorer.hxx>
 #include <TopTools_HSequenceOfShape.hxx>
 #include <TopTools_IndexedMapOfShape.hxx>
-#include <TopTools_IndexedDataMapOfShapeListOfShape.hxx>
-#include <TopTools_MapOfShape.hxx>
+#include <TopTools_IndexedDataMapOfShapeListOfShape.hxx>
+
+#include <TopTools_MapOfShape.hxx>
+
 #include <TopTools_ListOfShape.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Compound.hxx>
@@ -763,6 +766,10 @@ CK_API void* ck_mesh_to_shape(const float* v, int nv, const int* t, int nt, doub
 }
 
 // ---------------------------------------------------------------- transforms
+// Independent copy of the geometry without any stored triangulation, so it can be meshed at a coarser deflection.
+CK_API void* ck_copy(void* s) {
+    TRY return wrap(BRepBuilderAPI_Copy(get(s), Standard_True, Standard_False).Shape()); CATCH(nullptr)
+}
 CK_API void* ck_translate(void* s, double x, double y, double z) {
     TRY gp_Trsf t; t.SetTranslation(gp_Vec(x, y, z)); return wrap(transformed(get(s), t)); CATCH(nullptr)
 }
@@ -1105,27 +1112,48 @@ CK_API void* ck_defeature(void* s, const int* faces, int n) {
     CATCH(nullptr)
 }
 
-// Merge neighbouring faces on one surface, but only along edges whose two faces are both in the given list: every other edge is kept as it is.
-CK_API void* ck_unify_faces(void* s, const int* faces, int n) {
-    TRY
-        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_FACE, m);
-        TopTools_MapOfShape pick;
-        for (int i = 0; i < n; ++i) { if (faces[i] < 0 || faces[i] >= m.Extent()) { fail("Face index out of range."); return nullptr; } pick.Add(m(faces[i] + 1)); }
-        TopTools_IndexedDataMapOfShapeListOfShape anc; TopExp::MapShapesAndAncestors(get(s), TopAbs_EDGE, TopAbs_FACE, anc);
-        TopTools_MapOfShape keep;
-        for (int i = 1; i <= anc.Extent(); ++i) {
-            int inside = 0;
-            for (const TopoDS_Shape& f : anc(i)) if (pick.Contains(f)) ++inside;
-            if (inside < 2) keep.Add(anc.FindKey(i));
-        }
-        ShapeUpgrade_UnifySameDomain u(get(s), false, true, false);
-        u.KeepShapes(keep);
-        u.Build();
-        if (u.Shape().IsNull()) { fail("The faces could not be merged."); return nullptr; }
-        return wrap(u.Shape());
-    CATCH(nullptr)
-}
-
+// Merge neighbouring faces on one surface, but only along edges whose two faces are both in the given list: every other edge is kept as it is.
+
+CK_API void* ck_unify_faces(void* s, const int* faces, int n) {
+
+    TRY
+
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_FACE, m);
+
+        TopTools_MapOfShape pick;
+
+        for (int i = 0; i < n; ++i) { if (faces[i] < 0 || faces[i] >= m.Extent()) { fail("Face index out of range."); return nullptr; } pick.Add(m(faces[i] + 1)); }
+
+        TopTools_IndexedDataMapOfShapeListOfShape anc; TopExp::MapShapesAndAncestors(get(s), TopAbs_EDGE, TopAbs_FACE, anc);
+
+        TopTools_MapOfShape keep;
+
+        for (int i = 1; i <= anc.Extent(); ++i) {
+
+            int inside = 0;
+
+            for (const TopoDS_Shape& f : anc(i)) if (pick.Contains(f)) ++inside;
+
+            if (inside < 2) keep.Add(anc.FindKey(i));
+
+        }
+
+        ShapeUpgrade_UnifySameDomain u(get(s), false, true, false);
+
+        u.KeepShapes(keep);
+
+        u.Build();
+
+        if (u.Shape().IsNull()) { fail("The faces could not be merged."); return nullptr; }
+
+        return wrap(u.Shape());
+
+    CATCH(nullptr)
+
+}
+
+
+
 // Offset the outlines of a planar face (or a wire) inside its own plane. Negative distances go inward. Returns the offset wires.
 CK_API void* ck_offset_planar(void* s, double dist, int join) {
     TRY

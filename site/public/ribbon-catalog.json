@@ -1,5 +1,5 @@
 {
-  "sourceHash": "DD1434C6DE51F8A8D9C2EFB786188E0E589C49CCFEEF067C48D813F630F9A113",
+  "sourceHash": "6036E782F512E91F53604C6C8E62556A63803342F96FBDE0C2677B239DA3D860",
   "workspaces": [
     {
       "Id": "design",
@@ -16,6 +16,14 @@
         "Animate",
         "Analyze",
         "View"
+      ]
+    },
+    {
+      "Id": "drawing",
+      "Name": "Drawing",
+      "Tip": "Edit engineering drawing sheets, views, dimensions and annotations.",
+      "Tabs": [
+        "Home"
       ]
     },
     {

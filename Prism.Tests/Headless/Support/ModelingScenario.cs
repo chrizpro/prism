@@ -28,6 +28,21 @@ internal static class ModelingScenario
         return session.AddObject(positioned, "Reference body", ObjKind.Solid);
     }
 
+    /// <summary>A box shape (not added to the document) with its minimum corner at the given point.</summary>
+    public static Shape BoxAt(Vec3 minimum, double width, double depth, double height)
+    {
+        using var box = Occ.Box(width, depth, height);
+        return Occ.Translate(box, minimum - box.Props().Min);
+    }
+
+    /// <summary>A vertical cylinder shape (not added to the document) whose base centre is at the given point.</summary>
+    public static Shape CylinderAt(Vec3 baseCentre, double radius, double height)
+    {
+        using var cylinder = Occ.Cylinder(radius, height);
+        var props = cylinder.Props();
+        return Occ.Translate(cylinder, baseCentre - new Vec3(props.Center.X, props.Center.Y, props.Min.Z));
+    }
+
     public static SceneObject CreateRectangleSketch(CadSession session, Plane3 plane,
         double width, double height, double startU = 0, double startV = 0, bool closed = true)
     {
@@ -65,6 +80,88 @@ internal static class ModelingScenario
         int index = parameter.Options.ToList().IndexOf(option);
         Assert.True(index >= 0, $"'{label}' must offer '{option}'.");
         parameter.Index = index;
+    }
+
+    /// <summary>Start a command with nothing pre-selected, so each slot is filled explicitly by the test.</summary>
+    public static T Begin<T>(CadSession session, Func<T> create) where T : Command
+    {
+        session.SelectItems([]);
+        session.StartCommand(() => create());
+        return Assert.IsType<T>(session.ActiveCommand);
+    }
+
+    /// <summary>Fill a slot with whole objects or sub-items, replacing whatever it held.</summary>
+    public static void Pick(Command command, string label, params SelItem[] items) =>
+        command.ConfigureInputs(() =>
+        {
+            var slot = command.Slots.Single(item => item.Label == label);
+            slot.Items.Clear();
+            foreach (var item in items) Assert.True(slot.TryAdd(item), $"'{label}' must accept {item.Kind} {item.Index}.");
+        });
+
+    public static void Pick(Command command, string label, params SceneObject[] objects) =>
+        Pick(command, label, objects.Select(SelItem.Of).ToArray());
+
+    public static void SetInteger(Command command, string label, int value) =>
+        command.Params.OfType<IntParam>().Single(param => param.Label == label).Value = value;
+
+    public static void SetText(Command command, string label, string value) =>
+        command.Params.OfType<TextParam>().Single(param => param.Label == label).Value = value;
+
+    public static CommandOutput BuildOutput(Command command)
+    {
+        var output = command.TryBuild();
+        Assert.True(output != null, $"Command must build: {command.Error}");
+        return output;
+    }
+
+    /// <summary>The command must refuse to build and explain why with a message containing the fragment.</summary>
+    public static void AssertBuildFails(Command command, string fragment)
+    {
+        var output = command.TryBuild();
+        Assert.Null(output);
+        Assert.NotNull(command.Error);
+        Assert.Contains(fragment, command.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string Result(Command command, string label) =>
+        Assert.Single(command.Results, line => line.Label == label).Value;
+
+    /// <summary>A single added curve's total length (mm).</summary>
+    public static double Length(Shape curve) => Occ.CurveLength(curve);
+
+    /// <summary>For quantities that come from approximations (spline fits, tessellation, sampled curves).</summary>
+    public static void AssertClose(double expected, double actual, double tolerance, string quantity) =>
+        Assert.True(double.IsFinite(actual) && Math.Abs(expected - actual) <= tolerance,
+            $"{quantity}: expected {expected:G12}, actual {actual:G12}, tolerance {tolerance}.");
+
+    public static void AssertPoint(Vec3 expected, Vec3 actual, double tolerance, string quantity) =>
+        Assert.True(expected.DistanceTo(actual) <= tolerance, $"{quantity}: expected {expected}, actual {actual}, tolerance {tolerance}.");
+
+    /// <summary>The single planar face of an object whose outward normal points along the given direction.</summary>
+    public static SelItem FaceFacing(SceneObject source, Vec3 normal)
+    {
+        int index = Enumerable.Range(0, source.Shape.Count(SubKind.Face)).Single(i =>
+        {
+            using var face = source.Shape.Sub(SubKind.Face, i);
+            return Vec3.Dot(Occ.FaceInfoOf(face).Normal, normal) > 0.99;
+        });
+        return new SelItem(source.Id, SelKind.Face, index);
+    }
+
+    /// <summary>Every edge of an object whose bounding box satisfies the predicate.</summary>
+    public static SelItem[] EdgesWhere(SceneObject source, Func<ShapeProps, bool> predicate) =>
+        Enumerable.Range(0, source.Shape.Count(SubKind.Edge)).Where(i =>
+        {
+            using var edge = source.Shape.Sub(SubKind.Edge, i);
+            return predicate(edge.Props());
+        }).Select(i => new SelItem(source.Id, SelKind.Edge, i)).ToArray();
+
+    /// <summary>Start and end point of a curve or wire.</summary>
+    public static (Vec3 Start, Vec3 End) Ends(Shape curve)
+    {
+        var points = Occ.CurveDivide(curve, 1).points;
+        return (points[0], points[^1]);
     }
 
     public static void SetToggle(Command command, string label, bool value) =>

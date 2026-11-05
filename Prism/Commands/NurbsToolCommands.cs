@@ -656,11 +656,14 @@ public sealed class RebuildSurfaceCommand : Command
         var item = _src.Items[0]; var face = NurbsUtil.OfItem(S, item);
         var grid = Occ.SurfaceSamples(face, _u.Value, _v.Value);
         var rebuilt = Occ.FitSurface(grid, _u.Value, _v.Value);
-        // how far the result is from the original (sampled on a finer grid)
-        var fine = Occ.SurfaceSamples(face, 20, 20); var mesh = rebuilt.Tessellate();
-        double worst = 0; var verts = Enumerable.Range(0, mesh.VertexCount).Select(i => new Vec3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2])).ToList();
-        foreach (var p in fine) worst = Math.Max(worst, verts.Min(q => q.DistanceTo(p)));
-        double diag = (mesh.Max - mesh.Min).Length;
+        // how far the result is from the original: exact distance from points sampled on the original to the rebuilt surface
+        double worst = 0;
+        foreach (var p in Occ.SurfaceSamples(face, 15, 15))
+        {
+            using var point = Occ.Vertex(p);
+            worst = Math.Max(worst, Occ.Distance(point, rebuilt).Distance);
+        }
+        var bounds = rebuilt.Props(); double diag = (bounds.Max - bounds.Min).Length;
         Results.Clear(); Results.Add(new ResultLine("Largest deviation (approx.)", $"{worst:0.###} mm", worst < diag * 0.01 ? 1 : 2));
         var o = SurfaceUtil.Single(rebuilt, "Rebuilt surface");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, [item]);

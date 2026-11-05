@@ -23,3 +23,5 @@ This report distinguishes maintained Unit/Headless coverage, standalone evidence
 ## Latest local verification
 
 The full maintained Windows run passed **49 Unit and 216 Headless cases**, with zero failures or runner skips. This includes 11 new Unit and 5 new Headless Assembly and Fluids cases. The headless run used the installed native binaries. The gaps above describe scenarios with incomplete or absent maintained coverage.
+
+Combined Windows verification on 2026-11-05 passed **86 Unit and 592 Headless cases**, zero failures/skips, with native libraries rebuilt from the integrated source. The [release integration report](release-readiness-2026-11-05.md) supersedes the historical counts above for this candidate; listed option and platform gaps remain.

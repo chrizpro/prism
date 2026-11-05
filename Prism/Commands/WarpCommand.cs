@@ -80,7 +80,8 @@ public sealed class WarpCommand : Command
                 double theta = Math.Min(a, len) / R, r = R - v;
                 double A = r * Math.Sin(theta), B = R - r * Math.Cos(theta);
                 if (a > len) { A += (a - len) * Math.Cos(theta); B += (a - len) * Math.Sin(theta); }
-                return c + d * t0 + d * A + b * B + w;
+                // c already carries its own coordinate along the axis; the bend starts at t0, so drop that component first.
+                return c - d * Vec3.Dot(c, d) + d * (t0 + A) + b * B + w;
             };
         }
         if (kind == Kind.Twist)
