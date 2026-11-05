@@ -28,6 +28,21 @@ internal static class ModelingScenario
         return session.AddObject(positioned, "Reference body", ObjKind.Solid);
     }
 
+    /// <summary>A box shape (not added to the document) with its minimum corner at the given point.</summary>
+    public static Shape BoxAt(Vec3 minimum, double width, double depth, double height)
+    {
+        using var box = Occ.Box(width, depth, height);
+        return Occ.Translate(box, minimum - box.Props().Min);
+    }
+
+    /// <summary>A vertical cylinder shape (not added to the document) whose base centre is at the given point.</summary>
+    public static Shape CylinderAt(Vec3 baseCentre, double radius, double height)
+    {
+        using var cylinder = Occ.Cylinder(radius, height);
+        var props = cylinder.Props();
+        return Occ.Translate(cylinder, baseCentre - new Vec3(props.Center.X, props.Center.Y, props.Min.Z));
+    }
+
     public static SceneObject CreateRectangleSketch(CadSession session, Plane3 plane,
         double width, double height, double startU = 0, double startV = 0, bool closed = true)
     {

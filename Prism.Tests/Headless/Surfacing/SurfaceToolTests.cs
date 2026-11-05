@@ -248,7 +248,7 @@ public class SurfaceToolTests
 
     static SceneObject[] BoxFacesAsSurfaces(CadSession session)
     {
-        using var box = Occ.Box(10, 10, 10);
+        using var box = BoxAt(Vec3.Zero, 10, 10, 10);
         return Enumerable.Range(0, box.Count(SubKind.Face))
             .Select(i => session.AddObject(box.Sub(SubKind.Face, i), "Face", ObjKind.Surface)).ToArray();
     }
@@ -478,9 +478,10 @@ public class SurfaceToolTests
     {
         var session = new CadSession();
         using var patch = Occ.NurbsSurface([new(0, 0, 0), new(10, 0, 0), new(0, 10, 0), new(10, 10, 0)], 2, 2, 1, 1);
-        using var cutter = Occ.Translate(Occ.Box(10, 20, 10), new Vec3(5, -5, -5));
+        using var cutter = BoxAt(new Vec3(5, -5, -5), 10, 20, 10);
         var trimmed = session.AddObject(Occ.Cut(patch, cutter), "Trimmed patch", ObjKind.Surface);
         AssertNear(50, trimmed.Shape.Props().Area, "Trimmed area (mm²)");
+        AssertNear(5, trimmed.Shape.Props().Max.X, "Trimmed edge (mm)");
         var command = Begin(session, () => new UntrimCommand());
         Pick(command, "Surface or face", trimmed);
         var (_, restored) = Assert.Single(BuildOutput(command).Replace);

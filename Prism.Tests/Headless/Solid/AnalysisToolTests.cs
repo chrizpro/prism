@@ -97,7 +97,7 @@ public class AnalysisToolTests
     public void CheckFlagsOpenShell()
     {
         var session = new CadSession();
-        using var box = Occ.Box(10, 10, 10);
+        using var box = BoxAt(Vec3.Zero, 10, 10, 10);
         var faces = Enumerable.Range(0, 6).Select(i => box.Sub(SubKind.Face, i))
             .Where(face => face.Props().Min.Z < 9.99).ToList();
         var open = session.AddObject(Occ.Sew(faces, 0.01, false), "Open box", ObjKind.Solid);
