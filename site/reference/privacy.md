@@ -7,7 +7,7 @@ Prism is a desktop application. Your models stay on your computer unless you cho
 | Feature | What is sent | Where | When |
 | --- | --- | --- | --- |
 | **AI assistant** with an API key | Your messages and whatever the assistant reads from Prism to answer you, which can include object names, sizes, geometry details and screenshots | Anthropic (Claude) or OpenAI, whichever you choose | Only while you use the assistant |
-| **AI assistant** with a command-line login | The same, through the Claude Code or Codex program you installed | Anthropic or OpenAI, under that program's terms | Only while you use the assistant |
+| **AI assistant** with your Codex login | The same, through the Codex program you installed | OpenAI, under Codex's terms | Only while you use the assistant |
 | **AR sharing** | The exported GLB and USDZ files of the visible model | Any device on your local network that opens the address Prism shows | Until you choose **Stop Sharing** |
 | **Help and documentation links** | A normal web page request | This website, on GitHub Pages | When you open help |
 

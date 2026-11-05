@@ -12,12 +12,14 @@ using System.Threading.Tasks;
 
 namespace Prism.Automation;
 
-public enum AiProvider { ClaudeCli, CodexCli, Anthropic, OpenAi }
+// Values are stored in assistant.json. 0 was the Claude command-line login, which is no longer offered:
+// Claude is used with an API key only. Load() moves a stored 0 to Anthropic.
+public enum AiProvider { CodexCli = 1, Anthropic = 2, OpenAi = 3 }
 public enum ChatRole { User, Assistant, Tool, Note, Error }
 
 public sealed class AssistantSettings
 {
-    public AiProvider Provider { get; set; } = AiProvider.ClaudeCli;
+    public AiProvider Provider { get; set; } = AiProvider.CodexCli;
     public string CliModel { get; set; } = "";
     public string AnthropicModel { get; set; } = "claude-sonnet-5-5";
     public string OpenAiModel { get; set; } = "gpt-5";
@@ -28,7 +30,7 @@ public sealed class AssistantSettings
 }
 
 /// <summary>
-/// The in-app AI assistant. It can use your Claude or Codex command-line login (nothing to paste), or an API key, and it works the CAD by calling
+/// The in-app AI assistant. It can use your Codex command-line login (nothing to paste), or an Anthropic or OpenAI API key, and it works the CAD by calling
 /// the same tools the MCP bridge offers: so everything it does is undoable and looks like interactive work.
 /// </summary>
 public sealed class AssistantService(AutomationApi api)
@@ -43,7 +45,12 @@ public sealed class AssistantService(AutomationApi api)
     {
         try
         {
-            if (File.Exists(SettingsFile)) return JsonSerializer.Deserialize<AssistantSettings>(File.ReadAllText(SettingsFile)) ?? new();
+            if (File.Exists(SettingsFile))
+            {
+                var saved = JsonSerializer.Deserialize<AssistantSettings>(File.ReadAllText(SettingsFile)) ?? new();
+                if (!Enum.IsDefined(saved.Provider)) saved.Provider = AiProvider.Anthropic;
+                return saved;
+            }
         }
         catch { }
         var s = new AssistantSettings();
@@ -72,10 +79,9 @@ public sealed class AssistantService(AutomationApi api)
         "Be brief. Ask before doing anything large or destructive, and never claim success without checking.";
 
     CancellationTokenSource? _cts;
-    string? _claudeSession;
     readonly List<JsonObject> _history = [];
 
-    public void Reset() { _claudeSession = null; _history.Clear(); }
+    public void Reset() { _history.Clear(); }
     public void Cancel() { try { _cts?.Cancel(); } catch { } }
 
     IEnumerable<JsonNode?> Tools() => api.Describe().Where(t => t!["name"]!.ToString() != "assistant" && (Settings.AllowFiles || t["name"]!.ToString() != "file"));
@@ -89,7 +95,6 @@ public sealed class AssistantService(AutomationApi api)
         {
             switch (Settings.Provider)
             {
-                case AiProvider.ClaudeCli: await RunClaudeCli(text, _cts.Token); break;
                 case AiProvider.CodexCli: await RunCodexCli(text, _cts.Token); break;
                 case AiProvider.Anthropic: await RunAnthropic(text, _cts.Token); break;
                 default: await RunOpenAi(text, _cts.Token); break;
@@ -143,43 +148,6 @@ public sealed class AssistantService(AutomationApi api)
         await p.WaitForExitAsync(ct);
         if (p.ExitCode != 0 && err.Length > 0) Said?.Invoke(ChatRole.Error, err.ToString().Trim().Split('\n').Last().Trim());
         return p.ExitCode;
-    }
-
-    async Task RunClaudeCli(string text, CancellationToken ct)
-    {
-        var exe = FindOnPath("claude") ?? throw new InvalidOperationException("The Claude command-line tool was not found. Install Claude Code and run 'claude' once to log in, or choose another provider.");
-        var bridge = McpBridge() ?? throw new InvalidOperationException("Could not find the Prism MCP bridge (Prism.Mcp). Build it with: dotnet build Prism.Mcp -c Release");
-        var cfg = Path.Combine(Path.GetTempPath(), $"prism-mcp-{Environment.ProcessId}.json");
-        File.WriteAllText(cfg, new JsonObject { ["mcpServers"] = new JsonObject { ["prism"] = new JsonObject { ["command"] = bridge.command, ["args"] = new JsonArray(bridge.args.Select(a => (JsonNode)a).ToArray()) } } }.ToJsonString());
-        var args = new List<string> { "-p", "--output-format", "stream-json", "--verbose", "--mcp-config", cfg, "--strict-mcp-config", "--allowedTools", "mcp__prism", "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "Task", "Read", "Glob", "Grep" };
-        args.Add("mcp__prism__assistant");
-        if (!Settings.AllowFiles) { args.Add("mcp__prism__file"); }
-        args.AddRange(["--append-system-prompt", SystemPrompt]);
-        if (!string.IsNullOrWhiteSpace(Settings.CliModel)) args.AddRange(["--model", Settings.CliModel]);
-        if (_claudeSession != null) args.AddRange(["--resume", _claudeSession]);
-        bool said = false;
-        await RunProcess(exe, args, text, line =>
-        {
-            JsonNode? n; try { n = JsonNode.Parse(line); } catch { return; }
-            var type = n?["type"]?.ToString();
-            if (type == "system" && n?["session_id"] != null) _claudeSession = n["session_id"]!.ToString();
-            else if (type == "assistant")
-            {
-                foreach (var block in n!["message"]?["content"]?.AsArray() ?? [])
-                {
-                    var bt = block?["type"]?.ToString();
-                    if (bt == "text" && !string.IsNullOrWhiteSpace(block!["text"]?.ToString())) { Said?.Invoke(ChatRole.Assistant, block["text"]!.ToString().Trim()); said = true; }
-                    else if (bt == "tool_use" && block!["name"]?.ToString() != "ToolSearch") Said?.Invoke(ChatRole.Tool, ToolLine(block!["name"]?.ToString()?.Replace("mcp__prism__", "") ?? "tool", block["input"] as JsonObject));
-                }
-            }
-            else if (type == "result")
-            {
-                if (n!["session_id"] != null) _claudeSession = n["session_id"]!.ToString();
-                if (!said && n["result"]?.ToString() is { Length: > 0 } r) Said?.Invoke(ChatRole.Assistant, r);
-                if (n["is_error"]?.GetValue<bool>() == true && n["result"] != null) Said?.Invoke(ChatRole.Error, n["result"]!.ToString());
-            }
-        }, ct);
-        try { File.Delete(cfg); } catch { }
     }
 
     async Task RunCodexCli(string text, CancellationToken ct)

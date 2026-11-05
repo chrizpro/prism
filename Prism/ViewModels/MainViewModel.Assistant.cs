@@ -33,13 +33,14 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial string AssistantKey { get; set; } = "";
     [ObservableProperty] public partial bool AssistantAllowFiles { get; set; }
     [ObservableProperty] public partial bool AssistantRemember { get; set; }
-    public bool AssistantNeedsKey => AssistantProviderIndex >= 2;
+    // The provider dropdowns list Codex (login), Claude (API key) and OpenAI (API key) in enum order.
+    AiProvider AssistantProvider => (AiProvider)(AssistantProviderIndex + 1);
+    public bool AssistantNeedsKey => AssistantProvider != AiProvider.CodexCli;
     public bool AssistantEmpty => ChatMessages.Count == 0;
-    public string AssistantProviderHint => AssistantProviderIndex switch
+    public string AssistantProviderHint => AssistantProvider switch
     {
-        0 => "Uses your Claude Code login (run claude once in a terminal to sign in). No key needed.",
-        1 => "Uses your Codex login (run codex login once). Experimental.",
-        2 => "Uses your own Anthropic API key. Billed to your API account.",
+        AiProvider.CodexCli => "Uses your Codex login (run codex login once). Experimental.",
+        AiProvider.Anthropic => "Uses your own Anthropic API key. Billed to your API account.",
         _ => "Uses your own OpenAI API key. Billed to your API account.",
     };
 
@@ -54,7 +55,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(AssistantEmpty));
         });
         _assistantLoading = true;
-        AssistantProviderIndex = (int)s.Settings.Provider; LoadProviderFields();
+        AssistantProviderIndex = (int)s.Settings.Provider - 1; LoadProviderFields();
         AssistantAllowFiles = s.Settings.AllowFiles; AssistantRemember = s.Settings.RememberKeys;
         _assistantLoading = false;
     }
@@ -62,8 +63,8 @@ public sealed partial class MainViewModel
     void LoadProviderFields()
     {
         var st = Assistant!.Settings;
-        AssistantModel = AssistantProviderIndex switch { 2 => st.AnthropicModel, 3 => st.OpenAiModel, _ => st.CliModel };
-        AssistantKey = AssistantProviderIndex switch { 2 => st.AnthropicKey, 3 => st.OpenAiKey, _ => "" };
+        AssistantModel = AssistantProvider switch { AiProvider.Anthropic => st.AnthropicModel, AiProvider.OpenAi => st.OpenAiModel, _ => st.CliModel };
+        AssistantKey = AssistantProvider switch { AiProvider.Anthropic => st.AnthropicKey, AiProvider.OpenAi => st.OpenAiKey, _ => "" };
         OnPropertyChanged(nameof(AssistantNeedsKey)); OnPropertyChanged(nameof(AssistantProviderHint));
     }
 
@@ -71,8 +72,8 @@ public sealed partial class MainViewModel
     {
         if (Assistant == null || _assistantLoading) return;
         var st = Assistant.Settings;
-        st.Provider = (AiProvider)AssistantProviderIndex;
-        switch (AssistantProviderIndex) { case 2: st.AnthropicModel = AssistantModel; st.AnthropicKey = AssistantKey; break; case 3: st.OpenAiModel = AssistantModel; st.OpenAiKey = AssistantKey; break; default: st.CliModel = AssistantModel; break; }
+        st.Provider = AssistantProvider;
+        switch (st.Provider) { case AiProvider.Anthropic: st.AnthropicModel = AssistantModel; st.AnthropicKey = AssistantKey; break; case AiProvider.OpenAi: st.OpenAiModel = AssistantModel; st.OpenAiKey = AssistantKey; break; default: st.CliModel = AssistantModel; break; }
         st.AllowFiles = AssistantAllowFiles; st.RememberKeys = AssistantRemember;
         Assistant.Save();
     }
@@ -80,7 +81,7 @@ public sealed partial class MainViewModel
     partial void OnAssistantProviderIndexChanged(int value)
     {
         if (_assistantLoading || Assistant == null) return;
-        _assistantLoading = true; Assistant.Settings.Provider = (AiProvider)value; LoadProviderFields(); _assistantLoading = false;
+        _assistantLoading = true; Assistant.Settings.Provider = AssistantProvider; LoadProviderFields(); _assistantLoading = false;
         Assistant.Reset(); Assistant.Save();
     }
     partial void OnAssistantModelChanged(string value) => StoreSettings();

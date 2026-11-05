@@ -1,6 +1,6 @@
 # Credits and licenses
 
-Prism is built on open-source software. Thank you to everyone who works on these projects.
+Prism is released under the [MIT License](https://github.com/chrizpro/prism/blob/main/LICENSE). It is built on open-source software. Thank you to everyone who works on these projects.
 
 The installed app includes a `THIRD-PARTY-NOTICES.txt` file with the full license text of every component it ships, and a `licenses` folder with the license files of the native libraries.
 

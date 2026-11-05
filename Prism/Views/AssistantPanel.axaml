@@ -10,7 +10,6 @@
                     <TextBlock Text="Assistant" FontWeight="SemiBold" FontSize="14"/>
                 </StackPanel>
                 <ComboBox Grid.Column="1" SelectedIndex="{Binding AssistantProviderIndex}" Width="170" FontSize="12" Margin="0,0,6,0">
-                    <ComboBoxItem Content="Claude (your login)"/>
                     <ComboBoxItem Content="Codex (your login)"/>
                     <ComboBoxItem Content="Claude (API key)"/>
                     <ComboBoxItem Content="OpenAI (API key)"/>

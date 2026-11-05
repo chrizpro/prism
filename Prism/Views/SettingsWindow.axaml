@@ -95,7 +95,7 @@
                     <TextBlock Text="AI Assistant" FontSize="20" FontWeight="SemiBold"/>
                     <TextBlock Text="Provider" FontWeight="SemiBold"/>
                     <ComboBox SelectedIndex="{Binding AssistantProviderIndex}" Width="250" HorizontalAlignment="Left">
-                        <ComboBoxItem Content="Claude (your login)"/><ComboBoxItem Content="Codex (your login)"/><ComboBoxItem Content="Claude (API key)"/><ComboBoxItem Content="OpenAI (API key)"/>
+                        <ComboBoxItem Content="Codex (your login)"/><ComboBoxItem Content="Claude (API key)"/><ComboBoxItem Content="OpenAI (API key)"/>
                     </ComboBox>
                     <TextBlock Text="{Binding AssistantProviderHint}" Classes="soft" TextWrapping="Wrap"/>
                     <TextBlock Text="Model" FontWeight="SemiBold"/>

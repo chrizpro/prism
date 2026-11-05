@@ -44,6 +44,7 @@ if (!(Test-Path -LiteralPath (Join-Path $PublishDirectory $executable))) { throw
 foreach ($name in $nativeNames) {
     if (!(Test-Path -LiteralPath (Join-Path $PublishDirectory $name))) { Copy-Item -LiteralPath (Join-Path $NativeDirectory $name) -Destination $PublishDirectory }
 }
+Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $PublishDirectory 'LICENSE.txt')
 # The restore output of every published project lists exactly which packages ship.
 $assetsFiles = Get-ChildItem -LiteralPath (Join-Path $OutputDirectory 'build/obj') -Recurse -Filter project.assets.json -ErrorAction SilentlyContinue | ForEach-Object FullName
 if ($assetsFiles) { & (Join-Path $PSScriptRoot 'Write-Notices.ps1') -PublishDirectory $PublishDirectory -AssetsFile $assetsFiles -Runtime $Runtime }

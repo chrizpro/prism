@@ -1006,7 +1006,7 @@ public sealed partial class AutomationApi
                 S.RefreshRegion();
                 return new JsonObject { ["selectedTriangles"] = sel.Tris.Count, ["area"] = Math.Round(sel.Area(), 3), ["of"] = m.TriCount };
             });
-        Add("assistant", "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Claude login, 1 Codex login, 2 Claude API key, 3 OpenAI API key).",
+        Add("assistant", "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI API key).",
             Schema(["action"], ("action", "string", "open | close | send | transcript | new | provider"), ("text", "string", "Message for send."), ("index", "integer", "Provider index.")), async a =>
             {
                 switch (Str(a, "action"))

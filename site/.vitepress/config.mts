@@ -43,6 +43,7 @@ const guideSidebar = [
     { text: 'Simulation', link: '/guide/simulation' },
     { text: 'Manufacturing', link: '/guide/manufacturing' },
     { text: 'Rendering and materials', link: '/guide/rendering' },
+    { text: 'AI assistant', link: '/guide/assistant' },
     { text: 'AR and sharing', link: '/guide/ar' },
     { text: 'Scan and mesh', link: '/guide/scan' },
     { text: 'ECAD integration', link: '/guide/ecad' },

@@ -80,7 +80,7 @@ Line 'Prism includes software developed by the third parties listed below. Each 
 Line 'its own license, reproduced in full in this file. Native libraries are dynamically linked and their'
 Line 'license files are also in the "licenses" folder next to this file.'
 Line
-Line "Source code for Prism: $repo"
+Line "Prism is released under the MIT License (LICENSE.txt). Source code: $repo"
 
 Section 'LGPL libraries: source code and replacement'
 Line 'Open CASCADE Technology and Netgen are licensed under the GNU Lesser General Public License version'

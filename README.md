@@ -134,6 +134,10 @@ After that, these are the directions we plan to take:
 
 The roadmap shows direction, not dates. The order can change as the polish work teaches us more.
 
+## License
+
+Prism is released under the [MIT License](LICENSE). It is built on open-source components with their own licenses, including Open CASCADE Technology and Netgen (LGPL-2.1); see [Credits and licenses](https://chrizpro.github.io/prism/docs/reference/credits).
+
 ## Documents and preferences
 
 New documents use `.prism`. Older `.ourcad` documents still open and appear in file dialogs, the workspace and the parts library.
