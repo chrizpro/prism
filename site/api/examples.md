@@ -29,3 +29,9 @@ A script with its own dialog, so it works as a reusable tool.
 Freeform cages built and edited from code, then converted.
 
 <<< @/data/examples/05_freeform_steam_iron.py
+
+## Camera lens
+
+The showcase lens from the website, built only with Solid tools: revolved parts, fillets and chamfers found by geometry, knurling and ribs cut with circular patterns, a glass element from a sphere and a cylinder, and a material for each part.
+
+<<< @/data/examples/06_camera_lens.py

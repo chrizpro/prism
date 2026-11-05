@@ -2,10 +2,9 @@ import type { ImageMetadata } from 'astro'
 import appCompact from '../assets/shots/app-compact.png'
 import sketch from '../assets/shots/sketch.png'
 import nurbsDuct from '../assets/shots/nurbs-duct-vp.png'
-import iron from '../assets/shots/freeform-iron.png'
+import lensRender from '../assets/shots/lens-render.png'
 import bottle from '../assets/shots/freeform-bottle-vp.png'
 import cae from '../assets/shots/cae-stress.png'
-import gallery from '../assets/shots/gallery-studio.png'
 
 export type Feature = {
   slug: string
@@ -84,8 +83,8 @@ export const features: Feature[] = [
     kicker: 'Subdivision modeling',
     title: 'Shape products like clay, finish them as CAD.',
     lede: 'Start from a box, cylinder or loft and pull a coarse cage into the shape you want. Prism keeps a smooth subdivision surface under the cage and converts it to exact NURBS when the form is right.',
-    image: iron,
-    alt: 'A freeform steam iron in Prism with its parts listed in the browser.',
+    image: bottle,
+    alt: 'A freeform detergent bottle with a handle, modeled in Prism.',
     accent: '#B5F2FF',
     tabs: ['Freeform'],
     docs: '/guide/freeform',
@@ -153,8 +152,8 @@ export const features: Feature[] = [
     kicker: 'Presentation',
     title: 'Pictures that sell the design.',
     lede: 'Apply physically based materials from the library, light the scene with sun, lamps and spots, and render studio images. Then export to AR and look at the part on your desk, at real size, from your phone.',
-    image: gallery,
-    alt: 'A studio render of spheres on plinths in ceramic, carbon, chrome, aluminium, copper and wood materials.',
+    image: lensRender,
+    alt: 'A studio render of a camera lens in black anodised aluminium, rubber, polished steel and coated glass.',
     accent: '#EC4899',
     tabs: ['Render', 'Materials'],
     docs: '/guide/rendering',
@@ -171,8 +170,6 @@ export const features: Feature[] = [
     kicker: 'Reverse engineering',
     title: 'Turn a scan back into a part.',
     lede: 'Import a mesh or point cloud, clean and repair it, then fit planes, cylinders and freeform surfaces to the regions you pick. Check the deviation between the rebuilt CAD and the scan in colour.',
-    image: bottle,
-    alt: 'A freeform detergent bottle with a handle, modeled in Prism.',
     accent: '#22D3EE',
     tabs: ['Mesh', 'Reverse Engineer'],
     docs: '/guide/scan',
