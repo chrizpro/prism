@@ -1,7 +1,7 @@
 [
  {
   "name": "assistant",
-  "description": "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Claude login, 1 Codex login, 2 Claude API key, 3 OpenAI API key).",
+  "description": "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI API key).",
   "inputSchema": {
    "type": "object",
    "properties": {

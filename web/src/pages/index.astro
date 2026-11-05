@@ -5,8 +5,8 @@ import FeatureCard from '../components/FeatureCard.astro'
 import { features } from '../data/features'
 import { tabs, workspaces, uniqueTools } from '../data/catalog'
 import { docs, href, version } from '../config'
-import heroShot from '../assets/shots/freeform-iron.png'
-import render from '../assets/shots/azure-hdpe-studio.png'
+import heroShot from '../assets/shots/lens-app.png'
+import render from '../assets/shots/lens-render.png'
 import stress from '../assets/shots/cae-stress-vp.png'
 import mouse from '../assets/shots/nurbs-mouse-vp.png'
 
@@ -32,8 +32,8 @@ const stats = [
       <p class="platforms muted">Windows · macOS · Linux</p>
     </div>
     <div class="wrap stage">
-      <div class="shot main"><Image src={heroShot} alt="Prism's Design workspace with a freeform steam iron, the model browser, ribbon and properties panel." widths={[800, 1500]} sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" /></div>
-      <div class="shot float left"><Image src={render} alt="Studio render of a blue detergent bottle." width={420} /></div>
+      <div class="shot main"><Image src={heroShot} alt="Prism's Design workspace with a camera lens modeled from solids, its parts in the browser and the design history below." widths={[800, 1500]} sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" /></div>
+      <div class="shot float left"><Image src={render} alt="Studio render of the camera lens." width={420} /></div>
       <div class="shot float right"><Image src={stress} alt="Stress result on a bracket." width={420} /></div>
     </div>
   </section>
