@@ -9,6 +9,43 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I003 | Skylark has mirrored wings, grounded wheels and clear propeller blades")]
+    [Trait("TestId", "GAL-I003")]
+    public async Task AircraftLayoutAndClearances()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I003", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/skylark-aircraft.prism") });
+        foreach (string part in new[] { "main wing", "teal wingtip", "tailplane" })
+        {
+            var port = await mcp.Call("object_info", new { @object = "Port " + part });
+            var starboard = await mcp.Call("object_info", new { @object = "Starboard " + part });
+            Assert.True(Math.Abs((double)port["volume"]! - (double)starboard["volume"]!) < .01);
+            Assert.True(Math.Abs((double)port["min"]![1]! + (double)starboard["max"]![1]!) < .001);
+        }
+        foreach (string wheel in new[] { "Nose", "Port", "Starboard" })
+        {
+            var tire = await mcp.Call("object_info", new { @object = wheel + " tire" });
+            Assert.InRange((double)tire["min"]![2]!, -.001, .001);
+        }
+        var fuselage = await mcp.Call("object_info", new { @object = "Pearl fuselage" });
+        foreach (int side in new[] { -1, 1 })
+        {
+            var blade = await mcp.Call("object_info", new { @object = "Propeller blade " + side });
+            Assert.True((double)blade["min"]![2]! >= 60);
+            Assert.True((double)fuselage["min"]![0]! - (double)blade["max"]![0]! >= 17.9);
+        }
+        foreach (var angle in new[] { ("front-quarter", -125), ("side", 180), ("nose", -90) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = 12, fit = true, grid = false, display = "shaded" });
+            await mcp.Call("view", new { distance = 3600 });
+            await mcp.Capture("aircraft-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I002 | Cove arm posts clear the complete back cushion cage by at least 8 mm")]
     [Trait("TestId", "GAL-I002")]
     public async Task ChairPostsStayOutsideBackCushion()

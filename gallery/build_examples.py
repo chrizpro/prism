@@ -171,9 +171,10 @@ def lounge_chair():
     return "cove-chair", -35, 15
 
 
-def verify_and_save(id, yaw, pitch, render=True):
+def verify_and_save(id, yaw, pitch, render=True, distance=None):
     cad.select()
     cad.call("view", yaw=yaw, pitch=pitch, fit=True, grid=False, display="shaded")
+    if distance is not None: cad.call("view", distance=distance)
     cad.call("wait_idle")
     path = ROOT / "gallery/models" / (id + ".prism")
     cad.save(str(path))
@@ -194,6 +195,7 @@ def verify_and_save(id, yaw, pitch, render=True):
         if obj.kind in ("Solid", "Surface"):
             assert cad.call("object_info", object=obj.name)["valid"]
     cad.call("view", yaw=yaw, pitch=pitch, fit=True, grid=False, display="shaded")
+    if distance is not None: cad.call("view", distance=distance)
     cad.call("wait_idle")
     screenshot = cad.call("screenshot", viewport=True, max_width=1200)
     (ROOT / "artifacts/gallery" / (id + "-viewport.png")).write_bytes(base64.b64decode(screenshot["_image"]["data"]))

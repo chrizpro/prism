@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "skylark-aircraft",
+      "Name": "Skylark light aircraft",
+      "Description": "Light airplane with a sculpted fuselage, lofted wings and three-wheel landing gear.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/skylark-aircraft.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/skylark-aircraft.png?v=2883da76b39cab79",
+      "Bytes": 773041,
+      "Sha256": "692c355d67ec28ee873afc676cd37a0b30de6ed9ffd4ef85b9c1c24a239e8eaa"
+    },
+    {
       "Id": "atelier-table",
       "Name": "Atelier side table",
       "Description": "Rounded oak shelves on a steel frame, with procedural grain and clear coat.",
@@ -52,19 +65,6 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/camera-lens.png?v=edcf97942ba59f8d",
       "Bytes": 2341124,
       "Sha256": "a473b5463ab777fceaf16b1e81c8977fc352b6a581335d26acb2385724611bdc"
-    },
-    {
-      "Id": "glide-iron",
-      "Name": "Glide steam iron",
-      "Description": "Sculpted housing, curved grip and a metal soleplate.",
-      "Workflow": "Freeform",
-      "Author": "Prism / Codex",
-      "License": "MIT",
-      "MinimumVersion": "0.1.0",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/glide-iron.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/glide-iron.png?v=ca0022df107cbd05",
-      "Bytes": 70057,
-      "Sha256": "633dccc0e428aa94056eda20ae864c093621a0c218d37ee166790a2f60d15b52"
     },
     {
       "Id": "azure-bottle",
