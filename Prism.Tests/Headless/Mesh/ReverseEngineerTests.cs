@@ -228,6 +228,67 @@ public class ReverseEngineerTests
         Assert.Equal("select an area with Select Region first, then come back", Result(command, "Plane"));
     }
 
+    // ------------------------------------------------------------------ report-only modes
+
+    [AvaloniaFact(DisplayName = "REV-H114 | Segment & Fit 'Nothing - just analyze' keeps its region report and creates nothing")]
+    [Trait("TestId", "REV-H114")]
+    public void SegmentAnalyzeOnly()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, DenseCube());
+        var command = Begin(session, () => new MeshSegmentCommand());
+        Pick(command, "Mesh", mesh);
+        var output = Apply(command);
+        Assert.True(output.NoOp);
+        Assert.Empty(output.Add);
+        Assert.Equal("6", Result(command, "Regions found"));
+        Assert.Equal(6, command.Results.Count(r => r.Label.EndsWith("Plane")));
+    }
+
+    [AvaloniaFact(DisplayName = "REV-H115 | Segment & Fit reports a region number that does not exist")]
+    [Trait("TestId", "REV-H115")]
+    public void SegmentMissingRegion()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, DenseCube());
+        var command = Begin(session, () => new MeshSegmentCommand());
+        Pick(command, "Mesh", mesh);
+        SetChoice(command, "Create CAD geometry", "Only the region below");
+        SetInteger(command, "Region number", 9);
+        Assert.Empty(Apply(command).Add);
+        Assert.Equal("9 does not exist", Result(command, "Region"));
+    }
+
+    [AvaloniaFact(DisplayName = "REV-H116 | Rebuild from Scan analysis mode keeps its region and deviation report")]
+    [Trait("TestId", "REV-H116")]
+    public void RebuildAnalysisOnly()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, DenseCube());
+        var command = Begin(session, () => new MeshRebuildCommand());
+        Pick(command, "Mesh", mesh);
+        var output = Apply(command);
+        Assert.True(output.NoOp);
+        Assert.Equal("6", Result(command, "Regions"));
+        Assert.Equal("100%", Result(command, "Surface explained"));
+    }
+
+    [AvaloniaFact(DisplayName = "REV-H117 | Section Lines & Arcs reports its fit without creating curves")]
+    [Trait("TestId", "REV-H117")]
+    public void SectionFitReportOnly()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, DenseCube());
+        var command = Begin(session, () => new MeshSectionFitCommand());
+        Pick(command, "Mesh", mesh);
+        SetNumber(command, "First position", 10);
+        SetToggle(command, "Create lines and arcs", false);
+        var output = BuildOutput(command);
+        Assert.True(output.NoOp);
+        Assert.Equal("1", Result(command, "Outlines"));
+        Assert.Equal("4 lines + 0 arcs (from 64 points)", Result(command, "Elements"));
+    }
+
     // ------------------------------------------------------------------ Select Region
 
     [AvaloniaFact(DisplayName = "REV-H111 | Select Region 'Select everything', invert and clear update the reported selection")]

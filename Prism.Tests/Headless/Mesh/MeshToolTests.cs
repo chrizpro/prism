@@ -353,6 +353,22 @@ public class MeshToolTests
         Assert.All(output.Add, curve => AssertClose(80, Length(curve.Shape!), 1e-4, "Section perimeter (mm)"));
     }
 
+    [AvaloniaFact(DisplayName = "MSH-H033 | Mesh Section Curves reports its outlines without creating curves")]
+    [Trait("TestId", "MSH-H033")]
+    public void SectionReportOnly()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, BoxMesh(Vec3.Zero, 20, 20, 20));
+        var command = Begin(session, () => new MeshSectionCommand());
+        Pick(command, "Mesh", mesh);
+        SetNumber(command, "First position", 10);
+        var output = BuildOutput(command);
+        Assert.True(output.NoOp);
+        Assert.Empty(output.Add);
+        Assert.Equal("1", Result(command, "Outlines"));
+        Assert.Equal("400 mm²", Result(command, "Net section area"));
+    }
+
     [AvaloniaFact(DisplayName = "MSH-H016 | Mesh Section Curves reports a plane that misses the mesh")]
     [Trait("TestId", "MSH-H016")]
     public void SectionMisses()
@@ -621,7 +637,7 @@ public class MeshToolTests
         Assert.InRange(int.Parse(Result(command, "Triangles used").Replace(",", "")), 200, 300);
     }
 
-    [AvaloniaFact(DisplayName = "MSH-H031 | Solid to Mesh 'Fine' tessellates a sphere more finely than 'Coarse', both closed")]
+    [AvaloniaFact(DisplayName = "MSH-H031 | Solid to Mesh detail levels tessellate a sphere coarse < normal < fine, all closed")]
     [Trait("TestId", "MSH-H031")]
     public void SolidToMeshDetail()
     {
@@ -639,10 +655,10 @@ public class MeshToolTests
             AssertClose(4.0 / 3 * Math.PI * 1000, mesh.Volume(), 4.0 / 3 * Math.PI * 1000 * 0.02, "Mesh volume (mm³)");
             return mesh.TriCount;
         }
-        // Coarse and Normal are not compared: the kernel keeps a finer triangulation already stored on the body
-        // (for example the display mesh), so they can return the same mesh. See the Mesh guide's coverage gaps.
-        int coarse = Triangles("Coarse (draft)");
-        Assert.True(Triangles("Fine (print quality)") > coarse);
+        // Asked from finest to coarsest so a triangulation left on the body by one level cannot satisfy the next.
+        int fine = Triangles("Fine (print quality)"), normal = Triangles("Normal"), coarse = Triangles("Coarse (draft)");
+        Assert.True(fine > normal, $"fine {fine} vs normal {normal}");
+        Assert.True(normal > coarse, $"normal {normal} vs coarse {coarse}");
     }
 
     [AvaloniaFact(DisplayName = "MSH-H032 | Solid to Mesh 'Custom' uses the chord error and can drop the original")]

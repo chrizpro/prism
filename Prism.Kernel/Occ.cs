@@ -308,6 +308,8 @@ public static unsafe class Occ
     public static Shape Sew(IReadOnlyList<Shape> shapes, double tol, bool solid) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_sew(p, shapes.Count, tol, solid ? 1 : 0)); }
 
     // ---- transforms
+    /// <summary>An independent copy of the geometry with no stored triangulation.</summary>
+    public static Shape Copy(Shape s) => Wrap(Native.ck_copy(s.Handle));
     public static Shape Translate(Shape s, Vec3 v) => Wrap(Native.ck_translate(s.Handle, v.X, v.Y, v.Z));
     /// <summary>Rotate by the row-major 3x3 matrix m, then move by t.</summary>
     public static Shape Transform(Shape s, double[] m, Vec3 t) { var tt = new[] { t.X, t.Y, t.Z }; fixed (double* pm = m) fixed (double* pt = tt) return Wrap(Native.ck_transform(s.Handle, pm, pt)); }

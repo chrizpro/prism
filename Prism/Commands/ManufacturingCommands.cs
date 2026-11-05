@@ -169,13 +169,16 @@ public sealed class CncDesignCheckCommand : ManufacturingCheckCommand
     public override string Hint=>"Screen +Z tool access, reach and thin walls on the model. Red faces are hidden from a top-down approach; orange faces exceed the selected reach. This does not certify tool access to corners or holes.";
     protected override void RunChecks(SceneObject body,TriMesh mesh)
     {
-        Health(mesh);double hiddenArea=0,deepArea=0,eps=Math.Max(mesh.Size.Length*1e-6,1e-5);
+        Health(mesh);double hiddenArea=0,deepArea=0,eps=Math.Max(mesh.Size.Length*1e-6,1e-5),off=Math.Max(mesh.Size.Length*1e-5,1e-4);
         for(int t=0;t<mesh.TriCount;t++)
         {
             var(a,b,c)=mesh.Tri(t);var center=(mesh.P(a)+mesh.P(b)+mesh.P(c))/3;
-            bool hidden=mesh.Bvh.Raycast(center+Vec3.UnitZ*eps,Vec3.UnitZ,mesh.Size.Z+1)!=null;
+            // Faces looking down cannot be reached from +Z. Otherwise probe upward from just outside the face: starting on the
+            // face's own plane made vertical walls graze themselves and count as hidden.
+            var normal=mesh.FaceNormal(t);
+            bool hidden=normal.Z< -1e-3||mesh.Bvh.Raycast(center+normal*off+Vec3.UnitZ*eps,Vec3.UnitZ,mesh.Size.Z+1)!=null;
             bool deep=mesh.Max.Z-center.Z>_reach.Value;
-            if(hidden&&mesh.FaceNormal(t).Z<.1){hiddenArea+=mesh.TriArea(t);Highlight(mesh,t,0xAAFF4545);}
+            if(hidden&&normal.Z<.1){hiddenArea+=mesh.TriArea(t);Highlight(mesh,t,0xAAFF4545);}
             else if(deep){deepArea+=mesh.TriArea(t);Highlight(mesh,t,0xAAFFAD33);}
         }
         Row("Top-down inaccessible area",$"{hiddenArea:0.##} mm²; includes underside faces, consider flips or another setup",hiddenArea>0?2:1);

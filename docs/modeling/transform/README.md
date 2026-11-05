@@ -14,7 +14,7 @@ The headless cases check exact-body bounds and volume for translation, world-ori
 
 ## Coverage gaps
 
-Known gap found on 2026-11-05: Warp's Bend adds the shape's centre along the bend axis twice, so a shape that is not centred on the origin along that axis jumps when bent (a line from X = 0 to 100 bent 90° ends at X ≈ 113.7 instead of 63.7). The maintained Bend case uses a centred line.
+Fixed on 2026-11-05: Warp's Bend used to add the shape's centre along the bend axis twice, so a shape not centred on the origin jumped when bent (a line from X = 0 to 100 bent 90° ended at X ≈ 113.7 instead of 63.7). Bend tests now cover a centred line and one starting at the origin.
 
 
 Mixed selections, custom transform pivots and desktop gizmo interactions still need coverage.

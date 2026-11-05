@@ -346,9 +346,6 @@ public class CncOperationTests
         var session = new CadSession();
         var command = Begin(session, () => new TurnCommand());
         Pick(command, "Profile of the part (half section on the XZ plane)", StepShaftProfile(session));
-        // The first build sets "Top of the material" from the profile, which re-enters the preview and duplicates the
-        // result rows; a second build reports them once. See the CAM guide's coverage gaps.
-        BuildOutput(command);
         var path = Toolpath(command);
         Assert.Equal(3, path.LayerCount);
         Assert.Equal("20 mm", Result(command, "Largest diameter"));

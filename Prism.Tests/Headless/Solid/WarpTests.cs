@@ -108,6 +108,23 @@ public class WarpTests
         AssertClose(100, Length(bent), 1, "Bent length within 1% (control-net approximation, mm)");
     }
 
+    [AvaloniaFact(DisplayName = "WRP-H007 | Bend keeps a line that starts at the origin attached at its start")]
+    [Trait("TestId", "WRP-H007")]
+    public void BendOffCentreLine()
+    {
+        var session = new CadSession();
+        var line = session.AddObject(Occ.Line(Vec3.Zero, new Vec3(100, 0, 0)), "Line", ObjKind.Curve);
+        var command = Warp(session, line, "Bend", "X");
+        SetChoice(command, "Bend toward", "+Z");
+        SetNumber(command, "Angle", 90);
+        var (_, bent) = Assert.Single(BuildOutput(command).Replace);
+        double radius = 100 / (Math.PI / 2);
+        var (start, end) = Ends(bent);
+        AssertPoint(Vec3.Zero, start, 1e-3, "Bend start stays");
+        AssertPoint(new Vec3(radius, 0, radius), end, 0.05, "Quarter-circle end");
+        AssertClose(100, Length(bent), 1, "Bent length within 1% (control-net approximation, mm)");
+    }
+
     [AvaloniaFact(DisplayName = "WRP-H005 | Bend refuses a direction along the bend axis")]
     [Trait("TestId", "WRP-H005")]
     public void BendRefusesAxisDirection()

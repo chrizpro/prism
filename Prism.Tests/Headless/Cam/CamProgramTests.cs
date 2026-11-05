@@ -248,7 +248,7 @@ public class CamProgramTests
         Assert.Contains(command.Results, r => r.Label == "Possible gouges");
     }
 
-    [AvaloniaFact(DisplayName = "CAM-H113 | CNC Design Check finds the hidden underside and the area beyond reach")]
+    [AvaloniaFact(DisplayName = "CAM-H113 | CNC Design Check finds only the underside hidden and the pocket floor beyond reach")]
     [Trait("TestId", "CAM-H113")]
     public void DesignCheck()
     {
@@ -262,15 +262,30 @@ public class CamProgramTests
         SetNumber(command, "Usable cutter reach", 5);
         Run(command, "Run checks");
         BuildOutput(command);
-        // The underside (400 mm²) is always included. Vertical walls are currently counted as well, because the upward
-        // probe from a wall runs along the wall itself; that is not asserted. See the CAM guide's coverage gaps.
-        double hidden = double.Parse(Result(command, "Top-down inaccessible area").Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
-        Assert.True(hidden >= 400 - 1e-6);
+        // Only the 20 × 20 underside is hidden: outer walls and the open pocket's walls are reachable from above.
+        Assert.StartsWith("400 mm²", Result(command, "Top-down inaccessible area"));
         // The 100 mm² pocket floor sits 6 mm down. Depth is judged per triangle centre, so lower wall triangles can add to it.
         double deep = double.Parse(Result(command, "Beyond selected reach").Split(' ')[0], System.Globalization.CultureInfo.InvariantCulture);
         Assert.True(deep >= 100 - 1e-6);
         Assert.Equal("Closed, manifold, outward oriented", Result(command, "Mesh health"));
         Assert.Equal("Use an inside radius of at least 3 mm for this cutter; allow extra radius for smoother engagement.", Result(command, "Inside corner target"));
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H118 | CNC Design Check flags faces under an overhang as hidden")]
+    [Trait("TestId", "CAM-H118")]
+    public void DesignCheckOverhang()
+    {
+        var session = new CadSession();
+        // An L-shaped block: a 10 mm shelf overhangs the 20 × 20 base on the +X side.
+        using var basePart = BoxAt(Vec3.Zero, 20, 20, 10);
+        using var shelf = BoxAt(new Vec3(0, 0, 10), 30, 20, 5);
+        var body = session.AddObject(Occ.Fuse(basePart, shelf), "Shelf", ObjKind.Solid);
+        var command = Begin(session, () => new CncDesignCheckCommand());
+        Pick(command, "Model", body);
+        command.Params.OfType<ActionParam>().Single(a => a.Label == "Run checks").Run();
+        BuildOutput(command);
+        // Underside of the base (400), underside of the shelf overhang (10 × 20 = 200) and the base wall under it (20 × 10 = 200).
+        Assert.StartsWith("800 mm²", Result(command, "Top-down inaccessible area"));
     }
 
     [AvaloniaTheory(DisplayName = "CAM-H114 | FDM Preparation checks fit and walls for the block")]

@@ -51,7 +51,10 @@ public abstract class MeshCommand : Command
 
     protected static string Key(params object[] parts) => string.Join("|", parts.Select(p => p is double d ? d.ToString("R", CultureInfo.InvariantCulture) : p?.ToString() ?? ""));
 
+    /// <summary>Start a report-only build: clears the rows and returns an output that changes nothing.</summary>
     protected CommandOutput NoOp() { Results.Clear(); return new CommandOutput { NoOp = true }; }
+    /// <summary>Finish a report-only build, keeping the rows already written.</summary>
+    protected static CommandOutput Report() => new() { NoOp = true };
 }
 
 // ================================================================= Repair
@@ -430,7 +433,7 @@ public sealed class MeshSectionCommand : MeshCommand
         Row("Outlines", total.ToString(), total > 0 ? 1 : 2);
         if (total == 0) Row("Nothing here", "the plane does not cut the mesh", 2);
         else { Row("Net section area", N(Math.Abs(area), "mm²")); Row("Points", Count(_loops.Sum(l => l.Points.Count))); }
-        return _create.Value ? o : NoOp();
+        return _create.Value ? o : Report();
     }
 
     static double PolyArea(List<Vec3> p, Vec3 n)
@@ -664,10 +667,10 @@ public sealed class MeshSegmentCommand : MeshCommand
             Row($"{i + 1}.  {found[i].Describe()}", $"{found[i].Area:#,0} mm²   rms {found[i].Rms:0.###}");
         Row("Gray areas", "free-form surface that is not a simple shape");
 
-        if (_create.Index == 0) return NoOp();
+        if (_create.Index == 0) return Report();
         var o = new CommandOutput { Label = "Fit geometry", Icon = Icon };
         var pick = _create.Index == 1 ? found.Where((_, i) => i + 1 == _region.Value).ToList() : found;
-        if (_create.Index == 1 && pick.Count == 0) { Row("Region", $"{_region.Value} does not exist", 2); return NoOp(); }
+        if (_create.Index == 1 && pick.Count == 0) { Row("Region", $"{_region.Value} does not exist", 2); return Report(); }
         var graph = RegionGraph.Build(m, found);
         foreach (var r in pick)
         {
@@ -903,7 +906,13 @@ public sealed class SolidToMeshCommand : Command
         {
             double diag = obj.Mesh.Max.DistanceTo(obj.Mesh.Min);
             double d = _detail.Index switch { 0 => diag * 0.004, 1 => diag * 0.001, 2 => Math.Max(diag * 0.0002, 0.005), _ => _defl.Value };
-            var md = obj.Shape.Tessellate(Math.Max(d, 1e-4));
+            // Mesh a geometry copy without triangulation: the kernel keeps any finer triangulation already stored on the
+            // body (such as the display mesh), which would make Coarse and Normal no coarser than what is on screen.
+            using var copy = Occ.Copy(obj.Shape);
+            // Each level also limits the angle between neighbouring facets; a single fixed angle would dominate the chord
+            // error on small curved bodies and make every level the same. Custom leaves the typed chord error in charge.
+            double angle = _detail.Index switch { 0 => 0.5, 1 => 0.25, 2 => 0.1, _ => 0.5 };
+            var md = copy.Tessellate(Math.Max(d, 1e-4), angle);
             var tm = MeshAnalysis.FromMeshData(md);
             o.Add.Add(new(null, obj.Name + " mesh", ObjKind.Mesh, obj.Color, null, null, obj.Look, tm));
             if (!_keep.Value) o.Remove.Add(obj);

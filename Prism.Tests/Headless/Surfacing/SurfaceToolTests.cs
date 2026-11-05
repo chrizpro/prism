@@ -183,10 +183,9 @@ public class SurfaceToolTests
         var rebuilt = SingleSurface(output);
         AssertClose(100, rebuilt.Props().Area, 1e-3, "Rebuilt area (mm²)");
         AssertBounds(rebuilt, Vec3.Zero, new Vec3(10, 10, 0));
-        // The "Largest deviation (approx.)" readout measures distance to tessellation vertices rather than to the surface,
-        // so it reports several millimetres for this exact flat result. It is deliberately not asserted here; see the
-        // coverage gaps in the Surface and NURBS guide.
-        Assert.Single(command.Results, line => line.Label == "Largest deviation (approx.)");
+        var deviation = Assert.Single(command.Results, line => line.Label == "Largest deviation (approx.)");
+        Assert.True(deviation.IsGood, deviation.Value);
+        Assert.Equal("0 mm", deviation.Value);
         Assert.Equal(keep ? 0 : 1, output.Remove.Count);
     }
 
