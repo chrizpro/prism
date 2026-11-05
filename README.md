@@ -139,6 +139,10 @@ Preferences and support files live in `%LOCALAPPDATA%\Prism` on Windows. On firs
 <details>
 <summary>Automation, websites, releases and branding</summary>
 
+### Branches
+
+Day-to-day work happens on `develop`. `main` is the public, stable branch: pushes to it publish the website, and release tags are cut from it. Merge `develop` into `main` when work is ready to show.
+
 ### Automation
 
 The local MCP bridge is configured in `.mcp.json`. Build it with `dotnet build Prism.Mcp -c Release`. Automation environment variables use the `PRISM_` prefix. See [Scripting and API](https://chrizpro.github.io/prism/docs/api/).
