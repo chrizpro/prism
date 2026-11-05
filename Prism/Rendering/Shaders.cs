@@ -135,6 +135,14 @@ void main(){
 
     vec3 H = normalize(L1 + V);
     float spec = pow(max(dot(N, H), 0.0), mix(14.0, 240.0, mat.y)) * mix(0.10, 0.9, mat.y);
+    if(uLayers==1&&uAnisotropy.x>0.0){
+        vec3 T=abs(N.z)<0.999?normalize(cross(vec3(0,0,1),N)):vec3(1,0,0);
+        vec3 B=cross(N,T);T=T*cos(uAnisotropy.y)+B*sin(uAnisotropy.y);B=cross(N,T);
+        float a=max((1.0-mat.y)*(1.0-mat.y),0.0036),aspect=sqrt(1.0-0.9*uAnisotropy.x);
+        float ax=a/aspect,ay=a*aspect,den=pow(dot(H,T)/ax,2.0)+pow(dot(H,B)/ay,2.0)+pow(dot(H,N),2.0);
+        float directional=1.0/(3.14159265359*ax*ay*den*den);
+        spec=mix(spec,min(1.8,directional*a*0.5),uAnisotropy.x);
+    }
     float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.10;
     col *= 1.0 - mat.x;
     vec3 Rf = reflect(-V, N);
@@ -154,6 +162,12 @@ void main(){
         col=col*(1.0-coat*f)+coat*(env*f+vec3(highlight)*0.04);
     }
 
+    if(uLayers==1&&uZebra==0&&uField==0&&uTransmission.x>0.0){
+        float f0=pow((uTransmission.y-1.0)/(uTransmission.y+1.0),2.0);
+        float f=f0+(1.0-f0)*pow(1.0-max(dot(N,V),0.0),5.0);
+        vec3 through=mix(vec3(0.14,0.14,0.16),vec3(0.78,0.85,0.95),0.5+0.5*N.z)*uAbsorptionTint;
+        col=mix(col,through*(1.0-f)+env*f+vec3(spec)*f,uTransmission.x);
+    }
     if (uZebra == 1) {
         vec3 R = reflect(-V, N);
         float x = dot(R, normalize(vec3(0.62, 0.30, 0.72))) * 26.0;

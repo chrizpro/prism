@@ -61,7 +61,7 @@ public sealed partial class MainViewModel
         RecentAppearanceColors.Remove(AppearanceColor); RecentAppearanceColors.Insert(0, AppearanceColor);
         if (RecentAppearanceColors.Count > 8) RecentAppearanceColors.RemoveAt(8);
     }
-    bool HasAdvancedSurface => SelectedSurface.Gradient != ColorGradient.None || SelectedSurface.Weathering != WeatheringKind.None || SelectedSurface.Coat > 0 || SelectedSurface.Bump > 0 || SelectedSurface.ColorMap != null || SelectedSurface.RoughnessMap != null || SelectedSurface.BumpMap != null;
+    bool HasAdvancedSurface => SelectedSurface.Transmission > 0 || SelectedSurface.Anisotropy > 0 || SelectedSurface.Gradient != ColorGradient.None || SelectedSurface.Weathering != WeatheringKind.None || SelectedSurface.Coat > 0 || SelectedSurface.Bump > 0 || SelectedSurface.ColorMap != null || SelectedSurface.RoughnessMap != null || SelectedSurface.BumpMap != null;
     public double ColorValue { get => ColorCode.Hsv(AppearanceColor).V; set { var hsv = ColorCode.Hsv(AppearanceColor); ApplyColor(ColorCode.FromHsv(hsv.H, hsv.S, value)); } }
     public static Func<Task<uint?>>? PickScreenColor { get; set; }
 
@@ -152,6 +152,7 @@ public sealed partial class MainViewModel
     partial void OnSelectedSurfaceChanged(SurfaceStyle value)
 
     {
+        NotifyRenderingAppearance();
 
         OnPropertyChanged(nameof(GradientMode));
 

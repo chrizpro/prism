@@ -50,7 +50,11 @@ public sealed class RenderSetup
     public BackgroundFit ImageFit { get; set; } = BackgroundFit.Fill;
     public double ImageOffsetX { get; set; }
     public double ImageOffsetY { get; set; }
-    public override bool Equals(object? o) => o is RenderSetup r && r.Env == Env && r.Background == Background && r.Ground == Ground && r.Exposure == Exposure && r.BackgroundImage == BackgroundImage && r.ImageFit == ImageFit && r.ImageOffsetX == ImageOffsetX && r.ImageOffsetY == ImageOffsetY;
+    public string? EnvironmentImage { get; set; }
+    public float EnvironmentRotation { get; set; }
+    public float EnvironmentIntensity { get; set; } = 1;
+    public bool Denoise { get; set; }
+    public override bool Equals(object? o) => o is RenderSetup r && r.Env == Env && r.Background == Background && r.Ground == Ground && r.Exposure == Exposure && r.BackgroundImage == BackgroundImage && r.ImageFit == ImageFit && r.ImageOffsetX == ImageOffsetX && r.ImageOffsetY == ImageOffsetY && r.EnvironmentImage == EnvironmentImage && r.EnvironmentRotation == EnvironmentRotation && r.EnvironmentIntensity == EnvironmentIntensity && r.Denoise == Denoise;
     public override int GetHashCode() => HashCode.Combine(Env, Background, Ground, Exposure);
 }
 

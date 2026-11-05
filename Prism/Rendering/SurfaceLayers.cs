@@ -68,18 +68,29 @@ public sealed class SurfaceLayers
         t = t * t * (3 - 2 * t);
         return t * (s.BottomOnly ? Math.Clamp(1 - local.Z / Math.Max(s.WeatherHeight, .1f), 0, 1) : 1);
     }
-    Vector3 TexturePosition(Vector3 local) => Rotate(local / Style.TextureSize, Style.TextureAngle);
+    static Vector3 ProjectionAxis(Vector3 p, GradientAxis axis) => axis switch { GradientAxis.X => new(p.Y, p.Z, p.X), GradientAxis.Y => new(p.X, p.Z, p.Y), _ => p };
+    public static Vector3 MapPosition(SurfaceStyle s, Vector3 local) => ProjectionAxis(Rotate((local - new Vector3(s.TextureOffsetX, s.TextureOffsetY, s.TextureOffsetZ)) / s.TextureSize, s.TextureAngle), s.TextureAxis);
+    public static Vector3 MapNormal(SurfaceStyle s, Vector3 normal) => ProjectionAxis(Rotate(normal, s.TextureAngle), s.TextureAxis);
+    public static Vector3 SampleImage(SurfaceImage image, SurfaceStyle s, Vector3 local, Vector3 normal)
+    {
+        var p = MapPosition(s, local); var n = MapNormal(s, normal);
+        Vector3 Sample(float u, float v) => image.Sample(u, v / s.TextureAspect, s.TextureRepeat);
+        if (s.Projection == TextureProjection.Planar) return Sample(p.X, p.Y);
+        if (s.Projection == TextureProjection.Cylindrical) return Sample(MathF.Atan2(p.Y, p.X) / (2 * MathF.PI) + .5f, p.Z);
+        var w = Vector3.Abs(n); w *= w; w *= w; w /= Math.Max(w.X + w.Y + w.Z, 1e-6f);
+        return Sample(p.Y, p.Z) * w.X + Sample(p.X, p.Z) * w.Y + Sample(p.X, p.Y) * w.Z;
+    }
     float Height(Vector3 local, Vector3 normal)
     {
-        if (_bump != null) return Vector3.Dot(_bump.Triplanar(TexturePosition(local), normal), new Vector3(.2126f, .7152f, .0722f));
+        if (_bump != null) return Vector3.Dot(SampleImage(_bump, Style, local, normal), new Vector3(.2126f, .7152f, .0722f));
         return Noise(local / Style.PatchSize * 8 + new Vector3(Style.Seed % 997));
     }
     public SurfaceSample Evaluate(Vector3 local, Vector3 normal, Vector3 color, float metal, float roughness)
     {
         var s = Style;
         color = GradientColor(s, local, color);
-        if (_color != null) color *= _color.Triplanar(TexturePosition(local), normal);
-        if (_rough != null) roughness = Vector3.Dot(_rough.Triplanar(TexturePosition(local), normal), new Vector3(.2126f, .7152f, .0722f));
+        if (_color != null) color *= SampleImage(_color, s, local, normal);
+        if (_rough != null) roughness = Vector3.Dot(SampleImage(_rough, s, local, normal), new Vector3(.2126f, .7152f, .0722f));
         float mask = WeatherMask(s, local), detail = Noise(local / s.PatchSize * 3.1f + new Vector3(s.Seed % 997));
         var weather = s.Weathering == WeatheringKind.Rust ? Vector3.Lerp(new(.18f, .055f, .018f), new(.65f, .28f, .075f), detail) : Vector3.Lerp(new(.12f, .095f, .065f), new(.37f, .30f, .20f), detail);
         color = Vector3.Lerp(color, weather, mask); metal *= 1 - mask;

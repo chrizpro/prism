@@ -7,6 +7,10 @@ uniform int uLayers,uGradient,uGradientAxis,uWeather,uSeed;
 uniform vec4 uGradientParams,uWeatherParams,uSurfaceParams;
 uniform vec3 uColor2,uColor3,uColor4;
 uniform float uTextureAngle,uWeatherHeight;
+uniform vec4 uTexturePlacement;
+uniform int uProjection,uTextureAxis,uTextureRepeat;
+uniform vec2 uAnisotropy,uTransmission;
+uniform vec3 uAbsorptionTint;
 uniform int uHasColorMap,uHasRoughMap,uHasBumpMap;
 uniform sampler2D uColorMap,uRoughMap,uBumpMap;
 vec3 rotateSurface(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.y,-s*p.x+c*p.y,p.z);}
@@ -38,22 +42,34 @@ float weatherMask(vec3 local){
     float t=clamp((uWeatherParams.x*1.2-0.1-n)/0.12+0.5,0.0,1.0);t=t*t*(3.0-2.0*t);
     return t*(uWeatherParams.w>0.5?clamp(1.0-local.z/max(uWeatherHeight,0.1),0.0,1.0):1.0);
 }
-vec3 surfaceImage(sampler2D img,vec3 p,vec3 normal){
-    vec3 w=abs(normal);w*=w;w*=w;w/=max(w.x+w.y+w.z,0.000001);
-    return texture(img,p.yz).rgb*w.x+texture(img,p.xz).rgb*w.y+texture(img,p.xy).rgb*w.z;
+vec3 textureAxis(vec3 p){if(uTextureAxis==0)return p.yzx;if(uTextureAxis==1)return p.xzy;return p;}
+vec3 mapSample(sampler2D img,vec2 uv){
+    uv.y/=uTexturePlacement.w;
+    vec2 dx=dFdx(uv),dy=dFdy(uv);
+    if(uTextureRepeat==1)uv=fract(uv);
+    else {vec2 halfPixel=0.5/vec2(textureSize(img,0));uv=clamp(uv,halfPixel,1.0-halfPixel);}
+    return textureGrad(img,uv,dx,dy).rgb;
+}
+vec3 surfaceImage(sampler2D img,vec3 local,vec3 normal){
+    vec3 p=textureAxis(rotateSurface((local-uTexturePlacement.xyz)/uSurfaceParams.w,uTextureAngle));
+    vec3 n=textureAxis(rotateSurface(normal,uTextureAngle));
+    if(uProjection==1)return mapSample(img,p.xy);
+    if(uProjection==2)return mapSample(img,vec2(atan(p.y,p.x)/6.28318530718+0.5,p.z));
+    vec3 w=abs(n);w*=w;w*=w;w/=max(w.x+w.y+w.z,0.000001);
+    return mapSample(img,p.yz)*w.x+mapSample(img,p.xz)*w.y+mapSample(img,p.xy)*w.z;
 }
 float surfaceHeight(vec3 local,vec3 normal){
-    if(uHasBumpMap==1)return dot(surfaceImage(uBumpMap,rotateSurface(local/uSurfaceParams.w,uTextureAngle),normal),vec3(0.2126,0.7152,0.0722));
+    if(uHasBumpMap==1)return dot(surfaceImage(uBumpMap,local,normal),vec3(0.2126,0.7152,0.0722));
     return surfaceNoise(local/uWeatherParams.y*8.0+vec3(float(uSeed)));
 }
 void surfaceLayers(inout vec3 base,inout vec3 N,inout vec2 mat){
     if(uLayers==0)return;
     vec3 local=vPos-uPatternOrigin;
     base=gradientColor(local,base);
-    vec3 tp=rotateSurface(local/uSurfaceParams.w,uTextureAngle);
-    if(uHasColorMap==1)base*=surfaceImage(uColorMap,tp,N);
+
+    if(uHasColorMap==1)base*=surfaceImage(uColorMap,local,N);
     float rough=1.0-mat.y;
-    if(uHasRoughMap==1)rough=dot(surfaceImage(uRoughMap,tp,N),vec3(0.2126,0.7152,0.0722));
+    if(uHasRoughMap==1)rough=dot(surfaceImage(uRoughMap,local,N),vec3(0.2126,0.7152,0.0722));
     float mask=weatherMask(local),detail=surfaceNoise(local/uWeatherParams.y*3.1+vec3(float(uSeed)));
     vec3 weather=uWeather==2?mix(vec3(0.18,0.055,0.018),vec3(0.65,0.28,0.075),detail):mix(vec3(0.12,0.095,0.065),vec3(0.37,0.30,0.20),detail);
     base=mix(base,weather,mask);mat.x*=1.0-mask;rough=mix(rough,uWeatherParams.z,mask);mat.y=1.0-clamp(rough,0.06,1.0);

@@ -79,4 +79,6 @@ The desktop `APP-I001` scenario verifies actual shader display, native save/reop
 
 ## Remaining scope
 
-Full UV editing, arbitrary gradient meshes, per-face appearance, tangent-space normal maps, automatic cavity/edge wear, HDRI imports, transmission/refraction, anisotropic reflection, displacement geometry, subsurface scattering and a denoiser remain outside this delivery. Future requirements for these items need owner review. A plausible appearance does not certify an engineering material or manufacturing process.
+The approved rendering follow-up adds HDR environment lighting, final denoising, explicit texture projection/offsets, glass/refraction and directional reflections. See the [Product rendering guide](../rendering/README.md) and [issue #60](https://github.com/chrizpro/prism/issues/60) for current controls, implementation limits and verification. The evidence above records the original #45 delivery.
+
+Full UV editing, arbitrary gradient meshes, per-face appearance, tangent-space normal maps, automatic cavity/edge wear, displacement geometry and subsurface scattering remain future scope. A plausible appearance does not certify an engineering material or manufacturing process.

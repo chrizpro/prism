@@ -5,6 +5,7 @@ namespace Prism.Core;
 public enum ColorGradient { None, Linear, Radial, Spherical, Freeform }
 public enum WeatheringKind { None, Dirt, Rust }
 public enum GradientAxis { X, Y, Z }
+public enum TextureProjection { Triplanar, Planar, Cylindrical }
 
 /// <summary>Immutable visual layers. Coordinates are millimetres relative to the body's bounding-box minimum.
 /// Embedded images travel with the document; none of these values affect engineering properties.</summary>
@@ -30,6 +31,19 @@ public sealed record SurfaceStyle
     public float CoatRoughness { get; init; } = .15f;
     public float TextureSize { get; init; } = 25;
     public float TextureAngle { get; init; }
+    public TextureProjection Projection { get; init; }
+    public GradientAxis TextureAxis { get; init; } = GradientAxis.Z;
+    public float TextureOffsetX { get; init; }
+    public float TextureOffsetY { get; init; }
+    public float TextureOffsetZ { get; init; }
+    public float TextureAspect { get; init; } = 1;
+    public bool TextureRepeat { get; init; } = true;
+    public float Transmission { get; init; }
+    public float Ior { get; init; } = 1.5f;
+    public uint AbsorptionColor { get; init; } = 0xFFFFFFFF;
+    public float AbsorptionDistance { get; init; } = 100;
+    public float Anisotropy { get; init; }
+    public float AnisotropyAngle { get; init; }
     public string? ColorMap { get; init; }
     public string? RoughnessMap { get; init; }
     public string? BumpMap { get; init; }
@@ -39,6 +53,8 @@ public sealed record SurfaceStyle
     {
         Gradient = Enum.IsDefined(Gradient) ? Gradient : ColorGradient.None,
         Axis = Enum.IsDefined(Axis) ? Axis : GradientAxis.Z,
+        Projection = Enum.IsDefined(Projection) ? Projection : TextureProjection.Triplanar,
+        TextureAxis = Enum.IsDefined(TextureAxis) ? TextureAxis : GradientAxis.Z,
         Weathering = Enum.IsDefined(Weathering) ? Weathering : WeatheringKind.None,
         GradientSize = Safe(GradientSize, 50, .1f, 10000),
         GradientOffset = Safe(GradientOffset, 0, -10000, 10000),
@@ -48,7 +64,11 @@ public sealed record SurfaceStyle
         WeatherHeight = Safe(WeatherHeight, 50, .1f, 10000),
         Bump = Safe(Bump, 0, 0, 1), Coat = Safe(Coat, 0, 0, 1),
         CoatRoughness = Safe(CoatRoughness, .15f, .06f, 1),
-        TextureSize = Safe(TextureSize, 25, .1f, 10000), TextureAngle = Safe(TextureAngle, 0, -360, 360)
+        TextureSize = Safe(TextureSize, 25, .1f, 10000), TextureAngle = Safe(TextureAngle, 0, -360, 360),
+        TextureOffsetX = Safe(TextureOffsetX, 0, -100000, 100000), TextureOffsetY = Safe(TextureOffsetY, 0, -100000, 100000), TextureOffsetZ = Safe(TextureOffsetZ, 0, -100000, 100000),
+        TextureAspect = Safe(TextureAspect, 1, .01f, 100), Transmission = Safe(Transmission, 0, 0, 1),
+        Ior = Safe(Ior, 1.5f, 1, 3), AbsorptionDistance = Safe(AbsorptionDistance, 100, .01f, 100000),
+        Anisotropy = Safe(Anisotropy, 0, 0, .95f), AnisotropyAngle = Safe(AnisotropyAngle, 0, -360, 360)
     };
     static float Safe(float v, float fallback, float min, float max) => float.IsFinite(v) ? Math.Clamp(v, min, max) : fallback;
 }

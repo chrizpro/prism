@@ -9,7 +9,7 @@ using Prism.Kernel;
 
 namespace Prism.Rendering;
 
-public enum RenderEnv { Studio, Sky, DarkStudio, LightsOnly }
+public enum RenderEnv { Studio, Sky, DarkStudio, LightsOnly, Hdr }
 /// <summary>What is seen behind the model. Everything but Environment is composited in the picture: the ground then only catches shadows.</summary>
 public enum RenderBg { Environment, White, Transparent, Green, Black, Gradient, Image }
 
@@ -23,6 +23,9 @@ public sealed class RenderSettings
     public string? BackgroundImage;
     public BackgroundFit ImageFit = BackgroundFit.Fill;
     public double ImageOffsetX, ImageOffsetY;
+    public string? EnvironmentImage;
+    public float EnvironmentRotation, EnvironmentIntensity = 1;
+    public bool Denoise;
     public bool Ground = true;
     public double Exposure = 1.0;
     /// <summary>Lights dropped into the scene (null: none).</summary>
@@ -62,6 +65,7 @@ public sealed class PathTracer
     bool Catcher => _s.Ground && _s.Background != RenderBg.Environment;
 
     SurfaceImage? _backplate;
+    HdrEnvironment? _environment;
     readonly RenderSettings _s;
     public PathTracer(RenderSettings s) { _s = s; }
 
@@ -69,7 +73,10 @@ public sealed class PathTracer
 
     public bool LoadScene(CadSession session)
     {
+        if (!float.IsFinite(_s.EnvironmentRotation) || !float.IsFinite(_s.EnvironmentIntensity) || _s.EnvironmentIntensity < 0 || _s.EnvironmentIntensity > 100)
+            throw new ArgumentException("HDR intensity must be 0–100 and rotation must be finite.");
         _backplate = _s.Background == RenderBg.Image ? SurfaceImage.Decode(_s.BackgroundImage ?? throw new ArgumentException("Import a background image first.")) : null;
+        _environment = _s.Env == RenderEnv.Hdr ? HdrEnvironment.Decode(_s.EnvironmentImage ?? throw new ArgumentException("Import a Radiance HDR environment first.")) : null;
         _mats.Clear();
         var P = new List<float>(); var N = new List<float>(); var M = new List<int>();
         _sceneMin = new Vector3(float.MaxValue); _sceneMax = new Vector3(float.MinValue);
@@ -191,6 +198,7 @@ public sealed class PathTracer
                 _lights.Add((Vector3.Normalize(new Vector3(-0.6f, -0.5f, 0.6f)), MathF.Cos(0.45f), new Vector3(7, 7, 7.5f)));
                 _lights.Add((Vector3.Normalize(new Vector3(0.7f, 0.6f, 0.4f)), MathF.Cos(0.35f), new Vector3(5, 5.5f, 7)));
                 break;
+            case RenderEnv.Hdr:
             case RenderEnv.LightsOnly:
                 _skyZenith = _skyHorizon = Vector3.Zero;
                 break;
@@ -233,6 +241,7 @@ public sealed class PathTracer
 
     Vector3 Sky(Vector3 d)
     {
+        if (_environment != null) return _environment.Radiance(d, _s.EnvironmentRotation, _s.EnvironmentIntensity);
         float t = Math.Clamp(d.Z * 0.5f + 0.5f, 0, 1);
         t = MathF.Pow(t, 0.7f);
         return Vector3.Lerp(_skyHorizon, _skyZenith, t);
@@ -318,34 +327,16 @@ public sealed class PathTracer
     static float Smith(float cosine,float alpha)
         => 2*cosine/(cosine+MathF.Sqrt(alpha*alpha+(1-alpha*alpha)*cosine*cosine));
     static Vector3 Bsdf(Vector3 n,Vector3 view,Vector3 light,Vector3 albedo,float metal,float rough,out float pdf)
-    {
-        pdf=0;float nv=Vector3.Dot(n,view),nl=Vector3.Dot(n,light);
-        if(nv<=0||nl<=0)return Vector3.Zero;
-        var sum=view+light;if(sum.LengthSquared()<1e-12f)return Vector3.Zero;
-        var h=Vector3.Normalize(sum);float nh=MathF.Max(Vector3.Dot(n,h),0),vh=MathF.Max(Vector3.Dot(view,h),1e-6f);
-        float alpha=MathF.Max(rough*rough,.0036f),a2=alpha*alpha,den=nh*nh*(a2-1)+1;
-        float distribution=a2/(MathF.PI*den*den);
-        var f0=Vector3.Lerp(new Vector3(.04f),albedo,metal);
-        var fresnel=f0+(Vector3.One-f0)*MathF.Pow(1-vh,5);
-        float specProbability=.2f+.8f*metal;
-        pdf=specProbability*distribution*nh/(4*vh)+(1-specProbability)*nl/MathF.PI;
-        // Transmission through the dielectric interface on both legs prevents
-        // grazing-angle diffuse + specular energy gain in the layered model.
-        float transmitView=.96f*(1-MathF.Pow(1-nv,5)),transmitLight=.96f*(1-MathF.Pow(1-nl,5));
-        var diffuse=albedo*((1-metal)*transmitView*transmitLight/MathF.PI);
-        return diffuse+fresnel*(distribution*Smith(nv,alpha)*Smith(nl,alpha)/(4*nv*nl));
-    }
+        => SurfaceScattering.Opaque(n, view, light, albedo, metal, rough, 0, 0, out pdf);
     static Vector3 LayeredBsdf(Vector3 n,Vector3 view,Vector3 light,Vector3 albedo,float metal,float rough,float coat,float coatRough,out float pdf)
+        => SurfaceScattering.Coated(n, view, light, albedo, metal, rough, 0, 0, coat, coatRough, out pdf);
+    static Vector3 EvaluateSurface(Vector3 n, Vector3 view, Vector3 light, Vector3 albedo, float metal, float rough, SurfaceStyle style, float etaI, float etaT, float transmission, out float pdf)
     {
-        var basis=Bsdf(n,view,light,albedo,metal,rough,out pdf);
-        if(coat<=0)return basis;
-        // A dielectric GGX coat; attenuate the base on both legs. The PDF matches the sampled mixture.
-        // Metal=1 gives pure GGX; evaluate with F0=.04 for the dielectric coat.
-        var top=Bsdf(n,view,light,new Vector3(.04f),1,coatRough,out float topPdf);
-        float nv=MathF.Max(0,Vector3.Dot(n,view)),nl=MathF.Max(0,Vector3.Dot(n,light));
-        float fv=.04f+.96f*MathF.Pow(1-nv,5),fl=.04f+.96f*MathF.Pow(1-nl,5);
-        pdf=pdf*(1-.25f*coat)+topPdf*(.25f*coat);
-        return basis*((1-coat*fv)*(1-coat*fl))+top*coat;
+        var opaque = SurfaceScattering.Coated(n, view, light, albedo, metal, rough, style.Anisotropy, style.AnisotropyAngle, style.Coat, style.CoatRoughness, out float opaquePdf);
+        var glass = Vector3.Zero; float glassPdf = 0;
+        if (transmission > 0) glass = SurfaceScattering.Dielectric(n, view, light, etaI, etaT, rough, out glassPdf);
+        pdf = (1 - transmission) * opaquePdf + transmission * glassPdf;
+        return (1 - transmission) * opaque + transmission * glass;
     }
     static Vector3 SampleGgx(Vector3 n,Vector3 view,float rough,ref Rng rng)
     {
@@ -357,12 +348,14 @@ public sealed class PathTracer
     }
     static float PowerWeight(float first,float second) => first*first/(first*first+second*second+1e-30f);
 
+    static readonly SurfaceStyle DefaultSurface = new();
     static float Luma(Vector3 c) => .2126f*c.X+.7152f*c.Y+.0722f*c.Z;
 
     // mode 0: normal. 1: the lit ground only (shadow catcher). 2: the same ground with the model removed, i.e. what it would look like unshadowed.
     Vector3 Trace(Vector3 o, Vector3 d, ref Rng rng, out float alpha, int mode = 0)
     {
         alpha=1;var throughput=Vector3.One;var radiance=Vector3.Zero;float previousPdf=0;
+        Span<int> media = stackalloc int[16]; int mediumCount = 0;
         float size=(_sceneMax-_sceneMin).Length();
         for(int depth=0;depth<=_s.Bounces;depth++)
         {
@@ -378,13 +371,14 @@ public sealed class PathTracer
                     if(_s.Background!=RenderBg.Environment){alpha=0;return Vector3.Zero;}
                     return Sky(d)*(_s.Env==RenderEnv.Studio?1.5f:1f);
                 }
-                radiance+=throughput*Sky(d);
+                radiance+=throughput*Sky(d)*(_environment == null || previousPdf == 0 ? 1 : PowerWeight(previousPdf, _environment.Pdf(d, _s.EnvironmentRotation)));
                 foreach(var (direction,cosMax,light) in _lights)
                     if(Vector3.Dot(d,direction)>=cosMax)
                         radiance+=throughput*light*PowerWeight(previousPdf,1/(2*MathF.PI*(1-cosMax)));
                 break;
             }
-            Vector3 position,n,albedo;float metal,rough,coat=0,coatRough=.15f;
+            Vector3 position,n,albedo,geometric=Vector3.UnitZ;float metal,rough; int materialIndex = -1;
+            SurfaceStyle style = DefaultSurface;
             if(ground)
             {
                 position=o+d*groundDistance;n=Vector3.UnitZ;metal=0;rough=.9f;
@@ -396,6 +390,9 @@ public sealed class PathTracer
                 var normal=Nrm(triangle,0)*(1-u-v)+Nrm(triangle,1)*u+Nrm(triangle,2)*v;
                 if(normal.LengthSquared()<1e-12f)normal=Vector3.Cross(V(triangle,1)-V(triangle,0),V(triangle,2)-V(triangle,0));
                 n=Vector3.Normalize(normal);
+                geometric = Vector3.Normalize(Vector3.Cross(V(triangle,1)-V(triangle,0),V(triangle,2)-V(triangle,0)));
+                if (Vector3.Dot(geometric,n)<0) geometric=-geometric;
+                materialIndex = _m[triangle];
                 var material=_mats[_m[triangle]];metal=material.Metal;rough=material.Rough;
                 float variation=MaterialSurface.Variation(material.Pattern,position,material.Origin,material.Scale,material.Angle);
                 albedo=material.Pattern==SurfacePattern.Plain?material.Albedo:MaterialSurface.LinearColor(material.Color,variation);
@@ -403,7 +400,7 @@ public sealed class PathTracer
                 var surface=material.Layers.Evaluate(position-material.Origin,n,SurfaceLayers.Srgb(material.Color)*variation,metal,rough);
                 albedo=new(MathF.Pow(surface.Color.X,2.2f),MathF.Pow(surface.Color.Y,2.2f),MathF.Pow(surface.Color.Z,2.2f));
                 metal=surface.Metal;rough=surface.Roughness;n=surface.Normal;
-                coat=material.Layers.Style.Coat;coatRough=material.Layers.Style.CoatRoughness;
+                style=material.Layers.Style;
             }
             if(depth==0&&ground&&mode==0&&Catcher)
             {
@@ -414,15 +411,35 @@ public sealed class PathTracer
                 alpha=open>1e-6f?1-Math.Clamp(shadowed/open,0,1):0;
                 return Vector3.Zero;
             }
+            bool entering = Vector3.Dot(geometric, d) < 0;
+            var boundaryNormal = entering ? geometric : -geometric;
             if(Vector3.Dot(n,d)>0)n=-n;
-            var view=-d;var origin=position+n*(1e-5f*MathF.Max(size,1)+.001f);
+            float transmission = style.Transmission * (1 - metal);
+            float etaI = mediumCount > 0 ? _mats[media[mediumCount - 1]].Layers.Style.Ior : (!entering && transmission > 0 ? style.Ior : 1);
+            float etaT = entering ? style.Ior : mediumCount > 1 ? _mats[media[mediumCount - 2]].Layers.Style.Ior : 1;
+            if (mediumCount > 0 || (!entering && transmission > 0))
+            {
+                var medium = mediumCount > 0 ? _mats[media[mediumCount - 1]].Layers.Style : style;
+                throughput *= SurfaceScattering.Absorption(medium.AbsorptionColor, ground ? groundDistance : distance, medium.AbsorptionDistance);
+            }
+            var view=-d;float epsilon=1e-5f*MathF.Max(size,1)+.001f;var origin=position+boundaryNormal*epsilon;
             // Sample the softboxes/sun for both dielectric and metal BRDFs. MIS also
             // weights BSDF paths that see those lights, avoiding double-counting.
+            if (_environment != null)
+            {
+                var wi = _environment.Sample(rng.Next(), rng.Next(), rng.Next(), out float lightPdf, _s.EnvironmentRotation);
+                float nl = Math.Abs(Vector3.Dot(n, wi));
+                if (nl > 0 && !Hit(Vector3.Dot(n,wi)<0?position-boundaryNormal*epsilon:origin, wi, float.MaxValue, out _, out _, out _, out _, true))
+                {
+                    var f = EvaluateSurface(n, view, wi, albedo, metal, rough, style, etaI, etaT, transmission, out float bsdfPdf);
+                    radiance += throughput * f * Sky(wi) * (nl / lightPdf * PowerWeight(lightPdf, bsdfPdf));
+                }
+            }
             foreach(var (direction,cosMax,light) in _lights)
             {
-                var wi=RandomInCap(direction,cosMax,ref rng);float nl=Vector3.Dot(n,wi);
-                if(nl<=0||Hit(origin,wi,float.MaxValue,out _,out _,out _,out _,true))continue;
-                var f=LayeredBsdf(n,view,wi,albedo,metal,rough,coat,coatRough,out float bsdfPdf);
+                var wi=RandomInCap(direction,cosMax,ref rng);float nl=Math.Abs(Vector3.Dot(n,wi));
+                if(nl<=0||Hit(Vector3.Dot(n,wi)<0?position-boundaryNormal*epsilon:origin,wi,float.MaxValue,out _,out _,out _,out _,true))continue;
+                var f=EvaluateSurface(n,view,wi,albedo,metal,rough,style,etaI,etaT,transmission,out float bsdfPdf);
                 float lightPdf=1/(2*MathF.PI*(1-cosMax));
                 radiance+=throughput*f*light*(nl/lightPdf*PowerWeight(lightPdf,bsdfPdf));
             }
@@ -446,15 +463,34 @@ public sealed class PathTracer
                         if(spot<=0)continue;irradiance*=spot;
                     }
                 }
-                float nl=Vector3.Dot(n,wi);
-                if(nl<=0||mode!=2&&Hit(origin,wi,reach,out _,out _,out _,out _,true))continue;
+                float nl=Math.Abs(Vector3.Dot(n,wi));
+                if(nl<=0||mode!=2&&Hit(Vector3.Dot(n,wi)<0?position-boundaryNormal*epsilon:origin,wi,reach,out _,out _,out _,out _,true))continue;
                 // delta-like lights have no MIS partner: reflected radiance = f * E * cos
-                radiance+=throughput*LayeredBsdf(n,view,wi,albedo,metal,rough,coat,coatRough,out _)*irradiance*nl;
+                radiance+=throughput*EvaluateSurface(n,view,wi,albedo,metal,rough,style,etaI,etaT,transmission,out _)*irradiance*nl;
             }
-            var next=coat>0 && rng.Next()<.25f*coat ? SampleGgx(n,view,coatRough,ref rng) : rng.Next()<.2f+.8f*metal?SampleGgx(n,view,rough,ref rng):CosineHemisphere(n,ref rng);
-            float cosine=Vector3.Dot(n,next);if(cosine<=0)break;
-            var bsdf=LayeredBsdf(n,view,next,albedo,metal,rough,coat,coatRough,out float pdf);if(pdf<1e-15f)break;
-            throughput*=bsdf*(cosine/pdf);previousPdf=pdf;
+            bool transmitted = false, delta = false; Vector3 next;
+            ScatteredRay sample = default;
+            if (transmission > 0 && rng.Next() < transmission)
+            {
+                sample = SurfaceScattering.SampleDielectric(n, view, etaI, etaT, rough, rng.Next(), rng.Next(), rng.Next());
+                if (sample.Pdf <= 0 || sample.Direction.LengthSquared() < .5f) break;
+                next = sample.Direction; transmitted = sample.Transmitted; delta = sample.Delta;
+            }
+            else next = SurfaceScattering.SampleOpaque(n, view, metal, rough, style.Anisotropy, style.AnisotropyAngle, style.Coat, style.CoatRoughness, rng.Next(), rng.Next(), rng.Next());
+            float cosine=Math.Abs(Vector3.Dot(n,next));if(cosine<=0)break;
+            if (transmitted != (Vector3.Dot(boundaryNormal, next) < 0)) break;
+            if (delta) { throughput *= sample.Weight; previousPdf = 0; }
+            else
+            {
+                var bsdf=EvaluateSurface(n,view,next,albedo,metal,rough,style,etaI,etaT,transmission,out float pdf);if(pdf<1e-15f)break;
+                throughput*=bsdf*(cosine/pdf);previousPdf=pdf;
+            }
+            if (transmitted)
+            {
+                if (entering) { if (mediumCount == media.Length) break; media[mediumCount++] = materialIndex; }
+                else if (mediumCount > 0) mediumCount--;
+                origin = position - boundaryNormal * epsilon;
+            }
             if(!float.IsFinite(throughput.X)||!float.IsFinite(throughput.Y)||!float.IsFinite(throughput.Z))break;
             if(depth>=2){float survival=Math.Clamp(MathF.Max(throughput.X,MathF.Max(throughput.Y,throughput.Z)),.1f,.95f);if(rng.Next()>survival)break;throughput/=survival;}
             o=origin;d=Vector3.Normalize(next);
@@ -476,6 +512,8 @@ public sealed class PathTracer
     {
         int W = _s.Width, H = _s.Height;
         var acc = new Vector3[W * H]; var accA = new float[W * H];
+        var squares = _s.Denoise ? new float[W * H] : [];
+        var guides = _s.Denoise ? new DenoiseGuide[W * H] : [];
         var pix = new byte[W * H * 4];
         double aspect = (double)W / H, tanH = Math.Tan(cam.FovY / 2);
         var eye = cam.Eye; var F = cam.Forward; var R = cam.Right; var U = cam.Up;
@@ -494,7 +532,15 @@ public sealed class PathTracer
                 var rng = new Rng((ulong)(y * 7919 + baseSeed * 104729 + 17));
                 for (int x = 0; x < W; x++)
                 {
-                    var sum = Vector3.Zero; float sa = 0;
+                    int pixel = y * W + x;
+                    if (_s.Denoise && done == 0)
+                    {
+                        float gx = (float)((x + .5) / W * 2 - 1), gy = (float)(1 - (y + .5) / H * 2);
+                        var go = cam.Orthographic ? vEye + vR * (gx * hh * (float)aspect) + vU * (gy * hh) : vEye;
+                        var gd = cam.Orthographic ? vF : Vector3.Normalize(vF + vR * (gx * (float)(tanH * aspect)) + vU * (gy * (float)tanH));
+                        guides[pixel] = PrimaryGuide(go, gd);
+                    }
+                    var sum = Vector3.Zero; float sa = 0, square = 0;
                     for (int s = 0; s < n; s++)
                     {
                         float px = x + rng.Next(), py = y + rng.Next();
@@ -504,19 +550,40 @@ public sealed class PathTracer
                         else { o = vEye; d = Vector3.Normalize(vF + vR * (nx * (float)(tanH * aspect)) + vU * (ny * (float)tanH)); }
                         var c = Trace(o, d, ref rng, out float a);
                         // tame rare very bright samples ("fireflies")
-                        float mx = MathF.Max(c.X, MathF.Max(c.Y, c.Z)); if (mx > 12f) c *= 12f / mx;
-                        sum += c; sa += a;
+                        float mx = MathF.Max(c.X, MathF.Max(c.Y, c.Z)); if (_environment == null && mx > 12f) c *= 12f / mx;
+                        sum += c; sa += a; if (_s.Denoise) { float l = Luma(c); square += l * l; }
                     }
-                    acc[y * W + x] += sum; accA[y * W + x] += sa;
+                    acc[pixel] += sum; accA[pixel] += sa; if (_s.Denoise) squares[pixel] += square;
                 }
             });
             done += n; step = Math.Min(step * 2, 16);
-            Resolve(acc, accA, done, pix, W, H);
+            Vector3[]? filtered = null;
+            if (_s.Denoise && done >= passes && done > 1)
+            {
+                var mean = new Vector3[W * H]; var coverage = new float[W * H]; var variance = new float[W * H];
+                for (int i = 0; i < mean.Length; i++)
+                {
+                    coverage[i] = accA[i] / done; mean[i] = accA[i] > 0 ? acc[i] / accA[i] : Vector3.Zero;
+                    float l = Luma(acc[i] / done); variance[i] = Math.Max(0, squares[i] / done - l * l) / done;
+                }
+                filtered = RenderDenoiser.Filter(mean, coverage, variance, guides, W, H, ct);
+            }
+            Resolve(acc, accA, done, pix, W, H, filtered);
             onPass(pix, W, H, done, done >= passes);
         }
     }
 
-    void Resolve(Vector3[] acc, float[] accA, int samples, byte[] pix, int W, int H)
+    DenoiseGuide PrimaryGuide(Vector3 origin, Vector3 direction)
+    {
+        bool hit=Hit(origin, direction, float.MaxValue, out float t, out int tri, out float u, out float v, false);
+        float ground=_s.Ground && direction.Z < -1e-5f ? (_groundZ-origin.Z)/direction.Z : float.MaxValue;
+        if (ground>1e-4f && ground<(hit?t:float.MaxValue)) return new(Vector3.UnitZ, ground, _mats.Count);
+        if (!hit) return new(Vector3.Zero, 0, -1);
+        var n = Nrm(tri, 0) * (1 - u - v) + Nrm(tri, 1) * u + Nrm(tri, 2) * v;
+        if (n.LengthSquared() < 1e-12f) return new(Vector3.Zero, t, -1);
+        return new(Vector3.Normalize(n), t, _m[tri]);
+    }
+    void Resolve(Vector3[] acc, float[] accA, int samples, byte[] pix, int W, int H, Vector3[]? filtered = null)
     {
         float ex = (float)_s.Exposure;
         for (int i = 0; i < W * H; i++)
@@ -524,7 +591,7 @@ public sealed class PathTracer
             float a = accA[i] / samples;
             // Accumulation includes zero for uncovered samples. Resolve the covered colour
             // before tone mapping so alpha is not applied twice at antialiased edges.
-            var c = a > 0 ? acc[i] / (samples * a) * ex : Vector3.Zero;
+            var c = (filtered != null ? filtered[i] : a > 0 ? acc[i] / (samples * a) : Vector3.Zero) * ex;
             // ACES-like filmic curve, then sRGB
             c = new Vector3(Aces(c.X), Aces(c.Y), Aces(c.Z));
             byte B(float v) => (byte)Math.Clamp((int)(MathF.Pow(Math.Clamp(v, 0, 1), 1f / 2.2f) * 255f + 0.5f), 0, 255);

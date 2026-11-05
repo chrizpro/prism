@@ -189,7 +189,7 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Expander>
-                                <Expander Name="ImageOptions" Header="Image textures" HorizontalAlignment="Stretch">
+                                                                <Expander Name="ImageOptions" Header="Image textures" HorizontalAlignment="Stretch">
                                     <StackPanel Spacing="8" Margin="0,6">
                                         <TextBlock Text="{Binding ColorMapStatus}" Classes="meta"/>
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -206,6 +206,11 @@
                                             <Button Content="Import bump…" Tag="bump" Click="OnImportMap" HorizontalAlignment="Stretch"/>
                                             <Button Content="×" Tag="bump" Click="OnClearMap" ToolTip.Tip="Remove bump image"/>
                                         </Grid>
+                                        <TextBlock Text="Projection" Classes="meta"/>
+                                        <ComboBox ItemsSource="{Binding TextureProjections}" SelectedIndex="{Binding TextureProjectionMode}" HorizontalAlignment="Stretch"/>
+                                        <TextBlock Text="Projection axis" Classes="meta"/>
+                                        <ComboBox ItemsSource="{Binding GradientAxes}" SelectedIndex="{Binding TextureProjectionAxis}" HorizontalAlignment="Stretch"/>
+                                        <Button Content="Center projection on selection" Click="OnCenterProjection" HorizontalAlignment="Stretch"/>
                                         <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
                                             <TextBlock Text="Repeat size (mm)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                             <NumericUpDown Grid.Column="1" Value="{Binding TextureSize}" Minimum=".1" Maximum="10000" Increment="1" FormatString="0.0"/>
@@ -214,7 +219,24 @@
                                             <TextBlock Text="Rotation (°)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                             <NumericUpDown Grid.Column="1" Value="{Binding TextureAngle}" Minimum="-360" Maximum="360" Increment="15" FormatString="0"/>
                                         </Grid>
-                                        <TextBlock Text="Images are embedded. Automatic blended box projection needs no UV setup. Color images tint the base color; use white for the original image colors." Classes="meta" FontSize="11" TextWrapping="Wrap"/>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Offset X (mm)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding TextureOffsetX}" Minimum="-100000" Maximum="100000" Increment="1" FormatString="0.0"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Offset Y (mm)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding TextureOffsetY}" Minimum="-100000" Maximum="100000" Increment="1" FormatString="0.0"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Offset Z (mm)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding TextureOffsetZ}" Minimum="-100000" Maximum="100000" Increment="1" FormatString="0.0"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Height / width" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding TextureAspect}" Minimum=".01" Maximum="100" Increment=".1" FormatString="0.00"/>
+                                        </Grid>
+                                        <CheckBox Content="Repeat image" IsChecked="{Binding TextureRepeat}"/>
+                                        <TextBlock Text="Images are embedded. Choose projection and placement without UV setup. Color images tint the base color; use white for the original image colors." Classes="meta" FontSize="11" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Expander>
                                 <Expander Name="ReflectionOptions" Header="Reflection and detail" HorizontalAlignment="Stretch">
@@ -239,7 +261,40 @@
                                             <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding CoatRoughness}"/>
                                             <TextBlock Grid.Column="2" Text="{Binding CoatRoughness, StringFormat=F2}" FontSize="11" VerticalAlignment="Center"/>
                                         </Grid>
+                                        <Grid ColumnDefinitions="84,*,32" ColumnSpacing="4">
+                                            <TextBlock Text="Anisotropy" Classes="meta" VerticalAlignment="Center"/>
+                                            <Slider Grid.Column="1" Minimum="0" Maximum=".95" Value="{Binding SurfaceAnisotropy}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding SurfaceAnisotropy, StringFormat=F2}" FontSize="11" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Brush direction (°)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding AnisotropyAngle}" Minimum="-360" Maximum="360" Increment="15" FormatString="0"/>
+                                        </Grid>
                                         <TextBlock Text="Bump uses the imported height image, or procedural grain when no image is assigned. Clear coat adds a dielectric reflection layer." Classes="meta" FontSize="11" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Name="TransmissionOptions" Header="Glass and transparent surfaces" HorizontalAlignment="Stretch">
+                                    <StackPanel Spacing="8" Margin="0,6">
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                            <Button Content="Clear glass" Click="OnClearGlass"/>
+                                            <Button Grid.Column="1" Content="Frosted glass" Click="OnFrostedGlass"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="84,*,32" ColumnSpacing="4">
+                                            <TextBlock Text="Transmission" Classes="meta" VerticalAlignment="Center"/>
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding SurfaceTransmission}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding SurfaceTransmission, StringFormat=F2}" FontSize="11" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Index of refraction" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding SurfaceIor}" Minimum="1" Maximum="3" Increment=".05" FormatString="0.00"/>
+                                        </Grid>
+                                        <TextBlock Text="Tint at reference depth" Classes="meta"/>
+                                        <TextBox Name="AbsorptionTint" Text="{Binding AbsorptionColor, Mode=OneWay}" KeyDown="OnAbsorptionKey" LostFocus="OnAbsorptionLostFocus"/>
+                                        <Grid ColumnDefinitions="*,108" ColumnSpacing="6">
+                                            <TextBlock Text="Reference depth (mm)" Classes="meta" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <NumericUpDown Grid.Column="1" Value="{Binding AbsorptionDistance}" Minimum=".01" Maximum="100000" Increment="1" FormatString="0.0"/>
+                                        </Grid>
+                                        <TextBlock Text="White tint is clear. Longer paths absorb more color. Surface roughness controls frosting. Closed solids give correct thickness; final rendering shows refraction while the viewport is approximate." Classes="meta" FontSize="11" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Expander>
                             </StackPanel>

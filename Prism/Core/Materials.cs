@@ -42,7 +42,7 @@ public sealed record Material(
     public double SpecificStiffness => Youngs / Density;
     /// <summary>Thermal diffusivity in mm2/s (k / (rho * cp)).</summary>
     public double Diffusivity => Conductivity / (Density * 1000 * SpecificHeat) * 1e6;
-    [JsonIgnore] public Appearance Look => new(Id, Metal, Gloss, PhysicalSnapshot: this);
+    [JsonIgnore] public Appearance Look => new(Id, Metal, Gloss, PhysicalSnapshot: this, Surface: Id == "glass" ? new SurfaceStyle { Transmission = 1, Ior = 1.52f, AbsorptionColor = Color, AbsorptionDistance = 100 } : null);
     public bool HasYield => double.IsFinite(Yield);
 
     public override string ToString() => Name;

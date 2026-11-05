@@ -13,12 +13,12 @@ public sealed class RenderCommand : Command
 {
     readonly ChoiceParam _size, _env, _bg, _fit;
     readonly IntParam _samples, _bounces;
-    readonly BoolParam _ground;
-    readonly NumberParam _exposure, _offsetX, _offsetY;
-    string? _backgroundImage;
+    readonly BoolParam _ground, _denoise;
+    readonly NumberParam _exposure, _offsetX, _offsetY, _envRotation, _envIntensity;
+    string? _backgroundImage, _environmentImage;
     readonly TextParam _save;
     public static readonly string[] Backgrounds = ["Environment (studio or sky)", "White", "Transparent", "Green screen (chroma key)", "Black", "Studio gradient", "Imported image"];
-    public static readonly string[] Lightings = ["Studio (soft white boxes)", "Sky and sun", "Dark studio", "Only my lights"];
+    public static readonly string[] Lightings = ["Studio (soft white boxes)", "Sky and sun", "Dark studio", "Only my lights", "HDR environment"];
 
     static readonly (string name, int w, int h)[] Sizes =
     [("Draft  960 × 540", 960, 540), ("HD  1280 × 720", 1280, 720), ("Full HD  1920 × 1080", 1920, 1080), ("4K  3840 × 2160", 3840, 2160), ("Square  1500 × 1500", 1500, 1500)];
@@ -30,6 +30,17 @@ public sealed class RenderCommand : Command
         _bounces = Add(new IntParam { Label = "Light bounces", Min = 1, Max = 12, Value = 5 });
         _env = Choice("Lighting", 0, Lightings);
         _bg = Choice("Background", 0, Backgrounds);
+        _denoise = Check("Denoise final image", false);
+        Add(new ActionParam { Label = "Import HDR environment…", IsAdvanced = true, Run = async () =>
+        {
+            if (S.PickHdrEnvironment == null) { S.Say("HDR browsing is unavailable in this host.", true); return; }
+            var path = await S.PickHdrEnvironment(); if (path == null) return;
+            try { _environmentImage = HdrEnvironment.Import(path); _env.Index = (int)RenderEnv.Hdr; OnChanged(); }
+            catch (Exception e) { S.Say("Could not import HDR environment: " + e.Message, true); }
+        } });
+        Add(new ActionParam { Label = "Remove HDR environment", IsAdvanced = true, Run = () => { _environmentImage = null; if (_env.Index == (int)RenderEnv.Hdr) _env.Index = 0; OnChanged(); } });
+        _envRotation = Add(new NumberParam { Label = "HDR rotation", Min = -360, Max = 360, Step = 5, Unit = "°", IsAdvanced = true });
+        _envIntensity = Add(new NumberParam { Label = "HDR intensity", Value = 1, Min = 0, Max = 100, Step = .1, Unit = "×", IsAdvanced = true });
         Add(new ActionParam { Label = "Import background image…", Run = async () =>
         {
             if (S.PickRenderImage == null) { S.Say("Image browsing is unavailable in this host.", true); return; }
@@ -60,15 +71,18 @@ public sealed class RenderCommand : Command
     {
         var setup = S.RenderSetup;
         _env.SetSilently((int)setup.Env); _bg.SetSilently((int)setup.Background); _ground.Value = setup.Ground; _exposure.Value = setup.Exposure;
+        _environmentImage = setup.EnvironmentImage; _envRotation.Value = setup.EnvironmentRotation; _envIntensity.Value = setup.EnvironmentIntensity; _denoise.Value = setup.Denoise;
         _backgroundImage = setup.BackgroundImage; _fit.SetSilently((int)setup.ImageFit); _offsetX.Value = setup.ImageOffsetX; _offsetY.Value = setup.ImageOffsetY;
     }
 
     protected override CommandOutput? Build()
     {
-        var setup = new RenderSetup { Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, Ground = _ground.Value, Exposure = _exposure.Value, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value };
+        var setup = new RenderSetup { Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, Ground = _ground.Value, Exposure = _exposure.Value, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value, EnvironmentImage = _environmentImage, EnvironmentRotation = (float)_envRotation.Value, EnvironmentIntensity = (float)_envIntensity.Value, Denoise = _denoise.Value };
         if (!setup.Equals(S.RenderSetup)) { S.RenderSetup = setup; S.Dirty = true; }
         _fit.IsVisible = _offsetX.IsVisible = _offsetY.IsVisible = _bg.Index == (int)RenderBg.Image;
+        _envRotation.IsVisible = _envIntensity.IsVisible = _env.Index == (int)RenderEnv.Hdr;
         Results.Clear();
+        Results.Add(new ResultLine("HDR environment", _environmentImage == null ? "none imported" : "embedded · lights and reflections"));
         Results.Add(new ResultLine("Backdrop image", _backgroundImage == null ? "none imported" : "embedded · does not change lighting"));
         int on = S.Lights.Count(l => l.Enabled);
         Results.Add(new ResultLine("Your lights", S.Lights.Count == 0 ? "none: add a sun or lamp from the ribbon" : $"{on} of {S.Lights.Count} on"));
@@ -81,7 +95,7 @@ public sealed class RenderCommand : Command
         var s = new RenderSettings
         {
             Width = w, Height = h, Samples = _samples.Value, Bounces = _bounces.Value, Ground = _ground.Value, Exposure = _exposure.Value,
-            Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value,
+            Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = _backgroundImage, ImageFit = (BackgroundFit)_fit.Index, ImageOffsetX = _offsetX.Value, ImageOffsetY = _offsetY.Value, EnvironmentImage = _environmentImage, EnvironmentRotation = (float)_envRotation.Value, EnvironmentIntensity = (float)_envIntensity.Value, Denoise = _denoise.Value,
         };
         try { S.StartRender(s); S.Say($"Rendering {w}×{h}…"); } catch (Exception e) { S.Say(e.Message, true); }
     }
@@ -138,7 +152,7 @@ public sealed class RenderAnimationCommand : Command
         {
             Animation = anim, Turntable = turntable, Turns = _turns.Value, Duration = _length.Value, Fps = FpsValues[Math.Clamp(_fps.Index, 0, FpsValues.Length - 1)],
             Gif = _gif.Value, Mp4 = _mp4.Value, Folder = _folder.Value,
-            Settings = new RenderSettings { Width = w, Height = h, Samples = _samples.Value, Bounces = 4, Ground = _ground.Value, Exposure = _exposure.Value, Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = S.RenderSetup.BackgroundImage, ImageFit = S.RenderSetup.ImageFit, ImageOffsetX = S.RenderSetup.ImageOffsetX, ImageOffsetY = S.RenderSetup.ImageOffsetY },
+            Settings = new RenderSettings { Width = w, Height = h, Samples = _samples.Value, Bounces = 4, Ground = _ground.Value, Exposure = _exposure.Value, Env = (RenderEnv)_env.Index, Background = (RenderBg)_bg.Index, BackgroundImage = S.RenderSetup.BackgroundImage, ImageFit = S.RenderSetup.ImageFit, ImageOffsetX = S.RenderSetup.ImageOffsetX, ImageOffsetY = S.RenderSetup.ImageOffsetY, EnvironmentImage = S.RenderSetup.EnvironmentImage, EnvironmentRotation = S.RenderSetup.EnvironmentRotation, EnvironmentIntensity = S.RenderSetup.EnvironmentIntensity, Denoise = S.RenderSetup.Denoise },
         };
         S.Say("Rendering animation…");
         _ = S.RenderAnimationAsync(opts);

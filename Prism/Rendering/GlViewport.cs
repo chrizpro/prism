@@ -667,6 +667,10 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh,"uSeed",style.Seed%997);U1(_mesh,"uWeatherHeight",style.WeatherHeight);
         U4(_mesh,"uSurfaceParams",style.Bump,style.Coat,style.CoatRoughness,style.TextureSize);
         U1(_mesh,"uTextureAngle",style.TextureAngle*(float)Math.PI/180);
+        U4(_mesh,"uTexturePlacement",style.TextureOffsetX,style.TextureOffsetY,style.TextureOffsetZ,style.TextureAspect);
+        U1(_mesh,"uProjection",(int)style.Projection);U1(_mesh,"uTextureAxis",(int)style.TextureAxis);U1(_mesh,"uTextureRepeat",style.TextureRepeat?1:0);
+        U2(_mesh,"uAnisotropy",style.Anisotropy,style.AnisotropyAngle*(float)Math.PI/180);
+        U2(_mesh,"uTransmission",style.Transmission*(1-obj.Look.Metal),style.Ior);U3(_mesh,"uAbsorptionTint",SurfaceLayers.Srgb(style.AbsorptionColor));
         int unit=0;
         foreach(var (name,data) in new[]{("Color",style.ColorMap),("Rough",style.RoughnessMap),("Bump",style.BumpMap)})
         {

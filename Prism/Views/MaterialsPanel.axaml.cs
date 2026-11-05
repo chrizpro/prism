@@ -76,4 +76,9 @@ public partial class MaterialsPanel : UserControl
     void OnGradientColorLostFocus(object? s, RoutedEventArgs e) => SetGradientColor(s);
     async void OnImportMap(object? s, RoutedEventArgs e) { if (Vm is { } vm && s is Button { Tag: string kind }) await vm.ImportSurfaceMap(kind); }
     void OnClearMap(object? s, RoutedEventArgs e) { if (s is Button { Tag: string kind }) Vm?.ClearSurfaceMap(kind); }
+    void OnCenterProjection(object? s, RoutedEventArgs e) => Vm?.CenterTextureProjection();
+    void OnClearGlass(object? s, RoutedEventArgs e) => Vm?.ApplyTransparentPreset(false);
+    void OnFrostedGlass(object? s, RoutedEventArgs e) => Vm?.ApplyTransparentPreset(true);
+    void OnAbsorptionKey(object? s, KeyEventArgs e) { if (e.Key == Key.Enter) { Vm?.ApplyAbsorptionColor(AbsorptionTint.Text ?? ""); e.Handled = true; } }
+    void OnAbsorptionLostFocus(object? s, RoutedEventArgs e) { if (Vm is {} vm && AbsorptionTint.Text != vm.AbsorptionColor) vm.ApplyAbsorptionColor(AbsorptionTint.Text ?? ""); }
 }

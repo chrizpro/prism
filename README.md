@@ -38,6 +38,8 @@ Every tool has a page in the [tool reference](https://chrizpro.github.io/prism/d
 
 Appearance is independent of engineering materials: edit color with an on-demand wheel or HEX/RGB/HSL/HSV codes, add gradients, dirt/rust, image textures, bump and clear coat, and reset to the material's default look. Imported render backgrounds work independently of lighting. See the [Appearance studio guide](docs/appearance-studio/README.md) for controls, platform support, limits and verification.
 
+Rendering adds embedded Radiance HDR lighting, optional final denoising, planar/cylindrical texture placement, glass refraction with thickness-dependent tint, and directional metal reflections. The [Product rendering guide](docs/rendering/README.md) explains their controls, verification and practical limits.
+
 ![A stress study on a bracket in Prism's CAE workspace](web/src/assets/shots/cae-stress.png)
 
 ## Download
