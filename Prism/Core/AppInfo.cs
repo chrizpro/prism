@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace Prism.Core;
 
@@ -13,6 +12,7 @@ public static class AppInfo
     public const string RepositoryUrl = "https://github.com/chrizpro/prism";
     public const string DocsUrl = "https://chrizpro.github.io/prism/docs/";
     public const string KnownIssuesUrl = DocsUrl + "reference/known-issues";
+    public static string FeedbackUrl() => RepositoryUrl + "/issues/new?template=feedback.yml";
 
     /// <summary>The package version the build was made with (Version in the project, or -p:Version from packaging).</summary>
     public static string Version { get; } = ReadVersion();
@@ -25,7 +25,7 @@ public static class AppInfo
     /// <summary>The bug form on GitHub, with the version and system filled in.</summary>
     public static string BugReportUrl()
     {
-        var system = $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
+        var system = CrashDiagnostic.SystemInfo;
         return $"{RepositoryUrl}/issues/new?template=bug_report.yml" +
                $"&version={Uri.EscapeDataString(DisplayVersion)}&system={Uri.EscapeDataString(system)}";
     }

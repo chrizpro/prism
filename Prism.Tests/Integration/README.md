@@ -18,7 +18,7 @@ Set `PRISM_INTEGRATION_BIN` to an absolute folder containing both binaries to us
 | DRW-I001 | Editable two-sheet drawing in Light and Dark themes, optional dimensions/center marks, selective dense-pattern positions, save/reopen, deduplication and PDF/SVG/DXF export. Whole-window captures; [Drawing guide](../../docs/drawing/README.md). |
 | EXT-I001 | MCP initialization and discovery, rejection of unauthenticated and cross-origin HTTP requests, rectangle sketch, Extrude preview edit, committed analytic volume and bounds, undo and redo. |
 | REV-I001 | Rectangle sketch, world-Z Revolve preview, forward and reversed 90° results, analytic volume and quadrant bounds. |
-| SFC-I001 | MCP error propagation, flat NURBS Control Grid, Thicken, analytic area and solid volume, native document save and reopen. |
+| SFC-I001 | MCP error propagation, flat NURBS Control Grid, distance between offset surfaces using both API argument forms, Thicken, analytic area and solid volume, native document save and reopen. |
 | SKT-I001 | Horizontal and Vertical constraints on an oblique line, driving length, solver and endpoint assertions, glyph and dimension capture. |
 | LFT-I001 | Surface Loft preview and commit for Smooth and Ruled transitions, with analytic sheet area and bounds. |
 | SWP-I001 | Surface Sweep preview and commit for Follow the path and Keep parallel on a straight path, with analytic area and bounds. |

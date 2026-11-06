@@ -13,6 +13,8 @@
 #include <chrono>
 
 #include "prism_exports.h"
+#include "sim_validation.h"
+#include <memory>
 
 namespace {
 thread_local std::string g_err;
@@ -34,6 +36,7 @@ double baryGradients(const double* p0, const double* p1, const double* p2, const
     const double* p[4] = {p0, p1, p2, p3};
     for (int i = 0; i < 4; ++i) { M(i, 0) = 1; M(i, 1) = p[i][0]; M(i, 2) = p[i][1]; M(i, 3) = p[i][2]; }
     double det = M.determinant();
+    sim_validation::require(std::isfinite(det) && det != 0, "Mesh contains a degenerate tetrahedron.");
     Eigen::Matrix4d Mi = M.inverse();            // columns: coefficients of L_a = Mi(0,a) + Mi(1,a) x + ...
     for (int a = 0; a < 4; ++a) for (int d = 0; d < 3; ++d) g[a][d] = Mi(d + 1, a);
     return det / 6.0;
@@ -87,45 +90,60 @@ double vonMises(const Eigen::Matrix<double, 6, 1>& s) {
 //  mesh container (second order built from corner tets)
 // =======================================================================================
 extern "C" const char* sim_netgen_error();
-SIM_API const char* sim_last_error() { const char* n = sim_netgen_error(); return (n && *n) ? n : g_err.c_str(); }
+SIM_API const char* sim_last_error() { const char* n = sim_netgen_error(); return !g_err.empty() ? g_err.c_str() : n; }
+extern "C" void sim_clear_error() { g_err.clear(); }
 
 SIM_API void* sim_mesh_from_tets(const double* nodes, int nNodes, const int* tets, int nTets, const int* btris, int nBtris) {
-    g_err.clear();
-    auto* m = new FemMesh();
-    m->nCorner = nNodes;
-    m->X.assign(nodes, nodes + 3 * nNodes);
-    std::map<std::pair<int, int>, int> mid;
-    auto Mid = [&](int a, int b) {
-        auto key = std::make_pair(std::min(a, b), std::max(a, b));
-        auto it = mid.find(key);
-        if (it != mid.end()) return it->second;
-        int id = (int)(m->X.size() / 3);
-        for (int d = 0; d < 3; ++d) m->X.push_back(0.5 * (m->X[3 * a + d] + m->X[3 * b + d]));
-        mid[key] = id;
-        return id;
-    };
-    for (int t = 0; t < nTets; ++t) {
-        int a = tets[4 * t], b = tets[4 * t + 1], c = tets[4 * t + 2], d = tets[4 * t + 3];
-        // make orientation positive
-        double g[4][3];
-        double v = baryGradients(&m->X[3 * a], &m->X[3 * b], &m->X[3 * c], &m->X[3 * d], g);
-        if (v < 0) std::swap(c, d);
-        m->T.push_back({a, b, c, d, Mid(a, b), Mid(b, c), Mid(a, c), Mid(a, d), Mid(b, d), Mid(c, d)});
-    }
-    for (int i = 0; i < nBtris; ++i) {
-        int a = btris[3 * i], b = btris[3 * i + 1], c = btris[3 * i + 2];
-        m->B.push_back({a, b, c, Mid(a, b), Mid(b, c), Mid(c, a)});
-    }
-    return m;
+    try {
+        g_err.clear();
+        using namespace sim_validation;
+        require(nNodes >= 4 && nTets > 0, "A mesh needs nodes and tetrahedra.");
+        finite(nodes, nNodes, 3);
+        indices(tets, nTets, nNodes, 4);
+        indices(btris, nBtris, nNodes, 3);
+        // Keep all node/DOF and output offsets representable by the C API's int indices.
+        require(nNodes <= std::numeric_limits<int>::max() / 6, "Mesh is too large.");
+        auto m = std::make_unique<FemMesh>();
+        m->nCorner = nNodes;
+        m->X.assign(nodes, nodes + 3 * nNodes);
+        std::map<std::pair<int, int>, int> mid;
+        auto Mid = [&](int a, int b) {
+            auto key = std::make_pair(std::min(a, b), std::max(a, b));
+            auto it = mid.find(key);
+            if (it != mid.end()) return it->second;
+            require(m->X.size() / 3 < std::numeric_limits<int>::max() / 6, "Mesh is too large.");
+            int id = (int)(m->X.size() / 3);
+            for (int d = 0; d < 3; ++d) m->X.push_back(0.5 * (m->X[3 * a + d] + m->X[3 * b + d]));
+            mid[key] = id;
+            return id;
+        };
+        for (int t = 0; t < nTets; ++t) {
+            int a = tets[4 * t], b = tets[4 * t + 1], c = tets[4 * t + 2], d = tets[4 * t + 3];
+            // make orientation positive
+            double g[4][3];
+            double v = baryGradients(&m->X[3 * a], &m->X[3 * b], &m->X[3 * c], &m->X[3 * d], g);
+            if (v < 0) std::swap(c, d);
+            m->T.push_back({a, b, c, d, Mid(a, b), Mid(b, c), Mid(a, c), Mid(a, d), Mid(b, d), Mid(c, d)});
+        }
+        for (int i = 0; i < nBtris; ++i) {
+            int a = btris[3 * i], b = btris[3 * i + 1], c = btris[3 * i + 2];
+            m->B.push_back({a, b, c, Mid(a, b), Mid(b, c), Mid(c, a)});
+        }
+        return m.release();
+    } catch (const std::exception& e) { fail(e.what()); return nullptr; }
+    catch (...) { fail("Mesh construction failed unexpectedly."); return nullptr; }
 }
 
 SIM_API void sim_mesh_sizes(void* h, int* nNodes, int* nCorner, int* nTets, int* nBtris) {
+    if (!h || !nNodes || !nCorner || !nTets || !nBtris) { fail("Invalid mesh or output pointers."); return; }
     auto* m = (FemMesh*)h;
     *nNodes = (int)(m->X.size() / 3); *nCorner = m->nCorner; *nTets = (int)m->T.size(); *nBtris = (int)m->B.size();
 }
 
 SIM_API void sim_mesh_fill(void* h, double* nodes, int* tets10, int* btris6) {
+    if (!h || !nodes || !tets10) { fail("Invalid mesh or output pointers."); return; }
     auto* m = (FemMesh*)h;
+    if (!m->B.empty() && !btris6) { fail("Boundary output is null."); return; }
     std::copy(m->X.begin(), m->X.end(), nodes);
     for (size_t i = 0; i < m->T.size(); ++i) for (int k = 0; k < 10; ++k) tets10[10 * i + k] = m->T[i][k];
     for (size_t i = 0; i < m->B.size(); ++i) for (int k = 0; k < 6; ++k) btris6[6 * i + k] = m->B[i][k];
@@ -135,6 +153,7 @@ SIM_API void sim_mesh_free(void* h) { delete (FemMesh*)h; }
 
 // raw views of the mesh for the topology optimizer (same DLL)
 extern "C" int sim_mesh_counts_internal(void* h, int* nNodes, int* nCorner, int* nTets, int* nBtris) {
+    if (!h) return 0;
     auto* m = (FemMesh*)h; *nNodes = (int)(m->X.size() / 3); *nCorner = m->nCorner; *nTets = (int)m->T.size(); *nBtris = (int)m->B.size(); return 1;
 }
 extern "C" const double* sim_mesh_nodes_internal(void* h) { return ((FemMesh*)h)->X.data(); }
@@ -143,6 +162,7 @@ extern "C" const int* sim_mesh_btris_internal(void* h) { return reinterpret_cast
 
 // Element quality: min and mean of (6 sqrt(2) V / edgeRMS^3), 1 = regular tet.
 SIM_API void sim_mesh_quality(void* h, double* minQ, double* meanQ, double* minVol) {
+    if (!h || !minQ || !meanQ || !minVol) { fail("Invalid mesh or output pointers."); return; }
     auto* m = (FemMesh*)h; double mn = 1e30, sum = 0, mv = 1e30;
     for (auto& t : m->T) {
         double g[4][3]; double v = baryGradients(&m->X[3 * t[0]], &m->X[3 * t[1]], &m->X[3 * t[2]], &m->X[3 * t[3]], g);
@@ -166,8 +186,16 @@ SIM_API int sim_static(void* h, const double* mat, int nFix, const int* fixNode,
                        double* u, double* stress, double* vm, double* info) {
     try {
         g_err.clear();
+        using namespace sim_validation;
+        require(h && u && stress && vm && info, "Invalid mesh or output pointers.");
         auto* m = (FemMesh*)h;
         const int n = (int)(m->X.size() / 3), ndof = 3 * n;
+        material(mat);
+        indices(fixNode, nFix, n); array(fixMask, nFix);
+        if (fixVal) finite(fixVal, nFix, 3);
+        indices(forceNode, nForce, n); finite(forceVec, nForce, 3);
+        indices(tracTri, nTrac, (int)m->B.size()); finite(tracVec, nTrac, 3);
+        if (gravity) finite(gravity, 3);
         const double E = mat[0], nu = mat[1], rho = mat[2];
         auto D = elasticity(E, nu);
         auto t0 = std::chrono::steady_clock::now();
@@ -229,7 +257,9 @@ SIM_API int sim_static(void* h, const double* mat, int nFix, const int* fixNode,
         // ---- solve
         Eigen::VectorXd x;
         double iters = 0;
-        if (nf <= 70000) {
+        if (nf == 0) {
+            x.resize(0); // All DOFs are prescribed: only reactions and stresses remain.
+        } else if (nf <= 70000) {
             Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver; solver.compute(Kr);
             if (solver.info() != Eigen::Success) { fail("The stiffness matrix could not be factorized: the part is probably under-constrained."); return 0; }
             x = solver.solve(rhs);
@@ -237,9 +267,11 @@ SIM_API int sim_static(void* h, const double* mat, int nFix, const int* fixNode,
         } else {
             Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper, Eigen::IncompleteCholesky<double>> cg;
             cg.setMaxIterations(8000); cg.setTolerance(1e-9); cg.compute(Kr);
+            if (cg.info() != Eigen::Success) { fail("The iterative solver could not be initialized."); return 0; }
             x = cg.solve(rhs); iters = (double)cg.iterations();
-            if (cg.info() != Eigen::Success && cg.info() != Eigen::NoConvergence) { fail("The iterative solver failed."); return 0; }
+            if (cg.info() != Eigen::Success) { fail("The iterative solver failed."); return 0; }
         }
+        if (!x.allFinite()) { fail("The solver produced non-finite displacements."); return 0; }
         double tSolve = lap();
         Eigen::VectorXd U = up;
         for (int i = 0; i < ndof; ++i) if (freeIdx[i] >= 0) U[i] = x[freeIdx[i]];
@@ -276,4 +308,5 @@ SIM_API int sim_static(void* h, const double* mat, int nFix, const int* fixNode,
         for (int i = 0; i < n; ++i) { for (int k = 0; k < 6; ++k) stress[6 * i + k] = S[i][k]; vm[i] = vonMises(S[i]); }
         return 1;
     } catch (const std::exception& e) { fail(e.what()); return 0; }
+    catch (...) { fail("Static solve failed unexpectedly."); return 0; }
 }

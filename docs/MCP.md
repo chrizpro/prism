@@ -17,6 +17,8 @@ Claude Code  <--stdio MCP-->  Prism.Mcp (bridge)  <--HTTP 127.0.0.1 + token-->  
 
 The [desktop integration project](../Prism.Tests/Integration/README.md) exercises this bridge and the application API together and saves viewport evidence.
 
+The bridge's compact catalogue exposes `describe_api`, `call_api` and `run_script`. Use `describe_api(names=["solid_check"])` for a tool's schema, then pass its name and arguments to `call_api`. Discover modeling command IDs with `list_commands` and inspect their slots and parameter choices with `run_command` and `commit:false`.
+
 For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same separate absolute JSON-file path in the bridge and app. The normal discovery file stays unchanged. `run_command` also supports `refold`: select an original cylindrical flat pattern and the curves/sketches drawn on it. `object_info`/`get_state` include `flatPattern` dimensions and refoldability. See [Flatten and Refold](flatten-refold.md).
 
 ## Setup
@@ -33,7 +35,7 @@ For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same se
 | `run_command` | Start + fill + commit any modeling command (box … loft, fillet, booleans, transforms, surfaces, nurbs_patch, curves) |
 | `command_set`, `command_commit`, `command_cancel` | Work with a command left open for preview |
 | `solid_find` | Find faces or edges of a solid by geometry rather than by index: `type` (Plane, Cylinder, Line, Circle…), `facing`+`angle`, `direction`+`angle`, `radius`, `box`, `near`+`distance`, `of_face` (edges bounding a face), `min_size`/`max_size`, `sort` (`size`, `x`, `y`, `z`, prefix `-` for descending), `limit`. `select:true` selects the hits; `summary:true` returns only counts per type. Hits are 1-based and can be used directly in `run_command` slots. |
-| `solid_check` | Cheap verification: validity, volume, area, bounding box, centre of mass, face/edge/shell counts and open edges for one object; or the minimum distance and closest points between `a` and `b` (objects, faces or edges), plus overlap volume for intersecting solids. |
+| `solid_check` | With `object` alone, check validity, volume, area, bounds, centre of mass and topology. With `a` and `b`, measure minimum distance and closest points between objects, faces or edges. Use `object` as a shorthand for the first body when only `b` is given. Whole solid pairs can also report overlap volume. |
 | `sketch_begin`, `sketch_add`, `sketch_finish` | Programmatic sketching (line, polyline, rect, circle, arc, spline) on XY/XZ/YZ or a planar face |
 | `get_control_points`, `set_control_points` | Read/write NURBS control nets for freeform edits |
 | `select`, `object_update`, `delete_objects` | Selection, rename/recolor/hide, delete |
@@ -42,6 +44,8 @@ For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same se
 `run_command` and `command_commit` report what the command did: `created` bodies, `changed` bodies (`volumeDelta`, `areaDelta`, `faces`/`edges` as `before->after`, `size`, `valid`), `removed` names and a `warning` if a result is invalid. A failure names the command, the reason, its slots (with how many items each holds) and its parameters. Items in `select` and slots can also be found by position: `{object, face_at:[x,y,z]}` / `{object, edge_at:[x,y,z]}` pick the face or edge nearest a point, so they survive index changes after booleans.
 
 `view` accepts `display` as `shaded`, `shaded_edges`, or `wireframe`, and `xray` as a separate boolean. `get_state` reports both settings. Shaded + edges adds edges to shaded faces; X-ray makes shaded faces translucent and can be combined with either shaded style. Wireframe shows edges without faces.
+
+The [SFC-I001 integration scenario](../Prism.Tests/Integration/DesktopModelingTests.cs) checks surface area and measures a known offset through MCP using both distance argument forms. Verified on Windows on 2026-11-04 with `dotnet test Prism.Tests/Integration/Prism.IntegrationTests.csproj -c Release --filter TestId=SFC-I001`.
 
 ### More tools
 | Tool | Purpose |
@@ -52,6 +56,7 @@ For an isolated review instance, set `PRISM_AUTOMATION_DISCOVERY` to the same se
 | `sketch_constrain`, `sketch_dimension`, `sketch_project`, `sketch_mirror`, `sketch_trim`, `sketch_pattern`, `sketch_delete` | Constraints, dimensions and sketch edits |
 | `form_info`, `form_find`, `form_analyze`, `form_op`, `form_select`, `form_to_nurbs` | Freeform (subdivision) cages: inspect, edit, select, convert to NURBS. `form_info` takes `summary` (counts and bounding box) or `only:[vertex indices]`. `form_find` picks vertices, faces or edges by geometry (`box`, `near`+`radius`, `facing`+`angle`, `open`, `all`) so no one has to read the whole cage; `form_select` and `form_op` accept `all:true`; `form_select` also takes `op` (grow, shrink, invert, all, angle, boundary, creased). A form with a persistent symmetry repeats topology edits on the mirror images of the selection. `form_analyze` reports poles, triangles, n-gons, stretched quads, curvature and, with `reference`, the deviation (`display:true` colors the form). `form_to_nurbs` takes `detail: fewer` for a lighter solid. `form_op` ops: move, rotate (`axis`, `angle`, `pivot`), scale (`factor` or `scale:[sx,sy,sz]`, `pivot`), set_vertices, extrude_faces, extrude_edges, inset (`faces`, `amount`, `depth`, `individual`), bevel (`edges` or `faces`, `amount`), insert_loop (`edge`, `count`, `position`), thicken (`amount`), fill_holes, merge_faces (`faces`), collapse_edges (`edges` or `faces`), split_face (`faces:[f]`, `vertices:[a,b]`), set_symmetry (`symmetry` x/y/z/radial:N/off, `enforce`), chamfer (`edges` or `faces`, `amount`), slide (`edges`, `amount` -1..1), crease_vertices (`vertices`, `value`), merge_edges (`edges`), unweld_edges (`edges` or `faces`), pull (`vertices` or all, `strength`), smooth (`vertices` or all, `strength`, `passes`), flatten (`vertices`), subdivide, delete_faces, weld, flip, crease, mirror, add_face, level. move/rotate/scale/set_vertices also accept `soft_radius` + `falloff` (smooth, linear, sharp) and `symmetry` (x, y, z, `radial:N`). |
 | `material_list`, `material_apply` | Library materials (`material_list` is short by default; `brief:false` for the full data) |
+| `render_control` | Poll render progress and save the finished PNG. Set the camera with `view`, call `wait_idle`, then open `run_command` with `name:"render", commit:false`. Set render options and run `Start render` through `command_set`. Poll `status` for `finished` or `error` before calling `save` with a PNG path. |
 | `document_new`, `document_list`, `document_switch`, `document_close` | Work in several document tabs |
 | `study_new`, `study_run`, `study_state` | Simulation studies |
 

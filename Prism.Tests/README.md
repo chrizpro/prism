@@ -82,6 +82,8 @@ Document safety: [save/close/recovery guide](../docs/interface/document-safety/R
 
 Startup gallery: [canonical guide](../docs/interface/gallery/README.md), [issue #61](https://github.com/chrizpro/prism/issues/61), [Unit tests](Unit/Gallery/), [Headless tests](Headless/Gallery/) and [desktop/MCP examples](Integration/DesktopGalleryTests.cs). Filter with `--filter Feature=Gallery`.
 
+Feedback, bug and crash reporting: [canonical guide](../docs/interface/reporting/README.md), [issue #59](https://github.com/chrizpro/prism/issues/59), [Unit tests](Unit/Reporting/ReportingTests.cs) and [Headless dialog tests](Headless/Reporting/ReportingDialogTests.cs). Filter with `-Feature Reporting` or `--filter Feature=Reporting`.
+
 See the [readiness report](../docs/engineering/test-readiness-report.md) for the reasons behind remaining gaps.
 
 | Feature issues | Living specification | Unit | Headless |

@@ -21,6 +21,8 @@
 > [!WARNING]
 > **Prism is in alpha.** The feature set is in place and we are now polishing it, so features and workflows can still change between releases and you will run into bugs. Prism is not yet ready for production work. Keep backups of your models, check the [known issues](https://chrizpro.github.io/prism/docs/reference/known-issues), and [report bugs](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) when you find them.
 
+Exploring CAD software alternatives? Prism is a 3D CAD app for Windows, macOS and Linux with parametric modeling, surfacing and freeform tools. If you are evaluating a Creo, NX, Fusion 360 or Solid Craft alternative, see the [CAD alternatives guide](https://chrizpro.github.io/prism/cad-alternatives/). Prism is an alpha project; it does not claim feature parity or affiliation with those products.
+
 ## What's inside
 
 | Workspace | What you can do |
@@ -119,7 +121,7 @@ See the [test guide](Prism.Tests/README.md) for layers, features and test IDs. O
 
 ## Contributing
 
-**For now, this repository accepts bug reports only.** If something is broken, [open a bug report](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) with the steps to reproduce it, what you expected, and your system.
+**This repository accepts bug reports and feedback.** If something is broken, [open a bug report](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) with the steps to reproduce it, what you expected, and your system. To share your experience, [give feedback](https://github.com/chrizpro/prism/issues/new?template=feedback.yml). Both are available in Prism's **Help (?)** menu. Crash diagnostics are reviewed locally before opening a GitHub draft; do not attach raw crash logs. Reports are public.
 
 We are a little open to feature requests that are **essential for modeling work** and that we may have missed: something a real part or project cannot be done without. If that's you, use the [essential feature request](https://github.com/chrizpro/prism/issues/new?template=essential_feature.yml) form and explain what you were trying to make. Other feature requests and pull requests will usually be closed while we focus on polish.
 

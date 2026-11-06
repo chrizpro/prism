@@ -14,7 +14,8 @@ import { href } from '../config'
 
 interface Props { title?: string; description?: string }
 const { title, description = 'Prism is a CAD application for solid, surface, freeform and sketch-based modeling, with simulation, manufacturing, rendering and scripting in one place.' } = Astro.props
-const fullTitle = title ? `${title} · Prism` : 'Prism · Design, simulate and make in one place'
+const fullTitle = title ? `${title} · Prism CAD` : 'Prism CAD | 3D CAD, simulation and manufacturing'
+const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://chrizpro.github.io')
 ---
 <!doctype html>
 <html lang="en">
@@ -23,6 +24,10 @@ const fullTitle = title ? `${title} · Prism` : 'Prism · Design, simulate and m
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="Prism CAD" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta name="theme-color" content="#090f1a" />

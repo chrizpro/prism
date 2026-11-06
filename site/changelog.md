@@ -2,7 +2,7 @@
 
 ## 0.1.0 alpha
 
-- Prism is in alpha: an Alpha badge next to the wordmark opens the known issues, and **Report a bug** in the header opens a bug form with your version and system filled in.
+- Prism is in alpha: an Alpha badge next to the wordmark opens the known issues. **Help (?) → Report a bug** opens the GitHub form; **Give feedback** is also in Help. Optional exit-feedback reminders appear on closures 1, 5, 15, 25, … . Crash diagnostics are reviewed locally before opening a GitHub draft.
 - The AI assistant offers Claude with an API key; Codex can still use your login.
 - MIT license, full third-party notices in installers, and the LGPL library sources attached to each release.
 - Removed Pipe from the Solid ribbon. Removed Sweep and Loft from the Solid ribbon and the sketch marking menu.

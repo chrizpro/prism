@@ -165,10 +165,12 @@ public sealed unsafe class GlViewport : Decorator
     {
         bool editing = s.ActiveCommand is Commands.EditImageCommand or Commands.CalibrateImageCommand;
         if (!editing && s.ImageOverrides.Count > 0) s.ImageOverrides.Clear();
-        foreach (var o in s.Objects)
+        var pictures = s.Objects.Where(o => o.Visible && o.Asm is Core.Assembly.ImageInfo && o.SketchPlane != null)
+            .Select(o => s.ImageOverrides.TryGetValue(o.Id, out var ov) ? ov : ((Core.Assembly.ImageInfo)o.Asm!, o.SketchPlane!.Value)).ToList();
+        if (s.ActiveCommand is Commands.PlaceImageCommand { PreviewEnabled: true, ImagePreview: { } preview })
+            pictures.Add(preview);
+        foreach (var (info, pl) in pictures)
         {
-            if (!o.Visible || o.Asm is not Core.Assembly.ImageInfo info || o.SketchPlane is not { } pl) continue;
-            if (s.ImageOverrides.TryGetValue(o.Id, out var ov)) { info = ov.info; pl = ov.plane; }
             uint tex = ImageTexture(gl, info); if (tex == 0) continue;
             gl.Enable(EnableCap.Blend); gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             gl.DepthMask(false); gl.Disable(EnableCap.CullFace);

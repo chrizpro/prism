@@ -51,13 +51,20 @@ static class ImageUtil
 }
 
 /// <summary>Bring a picture into the model as a reference: on a standard plane, or on any plane or flat face.</summary>
-public sealed class PlaceImageCommand : Command
+public sealed class PlaceImageCommand : Command, IImageGizmoCommand
 {
+    public (ImageInfo info, Plane3 plane)? ImagePreview { get; private set; }
     readonly TextParam _file;
     readonly ChoiceParam _on;
     readonly SelectionSlot _plane;
-    readonly NumberParam _width, _opacity, _offset;
+    readonly NumberParam _width, _opacity, _offset, _rot, _du, _dv;
     readonly BoolParam _flip;
+    public ChoiceParam GizmoMode { get; }
+    public NumberParam GizmoWidth => _width;
+    public NumberParam GizmoTurn => _rot;
+    public NumberParam GizmoU => _du;
+    public NumberParam GizmoV => _dv;
+    public Plane3? GizmoPlane => ImagePreview?.plane;
 
     public PlaceImageCommand(string? path = null)
     {
@@ -68,6 +75,11 @@ public sealed class PlaceImageCommand : Command
         _opacity = Num("Opacity", 60, 0, 100, 10, "%");
         _offset = Num("Move it back or forward", 0, -1e6, 1e6, 5);
         _flip = Check("Mirror left to right", false);
+        _du = Num("Move right", 0, -1e6, 1e6, 5);
+        _dv = Num("Move up", 0, -1e6, 1e6, 5);
+        _rot = Num("Turn", 0, -360, 360, 5, "°");
+        GizmoMode = Choice("Gizmo (T move, R rotate, S scale)", 0, "Move", "Rotate", "Scale");
+        Tool = new ImageGizmoTool(this);
         _on.Changed = () => { UpdateVisibility(); OnChanged(); };
         if (path != null) _file.Value = path;
     }
@@ -75,12 +87,15 @@ public sealed class PlaceImageCommand : Command
     public override string Title => "Import Image";
     public override string Icon => "image";
     public override string OkText => "Place image";
+    public override bool SupportsPreview => true;
+    public override bool CanEdit => true;
     public override string Hint => "A picture to trace or measure against. Choose the plane it lies on and a rough width, then use Set Scale to make it true size. It sits behind the model and is never exported.";
 
     protected override void UpdateVisibility() { _plane.IsVisible = _on.Index == 3; if (_plane.IsVisible) foreach (var s in Slots) s.IsActive = s == _plane; }
 
     protected override CommandOutput? Build()
     {
+        ImagePreview = null;
         Results.Clear();
         var path = _file.Value.Trim().Trim('"');
         if (path.Length == 0) return null;
@@ -92,23 +107,34 @@ public sealed class PlaceImageCommand : Command
             pl = S.PlaneOf(_plane.Items[0]) ?? throw new InvalidOperationException("Pick a plane or a flat face.");
         }
         else pl = CadSession.OriginPlane(_on.Index == 0 ? 1 : _on.Index == 1 ? 0 : 2);
-        pl = new Plane3(pl.Origin + pl.Normal.Normalized() * _offset.Value, pl.U, pl.V);
+        var normal = pl.Normal.Normalized();
+        var origin = pl.Origin + normal * _offset.Value + pl.U * _du.Value + pl.V * _dv.Value;
+        double angle = _rot.Value * Math.PI / 180;
+        pl = new Plane3(origin, ImageUtil.Rotate(pl.U, normal, angle), ImageUtil.Rotate(pl.V, normal, angle));
         var info = new ImageInfo(b64, w, h, _width.Value, _opacity.Value / 100, _flip.Value, false, Path.GetFileName(path));
+        ImagePreview = (info, pl);
         Results.Add(new ResultLine("Picture", $"{w} × {h} pixels"));
         Results.Add(new ResultLine("Size on the plane", $"{info.WidthMm:0.#} × {info.HeightMm:0.#} mm"));
         var o = new CommandOutput { Label = "Import image", Icon = "image" };
         o.Add.Add(new(ImageUtil.Frame(pl, info), "Image", ObjKind.Plane, null, pl, null, null, null, info));
         return o;
     }
+
 }
 
 /// <summary>Change how a picture is shown: opacity, size, mirroring, position and turn.</summary>
-public sealed class EditImageCommand : Command
+public sealed class EditImageCommand : Command, IImageGizmoCommand
 {
     readonly SelectionSlot _img;
     readonly NumberParam _opacity, _width, _rot, _du, _dv;
     readonly BoolParam _flipH, _flipV;
     Guid _seeded; ImageInfo? _base; Plane3 _basePlane; bool _seeding;
+    public ChoiceParam GizmoMode { get; }
+    public NumberParam GizmoWidth => _width;
+    public NumberParam GizmoTurn => _rot;
+    public NumberParam GizmoU => _du;
+    public NumberParam GizmoV => _dv;
+    public Plane3? GizmoPlane => _base != null && _seeded != Guid.Empty && S.ImageOverrides.TryGetValue(_seeded, out var p) ? p.plane : null;
 
     public EditImageCommand()
     {
@@ -120,10 +146,14 @@ public sealed class EditImageCommand : Command
         _dv = Num("Move up", 0, -1e6, 1e6, 5);
         _flipH = Check("Mirror left to right", false);
         _flipV = Check("Mirror top to bottom", false);
+        GizmoMode = Choice("Gizmo (T move, R rotate, S scale)", 0, "Move", "Rotate", "Scale");
+        Tool = new ImageGizmoTool(this);
     }
 
     public override string Title => "Edit Image";
     public override string Icon => "image-edit";
+    public override bool SupportsPreview => true;
+    public override bool CanEdit => true;
     public override string Hint => "Pick a picture (its frame), then change its opacity, size, position or turn. Changing the width keeps the picture centred; use Set Scale to size it from a known distance.";
 
     void Seed(SceneObject obj)
@@ -152,6 +182,17 @@ public sealed class EditImageCommand : Command
         o.After = s => { s.Update(obj.Id, x => x.WithImage(info, frame, pl), checkpoint: false); s.ImageOverrides.Clear(); };
         return o;
     }
+
+}
+
+public interface IImageGizmoCommand
+{
+    Plane3? GizmoPlane { get; }
+    ChoiceParam GizmoMode { get; }
+    NumberParam GizmoWidth { get; }
+    NumberParam GizmoTurn { get; }
+    NumberParam GizmoU { get; }
+    NumberParam GizmoV { get; }
 }
 
 /// <summary>Make a picture true size: click two points on it, say how far apart they really are, and the picture is scaled to match.</summary>
@@ -240,15 +281,28 @@ public sealed class CalibrateTool(CalibrateImageCommand cmd) : IViewportTool
         if (!p.Left) return false;
         if (cmd.Target == null)
         {
-            var pick = s.Pick(p.X, p.Y, SelFilter.Plane);
-            if (pick != null) cmd.Pick(pick.Value.Item, false);
-            else if (s.Objects.Count(o => o.Asm is ImageInfo) == 1) cmd.Pick(SelItem.Of(s.Objects.First(o => o.Asm is ImageInfo)), false);
+            // Origin and construction planes can overlap a picture. Pick pictures directly
+            // here so those unrelated planes cannot consume the required picture slot.
+            var image = s.Objects.Where(o => o.Visible && o.Asm is ImageInfo && o.SketchPlane != null)
+                .Select(o => (obj: o, hit: ImageUtil.RayOnPlane(s, p.X, p.Y, o.SketchPlane!.Value)))
+                .Where(x => x.hit is { } h && Inside(x.obj, h))
+                .OrderBy(x => x.hit!.Value.DistanceTo(s.Camera.Eye)).FirstOrDefault().obj;
+            if (image != null) cmd.Pick(SelItem.Of(image), false);
+            else if (s.Pick(p.X, p.Y, SelFilter.Plane) == null && s.Objects.Count(o => o.Asm is ImageInfo) == 1)
+                cmd.Pick(SelItem.Of(s.Objects.First(o => o.Asm is ImageInfo)), false);
             return true;
         }
         if (OnImage(s, p) is not { } pt) { s.Say("The view runs along the picture. Turn the view so you can see it face on.", true); return true; }
         if (cmd.Points.Count >= 2) cmd.Points.Clear();
         cmd.Points.Add(pt); cmd.OnChanged(); s.Say(Prompt); s.Invalidate();
         return true;
+    }
+
+    static bool Inside(SceneObject obj, Vec3 hit)
+    {
+        var info = (ImageInfo)obj.Asm!;
+        var (u, v) = obj.SketchPlane!.Value.Project(hit);
+        return Math.Abs(u) <= info.WidthMm / 2 && Math.Abs(v) <= info.HeightMm / 2;
     }
 
     public void PointerMove(CadSession s, PointerInfo p) { _hover = OnImage(s, p); s.Invalidate(); }

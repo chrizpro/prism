@@ -1,0 +1,47 @@
+{
+  "capturedUtc": "2026-11-05T16:09:10.3596074Z",
+  "baseRevision": "fe9cc170bd26674a7d16f3bd8c90609f91105f19",
+  "workingTree": "Reporting changes uncommitted; concurrent unrelated changes preserved",
+  "files": [
+    {
+      "path": "Prism/Core/Reporting.cs",
+      "sha256": "62C2F32735F93AED4C7805593D5A03CA1F8B842CF6340550A0A53052C426125C"
+    },
+    {
+      "path": "Prism/Core/AppInfo.cs",
+      "sha256": "3C7CF919185AB0ED935CCE6C1BF1D038DE2A0B05F2A19CEAD69F026B5F55177B"
+    },
+    {
+      "path": "Prism/Core/AppSettings.cs",
+      "sha256": "B5BF58C60D2B717162C30A440A5A3355B4B3B8148832A0D4198C31EFBDD0F0C8"
+    },
+    {
+      "path": "Prism/Views/MainWindow.Reporting.cs",
+      "sha256": "B089139837CAE87F0C5AF46FECDC536D4ACA587634075C0C86A48BB288953DB5"
+    },
+    {
+      "path": "Prism/Views/ReportingDialogs.cs",
+      "sha256": "6FFDA1C41A9C2BDCFE394724CC8D00F8CF9D038455FFE561D65791343464EDC3"
+    },
+    {
+      "path": "Prism/Views/MainView.axaml",
+      "sha256": "583D4EC51EF9FD549133490A73E4F9AA9FCCCAA050C8B8EC8697294C65898591"
+    },
+    {
+      "path": "Prism/Views/MainView.axaml.cs",
+      "sha256": "1949385C04DDC612A4325FB9C25E0A62514E165D19BC250A185A7854D27766CC"
+    },
+    {
+      "path": "Prism.Desktop/Program.cs",
+      "sha256": "2A1F977B476EAC520E95B252E219CC313196A8D47C48C4AB68F6F9C97317A604"
+    },
+    {
+      "path": "artifacts/tests/reporting/bin/Prism.dll",
+      "sha256": "01ED8F85C1B9EF98C51871271390913712C41C89473B0DE393E9C3C5BC9A7510"
+    },
+    {
+      "path": "artifacts/tests/reporting/bin/Prism.Desktop.dll",
+      "sha256": "E7237D83DF12C2E9CE8F9A98D320169527186E8EE284B596DCD340496147E6FA"
+    }
+  ]
+}

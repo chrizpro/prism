@@ -1,0 +1,29 @@
+name: Crash report
+description: Report an unexpected closure with a reviewed diagnostic
+title: "[Crash] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This report is **public**. Prism prepares a trace without file paths or exception messages and asks you to review it before opening GitHub. Review the draft again before submitting. Do not attach raw crash logs, private models or credentials.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What were you doing before Prism closed?
+      description: Include steps to reproduce if possible. Remove private names and paths.
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Reviewed crash diagnostic
+      description: Prepared by Prism and approved locally. You can remove further details here.
+      render: text
+  - type: checkboxes
+    id: reviewed
+    attributes:
+      label: Privacy review
+      options:
+        - label: I reviewed this report and removed any private information.
+          required: true

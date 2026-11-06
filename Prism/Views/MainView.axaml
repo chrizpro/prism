@@ -184,9 +184,6 @@
                               Data="F0 M10.08 4.85 L10.45 2.22 L13.55 2.22 L13.92 4.85 L15.70 5.59 L17.82 3.99 L20.01 6.18 L18.41 8.30 L19.15 10.08 L21.78 10.45 L21.78 13.55 L19.15 13.92 L18.41 15.70 L20.01 17.82 L17.82 20.01 L15.70 18.41 L13.92 19.15 L13.55 21.78 L10.45 21.78 L10.08 19.15 L8.30 18.41 L6.18 20.01 L3.99 17.82 L5.59 15.70 L4.85 13.92 L2.22 13.55 L2.22 10.45 L4.85 10.08 L5.59 8.30 L3.99 6.18 L6.18 3.99 L8.30 5.59 Z M15.2 12 A3.2 3.2 0 1 0 8.8 12 A3.2 3.2 0 1 0 15.2 12 Z"/>
 
                     </Button><TextBlock Text="{Binding DocumentTitle}" VerticalAlignment="Center" Classes="soft" FontWeight="Medium" Margin="8,0,0,0"/>
-                    <Button Classes="opt" Click="OnReportBug" Padding="9,4" Margin="6,0,2,0" ToolTip.Tip="Found a problem? Open a bug report on GitHub with your version and system filled in.">
-                        <TextBlock Text="Report a bug" FontSize="12"/>
-                    </Button>
                     <Button Name="BtnHelp" Classes="help" Content="?" Width="22" Height="22" Padding="0" CornerRadius="11" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="13" FontWeight="SemiBold" Click="OnHelp" ToolTip.Tip="Help and about Prism"/>
                 </StackPanel>
 
@@ -504,6 +501,8 @@
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
 
                                         <TextBlock Text="{Binding Title}" FontSize="12.5" VerticalAlignment="Center"/>
+
+                                        <TextBlock Text="📌" IsVisible="{Binding IsPinned}" VerticalAlignment="Center"/>
 
                                         <TextBlock Text="•" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsDirty}" VerticalAlignment="Center"/>
 

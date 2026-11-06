@@ -1,15 +1,15 @@
     1C
     1UPrism CAE: mm, N, s (structural); mm, J, kg, s, Celsius (thermal) 
     1UUSER                                                              
-    1UDATE              29.october.2026                                 
-    1UTIME              10:24:23                                        
+    1UDATE              03.november.2026                                
+    1UTIME              08:40:24                                        
     1UHOST                                                              
     1UPGM               CalculiX                                        
     1UVERSION           Version 2.23                             
     1UCOMPILETIME       Fri Oct 24 20:12:25     2025                    
     1UDIR                                                               
     1UDBN                                                               
-    1UMAT    1MAT                                                       
+    1UMAT    1MAT0                                                      
     2C                           401                                     1
  -1         1-5.00000E+00 5.00000E+00 0.00000E+00
  -1         2-5.00000E+00 1.66667E+00 0.00000E+00

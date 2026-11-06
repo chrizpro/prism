@@ -24,7 +24,7 @@ public sealed partial class MainViewModel
     public string[] GizmoOperations=>Session.Sketch!=null&&!GizmoIsDatum?(GizmoPositioning?SketchPlacementOperationNames:SketchGizmoOperationNames):GizmoPositioning?PlacementOperations:AllGizmoOperations;
     public int GizmoActiveOperation
     {
-        get=>Session.ActiveCommand switch {EditFormCommand form=>form.TransformMode.Index,EditPointsCommand points=>points.TransformMode.Index,_=>Session.DatumVisible?Session.Datum!.Mode:(int)(Session.Sketch?.GizmoOperation??Core.SketchGizmoOperation.Move)};
+        get=>Session.ActiveCommand switch {EditFormCommand form=>form.TransformMode.Index,EditPointsCommand points=>points.TransformMode.Index,IImageGizmoCommand image=>image.GizmoMode.Index,_=>Session.DatumVisible?Session.Datum!.Mode:(int)(Session.Sketch?.GizmoOperation??Core.SketchGizmoOperation.Move)};
         set
         {
             if(value<0)return;
@@ -34,6 +34,7 @@ public sealed partial class MainViewModel
             if(Session.DatumVisible){Session.Datum!.Mode=Math.Min(value,1);Session.Invalidate();}
             else if(Session.ActiveCommand is EditFormCommand form)form.ForceMode(value);
             else if(Session.ActiveCommand is EditPointsCommand points){points.TransformMode.Index=value;points.Touch();}
+            else if(Session.ActiveCommand is IImageGizmoCommand image){image.GizmoMode.Index=value;Session.Invalidate();}
             else if(Session.Sketch is {} sketch){sketch.GizmoOperation=(SketchGizmoOperation)value;Session.Invalidate();}
             OnPropertyChanged();
         }

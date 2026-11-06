@@ -55,6 +55,35 @@ public sealed partial class MainViewModel
         return true;
     }
 
+    /// <summary>Close selected tabs after reviewing each changed or unfinished document.</summary>
+    bool _closingAllTabs;
+    public async Task<bool> CloseAllTabsAsync(bool includePinned, Func<DocumentTab, Task<DocumentCloseDecision>> ask, DocumentTab? except = null)
+    {
+        if (_closingAllTabs) return false;
+        _closingAllTabs = true;
+        try
+        {
+        foreach (var tab in Documents.Where(t => !ReferenceEquals(t, except) && (includePinned || !t.IsPinned)).ToArray())
+        {
+            if (!Documents.Contains(tab) || !includePinned && tab.IsPinned) continue;
+            if (NeedsCloseDecision(tab))
+            {
+                ActivateDocument(tab);
+                var state = (tab.Session.Current, tab.Session.Objects, tab.Session.Dirty, tab.Session.FilePath, tab.Session.Sketch, tab.Session.ActiveCommand);
+                var decision = await ask(tab);
+                if (decision == DocumentCloseDecision.Cancel || !Documents.Contains(tab) || !includePinned && tab.IsPinned) return false;
+                if (!state.Equals((tab.Session.Current, tab.Session.Objects, tab.Session.Dirty, tab.Session.FilePath, tab.Session.Sketch, tab.Session.ActiveCommand))) return false;
+                if (decision == DocumentCloseDecision.Save && !await SaveDocumentAsync(tab)) return false;
+            }
+            // The review above is the explicit discard confirmation for this tab.
+            tab.ConfirmClose = true;
+            CloseDocument(tab);
+        }
+        return true;
+        }
+        finally { _closingAllTabs = false; }
+    }
+
     public int WriteRecoveryCopies(RecoveryStore store)
     {
         int saved = 0, failed = 0, deferred = 0;

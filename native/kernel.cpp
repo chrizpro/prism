@@ -165,7 +165,10 @@ void* wrap(const TopoDS_Shape& s) {
     if (s.IsNull()) { if (g_err.empty()) g_err = "Operation produced a null shape."; return nullptr; }
     return new H{ s };
 }
-const TopoDS_Shape& get(void* h) { return static_cast<H*>(h)->s; }
+const TopoDS_Shape& get(void* h) {
+    if (!h) throw Standard_Failure("Shape handle is null (possibly disposed).");
+    return static_cast<H*>(h)->s;
+}
 void fail(const char* m) { g_err = m; }
 
 #define TRY try { g_err.clear();
@@ -267,7 +270,7 @@ struct Mesh {
 // ---------------------------------------------------------------- basics
 CK_API const char* ck_last_error() { return g_err.c_str(); }
 CK_API void ck_free(void* h) { delete static_cast<H*>(h); }
-CK_API void* ck_clone(void* h) { return h ? new H{ get(h) } : nullptr; }
+CK_API void* ck_clone(void* h) { TRY return h ? wrap(get(h)) : nullptr; CATCH(nullptr) }
 
 // ---------------------------------------------------------------- primitives (base on XY plane, centered on origin)
 CK_API void* ck_box(double dx, double dy, double dz) {
@@ -811,7 +814,7 @@ CK_API int ck_children(void* s, void** out, int max) {
         for (TopoDS_Iterator it(get(s)); it.More(); it.Next()) { if (n < max) out[n] = wrap(it.Value()); ++n; }
         return n; CATCH(0)
 }
-CK_API int ck_shape_type(void* s) { return (int)get(s).ShapeType(); } // TopAbs_ShapeEnum: 0 compound,1 compsolid,2 solid,3 shell,4 face,5 wire,6 edge,7 vertex
+CK_API int ck_shape_type(void* s) { TRY return (int)get(s).ShapeType(); CATCH(-1) } // TopAbs_ShapeEnum: 0 compound,1 compsolid,2 solid,3 shell,4 face,5 wire,6 edge,7 vertex
 CK_API int ck_is_valid(void* s) { TRY return BRepCheck_Analyzer(get(s)).IsValid() ? 1 : 0; CATCH(0) }
 
 // props: [volume, area, minx,miny,minz, maxx,maxy,maxz]
@@ -1325,7 +1328,7 @@ CK_API void* ck_mesh_create(void* shape, double lin, double ang) {
     TRY
         const TopoDS_Shape& sh = get(shape);
         BRepMesh_IncrementalMesh(sh, lin, false, ang, true);
-        auto* m = new Mesh();
+        auto m = std::make_unique<Mesh>();
         TopTools_IndexedMapOfShape faces, edges;
         TopExp::MapShapes(sh, TopAbs_FACE, faces);
         TopExp::MapShapes(sh, TopAbs_EDGE, edges);
@@ -1421,15 +1424,19 @@ CK_API void* ck_mesh_create(void* shape, double lin, double ang) {
                 m->segEdge.push_back(ei - 1);
             }
         }
-        return m;
+        return m.release();
     CATCH(nullptr)
 }
 CK_API void ck_mesh_sizes(void* h, int* nVerts, int* nTris, int* nSegs) {
+    if (!h || !nVerts || !nTris || !nSegs) { fail("Invalid mesh or output pointers."); return; }
     auto* m = static_cast<Mesh*>(h);
     *nVerts = (int)m->pos.size() / 3; *nTris = (int)m->idx.size() / 3; *nSegs = (int)m->segEdge.size();
 }
 CK_API void ck_mesh_fill(void* h, float* pos, float* nrm, int* idx, int* triFace, float* edgePts, int* segEdge) {
+    if (!h) { fail("Mesh handle is null."); return; }
     auto* m = static_cast<Mesh*>(h);
+    if ((!m->pos.empty() && (!pos || !nrm)) || (!m->idx.empty() && (!idx || !triFace)) ||
+        (!m->edgePts.empty() && (!edgePts || !segEdge))) { fail("Mesh output pointers are null."); return; }
     std::copy(m->pos.begin(), m->pos.end(), pos);
     std::copy(m->nrm.begin(), m->nrm.end(), nrm);
     std::copy(m->idx.begin(), m->idx.end(), idx);

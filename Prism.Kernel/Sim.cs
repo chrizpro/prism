@@ -30,6 +30,7 @@ internal static unsafe class SimNative
 public sealed unsafe class FemMesh : IDisposable
 {
     static readonly object MeshGate = new(); // Netgen has process-global initialization/state.
+    readonly object _gate = new();
     IntPtr _h;
     public int NodeCount { get; }
     public int CornerCount { get; }
@@ -73,6 +74,9 @@ public sealed unsafe class FemMesh : IDisposable
     /// <summary>Mesh the volume enclosed by a closed triangle surface (9 floats per triangle). maxh = target element size in mm.</summary>
     public static FemMesh FromSurface(float[] triSoup, double maxh, double grading = 0.3, int optimizeSteps = 3)
     {
+        ArgumentNullException.ThrowIfNull(triSoup);
+        if (triSoup.Length == 0 || triSoup.Length % 9 != 0)
+            throw new ArgumentException("Expected nine coordinates per triangle.", nameof(triSoup));
         lock (MeshGate)
         {
         fixed (float* p = triSoup)
@@ -82,6 +86,17 @@ public sealed unsafe class FemMesh : IDisposable
             return new FemMesh(h);
         }
         }
+    }
+
+    static void ValidateArrays(int[] fixNode, int[] fixMask, int[] tracTri, double[] tracVec, double[]? gravity)
+    {
+        ArgumentNullException.ThrowIfNull(fixNode);
+        ArgumentNullException.ThrowIfNull(fixMask);
+        ArgumentNullException.ThrowIfNull(tracTri);
+        ArgumentNullException.ThrowIfNull(tracVec);
+        if (fixMask.Length != fixNode.Length || tracVec.LongLength != 3L * tracTri.Length ||
+            (gravity != null && gravity.Length != 3))
+            throw new ArgumentException("Fixture, traction, or gravity arrays have inconsistent lengths.");
     }
 
     public sealed record StaticResult(double[] Displacement, double[] Stress, double[] VonMises, double Iterations, double ReactionSum, Vec3 Reaction, double Applied)
@@ -97,36 +112,50 @@ public sealed unsafe class FemMesh : IDisposable
     public StaticResult SolveStatic(double E, double nu, double density, int[] fixNode, int[] fixMask, double[]? fixVal,
         int[] forceNode, double[] forceVec, int[] tracTri, double[] tracVec, double[]? gravity)
     {
-        if (_h == IntPtr.Zero) throw new InvalidOperationException("A merged mesh has more than one material, so it is solved through CalculiX.");
-        var mat = new[] { E, nu, density };
-        var u = new double[NodeCount * 3]; var s = new double[NodeCount * 6]; var vm = new double[NodeCount]; var info = new double[8];
-        int ok;
-        fixed (double* pm = mat) fixed (int* pfn = fixNode) fixed (int* pfm = fixMask) fixed (double* pfv = fixVal) fixed (int* pfo = forceNode) fixed (double* pfv2 = forceVec)
-        fixed (int* ptt = tracTri) fixed (double* ptv = tracVec) fixed (double* pg = gravity) fixed (double* pu = u) fixed (double* ps = s) fixed (double* pvm = vm) fixed (double* pi = info)
-            ok = SimNative.sim_static(_h, pm, fixNode.Length, pfn, pfm, pfv, forceNode.Length, pfo, pfv2, tracTri.Length, ptt, ptv, gravity == null ? null : pg, pu, ps, pvm, pi);
-        if (ok == 0) throw new KernelException(LastError());
-        return new StaticResult(u, s, vm, info[0], info[1], new Vec3(info[2], info[3], info[4]), info[5]) { AssembleSeconds = info[6], SolveSeconds = info[7] };
+        lock (_gate)
+        {
+            if (_h == IntPtr.Zero) throw new InvalidOperationException("A merged mesh has more than one material, so it is solved through CalculiX.");
+            ValidateArrays(fixNode, fixMask, tracTri, tracVec, gravity);
+            ArgumentNullException.ThrowIfNull(forceNode);
+            ArgumentNullException.ThrowIfNull(forceVec);
+            if (forceVec.LongLength != 3L * forceNode.Length || (fixVal != null && fixVal.LongLength != 3L * fixNode.Length))
+                throw new ArgumentException("Force or prescribed displacement arrays have inconsistent lengths.");
+            var mat = new[] { E, nu, density };
+            var u = new double[NodeCount * 3]; var s = new double[NodeCount * 6]; var vm = new double[NodeCount]; var info = new double[8];
+            int ok;
+            fixed (double* pm = mat) fixed (int* pfn = fixNode) fixed (int* pfm = fixMask) fixed (double* pfv = fixVal) fixed (int* pfo = forceNode) fixed (double* pfv2 = forceVec)
+            fixed (int* ptt = tracTri) fixed (double* ptv = tracVec) fixed (double* pg = gravity) fixed (double* pu = u) fixed (double* ps = s) fixed (double* pvm = vm) fixed (double* pi = info)
+                ok = SimNative.sim_static(_h, pm, fixNode.Length, pfn, pfm, pfv, forceNode.Length, pfo, pfv2, tracTri.Length, ptt, ptv, gravity == null ? null : pg, pu, ps, pvm, pi);
+            if (ok == 0) throw new KernelException(LastError());
+            return new StaticResult(u, s, vm, info[0], info[1], new Vec3(info[2], info[3], info[4]), info[5]) { AssembleSeconds = info[6], SolveSeconds = info[7] };
+        }
     }
 
     /// <summary>Start a generative-design (topology optimization) run on this mesh. Loads: tractions on boundary triangles. Densities start at the target volume fraction.</summary>
     public TopologyRun StartTopology(double E, double nu, double density, int[] fixNode, int[] fixMask, int[] tracTri, double[] tracVec, double[]? gravity,
         double volumeFraction, double penalty, double filterRadius, double keepRadius)
     {
-        var mat = new[] { E, nu, density }; int ne;
-        IntPtr ctx;
-        fixed (double* pm = mat) fixed (int* pfn = fixNode) fixed (int* pfm = fixMask) fixed (int* ptt = tracTri) fixed (double* ptv = tracVec) fixed (double* pg = gravity)
-            ctx = SimNative.sim_topo_create(_h, pm, fixNode.Length, pfn, pfm, tracTri.Length, ptt, ptv, gravity == null ? null : pg, volumeFraction, penalty, filterRadius, keepRadius, &ne);
-        if (ctx == IntPtr.Zero) throw new KernelException(Marshal.PtrToStringUTF8(SimNative.sim_topo_error()) ?? "Could not start the optimization.");
-        return new TopologyRun(ctx, ne);
+        lock (_gate)
+        {
+            if (_h == IntPtr.Zero) throw new InvalidOperationException("Topology optimization requires an active native mesh.");
+            ValidateArrays(fixNode, fixMask, tracTri, tracVec, gravity);
+            var mat = new[] { E, nu, density }; int ne;
+            IntPtr ctx;
+            fixed (double* pm = mat) fixed (int* pfn = fixNode) fixed (int* pfm = fixMask) fixed (int* ptt = tracTri) fixed (double* ptv = tracVec) fixed (double* pg = gravity)
+                ctx = SimNative.sim_topo_create(_h, pm, fixNode.Length, pfn, pfm, tracTri.Length, ptt, ptv, gravity == null ? null : pg, volumeFraction, penalty, filterRadius, keepRadius, &ne);
+            if (ctx == IntPtr.Zero) throw new KernelException(Marshal.PtrToStringUTF8(SimNative.sim_topo_error()) ?? "Could not start the optimization.");
+            return new TopologyRun(ctx, ne);
+        }
     }
 
-    public void Dispose() { if (_h != IntPtr.Zero) { SimNative.sim_mesh_free(_h); _h = IntPtr.Zero; } GC.SuppressFinalize(this); }
+    public void Dispose() { lock (_gate) { if (_h != IntPtr.Zero) { SimNative.sim_mesh_free(_h); _h = IntPtr.Zero; } } GC.SuppressFinalize(this); }
     ~FemMesh() { Dispose(); }
 }
 
 /// <summary>One generative-design run: call Step repeatedly; each call is one optimization iteration.</summary>
 public sealed unsafe class TopologyRun : IDisposable
 {
+    readonly object _gate = new();
     IntPtr _ctx;
     public int ElementCount { get; }
     public double[] Density { get; }
@@ -146,14 +175,18 @@ public sealed unsafe class TopologyRun : IDisposable
 
     public void Step()
     {
-        var info = new double[8];
-        int ok;
-        fixed (double* x = Density) fixed (double* pi = info) ok = SimNative.sim_topo_step(_ctx, x, pi);
-        if (ok == 0) throw new KernelException(Marshal.PtrToStringUTF8(SimNative.sim_topo_error()) ?? "The optimization failed.");
-        Iteration++; Compliance = info[0]; VolumeFraction = info[1]; Change = info[2]; StepSeconds = info[3];
-        if (Iteration == 1) FirstCompliance = Compliance;
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_ctx == IntPtr.Zero, this);
+            var info = new double[8];
+            int ok;
+            fixed (double* x = Density) fixed (double* pi = info) ok = SimNative.sim_topo_step(_ctx, x, pi);
+            if (ok == 0) throw new KernelException(Marshal.PtrToStringUTF8(SimNative.sim_topo_error()) ?? "The optimization failed.");
+            Iteration++; Compliance = info[0]; VolumeFraction = info[1]; Change = info[2]; StepSeconds = info[3];
+            if (Iteration == 1) FirstCompliance = Compliance;
+        }
     }
 
-    public void Dispose() { if (_ctx != IntPtr.Zero) { SimNative.sim_topo_free(_ctx); _ctx = IntPtr.Zero; } GC.SuppressFinalize(this); }
+    public void Dispose() { lock (_gate) { if (_ctx != IntPtr.Zero) { SimNative.sim_topo_free(_ctx); _ctx = IntPtr.Zero; } } GC.SuppressFinalize(this); }
     ~TopologyRun() { Dispose(); }
 }

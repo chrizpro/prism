@@ -38,9 +38,7 @@ sealed class Program
     {
         try
         {
-            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism");
-            System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "crash.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
+            Core.PendingCrashStore.Local.Save(Core.CrashDiagnostic.Capture(ex));
         }
         catch { }
     }

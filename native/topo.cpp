@@ -12,6 +12,10 @@
 #include <vector>
 
 #include "prism_exports.h"
+#include "sim_validation.h"
+#include <memory>
+#include <tuple>
+#include <map>
 
 // the finite element mesh type lives in sim.cpp; this file only needs its public layout through these accessors
 extern "C" int sim_mesh_counts_internal(void* h, int* nNodes, int* nCorner, int* nTets, int* nBtris);
@@ -67,12 +71,22 @@ SIM_API void* sim_topo_create(void* h, const double* mat, int nFix, const int* f
                               double volfrac, double penal, double rmin, double keepRadius, int* nElems) {
     try {
         g_terr.clear();
+        using namespace sim_validation;
+        require(h && nElems, "Invalid mesh or output pointer.");
+        *nElems = 0;
+        material(mat);
+        require(std::isfinite(volfrac) && volfrac >= 0.001 && volfrac <= 1 &&
+                std::isfinite(penal) && penal > 0 && std::isfinite(rmin) && rmin >= 0 &&
+                std::isfinite(keepRadius) && keepRadius >= 0, "Invalid topology optimization parameters.");
         int nNodes, nCorner, nTets, nBtris;
-        sim_mesh_counts_internal(h, &nNodes, &nCorner, &nTets, &nBtris);
+        require(sim_mesh_counts_internal(h, &nNodes, &nCorner, &nTets, &nBtris) != 0, "Invalid mesh.");
+        indices(fixNode, nFix, nNodes); array(fixMask, nFix);
+        indices(tracTri, nTrac, nBtris); finite(tracVec, nTrac, 3);
+        if (gravity) finite(gravity, 3);
         const double* X = sim_mesh_nodes_internal(h);
         const int* T10 = sim_mesh_tets_internal(h);
         const int* B6 = sim_mesh_btris_internal(h);
-        auto* c = new Topo();
+        auto c = std::make_unique<Topo>();
         c->nCorner = nCorner; c->ndof = 3 * nCorner; c->ne = nTets;
         c->E0 = mat[0]; c->penal = penal; c->volfrac = volfrac;
         auto D = elasticity(1.0, mat[1]);
@@ -118,7 +132,7 @@ SIM_API void* sim_topo_create(void* h, const double* mat, int nFix, const int* f
         }
         c->freeIdx.assign(c->ndof, -1);
         for (int i = 0; i < c->ndof; ++i) if (!c->fixed[i]) c->freeIdx[i] = c->nf++;
-        if (c->nf == c->ndof) { g_terr = "There are no supports: the part is free to move."; delete c; return nullptr; }
+        if (c->nf == c->ndof) { g_terr = "There are no supports: the part is free to move."; return nullptr; }
         // elements next to supports and loads stay solid
         c->passive.assign(nTets, 0);
         for (int e = 0; e < nTets && keepRadius > 0; ++e)
@@ -126,11 +140,18 @@ SIM_API void* sim_topo_create(void* h, const double* mat, int nFix, const int* f
         // density filter neighbours (cone weights)
         c->nb.resize(nTets);
         if (rmin > 0) {
-            std::unordered_map<long long, std::vector<int>> grid; const double cell = rmin;
-            auto key = [&](int ix, int iy, int iz) { return ((long long)(ix + 100000) * 200003 + (iy + 100000)) * 200003 + (iz + 100000); };
-            for (int e = 0; e < nTets; ++e) grid[key((int)std::floor(c->cen[e][0] / cell), (int)std::floor(c->cen[e][1] / cell), (int)std::floor(c->cen[e][2] / cell))].push_back(e);
+            // Tuple keys avoid collisions and signed overflow in the old packed hash.
+            std::map<std::tuple<int, int, int>, std::vector<int>> grid; const double cell = rmin;
+            auto coordinate = [&](double value) {
+                double v = std::floor(value / cell);
+                require(std::isfinite(v) && v > std::numeric_limits<int>::min() &&
+                        v < std::numeric_limits<int>::max(), "Filter radius is too small for the mesh coordinates.");
+                return (int)v;
+            };
+            auto key = [](int ix, int iy, int iz) { return std::make_tuple(ix, iy, iz); };
+            for (int e = 0; e < nTets; ++e) grid[key(coordinate(c->cen[e][0]), coordinate(c->cen[e][1]), coordinate(c->cen[e][2]))].push_back(e);
             for (int e = 0; e < nTets; ++e) {
-                int ix = (int)std::floor(c->cen[e][0] / cell), iy = (int)std::floor(c->cen[e][1] / cell), iz = (int)std::floor(c->cen[e][2] / cell);
+                int ix = coordinate(c->cen[e][0]), iy = coordinate(c->cen[e][1]), iz = coordinate(c->cen[e][2]);
                 for (int a = -1; a <= 1; ++a) for (int b = -1; b <= 1; ++b) for (int d = -1; d <= 1; ++d) {
                     auto it = grid.find(key(ix + a, iy + b, iz + d)); if (it == grid.end()) continue;
                     for (int f : it->second) { double dist = (c->cen[e] - c->cen[f]).norm(); if (dist < rmin) c->nb[e].emplace_back(f, rmin - dist); }
@@ -140,14 +161,16 @@ SIM_API void* sim_topo_create(void* h, const double* mat, int nFix, const int* f
         c->x.assign(nTets, volfrac);
         for (int e = 0; e < nTets; ++e) if (c->passive[e]) c->x[e] = 1.0;
         *nElems = nTets;
-        return c;
+        return c.release();
     } catch (const std::exception& ex) { g_terr = ex.what(); return nullptr; }
+    catch (...) { g_terr = "Topology creation failed unexpectedly."; return nullptr; }
 }
 
 // One iteration. xOut: densities (ne). info: [0] compliance (N mm), [1] volume fraction, [2] largest density change, [3] seconds, [4] passive element count.
 SIM_API int sim_topo_step(void* ctx, double* xOut, double* info) {
     try {
         g_terr.clear();
+        sim_validation::require(ctx && xOut && info, "Invalid topology context or output pointers.");
         auto* c = (Topo*)ctx;
         auto t0 = std::chrono::steady_clock::now();
         const int ne = c->ne;
@@ -166,10 +189,14 @@ SIM_API int sim_topo_step(void* ctx, double* xOut, double* info) {
         Eigen::SparseMatrix<double> K(c->nf, c->nf); K.setFromTriplets(trips.begin(), trips.end());
         Eigen::VectorXd rhs(c->nf);
         for (int i = 0; i < c->ndof; ++i) if (c->freeIdx[i] >= 0) rhs[c->freeIdx[i]] = c->f[i];
-        if (!c->analyzed) { c->solver.analyzePattern(K); c->analyzed = true; }
-        c->solver.factorize(K);
-        if (c->solver.info() != Eigen::Success) { g_terr = "The stiffness matrix could not be factorized (the part may be under-constrained)."; return 0; }
-        Eigen::VectorXd u = c->solver.solve(rhs);
+        Eigen::VectorXd u(c->nf);
+        if (c->nf > 0) {
+            if (!c->analyzed) { c->solver.analyzePattern(K); c->analyzed = true; }
+            c->solver.factorize(K);
+            if (c->solver.info() != Eigen::Success) { g_terr = "The stiffness matrix could not be factorized (the part may be under-constrained)."; return 0; }
+            u = c->solver.solve(rhs);
+            if (c->solver.info() != Eigen::Success || !u.allFinite()) { g_terr = "The topology solve failed."; return 0; }
+        }
         Eigen::VectorXd U = Eigen::VectorXd::Zero(c->ndof);
         for (int i = 0; i < c->ndof; ++i) if (c->freeIdx[i] >= 0) U[i] = u[c->freeIdx[i]];
         double compliance = c->f.dot(U);
@@ -209,7 +236,8 @@ SIM_API int sim_topo_step(void* ctx, double* xOut, double* info) {
         info[3] = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(); info[4] = np;
         return 1;
     } catch (const std::exception& ex) { g_terr = ex.what(); return 0; }
+    catch (...) { g_terr = "Topology iteration failed unexpectedly."; return 0; }
 }
 
-SIM_API void sim_topo_volumes(void* ctx, double* vol) { auto* c = (Topo*)ctx; for (int e = 0; e < c->ne; ++e) vol[e] = c->vol[e]; }
+SIM_API void sim_topo_volumes(void* ctx, double* vol) { if (!ctx || !vol) { g_terr = "Invalid topology context or output pointer."; return; } auto* c = (Topo*)ctx; for (int e = 0; e < c->ne; ++e) vol[e] = c->vol[e]; }
 SIM_API void sim_topo_free(void* ctx) { delete (Topo*)ctx; }

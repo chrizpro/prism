@@ -74,3 +74,4 @@ Run `./tools/test.ps1 -Layer Headless -Feature Surfacing`. [Pipe](../pipe/README
 Desktop integration: [SFC-I001 viewport evidence](../../integration-evidence/README.md#sfc-i001--control-grid-and-thicken) verifies MCP Control Grid, Thicken and document reopen.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+The [SFC-I001 test](../../../Prism.Tests/Integration/DesktopModelingTests.cs) also checks the measured distance between a face and a parallel offset surface through MCP.

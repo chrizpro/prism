@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 namespace Prism.IntegrationTests;
 
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/Prism.Tests/Integration/README.md">Desktop integration scenarios.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/MCP.md">Automation and geometry measurement.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/surface-and-nurbs/README.md">Surface and NURBS tools.</seealso>
 [Trait("Layer", "Integration")]
 public class DesktopModelingTests
 {
@@ -84,6 +86,16 @@ public class DesktopModelingTests
         var sheet = await mcp.Call("solid_check", new Dictionary<string, string> { ["object"] = patch });
         Assert.Equal(0, (int)sheet["solids"]!);
         Assert.Equal(60d, (double)sheet["area"]!, 4);
+        string offset = Created(await mcp.Call("run_command", new
+        {
+            name = "offset_surface", slots = new { Surface = patch }, @params = new { Distance = 5 },
+        }));
+        var measurement = await mcp.Call("solid_check", new { a = new { @object = patch, face = 1 }, b = offset });
+        Assert.Equal(patch, (string?)measurement["object"]);
+        Assert.Equal(5d, (double)measurement["distance"]!, 5);
+        var legacy = await mcp.Call("solid_check", new { @object = patch, b = offset });
+        Assert.Equal(5d, (double)legacy["distance"]!, 5);
+        await mcp.Call("delete_objects", new { objects = new[] { offset } });
         await mcp.Call("view", new { preset = "iso", fit = true });
         await mcp.Capture("01-control-grid");
         string solid = Created(await mcp.Call("run_command", new

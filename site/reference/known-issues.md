@@ -32,11 +32,15 @@ Some behavior is a current limit rather than a bug: for example, toolpath playba
 
 ## Report a bug
 
-Choose **Report a bug** in Prism's header, or **? › Report a bug**. It opens the [bug form](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) on GitHub with your Prism version and system filled in. The most useful reports include:
+Choose **? › Report a bug**. It opens the [bug form](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) on GitHub with your Prism version and general system information filled in. GitHub reports are public and require an account; remove private information before submitting. The most useful reports include:
 
 1. **The steps:** the tools you used and the values you entered, in order.
 2. **What you expected,** and what happened instead, including any message Prism showed.
 3. **A small model** that shows the problem, and a screenshot.
-4. **`crash.log`** from `%LOCALAPPDATA%\Prism` if Prism closed unexpectedly (Windows).
+4. **A reviewed crash diagnostic** if Prism closed unexpectedly. On the next launch, Prism offers a local preview that omits file paths, exception messages and custom code names. Choose **Continue to GitHub** only after reviewing it, then edit and submit the draft on GitHub. If the browser cannot open the draft, you can explicitly copy the approved trace into a bug report. Do not attach raw crash logs from older versions. Some native crashes cannot provide a managed diagnostic.
+
+## Give feedback
+
+Choose **? › Give feedback** to share your experience on GitHub. On normal desktop closures **1, 5, 15, 25, …**, Prism also offers a short invitation. **Not now** dismisses it; **Don't show again** disables future invitations. Both choices let Prism close. Only a local closure count and suppression preference are stored for this schedule; opening GitHub is not tracked as a successful submission. Resetting preferences or using another profile can restart the schedule.
 
 Search the [open issues](https://github.com/chrizpro/prism/issues?q=is%3Aissue+is%3Aopen) first; if your problem is already there, add your details to it. Feature requests are limited for now; see the [contribution policy](https://github.com/chrizpro/prism#contributing).

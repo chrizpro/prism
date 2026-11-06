@@ -75,13 +75,19 @@ const apiSidebar = [
 ]
 
 const base = process.env.PRISM_SITE_BASE || '/'
+const origin = process.env.PRISM_SITE_ORIGIN || 'https://chrizpro.github.io'
 const repo = 'https://github.com/chrizpro/prism'
 
 export default defineConfig({
   title: 'Prism',
-  description: 'A workspace for solid, surface and freeform CAD.',
+  description: 'Prism CAD documentation for 3D modeling, simulation, manufacturing and Python scripting.',
   cleanUrls: true,
   base,
+  sitemap: { hostname: new URL(base, origin).href },
+  transformHead({ pageData }) {
+    const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+    return [['link', { rel: 'canonical', href: new URL(path, new URL(base, origin)).href }]]
+  },
   lastUpdated: true,
   head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}prism-icon.svg` }]],
   themeConfig: {
@@ -89,6 +95,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: repo }],
     editLink: { pattern: `${repo}/edit/main/site/:path`, text: 'Edit this page on GitHub' },
     nav: [
+      { text: 'Prism website', link: new URL(base.replace(/docs\/$/, ''), origin).href },
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '^/guide/' },
       { text: 'Tools', link: '/tools/', activeMatch: '^/(tools|tool|reference)/' },
       { text: 'API', link: '/api/', activeMatch: '^/api/' },

@@ -30,6 +30,7 @@ public sealed class RibbonLayout
 /// <summary>Per-user preferences, kept in %LOCALAPPDATA%\Prism\settings.json.</summary>
 public sealed class AppSettings
 {
+    public FeedbackPreference Feedback { get; set; } = new();
     public GizmoSettings? Gizmo { get; set; } = new();
     public string AccentColor { get; set; } = "Blue";
     public string Theme { get; set; } = "Dark";                 // Dark | Light | System

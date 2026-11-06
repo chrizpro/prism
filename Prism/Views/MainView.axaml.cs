@@ -179,7 +179,45 @@ public partial class MainView : UserControl
     void OnTimelineKey(object? s, RoutedEventArgs e) => Vm?.TimelineKeyChanged();
     void OnTimelineRemoveKeys(object? s, RoutedEventArgs e) => Vm?.TimelineRemoveKeys();
 
-    void OnDocTabPressed(object? s, Avalonia.Input.PointerPressedEventArgs e) { if (s is Control { Tag: DocumentTab t } && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) Vm?.ActivateDocument(t); }
+    void OnDocTabPressed(object? s, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (s is not Control { Tag: DocumentTab t } control || Vm is not { } vm) return;
+        var buttons = e.GetCurrentPoint(this).Properties;
+        if (buttons.IsLeftButtonPressed) { vm.ActivateDocument(t); return; }
+        if (!buttons.IsRightButtonPressed) return;
+        var path = t.Session.FilePath;
+        MenuItem Item(string title, Action action, bool enabled = true)
+        {
+            var item = new MenuItem { Header = title, IsEnabled = enabled };
+            item.Click += (_, _) => action();
+            return item;
+        }
+        async void Copy(string value)
+        {
+            try { var clipboard = TopLevel.GetTopLevel(this)?.Clipboard; if (clipboard != null) await clipboard.SetTextAsync(value); }
+            catch (Exception ex) { vm.Session.Say("Could not copy: " + ex.Message, true); }
+        }
+        async void CloseAll(bool includePinned, DocumentTab? except = null)
+        {
+            if (TopLevel.GetTopLevel(this) is not Window window) return;
+            await vm.CloseAllTabsAsync(includePinned, tab => new SaveChangesWindow(tab.Title, tab.Session.FilePath, tab.Session.Sketch != null || tab.Session.ActiveCommand != null).ShowDialog<DocumentCloseDecision>(window), except);
+        }
+        void Reveal()
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows()) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { ArgumentList = { "/select,", path! }, UseShellExecute = false });
+                else if (OperatingSystem.IsMacOS()) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open") { ArgumentList = { "-R", path! }, UseShellExecute = false });
+                else System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.IO.Path.GetDirectoryName(path!)!) { UseShellExecute = true });
+            }
+            catch (Exception ex) { vm.Session.Say("Could not open file location: " + ex.Message, true); }
+        }
+        var menu = new ContextMenu { ItemsSource = new[] {
+            Item("Close All", () => CloseAll(true)), Item("Close All But Pinned", () => CloseAll(false)), Item("Close All But This", () => CloseAll(true, t)), Item(t.IsPinned ? "Unpin tab" : "Pin tab", () => t.IsPinned = !t.IsPinned),
+            Item("File Name", () => Copy(System.IO.Path.GetFileName(path!)), path != null),
+            Item("File Path", () => Copy(path!), path != null), Item("Open File Path", Reveal, path != null) } };
+        menu.Open(control); e.Handled = true;
+    }
     void OnDocTab(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.ActivateDocument(t); }
     void OnDocClose(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.CloseDocument(t); e.Handled = true; }
     void OnDocNew(object? s, RoutedEventArgs e) => Vm?.NewDocumentTab();
@@ -661,14 +699,12 @@ public partial class MainView : UserControl
         }
         new MenuFlyout
         {
-            ItemsSource = new object[] { version, new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl) },
+            ItemsSource = new object[] { version, new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl), Link("Give feedback", AppInfo.FeedbackUrl) },
             Placement = PlacementMode.BottomEdgeAlignedRight,
         }.ShowAt(anchor);
     }
 
     void OnStage(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.KnownIssuesUrl, "known issues");
-
-    void OnReportBug(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.BugReportUrl(), "the bug report form");
 
     void OpenLink(string url, string what)
     {

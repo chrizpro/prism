@@ -160,24 +160,25 @@ public sealed partial class AutomationApi
 
         Add("solid_check", "Cheap verification of a body, or measurement between two things. With only 'object': validity, volume, area, bounding box, size, centre of mass, counts of faces/edges/shells/solids and open (free) edges. " +
             "With 'a' and 'b' (each an object name or {object, face|edge}): the minimum distance between them and the two closest points; if they overlap, 'overlap' is true and the volume of the overlap is reported when both are solids.",
-            Schema(["object"], ("object", "string", "Object to check (also used as 'a' when only 'b' is given)."), ("a", "any", "First item for a distance."), ("b", "any", "Second item for a distance.")), a =>
+            Schema(null, ("object", "string", "Object to check (also used as 'a' when only 'b' is given)."), ("a", "any", "First item for a distance."), ("b", "any", "Second item for a distance.")), a =>
             {
-                var o = SolidObject(Str(a, "object"));
-                var res = new JsonObject { ["object"] = o.Name };
+                var o = a["object"] != null ? SolidObject(Str(a, "object")) : null;
                 if (a["a"] != null || a["b"] != null)
                 {
-                    var ia = a["a"] != null ? ParseItem(a["a"]!) : SelItem.Of(o);
+                    var ia = a["a"] != null ? ParseItem(a["a"]!) : SelItem.Of(o ?? throw new ArgumentException("Give 'a' or 'object' for the first item."));
                     var ib = ParseItem(a["b"] ?? throw new ArgumentException("Give both 'a' and 'b'."));
                     var sa = ItemShape(ia, out var oa); var sb = ItemShape(ib, out var ob);
                     var (d, pa, pb) = Occ.Distance(sa, sb);
-                    res["distance"] = Math.Round(d, 5); res["pointA"] = Arr(pa); res["pointB"] = Arr(pb);
+                    var distance = new JsonObject { ["object"] = (o ?? oa).Name, ["distance"] = Math.Round(d, 5), ["pointA"] = Arr(pa), ["pointB"] = Arr(pb) };
                     if (d < 1e-6 && oa.Shape.HasSolids && ob.Shape.HasSolids && ia.Kind == SelKind.Object && ib.Kind == SelKind.Object && oa.Id != ob.Id)
                     {
-                        res["overlap"] = true;
-                        try { res["overlapVolume"] = Math.Round(Occ.Common(oa.Shape, ob.Shape).Props().Volume, 5); } catch { }
+                        distance["overlap"] = true;
+                        try { distance["overlapVolume"] = Math.Round(Occ.Common(oa.Shape, ob.Shape).Props().Volume, 5); } catch { }
                     }
-                    return res;
+                    return distance;
                 }
+                if (o == null) throw new ArgumentException("Give 'object' to check a body, or 'a' and 'b' to measure distance.");
+                var res = new JsonObject { ["object"] = o.Name };
                 var sh = o.Shape; var pr = sh.Props(); var ck = Occ.Check(sh);
                 res["valid"] = ck.Valid; res["isSolid"] = sh.HasSolids;
                 if (sh.HasSolids) res["volume"] = Math.Round(pr.Volume, 5);

@@ -390,7 +390,7 @@ public abstract partial class Command : ObservableObject
     /// <summary>Commands can draw markers/curves over the viewport while they are open.</summary>
     public virtual void BuildOverlay(Core.CadSession s, Core.Overlay o) { }
     public IViewportTool? Tool { get; protected set; }
-    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool || S != null && Handles.Count > 0);
+    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && Handles.Count > 0);
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
     public CadSession S { get; private set; } = null!;

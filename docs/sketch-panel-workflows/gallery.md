@@ -41,7 +41,8 @@
 | Project / Include | Project | [Dark](projecttool-0-0-dark.png) | [Light](projecttool-0-0-light.png) |
 | Project / Include | Project body | [Dark](projecttool-0-1-dark.png) | [Light](projecttool-0-1-light.png) |
 | Project / Include | Intersect | [Dark](projecttool-0-2-dark.png) | [Light](projecttool-0-2-light.png) |
-| Project / Include | Pierce points | [Dark](projecttool-0-3-dark.png) | [Light](projecttool-0-3-light.png) |
+| Project / Include | Pierce point | [Dark](projecttool-0-3-dark.png) | [Light](projecttool-0-3-light.png) |
+| Project / Include | Pierce point(s) | [Dark](projecttool-0-4-dark.png) | [Light](projecttool-0-4-light.png) |
 | Rectangle | 2-point | [Dark](recttool-0-0-dark.png) | [Light](recttool-0-0-light.png) |
 | Rectangle | Center | [Dark](recttool-0-1-dark.png) | [Light](recttool-0-1-light.png) |
 | Rectangle | 3-point | [Dark](recttool-0-2-dark.png) | [Light](recttool-0-2-light.png) |
@@ -59,6 +60,7 @@
 | Pattern | Linear | [Dark](sketchpatterntool-1-0-dark.png) | [Light](sketchpatterntool-1-0-light.png) |
 | Pattern | Circular | [Dark](sketchpatterntool-1-1-dark.png) | [Light](sketchpatterntool-1-1-light.png) |
 | Pattern | Along curve | [Dark](sketchpatterntool-1-2-dark.png) | [Light](sketchpatterntool-1-2-light.png) |
+| Text |  | [Dark](sketchtexttool-0-0-dark.png) | [Light](sketchtexttool-0-0-light.png) |
 | Slot |  | [Dark](slottool-0-0-dark.png) | [Light](slottool-0-0-light.png) |
 | Edit Spline |  | [Dark](splineedittool-0-0-dark.png) | [Light](splineedittool-0-0-light.png) |
 | Spline | Fit point | [Dark](splinetool-0-0-dark.png) | [Light](splinetool-0-0-light.png) |

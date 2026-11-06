@@ -18,7 +18,7 @@ See [Known issues](https://chrizpro.github.io/prism/docs/reference/known-issues)
 
 ## Report a bug
 
-Choose **Report a bug** in Prism's header. It opens the [bug form](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) with your version and system filled in. Steps to reproduce and a small model that shows the problem help most.
+Choose **Help (?) → Report a bug**. It opens the [bug form](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) with your version and general system information filled in. Steps to reproduce and a small model that shows the problem help most. **Give feedback** is also in Help. Crash diagnostics are reviewed locally before opening GitHub; do not attach raw crash logs. Reports are public.
 
 ## Licenses
 

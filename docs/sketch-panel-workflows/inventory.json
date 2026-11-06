@@ -568,7 +568,7 @@
   {
     "Tool": "ProjectTool",
     "Name": "Project",
-    "Mode": "Pierce points",
+    "Mode": "Pierce point",
     "Seed": 0,
     "Option": 3,
     "Sections": [
@@ -581,6 +581,23 @@
       "link"
     ],
     "Screenshot": "projecttool-0-3"
+  },
+  {
+    "Tool": "ProjectTool",
+    "Name": "Project",
+    "Mode": "Pierce point(s)",
+    "Seed": 0,
+    "Option": 4,
+    "Sections": [
+      "Method",
+      "Select references",
+      "Include options"
+    ],
+    "Controls": [
+      "construction",
+      "link"
+    ],
+    "Screenshot": "projecttool-0-4"
   },
   {
     "Tool": "RectTool",
@@ -834,6 +851,27 @@
       "selection"
     ],
     "Screenshot": "sketchpatterntool-1-2"
+  },
+  {
+    "Tool": "SketchTextTool",
+    "Name": "Text",
+    "Mode": "",
+    "Seed": 0,
+    "Option": 0,
+    "Sections": [
+      "Text",
+      "Font and size",
+      "Place text"
+    ],
+    "Controls": [
+      "text",
+      "font",
+      "bold",
+      "height",
+      "spacing",
+      "place"
+    ],
+    "Screenshot": "sketchtexttool-0-0"
   },
   {
     "Tool": "SlotTool",

@@ -3,6 +3,8 @@
 - [Ribbon and workspace index](../tabs/README.md)
 - [Startup model gallery](gallery/README.md)
 - [Saving, closing and recovery copies](document-safety/README.md)
+- [Document tabs](document-tabs/README.md)
+- [Reference images](reference-images/README.md)
 - [Gizmos and snapping](../gizmo-workflows/README.md)
 - [Data panel](data/README.md)
 - [Script panel](script/README.md)
@@ -10,3 +12,4 @@
 - [Sketch hotkeys](../sketch-hotkeys.md)
 - [Selection](selection/README.md)
 - [Inspect and Appearance](inspection/README.md)
+- [Feedback, bug and crash reporting](reporting/README.md)

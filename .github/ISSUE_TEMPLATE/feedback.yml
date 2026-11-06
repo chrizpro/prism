@@ -1,0 +1,23 @@
+name: Feedback
+description: Share your experience using Prism
+title: "[Feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us what worked, what felt difficult, or what you would improve. This report is **public**. Do not include private models, paths, credentials or personal information.
+  - type: textarea
+    id: experience
+    attributes:
+      label: How was your experience?
+      description: What were you trying to do, and how did Prism help or get in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: What would you improve?
+  - type: input
+    id: version
+    attributes:
+      label: Prism version (optional)

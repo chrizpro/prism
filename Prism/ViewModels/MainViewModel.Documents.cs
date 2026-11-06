@@ -15,6 +15,7 @@ public sealed partial class DocumentTab : ObservableObject
     public int Number { get; }
     [ObservableProperty] public partial string Title { get; set; } = "Untitled";
     [ObservableProperty] public partial bool IsActive { get; set; }
+    [ObservableProperty] public partial bool IsPinned { get; set; }
     /// <summary>The name shown while the part has not been saved (a part made from inside an assembly starts with the name you gave it).</summary>
     public string? DisplayName { get; set; }
     [ObservableProperty] public partial bool IsDirty { get; set; }

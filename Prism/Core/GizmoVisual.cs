@@ -103,7 +103,7 @@ public static class GizmoVisual
         if (operation == 2) Square(o, s, UniformPoint(s, c, length), length * 2.2, hotCenter ? Accent : 0xFFFFFFFF);
         if (operation == active && operation != 2) { o.AddDot(c, 0xFFFFFFFF, operation == 0 ? 15 : 11); o.AddDot(c, hotCenter && operation == 0 ? Accent : Ink, operation == 0 ? 11 : 7); }
     }
-    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false)
+    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false, bool planar = false, bool axisScale = true)
     {
         var settings = GizmoSettings.Current; double best = settings.Tolerance;
         (int axis, bool center, int operation) hit = (-1, false, active);
@@ -136,6 +136,7 @@ public static class GizmoVisual
             for (int axis = 0; axis < 3; axis++)
             {
                 if(!settings.AxisVisible(axis))continue;
+                if (planar && (op == 1 ? axis != 2 : axis == 2) || op == 2 && !axisScale) continue;
                 if (op == 1)
                 {
                     var points = Ring(c, axes[(axis + 1) % 3], axes[(axis + 2) % 3], length);

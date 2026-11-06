@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         {
             Key.Back => "Back", Key.Tab => "Tab", Key.OemPlus or Key.Add => "Plus", Key.OemMinus or Key.Subtract => "Minus", _ => null,
         };
-        if (key == null && (s.Sketch != null || s.ActiveCommand is Prism.Commands.Sketch3DCommand or Prism.Commands.EditFormCommand || s.ActiveCommand?.Handles.Count > 0) && !alt)
+        if (key == null && (s.Sketch != null || s.ActiveCommand is Prism.Commands.Sketch3DCommand or Prism.Commands.EditFormCommand || s.ActiveTool is Prism.Commands.ImageGizmoTool || s.ActiveCommand?.Handles.Count > 0) && !alt && !e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             char? ch = e.Key switch
@@ -46,7 +46,7 @@ public partial class MainWindow : Window
                 >= Key.D0 and <= Key.D9 when !shift => (char)('0' + (e.Key - Key.D0)),
                 >= Key.NumPad0 and <= Key.NumPad9 => (char)('0' + (e.Key - Key.NumPad0)),
                 Key.OemPeriod or Key.Decimal => '.', Key.OemComma => ',',
-                Key.L => 'L', Key.D => 'D', Key.X => 'X', Key.C => 'C', Key.H => 'H', Key.V => 'V', Key.A => 'A', Key.S => 'S', Key.R => 'R', Key.Y => 'Y', Key.Z => 'Z', Key.W => 'W', Key.E => 'E', _ => null,
+                Key.L => 'L', Key.D => 'D', Key.X => 'X', Key.C => 'C', Key.H => 'H', Key.V => 'V', Key.A => 'A', Key.S => 'S', Key.R => 'R', Key.T => 'T', Key.Y => 'Y', Key.Z => 'Z', Key.W => 'W', Key.E => 'E', _ => null,
             };
             // a sketch tool whose key the user moved no longer answers to its old letter
             if (ch != null && char.IsLetter(ch.Value) && s.Sketch != null && LetterMoved(ch.Value)) ch = null;
