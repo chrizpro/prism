@@ -876,7 +876,7 @@ public sealed class LoftCommand : BodyCommand
     }
 }
 
-/// <summary>Loft that follows guide rails: the plain loft is cut by planes square to the first rail, and each cut is moved (one rail) or moved, turned and scaled (two rails) so it touches the rails; the final loft goes through those cuts.</summary>
+/// <summary>Fit slices of the unguided loft to rail positions in each slice's plane, then loft through the fitted sections.</summary>
 static class GuidedLoft
 {
     public static Shape Build(List<Shape> secs, List<Shape> rails, bool solid, bool ruled, int steps)
@@ -886,7 +886,8 @@ static class GuidedLoft
         if (samples.Count == 0) throw new KernelException("Could not read the guide rail.");
         var pts = samples[0].Select(s => s.p).ToList();
         // the rail runs from the first section to the last: make sure of that
-        if (Occ.Distance(secs[0], rails[0]).Distance > Occ.Distance(secs[^1], rails[0]).Distance) pts.Reverse();
+        using (var start = Occ.Vertex(pts[0]))
+            if (Occ.Distance(secs[0], start).Distance > Occ.Distance(secs[^1], start).Distance) pts.Reverse();
         bool wantClosed = IsClosed(secs[0]);
         // cut parallel to the sections, not square to the rail: where a rail leans, a cut square to it is an oblique slice of the profile and comes out larger
         Vec3? n0 = SectionNormal(secs[0]), n1 = SectionNormal(secs[^1]);
@@ -914,8 +915,10 @@ static class GuidedLoft
                 }
                 catch (KernelException) { skipped++; continue; }                          // a cut that misses the skin is simply skipped
             }
-            var fitted = Fit(w, pts[i], rails);
-            if (axis.Length > 0) fitted = Seam(fitted, Occ.Distance(fitted, rails[0]).A, axis, refSign);
+            // End sections are constraints, not candidates for another fit.
+            var fitted = axis.Length > 0 ? Fit(w, pts[i], axis, rails) : w;
+            if (axis.Length > 0) fitted = Seam(fitted, pts[i], axis, refSign);
+            else fitted = Seam(fitted, pts[i], (i == 0 ? n0 : n1) ?? along, refSign, preserveGeometry: true);
             wires.Add(fitted); sizes.Add(fitted.Props().Size.Length);
         }
         // a section whose size jumps away from both neighbours was fitted to the wrong place on a rail: leave it out
@@ -926,9 +929,9 @@ static class GuidedLoft
         }
         if (wires.Count < 2) throw new KernelException("The guide rail does not run along the shape.");
         try { return Occ.Loft(wires, solid, ruled); }
-        catch (KernelException)
+        catch (KernelException error)
         {
-            throw new KernelException($"The guide rails could not steer a loft through these sections ({wires.Count} of {pts.Count} cuts were usable). Each rail should touch the outline of every section and run roughly along the loft; a rail that bends sharply fails near its ends.");
+            throw new KernelException($"The guide rails could not steer a loft through these sections ({wires.Count} of {pts.Count} cuts were usable). Each rail should touch the outline of every section and run roughly along the loft; a rail that bends sharply fails near its ends. {error.Message}");
         }
     }
 
@@ -978,17 +981,35 @@ static class GuidedLoft
     /// A smooth closed section is a single edge whose start is wherever its cut happened to begin. Lofting through several such sections twists
     /// them or fails, so each is rebuilt to start where the first rail touches it and run the same way round as the first section.
     /// </summary>
-    static Shape Seam(Shape w, Vec3 start, Vec3 axis, double refSign)
+    static Shape Seam(Shape w, Vec3 start, Vec3 axis, double refSign, bool preserveGeometry = false)
     {
-        if (refSign == 0 || w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 17, 1) is not { Count: 1 } samples) return w;
+        if (refSign == 0 || w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 129, 1) is not { Count: 1 } samples) return w;
         var pts = samples[0].Select(s => s.p).ToList();
         if ((pts[0] - pts[^1]).Length > 1e-6) return w;
         pts.RemoveAt(pts.Count - 1);
         int k = 0; for (int i = 1; i < pts.Count; i++) if ((pts[i] - start).Length < (pts[k] - start).Length) k = i;
-        pts = pts.Skip(k).Concat(pts.Take(k)).ToList(); pts[0] = start;
+        // Move the seam on the existing periodic curve. Replacing one sample by
+        // the attachment point changes the curve and causes phase jumps between slices.
+        double low = Math.Max(0, (k - 1.0) / pts.Count), high = Math.Min(1, (k + 1.0) / pts.Count);
+        double Gap(double t)
+        {
+            using var part = Occ.CurveTrim(w, t, t + 1e-6);
+            return (Occ.EdgeInfoOf(part).Start - start).Length;
+        }
+        // Include the other side of the periodic boundary when the best sample is zero.
+        if (k == 0 && Gap(1 - 0.5 / pts.Count) < Gap(0.5 / pts.Count)) { low = 1 - 1.0 / pts.Count; high = 1; }
+        for (int i = 0; i < 40; i++)
+        {
+            double a = low + (high - low) / 3, b = high - (high - low) / 3;
+            if (Gap(a) < Gap(b)) high = b; else low = a;
+        }
+        using var aligned = Occ.CurveTrim(w, (low + high) / 2, 1 + (low + high) / 2);
         double area = 0; for (int i = 0; i < pts.Count; i++) area += Vec3.Dot(axis, Vec3.Cross(pts[i], pts[(i + 1) % pts.Count]));
-        if (Math.Sign(area) == -refSign) pts = pts.Take(1).Concat(Enumerable.Reverse(pts.Skip(1))).ToList();
-        return Occ.Profile([Occ.Spline(pts, true)], false);
+        if (preserveGeometry)
+            return Occ.Profile([Math.Sign(area) == -refSign ? Occ.Reverse(aligned) : aligned], false);
+        var ordered = Occ.CurveSamples(aligned, 33, 1)[0].Take(32).Select(s => s.p).ToList();
+        if (Math.Sign(area) == -refSign) ordered = ordered.Take(1).Concat(Enumerable.Reverse(ordered.Skip(1))).ToList();
+        return Occ.Profile([Occ.PeriodicSection(ordered)], false);
     }
 
     /// <summary>True when every end point of the edges is shared by another edge, so the chain has no loose ends.</summary>
@@ -998,14 +1019,41 @@ static class GuidedLoft
         for (int i = 0; i < w.Count(SubKind.Edge); i++) { var e = Occ.EdgeInfoOf(w.Sub(SubKind.Edge, i)); ends.Add(e.Start); ends.Add(e.End); }
         return ends.Count > 0 && ends.All(p => ends.Count(q => (q - p).Length < 1e-5) % 2 == 0);
     }
-    static Shape Fit(Shape w, Vec3 railPoint, List<Shape> rails)
+    static Shape Fit(Shape w, Vec3 railPoint, Vec3 normal, List<Shape> rails)
     {
-        var a1 = Occ.Distance(w, rails[0]);
-        var res = Occ.Translate(w, a1.B - a1.A);                                // rail 1: slide the section onto the rail
-        if (rails.Count < 2) return res;
-        var p1 = a1.B;
-        var d2 = Occ.Distance(res, rails[1]);
-        var from = d2.A - p1; var to = d2.B - p1;
+        using var first = Occ.Vertex(railPoint);
+        if (rails.Count < 2) return Occ.Translate(w, railPoint - Occ.Distance(w, first).A);
+        using var crossings = Occ.Section(rails[1], railPoint, normal);
+        if (crossings.Count(SubKind.Vertex) != 1)
+            throw new KernelException("Each guide rail must cross each intermediate section plane once.");
+        using var second = crossings.Sub(SubKind.Vertex, 0);
+        var target = second.Props().Center;
+        // Interior nearest points on a closed oval can jump between its two
+        // sides. Use the corresponding diameter in the section plane instead.
+        Vec3 sourceFirst, sourceSecond;
+        if (IsClosed(w))
+        {
+            var outline = Occ.CurveSamples(w, 129, 64).SelectMany(e => e.Take(e.Length - 1).Select(p => p.p)).ToList();
+            var center = outline.Aggregate(Vec3.Zero, (sum, p) => sum + p) / outline.Count;
+            var direction = (target - railPoint).Normalized();
+            using var diameter = Occ.Section(w, center, Vec3.Cross(normal, direction));
+            var intersections = Enumerable.Range(0, diameter.Count(SubKind.Vertex)).Select(i =>
+            {
+                using var vertex = diameter.Sub(SubKind.Vertex, i);
+                return vertex.Props().Center;
+            }).ToList();
+            if (intersections.Count < 2) throw new KernelException("The guide rails could not locate opposite sides of the closed section.");
+            sourceFirst = intersections.MinBy(p => Vec3.Dot(p, direction));
+            sourceSecond = intersections.MaxBy(p => Vec3.Dot(p, direction));
+        }
+        else
+        {
+            sourceFirst = Occ.Distance(w, first).A;
+            sourceSecond = Occ.Distance(w, second).A;
+        }
+        var res = Occ.Translate(w, railPoint - sourceFirst);
+        var p1 = railPoint;
+        var from = sourceSecond - sourceFirst; var to = target - p1;
         if (from.Length < 1e-6 || to.Length < 1e-6) return res;
         double k = to.Length / from.Length;
         if (k < 0.05 || k > 20) return res;                                    // the rail is not near this cut: leave it

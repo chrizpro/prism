@@ -162,6 +162,8 @@ public static unsafe class Occ
     public static Shape Arc3(Vec3 a, Vec3 b, Vec3 c) { fixed (double* pa = V(a)) fixed (double* pb = V(b)) fixed (double* pc = V(c)) return Wrap(Native.ck_arc3(pa, pb, pc)); }
     public static Shape Polyline(IReadOnlyList<Vec3> pts, bool closed) { fixed (double* p = Flat(pts)) return Wrap(Native.ck_polyline(p, pts.Count, closed ? 1 : 0)); }
     public static Shape Spline(IReadOnlyList<Vec3> pts, bool closed = false) { fixed (double* p = Flat(pts)) return Wrap(Native.ck_spline(p, pts.Count, closed ? 1 : 0)); }
+    /// <summary>Periodic cubic interpolation with identical knot spacing for corresponding Loft sections.</summary>
+    public static Shape PeriodicSection(IReadOnlyList<Vec3> pts) { fixed (double* p = Flat(pts)) return Wrap(Native.ck_spline_periodic_uniform(p, pts.Count)); }
     /// <summary>Points and curvature vectors along every edge of a shape (the vector points at the centre of curvature; its length is 1/radius).</summary>
     public static List<(Vec3 p, Vec3 k)[]> CurveSamples(Shape s, int perEdge = 120, int maxEdges = 64)
     {

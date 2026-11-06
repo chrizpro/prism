@@ -33,6 +33,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_extrude_draft(IntPtr profile, double* dir, double height, double angle);
     [DllImport(Lib)] public static extern IntPtr ck_sweep2(IntPtr profile, IntPtr path, int makeSolid, int mode, double endScale, double* binormal);
     [DllImport(Lib)] public static extern IntPtr ck_loft(IntPtr* sections, int n, int solid, int ruled);
+    [DllImport(Lib)] public static extern IntPtr ck_spline_periodic_uniform(double* xyz, int n);
     [DllImport(Lib)] public static extern IntPtr ck_ruled(IntPtr a, IntPtr b);
     [DllImport(Lib)] public static extern IntPtr ck_patch(IntPtr* edges, int n);
     [DllImport(Lib)] public static extern IntPtr ck_patch_supported(IntPtr source, int* edgeIds, int n, int order);

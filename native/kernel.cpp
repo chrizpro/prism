@@ -319,10 +319,10 @@ CK_API void* ck_polyline(const double* xyz, int n, int closed) {
 #include <math_Vector.hxx>
 // Closed cubic curve through the points, periodic with a knot at every point (chord-length parameters, closing chord included).
 // OCCT's own periodic interpolation comes out lopsided, so the pole system is solved here.
-static Handle(Geom_BSplineCurve) periodic_spline(const std::vector<gp_Pnt>& q) {
+static Handle(Geom_BSplineCurve) periodic_spline(const std::vector<gp_Pnt>& q, bool uniform = false) {
     const int n = (int)q.size();
     std::vector<double> t(n + 1, 0.0);
-    for (int i = 0; i < n; ++i) t[i + 1] = t[i] + std::max(q[i].Distance(q[(i + 1) % n]), 1e-9);
+    for (int i = 0; i < n; ++i) t[i + 1] = t[i] + (uniform ? 1.0 : std::max(q[i].Distance(q[(i + 1) % n]), 1e-9));
     TColStd_Array1OfReal knots(1, n + 1);
     TColStd_Array1OfInteger mults(1, n + 1);
     for (int i = 0; i <= n; ++i) { knots(i + 1) = t[i]; mults(i + 1) = 1; }
@@ -360,6 +360,18 @@ CK_API void* ck_spline(const double* xyz, int n, int closed) {
     CATCH(nullptr)
 }
 // Control-point curve with a clamped uniform knot vector.
+// Matching knots keep corresponding Loft sections compatible without a large
+// union of slightly different chord-length knot sequences.
+CK_API void* ck_spline_periodic_uniform(const double* xyz, int n) {
+    TRY
+        if (n < 4) { fail("A periodic section needs at least four points."); return nullptr; }
+        std::vector<gp_Pnt> q;
+        for (int i = 0; i < n; ++i) q.emplace_back(xyz[3*i], xyz[3*i+1], xyz[3*i+2]);
+        Handle(Geom_BSplineCurve) c = periodic_spline(q, true);
+        if (c.IsNull()) { fail("Periodic section interpolation failed."); return nullptr; }
+        return wrap(BRepBuilderAPI_MakeEdge(c).Edge());
+    CATCH(nullptr)
+}
 CK_API void* ck_nurbs_curve(const double* xyz, int n, int degree) {
     TRY
         int deg = std::min(degree, n - 1);

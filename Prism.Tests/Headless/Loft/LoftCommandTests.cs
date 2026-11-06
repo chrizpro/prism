@@ -12,8 +12,77 @@ namespace Prism.HeadlessTests.Loft;
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/loft/README.md">Living Loft specification and variant boundaries.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Loft")]
-public class LoftCommandTests
+public class LoftCommandTests(Xunit.Abstractions.ITestOutputHelper output)
 {
+    [AvaloniaTheory(DisplayName = "LFT-H009 | Straight matching rails retain the analytic square frustum")]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [Trait("TestId", "LFT-H009")]
+    public void StraightMatchingRails_RetainFrustum(int railCount, bool reverseRail)
+    {
+        var session = new CadSession();
+        var lower = RectangleSection(session, 0, 10, 10);
+        var upper = RectangleSection(session, 20, 12, 12);
+        var first = CreateCurve(session, reverseRail ? [new(0, 0, 20), Vec3.Zero] : [Vec3.Zero, new(0, 0, 20)]);
+        var second = CreateCurve(session, [new(10, 10, 0), new(12, 12, 20)]);
+        var loft = Begin(session, () => new LoftCommand());
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", lower, upper);
+            SetSelection(loft, "Guide rails (optional, one or two)", railCount == 1 ? [first] : [first, second]);
+        });
+        var solid = BuildSingleAddedShape(loft);
+        AssertValidSolid(solid);
+        AssertNear(20.0 / 3 * (100 + 120 + 144), solid.Props().Volume, "Guided square frustum volume (mm³)");
+        AssertBounds(solid, Vec3.Zero, new(12, 12, 20));
+    }
+
+    [AvaloniaTheory(DisplayName = "LFT-H008 | Curved two-rail ellipse loft retains profiles and follows both rails without a dense display mesh")]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [Trait("TestId", "LFT-H008")]
+    public void CurvedRails_EllipticalSections_FollowRailsInEitherProfileOrder(bool reverse, bool swapRails)
+    {
+        var session = new CadSession();
+        var lower = session.AddObject(Occ.Ellipse(Vec3.Zero, Vec3.UnitZ, Vec3.UnitX, 71.67792467182227, 39.178793951444064), "Lower", ObjKind.Curve);
+        var upper = session.AddObject(Occ.Ellipse(new(0, 0, 120), Vec3.UnitZ, Vec3.UnitX, 31.59994528542702, 27.232473172807023), "Upper", ObjKind.Curve);
+        var right = session.AddObject(Occ.Spline([new(31.59994528542702, 0, 120), new(31.59994528542702, 0, 77.1344648707616), new(71.67792467182227, 0, 0)]), "Right rail", ObjKind.Curve);
+        var left = session.AddObject(Occ.Spline([new(-31.59994528542702, 0, 120), new(-22.202528792560337, 0, 83.04166993725521), new(-71.67792467182227, 0, 0)]), "Left rail", ObjKind.Curve);
+        var loft = Begin(session, () => new LoftCommand(surface: true));
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", reverse ? lower : upper, reverse ? upper : lower);
+            SetSelection(loft, "Guide rails (optional, one or two)", swapRails ? left : right, swapRails ? right : left);
+        });
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var surface = BuildSingleAddedShape(loft);
+        output.WriteLine($"Build: {clock.Elapsed.TotalSeconds:F3} s");
+        Assert.True(surface.IsValid);
+        Assert.Equal(0, surface.Count(SubKind.Solid));
+        foreach (var source in new[] { lower, upper, right, left })
+        {
+            double maximumGap = 0;
+            foreach (var sample in Occ.CurveSamples(source.Shape, 49, 1)[0])
+            {
+                using var vertex = Occ.Vertex(sample.p);
+                maximumGap = Math.Max(maximumGap, Occ.Distance(vertex, surface).Distance);
+            }
+            output.WriteLine($"{source.Name}: maximum of 49 sampled gaps = {maximumGap:F6} mm");
+            // End profiles remain exact; the sampled rail fit interpolates only
+            // twelve section planes and does not promise exact rail coincidence between them.
+            Assert.InRange(maximumGap, 0, source == lower || source == upper ? 1e-5 : 0.05);
+        }
+        // Bound representation complexity rather than relying on workstation timing.
+        clock.Restart();
+        int triangles = surface.Tessellate().Indices.Length / 3;
+        output.WriteLine($"Display mesh: {clock.Elapsed.TotalSeconds:F3} s, {triangles} triangles");
+        Assert.InRange(triangles, 1, 30000);
+        Assert.Equal(4, session.Objects.Count);
+    }
+
     [AvaloniaFact(DisplayName = "LFT-H007 | Front-view sketch rail stays visible and can be picked and removed with a loft preview")]
     [Trait("TestId", "LFT-H007")]
     public void SketchRail_WithPreview_IsOverlaidAndPickable()
