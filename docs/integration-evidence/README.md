@@ -56,3 +56,13 @@ A three-edge profile on a straight path produces a valid 312 mm² sheet with 10 
 - Keep parallel: [inputs](SWP-I001/parallel/01-profile-and-path.png) · [preview](SWP-I001/parallel/02-preview.png) · [commit](SWP-I001/parallel/03-committed.png)
 
 The six new cases passed locally through the same Windows Desktop/MCP build and kernel recorded above. Constraint application used MCP entity references. Picking glyphs, curved Sweep orientation, and guide-rail Loft remain open.
+
+## Sketch rail visibility · LFT-I002
+
+2026-11-05, Windows workstation, source based on `f6fd49e` plus the Loft rail visibility correction in this change. Rebuilt Release Desktop/MCP with installed native binaries. The maintained LFT-I002 scenario captures an unselected front-facing sketch rail inside the Surface Loft preview. LFT-H007 checks overlay geometry, picking/removal and hidden-sketch exclusion. The screenshot fixture uses a magenta rail to distinguish it from the grid axes; production preserves the sketch's own color.
+
+The actual mouse check separately activated **Guide rails → Pick geometry**, clicked the rail, verified one slot item and an orange Rail 1 highlight, clicked again and verified an empty slot. These input steps were performed through computer use, not by the automated integration fact. This evidence establishes visibility/selection; it does not certify guided-loft shape accuracy or every rail layout.
+
+![Unselected sketch rail visible over the loft preview](LFT-I002/01-picking-visible-rail.png)
+
+[Picked orange rail](LFT-I002/02-picked-rail.png) · [Removed rail with hover highlight](LFT-I002/03-removed-rail.png) · [Canonical Loft guide](../modeling/loft/README.md#sketch-rails-obscured-by-the-preview)

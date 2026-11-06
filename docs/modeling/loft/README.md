@@ -40,6 +40,16 @@ Uses the same controls with surface output; open profiles can create an uncapped
 
 Open decisions: mixed open/closed sections, profile grouping, normal orientation, partial boundaries and surface feature history. Numerical sheet checks do not establish the selection/preview workflow.
 
+### Sketch rails obscured by the preview
+
+2026-11-05 owner report: in Front view, with two profiles selected and Guide rails picking active, the visible third sketch's rails cannot be seen against the loft preview. Source inspection at `f6fd49e` identified the display path: `GlViewport.DrawScene` draws sketch/curve edges before opaque command-preview faces; selected section/rail overlays are drawn afterward. CPU picking uses document objects rather than preview faces, so the preview itself does not block edge picking. The correction was verified with an isolated planar fixture; the owner's unsaved model was not modified.
+
+Workaround: turn **Preview** off while selecting rails, then enable it again to inspect the loft.
+
+**Approved and implemented (2026-11-05):** the owner approved this specific display correction with “Proceed with the fix.” While the exact Surface/NURBS Loft command is collecting profiles or guide rails, visible sketch/curve candidates are drawn over the preview in their object colors, with hover highlighting and the existing blue section/orange rail highlights. Explicit visibility and temporary hidden-object state are respected. Other commands and committed geometry keep their existing display behavior. This approval does not settle the other proposed Loft requirements.
+
+Verification on the configured Windows workstation: `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter Feature=Loft` passed **7 cases**, including LFT-H007 for front-view sketch rail overlay, picking/removal and hidden-sketch exclusion. `dotnet test Prism.Tests/Integration/Prism.IntegrationTests.csproj -c Release --filter TestId=LFT-I002` captures the actual preview with an unselected sketch rail. A separate computer-use check exercised Guide rails → Pick geometry, selected the rail with a mouse click and removed it with another click. [LFT-I002 viewport evidence and scope](../../integration-evidence/README.md#sketch-rail-visibility--lft-i002). Desktop/MCP were rebuilt; installed native binaries were reused. NURBS shares the command, but its ribbon workflow was not separately exercised.
+
 ## Freeform Loft
 
 Creates a subdivision cage through two or more curves/sketches/edges in order. Controls: Points per section (4..96, default 16), Close the ends for closed sections (default on) and Smoothness (1..4, default 3). It resamples and aligns successive sections; mixing open and closed profiles is rejected in the implementation.

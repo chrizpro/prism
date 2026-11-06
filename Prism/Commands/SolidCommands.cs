@@ -802,6 +802,23 @@ public sealed class LoftCommand : BodyCommand
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
+        // Preview faces are drawn after scene edges. Keep Loft's curve candidates
+        // visible while collecting inputs, then draw the picked groups on top.
+        if (ActiveSlot == _sections || ActiveSlot == _rails)
+            foreach (var obj in s.Objects.Where(obj => obj.Visible && !s.HiddenIds.Contains(obj.Id) && obj.Kind is ObjKind.Sketch or ObjKind.Curve))
+            {
+                var mesh = obj.Mesh;
+                for (int segment = 0; segment < mesh.SegEdge.Length; segment++)
+                {
+                    int i = segment * 6;
+                    var points = mesh.EdgePoints;
+                    var item = new SelItem(obj.Id, SelKind.Edge, mesh.SegEdge[segment]);
+                    bool hovered = s.Hover == item || s.Hover == SelItem.Of(obj);
+                    o.AddLine(new(points[i], points[i + 1], points[i + 2]),
+                        new(points[i + 3], points[i + 4], points[i + 5]),
+                        hovered ? 0xFF35B6FF : obj.Color, hovered ? 3f : 2.4f);
+                }
+            }
         void Draw(List<List<SelItem>> groups, uint color, string name)
         {
             for (int n = 0; n < groups.Count; n++)

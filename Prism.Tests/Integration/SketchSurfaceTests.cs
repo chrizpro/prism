@@ -6,9 +6,34 @@ using Xunit;
 namespace Prism.IntegrationTests;
 
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/Prism.Tests/Integration/README.md">Desktop sketch and surface evidence.</seealso>
+/// <seealso href="https://github.com/chrizpro/prism/blob/develop/docs/modeling/loft/README.md">Living Loft specification.</seealso>
 [Trait("Layer", "Integration")]
 public class SketchSurfaceTests
 {
+    [Fact(DisplayName = "LFT-I002 | Front-view sketch guide rail is visible over the Surface Loft preview")]
+    [Trait("Feature", "Loft")]
+    [Trait("TestId", "LFT-I002")]
+    public async Task SketchRailOverLoftPreview()
+    {
+        await using var mcp = new DesktopMcp("LFT-I002");
+        await mcp.Initialize();
+        string lower = await Curve(mcp, [0, 0, 0], [10, 0, 0]);
+        string upper = await Curve(mcp, [0, 0, 12], [10, 0, 12]);
+        await mcp.Call("sketch_begin", new { plane = "XZ" });
+        await mcp.Call("sketch_add", new { entities = new[] { new { type = "line", points = new[] { new[] { 4, 0 }, new[] { 4, 12 } } } } });
+        string rail = (string)(await mcp.Call("sketch_finish"))["sketch"]!;
+        await mcp.Call("object_update", new { @object = rail, color = "#E06CDE" });
+        await mcp.Call("view", new { preset = "front", fit = true });
+        var state = await mcp.Call("run_command", new
+        {
+            name = "loft_surface", commit = false,
+            slots = new Dictionary<string, string[]> { ["Sections (in order)"] = [lower, upper] },
+        });
+        Assert.NotNull(state["activeCommand"]);
+        Assert.Equal(3, (int)state["objectCount"]!);
+        await mcp.Capture("01-sketch-rail-over-preview");
+    }
+
     [Theory(DisplayName = "SKT-I001 | Applied constraint and driving dimension solve the sketch")]
     [InlineData("horizontal", "Horizontal", "v", "u")]
     [InlineData("vertical", "Vertical", "u", "v")]

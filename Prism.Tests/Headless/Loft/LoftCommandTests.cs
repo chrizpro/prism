@@ -14,6 +14,51 @@ namespace Prism.HeadlessTests.Loft;
 [Trait("Feature", "Loft")]
 public class LoftCommandTests
 {
+    [AvaloniaFact(DisplayName = "LFT-H007 | Front-view sketch rail stays visible and can be picked and removed with a loft preview")]
+    [Trait("TestId", "LFT-H007")]
+    public void SketchRail_WithPreview_IsOverlaidAndPickable()
+    {
+        var session = new CadSession();
+        var lower = CreateCurve(session, [new(0, 0, 0), new(10, 0, 0)]);
+        var upper = CreateCurve(session, [new(0, 0, 12), new(10, 0, 12)]);
+        var sketch = new Prism.Core.Sketching.SketchModel();
+        sketch.AddLine(sketch.AddPoint(5, 0), sketch.AddPoint(5, 12));
+        session.EnterSketch(new Plane3(Vec3.Zero, Vec3.UnitX, Vec3.UnitZ), sketch);
+        session.ExitSketch(keep: true);
+        var rail = session.Objects.Last(o => o.Kind == ObjKind.Sketch);
+        var loft = StartCommand(session, lower, () => new LoftCommand(surface: true));
+        loft.ConfigureInputs(() => SetSelection(loft, "Sections (in order)", lower, upper));
+        session.RefreshPreview(loft);
+        Assert.NotEmpty(session.Preview);
+        var rails = loft.Slots.Single(slot => slot.Caption == "Guide rails");
+        foreach (var slot in loft.Slots) slot.IsActive = slot == rails;
+        session.Camera = new Camera { Yaw = 0, Pitch = 0, Orthographic = true, Target = new(5, 0, 6) };
+        var overlay = new Overlay();
+        loft.BuildOverlay(session, overlay);
+        Assert.Contains(overlay.Lines, line => (line.A - new Vec3(5, 0, 0)).Length < 1e-6 &&
+            (line.B - new Vec3(5, 0, 12)).Length < 1e-6 && line.Color == rail.Color);
+        var pixel = session.Camera.Project(new(5, 0, 6))!.Value;
+        var hit = session.Pick(pixel.x, pixel.y, rails.PickFilter)!.Value;
+        Assert.Equal(rail.Id, hit.Item.Obj);
+        Assert.True(loft.PickPoint(hit, false));
+        Assert.Equal(hit.Item, Assert.Single(rails.Items));
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.Contains(overlay.Lines, line => line.Color == 0xFFFF8A1F);
+        Assert.True(loft.PickPoint(hit, false));
+        Assert.Empty(rails.Items);
+
+        session.Update(rail.Id, obj => obj.WithVisible(false), checkpoint: false);
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.DoesNotContain(overlay.Lines, line => Math.Abs(line.A.X - 5) < 1e-6 && Math.Abs(line.B.X - 5) < 1e-6);
+        session.Update(rail.Id, obj => obj.WithVisible(true), checkpoint: false);
+        session.HiddenIds.Add(rail.Id);
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.DoesNotContain(overlay.Lines, line => Math.Abs(line.A.X - 5) < 1e-6 && Math.Abs(line.B.X - 5) < 1e-6);
+    }
+
     static SceneObject RectangleSection(CadSession session, double z, double width = 10, double height = 6, bool closed = true) =>
         CreateCurve(session, [new Vec3(0, 0, z), new Vec3(width, 0, z), new Vec3(width, height, z), new Vec3(0, height, z)], closed);
 
