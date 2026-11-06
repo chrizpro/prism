@@ -8,7 +8,7 @@ namespace Prism.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow() => InitializeComponent();
+    public MainWindow() { InitializeComponent(); InitializeDocumentSafety(); InitializeFileDrop(); }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {

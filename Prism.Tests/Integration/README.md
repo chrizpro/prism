@@ -13,6 +13,7 @@ Set `PRISM_INTEGRATION_BIN` to an absolute folder containing both binaries to us
 
 | Test ID | Workflow and assertions |
 | --- | --- |
+| SAV-I001 | Actual one-minute desktop recovery timer; separate native copy, original bytes/path/dirty state preserved, valid recovery reopen with changed appearance. [Document safety guide](../../docs/interface/document-safety/README.md). |
 | GAL-I001 | Reopen all eight curated gallery models through MCP; catalog size/hash, saved colors/materials, valid exact shapes, positive solid volumes, closed Freeform cages without non-manifold edges or winding conflicts, and viewport captures. [Gallery guide](../../docs/interface/gallery/README.md). |
 | DRW-I001 | Editable two-sheet drawing in Light and Dark themes, optional dimensions/center marks, selective dense-pattern positions, save/reopen, deduplication and PDF/SVG/DXF export. Whole-window captures; [Drawing guide](../../docs/drawing/README.md). |
 | EXT-I001 | MCP initialization and discovery, rejection of unauthenticated and cross-origin HTTP requests, rectangle sketch, Extrude preview edit, committed analytic volume and bounds, undo and redo. |

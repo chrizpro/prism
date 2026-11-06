@@ -79,6 +79,16 @@
                         <Button Content="Show in Explorer" Click="OnWsShow" Margin="0,0,8,6"/>
                     </WrapPanel>
                     <CheckBox Name="WsHome" Content="Show the home screen when Prism starts" Click="OnWsHome" Margin="0,8,0,0"/>
+                    <TextBlock Text="Autosave and recovery" FontSize="17" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                    <CheckBox Name="RecoveryEnabled" Content="Autosave separate recovery copies" Click="OnRecoveryEnabled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="Save a recovery copy every" VerticalAlignment="Center"/>
+                        <NumericUpDown Name="RecoveryInterval" Minimum="1" Maximum="120" Increment="1" FormatString="0" Width="95" ValueChanged="OnRecoveryInterval"/>
+                        <TextBlock Text="minutes" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Includes untitled documents. Original files stay untouched; unfinished edits wait until you finish or cancel them." Classes="soft" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding RecoveryStatus}" Classes="soft" TextWrapping="Wrap"/>
+                    <Button Content="Recover autosaved work…" Click="OnRecoverWork" HorizontalAlignment="Left"/>
                 </StackPanel>
             </ScrollViewer>
 

@@ -78,6 +78,8 @@ Use named options such as `SetChoice(extrude, "Extent", "Symmetric")`, named fix
 
 ## Feature issues and tests
 
+Document safety: [save/close/recovery guide](../docs/interface/document-safety/README.md), [issue #66](https://github.com/chrizpro/prism/issues/66), [Unit](Unit/DocumentSafety/), [Headless](Headless/DocumentSafety/) and [actual desktop timer](Integration/DesktopDocumentSafetyTests.cs). Filter with `Feature=DocumentSafety`.
+
 Startup gallery: [canonical guide](../docs/interface/gallery/README.md), [issue #61](https://github.com/chrizpro/prism/issues/61), [Unit tests](Unit/Gallery/), [Headless tests](Headless/Gallery/) and [desktop/MCP examples](Integration/DesktopGalleryTests.cs). Filter with `--filter Feature=Gallery`.
 
 See the [readiness report](../docs/engineering/test-readiness-report.md) for the reasons behind remaining gaps.

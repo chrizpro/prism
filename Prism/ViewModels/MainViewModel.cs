@@ -223,15 +223,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public async void SaveFile(bool saveAs = false)
     {
-        var path = Session.FilePath;
-        if (path == null || saveAs)
-        {
-            if (PickSaveFile == null) return;
-            path = await PickSaveFile("Save", Session.FilePath == null ? NextPartName() : System.IO.Path.GetFileName(Session.FilePath), "prism");
-            if (path == null) return;
-        }
-        Guard(() => Session.Save(path));
-        if (Session.FilePath == path) AddRecent(path);
+        if (ActiveDocument is { } tab) await SaveDocumentAsync(tab, saveAs);
     }
 
     public async void ImportMesh()

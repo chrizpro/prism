@@ -114,7 +114,7 @@ sealed class Bridge
         {
             LocalTool("app_status", "Report whether the Prism app is running and reachable."),
             LocalTool("app_launch", "Start the Prism desktop app if it is not already running (other tools do this automatically)."),
-            LocalTool("app_close", "Politely stop the Prism process that this bridge launched or is connected to."),
+            LocalTool("app_close", "Request Prism to close. Unsaved documents show a save prompt; this never force-kills the app."),
             new JsonObject { ["name"] = "run_script", ["description"] = "Execute Python 3 against the live Prism document. import cadkit as cad; print results for the response. The script has the user's local process permissions. Use cad.history(name) to group edits into one undo step. Returns what the script printed, then any error. If it fails, its changes are undone (atomic:false keeps partial work). Timeout is 1–300 seconds.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["code"] = new JsonObject { ["type"] = "string" }, ["timeout_seconds"] = new JsonObject { ["type"] = "integer" }, ["atomic"] = new JsonObject { ["type"] = "boolean" } }, ["required"] = new JsonArray("code") } },
             LocalTool("describe_api", "Discover the application automation tools. No arguments: one line per tool (name, summary, argument names; * = required). query: only tools whose name or description contains it. names: full description and argument schema for just those tools. Then call them with call_api.", new JsonObject
             {
@@ -311,7 +311,7 @@ sealed class Bridge
             if (pid == null) return "No known Prism process.";
             var p = Process.GetProcessById(pid.Value);
             p.CloseMainWindow();
-            if (!p.WaitForExit(4000)) p.Kill();
+            if (!p.WaitForExit(4000)) return "Close requested. Prism is still open; complete or cancel its save prompt.";
             return "Prism closed.";
         }
         catch (Exception e) { return "Could not close: " + e.Message; }

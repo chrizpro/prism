@@ -1,5 +1,7 @@
 # Prism automation / MCP
 
+`app_close` requests a normal desktop close and respects unsaved-document prompts. If Prism remains open, complete or cancel its save review; the bridge never force-kills it. See [saving, closing and recovery](interface/document-safety/README.md).
+
 Prism can be driven by an AI assistant (or any script) through the Model Context Protocol.
 
 ```

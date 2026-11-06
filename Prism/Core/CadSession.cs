@@ -1660,12 +1660,25 @@ public sealed partial class CadSession : ObservableObject
     {
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
+        NativeDocumentFile.WriteAtomic(path, SerializeDocument());
+        FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
+    }
+
+    /// <summary>Write committed state without adopting a path or marking the user's work saved.</summary>
+    public bool WriteRecoveryCopy(string path)
+    {
+        if (!Dirty || Sketch != null || ActiveCommand != null || ExplodeFactor > 1e-9) return false;
+        NativeDocumentFile.WriteAtomic(path, SerializeDocument());
+        return true;
+    }
+
+    string SerializeDocument()
+    {
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
         var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null);
-        File.WriteAllText(path, JsonSerializer.Serialize(dto));
-        FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
+        return JsonSerializer.Serialize(dto);
     }
 
     static Appearance Look(ObjDto d) => new(d.Material, d.Metal, d.Gloss, d.Pattern, d.PatternScale, d.PatternAngle, d.PhysicalMaterial, d.Surface?.Validated());

@@ -45,6 +45,9 @@ public sealed class AppSettings
     public List<string> RecentFiles { get; set; } = [];
     public List<uint> SavedAppearanceColors { get; set; } = [];
     public bool ShowHomeOnStart { get; set; } = true;
+    public bool AutoRecoveryEnabled { get; set; }
+    int autoRecoveryIntervalMinutes = 5;
+    public int AutoRecoveryIntervalMinutes { get => autoRecoveryIntervalMinutes; set => autoRecoveryIntervalMinutes = Math.Clamp(value, 1, 120); }
     /// <summary>Workspace IDs pinned to the top bar; null uses the default selection.</summary>
     public List<string>? VisibleWorkspaces { get; set; }
     public int MarkingHoldMs { get; set; } = 260;

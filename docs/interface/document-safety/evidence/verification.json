@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-05",
+  "platform": "Configured Windows workstation",
+  "nativeRebuilt": false,
+  "preexistingLocalChanges": "Preserved; excluded from this delivery",
+  "unit": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "headless": {
+    "documentSafetyPassed": 11,
+    "localReportingPassed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "desktop": {
+    "testId": "SAV-I001",
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "intervalMinutes": 1,
+    "originalBytesUnchanged": true,
+    "dirtyStatePreserved": true,
+    "recoveryReopenValid": true
+  },
+  "manualUi": [
+    "Save prompt and Cancel",
+    "Default-off settings",
+    "Enable and change interval",
+    "Recover real test backup into new unsaved tab"
+  ],
+  "dragDrop": "Headless routed events with native and mesh importers; no physical Explorer drag or macOS/Linux execution"
+}

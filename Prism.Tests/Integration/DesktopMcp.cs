@@ -12,7 +12,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
     int requestId;
     public string OutputDirectory => output;
 
-    public DesktopMcp(string scenario, string? drawingTheme = null)
+    public DesktopMcp(string scenario, string? drawingTheme = null, int? recoveryIntervalMinutes = null)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx")))
@@ -42,10 +42,12 @@ internal sealed class DesktopMcp : IAsyncDisposable
         start.Environment["PRISM_EXE"] = desktop;
         start.Environment["PRISM_AUTOMATION_DISCOVERY"] = discovery;
         start.Environment["PRISM_AUTOMATION"] = "1";
-        if (drawingTheme != null)
+        start.Environment["PRISM_RECOVERY_DIR"] = Path.Combine(output, "recovery");
+        if (drawingTheme != null || recoveryIntervalMinutes != null)
         {
             string settings = Path.Combine(output, "settings.json");
-            File.WriteAllText(settings, System.Text.Json.JsonSerializer.Serialize(new { Theme = drawingTheme, ShowHomeOnStart = false }));
+            File.WriteAllText(settings, System.Text.Json.JsonSerializer.Serialize(new { Theme = drawingTheme ?? "Light", ShowHomeOnStart = false,
+                AutoRecoveryEnabled = recoveryIntervalMinutes.HasValue, AutoRecoveryIntervalMinutes = recoveryIntervalMinutes ?? 5 }));
             start.Environment["PRISM_SETTINGS_FILE"] = settings;
             start.Environment["PRISM_NO_HOME"] = "1";
         }

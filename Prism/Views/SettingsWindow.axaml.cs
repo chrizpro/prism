@@ -43,6 +43,9 @@ public partial class SettingsWindow : Window
         ShowGridOnStart.IsChecked = s.ShowGridOnStart;
         BuildGridSwatches();
         ShowWorkspace(); WsHome.IsChecked = s.ShowHomeOnStart;
+        RecoveryEnabled.IsChecked = s.AutoRecoveryEnabled;
+        RecoveryInterval.Value = s.AutoRecoveryIntervalMinutes;
+        RecoveryInterval.IsEnabled = s.AutoRecoveryEnabled;
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.WorkspaceFolder)) ShowWorkspace(); };
         BuildRibbonEditor();
         BuildToolbarEditors();
@@ -322,6 +325,24 @@ public partial class SettingsWindow : Window
     void OnWsDefault(object? s, RoutedEventArgs e) => _vm.UseDefaultWorkspace();
     void OnWsShow(object? s, RoutedEventArgs e) => _vm.ShowWorkspaceInExplorer();
     void OnWsHome(object? s, RoutedEventArgs e) { if (!_loading) _vm.ShowHomeOnStart = WsHome.IsChecked == true; }
+    void OnRecoveryEnabled(object? sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        AppSettings.Current.AutoRecoveryEnabled = RecoveryEnabled.IsChecked == true;
+        RecoveryInterval.IsEnabled = AppSettings.Current.AutoRecoveryEnabled;
+        AppSettings.Save();
+    }
+    void OnRecoveryInterval(object? sender, NumericUpDownValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        AppSettings.Current.AutoRecoveryIntervalMinutes = (int)(RecoveryInterval.Value ?? 5);
+        AppSettings.Save();
+    }
+    async void OnRecoverWork(object? sender, RoutedEventArgs e)
+    {
+        var path = await new RecoveryFilesWindow(RecoveryStore.Local).ShowDialog<string?>(this);
+        if (path != null && _vm.RestoreRecoveryCopy(path)) Close();
+    }
 
     // ------------------------------------------------------------ grid looks
     void BuildGridSwatches()
