@@ -2,6 +2,8 @@
 
 Solid modeling builds exact, closed bodies from sketches and features. Every feature is a step in the design history that you can reopen and change. Reference: [Home](/tools/home), [Solid](/tools/solid), [Direct Modeling](/tools/direct-modeling), [Sheet Metal](/tools/sheet-metal).
 
+<GuideImage src="/images/guides/app-compact.png" alt="A solid plate with rounded edges and five holes in Prism" caption="A plate built with Box, Fillet and Hole features. The design history shows the steps used to build it." :width="1500" :height="920" />
+
 ## How a command works
 
 Every modeling command opens a panel on the right with numbered, collapsible steps.
@@ -12,6 +14,8 @@ Every modeling command opens a panel on the right with numbered, collapsible ste
 4. **Confirm** to apply, or cancel to leave the model unchanged.
 
 Hover a ribbon button to see what it does. Extrude, Revolve, Loft, Sweep, Fillet, Chamfer and several CAE and CAM tools show an illustrated example; press <kbd>F1</kbd> for the same help on the active tool.
+
+<GuideImage image="solid-extrude-preview" />
 
 ## Create
 
@@ -28,9 +32,15 @@ Extrude and Revolve offer **Selection intent** in the profile picker: the whole 
 - **Hole** drills plain or modeled threaded holes (M3 to M12 presets or custom pitch), blind or through all, from a face or the top of a body.
 - **Shell** hollows a body, removing the faces you pick. **Draft** tilts faces for molding. **Split Body** cuts a body with a plane, face or another body.
 
+<GuideImage image="solid-fillet-edges" />
+
+<GuideImage image="solid-shell-result" />
+
 ## Combine, pattern and transform
 
 **Union**, **Subtract** and **Intersect** combine bodies. Patterns copy features or bodies **Linear**, **Circular**, **Along Curve**, to **Fill** a region, or from a **Table** of positions. **Move** stays visible; Rotate, Scale, Mirror and Duplicate share one menu.
+
+<GuideImage image="solid-linear-pattern" />
 
 ## Change your design
 
@@ -48,3 +58,7 @@ For parts without history, such as imported STEP files, use **Solid › Direct E
 ## Drawings
 
 **Analyze › Make Drawing** creates an engineering drawing with hidden-line views, automatic scale, overall dimensions, hole callouts, centerlines, an optional section and a title block, saved as SVG, PDF or DXF.
+
+For an editable sheet, switch to the **Drawing** workspace to place views and choose annotations. The image below shows that separate workflow.
+
+<GuideImage image="drawing-workspace" />

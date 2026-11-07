@@ -3,6 +3,8 @@ import DefaultTheme from 'vitepress/theme'
 import AlphaBanner from '../../components/AlphaBanner.vue'
 import PrismHome from '../../components/PrismHome.vue'
 import RibbonCatalog from '../../components/RibbonCatalog.vue'
+import GuideImage from '../../components/GuideImage.vue'
+import JointGuide from '../../components/JointGuide.vue'
 import './style.css'
 
 export default {
@@ -12,5 +14,7 @@ export default {
   enhanceApp({ app }) {
     app.component('PrismHome', PrismHome)
     app.component('RibbonCatalog', RibbonCatalog)
+    app.component('GuideImage', GuideImage)
+    app.component('JointGuide', JointGuide)
   },
 }

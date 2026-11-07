@@ -2,6 +2,8 @@
 
 Prism brings sketches, solids, surfaces, and freeform modeling into one desktop application. Start in the **Design** workspace and use the **Home** ribbon for everyday actions.
 
+<GuideImage src="/images/guides/app-compact.png" alt="Prism Design workspace with a rounded plate and five holes" caption="The ribbon is at the top, the model browser is on the left, and the design history runs along the bottom." :width="1500" :height="920" />
+
 ## Choose a folder
 
 On the start screen, choose a workspace folder. This is where new parts are saved and where Prism lists your models. You can choose your own location or use `Documents/Prism`. Existing workspace paths are preserved when upgrading.
@@ -15,6 +17,10 @@ On the start screen, choose a workspace folder. This is where new parts are save
 5. Press **Ctrl+S** to save a `.prism` document.
 
 Use **Ctrl+Z** to undo. Press **Home** to fit the model in the viewport, and **N** to look straight at a selected face or plane. **Ctrl+K** opens command search, including tools inside ribbon menus.
+
+<GuideImage image="solid-extrude-preview" />
+
+<GuideImage image="solid-extrude-result" />
 
 ## Pick a workspace
 

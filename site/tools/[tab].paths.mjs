@@ -4,6 +4,7 @@
 import { catalog, isShared, pageFor, sharedGroups, sharedTabsFor, slug, tabSlug, workspacesFor } from './catalog-model.mjs'
 import { groupTips, tabGuides, tabIntros } from './guide-data.mjs'
 import { cell, text } from './render.mjs'
+import { tabImages, illustration } from './image-data.mjs'
 
 export function groupTip(tabTitle, group) {
   const tip = groupTips[`${tabTitle}:${group.title}`] ?? groupTips[group.title]
@@ -31,6 +32,7 @@ function tabPage(tab) {
   if (ws.length) lines.push(`**Workspaces:** ${ws.join(', ')} · **Sections:** ${tab.groups.map(g => g.title).join(' → ')}`, '')
   else if (tab.contextual) lines.push(`**Appears** while its editing mode is active · **Sections:** ${tab.groups.map(g => g.title).join(' → ')}`, '')
   if (tabGuides[tab.title]) lines.push(`For a walkthrough, read the [${tabGuides[tab.title].text}](${tabGuides[tab.title].link}) guide.`, '')
+  if (tabImages[tab.title]) lines.push(illustration(tabImages[tab.title]), '')
   for (const group of own) lines.push(`## ${text(group.title)} {#${slug(group.title)}}`, '', ...groupTip(tab.title, group), ...toolTable(tab.title, group))
   if (shared.length) {
     lines.push('## Shared sections {#shared}', '', 'These work the same on every ribbon that has them.', '')

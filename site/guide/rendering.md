@@ -2,6 +2,8 @@
 
 The **Render** workspace makes realistic pictures of what is on screen: soft shadows, reflections, and studio or sky light. It is built in, with nothing extra to install. Reference: [Render](/tools/render), [Materials](/tools/materials).
 
+<GuideImage src="/images/guides/lens-render.png" alt="A rendered camera lens with a black barrel, red ring and blue glass" caption="A product rendering made in Prism, showing glass, metal, reflections and a ground shadow." :width="1920" :height="1080" />
+
 ## Materials
 
 Open **Materials** from the Appearance section. The **Materials** ribbon appears while the studio is open.
@@ -12,6 +14,8 @@ Open **Materials** from the Appearance section. The **Materials** ribbon appears
 4. **Done** closes the studio.
 
 Library materials carry physical data too, so the same assignment is used by simulation and mass properties.
+
+<GuideImage image="materials-studio" />
 
 ## Lights
 
@@ -25,6 +29,8 @@ For exact control, render with **Only my lights**.
 2. Open **Render Image** and choose the picture size, quality (samples per pixel), light bounces, lighting, background (white, black, green screen, studio gradient or transparent) and an optional ground plane with shadows.
 3. Press **Start render**. The picture appears over the viewport and sharpens as it goes; **Stop** whenever it looks good enough. Higher quality means less grain and takes longer.
 4. **Save Picture** (to `Documents\Prism\Renders` unless you choose a folder), then **Close Picture**.
+
+<GuideImage image="render-image-settings" />
 
 **Render Animation** renders an animation to video; MP4 output needs ffmpeg.
 

@@ -3,6 +3,7 @@
 import { catalog, slug, tabSlug, toolPages } from '../tools/catalog-model.mjs'
 import { groupTips, tabGuides } from '../tools/guide-data.mjs'
 import { commandSections, text } from '../tools/render.mjs'
+import { commandImages, illustration } from '../tools/image-data.mjs'
 
 const tabOrder = new Map(catalog.tabs.map((t, i) => [t.title, i]))
 
@@ -31,6 +32,7 @@ function toolPage(page) {
   const guide = tabGuides[first.tab]
   if (guide) meta.push(`- **Guide:** [${guide.text}](${guide.link})`)
   lines.push(...meta, '')
+  if (commandImages[command?.name]) lines.push(illustration(commandImages[command.name]), '')
   const tip = groupTips[`${first.tab}:${first.group}`] ?? groupTips[first.group]
   if (tip) lines.push('::: tip', tip, ':::', '')
   if (command) lines.push(...commandSections(command, tool))

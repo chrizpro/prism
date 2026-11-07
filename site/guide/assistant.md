@@ -18,6 +18,8 @@ Pick the provider in the panel or in **Settings › AI Assistant**. You can also
 
 Claude is available with an API key only. Prism does not offer Claude subscription login.
 
+<GuideImage image="assistant-modeling-panel" />
+
 ## Settings
 
 - **Remember the key on this computer** saves your API keys so you don't need to enter them again. They are stored in plain text in `%LOCALAPPDATA%\Prism\assistant.json`. Without it, keys last until Prism closes. Prism also picks up `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` from your environment.

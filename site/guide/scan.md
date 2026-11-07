@@ -12,6 +12,8 @@ The two ribbons do different jobs. **Mesh** fixes a mesh, and the result is stil
 
 To remove something, open **Select Region**, pick the area with smart patch, brush, rectangle or lasso, and press **Delete and patch**. **Smooth** patching follows the surrounding curvature; **Flat** only triangulates the opening.
 
+<GuideImage image="scan-mesh-quality" />
+
 ## Three ways to get CAD
 
 | Route | Result | Use it when |
@@ -23,6 +25,8 @@ To remove something, open **Select Region**, pick the area with smart patch, bru
 Start with **Align**: drop the scan on the bed, center it, lay a flat face down, or best-fit it to the CAD model it was scanned from.
 
 **Rebuild from Scan** makes an exact solid when every region is a plane, cylinder, cone or sphere. Parts with free-form regions are sewn instead and may stay open. **Mesh to Solid** converts a mesh directly.
+
+<GuideImage image="scan-section-sketch" />
 
 ## Check
 

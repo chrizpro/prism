@@ -10,6 +10,8 @@ The **ECAD** workspace handles the mechanical side of electronics: boards, compo
 
 Holes are mechanical; copper, plating and nets are not modeled. Build boards lying in XY and rotate the finished assembly afterwards.
 
+<GuideImage image="ecad-board-envelopes" />
+
 ## Reserve space
 
 **Component Envelope** places an approximate package or keep-out with a reference designator, body size, position, rotation, board side and clearance allowance. Use it for connectors, tall capacitors and anything the enclosure must clear. For accurate connectors, import their STEP models.
