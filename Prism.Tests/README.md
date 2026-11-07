@@ -1,5 +1,7 @@
 # Prism tests
 
+Windows consolidation verification on 2026-11-07: `./tools/test.ps1` passed **142 Unit and 740 Headless cases**, with no failures or skips, at application revision `b5f34f58d47fbab01a27862ddf0472ff369f5466`. See the [develop audit](../docs/engineering/develop-audit-2026-11-07.md) for commands, native-runtime reuse and other verification limits. This is dated evidence, not a live test status.
+
 Start here to read, find or run the maintained tests. They live in the top-level `Prism.Tests/` directory and appear under **Prism.Tests → Unit / Headless / Integration** in `Prism.slnx`. Older standalone test programs remain separately under `tests/`.
 
 ```text
