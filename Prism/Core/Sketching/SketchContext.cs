@@ -43,6 +43,9 @@ public sealed partial class SketchContext
     public HashSet<int> SelPoints { get; } = [];
     public int HoverEntity { get; set; } = -1;
     public int HoverPoint { get; set; } = -1;
+    /// <summary>Curve hovered on an inactive drawing plane (section index and entity id) — lit up so it reads as clickable; -1/-1 for none.</summary>
+    public int HoverOtherSection { get; set; } = -1;
+    public int HoverOtherEntity { get; set; } = -1;
     public SnapInfo? Cursor { get; set; }
     readonly Stack<SpaceSnapshot> _undo = new();
     readonly List<(SkConstraint c, Vec3 pos)> _dimLabels = [];
@@ -430,6 +433,12 @@ public sealed partial class SketchContext
         {
             if (Math.Abs(Vec3.Dot(inferred-Plane.Origin,Plane.Normal)) > 1e-6) return null;
             var snapped=Plane.Project(inferred); return new SnapInfo(snapped.u,snapped.v,SnapKind.Grid,-1);
+        }
+        // Drawing in space, points are found where they show on screen, at their real depth, even when the drawing plane is edge-on.
+        if (allow && Is3DEnabled && DrawingAxis == 0 && SnapSpacePoint(s, px, py, excludePoints, out _) is { } spacePoint)
+        {
+            if (spacePoint.Kind == SnapKind.Point) Hover("p" + spacePoint.Id, spacePoint.U, spacePoint.V, spacePoint.Id);
+            return spacePoint;
         }
         if (PlanePoint(s, px, py) is not { } uv) return null;
         if (DrawingAxis != 0)

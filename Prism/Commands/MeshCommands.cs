@@ -302,6 +302,16 @@ public sealed class MeshOffsetCommand : MeshCommand
     readonly NumberParam _d;
     public MeshOffsetCommand() : base("Mesh") { _d = Num("Offset (+ grows, - shrinks)", 0.2, -50, 50, 0.1); }
     public override string Title => "Offset Mesh";
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
+            var m = obj.Tri!; var c = (m.Min + m.Max) * 0.5;
+            var dir = c - m.Min; if (dir.Length < 1e-9) dir = Vec3.UnitZ;   // outward stand-in for "along the normals"
+            return new HandleSpec(c, dir.Normalized(), _d);
+        }
+    }
     public override string Hint => "Grows or shrinks the surface along its normals. Handy for print tolerances (clearance for mating parts); big offsets can self-intersect.";
     public override string Icon => "mesh-offset";
     protected override CommandOutput? Build()
@@ -334,6 +344,16 @@ public sealed class MeshCutCommand : MeshCommand
     }
 
     public override string Title => "Split Mesh";
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (Meshes().Count == 0) return null;
+            var n = _plane.Index switch { 0 => Vec3.UnitZ, 1 => Vec3.UnitY, 2 => Vec3.UnitX, _ => new Vec3(_nx.Value, _ny.Value, _nz.Value) };
+            if (n.Length < 1e-6) return null;
+            return new HandleSpec(Vec3.Zero, (n.Normalized() * (_flip.Value ? -1 : 1)), _offset);
+        }
+    }
     public override string Hint => "Slice a mesh with a plane and cap the cut so both halves are printable. Use it to fit a big part on a small bed or to remove a base.";
     public override string Icon => "mesh-cut";
     public override string OkText => "Split";
@@ -402,6 +422,18 @@ public sealed class MeshSectionCommand : MeshCommand
     }
 
     public override string Title => "Mesh Section Curves";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (Meshes().Count == 0) return [];
+            var n = _plane.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX;
+            var list = new List<HandleSpec> { new(Vec3.Zero, n, _offset) };
+            if (_count.Value > 1) list.Add(new(n * _offset.Value, n, _spacing));
+            return list;
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Slice the scan with one or more planes and turn the outlines into curves, ready to extrude, loft or sweep into real CAD geometry.";
     public override string Icon => "mesh-section";
     public override string OkText => "Create curves";

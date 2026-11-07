@@ -202,6 +202,46 @@ public sealed class ScriptSession
     }
 
     public void Stop() => _cts?.Cancel();
+
+    // -------- assistant edits: the editor keeps snapshots so an AI rewrite can be rolled back
+
+    readonly List<string> _aiSnapshots = [];
+    /// <summary>How many assistant rewrites can still be rolled back.</summary>
+    public int AiSnapshotCount => _aiSnapshots.Count;
+
+    /// <summary>Replaces the whole script (the assistant's way of writing code). The previous text is kept for <see cref="RollbackAi"/>.</summary>
+    public void SetAiText(string text)
+    {
+        if (_aiSnapshots.Count >= 10) _aiSnapshots.RemoveAt(0);
+        _aiSnapshots.Add(Text);
+        Text = text; Dirty = true; ErrorLine = 0;
+        Loaded?.Invoke(); StateChanged?.Invoke();
+    }
+
+    /// <summary>Inserts text before a 1-based line (default: the end), as one snapshot.</summary>
+    public void InsertAiText(int? line, string text)
+    {
+        if (line is not (>= 1))
+        {
+            var sep = Text.Length > 0 && !Text.EndsWith('\n') ? "\n" : "";
+            SetAiText(Text + sep + text);
+            return;
+        }
+        var lines = Text.Split('\n').ToList();
+        var at = Math.Min(line.Value - 1, lines.Count);
+        lines.Insert(at, text);
+        SetAiText(string.Join('\n', lines));
+    }
+
+    /// <summary>Restores the text from before the last assistant rewrite. False when there is nothing to roll back to.</summary>
+    public bool RollbackAi()
+    {
+        if (_aiSnapshots.Count == 0) return false;
+        Text = _aiSnapshots[^1]; _aiSnapshots.RemoveAt(_aiSnapshots.Count - 1);
+        Dirty = true; ErrorLine = 0;
+        Loaded?.Invoke(); StateChanged?.Invoke();
+        return true;
+    }
 }
 
 /// <summary>Open a script in the user's own editor.</summary>

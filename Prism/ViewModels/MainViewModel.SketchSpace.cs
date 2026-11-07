@@ -54,19 +54,25 @@ public sealed partial class MainViewModel
     [ObservableProperty] public partial bool SketchFreeEditing { get; set; }
     partial void OnSketchFreeEditingChanged(bool value) { if (!_refreshSketchSpace && Session.Sketch is { } sk) { sk.FreeEditing = value; Session.RaiseState(); } }
     [ObservableProperty] public partial bool SketchGizmoTargetSetup { get; set; }
-    /// <summary>The "3D sketch" checkbox: spatial tools on or off. Off is a plain 2D sketch.</summary>
+    /// <summary>Spatial tools on or off. Off is a plain 2D sketch, which behaves as No plane on the sketch's own plane.</summary>
     [ObservableProperty] public partial bool SketchSpatialEnabled { get; set; }
     partial void OnSketchSpatialEnabledChanged(bool value)
     {
-        if (!_refreshSketchSpace) Session.Sketch?.Set3DEnabled(Session, value, adjustView: true);
+        OnPropertyChanged(nameof(SketchNoPlaneNote));
+        if (_refreshSketchSpace || Session.Sketch is not { } sk) return;
+        // 3D sketch opens in No plane: the camera stays where it is and points go where they are clicked.
+        if (value) { sk.Set3DEnabled(Session, true); sk.SetDrawingMode(Session, flat: true, adjustView: false); }
+        else sk.Set3DEnabled(Session, false, adjustView: true);
     }
     /// <summary>Draw in space (rather than flat). Only meaningful while 3D sketch is on.</summary>
     [ObservableProperty] public partial bool Sketch3DEnabled { get; set; }
     public bool SketchDrawFlat { get => !Sketch3DEnabled; set { if (value) Sketch3DEnabled = false; } }
+    public bool SketchNoPlaneNote => SketchSpatialEnabled && SketchDrawFlat;
     partial void OnSketch3DEnabledChanged(bool value)
     {
-        OnPropertyChanged(nameof(SketchDrawFlat));
-        if (!_refreshSketchSpace) Session.Sketch?.SetDrawingMode(Session, flat: !value);
+        OnPropertyChanged(nameof(SketchDrawFlat)); OnPropertyChanged(nameof(SketchNoPlaneNote));
+        // With plane reads depth, so it switches to perspective; No plane never moves the camera — orbiting changes only the view.
+        if (!_refreshSketchSpace) Session.Sketch?.SetDrawingMode(Session, flat: !value, adjustView: value);
     }
     [ObservableProperty] public partial bool SketchSnapOtherCurves { get; set; }
     [ObservableProperty] public partial bool SketchProjectOtherCurves { get; set; }
@@ -135,6 +141,17 @@ public sealed partial class MainViewModel
         vector = default; Session.Say("Enter finite numbers for X, Y and Z.", true); return false;
     }
 
+    /// <summary>
+    /// Datum ribbon tools belong to model space: they arm a persistent pick tool that drops free-standing
+    /// datums on the document's model-datum carrier until Esc or right-click. Inside a sketch they do nothing.
+    /// </summary>
+    public void StartDatumTool(SketchDatumKind kind)
+    {
+        if (Session.Sketch != null) { Session.Say("Finish the sketch to place datums; inside a sketch, use the Point tool to draw points."); return; }
+        Session.HideDatumGizmo();
+        Session.SetFreeTool(new DatumPickTool(kind));
+    }
+
     public void SketchSpaceAction(string action)
     {
         if (Session.Sketch is not { } sk) return;
@@ -155,11 +172,6 @@ public sealed partial class MainViewModel
             case "new": sk.SetDrawingPlane(Session, sk.Plane, forceNew: true); break;
             case "axis-free": sk.ReleaseDrawingAxis(Session); break;
             case "axis": sk.LockSelectedGizmoAxis(Session); break;
-            case "save-plane": sk.SaveDatum(Session,SketchDatumKind.Plane,SketchDatumName,normalOffset:SketchDatumPlaneOffset); SketchDatumName=""; break;
-            case "save-gizmo": sk.SaveDatum(Session,SketchDatumKind.Gizmo,SketchDatumName); SketchDatumName=""; break;
-            case "save-axis": sk.SaveDatum(Session,SketchDatumKind.Axis,SketchDatumName,sk.SelectedGizmoAxis); SketchDatumName=""; break;
-            case "save-point": sk.SaveDatum(Session,SketchDatumKind.Point,SketchDatumName); SketchDatumName=""; break;
-            case "update-datum": sk.UpdateDatum(Session); break;
             case "origin": if (TrySketchVector(SketchOriginX, SketchOriginY, SketchOriginZ, out var origin)) sk.MoveDrawingPlane(Session, origin); break;
             case "rotate": if (TrySketchVector(SketchRotateX, SketchRotateY, SketchRotateZ, out var degrees)) sk.SetGizmoTransform(Session, sk.GizmoFrame.Origin, degrees); break;
             case "reset-location": sk.ResetGizmo(Session, location: true, rotation: false, scale: false); break;

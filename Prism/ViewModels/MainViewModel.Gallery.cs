@@ -16,7 +16,7 @@ public sealed partial class GalleryCard(GalleryEntry entry) : ObservableObject
     public string Name => Entry.Name;
     public string Description => Entry.Description;
     public string Workflow => Entry.Workflow;
-    public string Credit => Entry.Author + " · " + Entry.License;
+    public string Credit => "Made with Prism MCP · " + Entry.Author + " · " + Entry.License;
     public bool Compatible => Entry.IsCompatible(AppInfo.Version);
     public string VersionHint => "Requires Prism " + Entry.MinimumVersion;
     public bool CanOpen => Compatible && !Busy;
@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
     readonly ObservableCollection<GalleryCard> _galleryCards = [];
     public GalleryStore GallerySource { get; set; } = GalleryStore.Local;
     [ObservableProperty] public partial string GallerySearch { get; set; } = "";
-    [ObservableProperty] public partial string GalleryStatus { get; set; } = "Examples made in Prism. Download one to explore and make it your own.";
+    [ObservableProperty] public partial string GalleryStatus { get; set; } = "Examples built through Prism's MCP bridge — the same AI toolkit in Settings → AI Assistant. Download one to explore and make it your own.";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(GalleryAvailable))] public partial bool GalleryBusy { get; set; }
     [ObservableProperty, NotifyPropertyChangedFor(nameof(GalleryAvailable))] public partial bool GalleryRefreshing { get; set; }
     public bool GalleryAvailable => !GalleryBusy && !GalleryRefreshing;
@@ -73,7 +73,7 @@ public sealed partial class MainViewModel
             {
                 var catalog = await GallerySource.Refresh();
                 if (!catalog.Items.SequenceEqual(_galleryCards.Select(c => c.Entry))) SetGallery(catalog);
-                GalleryStatus = "Examples made in Prism. Download one to explore and make it your own.";
+                GalleryStatus = "Examples built through Prism's MCP bridge — the same AI toolkit in Settings → AI Assistant. Download one to explore and make it your own.";
             }
             catch (Exception) { GalleryStatus = "Could not refresh the gallery. Downloaded examples still work offline. Use Refresh to retry."; }
             await Task.WhenAll(_galleryCards.Select(async card =>

@@ -6,6 +6,8 @@ Prism focuses on CNC machining and preparation for FDM and resin printing. Dedic
 
 ## Workspace
 
+The public [Manufacturing walkthrough](../../site/guide/manufacturing.md) includes actual app captures of stock setup, profile preview, playback and FDM/resin preparation settings. Capture provenance and limits are recorded in the [site maintenance guide](../../site/README.md#guide-images). These illustrations are separate from the maintained verification below; the print-preparation images do not show completed checks.
+
 The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, **3D FDM** and **3D Resin**, alongside Home, Analyze and View. Mold tooling is not part of this workspace.
 
 Separate print tabs are justified by distinct checks and workflows, rather than different export formats:

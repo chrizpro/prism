@@ -53,6 +53,64 @@ public sealed class WarpCommand : Command
 
     static Vec3 AxisVec(int i) => i == 0 ? Vec3.UnitX : i == 1 ? Vec3.UnitY : Vec3.UnitZ;
 
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_src.Items.Count == 0) return [];
+            try
+            {
+                var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+                foreach (var o in ObjectsOf(_src).Distinct())
+                {
+                    var m = o.Mesh;
+                    lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+                    hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+                }
+                if (lo.X > hi.X) return [];
+                int ai = _axis.Index;
+                double Get(Vec3 v) => ai == 0 ? v.X : ai == 1 ? v.Y : v.Z;
+                double span = Get(hi) - Get(lo); if (span < 1e-9) return [];
+                var d = AxisVec(ai); var c = (lo + hi) * 0.5;
+                Vec3 Axis(double pct) => c + d * (Get(lo) + span * pct / 100 - Get(c));
+                double s0 = Math.Min(_start.Value, _end.Value), s1 = Math.Max(_start.Value, _end.Value);
+                double len = Math.Max(span * (s1 - s0) / 100, 1e-9);
+                // radial direction toward the bbox corner furthest from the axis at the region end
+                var corner = new Vec3(ai == 0 ? hi.X : lo.X, ai == 1 ? hi.Y : lo.Y, ai == 2 ? hi.Z : lo.Z);
+                var perp = corner - Axis(s1); perp -= d * Vec3.Dot(perp, d);
+                if (perp.Length < 1e-9) perp = SurfaceMath.Basis(d).u;
+                var u = perp.Normalized(); double r0 = Math.Max(perp.Length, 1e-9);
+
+                var list = new List<HandleSpec>();
+                switch ((Kind)_kind.Index)
+                {
+                    case Kind.Bend:
+                    {
+                        int ti = _toward.Index; var b = ti / 2 == 0 ? Vec3.UnitX : ti / 2 == 1 ? Vec3.UnitY : Vec3.UnitZ; if (ti % 2 == 1) b = -b;
+                        if (Math.Abs(Vec3.Dot(b, d)) > 0.5) return list;
+                        // the region end swings sideways: its offset along b is len*phi/2 for small angles
+                        list.Add(new(Axis(s1), b, _angle, 360 / (Math.PI * len)));
+                        break;
+                    }
+                    case Kind.Twist:
+                        list.Add(new(Axis(s1), d, _angle, 1, u, r0));
+                        break;
+                    case Kind.Taper:
+                        list.Add(new(Axis(s1), u, _percent, 100 / r0));   // tip lands on the grown/shrunk rim
+                        break;
+                    default:
+                        list.Add(new(Axis(s1), d, _percent, 100 / len));  // tip lands on the pulled end
+                        break;
+                }
+                list.Add(new(Axis(0), d, _start, 100 / span));
+                list.Add(new(Axis(0), d, _end, 100 / span));
+                return list;
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
     Func<Vec3, Vec3> Deformation(Vec3 min, Vec3 max)
     {
         var d = AxisVec(_axis.Index);

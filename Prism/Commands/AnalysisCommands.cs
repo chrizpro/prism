@@ -351,6 +351,21 @@ public sealed class SectionCommand : AnalysisCommand
     public override void OnEnd() { if (!_keep.Value) { S.Clip = null; S.Invalidate(); } }
     public override void OnCancel() { S.Clip = null; S.Invalidate(); }
 
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (_plane.Index == 3)
+            {
+                if (_customPlane.Items.Count == 0) return null;
+                var plane = S.PlaneOf(_customPlane.Items[0]); if (plane == null) return null;
+                return new HandleSpec(plane.Value.Origin, plane.Value.Normal, _offset);
+            }
+            var n = _plane.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX;
+            return new HandleSpec(Vec3.Zero, n, _offset);
+        }
+    }
+
     protected override void Analyze()
     {
         _curves.Clear(); _cut = null;

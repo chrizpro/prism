@@ -31,6 +31,36 @@ public sealed class FormExtrudeCommand : Command
     public override string Title => "Freeform Extrude";
     public override string Icon => "form-extrude";
     public override string OkText => "Create form";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_profile.Items.Count == 0) return [];
+            try
+            {
+                var (prof, closed) = FormCurves.Section(S, _profile.Items[0]);
+                if (prof.Count < 2) return [];
+                var c = prof.Aggregate(Vec3.Zero, (a, b) => a + b) / prof.Count;
+                Vec3 d;
+                if (_dir.Index == 0)
+                {
+                    var n = Vec3.Zero;
+                    for (int i = 0; i < prof.Count; i++) { var a = prof[i] - c; var b = prof[(i + 1) % prof.Count] - c; n += Vec3.Cross(a, b); }
+                    if (n.Length < 1e-9) return [new(c, Vec3.UnitZ, _dist)];
+                    d = n.Normalized();
+                }
+                else d = _dir.Index == 1 ? Vec3.UnitX : _dir.Index == 2 ? Vec3.UnitY : Vec3.UnitZ;
+                double r0 = Math.Max(prof.Max(p => p.DistanceTo(c)), 1e-9);
+                return
+                [
+                    new(c, d, _dist),
+                    new(c + d * _dist.Value, Meshing.SurfaceMath.Basis(d).u, _endScale, 1 / r0),
+                ];
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Pick a closed or open profile and a distance. A form cage is pulled out from it, optionally shrinking or growing toward the far end, ready to sculpt.";
 
     protected override CommandOutput? Build()
@@ -87,6 +117,25 @@ public sealed class FormRevolveCommand : Command
     public override string Title => "Freeform Revolve";
     public override string Icon => "form-revolve";
     public override string OkText => "Create form";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_profile.Items.Count == 0) return [];
+            try
+            {
+                var (prof, _) = FormCurves.Section(S, _profile.Items[0]);
+                if (prof.Count == 0) return [];
+                var ax = _axis.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
+                var c = prof.Aggregate(Vec3.Zero, (a, b) => a + b) / prof.Count;
+                var rel = c - ax * Vec3.Dot(c, ax);
+                if (rel.Length < 1e-9) return [];
+                return [new(ax * Vec3.Dot(c, ax), ax, _angle, 1, rel.Normalized(), rel.Length)];
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Pick a profile drawn beside an axis. It is spun around the axis (through the origin) into a form cage. 360° makes a closed shape; less leaves it open.";
 
     protected override CommandOutput? Build()
@@ -140,6 +189,24 @@ public sealed class FormPipeCommand : Command
     public override string Title => "Freeform Pipe";
     public override string Icon => "form-sweep";
     public override string OkText => "Create form";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_path.Items.Count == 0) return [];
+            try
+            {
+                var (path, closedPath) = FormCurves.Section(S, _path.Items[0]);
+                var pp = FormCurves.Resample(path, closedPath, 8); if (pp.Count < 2) return [];
+                var t0 = (pp[1] - pp[0]).Normalized(); var t1 = (pp[^1] - pp[^2]).Normalized();
+                var list = new List<HandleSpec> { new(pp[0], Meshing.SurfaceMath.Basis(t0).u, _r0) };
+                if (!closedPath) list.Add(new(pp[^1], Meshing.SurfaceMath.Basis(t1).u, _r1));
+                return list;
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Pick a path. A round tube is built along it; give a different end radius to taper it (arms, tails, stems). Edit the cage afterwards to add muscle or bulges.";
 
     protected override CommandOutput? Build()

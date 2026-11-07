@@ -6,7 +6,11 @@ Canonical specification for visual appearance, engineering material defaults and
 
 **Approved for implementation on 2026-11-05:** the owner instructed delivery after reviewing the appearance/material and gradient/weathering recommendations, including documentation, issues and tests. Implementation is present; verification below distinguishes executed checks from remaining gaps.
 
+**Library expansion, owner-directed 2026-11-10:** the engineering library grew from 37 to 125 materials organized as Steel, Stainless Steel, Tool Steel, Cast Iron, Aluminum, Titanium, Nickel, Copper Alloys, Light Metals, Other Metals, Plastic, Elastomer, Composite, Wood, Ceramic and Fabric and Soft. Grades follow Fusion 360/NX/Creo-style coverage (carbon and alloy steels, common stainless and tool steels, wrought and cast aluminums, titaniums, superalloys, copper alloys, magnesium/zinc casting alloys, thermoplastics, elastomers, laminates, common woods, technical ceramics and a few soft goods for packaging mockups). Values are handbook-grade estimates for design comparison, not certified design allowables; evidence provenance remains per-material. Directional and nonlinear rows (woods, laminates, elastomers, brittle ceramics, soft goods) keep `IsotropicStructural=false`/`IsotropicThermal=false` where the current isotropic studies cannot consume them.
+
 Material answers **what the part is made from**. Appearance answers **how its surface looks**. Render controls **lighting, camera and the resulting image**. Appearances remain unrestricted visual choices; curated finishes provide convenient starting points.
+
+**Family-first browsing, owner-directed 2026-11-11 (proposed pending review):** the library is browsed family → member instead of one flat list. A wrap of family chips (All, Steel, Stainless Steel, Plastic, …; each shows its member count) filters the list to that family's grades and types — click "Steel" to see its ten grades, then pick A36 vs 4140. The text search always spans the whole library so exact-grade users never navigate. Chip state mirrors `MaterialCategoryIndex`; verified by `APP-H007` in `Prism.Tests/Headless/Solid/AppearanceStudioTests.cs`. Open decision: sub-family grouping inside the largest families (e.g. plastics by role) is not modeled — chips are flat categories.
 
 ## Selection, defaults and overrides
 
@@ -42,7 +46,9 @@ Layer order is base color → gradient → color image → weathering; roughness
 
 ### Placement limits
 
-Coordinates are millimeters relative to each body's bounding-box minimum. Translation preserves placement. Rotation and geometry edits can change alignment: this is **not a persistent body-local texture frame**. Rotation turns about world Z before axis projection. Triplanar blending can soften transitions; precise logos/wraparound artwork need a future decal/UV workflow. Freeform means four smooth corner colors, not arbitrary gradient mesh topology or viewport handles.
+Coordinates are millimeters relative to each body's bounding-box minimum. Translation preserves placement. Rotation and geometry edits can change alignment: this is **not a persistent body-local texture frame**. Rotation turns about world Z before axis projection. Triplanar blending can soften transitions; wraparound artwork still needs a future UV workflow. Freeform means four smooth corner colors, not arbitrary gradient mesh topology or viewport handles.
+
+**Decals.** **Import decal…** embeds a second image that keeps its own transparency and is drawn *over* the colour (and colour image) with a flat, one-shot placement — logos and labels. It shares the texture placement controls (axis, size, rotation, offsets, aspect): the projection is always planar on the chosen axis and the artwork spans exactly one `Repeat size` square, so a 40 mm logo on the Z axis is centred by the offsets. Turn **Repeat** off (the decal edge is then see-through rather than smeared); with Repeat on the decal tiles like a texture. Transparent PNGs are honoured — unlike the colour image, whose alpha is still composited on white. Decals appear in the viewport and in final renders, persist in the document, and can also be set through `object_update` `surface` JSON (`DecalMap`).
 
 ## Imported render backgrounds
 

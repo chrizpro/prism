@@ -83,6 +83,10 @@ public sealed class SceneObject
     public SceneObject WithName(string n) => Copy(name: n);
     public SceneObject WithColor(uint c) => Copy(color: c);
     public SceneObject WithVisible(bool v) => Copy(visible: v);
+    /// <summary>Same identity and geometry, new construction/reference plane frame.</summary>
+    public SceneObject WithPlane(Plane3 p) => new(Id, Name, _shape, Kind, Color, Visible, p, Form, SketchData, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, TrackHistory = TrackHistory };
+    /// <summary>Same identity, new sketch model (used to append model-space datums without touching the shape).</summary>
+    public SceneObject WithSketch(Sketching.SketchModel? m) => new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, m, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, TrackHistory = TrackHistory };
     public SceneObject WithLook(Appearance a) => Copy(look: a);
     /// <summary>Same identity, new triangle mesh.</summary>
     public SceneObject WithTri(Meshing.TriMesh t) => new(Id, Name, null, ObjKind.Mesh, Color, Visible, null, null, null, Look, t);
@@ -116,9 +120,11 @@ public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index)
 public enum SelFilter
 {
     None = 0, Solid = 1, SurfaceObj = 2, CurveObj = 4, SketchObj = 8, Face = 16, Edge = 32, Form = 64, Plane = 128, Axis = 256, MeshObj = 512,
+    /// <summary>Datum annotations (points, axes, planes) hosted by sketch data.</summary>
+    Datum = 1024,
     AnyObject = Solid | SurfaceObj | CurveObj | SketchObj | Form | MeshObj,
     AnyCurve = CurveObj | SketchObj,
-    Any = AnyObject | Face | Edge | Plane | Axis,
+    Any = AnyObject | Face | Edge | Plane | Axis | Datum,
 }
 
 public enum SelMode { Object, Face, Edge }

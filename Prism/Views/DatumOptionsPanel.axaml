@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Prism.Views.DatumOptionsPanel" Background="{DynamicResource PanelBg}">
+    <UserControl.Styles><StyleInclude Source="avares://Prism/Styles/Studio.axaml"/></UserControl.Styles>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="9" Margin="12,8">
+            <TextBlock Text="{Binding DatumPanelTitle}" Classes="section"/>
+            <TextBlock Text="{Binding DatumHint}" Classes="soft" TextWrapping="Wrap"/>
+            <StackPanel IsVisible="{Binding DatumHasOrientation}" Spacing="8">
+                <TextBlock Text="Orientation" Classes="section"/>
+                <ComboBox ItemsSource="{Binding DatumOrientations}" SelectedIndex="{Binding DatumOrientation, Mode=TwoWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="Datum orientation"/>
+                <TextBlock Text="Extra rotation (degrees)" Classes="section"/>
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
+                    <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="Z" Classes="meta"/>
+                    <NumericUpDown Grid.Row="1" Value="{Binding DatumRotationX, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum rotation X"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding DatumRotationY, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum rotation Y"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding DatumRotationZ, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum rotation Z"/>
+                </Grid>
+            </StackPanel>
+            <StackPanel IsVisible="{Binding DatumHasLast}" Spacing="8">
+                <TextBlock Text="Selected or last placed: location (mm)" Classes="section" Margin="0,6,0,0"/>
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
+                    <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="Z" Classes="meta"/>
+                    <NumericUpDown Grid.Row="1" Value="{Binding DatumLocationX, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum X"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding DatumLocationY, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum Y"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding DatumLocationZ, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Datum Z"/>
+                </Grid>
+            </StackPanel>
+            <Button Content="Gizmo settings…" Classes="studioAction" HorizontalAlignment="Stretch" IsVisible="{Binding DatumHasLast}" Click="OnGizmoSettings" ToolTip.Tip="Bind the gizmo to this datum and open the full Gizmo panel: location, rotation, snapping, handle options."/>
+            <TextBlock Text="Esc or right-click finishes placing. Selecting any datum later brings this panel and its gizmo back." Classes="meta" TextWrapping="Wrap"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

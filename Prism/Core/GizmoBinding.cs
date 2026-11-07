@@ -28,6 +28,8 @@ public sealed class GizmoBinding
     public void Cancel(){Frame=_before;Bound=_wasBound;Positioning=false;}
     public void Reset(){Frame=null;Bound=false;Positioning=false;_targets.Clear();}
     public void CheckTargets(IEnumerable<int> targets){if(Bound&&!Positioning&&!_targets.SetEquals(targets))Reset();}
+    /// <summary>Takes over an existing frame (e.g. a bound datum's), keeping the panel editable.</summary>
+    public void Adopt(Plane3 frame){Frame=frame;Positioning=true;Bound=false;}
     public void SetOrigin(Vec3 origin){if(Positioning&&Finite(origin))Frame=new(origin,Frame!.Value.U,Frame.Value.V);}
     public void SetRotation(Vec3 degrees)
     {

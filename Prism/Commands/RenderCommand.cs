@@ -49,6 +49,11 @@ public sealed class RenderCommand : Command
             catch (Exception e) { S.Say("Could not import background: " + e.Message, true); }
         } });
         Add(new ActionParam { Label = "Remove background image", Run = () => { _backgroundImage = null; if (_bg.Index == (int)RenderBg.Image) _bg.Index = 0; OnChanged(); } });
+        Add(new ActionParam { Label = "Generate background with AI…", Run = () =>
+        {
+            if (S.GenerateBackgroundAi == null) { S.Say("The assistant is unavailable in this host.", true); return; }
+            S.GenerateBackgroundAi();
+        } });
         _fit = Add(new ChoiceParam { Label = "Image placement", Options = ["Fill (crop)", "Fit (white border)", "Stretch"], IsAdvanced = true });
         _offsetX = Add(new NumberParam { Label = "Image horizontal offset", Min = -1, Max = 1, Step = .05, Unit = "× width", IsAdvanced = true });
         _offsetY = Add(new NumberParam { Label = "Image vertical offset", Min = -1, Max = 1, Step = .05, Unit = "× height", IsAdvanced = true });

@@ -151,11 +151,10 @@ public sealed partial class MainViewModel
         }
         groups = groups.OrderBy(g => g.title == tool.PanelInputTitle ? 0 : g.title == tool.PanelSettingsTitle ? 1 : g.title == tool.PanelActionTitle ? 3 : 2).ToList();
         var sections = new List<SketchToolSection>();
-        if (ToolOptions.Count > 0)
+        if (ToolOptions.Count > 0 && !IsSketchPanelTool(tool))
         {
-            // the idle Select tool is the sketch panel itself: its section is the "Sketch tool" (Box or Lasso)
-            string methodTitle = IsSketchPanelTool(tool) ? "Sketch tool" : "Method";
-            var method = ToolSections.FirstOrDefault(g => g.Title == methodTitle) ?? new SketchToolSection(methodTitle);
+            // Select/Edit keep their region method on the ribbon split (box, lasso, paint) — no panel section.
+            var method = ToolSections.FirstOrDefault(g => g.Title == "Method") ?? new SketchToolSection("Method");
             SyncCollection(method.Options, ToolOptions); sections.Add(method);
         }
         foreach (var group in groups)

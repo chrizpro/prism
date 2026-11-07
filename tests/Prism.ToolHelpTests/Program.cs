@@ -73,8 +73,8 @@ foreach (string icon in new[] { "union", "subtract", "intersect", "shell", "hole
     foreach (bool light in new[] { false, true })
         Check(StudioPreview.Render(example.After, light).Bgra.Distinct().Count() > 30, icon + " renders in " + (light ? "light" : "dark"));
 }
-foreach (var (cmd, icon) in new (Command, string)[] { (new BooleanCommand(BooleanCommand.Kind.Union), "union"), (new BooleanCommand(BooleanCommand.Kind.Subtract), "subtract"), (new BooleanCommand(BooleanCommand.Kind.Intersect), "intersect"), (new ShellCommand(), "shell"), (new HoleCommand(), "hole"), (new TransformCommand(TransformCommand.Kind.Mirror), "mirror"), (new BoxCommand(), "") })
-    Check(ToolHelp.ForCommand(cmd)?.Icon == (icon.Length == 0 ? null : icon), cmd.Title + (icon.Length == 0 ? " has no help topic yet" : " maps to its own help topic"));
+foreach (var (cmd, icon) in new (Command, string)[] { (new BooleanCommand(BooleanCommand.Kind.Union), "union"), (new BooleanCommand(BooleanCommand.Kind.Subtract), "subtract"), (new BooleanCommand(BooleanCommand.Kind.Intersect), "intersect"), (new ShellCommand(), "shell"), (new HoleCommand(), "hole"), (new TransformCommand(TransformCommand.Kind.Mirror), "mirror"), (new BoxCommand(), "box") })
+    Check(ToolHelp.ForCommand(cmd)?.Icon == icon, cmd.Title + " maps to its own help topic");
 foreach (string icon in new[] { "cnc-profile", "cnc-pocket", "sim-fixed", "sim-force", "sim-pressure" })
 {
     var example = ToolHelp.Example(ToolHelp.Find(icon)!);
@@ -155,7 +155,7 @@ learnMore.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 Check(popup.Child!.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Online tool guides are coming soon." && t.IsVisible), "Learn More handles the unpublished guide");
 window.MouseMove(new Point(300, 690)); Pump(800);
 Check(!popup.IsOpen, "tooltip dismisses on leaving");
-window.MouseMove(Center(ToolButton("knit"))); Pump(650);
+window.MouseMove(Center(ToolButton("to-nurbs"))); Pump(650);
 Check(popup.IsOpen && !popup.Child!.GetVisualDescendants().OfType<GeometryPreview>().Any() && popup.Child!.GetVisualDescendants().OfType<Button>().Any(), "tools without examples retain a local tooltip and Learn More");
 Prism.Core.AppSettings.Current.ToolDocumentationBaseUrl = "https://example.test/prism/tools";
 Check(ToolDocumentation.LinkFor("sweep|Sweep 2 rails")?.AbsoluteUri == "https://example.test/prism/tools/sweep%7CSweep%202%20rails", "online links preserve tool identity");

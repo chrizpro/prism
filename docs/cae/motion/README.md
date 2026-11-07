@@ -36,6 +36,8 @@ Kinematics, Motion Dynamics and Robot Path are now one Motion Study. Gear Pair a
 
 Details are in [motion-analysis.md](../../motion-analysis.md).
 
+For a shorter introduction, see the public [simulation guide](../../../site/guide/simulation.md#motion) and [illustrated joint guide](../../../site/guide/assembly.md#see-what-each-joint-allows). These explain the existing shared assembly/motion workflow; diagrams are schematics, not simulation evidence. The proposed review status below remains unchanged.
+
 ## Requirements review and traceability
 
 **Review status: Proposed — awaiting owner review.** The current descriptions above document the existing Motion workflow; they have **not** been converted into owner-approved acceptance criteria. This section is a lightweight pilot for how to review a tab guide before asking agents to write tests.

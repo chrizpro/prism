@@ -27,7 +27,7 @@ public partial class HomeView : UserControl
     void OnUseDefault(object? s, RoutedEventArgs e) => Vm?.UseDefaultWorkspace();
     void OnChoose(object? s, RoutedEventArgs e) => Vm?.ChooseWorkspaceFolder();
     void OnExplorer(object? s, RoutedEventArgs e) => Vm?.ShowWorkspaceInExplorer();
-    void OnSettings(object? s, RoutedEventArgs e) => Vm?.RequestSettings?.Invoke();
+    void OnSettings(object? s, RoutedEventArgs e) => Vm?.RequestSettings?.Invoke(null);
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseHome();
     void OnOpenFile(object? s, RoutedEventArgs e) { if (s is Button { Tag: string path }) Vm?.OpenPath(path); }
     async void OnGalleryRefresh(object? s, RoutedEventArgs e) { if (Vm is { } vm) await vm.LoadGallery(refresh: true); }

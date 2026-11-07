@@ -232,15 +232,15 @@ public partial class MainView : UserControl
         HookSession(null, vm.Session);
         vm.SessionSwapped += (old, s) => { HookSession(old, s); UpdateModeButtons(); EmptyHint.IsVisible = s.Objects.Count == 0 && string.IsNullOrWhiteSpace(vm.BrowserFilter); QueueSync(); };
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.ShowHistoryPanel)) UpdateTabs(); };
-        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.ShowDataEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312); };
-        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ActiveCommand != null ? 394 : 312);
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName is nameof(MainViewModel.ShowScriptPanel) or nameof(MainViewModel.ShowScriptEditor) or nameof(MainViewModel.ShowDataEditor) or nameof(MainViewModel.AnyStudioVisible) or nameof(MainViewModel.ShowMaterialsPanel) or nameof(MainViewModel.ShowLibraryPanel) or nameof(MainViewModel.ActiveCommand) or nameof(MainViewModel.ShowGizmoPanel)) WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ShowDatumPanel || vm.ActiveCommand != null ? 394 : 312); };
+        WorkGrid.ColumnDefinitions[4].Width = new GridLength(vm.ShowDataEditor ? 640 : vm.ShowScriptEditor ? 540 : vm.AnyStudioVisible || vm.ShowMaterialsPanel || vm.ShowLibraryPanel || vm.ShowGizmoPanel || vm.ShowDatumPanel || vm.ActiveCommand != null ? 394 : 312);
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(MainViewModel.HasActiveAssistance)) UpdateContextLocation(); };
         BuildStatusBar(); UpdateContextLocation(); AppSettings.Changed += BuildStatusBar; AppSettings.Changed += UpdateContextLocation;
         HistoryList.DoubleTapped += (_, _) => { if (HistoryList.SelectedItem is HistoryItem hi) EditHistoryStep(hi); };
         OnHistoryRebuilt();
         UpdateModeButtons(); UpdateTabs();
         vm.OpenTraditionalMenu += () => Avalonia.Threading.Dispatcher.UIThread.Post(ShowTraditionalMenu);
-        vm.RequestSettings = () => OnSettings(null, new RoutedEventArgs());
+        vm.RequestSettings = OpenSettings;
         vm.OpenMarkingMenu += (x, y) => { vm.PrepareMarkingContext(); Marking.Open(new Point(x, y), vm.BuildMarkingItems(), false); };
         Viewport.MarkingMenu += (kind, pos) =>
         {
@@ -541,13 +541,31 @@ public partial class MainView : UserControl
             case Key.Down: if (vm.SearchResults.Count > 0) vm.SearchIndex = Math.Min(vm.SearchIndex + 1, vm.SearchResults.Count - 1); e.Handled = true; break;
             case Key.Up: vm.SearchIndex = Math.Max(vm.SearchIndex - 1, 0); e.Handled = true; break;
             case Key.Enter: vm.RunSearchHit(vm.SearchResults.ElementAtOrDefault(vm.SearchIndex)); e.Handled = true; Focus(); break;
+            case Key.F1: ShowHitHelp(vm.SearchResults.ElementAtOrDefault(vm.SearchIndex), SearchList); e.Handled = true; break;
             case Key.Escape: vm.SearchText = ""; vm.SearchOpen = false; e.Handled = true; Focus(); break;
         }
     }
 
+    Prism.Ribbon.RibbonView? Ribbon => this.GetVisualDescendants().OfType<Prism.Ribbon.RibbonView>().FirstOrDefault();
+
+    void ShowHitHelp(CommandHit? hit, Control anchor)
+    {
+        if (hit == null) return;
+        // The help card is the tool's documentation section: purpose, steps, tip and the Learn More link to the full guide.
+        if (Ribbon is { } r && r.ShowHelp(anchor, hit.Button)) { }
+        else Vm?.Session.Say($"No guide card for '{hit.Label}' yet.", true);
+    }
+
     void OnSearchListClick(object? sender, PointerReleasedEventArgs e)
     {
+        if ((e.Source as Control)?.FindAncestorOfType<Button>() != null) return;   // the "?" help button handles its own click
         if ((e.Source as Control)?.FindAncestorOfType<ListBoxItem>()?.DataContext is CommandHit hit) Vm?.RunSearchHit(hit);
+    }
+
+    void OnSearchHelpClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is Control c && c.DataContext is CommandHit hit) ShowHitHelp(hit, c);
     }
 
     void OnPendingCreate(object? sender, RoutedEventArgs e) => Vm?.Session.ResolvePending(true);
@@ -681,7 +699,6 @@ public partial class MainView : UserControl
     }
 
     void OnWorkspace(object? s, RoutedEventArgs e) { if (s is Button { Tag: string id }) Vm?.SetWorkspace(id); }
-    void OnEditSketchGeometry(object? sender, RoutedEventArgs e) => Vm?.Session.Sketch?.ToggleGeometryEditing(Vm.Session);
 
     void OnToolOption(object? s, RoutedEventArgs e) { if (s is Button { Tag: int i }) Vm?.PickToolOption(i); }
     void OnToolStep(object? s, RoutedEventArgs e) { if (s is Button { Tag: string t } && int.TryParse(t, out var d)) Vm?.StepTool(d); }
@@ -714,13 +731,20 @@ public partial class MainView : UserControl
 
     SettingsWindow? _settings;
 
-    void OnSettings(object? s, RoutedEventArgs e)
+    void OnSettings(object? s, RoutedEventArgs e) => OpenSettings(null);
+
+    /// <summary>Shows the Settings window (bringing back an open one) and jumps to a page when asked.</summary>
+    public void OpenSettings(string? page)
     {
         if (Vm is not { } vm) return;
-        if (_settings != null) { _settings.Activate(); return; }
-        _settings = new SettingsWindow(vm);
-        _settings.Closed += (_, _) => _settings = null;
-        if (TopLevel.GetTopLevel(this) is Window owner) _settings.Show(owner); else _settings.Show();
+        if (_settings == null)
+        {
+            _settings = new SettingsWindow(vm);
+            _settings.Closed += (_, _) => _settings = null;
+            if (TopLevel.GetTopLevel(this) is Window owner) _settings.Show(owner); else _settings.Show();
+        }
+        else _settings.Activate();
+        if (page != null) _settings.OpenPage(page);
     }
 
     /// <summary>The ordinary menu behind the marking menu's 6 o'clock entry.</summary>

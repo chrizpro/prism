@@ -107,7 +107,7 @@ public abstract class ClickTool : SketchTool
     public override string PanelActionTitle => "Place geometry";
     protected virtual string PlacementAction => "Place point";
     protected readonly List<SnapInfo> Clicks = [];
-    public Vec3? LastPlacedWorld(CadSession s) => Clicks.Count > 0 ? Sk(s).Plane.PointAt(Clicks[^1].U, Clicks[^1].V) : null;
+    public virtual Vec3? LastPlacedWorld(CadSession s) => Clicks.Count > 0 ? Sk(s).Plane.PointAt(Clicks[^1].U, Clicks[^1].V) : null;
     protected override void ResetState(CadSession s) { PreservePending(s); Clicks.Clear(); ResetTyping(); }
 
     // ---- typed entry: type the length / angle / width the tool is asking for, Tab moves between fields, Enter places it
@@ -1068,14 +1068,37 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
 
     protected override void Click(CadSession s, SketchContext sk, SnapInfo sn)
     {
-        if (!controlPoints && Clicks.Count >= 3 && sn.Kind == SnapKind.Point && Clicks[0].Kind == SnapKind.Point && sn.Id == Clicks[0].Id) { Commit(s, true); return; }
+        if (_carried == null && !controlPoints && Clicks.Count >= 3 && sn.Kind == SnapKind.Point && Clicks[0].Kind == SnapKind.Point && sn.Id == Clicks[0].Id) { Commit(s, true); return; }
         if (Clicks.Count > 0 && Dist(Clicks[^1].U, Clicks[^1].V, sn.U, sn.V) < 1e-6) return;
+        if (Clicks.Count == 0 && _carried != null && sk.WorldOf(sn).DistanceTo(sk.WorldIn(_home, _carried[^1])) < 1e-6) return;   // the shared point is already placed
         Clicks.Add(sn);
     }
 
+    /// <summary>Points placed before the drawing plane changed, in the coordinates of the plane the spline started on (its home).</summary>
+    List<SnapInfo>? _carried;
+    int _home = -1;
+    int Placed => Clicks.Count + (_carried?.Count ?? 0);
+
+    /// <summary>Hands over every point placed so far, in home-plane coordinates, so the next plane continues the same curve.</summary>
+    internal (int home, List<SnapInfo> points)? TakeForPlaneSwitch(CadSession s)
+    {
+        var sk = Sk(s);
+        if (Placed == 0) return null;
+        int home = _carried != null ? _home : sk.ActivePlane;
+        var points = _carried?.ToList() ?? [];
+        // Clicks on the home plane keep their snaps (and so their constraints); clicks elsewhere become plain offset points.
+        points.AddRange(home == sk.ActivePlane ? Clicks : Clicks.Select(c => sk.ToSection(home, sk.WorldOf(c))));
+        Clicks.Clear(); _carried = null;
+        return (home, points);
+    }
+
+    internal void Carry(int home, List<SnapInfo> points) { _home = home; _carried = points; }
+
+    public override Vec3? LastPlacedWorld(CadSession s) => Clicks.Count == 0 && _carried != null ? Sk(s).WorldIn(_home, _carried[^1]) : base.LastPlacedWorld(s);
+
     public override void PreservePending(CadSession s)
     {
-        if(Clicks.Count>=2)Commit(s,false);else base.PreservePending(s);
+        if(Placed>=2)Commit(s,false);else base.PreservePending(s);
     }
     protected override void Finish(CadSession s) => Commit(s, false);
     public override void FinishFeed(CadSession s, bool closed = false) => Commit(s, closed, false);
@@ -1084,6 +1107,12 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
     void Commit(CadSession s, bool closed, bool lastRepeatsFirst = true)
     {
         var sk = Sk(s);
+        if (_carried != null)
+        {
+            var (home, points) = TakeForPlaneSwitch(s)!.Value;
+            sk.AddSpaceSpline(s, home, points, closed, controlPoints);
+            return;
+        }
         if(Clicks.Count<2) { base.PreservePending(s);Clicks.Clear();s.Invalidate();return; }
         var c = Clicks.ToList(); Clicks.Clear();
         if (closed && lastRepeatsFirst && c.Count > 0) c.RemoveAt(c.Count - 1);
@@ -1095,10 +1124,26 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
         });
     }
 
+    /// <summary>Preview of a spline continued from earlier planes, built in home-plane coordinates so it bends through every plane.</summary>
+    void CarriedOverlay(CadSession s, SketchContext sk, Overlay o)
+    {
+        foreach (var c in _carried!) o.AddDot(sk.WorldIn(_home, c), 0xFF4C94FF, 8);
+        var all = _carried.Concat(Clicks.Select(c => sk.ToSection(_home, sk.WorldOf(c)))).ToList();
+        if (Hot is { } h) all.Add(sk.ToSection(_home, sk.WorldOf(h)));
+        if (all.Count < 2) return;
+        if (all.Count < 3) { o.AddLine(sk.WorldIn(_home, all[0]), sk.WorldIn(_home, all[1]), Rubber, 2f); return; }
+        var plane = sk.DrawingPlanes[_home].Plane;
+        var tmp = new SketchModel();
+        var ids = all.Select(p => { int id = tmp.AddPoint(p.U, p.V); tmp.P(id).Z = p.Depth; return id; }).ToList();
+        int eid = tmp.AddSpline(ids, false, controlPoints);
+        o.AddPolyline(tmp.SplineSamples3(tmp.E(eid)).Select(q => plane.PointAt(q.x, q.y) + plane.Normal * q.z).ToList(), Rubber, 2f);
+    }
+
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         var sk = Sk(s);
         foreach (var c in Clicks) o.AddDot(W(sk, c.U, c.V), 0xFF4C94FF, 8);
+        if (_carried != null) { CarriedOverlay(s, sk, o); return; }
         if (Clicks.Count == 0 || Hot is not { } h) return;
         var all = Clicks.Select(c => (c.U, c.V)).ToList(); all.Add((h.U, h.V));
         if (all.Count < 3) { o.AddLine(W(sk, all[0].U, all[0].V), W(sk, all[1].U, all[1].V), Rubber, 2f); return; }

@@ -93,12 +93,19 @@ public static partial class ToolHelp
     {
         for (int i = 0; i < mesh.VertexCount; i++) Put(mesh.Positions, i, move(At(mesh.Positions, i)));
         for (int i = 0; i < mesh.EdgePoints.Length / 3; i++) Put(mesh.EdgePoints, i, move(At(mesh.EdgePoints, i)));
+        return Fit(mesh);
+        static void Put(float[] data, int index, Vec3 p) { data[index * 3] = (float)p.X; data[index * 3 + 1] = (float)p.Y; data[index * 3 + 2] = (float)p.Z; }
+    }
+
+    /// <summary>Set the mesh's bounds from its vertices and its edge points, so line-only and mixed meshes frame correctly.</summary>
+    static MeshData Fit(MeshData mesh)
+    {
         var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
-        for (int i = 0; i < mesh.VertexCount; i++)
-        { var p = At(mesh.Positions, i); lo = new(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); }
+        foreach (var data in new[] { mesh.Positions, mesh.EdgePoints })
+            for (int i = 0; i < data.Length / 3; i++)
+            { var p = At(data, i); lo = new(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); }
         mesh.Min = lo; mesh.Max = hi;
         return mesh;
-        static void Put(float[] data, int index, Vec3 p) { data[index * 3] = (float)p.X; data[index * 3 + 1] = (float)p.Y; data[index * 3 + 2] = (float)p.Z; }
     }
 
     /// <summary>Give the triangles whose center satisfies the test a face id of their own, so they can be highlighted as a patch.</summary>

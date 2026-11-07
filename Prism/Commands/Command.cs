@@ -340,6 +340,26 @@ public abstract partial class Command : ObservableObject
         catch (Exception e) when (e is not OutOfMemoryException) { return null; }
     }
 
+    /// <summary>Sampled polyline of a picked edge or curve object, used to anchor handles. Empty when there is nothing to read.</summary>
+    protected List<Vec3> CurvePolyline(SelItem it)
+    {
+        var pts = S.EdgePoints(it);
+        if (pts.Count >= 2) return pts;
+        try
+        {
+            var o = S.Find(it.Obj); if (o == null) return pts;
+            var m = o.Mesh; var E = m.EdgePoints;
+            for (int sg = 0; sg < m.SegEdge.Length; sg++)
+            {
+                var a = new Vec3(E[6 * sg], E[6 * sg + 1], E[6 * sg + 2]); var b = new Vec3(E[6 * sg + 3], E[6 * sg + 4], E[6 * sg + 5]);
+                if (pts.Count == 0 || pts[^1].DistanceTo(a) > 1e-6) pts.Add(a);
+                pts.Add(b);
+            }
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { }
+        return pts;
+    }
+
     /// <summary>A handle standing at the middle of a picked edge and pointing away from the body, so pulling it sets a radius or distance.</summary>
     protected HandleSpec? EdgeHandle(SelItem it, NumberParam p, double mul = 1)
     {

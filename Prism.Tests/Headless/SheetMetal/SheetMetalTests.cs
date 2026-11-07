@@ -92,7 +92,7 @@ public class SheetMetalTests
         var command = Flange(session, LProfile(session));
         SetToggle(command, "Reverse width direction", reverse);
         SetToggle(command, "Centred on the sketch plane", centred);
-        Assert.Equal(centred, command.Handle == null);
+        Assert.Equal(centred, !command.Handles.Any(h => h.Param.Label == "Width"));   // the width arrow only exists for one-sided stock
         var body = Body(command);
         AssertClose(minZ, body.Props().Min.Z, 1e-6, "Width start (mm)");
         AssertClose(maxZ, body.Props().Max.Z, 1e-6, "Width end (mm)");

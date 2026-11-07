@@ -98,20 +98,30 @@ public sealed partial class SketchContext
     void DrawDatums(CadSession s, Overlay o)
         => DrawDatumReferences(s,o,Datums,Is3DEnabled?ActiveDatumId:null);
 
-    public static void DrawDatumReferences(CadSession s,Overlay o,IEnumerable<SketchDatum> datums,Guid? active=null)
+    /// <summary>
+    /// Draws datums as thin references. Those in the selection (or picked into the open command's slots) are drawn orange and heavier, and
+    /// the hovered one blue, the same colors a body's highlight uses; a datum has no mesh, so the viewport's face highlight never reaches it.
+    /// </summary>
+    public static void DrawDatumReferences(CadSession s,Overlay o,IEnumerable<SketchDatum> datums,Guid? active=null,Guid objectId=default)
     {
+        var chosen = s.Selection.Concat(s.ActiveCommand?.Slots.SelectMany(x => x.Items) ?? []).Where(i => i.Kind == SelKind.Datum && i.Obj == objectId).Select(i => i.Index).ToHashSet();
+        int hover = s.Hover is { Kind: SelKind.Datum } h && h.Obj == objectId ? h.Index : -1;
+        int index = -1;
         foreach (var datum in datums)
         {
+            index++;
             if (datum.Id == active) continue;
             var f = datum.Frame; double size = s.Camera.PixelSizeAt(f.Origin) * 38 * datum.Scale;
-            uint color = datum.Id==active || datum.Id==s.Sketch?.ActiveDatumId ? 0xFFFFC53D : 0x909DC6F0;
-            o.AddDot(f.Origin,color,7);
+            bool picked = objectId != Guid.Empty && chosen.Contains(index), hot = objectId != Guid.Empty && index == hover && !picked;
+            uint color = picked ? 0xFFFF8A1F : hot ? 0xFF35B6FF : datum.Id==s.Sketch?.ActiveDatumId ? 0xFFFFC53D : 0x909DC6F0;
+            float w = picked ? 3.2f : hot ? 3.0f : 1f, dot = picked ? 11 : hot ? 10 : 7;
+            o.AddDot(f.Origin,color,dot);
             if (datum.Kind == SketchDatumKind.Point) continue;
-            if (datum.Kind == SketchDatumKind.Axis) { o.AddLine(f.Origin - f.U * size,f.Origin + f.U * size,color,1.8f); continue; }
+            if (datum.Kind == SketchDatumKind.Axis) { o.AddLine(f.Origin - f.U * size,f.Origin + f.U * size,color,1.8f * w); continue; }
             if (datum.Kind == SketchDatumKind.Plane)
-                o.AddPolyline([f.PointAt(-size,-size),f.PointAt(size,-size),f.PointAt(size,size),f.PointAt(-size,size)],color,1.2f,true);
+                o.AddPolyline([f.PointAt(-size,-size),f.PointAt(size,-size),f.PointAt(size,size),f.PointAt(-size,size)],color,1.2f * w,true);
             else
-            { o.AddLine(f.Origin,f.Origin+f.U*size,color,1.5f); o.AddLine(f.Origin,f.Origin+f.V*size,color,1.5f); o.AddLine(f.Origin,f.Origin+f.Normal*size,color,1.5f); }
+            { o.AddLine(f.Origin,f.Origin+f.U*size,color,1.5f * w); o.AddLine(f.Origin,f.Origin+f.V*size,color,1.5f * w); o.AddLine(f.Origin,f.Origin+f.Normal*size,color,1.5f * w); }
         }
     }
 }

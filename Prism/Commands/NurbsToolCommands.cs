@@ -82,6 +82,7 @@ public sealed class CurveFilletCommand : Command
     public override string Title => "Fillet / Chamfer Curve";
     public override string Icon => "fillet";
     public override string Hint => "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. An open curve keeps its two ends. The curve has to lie in one plane.";
+    public override HandleSpec? Handle => _curve.Items.Count == 0 ? null : EdgeHandle(_curve.Items[0], Chamfer ? _distance : _radius);
     protected override void UpdateVisibility() { _radius.IsVisible = !Chamfer; _distance.IsVisible = Chamfer; }
     protected override CommandOutput? Build()
     {
@@ -108,6 +109,7 @@ public sealed class OffsetCurveCommand : Command
     }
     public override string Title => "Offset Curve";
     public override string Icon => "offset";
+    public override HandleSpec? Handle => _curve.Items.Count == 0 ? null : EdgeHandle(_curve.Items[0], _d);
     public override string Hint => "Copy a flat curve parallel to itself. A positive distance goes one way, a negative one the other; closed curves grow or shrink.";
     protected override CommandOutput? Build()
     {
@@ -230,6 +232,18 @@ public sealed class TrimCurveCommand : Command
     }
     public override string Title => "Trim Curve";
     public override string Icon => "trim";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_action.Index != 0 || _curve.Items.Count == 0) return [];
+            var pts = CurvePolyline(_curve.Items[0]); if (pts.Count < 2) return [];
+            var chord = pts[^1] - pts[0]; double len = chord.Length; if (len < 1e-9) return [];
+            var dir = chord / len;
+            return [new(pts[0], dir, _from, 100 / len), new(pts[0], dir, _to, 100 / len)];
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Keep the part of the curve between two positions, or cut it into pieces at one or more positions, given as percentages along it.";
     protected override void UpdateVisibility() { _from.IsVisible = _to.IsVisible = _action.Index == 0; _at.IsVisible = _action.Index == 1; }
     protected override CommandOutput? Build()
@@ -305,6 +319,19 @@ public sealed class ExtendCurveCommand : Command
     }
     public override string Title => "Extend Curve";
     public override string Icon => "extend-surface";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_curve.Items.Count == 0) return [];
+            var pts = CurvePolyline(_curve.Items[0]); if (pts.Count < 2) return [];
+            var list = new List<HandleSpec>();
+            if (_end.Index != 1) list.Add(new(pts[0], (pts[0] - pts[1]).Normalized(), _len));
+            if (_end.Index != 0) list.Add(new(pts[^1], (pts[^1] - pts[^2]).Normalized(), _len));
+            return list;
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Grow a curve past its end in the direction it was heading, keeping it smooth.";
     protected override CommandOutput? Build()
     {
@@ -596,6 +623,21 @@ public sealed class PipeCommand : Command
     }
     public override string Title => "Pipe";
     public override string Icon => "sweep-surface";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_path.Items.Count == 0) return [];
+            var pts = CurvePolyline(_path.Items[0]); if (pts.Count < 2) return [];
+            var t0 = (pts[1] - pts[0]).Normalized(); var t1 = (pts[^1] - pts[^2]).Normalized();
+            return
+            [
+                new(pts[0], Meshing.SurfaceMath.Basis(t0).u, _r0),
+                new(pts[^1], Meshing.SurfaceMath.Basis(t1).u, _r1),
+            ];
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "A round pipe along the curve. Give different radii at the two ends for a taper.";
     protected override CommandOutput? Build()
     {
@@ -742,6 +784,55 @@ public sealed class DeformCommand : Command
         if (_mode == null || _angle == null) return;
         _angle.IsVisible = _mode.Index <= 1; _scale.IsVisible = _mode.Index >= 2; _toward.IsVisible = _mode.Index == 0;
     }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_src.Items.Count == 0) return [];
+            try
+            {
+                var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+                foreach (var o in ObjectsOf(_src).Distinct())
+                {
+                    var m = o.Mesh;
+                    lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+                    hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+                }
+                if (lo.X > hi.X) return [];
+                int a = _axis.Index; var axis = Unit(a);
+                double span = Get(hi, a) - Get(lo, a); if (span < 1e-9) return [];
+                var centre = (lo + hi) * 0.5;
+                Vec3 AxisPt(double pct) => centre + axis * (Get(lo, a) + span * pct / 100 - Get(centre, a));
+                double s0 = Math.Min(_from.Value, _to.Value), s1 = Math.Max(_from.Value, _to.Value);
+                double L = Math.Max(span * (s1 - s0) / 100, 1e-9);
+                var corner = new Vec3(a == 0 ? hi.X : lo.X, a == 1 ? hi.Y : lo.Y, a == 2 ? hi.Z : lo.Z);
+                var perp = corner - AxisPt(s1); perp -= axis * Vec3.Dot(perp, axis);
+                if (perp.Length < 1e-9) perp = Meshing.SurfaceMath.Basis(axis).u;
+                var u = perp.Normalized(); double r0 = Math.Max(perp.Length, 1e-9);
+
+                var list = new List<HandleSpec>();
+                switch (_mode.Index)
+                {
+                    case 0:
+                    {
+                        var bend = Unit(_toward.Index / 2) * (_toward.Index % 2 == 0 ? 1 : -1);
+                        if (Math.Abs(Vec3.Dot(bend, axis)) > 0.5) return list;
+                        list.Add(new(AxisPt(s1), bend, _angle, 360 / (Math.PI * L)));
+                        break;
+                    }
+                    case 1: list.Add(new(AxisPt(s1), axis, _angle, 1, u, r0)); break;
+                    case 2: list.Add(new(AxisPt(s1), u, _scale, 1 / r0)); break;             // the tip sits where the rim scales to
+                    default: list.Add(new(AxisPt(s0), axis, _scale, 1 / L)); break;         // the tip lands where the end is stretched to
+                }
+                list.Add(new(AxisPt(0), axis, _from, 100 / span));
+                list.Add(new(AxisPt(0), axis, _to, 100 / span));
+                return list;
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     static Vec3 Unit(int i) => i == 0 ? Vec3.UnitX : i == 1 ? Vec3.UnitY : Vec3.UnitZ;
     static double Get(Vec3 v, int i) => i == 0 ? v.X : i == 1 ? v.Y : v.Z;

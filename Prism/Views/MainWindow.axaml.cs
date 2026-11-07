@@ -115,8 +115,12 @@ public partial class MainWindow : Window
             case "sketch.gizmo.move": return free && gizmoTarget && s.Key("GizmoMove");
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");
             case "sketch.gizmo.size": return free && gizmoTarget && s.Key("GizmoSize");
-            case "sketch.gizmo": if(free && vm.CanPlaceGizmo){ if(vm.ShowGizmoPanel){ if(vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.FinishGizmoPanel();} if(vm.ShowGizmoPanel)vm.CloseGizmoPanel(); return true; } vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
-            case "datum.gizmo": if(s.Sketch!=null||(s.ActiveCommand!=null&&!vm.CanPlaceGizmo))return false;vm.OpenGizmoFromHotkey();return true;
+            case "sketch.gizmo": if(s.Sketch!=null)return false;     // the sketch gizmo's own editing is retired: planes and gizmos come from the Datum tools
+            if(free && vm.CanPlaceGizmo){ if(vm.ShowGizmoPanel){ if(vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.FinishGizmoPanel();} if(vm.ShowGizmoPanel)vm.CloseGizmoPanel(); return true; } vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
+            case "datum.gizmo":
+                // In a sketch G takes the gizmo on the selected points and curves (again closes its panel); it places nothing.
+                if(s.Sketch!=null){ if(!free||!gizmoTarget)return false; if(vm.ShowGizmoPanel){vm.CloseGizmoPanel();return true;} vm.TransformSketchSelection();return true; }
+                if(s.ActiveCommand!=null&&!vm.CanPlaceGizmo)return false;vm.OpenGizmoFromHotkey();return true;
             case "sketch.edit": return free && s.Key(SketchShortcuts.EditCommand);
             case "sketch.plane.yz": return free && s.Key("PlaneYZ");
             case "sketch.plane.xz": return free && s.Key("PlaneXZ");

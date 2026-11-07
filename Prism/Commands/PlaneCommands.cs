@@ -17,7 +17,7 @@ public sealed class ConstructionPlaneCommand : Command
 
     readonly ChoiceParam _method;
     readonly SelectionSlot _base, _second, _hinge, _curve, _tanFace, _edge1, _edge2, _flat;
-    readonly NumberParam _distance, _angle, _size;
+    readonly NumberParam _distance, _angle, _size, _pos;
     readonly IntParam _count;
     readonly TextParam _list;
     readonly BoolParam _bothSides;
@@ -38,6 +38,7 @@ public sealed class ConstructionPlaneCommand : Command
         _angle = Num("Angle", 45, -360, 360, 5, "°");
         _count = Add(new IntParam { Label = "Number of planes", Min = 1, Max = 100, Value = 1 });
         _list = Text("…or a list of values", "", "e.g. 5, 12.5, 30  (overrides the number and spacing)");
+        _pos = Num("Position along the curve", 0, 0, 100, 1, "%");
         _bothSides = Check("Also on the other side", false);
         _size = Num("Plane size (0 = automatic)", 0, 0, 1e6);
         string[] names = ["Point 1 X", "Point 1 Y", "Point 1 Z", "Point 2 X", "Point 2 Y", "Point 2 Z", "Point 3 X", "Point 3 Y", "Point 3 Z"];
@@ -72,6 +73,14 @@ public sealed class ConstructionPlaneCommand : Command
         _angle.IsVisible = m is Method.Angle or Method.TangentFace;
         _count.IsVisible = m is Method.Offset or Method.Angle or Method.NormalToCurve or Method.TangentFace;
         _list.IsVisible = m is Method.Offset or Method.Angle or Method.NormalToCurve or Method.TangentFace;
+        _list.Caption = m switch
+        {
+            Method.Offset => "…or a list of distances (mm)",
+            Method.Angle or Method.TangentFace => "…or a list of angles (°)",
+            Method.NormalToCurve => "…or positions along the curve (%)",
+            _ => null,
+        };
+        _pos.IsVisible = m == Method.NormalToCurve && _count.Value == 1 && string.IsNullOrWhiteSpace(_list.Value);
         _bothSides.IsVisible = m is Method.Offset or Method.Angle;
         foreach (var p in _pt) p.IsVisible = m == Method.ThreePoints;
     }
@@ -143,6 +152,15 @@ public sealed class ConstructionPlaneCommand : Command
             try
             {
                 var m = (Method)_method.Index;
+                if (m == Method.NormalToCurve)
+                {
+                    // a single plane slides along the curve: arrow from the start, % follows the arc length
+                    if (_curve.Items.Count == 0 || _count.Value != 1 || !string.IsNullOrWhiteSpace(_list.Value)) return [];
+                    var pts = CurvePoints(_curve.Items[0]); var cum = 0.0;
+                    for (int i = 1; i < pts.Count; i++) cum += pts[i].DistanceTo(pts[i - 1]);
+                    var tan = (pts[Math.Min(2, pts.Count - 1)] - pts[0]).Normalized();
+                    return [new HandleSpec(pts[0], tan, _pos, 100.0 / Math.Max(cum, 1e-9))];
+                }
                 if (m is not (Method.Offset or Method.Angle) || _base.Items.Count == 0 || S.PlaneOf(_base.Items[0]) is not { } b) return [];
                 var it = _base.Items[0];
                 var at = b.Origin;
@@ -225,7 +243,7 @@ public sealed class ConstructionPlaneCommand : Command
                 double total = cum[^1];
                 List<double> fr;
                 if (!string.IsNullOrWhiteSpace(_list.Value)) fr = Values("positions", 1).Select(v => v / 100).ToList();
-                else if (_count.Value == 1) fr = [0.5];
+                else if (_count.Value == 1) fr = [_pos.Value / 100];
                 else fr = Enumerable.Range(0, _count.Value).Select(i => (double)i / (_count.Value - 1)).ToList();
                 foreach (var f in fr)
                 {

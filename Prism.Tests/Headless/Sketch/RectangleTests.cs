@@ -166,7 +166,7 @@ public class RectangleTests
         var session = vm.Session;
         session.EnterSketch(Plane3.XY, alignView: true);
         session.Ortho = true;
-        var button = vm.Tabs.Single(tab => tab.Title == "Sketch").Buttons.Single(item => item.Label == "Rectangle");
+        var button = vm.Tabs.Single(tab => tab.Title == "Sketch").Buttons.Single(item => item.Label == "Rectangle" && item.Icon == "rect");
         button.Refresh();
         button.Invoke();
         var tool = Assert.IsType<RectTool>(session.Sketch!.Tool);

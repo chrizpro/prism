@@ -42,15 +42,36 @@ public sealed class ContourFlangeCommand : Command
 
     protected override void UpdateVisibility() { }
 
-    public override HandleSpec? Handle
+    public override IReadOnlyList<HandleSpec> Handles
     {
         get
         {
-            if (_profile.Items.Count == 0 || _sym.Value) return null;
-            var o = S.Find(_profile.Items[0].Obj); if (o?.SketchPlane is not { } pl) return null;
-            return new HandleSpec(pl.Origin, pl.Normal * (_flip.Value ? -1 : 1), _w);
+            if (_profile.Items.Count == 0) return [];
+            var o = S.Find(_profile.Items[0].Obj); if (o?.SketchPlane is not { } pl || o.SketchData is not { } model) return [];
+            var list = new List<HandleSpec>();
+            if (!_sym.Value) list.Add(new(pl.Origin, pl.Normal * (_flip.Value ? -1 : 1), _w));
+            try
+            {
+                var P = ChainOf(model).Select(q => pl.PointAt(q.u, q.v)).ToList();
+                if (P.Count >= 2)
+                {
+                    var nrm = pl.Normal.Normalized();
+                    double s = _side.Index == 0 ? 1 : -1;
+                    var d0 = (P[1] - P[0]).Normalized();
+                    list.Add(new(P[0], Vec3.Cross(nrm, d0).Normalized() * s, _t));                 // thickness: sideways off the first leg
+                    if (P.Count >= 3)
+                    {
+                        var d1 = (P[2] - P[1]).Normalized();
+                        var bis = (d1 - d0).Normalized();                                          // toward the bend centre side
+                        if (bis.Length > 0.5) list.Add(new(P[1], bis * s, _r));
+                    }
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+            return list;
         }
     }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     static List<(double u, double v)> ChainOf(SketchModel m)
     {

@@ -74,6 +74,8 @@ public partial class RibbonView : UserControl
         body.Children.Add(new TextBlock { Text = topic?.Purpose ?? tool.Description, TextWrapping = TextWrapping.Wrap });
         if (topic != null)
         {
+            // App actions and view modes (files, scripts, camera presets) are explained in words only.
+            if (!topic.NoPreview)
             try
             {
                 var example = ToolHelp.Example(topic);
@@ -89,8 +91,10 @@ public partial class RibbonView : UserControl
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             { body.Children.Add(new TextBlock { Text = "Example image unavailable.", TextWrapping = TextWrapping.Wrap }); }
-            body.Children.Add(new TextBlock { Text = topic.Steps, TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(new TextBlock { Text = topic.Tip, FontSize = 11.5, TextWrapping = TextWrapping.Wrap });
+            if (topic.Steps.Length > 0 && topic.Steps != topic.Purpose)
+                body.Children.Add(new TextBlock { Text = topic.Steps, TextWrapping = TextWrapping.Wrap });
+            if (topic.Tip.Length > 0)
+                body.Children.Add(new TextBlock { Text = topic.Tip, FontSize = 11.5, TextWrapping = TextWrapping.Wrap });
         }
         var notice = new TextBlock { IsVisible = false, TextWrapping = TextWrapping.Wrap };
         var link = new Button
@@ -140,6 +144,12 @@ public partial class RibbonView : UserControl
     {
         var tool = icon == null ? null : Vm?.Tabs.SelectMany(t => t.Buttons).FirstOrDefault(b => b.ExampleIcon == icon);
         if (tool == null) return false;
+        return ShowHelp(anchor, tool);
+    }
+
+    /// <summary>Open the tool's help card on demand (command search, F1): the same card the ribbon shows on hover, with its steps and the Learn More link.</summary>
+    public bool ShowHelp(Control anchor, RibbonButton tool)
+    {
         _showHelp.Stop(); _hideHelp.Stop();
         _helpAnchor = anchor; _helpTool = tool;
         ShowHoverHelp();

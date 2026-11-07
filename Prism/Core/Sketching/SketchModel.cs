@@ -204,6 +204,9 @@ public sealed class SketchModel
         _ => Enumerable.Repeat(false, count).ToArray(),
     };
 
+    /// <summary>Drops the constraints that refer to this curve as a whole (its length, horizontal, tangent...), keeping those on its points.</summary>
+    public void DropEntityConstraints(int id) => Constraints.RemoveAll(c => !c.Hidden && RefsEntity(c, id));
+
     bool RefsEntity(SkConstraint c, int id)
     {
         var ip = RefIsPoint(c.Type, c.Refs.Length);

@@ -5,6 +5,7 @@ Start here to read, find or run the maintained tests. They live in the top-level
 ```text
 Prism.Tests/
   Unit/                         Prism.UnitTests.csproj
+    Assistant/                  Model/effort catalogs, restricted gate, Codex CLI args and MCP client config merge
     Extrude/                    ExtrudeDirectionMathTests.cs
     Revolve/                    RevolveAxisMathTests.cs
     Sweep/                      SweepPathMathTests.cs
@@ -12,6 +13,7 @@ Prism.Tests/
     Solid/                      PatternGeometryTests.cs, CurveExpressionTests.cs, SelectionRegionTests.cs
     StaticAnalysis/             StaticLoadMathTests.cs
   Headless/                     Prism.HeadlessTests.csproj
+    Assistant/                  Settings whitelist, restricted endpoint, script_editor and render_setup checks
     Extrude/                    SolidExtrudeTests.cs, ExtrudeToObjectTests.cs
     Revolve/                    SolidRevolveTests.cs
     Sweep/                      SweepCommandTests.cs
@@ -27,6 +29,9 @@ Prism.Tests/
     Freeform/                   FormPrimitiveTests.cs
     Cam/                        Setup, CNC operations, program and manufacturing checks
     Assembly/                   Components, joints and assembly tools
+    Ribbon/                     RibbonHelpTests.cs — hover help topics and pictures (HLP-H###)
+    Viewport/                   ViewportHandleTests.cs — command drag-handle coverage (HDL-H###)
+                                HomeOrientationTests.cs — Set/Reset Home and its persistence (HOME-H###)
     Support/                    HeadlessApplication.cs, ModelingScenario.cs
   Integration/                  Prism.IntegrationTests.csproj and desktop MCP scenarios
 ```

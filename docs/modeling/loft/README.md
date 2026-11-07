@@ -62,6 +62,14 @@ Verification on 2026-11-06: **14 Loft Headless cases passed** on Windows with a 
 
 The final desktop run on 2026-11-06 passed **4 Loft Integration cases**, including LFT-I003 preview/commit/save and the existing straight-section/visibility scenarios. The native kernel, Desktop and MCP were rebuilt. [Actual viewport evidence and native hash](../../integration-evidence/README.md#curved-ellipse-loft--lft-i003).
 
+### Proposed: slow combines are deferred to OK in previews
+
+Profiling after the owner reported the app "struggling" during a loft found that construction (`ThruSections`) is fast (tens of ms) but `Occ.Common` between two curved loft surfaces measured ~5.2 s — and every preview rebuild ran it in `BodyCommand.Finish`, for the automatic Join/Cut decision (Extrude) or a chosen Join/Cut/Intersect (Loft and other body commands). `Occ.Distance` scans and mouse-move picking measured cheap (single-digit ms).
+
+**Proposed behavior, pending owner review:** after the first combine that exceeds ~250 ms in a command, preview builds skip the boolean and show the un-combined tool with a "computed when you press OK" note; pressing OK always runs the real operation. Fast combines keep the merged preview exactly as before. This is implemented in `BodyCommand.Finish` so every body command (Extrude, Loft, Revolve, Sweep, primitives) inherits it. Preview tessellation (~0.3–1 s on dense lofts) remains synchronous and is a separate open decision.
+
+Verification 2026-11-06 on the configured Windows workstation: `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Debug --filter TestId=LFT-H010` passed — LFT-H010 builds a slow curved-surface Intersect, checks the preview falls back to the raw tool with the deferred notice, and checks the commit build applies the real boolean. `dotnet build Prism/Prism.csproj -c Debug` succeeded with pre-existing warnings only.
+
 ## Freeform Loft
 
 Creates a subdivision cage through two or more curves/sketches/edges in order. Controls: Points per section (4..96, default 16), Close the ends for closed sections (default on) and Smoothness (1..4, default 3). It resamples and aligns successive sections; mixing open and closed profiles is rejected in the implementation.

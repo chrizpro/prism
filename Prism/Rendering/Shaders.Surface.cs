@@ -11,8 +11,8 @@ uniform vec4 uTexturePlacement;
 uniform int uProjection,uTextureAxis,uTextureRepeat;
 uniform vec2 uAnisotropy,uTransmission;
 uniform vec3 uAbsorptionTint;
-uniform int uHasColorMap,uHasRoughMap,uHasBumpMap;
-uniform sampler2D uColorMap,uRoughMap,uBumpMap;
+uniform int uHasColorMap,uHasRoughMap,uHasBumpMap,uHasDecalMap;
+uniform sampler2D uColorMap,uRoughMap,uBumpMap,uDecalMap;
 vec3 rotateSurface(vec3 p,float a){float c=cos(a),s=sin(a);return vec3(c*p.x+s*p.y,-s*p.x+c*p.y,p.z);}
 float surfaceHash(vec3 p){
     p=mod(p,289.0);float n=mod((p.x*34.0+1.0)*p.x,289.0)+p.y;
@@ -68,6 +68,14 @@ void surfaceLayers(inout vec3 base,inout vec3 N,inout vec2 mat){
     base=gradientColor(local,base);
 
     if(uHasColorMap==1)base*=surfaceImage(uColorMap,local,N);
+    if(uHasDecalMap==1){
+        vec3 dp=textureAxis(rotateSurface((local-uTexturePlacement.xyz)/uSurfaceParams.w,uTextureAngle));
+        vec2 duv=vec2(dp.x,dp.y/uTexturePlacement.w);
+        if(uTextureRepeat==1||!(duv.x<0.0||duv.x>1.0||duv.y<0.0||duv.y>1.0)){
+            vec2 ddx=dFdx(duv),ddy=dFdy(duv);vec2 tuv=uTextureRepeat==1?fract(duv):duv;
+            vec4 d=textureGrad(uDecalMap,tuv,ddx,ddy);base=mix(base,d.rgb,d.a);
+        }
+    }
     float rough=1.0-mat.y;
     if(uHasRoughMap==1)rough=dot(surfaceImage(uRoughMap,local,N),vec3(0.2126,0.7152,0.0722));
     float mask=weatherMask(local),detail=surfaceNoise(local/uWeatherParams.y*3.1+vec3(float(uSeed)));

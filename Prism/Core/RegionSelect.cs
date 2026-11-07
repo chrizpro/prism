@@ -7,12 +7,12 @@ using Prism.Kernel;
 namespace Prism.Core;
 
 /// <summary>How a click or drag in the viewport picks things.</summary>
-public enum SelectMethod { Click, Rectangle, Lasso }
+public enum SelectMethod { Click, Rectangle, Lasso, Paint }
 
 /// <summary>
 /// Picks everything inside a rectangle or a lasso drawn on screen. Only what you can see is picked, unless "through" is on (X-ray): then faces,
 /// edges and bodies behind others are picked too, on both sides of the part. A rectangle dragged left to right takes only what is completely
-/// inside it; dragged right to left (or a lasso) it takes whatever it touches.
+/// inside it; dragged right to left (or a lasso) it takes whatever it touches. Paint takes whatever the stroke itself crosses.
 /// </summary>
 public static class RegionSelect
 {
@@ -22,6 +22,8 @@ public static class RegionSelect
         public readonly List<(double x, double y)> Points = [];
         public bool IsBox;
         public bool Crossing;
+        /// <summary>Paint select: the trail itself is the selector — whatever it crosses counts.</summary>
+        public bool Stroke;
         public double X0 => Points.Min(p => p.x); public double X1 => Points.Max(p => p.x);
         public double Y0 => Points.Min(p => p.y); public double Y1 => Points.Max(p => p.y);
 
@@ -38,6 +40,74 @@ public static class RegionSelect
                 if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
             }
             return inside;
+        }
+
+        List<((double x, double y) a, (double x, double y) b)>? _segs;
+        /// <summary>The stroke as a list of segments, thinned so a long drag stays quick to test.</summary>
+        public IReadOnlyList<((double x, double y) a, (double x, double y) b)> Segments
+        {
+            get
+            {
+                if (_segs != null) return _segs;
+                _segs = [];
+                int step = Math.Max(1, Points.Count / 128);
+                (double x, double y) last = Points[0];
+                for (int i = step; i < Points.Count; i += step) { _segs.Add((last, Points[i])); last = Points[i]; }
+                if (last != Points[^1]) _segs.Add((last, Points[^1]));
+                return _segs;
+            }
+        }
+
+        /// <summary>Paint: does the stroke cross this screen segment? A lone dot counts at its point.</summary>
+        public bool StrokeSeg((double x, double y) p, (double x, double y) q)
+        {
+            if (Segments.Count == 0) return Near(Points[0], p) || Near(Points[0], q);
+            foreach (var (a, b) in Segments) if (SegSeg(a, b, p, q) || Near(a, p) || Near(a, q)) return true;
+            return false;
+        }
+
+        /// <summary>Paint: does the stroke cross this screen triangle?</summary>
+        public bool StrokeTri((double x, double y) a, (double x, double y) b, (double x, double y) c)
+        {
+            if (Segments.Count == 0) return InsideTri(Points[0], a, b, c);
+            foreach (var (p, q) in Segments)
+                if (InsideTri(p, a, b, c) || SegSeg(p, q, a, b) || SegSeg(p, q, b, c) || SegSeg(p, q, c, a)) return true;
+            return false;
+        }
+
+        /// <summary>Paint: is this screen point within <paramref name="tol"/> pixels of the stroke? A datum point is a dot, so a stroke passing over it counts.</summary>
+        public bool StrokeNear(double x, double y, double tol = 6)
+        {
+            if (Segments.Count == 0) return Math.Abs(Points[0].x - x) + Math.Abs(Points[0].y - y) <= tol;
+            foreach (var (a, b) in Segments)
+            {
+                double dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy;
+                double t = len2 < 1e-12 ? 0 : Math.Clamp(((x - a.x) * dx + (y - a.y) * dy) / len2, 0, 1);
+                double ex = a.x + t * dx - x, ey = a.y + t * dy - y;
+                if (ex * ex + ey * ey <= tol * tol) return true;
+            }
+            return false;
+        }
+
+        static bool Near((double x, double y) p, (double x, double y) q, double tol = 2) =>
+            Math.Abs(p.x - q.x) + Math.Abs(p.y - q.y) <= tol;
+
+        static bool InsideTri((double x, double y) q, (double x, double y) a, (double x, double y) b, (double x, double y) c)
+        {
+            double d1 = (q.x - b.x) * (a.y - b.y) - (a.x - b.x) * (q.y - b.y);
+            double d2 = (q.x - c.x) * (b.y - c.y) - (b.x - c.x) * (q.y - c.y);
+            double d3 = (q.x - a.x) * (c.y - a.y) - (c.x - a.x) * (q.y - a.y);
+            bool neg = d1 < -1e-9 || d2 < -1e-9 || d3 < -1e-9, pos = d1 > 1e-9 || d2 > 1e-9 || d3 > 1e-9;
+            return !(neg && pos);
+        }
+
+        static bool SegSeg((double x, double y) p0, (double x, double y) p1, (double x, double y) q0, (double x, double y) q1)
+        {
+            double d = (q1.y - q0.y) * (p1.x - p0.x) - (q1.x - q0.x) * (p1.y - p0.y);
+            if (Math.Abs(d) < 1e-12) return false;      // parallel strokes are covered by the point tests
+            double t = ((q1.x - q0.x) * (p0.y - q0.y) - (q1.y - q0.y) * (p0.x - q0.x)) / d;
+            double u = ((p1.x - p0.x) * (p0.y - q0.y) - (p1.y - p0.y) * (p0.x - q0.x)) / d;
+            return t >= 0 && t <= 1 && u >= 0 && u <= 1;
         }
     }
 
@@ -122,7 +192,7 @@ public static class RegionSelect
         var cam = s.Camera; var vp = cam.ViewProjection;
         var objects = s.Objects.Where(o => Eligible(s, o)).ToList();
         var result = new List<SelItem>();
-        if (objects.Count == 0 || region.Points.Count < 2) return result;
+        if (region.Points.Count < 2) return result;
         DepthMap? depth = through ? null : new DepthMap(cam, objects, region);
 
         foreach (var obj in objects)
@@ -131,7 +201,7 @@ public static class RegionSelect
             var proj = new (double x, double y, double depth)?[m.VertexCount];
             for (int v = 0; v < proj.Length; v++) proj[v] = ProjectKey(cam, new Vec3(P[3 * v], P[3 * v + 1], P[3 * v + 2]), vp);
 
-            bool whole = obj.Kind is ObjKind.Mesh or ObjKind.Form, wire = obj.Kind is ObjKind.Curve or ObjKind.Sketch;
+            bool whole = obj.Kind is ObjKind.Mesh, wire = obj.Kind is ObjKind.Curve or ObjKind.Sketch;
             if (wire && mode == SelMode.Face) continue;
             if (wire && mode == SelMode.Object)
             {
@@ -142,8 +212,10 @@ public static class RegionSelect
                     var a = ProjectKey(cam, new Vec3(W[6 * sg], W[6 * sg + 1], W[6 * sg + 2]), vp); var b = ProjectKey(cam, new Vec3(W[6 * sg + 3], W[6 * sg + 4], W[6 * sg + 5]), vp);
                     if (a is not { } pa || b is not { } pb) { all = false; continue; }
                     double mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2, mz = (pa.depth + pb.depth) / 2;
-                    bool ina = region.Contains(pa.x, pa.y), inb = region.Contains(pb.x, pb.y), inm = region.Contains(mx, my);
-                    if (ina || inb || inm) { any = true; if (depth == null || depth.Visible(mx, my, mz, 2e-3)) seen = true; }
+                    bool ina, inb, inm;
+                    if (region.Stroke) { inm = region.StrokeSeg((pa.x, pa.y), (pb.x, pb.y)); ina = inb = inm; }
+                    else { ina = region.Contains(pa.x, pa.y); inb = region.Contains(pb.x, pb.y); inm = region.Contains(mx, my); }
+                    if (ina || inb || inm) { any = true; if (depth == null || SegmentVisible(depth, region, pa, pb, 2e-3)) seen = true; }
                     if (!ina || !inb) all = false;
                 }
                 if (region.Crossing || !region.IsBox ? any && seen : all && any) result.Add(SelItem.Of(obj));
@@ -157,11 +229,15 @@ public static class RegionSelect
                     int edge = m.SegEdge[sg];
                     var a = ProjectKey(cam, new Vec3(E[6 * sg], E[6 * sg + 1], E[6 * sg + 2]), vp); var b = ProjectKey(cam, new Vec3(E[6 * sg + 3], E[6 * sg + 4], E[6 * sg + 5]), vp);
                     if (a is not { } pa || b is not { } pb) { rejected.Add(edge); continue; }
-                    bool ina = region.Contains(pa.x, pa.y), inb = region.Contains(pb.x, pb.y);
                     double mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2, mz = (pa.depth + pb.depth) / 2;
-                    if (region.Crossing || !region.IsBox) { if (!(ina || inb || region.Contains(mx, my))) continue; }
-                    else if (!(ina && inb)) { rejected.Add(edge); continue; }
-                    if (depth != null && !depth.Visible(mx, my, mz, 2e-3)) continue;
+                    if (region.Stroke) { if (!region.StrokeSeg((pa.x, pa.y), (pb.x, pb.y))) continue; }
+                    else
+                    {
+                        bool ina = region.Contains(pa.x, pa.y), inb = region.Contains(pb.x, pb.y);
+                        if (region.Crossing || !region.IsBox) { if (!(ina || inb || region.Contains(mx, my))) continue; }
+                        else if (!(ina && inb)) { rejected.Add(edge); continue; }
+                    }
+                    if (depth != null && !SegmentVisible(depth, region, pa, pb, 2e-3)) continue;
                     hit.Add(edge);
                 }
                 // a complete-inside rectangle takes an edge only when every one of its segments is inside
@@ -180,9 +256,15 @@ public static class RegionSelect
                 {
                     var a = proj[I[3 * t]]; var b = proj[I[3 * t + 1]]; var c = proj[I[3 * t + 2]];
                     if (a == null || b == null || c == null) { allIn = false; continue; }
+                    double cx = (a.Value.x + b.Value.x + c.Value.x) / 3, cy = (a.Value.y + b.Value.y + c.Value.y) / 3, cz = (a.Value.depth + b.Value.depth + c.Value.depth) / 3;
+                    if (region.Stroke)
+                    {
+                        if (!anyIn && region.StrokeTri((a.Value.x, a.Value.y), (b.Value.x, b.Value.y), (c.Value.x, c.Value.y)))
+                        { anyIn = true; if (depth == null || depth.Visible(cx, cy, cz, 1e-3)) anyVisible = true; }
+                        continue;
+                    }
                     foreach (var q in new[] { a.Value, b.Value, c.Value }) { if (region.Contains(q.x, q.y)) anyIn = true; else allIn = false; }
                     if ((t - t0) % stride != 0) continue;
-                    double cx = (a.Value.x + b.Value.x + c.Value.x) / 3, cy = (a.Value.y + b.Value.y + c.Value.y) / 3, cz = (a.Value.depth + b.Value.depth + c.Value.depth) / 3;
                     samples++;
                     if (region.Contains(cx, cy)) { anyIn = true; if (depth == null || depth.Visible(cx, cy, cz, 1e-3)) anyVisible = true; }
                 }
@@ -191,7 +273,8 @@ public static class RegionSelect
                 bool take = region.Crossing || !region.IsBox ? anyIn && anyVisible : allIn && (depth == null || anyVisible || FaceVisible(proj, I, t0, t1, depth));
                 if (take) faces.Add(f);
             }
-            if (mode == SelMode.Face && !whole) foreach (int f in faces) result.Add(new SelItem(obj.Id, SelKind.Face, f));
+            // a scanned mesh is one face (index 0), exactly what a click on it in Face mode gives; a cage has its own faces
+            if (mode == SelMode.Face) foreach (int f in faces) result.Add(new SelItem(obj.Id, SelKind.Face, f));
             else if (mode != SelMode.Face && faces.Count > 0)
             {
                 // whole bodies: a drag that crosses the body, or a rectangle that encloses all of it
@@ -200,7 +283,83 @@ public static class RegionSelect
                 if (region.Crossing || !region.IsBox || enclosed) result.Add(SelItem.Of(obj));
             }
         }
+        if (mode == SelMode.Object) CollectReferences(s, region, depth, result);
         return result;
+    }
+
+    /// <summary>Datums and construction planes: no mesh, so they are tested by the key points and lines they are drawn with.</summary>
+    static void CollectReferences(CadSession s, Region r, DepthMap? depth, List<SelItem> result)
+    {
+        var cam = s.Camera; var vp = cam.ViewProjection;
+        bool window = r.IsBox && !r.Crossing;
+        double cx = (r.X0 + r.X1) / 2, cy = (r.Y0 + r.Y1) / 2;
+        foreach (var sh in s.ReferenceShapes())
+        {
+            var pts = sh.Points.Select(p => ProjectKey(cam, p, vp)).ToArray();
+            bool allIn = true, any = false; (double x, double y, double depth)? probe = null;
+            foreach (var p in pts)
+            {
+                if (p is not { } q) { allIn = false; continue; }
+                if (r.Contains(q.x, q.y)) { any = true; probe ??= q; } else allIn = false;
+            }
+            if (window) { if (!allIn || !any) continue; }
+            else if (r.Stroke)
+            {
+                bool hit = false;
+                foreach (var p in pts) if (p is { } q && r.StrokeNear(q.x, q.y)) { hit = true; probe ??= q; }
+                foreach (var (a, b) in sh.Lines)
+                    if (pts[a] is { } qa && pts[b] is { } qb && r.StrokeSeg((qa.x, qa.y), (qb.x, qb.y))) { hit = true; probe ??= qa; }
+                if (sh.Filled && !hit && pts[0] is { } p0 && pts[1] is { } p1 && pts[2] is { } p2 && pts[3] is { } p3
+                    && (r.StrokeTri((p0.x, p0.y), (p1.x, p1.y), (p2.x, p2.y)) || r.StrokeTri((p0.x, p0.y), (p2.x, p2.y), (p3.x, p3.y)))) { hit = true; probe ??= p0; }
+                if (!hit) continue;
+            }
+            else
+            {
+                // a line passing through the region without an end or key point in it
+                foreach (var (a, b) in sh.Lines)
+                {
+                    if (pts[a] is not { } qa || pts[b] is not { } qb) continue;
+                    for (int k = 1; k < 32; k++)
+                    {
+                        double t = k / 32.0, x = qa.x + (qb.x - qa.x) * t, y = qa.y + (qb.y - qa.y) * t;
+                        if (r.Contains(x, y)) { any = true; probe ??= (x, y, qa.depth + (qb.depth - qa.depth) * t); }
+                    }
+                }
+                // a region lying wholly inside a plane's outline touches it though none of its lines do
+                if (!any && sh.Filled && pts.Take(4).All(p => p != null))
+                {
+                    var poly = pts.Take(4).Select(p => (p!.Value.x, p.Value.y)).ToArray();
+                    foreach (var c in r.Points.Append((cx, cy)))
+                        if (InPoly(poly, c.Item1, c.Item2)) { any = true; probe ??= (c.Item1, c.Item2, pts[0]!.Value.depth); break; }
+                }
+                if (!any) continue;
+            }
+            if (depth != null && sh.CheckDepth && probe is { } pb && !depth.Visible(pb.x, pb.y, pb.depth, 5e-3)) continue;
+            result.Add(sh.Item);
+        }
+    }
+
+    static bool InPoly((double x, double y)[] poly, double x, double y)
+    {
+        bool inside = false;
+        for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+        {
+            var (xi, yi) = poly[i]; var (xj, yj) = poly[j];
+            if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    }
+
+    /// <summary>
+    /// Is a segment in front, judged where the depth image actually exists? The depth image only covers the region, so the midpoint of
+    /// an edge whose end alone is inside a small rectangle would be "off the map" and the edge wrongly treated as hidden.
+    /// </summary>
+    static bool SegmentVisible(DepthMap depth, Region r, (double x, double y, double depth) a, (double x, double y, double depth) b, double eps)
+    {
+        var mid = ((a.x + b.x) / 2, (a.y + b.y) / 2, (a.depth + b.depth) / 2);
+        foreach (var q in new[] { mid, a, b })
+            if (q.Item1 >= r.X0 && q.Item1 <= r.X1 && q.Item2 >= r.Y0 && q.Item2 <= r.Y1) return depth.Visible(q.Item1, q.Item2, q.Item3, eps);
+        return depth.Visible(mid.Item1, mid.Item2, mid.Item3, eps);
     }
 
     static bool VertexVisible(Region r, (double x, double y, double depth)?[] proj, int[] I, int t0, int t1, DepthMap depth)

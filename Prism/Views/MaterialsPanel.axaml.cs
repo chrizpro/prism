@@ -51,6 +51,7 @@ public partial class MaterialsPanel : UserControl
             vm.ApplyFinishPreset(preset);
     }
     void OnApply(object? s, RoutedEventArgs e) => Vm?.ApplyMaterial();
+    void OnFamily(object? s, RoutedEventArgs e) { if (s is Button { Tag: int index }) Vm?.SelectFamily(index); }
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseMaterials();
     void OnCompare(object? s, RoutedEventArgs e) => Vm?.ToggleCompare();
     void OnListDoubleTapped(object? s, TappedEventArgs e) => Vm?.ApplyMaterial();

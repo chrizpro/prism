@@ -247,4 +247,45 @@ public class LoftCommandTests(Xunit.Abstractions.ITestOutputHelper output)
         AssertNear(0, cage.V.Min(point => point.Z), "Cage lower Z (mm)");
         AssertNear(12, cage.V.Max(point => point.Z), "Cage upper Z (mm)");
     }
+
+    [AvaloniaFact(DisplayName = "LFT-H010 | A combine that proves slow once is deferred to OK in later previews")]
+    [Trait("TestId", "LFT-H010")]
+    public void HeavyCombine_PreviewShowsTool_CommitAppliesBoolean()
+    {
+        // Booleans between curved loft surfaces take seconds; rebuilding that on every preview stalls the UI.
+        // After one slow combine the preview must show the raw tool, while OK still applies the real boolean.
+        var session = new CadSession();
+        static Vec3[] Ring(double z, double r) => Enumerable.Range(0, 60).Select(i =>
+        {
+            double a = i * 2 * Math.PI / 60, rr = r * (1 + 0.2 * Math.Sin(5 * a));
+            return new Vec3(rr * Math.Cos(a), rr * Math.Sin(a), z);
+        }).ToArray();
+        var body = session.AddObject(Occ.Loft(
+            [Occ.Spline(Ring(15, 25), true), Occ.Spline(Ring(60, 18), true)], solid: true, ruled: false), "Body", ObjKind.Solid);
+        var lower = session.AddObject(Occ.Spline(Ring(0, 30), true), "Lower", ObjKind.Curve);
+        var upper = session.AddObject(Occ.Spline(Ring(40, 20), true), "Upper", ObjKind.Curve);
+        var loft = Begin(session, () => new LoftCommand());
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", lower, upper);
+            SetChoice(loft, "Operation", "Intersect");
+        });
+        var first = loft.TryBuild();                     // pays the curved-surface boolean once
+        Assert.True(first != null, loft.Error);
+        Assert.Single(first.Replace);                  // normal combine result while it was still cheap to assume
+
+        var preview = loft.TryBuild();                 // combine measured heavy: the preview shows the tool instead
+        Assert.True(preview != null, loft.Error);
+        var added = Assert.Single(preview.Add);
+        Assert.NotNull(added.Shape);
+        Assert.Empty(preview.Replace);
+        Assert.Contains("computed when you press OK", Result(loft, "Combine"));
+
+        loft.Committing = true;                        // pressing OK always runs the real boolean
+        var committed = loft.TryBuild();
+        Assert.True(committed != null, loft.Error);
+        var replacement = Assert.Single(committed.Replace);
+        Assert.Equal(body.Id, replacement.Old.Id);
+        AssertValidSolid(replacement.New);
+    }
 }

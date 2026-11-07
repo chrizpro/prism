@@ -36,8 +36,7 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Dark";                 // Dark | Light | System
     public bool MarkingMenu { get; set; } = true;
     public bool ReverseScrollZoom { get; set; }
-    public bool ShowGridOnStart { get; set; } = true;
-    /// <summary>The 3D view backdrop and grid look (see GridPreset).</summary>
+    public bool ShowGridOnStart { get; set; } = true;    /// <summary>The 3D view backdrop and grid look (see GridPreset).</summary>
     public string GridStyle { get; set; } = "classic";
     /// <summary>The folder parts are saved to and opened from by default. Null until the user picks one.</summary>
     public string? WorkspacePath { get; set; }
@@ -52,6 +51,9 @@ public sealed class AppSettings
     /// <summary>Workspace IDs pinned to the top bar; null uses the default selection.</summary>
     public List<string>? VisibleWorkspaces { get; set; }
     public int MarkingHoldMs { get; set; } = 260;
+    double planeScale = 1.0;
+    /// <summary>Display scale for origin and construction planes (1 = the model-relative default).</summary>
+    public double PlaneScale { get => planeScale; set => planeScale = Math.Clamp(value, 0.25, 2.0); }
     /// <summary>The variant each split ribbon button showed last (by button id), so a button comes back as you left it.</summary>
     public Dictionary<string, string> LastPicks { get; set; } = [];
     public RibbonLayout Ribbon { get; set; } = new();

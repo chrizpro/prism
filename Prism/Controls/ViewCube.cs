@@ -80,7 +80,7 @@ public sealed class ViewCube : Control
     }
 
     // ---- state
-    enum Hit { None, Region, Left, Right, Up, Down, Home, Projection, RollCcw, RollCw }
+    enum Hit { None, Region, Left, Right, Up, Down, Home, SetHome, Projection, RollCcw, RollCw }
     Hit _hit; int _hoverRegion = -1;
     Point _down; bool _dragging, _pressed; Hit _pressHit; int _pressRegion;
     CadSession? _hooked;
@@ -90,9 +90,9 @@ public sealed class ViewCube : Control
     {
         SessionProperty.Changed.AddClassHandler<ViewCube>((v, e) =>
         {
-            if (v._hooked != null) v._hooked.ViewChanged -= v.InvalidateVisual;
+            if (v._hooked != null) { v._hooked.ViewChanged -= v.InvalidateVisual; v._hooked.HomeChanged -= v.InvalidateVisual; }
             v._hooked = e.NewValue as CadSession;
-            if (v._hooked != null) v._hooked.ViewChanged += v.InvalidateVisual;
+            if (v._hooked != null) { v._hooked.ViewChanged += v.InvalidateVisual; v._hooked.HomeChanged += v.InvalidateVisual; }
         });
         AffectsRender<ViewCube>(SessionProperty);
     }
@@ -101,6 +101,8 @@ public sealed class ViewCube : Control
     Point Center => new(Bounds.Width / 2, Bounds.Height / 2 + 2);
     double K => Math.Min(Bounds.Width, Bounds.Height) * 0.245;
 
+    /// <summary>A cube point or direction in the part's axes, placed in the world by the home orientation.</summary>
+    Vec3 W(Vec3 v) => Session?.FromHome(v) ?? v;
     Point P(Vec3 w, Camera cam) => new(Center.X + Vec3.Dot(w, cam.Right) * K, Center.Y - Vec3.Dot(w, cam.Up) * K);
 
     sealed record Proj(int Index, Region R, Point[] Poly, double Depth);
@@ -112,9 +114,9 @@ public sealed class ViewCube : Control
         for (int i = 0; i < Regions.Length; i++)
         {
             var r = Regions[i];
-            if (Vec3.Dot(r.Dir.Normalized(), eye) < 0.03) continue;
-            var poly = r.Pts.Select(p => P(p, cam)).ToArray();
-            var c = r.Pts.Aggregate(Vec3.Zero, (a, b) => a + b) / r.Pts.Length;
+            if (Vec3.Dot(W(r.Dir).Normalized(), eye) < 0.03) continue;
+            var poly = r.Pts.Select(p => P(W(p), cam)).ToArray();
+            var c = W(r.Pts.Aggregate(Vec3.Zero, (a, b) => a + b) / r.Pts.Length);
             res.Add(new(i, r, poly, Vec3.Dot(c, cam.Forward)));
         }
         return res;
@@ -122,6 +124,7 @@ public sealed class ViewCube : Control
 
     // ---- buttons laid out around the cube
     Rect HomeRect => new(6, 6, 24, 24);
+    Rect SetHomeRect => new(6, 34, 24, 24);
     Rect RollCcwRect => new(Bounds.Width - 58, 6, 24, 24);
     Rect RollCwRect => new(Bounds.Width - 30, 6, 24, 24);
     Rect ProjRect => new(Bounds.Width - 30, Bounds.Height - 30, 24, 24);
@@ -138,9 +141,9 @@ public sealed class ViewCube : Control
     }
 
     static readonly Hit[] Arrows = [Hit.Up, Hit.Down, Hit.Left, Hit.Right];
-    static bool IsFaceView(Camera cam)
+    bool IsFaceView(Camera cam)
     {
-        var d = cam.EyeDirection;
+        var d = Session?.ToHome(cam.EyeDirection) ?? cam.EyeDirection;
         return Math.Max(Math.Abs(d.X), Math.Max(Math.Abs(d.Y), Math.Abs(d.Z))) > 0.99999;
     }
 
@@ -173,16 +176,17 @@ public sealed class ViewCube : Control
         foreach (var p in Visible(cam).OrderByDescending(v => v.Depth))
         {
             bool hot = _hit == Hit.Region && p.Index == _hoverRegion;
-            double lit = 0.5 + 0.5 * Math.Max(0, Vec3.Dot(p.R.Dir.Normalized(), Light));
+            double lit = 0.5 + 0.5 * Math.Max(0, Vec3.Dot(W(p.R.Dir).Normalized(), Light));
             byte baseV = p.R.Kind == Kind.Face ? (byte)Math.Clamp(206 + 44 * lit, 0, 255) : (byte)Math.Clamp(172 + 40 * lit, 0, 255);
             IBrush fill = hot ? Accent : new SolidColorBrush(Color.FromRgb((byte)(baseV - 6), (byte)(baseV - 2), baseV));
             ctx.DrawGeometry(fill, Outline, Poly(p.Poly));
 
             if (p.R.Kind == Kind.Face && p.R.Label != null)
             {
-                var c = p.R.Dir;
+                var c = W(p.R.Dir);
                 var R = cam.Right; var U = cam.Up;
-                var m = new Matrix(Vec3.Dot(p.R.U, R) * K, -Vec3.Dot(p.R.U, U) * K, -Vec3.Dot(p.R.V, R) * K, Vec3.Dot(p.R.V, U) * K, P(c, cam).X, P(c, cam).Y);
+                Vec3 ru = W(p.R.U), rv = W(p.R.V);
+                var m = new Matrix(Vec3.Dot(ru, R) * K, -Vec3.Dot(ru, U) * K, -Vec3.Dot(rv, R) * K, Vec3.Dot(rv, U) * K, P(c, cam).X, P(c, cam).Y);
                 using var _ = ctx.PushTransform(m);
                 var ft = new FormattedText(p.R.Label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                     new Typeface("Inter", FontStyle.Normal, FontWeight.SemiBold), 0.30, hot ? Brushes.White : Ink);
@@ -215,6 +219,28 @@ public sealed class ViewCube : Control
                 gc.LineTo(new Point(r.X + 5, r.Y + 12)); gc.LineTo(new Point(r.X + 7.5, r.Y + 12)); gc.LineTo(new Point(r.X + 7.5, r.Y + 19));
                 gc.LineTo(new Point(r.X + 16.5, r.Y + 19)); gc.LineTo(new Point(r.X + 16.5, r.Y + 12)); gc.LineTo(new Point(r.X + 19, r.Y + 12));
                 gc.EndFigure(true);
+            }
+            return g;
+        });
+        DrawButton(ctx, SetHomeRect, _hit == Hit.SetHome, () =>
+        {
+            // a house with a plus (set) or a cross (reset)
+            var r = SetHomeRect;
+            var g = new StreamGeometry();
+            using var gc = g.Open();
+            gc.BeginFigure(new Point(r.X + 10, r.Y + 6), false);
+            gc.LineTo(new Point(r.X + 4, r.Y + 12)); gc.LineTo(new Point(r.X + 6, r.Y + 12)); gc.LineTo(new Point(r.X + 6, r.Y + 19));
+            gc.LineTo(new Point(r.X + 14, r.Y + 19)); gc.LineTo(new Point(r.X + 14, r.Y + 12)); gc.LineTo(new Point(r.X + 16, r.Y + 12));
+            gc.EndFigure(true);
+            if (s.HomeIsOriginal)   // plus: set the home view
+            {
+                gc.BeginFigure(new Point(r.X + 17.5, r.Y + 5), false); gc.LineTo(new Point(r.X + 17.5, r.Y + 11)); gc.EndFigure(false);
+                gc.BeginFigure(new Point(r.X + 14.5, r.Y + 8), false); gc.LineTo(new Point(r.X + 20.5, r.Y + 8)); gc.EndFigure(false);
+            }
+            else                    // cross: put the original back
+            {
+                gc.BeginFigure(new Point(r.X + 15, r.Y + 5), false); gc.LineTo(new Point(r.X + 20, r.Y + 10)); gc.EndFigure(false);
+                gc.BeginFigure(new Point(r.X + 20, r.Y + 5), false); gc.LineTo(new Point(r.X + 15, r.Y + 10)); gc.EndFigure(false);
             }
             return g;
         });
@@ -270,6 +296,7 @@ public sealed class ViewCube : Control
     {
         var s = Session; if (s == null) return (Hit.None, -1);
         if (Dist(pt, HomeRect.Center) <= 12) return (Hit.Home, -1);
+        if (Dist(pt, SetHomeRect.Center) <= 12) return (Hit.SetHome, -1);
         if (Dist(pt, ProjRect.Center) <= 12) return (Hit.Projection, -1);
         if (IsFaceView(Cam) && Dist(pt, RollCcwRect.Center) <= 12) return (Hit.RollCcw, -1);
         if (IsFaceView(Cam) && Dist(pt, RollCwRect.Center) <= 12) return (Hit.RollCw, -1);
@@ -294,7 +321,8 @@ public sealed class ViewCube : Control
 
     static string Tip(Hit h, int region, CadSession s) => h switch
     {
-        Hit.Home => "Home (isometric view)",
+        Hit.Home => s.HomeIsOriginal ? "Home (isometric view)" : "Home (your own home view)",
+        Hit.SetHome => s.HomeIsOriginal ? "Set Home: make this view the home view" : "Reset Home: back to the original orientation",
         Hit.Projection => s.Ortho ? "Orthographic - click for perspective" : "Perspective - click for orthographic",
         Hit.RollCcw => "Roll view counter-clockwise 90°", Hit.RollCw => "Roll view clockwise 90°",
         Hit.Left => "Rotate view left 90°", Hit.Right => "Rotate view right 90°", Hit.Up => "Rotate view up 90°", Hit.Down => "Rotate view down 90°",
@@ -350,11 +378,9 @@ public sealed class ViewCube : Control
         double snapYaw = Math.Round(cam.Yaw / q) * q;
         switch (h)
         {
-            case Hit.Home: s.AnimateView(-35 * Math.PI / 180, 28 * Math.PI / 180); break;
-            case Hit.Projection: s.Ortho = !s.Ortho; break;
-            case Hit.RollCcw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q + q); break;
-            case Hit.RollCw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q - q); break;
-            case Hit.Left: case Hit.Right: case Hit.Up: case Hit.Down:
+            case Hit.Home: { var (hy, hp, hr) = s.HomeAngles(); s.AnimateView(hy, hp, hr); break; }
+            case Hit.SetHome: if (s.HomeIsOriginal) s.SetHomeToCurrentView(); else s.ResetHome(); break;
+                case Hit.Left: case Hit.Right: case Hit.Up: case Hit.Down:
                 var eye = cam.EyeDirection; var up = cam.Up; var right = cam.Right;
                 var target = h switch { Hit.Left => -right, Hit.Right => right, Hit.Up => up, _ => -up };
                 var targetUp = h switch { Hit.Up => -eye, Hit.Down => eye, _ => up };
@@ -365,9 +391,17 @@ public sealed class ViewCube : Control
             case Hit.Region:
                 var d = Regions[r].Dir.Normalized();
                 double pitch = Math.Asin(Math.Clamp(d.Z, -1, 1));
-                double yaw = Math.Abs(d.Z) > 0.999 ? snapYaw : Math.Atan2(d.X, -d.Y);
                 s.Ortho = true;         // a view picked on the cube is a standard view: keep it orthographic
-                s.AnimateView(yaw, pitch);
+                if (s.HomeIsOriginal)
+                {
+                    double yaw = Math.Abs(d.Z) > 0.999 ? snapYaw : Math.Atan2(d.X, -d.Y);
+                    s.AnimateView(yaw, pitch);
+                }
+                else
+                {
+                    var (vy, vp, vr) = s.HomeViewAngles(Math.Abs(d.Z) > 0.999 ? 0 : Math.Atan2(d.X, -d.Y), pitch);
+                    s.AnimateView(vy, vp, vr);
+                }
                 break;
         }
     }

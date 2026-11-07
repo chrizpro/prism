@@ -4,6 +4,7 @@ using System.Linq;
 using Prism.Core;
 using Prism.Core.Form;
 using Prism.Kernel;
+using Prism.Meshing;
 
 namespace Prism.Commands;
 
@@ -17,6 +18,12 @@ public abstract class BodyCommand : Command
     bool _manualOp; int _autoIdx = -1;
     /// <summary>True when Cut had to point the other way to reach the body.</summary>
     protected bool FlippedForCut;
+    /// <summary>Set once the first combine ran: booleans on curved geometry (lofts, sweeps) can take seconds, and the
+    /// preview rebuilds on every pick or tweak, so after one slow combine the preview shows the un-combined tool until OK.</summary>
+    bool _heavyCombine;
+    const double HeavyCombineMs = 250;
+    /// <summary>Previews of heavy combines skip the boolean work; the commit build still runs everything.</summary>
+    bool SkipCombine => _heavyCombine && !Committing;
 
     protected void AddOperation(bool auto = false)
     {
@@ -66,6 +73,8 @@ public abstract class BodyCommand : Command
     {
         var o = new CommandOutput(); FlippedForCut = false;
         if (Op == null) { o.Add.Add(new(tool, name, kind)); return o; }
+        var overlap = new Dictionary<SceneObject, double>();
+        double OverlapOnce(SceneObject body) => overlap.TryGetValue(body, out var v) ? v : overlap[body] = Overlap(body, tool);
         if (AutoOp)
         {
             if (_autoIdx >= 0 && Op.Index != _autoIdx) _manualOp = true;        // the user chose something themselves: leave it alone
@@ -74,18 +83,39 @@ public abstract class BodyCommand : Command
                 int want = 0;
                 if (NearestBody(tool) is { } near)
                 {
-                    double vol = 0; try { vol = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }       // a reversed solid reports a negative volume
-                    double inside = vol > 1e-6 ? Overlap(near, tool) / vol : 0;
-                    if (inside > 0.35) want = 2;
-                    Results.Add(new ResultLine("Automatic operation", $"{inside * 100:0}% of the new shape is inside {near.Name} -> {(want == 2 ? "Cut" : "new body")} (choose another Operation to override)"));      // mostly inside a body: that is a cut (a wing root or boss that only pokes in stays a new body)
+                    if (SkipCombine)
+                    {
+                        want = _autoIdx > 0 ? _autoIdx : 0;       // keep the earlier automatic pick; the exact overlap is deferred to OK
+                        Results.Add(new ResultLine("Automatic operation", $"combining with {near.Name} is slow; the result is computed on OK"));
+                    }
+                    else
+                    {
+                        double vol = 0; try { vol = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }       // a reversed solid reports a negative volume
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        double inside = vol > 1e-6 ? OverlapOnce(near) / vol : 0;
+                        if (!_heavyCombine && sw.ElapsedMilliseconds > HeavyCombineMs) _heavyCombine = true;
+                        want = inside > 0.35 ? 2 : 0;
+                        Results.Add(new ResultLine("Automatic operation", $"{inside * 100:0}% of the new shape is inside {near.Name} -> {(want == 2 ? "Cut" : "new body")} (choose another Operation to override)"));      // mostly inside a body: that is a cut (a wing root or boss that only pokes in stays a new body)
+                    }
                 }
                 if (want != Op.Index) { Op.SetSilently(want); UpdateVisibility(); }
-                _autoIdx = want;
+                if (!SkipCombine) _autoIdx = want;
             }
         }
         if (Op.Index == 0) { o.Add.Add(new(tool, name, kind)); return o; }
         var target = ResolveTarget(tool);
-        if (Op.Index is 2 or 3 && reversed != null && Overlap(target, tool) < 1e-9)
+        if (SkipCombine)
+        {
+            // a curved combine (loft, sweep...) can take seconds; rebuilding on every preview stalls the whole UI.
+            // Show the tool as it would look as a new body until the user presses OK, which runs the real boolean.
+            Results.Add(new ResultLine("Combine", $"{Op.Options[Op.Index]} with {target.Name} is computed when you press OK"));
+            o.Add.Add(new(tool, name, kind));
+            return o;
+        }
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+        if (Op.Index is 2 or 3 && reversed != null && OverlapOnce(target) < 1e-9)
         {
             // asked to cut, but the shape points away from the body: turn it round so it cuts
             var back = reversed();
@@ -100,6 +130,8 @@ public abstract class BodyCommand : Command
         o.Replace.Add((target, res));
         if (Op.Index == 2) o.Ghosts.Add(tool);       // show the tool faintly so you can see what is being cut away
         return o;
+        }
+        finally { if (clock.ElapsedMilliseconds > HeavyCombineMs) _heavyCombine = true; }
     }
 
     protected bool TargetMissing => Op != null && Op.Index != 0 && Target!.Items.Count == 0 && !Bodies().Any();
@@ -119,6 +151,24 @@ public abstract class PrimitiveCommand : BodyCommand
         AddOperation();
     }
 
+    /// <summary>Dimension arrows anchored on the previewed shape; the base adds position arrows from the world origin.</summary>
+    protected virtual IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield break; }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            var pos = new Vec3(X.Value, Y.Value, Z.Value);
+            var list = new List<HandleSpec>(DimHandles(pos));
+            // the tips mark the X / Y / Z position components (the shape sits where the tips point)
+            list.Add(new(Vec3.Zero, Vec3.UnitX, X));
+            list.Add(new(Vec3.Zero, Vec3.UnitY, Y));
+            list.Add(new(Vec3.Zero, Vec3.UnitZ, Z));
+            return list;
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
     protected override CommandOutput? Build()
     {
         if (TargetMissing) return null;
@@ -135,6 +185,12 @@ public sealed class BoxCommand : PrimitiveCommand
     protected override string Prefix => "Box";
     public BoxCommand() { W = Num("Width (X)", 40, 0.001); D = Num("Depth (Y)", 30, 0.001); H = Num("Height (Z)", 20, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Box(W.Value, D.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, W);
+        yield return new(pos, Vec3.UnitY, D);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class CylinderCommand : PrimitiveCommand
@@ -144,6 +200,11 @@ public sealed class CylinderCommand : PrimitiveCommand
     protected override string Prefix => "Cylinder";
     public CylinderCommand() { R = Num("Radius", 12, 0.001); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cylinder(R.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class SphereCommand : PrimitiveCommand
@@ -153,6 +214,7 @@ public sealed class SphereCommand : PrimitiveCommand
     protected override string Prefix => "Sphere";
     public SphereCommand() { R = Num("Radius", 18, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Sphere(R.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, Vec3.UnitX, R); }
 }
 
 public sealed class ConeCommand : PrimitiveCommand
@@ -162,6 +224,12 @@ public sealed class ConeCommand : PrimitiveCommand
     protected override string Prefix => "Cone";
     public ConeCommand() { R1 = Num("Base radius", 16, 0); R2 = Num("Top radius", 4, 0); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cone(R1.Value, R2.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R1);
+        yield return new(pos + Vec3.UnitZ * H.Value, Vec3.UnitX, R2);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class TorusCommand : PrimitiveCommand
@@ -171,6 +239,11 @@ public sealed class TorusCommand : PrimitiveCommand
     protected override string Prefix => "Torus";
     public TorusCommand() { R = Num("Major radius", 20, 0.002); r = Num("Minor radius", 5, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Torus(R.Value, Math.Min(r.Value, R.Value * 0.99));
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R);
+        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitX, r);   // minor radius sits at the ring's centre line
+    }
 }
 
 // ---------------------------------------------------------------- profile helpers
@@ -427,10 +500,21 @@ public sealed class ExtrudeCommand : BodyCommand
     {
         get
         {
-            if (!Resolved() || Ext > 2) return [];
+            if (!Resolved()) return [];
             var dir = _hc.n * Sign;
-            var list = new List<HandleSpec> { new(_hc.origin, dir, _dist, Ext == 2 ? 2 : 1) };         // symmetric: the arrow marks one half
-            if (Ext == 1) list.Add(new HandleSpec(_hc.origin, -dir, _dist2));
+            var list = new List<HandleSpec>();
+            if (Ext <= 2)
+            {
+                list.Add(new(_hc.origin, dir, _dist, Ext == 2 ? 2 : 1));                          // symmetric: the arrow marks one half
+                if (Ext == 1) list.Add(new HandleSpec(_hc.origin, -dir, _dist2));
+                if (!_surface)
+                {
+                    var k = SurfaceMath.Basis(dir).u;                                             // any in-plane axis: the taper leans every wall alike
+                    double radius = Math.Max(Math.Abs(_dist.Value), 10);
+                    list.Add(new HandleSpec(_hc.origin, k, _taper, 1, dir, radius));
+                }
+            }
+            else if (Ext == 3) list.Add(new(_hc.origin, dir, _toOffset));                         // gap past / short of the target
             return list;
         }
     }
@@ -598,7 +682,7 @@ public sealed class RevolveCommand : BodyCommand
     {
         get
         {
-            if (_profile.Items.Count == 0 || _extent.Index == 1 || _extent.Index == 3) return [];
+            if (_profile.Items.Count == 0 || _extent.Index == 1) return [];
             try
             {
                 if (!Axis(out var o, out var a)) return [];
@@ -612,6 +696,7 @@ public sealed class RevolveCommand : BodyCommand
                 double r = radial.Length; if (r < 1e-6) return [];
                 var tangent = Vec3.Cross(a, radial).Normalized() * (_flip.Value ? -1 : 1);
                 double mul = 180 / (Math.PI * r);                    // degrees per mm of arc, so the arrow tip follows the swept arc
+                if (_extent.Index == 3) return [new(_hc.center, tangent, _angle, mul * 2)];   // symmetric: the angle is split, each side sweeps half
                 var list = new List<HandleSpec> { new(_hc.center, tangent, _angle, mul) };
                 if (_extent.Index == 2) list.Add(new HandleSpec(_hc.center, -tangent, _angle2, mul));
                 return list;
@@ -664,6 +749,25 @@ public sealed class SweepCommand : BodyCommand
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
     protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _rail.Items.Count == 0; }
+
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (_rail.Items.Count > 0 || _path.Items.Count == 0 || _profile.Items.Count == 0 || Math.Abs(_endScale.Value - 1) < 1e-9) return null;
+            try
+            {
+                var pts = S.EdgePoints(_path.Items[^1]); if (pts.Count < 2) return null;
+                var end = pts[^1]; var t = (end - pts[^2]).Normalized();
+                var prof = SlotShape(_profile, false); var c = CenterOf(prof); var m = prof.Tessellate();
+                double r0 = 0;
+                for (int i = 0; i + 2 < m.Positions.Length; i += 3) r0 = Math.Max(r0, (new Vec3(m.Positions[i], m.Positions[i + 1], m.Positions[i + 2]) - c).Length);
+                if (r0 < 1e-9) return null;
+                return new HandleSpec(end, SurfaceMath.Basis(t).u, _endScale, 1 / r0);   // the tip sits where the rim scales to
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+        }
+    }
 
     // each click replaces the pick: a sweep has exactly one profile, one path and at most one second rail
     public override bool PickPoint(PickResult hit, bool additive)
@@ -1105,6 +1209,26 @@ public sealed class FilletCommand : EdgeDressCommand
     public override string Hint => "Click edges on a body (click again to deselect). Give an end radius to make the fillet grow or shrink along each edge.";
     protected override Shape Apply(Shape s, int[] edges, double size)
         => _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            var list = new List<HandleSpec>(); if (Handle is { } h) list.Add(h);
+            if (Edges.Items.Count == 0 || _endRadius.Value <= 1e-9) return list;
+            try
+            {
+                var pts = S.EdgePoints(Edges.Items[0]); var obj = S.Find(Edges.Items[0].Obj);
+                if (pts.Count < 2 || obj == null) return list;
+                var end = pts[^1]; var mid = (obj.Mesh.Min + obj.Mesh.Max) * 0.5;
+                var dir = end - mid; var tan = (pts[^1] - pts[^2]).Normalized(); dir -= tan * Vec3.Dot(dir, tan);
+                if (dir.Length < 1e-9) dir = Vec3.UnitZ;
+                list.Add(new HandleSpec(end, dir.Normalized(), _endRadius));
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+            return list;
+        }
+    }
 }
 
 public sealed class ChamferCommand : EdgeDressCommand

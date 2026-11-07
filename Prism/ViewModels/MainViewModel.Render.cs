@@ -23,6 +23,7 @@ public sealed partial class MainViewModel
     {
         s.PickHdrEnvironment = async () => PickOpenFile == null ? null : await PickOpenFile("Choose Radiance HDR environment", ["*.hdr", "*.rgbe"]);
         s.PickRenderImage = async () => PickOpenFile == null ? null : await PickOpenFile("Choose render background", ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.webp"]);
+        s.GenerateBackgroundAi = GenerateBackgroundWithAi;
         _onRender = () => Dispatcher.UIThread.Post(() => { if (ReferenceEquals(s, Session)) UpdateRender(); });
         s.RenderChanged += _onRender;
     }

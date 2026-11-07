@@ -3,6 +3,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Prism.Core;
+using Prism.Core.Sketching;
 using Prism.Commands;
 using Prism.Kernel;
 
@@ -99,9 +100,18 @@ public sealed partial class MainViewModel
         if(!ShowGizmoPanel)_beforeGizmoPanel=SelectedRightPanel;
         OpenRightPanel("gizmo");RefreshGizmoPanel();
     }
+    /// <summary>Sketch Transform button: the gizmo sits on the selected points and curves (no bind step) and its panel takes exact location, rotation and per-axis scale.</summary>
+    public void TransformSketchSelection()
+    {
+        if(Session.Sketch is not {} sketch)return;
+        if(!sketch.GeometryEditing)sketch.SetTool(Session,sketch.Is3DEnabled?new SelectTool():new SketchGeometryEditTool());
+        OpenGizmoPanel();
+        Session.Say(sketch.HasGeometrySelection?"Transform: drag the gizmo's arrows to move, its rings to rotate (R) or its scale handle (S), or type values in the panel.":"Transform: select points or curves first; the gizmo then appears on them.");
+    }
     public void OpenGizmoFromRibbon()
     {
-        if(Session.ActiveCommand==null&&Session.Sketch==null){Session.ShowDatumGizmo(Vec3.Zero);OpenGizmoPanel();return;}
+        // In plain model view Gizmo is a placement tool like Axis: each click (or Enter at the pointer) adds a gizmo datum.
+        if(Session.ActiveCommand==null&&Session.Sketch==null){StartDatumTool(SketchDatumKind.Gizmo);return;}
         bool existing=ActiveBinding?.Bound==true || Session.Sketch?.GizmoTargetConfirmed==true;
         OpenGizmoPanel();
         if(Session.Sketch!=null)return;     // a sketch's gizmo is never unbound just by opening the panel: Unbind is the user's choice
@@ -119,6 +129,20 @@ public sealed partial class MainViewModel
         if(Session.Sketch!=null||bound)return;     // opening the panel never unbinds a gizmo; only a gizmo with nothing bound yet starts being placed
         if(!GizmoPositioning)BeginGizmoPlacement();
         if(GizmoPositioning)SetGizmoOrigin(Session.ViewportCursor??Vec3.Zero);
+    }
+    /// <summary>
+    /// The ribbon Move tool: raise the gizmo in move mode. An existing object/datum selection
+    /// becomes the payload; otherwise the next viewport click grabs whatever is picked.
+    /// </summary>
+    public void MoveWithGizmo()
+    {
+        if(Session.ActiveCommand!=null||Session.Sketch!=null){Session.Say("Finish or cancel the active tool first.",true);return;}
+        Session.ShowDatumGizmo(Session.ViewportCursor??Vec3.Zero);
+        Session.Datum!.MoveMode=true;
+        var sel=Session.Selection.Where(it=>it.Kind is SelKind.Object or SelKind.Datum).ToList();
+        if(sel.Count>0)Session.Datum.BindTargets(Session,sel);
+        Session.Say(sel.Count>0?"Drag the gizmo handles — or type exact values in the panel.":"Click anything to grab it, then drag the gizmo. Esc releases, another Esc hides it.");
+        OpenGizmoPanel();RefreshGizmoPanel();
     }
     // Done keeps what was edited: pending placement is bound to the selection, or discarded if nothing is selected
     public void FinishGizmoPanel()

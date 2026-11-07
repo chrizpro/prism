@@ -6,7 +6,7 @@ Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal:
 
 ## Behavior
 
-- Home shows **Made with Prism** with image cards, workflow/category, description, author and license. Search matches names, descriptions and workflow. Existing workspace, recent files and new/open actions remain available.
+- Home shows **Made with Prism** with image cards, workflow/category, description, and a credit line noting the example was made with Prism MCP alongside its author and license. The section text links the examples to the same MCP toolkit configurable in Settings → AI Assistant. Search matches names, descriptions and workflow. Existing workspace, recent files and new/open actions remain available.
 - Only the small catalog ships with Prism. Models and previews live in the public repository's `gallery/` directory, outside application assets and packaging. Small initial files use GitHub raw downloads; the catalog also supports GitHub Release asset URLs for larger collections later.
 - Home loads the local catalog immediately and refreshes the remote catalog/previews asynchronously. Failure never blocks startup; Refresh retries. Last valid catalog and previews remain available offline. A first offline launch shows catalog text and preview placeholders.
 - A card downloads its model only on request, checks size and SHA-256, and atomically caches the verified file. Cached models work offline. A newer content hash gets a separate cache entry.

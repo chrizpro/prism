@@ -19,9 +19,22 @@ public sealed partial class CadSession
     bool TryBeginRegion(PointerInfo p)
     {
         if (Method == SelectMethod.Click || !p.Left || Sketch != null || ActiveTool != null) return false;
+        BeginRegion(p, Method == SelectMethod.Rectangle, Method == SelectMethod.Paint);
+        return true;
+    }
+
+    void BeginRegion(PointerInfo p, bool box, bool stroke)
+    {
         _regionDown = p; _regionStart = (p.X, p.Y); _regionMoved = false;
-        _region = new RegionSelect.Region { IsBox = Method == SelectMethod.Rectangle };
+        _region = new RegionSelect.Region { IsBox = box, Stroke = stroke };
         _region.Points.Add((p.X, p.Y));
+    }
+
+    /// <summary>Fusion behaviour: every left press is a candidate drag-rectangle even when no drag method is armed. A release without moving still falls back to a normal click, so picks — including origin planes — work exactly as before, while any real drag box-selects.</summary>
+    bool TryBeginClickDrag(PointerInfo p)
+    {
+        if (Method != SelectMethod.Click || !p.Left || Sketch != null || ActiveTool != null) return false;
+        BeginRegion(p, box: true, stroke: false);
         return true;
     }
 
@@ -31,7 +44,7 @@ public sealed partial class CadSession
     {
         if (Method == SelectMethod.Click) return;
         _regionDone = done; _regionDown = p; _regionStart = (p.X, p.Y); _regionMoved = false;
-        _region = new RegionSelect.Region { IsBox = Method == SelectMethod.Rectangle };
+        _region = new RegionSelect.Region { IsBox = Method == SelectMethod.Rectangle };   // a borrowed region keeps box/lasso shape; Stroke only belongs to session picking
         _region.Points.Add((p.X, p.Y));
     }
 
@@ -71,7 +84,7 @@ public sealed partial class CadSession
         var slot = ActiveCommand?.ActiveSlot;
         var filter = ActiveFilter;
         var mode = slot != null ? (filter.HasFlag(SelFilter.Face) ? SelMode.Face : filter.HasFlag(SelFilter.Edge) ? SelMode.Edge : SelMode.Object) : Mode;
-        var items = RegionSelect.Collect(this, region, mode, XRay).Where(i => Matches(i, filter) || mode == SelMode.Object).ToList();
+        var items = RegionSelect.Collect(this, region, mode, XRay).Where(i => Matches(i, filter)).ToList();
         if (items.Count == 0) { if (!mods.Shift && !mods.Ctrl && slot == null) ClearSelection(); Say("Nothing there."); return; }
         if (slot != null && ActiveCommand is { } cmd)
         {
@@ -88,6 +101,7 @@ public sealed partial class CadSession
         }
         SelectionChanged?.Invoke(); Invalidate();
         Say($"{items.Count} selected" + (XRay ? " (through the part)" : ""));
+        if (_selection is [{ Kind: SelKind.Datum } only]) ShowDatumOrientation(only);      // one datum caught by a drag is treated like one clicked
     }
 
     /// <summary>Draws the rectangle or the lasso trail while it is being dragged.</summary>
@@ -97,6 +111,43 @@ public sealed partial class CadSession
         if (_region.IsBox) { var (x0, y0) = _region.Points[0]; var (x1, y1) = _region.Points[^1]; o.AddRect(x0, y0, x1, y1); }
         else foreach (var (x, y) in _region.Points) o.AddRect(x - 1.5, y - 1.5, x + 1.5, y + 1.5);
     }
+
+    /// <summary>
+    /// What a datum or construction plane looks like on screen, as a few key points and the lines between them, so a rectangle or lasso can
+    /// select it like a click does. A filled shape's first four points are its corners in order.
+    /// </summary>
+    internal sealed record ReferenceShape(SelItem Item, Vec3[] Points, (int a, int b)[] Lines, bool Filled, bool CheckDepth);
+
+    internal IEnumerable<ReferenceShape> ReferenceShapes()
+    {
+        var cam = Camera;
+        foreach (var obj in Objects)
+        {
+            if (!obj.Visible || HiddenIds.Contains(obj.Id)) continue;
+            if (obj.Kind == ObjKind.Plane)
+            {
+                if (!PlaneShown(obj) || obj.SketchPlane is not { } pl) continue;
+                var (hu, hv) = obj.HasBrep ? PlaneHalfSize(obj) : (1, 1); hu *= PlaneScale; hv *= PlaneScale;
+                yield return new(SelItem.Of(obj), [pl.PointAt(-hu, -hv), pl.PointAt(hu, -hv), pl.PointAt(hu, hv), pl.PointAt(-hu, hv), pl.Origin], Box, true, false);
+            }
+            if (obj.SketchData is not { } model) continue;
+            for (int i = 0; i < model.Datums.Count; i++)
+            {
+                var d = model.Datums[i]; var f = d.Frame; var item = new SelItem(obj.Id, SelKind.Datum, i);
+                double size = cam.PixelSizeAt(f.Origin) * 38 * d.Scale;      // the size DrawDatumReferences draws
+                switch (d.Kind)
+                {
+                    case Sketching.SketchDatumKind.Point: yield return new(item, [f.Origin], [], false, true); break;
+                    case Sketching.SketchDatumKind.Axis: yield return new(item, [f.Origin - f.U * size, f.Origin + f.U * size], [(0, 1)], false, true); break;
+                    case Sketching.SketchDatumKind.Plane:
+                        yield return new(item, [f.PointAt(-size, -size), f.PointAt(size, -size), f.PointAt(size, size), f.PointAt(-size, size), f.Origin], Box, true, true); break;
+                    default:
+                        yield return new(item, [f.Origin, f.Origin + f.U * size, f.Origin + f.V * size, f.Origin + f.Normal * size], [(0, 1), (0, 2), (0, 3)], false, true); break;
+                }
+            }
+        }
+    }
+    static readonly (int a, int b)[] Box = [(0, 1), (1, 2), (2, 3), (3, 0)];
 
     // ------------------------------------------------------------ invert
     /// <summary>
@@ -117,6 +168,7 @@ public sealed partial class CadSession
         {
             var objs = Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && !o.IsAnnotation && o.Kind != ObjKind.Sketch);
             foreach (var o in objs) { var it = SelItem.Of(o); if (!have.Contains(it)) next.Add(it); }
+            foreach (var shape in ReferenceShapes()) if (shape.Item.Kind == SelKind.Datum && !have.Contains(shape.Item)) next.Add(shape.Item);
         }
         else
         {

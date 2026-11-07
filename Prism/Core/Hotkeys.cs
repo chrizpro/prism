@@ -66,7 +66,6 @@ public static class Hotkeys
         new("sketch.gizmo.move", "Gizmo: move", "Sketch", Sketch, "W", "Needs a gizmo target"),
         new("sketch.gizmo.rotate", "Gizmo: rotate", "Sketch", Sketch, "R", "Needs a gizmo target"),
         new("sketch.gizmo.size", "Gizmo: scale", "Sketch", Sketch, "S", "Needs a gizmo target"),
-        new("sketch.gizmo", "Edit Gizmo", "Sketch", Sketch, "G"),
         new("sketch.edit", "Toggle geometry editing (3D)", "Sketch", Sketch, "E"),
         new("sketch.plane.yz", "Draw on the YZ plane", "Sketch", Sketch, "Shift+X"),
         new("sketch.plane.xz", "Draw on the XZ plane", "Sketch", Sketch, "Shift+Y"),

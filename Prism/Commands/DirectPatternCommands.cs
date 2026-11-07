@@ -29,6 +29,28 @@ public sealed class EditPatternCommand : Command
     public override string Title => "Edit Pattern";
     public override string Icon => "pattern-linear";
     public override string OkText => "Apply";
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (Picked() is not { } pk) return [];
+            var (_, feat, pat) = pk;
+            if (pat.Kind == FeatureFinder.PatternKind.Circle)
+            {
+                var foot = pat.Centre + pat.Axis * Vec3.Dot(feat.Centre - pat.Centre, pat.Axis);
+                var rel = feat.Centre - foot; if (rel.Length < 1e-6) return [];
+                return [new(foot, pat.Axis.Normalized(), _angle, 1, rel.Normalized(), rel.Length)];
+            }
+            if (pat.Kind is FeatureFinder.PatternKind.Line or FeatureFinder.PatternKind.Grid)
+            {
+                var list = new List<HandleSpec> { new(feat.Centre, pat.V1.Normalized(), _spacing) };
+                if (pat.Kind == FeatureFinder.PatternKind.Grid) list.Add(new(feat.Centre, pat.V2.Normalized(), _spacing2));
+                return list;
+            }
+            return [];
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     public override string Hint => "Click any feature that belongs to a pattern. For a line or grid, set the spacing and the number of instances along each direction; for a circle, the angular step and the count. “Remove instance” deletes one instance by its number (counted from the first in the pattern, the clicked feature included). The clicked feature stays where it is. Leave a field at 0 to keep its current value.";
 
     (SceneObject body, Feat feat, FeatureFinder.PatternInfo pat)? Picked()

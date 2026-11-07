@@ -13,6 +13,7 @@ using Prism.Core.Drawing;
 using Prism.Core.Form;
 using Prism.Core.Sketching;
 using Prism.Kernel;
+using Prism.Rendering;
 using Prism.ViewModels;
 
 namespace Prism.Automation;
@@ -87,17 +88,43 @@ public sealed partial class AutomationApi
     }
 
     // ================================================================= protocol
-    public JsonArray Describe()
+
+    /// <summary>Tools that read/write files outright — never offered to the in-app assistant when "open, save and export files" is off.</summary>
+    static readonly HashSet<string> RestrictedTools = new(StringComparer.OrdinalIgnoreCase) { "file", "mesh_export", "mesh_import", "drawing_export" };
+    /// <summary>Otherwise-safe tools whose individual actions write files or run code.</summary>
+    static readonly Dictionary<string, string[]> RestrictedActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["script_editor"] = ["run", "save"],
+        ["render_control"] = ["save"],
+        ["render_setup"] = ["set_background"],
+    };
+    public const string RestrictedMessage = "File access is off for the assistant (\"Let the assistant open, save and export files\" is unchecked): saving, exporting, importing, opening files and running scripts are unavailable.";
+
+    /// <summary>True when this call would touch the file system or run code — used for the restricted assistant endpoint and the in-app assistant when file access is off.</summary>
+    public static bool Restricted(string name, JsonObject? args)
+    {
+        if (RestrictedTools.Contains(name)) return true;
+        if (RestrictedActions.TryGetValue(name, out var acts) && acts.Contains(args?["action"]?.ToString() ?? "", StringComparer.OrdinalIgnoreCase)) return true;
+        if (name.Equals("batch", StringComparison.OrdinalIgnoreCase) && args?["calls"] is JsonArray calls)
+            return calls.Any(c => c is JsonObject co && co["tool"] != null && Restricted(co["tool"]!.ToString(), co["args"] as JsonObject));
+        return false;
+    }
+
+    public JsonArray Describe(bool restricted = false)
     {
         var arr = new JsonArray();
         foreach (var t in _tools.Values)
+        {
+            if (restricted && RestrictedTools.Contains(t.Name)) continue;
             arr.Add(new JsonObject { ["name"] = t.Name, ["description"] = t.Description, ["inputSchema"] = t.Schema.DeepClone() });
+        }
         return arr;
     }
 
-    public Task<JsonNode?> CallAsync(string name, JsonObject args) =>
+    public Task<JsonNode?> CallAsync(string name, JsonObject args, bool restricted = false) =>
         Dispatcher.UIThread.InvokeAsync(async () =>
         {
+            if (restricted && Restricted(name, args)) throw new InvalidOperationException(RestrictedMessage);
             if (!_tools.TryGetValue(name, out var t))
             {
                 var close = _tools.Keys.Where(k => k.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(k, StringComparison.OrdinalIgnoreCase)).Take(5).ToList();
@@ -120,6 +147,41 @@ public sealed partial class AutomationApi
     {
         var props = schema["properties"] as JsonObject; if (props == null || props.Count == 0) return "(none)";
         return string.Join("; ", props.Select(p => $"{p.Key} ({p.Value?["type"]?.ToString() ?? "any"}) {p.Value?["description"]}"));
+    }
+
+    // ================================================================= settings whitelist
+
+    /// <summary>One safe-to-expose preference. Secrets (API keys, the automation token, recent files) are deliberately absent.</summary>
+    sealed record SettingDef(string Key, string Label, string Page, string Type, string[]? Choices, JsonNode? Default, Func<JsonNode?> Get, Action<JsonNode?> Set);
+
+    List<SettingDef> SettingsDefs()
+    {
+        var s = AppSettings.Current; var st = _vm;
+        static JsonNode Need(JsonNode? v) => v ?? throw new ArgumentException("value is required.");
+        static bool B(JsonNode? v) => v is JsonValue jv && jv.TryGetValue<bool>(out var b) ? b : bool.Parse(Need(v).ToString());
+        static int I(JsonNode? v) => int.TryParse(Need(v).ToString(), out var i) ? i : throw new ArgumentException("value must be a whole number.");
+        static string T(JsonNode? v) => Need(v).ToString();
+        static string Pick(JsonNode? v, string[] choices) => choices.FirstOrDefault(c => c.Equals(T(v), StringComparison.OrdinalIgnoreCase)) ?? throw new ArgumentException($"value must be one of: {string.Join(", ", choices)}.");
+        return
+        [
+            new("theme", "Theme", "appearance", "choice", ["Dark", "Light", "System"], "Dark", () => s.Theme, v => { s.Theme = Pick(v, ["Dark", "Light", "System"]); AppSettings.Save(); }),
+            new("accent_color", "Interface accent color", "appearance", "choice", ["Blue", "Teal", "Purple", "Orange", "Rose"], "Blue", () => s.AccentColor, v => { s.AccentColor = Pick(v, ["Blue", "Teal", "Purple", "Orange", "Rose"]); AppSettings.Save(); }),
+            new("grid_style", "3D grid style", "appearance", "choice", ["classic", "fine", "none"], "classic", () => s.GridStyle, v => { s.GridStyle = Pick(v, ["classic", "fine", "none"]); AppSettings.Save(); }),
+            new("show_grid_on_start", "Show the grid when Prism starts", "appearance", "bool", null, true, () => s.ShowGridOnStart, v => { s.ShowGridOnStart = B(v); AppSettings.Save(); }),
+            new("help_context_location", "Help context location", "interaction", "choice", ["viewport", "status_bar"], "viewport", () => s.HelpContextLocation, v => { s.HelpContextLocation = Pick(v, ["viewport", "status_bar"]); AppSettings.Save(); }),
+            new("reverse_scroll_zoom", "Reverse scroll-wheel zoom", "interaction", "bool", null, false, () => s.ReverseScrollZoom, v => { s.ReverseScrollZoom = B(v); AppSettings.Save(); }),
+            new("marking_menu", "Right-click marking menu", "interaction", "bool", null, true, () => s.MarkingMenu, v => { s.MarkingMenu = B(v); AppSettings.Save(); }),
+            new("marking_hold_ms", "Hold time for the right-click menu (ms)", "interaction", "int", null, 260, () => s.MarkingHoldMs, v => { s.MarkingHoldMs = Math.Clamp(I(v), 60, 2000); AppSettings.Save(); }),
+            new("workspace_path", "Workspace folder", "workspace", "path", null, null, () => s.WorkspacePath, v => { s.WorkspacePath = v?.ToString() is { Length: > 0 } p ? p : null; AppSettings.Save(); }),
+            new("show_home_on_start", "Home screen at startup", "workspace", "bool", null, true, () => s.ShowHomeOnStart, v => { s.ShowHomeOnStart = B(v); AppSettings.Save(); }),
+            new("auto_recovery", "Autosave and recovery copies", "workspace", "bool", null, false, () => s.AutoRecoveryEnabled, v => { s.AutoRecoveryEnabled = B(v); AppSettings.Save(); }),
+            new("auto_recovery_minutes", "Recovery copy interval (minutes)", "workspace", "int", null, 5, () => s.AutoRecoveryIntervalMinutes, v => { s.AutoRecoveryIntervalMinutes = I(v); AppSettings.Save(); }),
+            new("quick_bar", "Quick bar over the 3D view", "toolbars", "bool", null, true, () => s.ShowQuickBar, v => { s.ShowQuickBar = B(v); AppSettings.Save(); }),
+            new("assistant_provider", "AI provider", "assistant", "choice", ["codex", "anthropic", "openai"], "codex", () => ((AiProvider)(st.AssistantProviderIndex + 1)) switch { AiProvider.CodexCli => "codex", AiProvider.Anthropic => "anthropic", _ => "openai" }, v => st.AssistantProviderIndex = Pick(v, ["codex", "anthropic", "openai"]) switch { "codex" => 0, "anthropic" => 1, _ => 2 }),
+            new("assistant_model", "AI model id (pick from the model list or list)", "assistant", "string", null, "", () => AssistantService.ModelIdOf(st.AssistantModel), v => st.AssistantModel = AssistantService.ModelIdOf(T(v))),
+            new("assistant_effort", "AI reasoning effort (empty = the model default)", "assistant", "string", null, "", () => st.CurrentEffort, v => { if (!st.SetAssistantEffort(T(v))) throw new ArgumentException($"Effort '{T(v)}' is not offered by the current model."); }),
+            new("assistant_allow_files", "Let the assistant open, save and export files", "assistant", "bool", null, false, () => st.AssistantAllowFiles, v => st.AssistantAllowFiles = B(v)),
+        ];
     }
 
     // ================================================================= schema helpers
@@ -149,7 +211,9 @@ public sealed partial class AutomationApi
     {
         if (a[k] is not JsonNode n) return def;
         if (n is JsonValue v && v.TryGetValue<string>(out var str)) return double.TryParse(str, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : throw new ArgumentException($"'{k}' must be a number, not '{str}'.");
-        return n.GetValue<double>();
+        if (n is JsonValue num && num.TryGetValue<double>(out var val)) return val;
+        return double.TryParse(n.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed : throw new ArgumentException($"'{k}' must be a number.");
     }
     static bool Bool(JsonObject a, string k, bool def)
     {
@@ -884,7 +948,7 @@ public sealed partial class AutomationApi
                     if (a["surface"] is { } surface)
                     {
                         var style=(System.Text.Json.JsonSerializer.Deserialize<SurfaceStyle>(surface.ToJsonString())??new()).Validated() with {Override=true};
-                        foreach(var data in new[]{style.ColorMap,style.RoughnessMap,style.BumpMap}) if(data!=null)_=Rendering.SurfaceImage.Decode(data);
+                        foreach(var data in new[]{style.ColorMap,style.RoughnessMap,style.BumpMap,style.DecalMap}) if(data!=null)_=Rendering.SurfaceImage.Decode(data,data==style.DecalMap);
                         x=x.WithLook(x.Look with {Surface=style});
                     }
                     if (a["color"] != null)
@@ -915,6 +979,87 @@ public sealed partial class AutomationApi
                     default: throw new ArgumentException("action must be status, stop, save or close.");
                 }
                 return RenderJson();
+            });
+        Add("render_setup", "The picture-wide render choices stored on the document. action: state (current setup) | set (env, background, exposure, fit, offsets) | set_background (import a PNG/JPEG file as the backdrop image; produces it first with run_script if asked to generate one).",
+            Schema(["action"], ("action", "string", "state | set | set_background"), ("env", "string", "studio | sky | dark_studio | lights_only | hdr"), ("background", "string", "environment | white | transparent | green | black | gradient | image"),
+                ("exposure", "number", "0.1-10."), ("fit", "string", "fill | fit | stretch (background image only)."), ("offset_x", "number", "-1..1"), ("offset_y", "number", "-1..1"),
+                ("path", "string", "Full path of the image file for set_background (≤16 MB; the generated folder " + Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "generated") + " is the right place for AI-made backdrops).")), a =>
+            {
+                JsonObject SetupJson()
+                {
+                    var st = S.RenderSetup;
+                    return new JsonObject
+                    {
+                        ["env"] = st.Env.ToString().ToLowerInvariant().Replace("darkstudio", "dark_studio").Replace("lightsonly", "lights_only"), ["background"] = st.Background.ToString().ToLowerInvariant(),
+                        ["ground"] = st.Ground, ["exposure"] = st.Exposure, ["has_background_image"] = st.BackgroundImage != null, ["image_fit"] = st.ImageFit.ToString().ToLowerInvariant(),
+                        ["image_offset_x"] = st.ImageOffsetX, ["image_offset_y"] = st.ImageOffsetY,
+                    };
+                }
+                switch (Str(a, "action").ToLowerInvariant())
+                {
+                    case "state": return SetupJson();
+                    case "set":
+                    {
+                        var st = S.RenderSetup;
+                        if (a["env"] != null) st.Env = Str(a, "env").ToLowerInvariant() switch { "studio" => RenderEnv.Studio, "sky" => RenderEnv.Sky, "dark_studio" => RenderEnv.DarkStudio, "lights_only" => RenderEnv.LightsOnly, "hdr" => RenderEnv.Hdr, var u => throw new ArgumentException($"Unknown env '{u}'.") };
+                        if (a["background"] != null) st.Background = Str(a, "background").ToLowerInvariant() switch { "environment" => RenderBg.Environment, "white" => RenderBg.White, "transparent" => RenderBg.Transparent, "green" => RenderBg.Green, "black" => RenderBg.Black, "gradient" => RenderBg.Gradient, "image" => RenderBg.Image, var u => throw new ArgumentException($"Unknown background '{u}'.") };
+                        if (a["exposure"] != null) st.Exposure = Math.Clamp(Dbl(a, "exposure", st.Exposure), .1, 10);
+                        if (a["fit"] != null) st.ImageFit = Str(a, "fit").ToLowerInvariant() switch { "fill" => BackgroundFit.Fill, "fit" => BackgroundFit.Fit, "stretch" => BackgroundFit.Stretch, var u => throw new ArgumentException($"Unknown fit '{u}'.") };
+                        if (a["offset_x"] != null) st.ImageOffsetX = Math.Clamp(Dbl(a, "offset_x", st.ImageOffsetX), -1, 1);
+                        if (a["offset_y"] != null) st.ImageOffsetY = Math.Clamp(Dbl(a, "offset_y", st.ImageOffsetY), -1, 1);
+                        if (st.Background == RenderBg.Image && st.BackgroundImage == null) throw new ArgumentException("Background 'image' needs an image first: set_background with a path.");
+                        S.RenderSetup = st; S.Dirty = true; S.RaiseState();
+                        return SetupJson();
+                    }
+                    case "set_background":
+                    {
+                        var st = S.RenderSetup;
+                        st.BackgroundImage = Rendering.SurfaceImage.Import(Str(a, "path"));   // validates size and decodes
+                        st.Background = RenderBg.Image;
+                        S.RenderSetup = st; S.Dirty = true; S.RaiseState();
+                        return SetupJson();
+                    }
+                    default: throw new ArgumentException("action must be state, set or set_background.");
+                }
+            });
+        Add("script_editor", "The built-in script editor (one Python file). action: open | state | get | set (replace ALL of the script; keeps a rollback point) | insert (text before 'line', default: at the end) | rollback (restore the previous version; repeat to step back) | run | save.",
+            Schema(["action"], ("action", "string", "open | state | get | set | insert | rollback | run | save"), ("text", "string", "Source code for set/insert."), ("line", "integer", "Insert before this 1-based line; default appends."), ("path", "string", "Save path for save.")), async a =>
+            {
+                var s = _vm.Script;
+                JsonObject ScriptJson() => new()
+                {
+                    ["open"] = _vm.ShowScriptPanel, ["name"] = s.DisplayName, ["path"] = s.Path, ["language"] = s.Language.Id,
+                    ["lines"] = s.Text.Length == 0 ? 0 : s.Text.Split('\n').Length, ["dirty"] = s.Dirty, ["running"] = s.Running, ["snapshots"] = s.AiSnapshotCount,
+                };
+                switch (Str(a, "action").ToLowerInvariant())
+                {
+                    case "open": _vm.ShowScriptPanel = true; if (s.Path == null && s.Text.Length == 0) s.New(); return ScriptJson();
+                    case "state": return ScriptJson();
+                    case "get": return new JsonObject { ["text"] = s.Text };
+                    case "set": _vm.ShowScriptPanel = true; if (s.Path == null && s.Text.Length == 0) s.New(); s.SetAiText(Str(a, "text")); return ScriptJson();
+                    case "insert": _vm.ShowScriptPanel = true; if (s.Path == null && s.Text.Length == 0) s.New(); s.InsertAiText(a["line"] is { } ln ? (int?)ln.GetValue<int>() : null, Str(a, "text")); return ScriptJson();
+                    case "rollback": return new JsonObject { ["restored"] = s.RollbackAi(), ["snapshots"] = s.AiSnapshotCount };
+                    case "run": return new JsonObject { ["exit_code"] = await s.RunAsync() };
+                    case "save": s.Save(a["path"]?.ToString()); return ScriptJson();
+                    default: throw new ArgumentException("action must be open, state, get, set, insert, rollback, run or save.");
+                }
+            });
+        Add("settings", "Application and assistant settings. action: list | get | set | reset | open (open the Settings window at 'page'). 'key' comes from list, 'value' for set. API keys and the automation token are never exposed.",
+            Schema(["action"], ("action", "string", "list | get | set | reset | open"), ("key", "string", "Setting key from list."), ("value", "any", "New value."), ("page", "string", "Settings page for open: appearance | interaction | workspace | toolbars | ribbon | assistant | keyboard")), a =>
+            {
+                var act = Str(a, "action").ToLowerInvariant();
+                if (act == "open") { _vm.RequestSettings?.Invoke(Str(a, "page", "appearance").ToLowerInvariant()); return new JsonObject { ["opened"] = true }; }
+                var defs = SettingsDefs();
+                JsonObject Describe(SettingDef d) => new() { ["key"] = d.Key, ["label"] = d.Label, ["page"] = d.Page, ["type"] = d.Type, ["value"] = d.Get(), ["choices"] = d.Choices is { } c ? new JsonArray(c.Select(x => (JsonNode)x).ToArray()) : null };
+                SettingDef Find() => defs.FirstOrDefault(d => d.Key.Equals(Str(a, "key"), StringComparison.OrdinalIgnoreCase)) ?? throw new ArgumentException($"Unknown setting key. Call settings action=list for the keys.");
+                switch (act)
+                {
+                    case "list": return new JsonObject { ["settings"] = new JsonArray(defs.Select(d => (JsonNode)Describe(d)).ToArray()) };
+                    case "get": { var d = Find(); return new JsonObject { ["key"] = d.Key, ["value"] = d.Get(), ["choices"] = d.Choices is { } c ? new JsonArray(c.Select(x => (JsonNode)x).ToArray()) : null }; }
+                    case "set": { var d = Find(); d.Set(a["value"]); return new JsonObject { ["key"] = d.Key, ["value"] = d.Get() }; }
+                    case "reset": { var d = Find(); d.Set(d.Default); return new JsonObject { ["key"] = d.Key, ["value"] = d.Get() }; }
+                    default: throw new ArgumentException("action must be list, get, set, reset or open.");
+                }
             });
         Add("materials_panel", "Open (open=true) or close the Materials workspace tab. Optionally select a library material in it.",
             Schema(null, ("open", "boolean", "Default true."), ("material", "string", "Material id to highlight in the list.")), a =>
@@ -1026,7 +1171,7 @@ public sealed partial class AutomationApi
                 S.RefreshRegion();
                 return new JsonObject { ["selectedTriangles"] = sel.Tris.Count, ["area"] = Math.Round(sel.Area(), 3), ["of"] = m.TriCount };
             });
-        Add("assistant", "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI API key).",
+        Add("assistant", "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI/Codex API key).",
             Schema(["action"], ("action", "string", "open | close | send | transcript | new | provider"), ("text", "string", "Message for send."), ("index", "integer", "Provider index.")), async a =>
             {
                 switch (Str(a, "action"))
@@ -1431,6 +1576,41 @@ public sealed partial class AutomationApi
                     r["handle"] = new JsonObject { ["origin"] = new JsonArray(h.Origin.X, h.Origin.Y, h.Origin.Z), ["tip"] = new JsonArray(Math.Round(tip.X, 3), Math.Round(tip.Y, 3), Math.Round(tip.Z, 3)), ["value"] = h.Param.Value };
                 }
                 return r;
+            });
+
+        Add("datum", "Model datums and the move gizmo. action: arm (kind: point|axis|plane — the persistent click-to-place tool; click with the pointer tool), finish (stop placing), gizmo (show the free gizmo; move:true = the Move tool's grab mode), bind (bind the current selection to the gizmo), list (placed datums).",
+            Schema(null, ("action", "string", "arm | finish | gizmo | bind | list."), ("kind", "string", "point | axis | plane."), ("move", "boolean", "Arm Move mode on the gizmo.")), a =>
+            {
+                switch ((a["action"]?.GetValue<string>() ?? "list").ToLowerInvariant())
+                {
+                    case "arm":
+                        var kind = (a["kind"]?.GetValue<string>() ?? "point").ToLowerInvariant() switch
+                        { "axis" => SketchDatumKind.Axis, "plane" => SketchDatumKind.Plane, _ => SketchDatumKind.Point };
+                        S.SetFreeTool(new DatumPickTool(kind));
+                        break;
+                    case "finish": S.SetFreeTool(null); break;
+                    case "gizmo":
+                        S.ShowDatumGizmo(S.ViewportCursor ?? Vec3.Zero);
+                        if (Bool(a, "move", false)) S.Datum!.MoveMode = true;
+                        break;
+                    case "bind":
+                        if (S.Datum == null) S.ShowDatumGizmo(S.ViewportCursor ?? Vec3.Zero);
+                        S.Datum!.MoveMode = true;
+                        var sel = S.Selection.Where(i => i.Kind is SelKind.Object or SelKind.Datum).ToList();
+                        if (sel.Count > 0) S.Datum.BindTargets(S, sel);
+                        break;
+                    case "list":
+                        var arr = new JsonArray();
+                        foreach (var o in S.Objects.Where(o => o.SketchData != null))
+                            for (int i = 0; i < o.SketchData!.Datums.Count; i++)
+                            {
+                                var d = o.SketchData.Datums[i];
+                                arr.Add(new JsonObject { ["object"] = o.Name, ["index"] = i, ["name"] = d.Name, ["kind"] = d.Kind.ToString(), ["origin"] = Arr(d.Frame.Origin) });
+                            }
+                        return new JsonObject { ["datums"] = arr };
+                    default: throw new InvalidOperationException("action must be arm | finish | gizmo | bind | list.");
+                }
+                return new JsonObject { ["status"] = S.Status, ["tool"] = S.FreeTool?.GetType().Name, ["gizmo"] = S.DatumVisible };
             });
 
         Add("sketch_delete", "Delete sketch entities ('e3') or constraints (by id).",
@@ -1938,7 +2118,7 @@ public sealed partial class AutomationApi
                 var vm = _vm;
                 switch (Str(a, "action"))
                 {
-                    case "settings": vm.RequestSettings?.Invoke(); return new JsonObject { ["opened"] = true };
+                    case "settings": vm.RequestSettings?.Invoke(null); return new JsonObject { ["opened"] = true };
                     case "menu":
                     {
                         JsonNode Spec(Prism.ViewModels.MenuSpec m) => m.IsSeparator ? "-" : m.Sub != null ? new JsonObject { [m.Label] = new JsonArray(m.Sub.Select(Spec).ToArray()) } : m.Label + (m.Enabled ? "" : " (off)");

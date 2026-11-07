@@ -18,6 +18,17 @@ public sealed class MaterialRow
     public string Summary { get; init; } = "";
 }
 
+/// <summary>One family chip above the material list: pick a family (Steel …) to see just its grades.</summary>
+public sealed partial class MaterialFamilyRow : ObservableObject
+{
+    public required int Index { get; init; }              // index into MaterialCategories (0 = All)
+    public required string Name { get; init; }
+    public required int Count { get; init; }
+    public required uint Color { get; init; }
+    [ObservableProperty] public partial bool IsActive { get; set; }
+    public string Tip => Index == 0 ? "Every material in the library" : $"All {Count} {Name.ToLowerInvariant()} grades and types";
+}
+
 /// <summary>A property in the detail card; Bar (0..1) is its size relative to the whole library.</summary>
 public sealed class MatPropLine
 {
@@ -53,6 +64,7 @@ public sealed partial class MainViewModel
     public ObservableCollection<MaterialRow> MaterialList { get; } = [];
     public ObservableCollection<MatPropLine> MaterialProps { get; } = [];
     public ObservableCollection<CompareRow> CompareRows { get; } = [];
+    public ObservableCollection<MaterialFamilyRow> MaterialFamilies { get; } = [];
     public IReadOnlyList<string> MaterialCategories { get; } = ["All", .. Materials.Categories];
     public IReadOnlyList<string> MaterialSorts => SortNames;
     readonly List<Material> _compare = [];
@@ -100,11 +112,28 @@ public sealed partial class MainViewModel
 
     void HookMaterials()
     {
+        MaterialFamilies.Clear();
+        MaterialFamilies.Add(new MaterialFamilyRow { Index = 0, Name = "All", Count = Materials.All.Count, Color = 0xFF8A9099, IsActive = true });
+        for (int i = 1; i < MaterialCategories.Count; i++)
+        {
+            var cat = MaterialCategories[i];
+            MaterialFamilies.Add(new MaterialFamilyRow { Index = i, Name = cat, Count = Materials.All.Count(m => m.Category == cat), Color = Materials.All.First(m => m.Category == cat).Color });
+        }
         RefreshMaterialList();
     }
 
+    /// <summary>Pick a family chip (0 = All): the list below shows just that family's grades/types.</summary>
+    public void SelectFamily(int index)
+    {
+        if (index >= 0 && index < MaterialCategories.Count) MaterialCategoryIndex = index;
+    }
+
     partial void OnMaterialSearchChanged(string value) => RefreshMaterialList();
-    partial void OnMaterialCategoryIndexChanged(int value) => RefreshMaterialList();
+    partial void OnMaterialCategoryIndexChanged(int value)
+    {
+        foreach (var f in MaterialFamilies) f.IsActive = f.Index == value;
+        RefreshMaterialList();
+    }
     partial void OnMaterialSortIndexChanged(int value) => RefreshMaterialList();
     partial void OnSelectedMaterialRowChanged(MaterialRow? value) { ShowMaterial(value?.Material); RefreshRibbon(); }
     partial void OnLookMetalChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }

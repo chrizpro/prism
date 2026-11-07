@@ -11,6 +11,7 @@ namespace Prism.Core;
 public sealed class SelectTool(bool selectionOnly = false) : SketchTool
 {
     enum Drag { None, Point, Entity, Radius }
+    enum Method { Box, Lasso, Paint }
     Drag _drag; bool _down, _started;
     int _dragPoint = -1, _dragEnt = -1;
     double _px0, _py0, _u0, _v0;
@@ -18,18 +19,19 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     SketchModel? _snapshot;
     bool _geometryTranslation;
     Prism.Kernel.Plane3 _dragPlane;
-    bool _lasso = Recall("Select") == 1;
+    Method _method = (Method)Math.Clamp(Recall("Select"), 0, 2);
     bool _region; double _rx0, _ry0, _rx1, _ry1; readonly List<(double x, double y)> _path = [];
-    static readonly ToolOption[] SelOpts = [new("Box", "Drag a box: left to right selects what is fully inside, right to left selects whatever it touches", "rect"), new("Lasso", "Draw around what you want to select (anything the loop touches)", "spline")];
+    static readonly ToolOption[] SelOpts = [new("Box", "Drag a box: left to right selects what is fully inside, right to left selects whatever it touches", "rect"), new("Lasso", "Draw around what you want to select (anything the loop touches)", "spline"), new("Paint", "Drag a stroke across the sketch: whatever it crosses is picked", "sel-paint")];
     public override IReadOnlyList<ToolOption> Options => SelOpts;
-    public override int OptionIndex => _lasso ? 1 : 0;
-    protected override void ApplyOption(int index) => _lasso = index == 1;
-    /// <summary>Box or lasso selection, set by a tool that wraps this one (Edit Geometry).</summary>
-    public void UseLasso(bool lasso) => _lasso = lasso;
+    public override int OptionIndex => (int)_method;
+    protected override void ApplyOption(int index) => _method = (Method)Math.Clamp(index, 0, 2);
+    /// <summary>The region method (box / lasso / paint), set by a tool that wraps this one (Edit Geometry).</summary>
+    public void UseMethod(int method) => ApplyOption(method);
 
     bool InRegion(double x, double y, bool window)
     {
-        if (!_lasso) return x >= Math.Min(_rx0, _rx1) && x <= Math.Max(_rx0, _rx1) && y >= Math.Min(_ry0, _ry1) && y <= Math.Max(_ry0, _ry1);
+        if (_method == Method.Paint) return _path.Skip(1).Select((q, i) => Picking.SegDist(x, y, _path[i].x, _path[i].y, q.x, q.y).dist).DefaultIfEmpty(double.MaxValue).Min() < 6;
+        if (_method == Method.Box) return x >= Math.Min(_rx0, _rx1) && x <= Math.Max(_rx0, _rx1) && y >= Math.Min(_ry0, _ry1) && y <= Math.Max(_ry0, _ry1);
         bool c = false;
         for (int i = 0, j = _path.Count - 1; i < _path.Count; j = i++)
             if ((_path[i].y > y) != (_path[j].y > y) && x < (_path[j].x - _path[i].x) * (y - _path[i].y) / (_path[j].y - _path[i].y) + _path[i].x) c = !c;
@@ -40,6 +42,13 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     {
         var cam = s.Camera;
         var px = pts.Select(q => cam.Project(q)).ToList(); if (px.Any(q => q == null)) return false;
+        if (_method == Method.Paint)
+        {
+            var stroke = new RegionSelect.Region { Stroke = true }; stroke.Points.AddRange(_path);
+            (double x, double y) P(int i) => (px[i]!.Value.x, px[i]!.Value.y);
+            for (int i = 0; i + 1 < px.Count; i++) if (stroke.StrokeSeg(P(i), P(i + 1))) return true;
+            return px.Count == 1 && stroke.StrokeSeg(P(0), P(0));
+        }
         bool any = false, all = true;
         for (int i = 0; i + 1 < px.Count; i++)
         {
@@ -58,18 +67,45 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     {
         _region = false;
         var sk = Sk(s);
-        if (Math.Abs(_rx1 - _rx0) + Math.Abs(_ry1 - _ry0) < 4) { s.NotifySketchChanged(); s.Invalidate(); return; }
-        bool window = !_lasso && _rx1 >= _rx0;
+        // A lasso is closed by coming back to where it began, so only the extent of the whole trail says whether it was a click.
+        double trail = _path.Count == 0 ? 0 : _path.Max(q => q.x) - _path.Min(q => q.x) + _path.Max(q => q.y) - _path.Min(q => q.y);
+        if (_method == Method.Box && Math.Abs(_rx1 - _rx0) + Math.Abs(_ry1 - _ry0) < 4 || _method == Method.Lasso && trail < 4 || _method == Method.Paint && _path.Count < 2) { s.NotifySketchChanged(); s.Invalidate(); return; }
+        bool window = _method == Method.Box && _rx1 >= _rx0;
         var cam = s.Camera; int n = 0;
-        foreach (var (e, pts) in sk.Model.Polylines(sk.Plane))
+        if (sk.PickLevel == SketchPick.Point)
         {
-            if(!sk.EntityVisible(e))continue;
-            if (HitsRegion(s, pts, window)) { sk.SelEntities.Add(e.Id); n++; }
+            // Point level: only points, wherever they belong to a curve or stand alone
+            foreach (var pt in sk.Model.Points)
+            {
+                if (!sk.PointVisible(pt.Id)) continue;
+                if (cam.Project(sk.Plane.PointAt(pt.X, pt.Y) + sk.Plane.Normal * pt.Z) is { } q && InRegion(q.x, q.y, window)) { sk.SelPoints.Add(pt.Id); n++; }
+            }
         }
-        foreach (var e in sk.Model.Entities.Where(e => e.Type == EntType.Point))
+        else
         {
-            var q = cam.Project(sk.Plane.PointAt(sk.Model.P(e.A).X, sk.Model.P(e.A).Y));
-            if (q != null && InRegion(q.Value.x, q.Value.y, window)) { sk.SelEntities.Add(e.Id); n++; }
+            var hits = new Dictionary<int, bool>();
+            foreach (var (e, pts) in sk.Model.Polylines(sk.Plane))
+            {
+                if(!sk.EntityVisible(e))continue;
+                hits[e.Id] = HitsRegion(s, pts, window);
+            }
+            foreach (var (id, hit) in hits)
+            {
+                if (!hit) continue;
+                if (sk.PickLevel == SketchPick.Object)
+                {
+                    // whole shapes: a box left to right needs every curve of the shape inside it, any other drag needs only one touched
+                    var shape = ConnectedShape(sk.Model, id);
+                    if (window && !shape.Where(hits.ContainsKey).All(m => hits[m])) continue;
+                    foreach (int m in shape) if (sk.EntityVisible(sk.Model.E(m)) && sk.SelEntities.Add(m)) n++;
+                }
+                else if (sk.SelEntities.Add(id)) n++;
+            }
+            foreach (var e in sk.Model.Entities.Where(e => e.Type == EntType.Point))
+            {
+                var q = cam.Project(sk.Plane.PointAt(sk.Model.P(e.A).X, sk.Model.P(e.A).Y));
+                if (q != null && InRegion(q.Value.x, q.Value.y, window)) { sk.SelEntities.Add(e.Id); n++; }
+            }
         }
         // Everything visible can be selected, including curves drawn on other planes (other views).
         n += sk.SelectOtherPlanesInRegion((model, plane) => model.Polylines(plane).Where(t => !t.ent.Construction || model.ShowConstruction).Where(t => HitsRegion(s, t.pts, window)).Select(t => t.ent.Id).ToList());
@@ -80,7 +116,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         if (!_region) return;
-        if (!_lasso) { o.AddRect(_rx0, _ry0, _rx1, _ry1); return; }
+        if (_method == Method.Box) { o.AddRect(_rx0, _ry0, _rx1, _ry1); return; }
         o.AddScreenPath(_path);      // screen space: stays visible from any view, whatever plane the sketch is on
     }
 
@@ -110,7 +146,7 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         _region=false;_down=false;_started=false;_geometryTranslation=false;_drag=Drag.None;_snapshot=null;
         base.Deactivate(s);
     }
-    public override string Prompt => "Select: click geometry (Shift adds), drag points or curves to move them, Delete removes. Double-click a dimension to change its value. Double-click a curve to select the whole shape it belongs to (a rectangle's four sides). Click a constraint symbol to select it, then Delete removes it. Drag on empty space to box- or lasso-select.";
+    public override string Prompt => "Select: click geometry (Shift adds), drag points or curves to move them, Delete removes. Double-click a dimension to change its value. Double-click a curve to select the whole shape it belongs to (a rectangle's four sides). Click a constraint symbol to select it, then Delete removes it. Drag on empty space to box-, lasso- or paint-select.";
 
     public override bool PointerDown(CadSession s, PointerInfo p)
     {
@@ -125,7 +161,14 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         if (!selectionOnly && editPoint<0 && sk.PickGlyph(s, p.X, p.Y) is { } glyph) { sk.SelectConstraint(s, glyph); return true; }
         sk.SelConstraint = -1;
         int pid = editPoint>=0?editPoint:sk.PickPoint(s, p.X, p.Y);
-        int eid = pid < 0 ? sk.PickEntity(s, p.X, p.Y) : -1;
+        int eid = pid < 0 && sk.PickLevel != SketchPick.Point ? sk.PickEntity(s, p.X, p.Y) : -1;
+        if (pid < 0 && eid < 0 && sk.PickLevel != SketchPick.Point && sk.PickOtherEntity(s, p.X, p.Y) is ( >= 0, >= 0) otherHit)
+        {
+            // the click is on a curve drawn on another plane: switch to it first, so the same click picks and edits it like local geometry
+            sk.SelectPlane(s, otherHit.section);
+            pid = sk.PickPoint(s, p.X, p.Y);
+            eid = pid < 0 ? sk.PickEntity(s, p.X, p.Y) : -1;
+        }
         if (!selectionOnly && p.Clicks >= 2 && eid >= 0 && sk.Model.E(eid).Type == EntType.Spline)
         {
             sk.SelEntities.Clear(); sk.SelPoints.Clear(); sk.SelEntities.Add(eid);
@@ -154,7 +197,13 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
         }
         else if (eid >= 0)
         {
-            if (!keepSelection && (!sk.SelEntities.Remove(eid) || !p.Shift)) sk.SelEntities.Add(eid);
+            if (!keepSelection)
+            {
+                // Object level takes the whole shape the curve belongs to; Edge level just the curve. Shift on a selected one takes it back out.
+                var shape = sk.PickLevel == SketchPick.Object ? ConnectedShape(sk.Model, eid) : [eid];
+                bool taking = p.Shift && sk.SelEntities.Contains(eid);
+                foreach (int id in shape) { if (taking) sk.SelEntities.Remove(id); else sk.SelEntities.Add(id); }
+            }
             var e = sk.Model.E(eid);
             if (!selectionOnly && uv is { } && e.Type != EntType.Point)
             {
@@ -215,8 +264,10 @@ public sealed class SelectTool(bool selectionOnly = false) : SketchTool
             s.Invalidate();
             return;
         }
-        // hover feedback
+        // hover feedback — active plane first, then curves drawn on the other planes so they read as clickable too
         int hp = sk.PickPoint(s, p.X, p.Y), he = hp < 0 ? sk.PickEntity(s, p.X, p.Y) : -1;
+        var otherHover = hp < 0 && he < 0 ? sk.PickOtherEntity(s, p.X, p.Y) : (-1, -1);
+        if (otherHover != (sk.HoverOtherSection, sk.HoverOtherEntity)) { (sk.HoverOtherSection, sk.HoverOtherEntity) = otherHover; s.Invalidate(); }
         if (hp != sk.HoverPoint || he != sk.HoverEntity) { sk.HoverPoint = hp; sk.HoverEntity = he; s.Invalidate(); }
         sk.Cursor = null;
         if (sk.PlanePoint(s, p.X, p.Y) is { } w) s.Cursor3 = sk.Plane.PointAt(w.u, w.v);

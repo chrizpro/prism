@@ -47,6 +47,8 @@ public sealed record SurfaceStyle
     public string? ColorMap { get; init; }
     public string? RoughnessMap { get; init; }
     public string? BumpMap { get; init; }
+    /// <summary>Base64 image drawn on top of the colour with its own alpha, planar-projected by the texture placement (outside the image the surface shows through when Repeat is off).</summary>
+    public string? DecalMap { get; init; }
     public bool Override { get; init; }
 
     public SurfaceStyle Validated() => this with

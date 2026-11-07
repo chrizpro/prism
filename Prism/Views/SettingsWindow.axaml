@@ -8,6 +8,8 @@
         <Border Background="{DynamicResource TabBarBg}" Padding="10,16">
             <StackPanel Spacing="4">
                 <TextBlock Text="Settings" FontSize="17" FontWeight="SemiBold" Margin="8,0,0,12"/>
+                <TextBox Name="Search" Watermark="Search settings" FontSize="12" Margin="0,0,0,6" TextChanged="OnSearch" KeyDown="OnSearchKey"/>
+                <ListBox Name="SearchResults" Background="Transparent" IsVisible="False" MaxHeight="300" SelectionChanged="OnSearchPick"/>
                 <ListBox Name="Nav" Background="Transparent" SelectedIndex="0" SelectionChanged="OnNav">
                     <ListBoxItem Content="Appearance"/>
                     <ListBoxItem Content="Interaction"/>
@@ -64,6 +66,12 @@
                         <Slider Name="HoldMs" Minimum="100" Maximum="600" TickFrequency="20" IsSnapToTickEnabled="True" Width="320" HorizontalAlignment="Left" ValueChanged="OnHold"/>
                         <TextBlock Text="How long to keep the button still before the ring opens. Shorter feels snappier; longer avoids it popping up when you only meant to orbit." Classes="faint" TextWrapping="Wrap"/>
                     </StackPanel>
+                    <TextBlock Text="Reference plane size" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                    <StackPanel Spacing="4">
+                        <TextBlock Name="PlaneScaleLabel" Text="Plane size: 100 %"/>
+                        <Slider Name="PlaneScale" Minimum="25" Maximum="200" TickFrequency="5" IsSnapToTickEnabled="True" Width="320" HorizontalAlignment="Left" ValueChanged="OnPlaneScale"/>
+                        <TextBlock Text="How big the origin and construction planes draw in the 3D view — including the ones Create Sketch and other picks reveal. Smaller keeps a crowded scene clear; bigger is easier to click." Classes="faint" TextWrapping="Wrap"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
 
@@ -104,15 +112,32 @@
                 <StackPanel Margin="28,24" Spacing="14" MaxWidth="640" HorizontalAlignment="Left">
                     <TextBlock Text="AI Assistant" FontSize="20" FontWeight="SemiBold"/>
                     <TextBlock Text="Provider" FontWeight="SemiBold"/>
-                    <ComboBox SelectedIndex="{Binding AssistantProviderIndex}" Width="250" HorizontalAlignment="Left">
-                        <ComboBoxItem Content="Codex (your login)"/><ComboBoxItem Content="Claude (API key)"/><ComboBoxItem Content="OpenAI (API key)"/>
+                    <ComboBox Name="AiProvider" SelectedIndex="{Binding AssistantProviderIndex}" Width="250" HorizontalAlignment="Left">
+                        <ComboBoxItem Content="Codex (your login)"/><ComboBoxItem Content="Claude (API key)"/><ComboBoxItem Content="OpenAI/Codex (API key)"/>
                     </ComboBox>
                     <TextBlock Text="{Binding AssistantProviderHint}" Classes="soft" TextWrapping="Wrap"/>
                     <TextBlock Text="Model" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding AssistantModel}" Watermark="Model (blank = the tool default)" Width="320" HorizontalAlignment="Left"/>
-                    <TextBox Text="{Binding AssistantKey}" Watermark="API key" PasswordChar="•" Width="320" HorizontalAlignment="Left" IsVisible="{Binding AssistantNeedsKey}"/>
-                    <CheckBox Content="Remember the key on this computer (in your user profile)" IsChecked="{Binding AssistantRemember}" IsVisible="{Binding AssistantNeedsKey}"/>
-                    <CheckBox Content="Let the assistant open, save and export files" IsChecked="{Binding AssistantAllowFiles}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ComboBox Name="AiModel" ItemsSource="{Binding AssistantModels}" SelectedItem="{Binding AssistantModel}" Width="320" MaxDropDownHeight="300"/>
+                        <Button Name="AiModelsRefresh" Classes="tool" Content="↻" Click="OnAiRefresh" ToolTip.Tip="Refresh the model list" Padding="7,4" IsEnabled="{Binding !AssistantModelsBusy}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding AssistantModelsStatus}" Classes="faint" TextWrapping="Wrap"/>
+                    <TextBlock Text="Effort" FontWeight="SemiBold" IsVisible="{Binding AssistantHasEfforts}"/>
+                    <ComboBox Name="AiEffort" ItemsSource="{Binding AssistantEffortChoices}" SelectedIndex="{Binding AssistantEffortIndex}" Width="250" HorizontalAlignment="Left" IsVisible="{Binding AssistantHasEfforts}"/>
+                    <TextBox Name="AiKey" Text="{Binding AssistantKey}" Watermark="API key" PasswordChar="•" Width="320" HorizontalAlignment="Left" IsVisible="{Binding AssistantNeedsKey}"/>
+                    <CheckBox Name="AiRemember" Content="Remember the key on this computer (in your user profile)" IsChecked="{Binding AssistantRemember}" IsVisible="{Binding AssistantNeedsKey}"/>
+                    <CheckBox Name="AiFiles" Content="Let the assistant open, save and export files" IsChecked="{Binding AssistantAllowFiles}"/>
+                    <Separator Margin="0,6"/>
+                    <TextBlock Text="MCP — use Prism from an external agent" FontWeight="SemiBold"/>
+                    <TextBlock Text="Prism runs a local automation server while it is open. Point your agent's client at the Prism.Mcp bridge: Set up writes it into the client's config file for you (the old file is kept as .bak), or Copy the block and paste it yourself. The client can then drive modeling, inspection, screenshots, settings and the script editor." Classes="soft" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Set up Claude Desktop" Tag="claude" Click="OnInstallMcp"/>
+                        <Button Content="Set up Codex" Tag="codex" Click="OnInstallMcp"/>
+                        <Button Content="Copy for Claude" Tag="claude" Click="OnCopyMcp"/>
+                        <Button Content="Copy for Codex" Tag="codex" Click="OnCopyMcp"/>
+                    </StackPanel>
+                    <TextBlock Name="McpNote" Classes="faint" TextWrapping="Wrap"/>
+                    <TextBox Name="McpConfig" IsReadOnly="True" TextWrapping="Wrap" FontSize="12" MaxHeight="150"/>
                 </StackPanel>
             </ScrollViewer>
 

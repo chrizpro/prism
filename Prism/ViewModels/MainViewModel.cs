@@ -98,7 +98,7 @@ public sealed partial class MainViewModel : ViewModelBase
         ActiveCommand = s.ActiveCommand;
         IsSketching = s.Sketch != null;
         RebuildQuickBar();
-        UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions();
+        UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions(); RebuildBrowser();
         Prompt = s.ActiveCommand?.HasPanelStep==true ? s.ActiveCommand.PanelHint : s.ActiveTool?.Prompt ?? (s.ActiveCommand != null ? s.ActiveCommand.Hint : s.Sketch != null ? "Pick a sketch tool from the ribbon." : "");
         UpdateActiveToolInstruction();
         if (IsSketching && !_sketchTab.IsVisible) { _sketchTab.IsVisible = true; _lastNormalTab = SelectedTab ?? _lastNormalTab; SelectedTab = _sketchTab; }
@@ -330,26 +330,49 @@ public sealed partial class MainViewModel : ViewModelBase
         button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
         return button;
     }
-
     /// <summary>A sketch tool button (shows as pressed while any mode of that tool family is active).</summary>
     RibbonButton Tool(string label, string icon, string family, Func<SketchTool> make, string desc, RibbonSize size = RibbonSize.Large) =>
-        Btn(label, icon, () => Session.Sketch?.SetTool(Session, make()), desc, size, () => IsSketching, () => Session.Sketch?.Tool?.Name == family);
+        (Btn(label, icon, () => Session.Sketch?.SetTool(Session, make()), desc, size, () => IsSketching, () => Session.Sketch?.Tool?.Name == family));
+
+    /// <summary>A sketch selection-method menu item: switches the active select/edit tool's region method, or arms Select with it.</summary>
+    /// <summary>In a sketch the Select group's drag methods (rectangle, lasso, paint) set the sketch Select or Edit tool's region method, or arm Select with it.</summary>
+    void SetSketchSelectMethod(int option)
+    {
+        if (Session.Sketch?.Tool is { } tool && tool is SelectTool or SketchGeometryEditTool { SplinePoints: false }) tool.SetOption(Session, option);
+        else { SketchTool.Remembered["Select"] = option; Session.Sketch?.SetTool(Session, new SelectTool()); }
+    }
+    bool IsSketchSelectMethod(int option) =>
+        Session.Sketch?.Tool is { } t && t.OptionIndex == option && t is SelectTool or SketchGeometryEditTool { SplinePoints: false };
 
     /// <summary>A dropdown of tool variants (e.g. Circle: center / 2-point / 3-point).</summary>
-    RibbonButton Drop(string label, string icon, string family, string desc, params RibbonButton[] variants) => new()
+    RibbonButton Drop(string label, string icon, string family, string desc, params RibbonButton[] variants) => (new()
     {
         Label = label, Icon = icon, Description = desc, Size = RibbonSize.Large, Menu = [.. variants],
         CanExecute = () => IsSketching, GetChecked = () => Session.Sketch?.Tool?.Name == family, IsToggle = true,
-    };
+    });
 
     RibbonButton Variant(string label, string icon, Func<SketchTool> make, string desc) =>
-        Btn(label, icon, () => Session.Sketch?.SetTool(Session, make()), desc, RibbonSize.Large, () => IsSketching);
+        (Btn(label, icon, () => Session.Sketch?.SetTool(Session, make()), desc, RibbonSize.Large, () => IsSketching));
 
     RibbonButton Constrain(string label, string icon, CType type, string desc) =>
-        Btn(label, icon, () => Session.Sketch?.SetTool(Session, new ConstraintTool(type)), desc, RibbonSize.Small, () => IsSketching,
-            () => Session.Sketch?.Tool is ConstraintTool ct && ct.Mode == type.ToString());
+        (Btn(label, icon, () => Session.Sketch?.SetTool(Session, new ConstraintTool(type)), desc, RibbonSize.Small, () => IsSketching,
+            () => Session.Sketch?.Tool is ConstraintTool ct && ct.Mode == type.ToString()));
+
+    /// <summary>A pick-level button. The Select group is the same in a sketch, where Object arms the sketch Select tool and the body levels are unavailable.</summary>
     RibbonButton Sel(string label, string icon, SelMode m, string desc) =>
-        Btn(label, icon, () => SetSelectionMode(m), desc, RibbonSize.Small, () => !IsSketching && Session.ActiveCommand?.HasPanelStep!=true,()=>IsSelectionMode(m));
+        Btn(label, icon, () => { if (!IsSketching) SetSelectionMode(m); else SetSketchPickLevel(m == SelMode.Object ? SketchPick.Object : SketchPick.Edge); }, desc, RibbonSize.Small,
+            () => IsSketching ? m != SelMode.Face : Session.ActiveCommand?.HasPanelStep!=true,
+            () => IsSketching ? m != SelMode.Face && Session.Sketch is { Tool: SelectTool } sk && sk.PickLevel == (m == SelMode.Object ? SketchPick.Object : SketchPick.Edge) : IsSelectionMode(m));
+
+    /// <summary>In a sketch the Select group chooses what a click, box, lasso or paint takes: a whole shape, one curve, or points.</summary>
+    public void SetSketchPickLevel(SketchPick level)
+    {
+        if (Session.Sketch is not { } sk) return;
+        sk.PickLevel = level;
+        sk.SetTool(Session, new SelectTool());
+        Session.Say(level switch { SketchPick.Object => "Select whole shapes: a rectangle is taken as its four sides.", SketchPick.Edge => "Select single curves. Shift-click adds more.", _ => "Select points." });
+        RefreshRibbon();
+    }
 
     public void SetSelectionMode(SelMode mode)
     {
@@ -362,17 +385,41 @@ public sealed partial class MainViewModel : ViewModelBase
     public bool IsVertexMode=>Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex};
     public void SelectVertices()
     {
+        if(IsSketching){SetSketchPickLevel(SketchPick.Point);return;}
         if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null))Session.StartCommand(()=>new EditFormCommand());
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(FormMode.Vertex);
         else Session.Say("Vertex selection is for Freeform cages: select a Freeform form first.");
     }
     RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",SelectVertices,"Select cage vertices (1 while editing Freeform).",RibbonSize.Small,
-    ()=>!IsSketching && (Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null)),
-    ()=>Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex});
+    ()=>IsSketching || (Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null)),
+    ()=>IsSketching ? Session.Sketch is { Tool: SelectTool } sk && sk.PickLevel == SketchPick.Point : Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex});
+
+    /// <summary>Show the main view from a standard direction named in the part's axes (they follow the home orientation).</summary>
+    void ShowStandardView(double yawDeg, double pitchDeg)
+    {
+        var (yaw, pitch, roll) = Session.HomeViewAngles(yawDeg * Math.PI / 180, pitchDeg * Math.PI / 180);
+        var cam = Session.Cameras[0]; cam.Yaw = yaw; cam.Pitch = pitch; cam.Roll = roll;
+        Session.Invalidate();
+    }
 
     RibbonButton View(string label, string icon, double yaw, double pitch) =>
-        Btn(label, icon, () => { Session.Cameras[0].SetView(yaw, pitch); Session.Invalidate(); }, $"Look at the model from the {label.ToLower()}.", RibbonSize.Small);
+        Btn(label, icon, () => ShowStandardView(yaw, pitch), $"Look at the model from the {label.ToLower()}.", RibbonSize.Small);
+
+    /// <summary>One button for the part orientation: Set Home while it is original, Reset Home once it has been changed.</summary>
+    RibbonButton HomeButton()
+    {
+        var button = new RibbonButton
+        {
+            Label = "Set\nHome", Icon = "home-set", Size = RibbonSize.Large,
+            Execute = () => { if (Session.HomeIsOriginal) Session.SetHomeToCurrentView(); else Session.ResetHome(); },
+            Description = "Make the view you see now the home view, and turn Front, Top, Right and the view cube to match it. Useful when an imported mesh or an awkwardly modeled part sits at an odd angle. Once set, this button puts the original orientation back.",
+        };
+        void Sync() { button.Label = Session.HomeIsOriginal ? "Set\nHome" : "Reset\nHome"; button.Icon = Session.HomeIsOriginal ? "home-set" : "home-reset"; }
+        Sync();
+        Session.HomeChanged += Sync;
+        return button;
+    }
 
     RibbonButton Disp(string label, string icon, DisplayMode m, string desc) =>
         Btn(label, icon, () => Session.Display = m, desc, RibbonSize.Small, null, () => Session.Display == m);
@@ -393,12 +440,11 @@ public sealed partial class MainViewModel : ViewModelBase
 
     static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items] };
 
-    RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or choose a sketch datum.",
-        Btn("Gizmo", "move", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping."),
-        Tool("Point", "sketch-point", "Point", () => new PointTool(), "Place a reference point on the active drawing plane of a 2D or 3D sketch."),
-        Btn("Axis", "origin-axis", () => SketchSpaceAction("save-axis"), "Save the selected gizmo axis as a datum in a 2D or 3D sketch.", RibbonSize.Small, () => IsSketching),
-        Btn("Plane", "origin-plane", () => SketchSpaceAction("save-plane"), "Save the current sketch datum plane.", RibbonSize.Small, () => IsSketching),
-        Btn("Save gizmo", "origin-plane", () => SketchSpaceAction("save-gizmo"), "Save the current gizmo as a sketch datum.", RibbonSize.Small, () => IsSketching)));
+    RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or place datum points, axes and planes.",
+        Btn("Gizmo", "move", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Gizmo }),
+        Btn("Point", "sketch-point", () => StartDatumTool(SketchDatumKind.Point), "Place datum points: click a face, edge or empty space, and keep clicking to add more.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Point }),
+        Btn("Axis", "origin-axis", () => StartDatumTool(SketchDatumKind.Axis), "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.", RibbonSize.Small, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Axis }),
+        Btn("Plane", "origin-plane", () => StartDatumTool(SketchDatumKind.Plane), "Place a datum plane on a face, plane or the work plane.", RibbonSize.Small, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Plane })));
 
     void BuildRibbon()
     {
@@ -452,15 +498,18 @@ public sealed partial class MainViewModel : ViewModelBase
                 Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
                 Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."),
                 VertexSelection())),
-            Followed(Split(RibbonSize.Small, "split:selection-method", "Select by dragging in the view: a rectangle or a lasso. A rectangle dragged left to right takes what is fully inside it; right to left (or a lasso) takes whatever it touches. Shift adds, Ctrl removes. With Through on, it also picks what is hidden behind.",
+            Followed(Split(RibbonSize.Small, "split:selection-method", "Select by dragging in the view: a rectangle, a lasso or a paint stroke. A rectangle dragged left to right takes what is fully inside it; right to left (or a lasso) takes whatever it touches; paint takes whatever the stroke crosses. Shift adds, Ctrl removes. With Through on, it also picks what is hidden behind.",
                 SelMethod("Rectangle", "sel-rect", SelectMethod.Rectangle, "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking."),
-                SelMethod("Lasso", "sel-lasso", SelectMethod.Lasso, "Draw around what you want to select. Whatever the loop touches is picked."))),
+                SelMethod("Lasso", "sel-lasso", SelectMethod.Lasso, "Draw around what you want to select. Whatever the loop touches is picked."),
+                SelMethod("Paint", "sel-paint", SelectMethod.Paint, "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking."))),
             Btn("Invert", "sel-invert", () => Session.InvertSelection(), "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.", small, () => !IsSketching),
             Btn("Through", "xray", () => Session.XRay = !Session.XRay, "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.", small, () => !IsSketching, () => Session.XRay));
         RibbonButton SelMethod(string label, string icon, SelectMethod method, string desc) =>
-            Btn(label, icon, () => Session.Method = Session.Method == method ? SelectMethod.Click : method, desc, RibbonSize.Small, () => !IsSketching && Session.ActiveCommand?.HasPanelStep != true, () => Session.Method == method);
+            Btn(label, icon, () => { if (IsSketching) SetSketchSelectMethod((int)method - 1); else Session.Method = Session.Method == method ? SelectMethod.Click : method; }, desc, RibbonSize.Small,
+                () => IsSketching || Session.ActiveCommand?.HasPanelStep != true, () => IsSketching ? IsSketchSelectMethod((int)method - 1) : Session.Method == method);
+        RibbonButton MoveBtn(RibbonSize size) => Btn("Move", "move", MoveWithGizmo, "Grab anything — objects, meshes, datums — and drag it with the gizmo, or type exact values in the panel.", size, () => !IsSketching, () => Session.Datum is { MoveMode: true } && Session.DatumVisible);
         RibbonGroup TransformGrp() => G("Transform",
-            Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects."),
+            MoveBtn(RibbonSize.Large),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
             Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects uniformly.", small),
             Cmd("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror), "Reflect objects across a plane.", small),
@@ -531,7 +580,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body out of another.", small),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.", small)),
                 G("Transform",
-                    Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Translate objects.", small),
+                    MoveBtn(small),
                     Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
                     Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects uniformly.", small),
                     Cmd("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror), "Reflect objects across a plane.", small),
@@ -548,10 +597,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Along Curve", "pattern-curve", () => new CurvePatternCommand(), "Repeat objects along a curve or edge chain.", small),
                     Cmd("Fill", "pattern-fill", () => new FillPatternCommand(), "Fill a face or closed sketch with copies.", small),
                     Cmd("Table", "pattern-table", () => new TablePatternCommand(), "Place copies at positions from a table.", small)),
-                G("Select",
-                    Sel("Object", "sel-object", SelMode.Object, "Pick whole bodies, surfaces and curves."),
-                    Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
-                    Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges.")),
+                SelectGrp(),
             ],
         };
 
@@ -819,8 +865,8 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Sketch", ContextLabel = "SKETCH TOOLS", AccentColor = "#2BC4D1", IsVisible = false,
             Groups =
             [
-                G("Select",
-                    Tool("Select", "sel-object", "Select", () => new SelectTool(), "Select geometry and drag it. Points and curves move while every constraint stays satisfied.")),
+                // The same Select group as every other tab: Object arms the sketch Select tool and the drag methods apply to it.
+                SelectGrp(),
                 G("Draw",
                     Tool("Line", "line", "Line", () => new LineTool(SketchTool.Recall("Line")), "Draw connected lines, or lines from their midpoint (options bar). Horizontal and vertical lines are detected and constrained automatically."),
                     Tool("Rectangle", "rect", "Rectangle", () => new RectTool((RectMode)SketchTool.Recall("Rectangle")), "Draw rectangles. Choose 2-point, center or rotated 3-point in the options bar."),
@@ -832,6 +878,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Tool("Spline", "spline", "Spline", () => new SplineTool(SketchTool.Recall("Spline") == 1), "Draw splines through fit points or shaped by control points.")),
                 G("References"),
                 G("Modify",
+                    Btn("Transform", "move", TransformSketchSelection, "Move, rotate or scale the selected points and curves with the gizmo, or type exact values in its panel. Select first (shortcut G); R rotates and S scales while the gizmo is showing.", RibbonSize.Large, () => IsSketching),
+                    Tool("Insert\nPoint", "origin-point", "Insert point", () => new InsertPointTool(), "Add a point to a curve you already drew: click a line, arc, circle or spline. A line becomes two lines, an arc or circle two arcs, and a spline gains a point."),
                     Tool("Trim", "trim", "Trim", () => new TrimTool(), "Cut a line, arc or circle back to the curves that cross it. Click the part to remove."),
                     Tool("Extend", "extend", "Extend", () => new ExtendTool(), "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend."),
                     Tool("Offset", "offset", "Offset", () => new OffsetTool(), "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter."),
@@ -998,10 +1046,11 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Orientation",
                     View("Front", "view-front", 0, 0), View("Back", "view-back", 180, 0), View("Left", "view-left", -90, 0),
                     View("Right", "view-right", 90, 0), View("Top", "view-top", 0, 90), View("Bottom", "view-bottom", 0, -90),
-                    Btn("Isometric", "view-iso", () => { Session.Cameras[0].SetView(-35, 28); Session.Invalidate(); }, "A three-quarter view.", RibbonSize.Large),
+                    Btn("Isometric", "view-iso", () => ShowStandardView(-35, 28), "A three-quarter view.", RibbonSize.Large),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch.", RibbonSize.Large, null, null, "N")),
                 G("Navigate",
                     Btn("Zoom\nExtents", "zoom-extents", () => Session.ZoomExtents(), "Fit everything in the window.", RibbonSize.Large, null, null, "Home"),
+                    HomeButton(),
                     Btn("Orthographic", "ortho", () => Session.Ortho = true, "No perspective: parallel projection.", small, null, () => Session.Ortho),
                     Btn("Perspective", "perspective", () => Session.Ortho = false, "Natural perspective projection.", small, null, () => !Session.Ortho)),
                 G("Layout",
@@ -1218,7 +1267,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Mounting\nHole", "pcb-hole", () => new PcbHoleCommand(), "Cut a mechanical mounting hole along world Z.")),
                 G("Components", Cmd("Component\nEnvelope", "component", () => new ComponentEnvelopeCommand(), "Place a package envelope or mechanical keepout, with top/bottom side and rotation."),
                     ToolMenu("Place & align", "move", "Position imported component models or envelope bodies.",
-                        Cmd("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move), "Position board or component geometry."),
+                        MoveBtn(RibbonSize.Large),
                         Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Orient a component or the completed assembly."),
                         Btn("Duplicate", "duplicate", Session.Duplicate, "Copy a selected component envelope.", can: hasSel))),
                 G("Mechanical checks", Cmd("Interference", "interference", () => new InterferenceCommand(), "Find overlapping components or enclosure bodies. This is a mechanical check, not an electrical design rule.")),
@@ -1231,6 +1280,9 @@ public sealed partial class MainViewModel : ViewModelBase
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
         foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
+        // The ribbon's Move buttons arm the move gizmo instead of a command; keep the param-driven
+        // transform reachable from command search.
+        CommandCatalog.Register(() => new TransformCommand(TransformCommand.Kind.Move));
         CommandCatalog.Register(() => new EdgeSurfaceCommand());
         foreach (Func<Command> make in new Func<Command>[] { () => new MeshRepairCommand(true), () => new MeshSectionCommand(), () => new MeshSectionFitCommand() }) CommandCatalog.Register(make);
         // folded into other tools on the ribbon; scripts and saved steps still reach them
@@ -1240,10 +1292,11 @@ public sealed partial class MainViewModel : ViewModelBase
         CommandCatalog.Register(() => new SweepCommand());
         CommandCatalog.Register(() => new LoftCommand());
         OrganizeRibbons(TransformGrp, InspectGrp, AppearanceGrp, SelectGrp);
-        // Buttons that are not commands (and the shared selection and materials buttons) get their help by icon.
-        foreach (var t in Tabs.Where(t => !t.IsContextual && !t.IsFile))
+        // Every button gets the help written for it on its tab; a command's own topic and the icon's topic are fallbacks.
+        // Buttons shared between tabs (selection, materials) resolve on the last tab they appear on.
+        foreach (var t in Tabs)
             foreach (var b in t.Buttons)
-                if (b.ExampleResolver == null) { var owner = t.Title; var button = b; b.ExampleResolver = () => Help.ToolHelp.ForButton(owner, button.Icon); }
+            { var owner = t.Title; var button = b; var command = b.ExampleResolver; b.ExampleResolver = () => Help.ToolHelp.ForRibbon(owner, button.Icon, button.Label, command); }
         FinishRibbon();
     }
 }
