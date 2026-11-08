@@ -287,6 +287,7 @@ public sealed class AdaptiveClearCommand : CncOperationCommand
                 foreach (var ring in reach)
                 {
                     var l = CamGeom.SignedArea(ring) < 0 ? ring : ring.AsEnumerable().Reverse().ToList();
+                    if (Last.z < SafeZ - 1e-9) Go(Last.x, Last.y, SafeZ, MoveKind.Rapid);       // lift straight up first: CutLoop starts with a sideways rapid at the clearance plane
                     CutLoop(l, z, 0, 0, 0, false);
                 }
             Go(Last.x, Last.y, SafeZ, MoveKind.Rapid);

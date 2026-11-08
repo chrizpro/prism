@@ -122,4 +122,40 @@ public class CamWorkflowTests
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
+
+    [AvaloniaTheory(DisplayName = "CAM-H006 | Every CNC operation on the ribbon can be started through the automation API")]
+    [InlineData("cnc_profile")]
+    [InlineData("cnc_pocket")]
+    [InlineData("cnc_drill")]
+    [InlineData("cnc_face")]
+    [InlineData("cnc_adaptive")]
+    [InlineData("cnc_rough")]
+    [InlineData("cnc_finish")]
+    [InlineData("cnc_turn")]
+    [InlineData("cnc_image_relief")]
+    [InlineData("cnc_post")]
+    [Trait("TestId", "CAM-H006")]
+    public void EveryCncOperationIsRegistered(string name) => Assert.NotNull(AutomationApi.CreateCommand(name));
+
+    [AvaloniaFact(DisplayName = "CAM-H007 | An Adaptive Clearing toolpath with the wall finish pass can be posted (no sideways rapid below the clearance plane)")]
+    [Trait("TestId", "CAM-H007")]
+    public async Task AdaptiveClearingPostsWithItsWallFinish()
+    {
+        var api = new AutomationApi(new MainViewModel(), null);
+        async Task<JsonNode> Call(string tool, string json) => (await api.CallAsync(tool, (JsonObject)JsonNode.Parse(json)!))!;
+        await Call("sketch_begin", "{\"plane\":\"XY\"}");
+        await Call("sketch_add", "{\"entities\":[{\"type\":\"rect\",\"corner1\":[0,0],\"corner2\":[40,30]}]}");
+        string sketch = (string)(await Call("sketch_finish", "{}"))["sketch"]!;
+        await Call("run_command", "{\"name\":\"cnc_adaptive\",\"slots\":{\"Outlines of the pocket\":\"" + sketch + "\"},\"params\":{\"Tool diameter\":6.0,\"Depth per pass\":6.0,\"Total cutting depth\":12.0,\"Finish the walls with one pass\":true}}");
+        string file = Path.Combine(Path.GetTempPath(), "prism-adaptive-" + Guid.NewGuid().ToString("N") + ".nc");
+        try
+        {
+            await Call("run_command", "{\"name\":\"cnc_post\",\"commit\":false,\"params\":{\"Work zero (G54)\":\"The model's own origin\"}}");
+            await Call("command_set", "{\"params\":{\"Save to\":\"" + file.Replace("\\", "/") + "\",\"Save G-code\":true}}");
+            Assert.True(File.Exists(file), "the program was not written");
+            Assert.Contains("G1", File.ReadAllText(file));
+            await Call("command_cancel", "{}");
+        }
+        finally { if (File.Exists(file)) File.Delete(file); }
+    }
 }
