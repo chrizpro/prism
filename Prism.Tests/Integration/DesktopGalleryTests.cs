@@ -9,6 +9,46 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I006 | Fold stand vents and cable hole pass through the sheet and appear in the flat pattern")]
+    [Trait("TestId", "GAL-I006")]
+    public async Task SheetMetalStandHolesAndFlatPattern()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I006", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/fold-stand.prism") });
+        var stand = await mcp.Call("object_info", new { @object = "Fold stand" });
+        Assert.True((bool?)stand["valid"]);
+        // 2 mm sheet: a hole that goes through has a wall 2 mm deep. A cut that points away from the metal leaves zero-depth discs.
+        var vents = await mcp.Call("solid_find", new { @object = "Fold stand", kind = "faces", type = "Cylinder", radius = 3.5, limit = 40 });
+        Assert.Equal(30, (int)vents["total"]!);
+        foreach (var hit in vents["hits"]!.AsArray())
+            Assert.InRange((double)hit!["area"]!, 2 * Math.PI * 3.5 * 2 - .5, 2 * Math.PI * 3.5 * 2 + .5);
+        var cable = await mcp.Call("solid_find", new { @object = "Fold stand", kind = "faces", type = "Cylinder", radius = 11, limit = 5 });
+        Assert.Equal(1, (int)cable["total"]!);
+        Assert.InRange((double)cable["hits"]![0]!["area"]!, 2 * Math.PI * 11 * 2 - .5, 2 * Math.PI * 11 * 2 + .5);
+        // The unfolded sheet keeps every hole: one outline per face plus 30 vents and the cable hole.
+        var flat = await mcp.Call("object_info", new { @object = "Flat pattern" });
+        Assert.Equal((int)flat["faces"]! + 31, (int)flat["wires"]!);
+        Assert.InRange((double)flat["size"]![1]!, 139.99, 140.01);
+        // Characterization of the K = 0.44 development (206.18 mm) recorded on 2026-11-08, not an independent calculation.
+        Assert.InRange((double)flat["size"]![0]!, 206.0, 206.4);
+        var tablet = await mcp.Call("object_info", new { @object = "Tablet (placeholder)" });
+        Assert.InRange((double)tablet["min"]![2]!, .9, 1.1);
+        var check = await mcp.Call("run_command", new { name = "interference", commit = false,
+                                                        slots = new Dictionary<string, object> { ["Bodies to check (none = all solids)"] = new[] { "Fold stand", "Tablet (placeholder)" } } });
+        string result = check["activeCommand"]!["results"]!.ToJsonString();
+        await mcp.Call("command_cancel");
+        Assert.Contains("No interference", result);
+        foreach (var angle in new[] { ("rear-quarter", 40), ("front-quarter", -35), ("side", 145) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = 24, fit = true, grid = false, display = "shaded" });
+            await mcp.Capture("fold-stand-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I005 | Meridian winding knob drives every orbit at its modeled tooth ratio with clear meshes")]
     [Trait("TestId", "GAL-I005")]
     public async Task OrreryGearTrainRatiosAndMeshes()

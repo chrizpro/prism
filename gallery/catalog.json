@@ -15,6 +15,19 @@
       "Sha256": "04bfe2147478e3b665b55e1f507dab8952dca0636427a2b444f1a66adecf6eab"
     },
     {
+      "Id": "fold-stand",
+      "Name": "Fold tablet stand",
+      "Description": "One bent sheet: a chamfered ledge, a leaning vented back rest and a hemmed top edge, shown with its flat pattern.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/fold-stand.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/fold-stand.png?v=f33ca9d2e4dfac60",
+      "Bytes": 2132968,
+      "Sha256": "99e2d9b0129256285650d0885dae66799500e00c534f875209dba90ad3cfdf50"
+    },
+    {
       "Id": "comet-racer",
       "Name": "Comet number-one racer",
       "Description": "A playful open-wheel racecar with red bodywork, big slick tires and blue wings.",
