@@ -18,6 +18,29 @@ public sealed record GalleryEntry(string Id, string Name, string Description, st
         Version.TryParse(version.Split('-')[0].Split('+')[0], out var current) && current >= required;
 }
 
+/// <summary>How the startup gallery groups models: by the first workflow named in a model's Workflow field.</summary>
+public static class GallerySections
+{
+    /// <summary>Workspace tabs in the order the gallery lists them. Models with another first workflow follow, in catalog order.</summary>
+    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "CAM", "CAE", "ECAD"];
+    /// <summary>Models shown per section until the section is expanded.</summary>
+    public const int Preview = 3;
+
+    public static string Of(string workflow)
+    {
+        var first = workflow.Split('/')[0].Trim();
+        return Order.FirstOrDefault(o => o.Equals(first, StringComparison.OrdinalIgnoreCase)) ?? first;
+    }
+
+    public static IReadOnlyList<(string Section, List<GalleryEntry> Items)> Group(IEnumerable<GalleryEntry> entries)
+    {
+        var groups = new Dictionary<string, List<GalleryEntry>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in entries) { var k = Of(e.Workflow); if (!groups.TryGetValue(k, out var l)) groups[k] = l = []; l.Add(e); }
+        return groups.OrderBy(g => { int i = Array.FindIndex(Order, o => o.Equals(g.Key, StringComparison.OrdinalIgnoreCase)); return i < 0 ? Order.Length : i; })
+            .Select(g => (g.Key, g.Value)).ToList();
+    }
+}
+
 public sealed record GalleryCatalog(int SchemaVersion, List<GalleryEntry> Items)
 {
     static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };

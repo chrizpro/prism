@@ -94,6 +94,17 @@ public sealed class GalleryStoreTests : IDisposable
         Assert.False(File.Exists(store.ModelPath(Entry)));
     }
 
+    [Fact(DisplayName = "GAL-U007 | Sections follow the workspace-tab order, group by the first workflow and keep catalog order inside")]
+    [Trait("TestId", "GAL-U007")]
+    public void SectionsGroupByFirstWorkflowInTabOrder()
+    {
+        GalleryEntry E(string id, string workflow) => Entry with { Id = id, Workflow = workflow };
+        var groups = GallerySections.Group([E("a", "Sheet Metal"), E("b", "CAM / Solid"), E("c", "Freeform / Solid"), E("d", "solid / Assembly"), E("e", "Surface / NURBS"), E("f", "Sheet Metal"), E("g", "Robotics")]);
+        Assert.Equal(["Solid", "Surface", "Freeform", "Sheet Metal", "CAM", "Robotics"], groups.Select(g => g.Section));
+        Assert.Equal(["a", "f"], groups.Single(g => g.Section == "Sheet Metal").Items.Select(x => x.Id));
+        Assert.Equal("NURBS", GallerySections.Of(" NURBS "));
+    }
+
     [Fact(DisplayName = "GAL-U006 | Offline preview cache remains readable; tampered model cache is rejected")]
     [Trait("TestId", "GAL-U006")]
     public async Task OfflinePreviewsAndModelCacheIntegrity()

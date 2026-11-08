@@ -53,6 +53,41 @@ public class GalleryViewTests
                 : new HttpResponseMessage(HttpStatusCode.NotFound));
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H003 | Each gallery section shows its first three models until expanded; searching shows every match")]
+    [Trait("TestId", "GAL-H003")]
+    public async Task SectionsShowThreeUntilExpanded()
+    {
+        var vm = new MainViewModel();
+        var template = new GalleryEntry("m0", "Model 0", "A model", "Solid", "Prism", "MIT", "0.1.0", "https://github.com/a/model", "https://github.com/a/image", 1, new string('a', 64));
+        var items = Enumerable.Range(0, 5).Select(i => template with { Id = "solid-" + i, Name = "Solid " + i }).Append(template with { Id = "cam-0", Name = "Board", Workflow = "Solid / CAM" })
+            .Append(template with { Id = "cam-1", Name = "Router", Workflow = "CAM" }).ToList();
+        string root = Path.Combine(Path.GetTempPath(), "prism-gallery-sections-" + Guid.NewGuid());
+        using var http = new HttpClient(new CatalogTransport(new GalleryCatalog(1, items).ToJson()));
+        vm.GallerySource = new GalleryStore(http, root);
+        try
+        {
+            await vm.LoadGallery();
+            Assert.Equal(["Solid", "CAM"], vm.GalleryGroups.Select(g => g.Title));
+            var solid = vm.GalleryGroups[0];
+            Assert.Equal(3, solid.Visible.Count());
+            Assert.True(solid.CanExpand);
+            Assert.Equal("Show all 6", solid.ToggleText);
+            Assert.False(vm.GalleryGroups[1].CanExpand);
+            solid.Toggle();
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
+            Assert.Equal("Show fewer", vm.GalleryGroups[0].ToggleText);
+            vm.GallerySearch = "no such thing";
+            Assert.Empty(vm.GalleryGroups);
+            vm.GallerySearch = "solid";
+            Assert.Equal(6, Assert.Single(vm.GalleryGroups).Visible.Count());
+            vm.GallerySearch = "";
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
+            vm.GalleryGroups[0].Toggle();
+            Assert.Equal(3, vm.GalleryGroups[0].Visible.Count());
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H002 | Failed model download leaves the current work and startup screen intact")]
     [Trait("TestId", "GAL-H002")]
     public async Task FailedDownloadDoesNotReplaceUserDocument()
