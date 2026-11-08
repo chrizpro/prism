@@ -1197,6 +1197,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Turning", "cnc", () => new TurnCommand(), "Lathe: face, rough and finish a round part from a half-section sketch."),
                     Cmd("Drill", "cnc-drill", () => new DrillCommand(), "Drilling and peck cycles."),
                     Cmd("Face", "cnc-face", () => new FaceMillCommand(), "Face the stock with zigzag passes."),
+                    Cmd("Image\nCarve", "cnc-image", () => new ImageReliefCommand(), "Carve a picture into the stock: depth follows brightness."),
                     Cmd("3D Rough", "cnc", () => new Rough3DCommand(), "Layered raster roughing of setup stock, leaving an allowance around the model."),
                     Cmd("3D\nFinish", "cnc", () => new ParallelFinishCommand(), "Finish a 3D shape with parallel passes that follow its surface (ball nose or flat end mill).")),
                     Cmd("Post\nG-code", "gcode", () => new CncPostCommand(), "Post existing CNC toolpaths for GRBL, Mach3 or LinuxCNC.")),
@@ -1231,6 +1232,7 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
                 Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
+        var mold = new RibbonTab { Title = "Mold", Groups = [G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",
             Cmd("Select static study","sim-new",()=>new SelectStudyCommand(),"Select a saved static study."),
@@ -1292,7 +1294,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         // The ribbon's Move buttons arm the move gizmo instead of a command; keep the param-driven
         // transform reachable from command search.

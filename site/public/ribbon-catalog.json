@@ -1,5 +1,5 @@
 {
-  "sourceHash": "CEA82D49C26E6E97DA657678FE988CA59AB92AA63B63EC9032560B9E3D0DE64C",
+  "sourceHash": "67E76742D3FCCD3A2607130CB5519930FC86209B56B39BA3819D491379D14298",
   "workspaces": [
     {
       "Id": "design",
@@ -101,6 +101,20 @@
         "Subtractive",
         "3D FDM",
         "3D Resin",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "mold",
+      "Name": "Mold",
+      "Tip": "Make a two-part mold from a block and the part inside it, split where you choose and shown exploded; check draft and sections with Tooling.",
+      "Tabs": [
+        "Home",
+        "Solid",
+        "Direct Modeling",
+        "Mold",
+        "Tooling",
         "Analyze",
         "View"
       ]
@@ -3357,6 +3371,12 @@
               "shortcut": ""
             },
             {
+              "id": "cnc-image|Image Carve",
+              "label": "Image Carve",
+              "description": "Carve a picture into the stock: depth follows brightness.",
+              "shortcut": ""
+            },
+            {
               "id": "cnc|3D Rough",
               "label": "3D Rough",
               "description": "Layered raster roughing of setup stock, leaving an allowance around the model.",
@@ -5329,6 +5349,23 @@
               "id": "check|Check geometry",
               "label": "Check geometry",
               "description": "Check tooling geometry.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Mold",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Mold",
+          "tools": [
+            {
+              "id": "mold|Create Mold",
+              "label": "Create Mold",
+              "description": "Cut a part out of a block, split the block and pull the halves apart.",
               "shortcut": ""
             }
           ]
