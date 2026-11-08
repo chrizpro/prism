@@ -64,7 +64,7 @@ public sealed partial class SketchContext
         Result = SketchSolver.Solve(Model);
     }
 
-    public bool HasContent => _sections.Any(section => section.Model.Entities.Count > 0) || Datums.Count > 0;
+    public bool HasContent => _sections.Any(section => section.Model.Entities.Count > 0 || section.Model.GreaseStrokes.Count > 0) || Datums.Count > 0;
 
     public bool EntityVisible(SkEntity e) => !e.Construction || Model.ShowConstruction;
     public bool PointVisible(int id) => id == 0 || Model.ShowConstruction || Model.Entities.Any(e => !e.Construction && Model.PointsOf(e).Contains(id)) && !TextFitPoint(id);
@@ -710,9 +710,17 @@ public sealed partial class SketchContext
     // ---------------------------------------------------------------- overlay
     static readonly uint ColFree = 0xFF4C94FF, ColFixed = 0xFFEAF0FA, ColConstr = 0xFFB79CFF, ColSel = 0xFFFFC53D, ColHover = 0xFF35B6FF, ColConflict = 0xFFFF6B6F;
 
+    public static void DrawGrease(Overlay overlay, SketchModel model, Plane3 plane)
+    {
+        foreach (var stroke in model.GreaseStrokes)
+            if (stroke.Points.Count > 1)
+                overlay.AddPolyline(stroke.Points.Select(p => plane.PointAt(p.U, p.V) + plane.Normal * p.Depth).ToList(), stroke.Color, stroke.Width);
+    }
+
     public void BuildOverlay(CadSession s, Overlay o)
     {
         BuildSpaceOverlay(s, o);
+        foreach (var section in _sections) DrawGrease(o, section.Model, section.Plane);
         var cam = s.Camera;
         var free = Result.FreeEntities;
         bool conflict = !Result.Converged;

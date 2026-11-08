@@ -1669,6 +1669,7 @@ public sealed partial class CadSession : ObservableObject
             SketchContext.DrawDatumReferences(this,o,document.Datums,null,obj.Id);
             foreach (var (model, plane) in document.DrawingModels(root))
             {
+                SketchContext.DrawGrease(o, model, plane);
                 if (model.ShowConstruction)
                     foreach (var (entity, pts) in model.Polylines(plane).Where(x => x.ent.Construction))
                         SketchContext.AddDashed(o, pts, 0xFFB79CFF, 1.5f, Camera.PixelSizeAt(pts[0]));

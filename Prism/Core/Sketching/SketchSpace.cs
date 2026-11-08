@@ -477,6 +477,7 @@ public sealed partial class SketchContext
 
     public bool SpacePointerDown(CadSession s, PointerInfo p)
     {
+        if (Tool is GreasePencilTool or GreaseEraserTool) return false;
         if (!Is3DEnabled && !PlanarGizmoActive) return p.Left && !p.Alt && Tool is SelectTool && PickDatum(s,p.X,p.Y);
         if (!p.Left) return false;
         if (IsDrawingFlat && Is3DEnabled && !GizmoEditing && !p.Alt && !p.Ctrl) FollowViewForFlatDrawing(s, p);
@@ -699,6 +700,7 @@ public sealed partial class SketchContext
 
     public bool SpacePointerMove(CadSession s, PointerInfo p)
     {
+        if (Tool is GreasePencilTool or GreaseEraserTool) return false;
         if (!Is3DEnabled && !PlanarGizmoActive) return false;
         if (_gizmoDrag < 0)
         {
