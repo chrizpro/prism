@@ -11,32 +11,48 @@ public sealed class MoldCommand : Command
 {
     readonly SelectionSlot _block, _part, _plane;
     readonly ChoiceParam _axis;
-    readonly NumberParam _at, _gap;
+    readonly NumberParam _at, _gap, _shrink, _offset, _margin, _opacity;
 
     public MoldCommand()
     {
-        _block = Slot(new SelectionSlot { Label = "Mold block", Filter = SelFilter.Solid });
+        _block = Slot(new SelectionSlot { Label = "Mold block (optional: Prism makes one around the part)", Filter = SelFilter.Solid, Optional = true });
         _part = Slot(new SelectionSlot { Label = "Part to cast (solid, or a closed surface)", Filter = SelFilter.Solid | SelFilter.SurfaceObj });
         _axis = Choice("Parting direction", 0, "Z (top and bottom halves)", "X (left and right halves)", "Y (front and back halves)");
         _at = Num("Split at", 50, 0, 100, 5, "% of the block");
         _plane = Slot(new SelectionSlot { Label = "Parting plane or face (optional, replaces the setting above)", Filter = SelFilter.Plane | SelFilter.Face | SelFilter.SurfaceObj, Optional = true });
         _gap = Num("Explode distance", 40, 0, 1000, 5, "mm");
+        _shrink = Num("Shrinkage allowance", 0, 0, 20, 0.1, "%");
+        _offset = Num("Cavity offset (clearance)", 0, -50, 50, 0.25, "mm");
+        _margin = Num("Block margin (when no block is picked)", 20, 1, 500, 5, "mm");
+        _opacity = Num("Part opacity while exploded", 55, 5, 100, 5, "%");
     }
 
     public override string Title => "Create Mold";
     public override string Icon => "mold";
     public override string OkText => "Create mold";
-    public override string Hint => "Pick the block and the part inside it. Prism cuts the part's shape out of the block, splits the block where you choose (a percentage along the parting direction, or a plane or face you pick) and pulls the two halves apart to show the cavity.";
+    public override string Hint => "Pick the part (and a block around it, or let Prism make one). Prism cuts the part's shape out of the block, splits the block where you choose (a percentage along the parting direction, or a plane or face you pick) and pulls the two halves apart to show the cavity.";
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
-        if (_block.Items.Count == 0 || _part.Items.Count == 0) return null;
-        var block = S.Find(_block.Items[0].Obj) ?? throw new FormatException("That block is gone.");
+        if (_part.Items.Count == 0) return null;
         var part = S.Find(_part.Items[0].Obj) ?? throw new FormatException("That part is gone.");
-        if (block.Kind != ObjKind.Solid || !block.HasBrep) throw new FormatException("The mold block must be a solid body.");
-        if (block.Id == part.Id) throw new FormatException("Pick a different body for the part.");
-        var bmin = block.Mesh.Min; var bmax = block.Mesh.Max; var pmin = part.Mesh.Min; var pmax = part.Mesh.Max;
+        var block = _block.Items.Count > 0 ? S.Find(_block.Items[0].Obj) ?? throw new FormatException("That block is gone.") : null;
+        if (block != null && (block.Kind != ObjKind.Solid || !block.HasBrep)) throw new FormatException("The mold block must be a solid body.");
+        if (block != null && block.Id == part.Id) throw new FormatException("Pick a different body for the part.");
+        var pmin = part.Mesh.Min; var pmax = part.Mesh.Max;
+        // the cavity is the part grown by the offset and the shrinkage allowance
+        double grow = Math.Max(0, _offset.Value) + Math.Max(pmax.X - pmin.X, Math.Max(pmax.Y - pmin.Y, pmax.Z - pmin.Z)) * _shrink.Value / 200;
+        pmin = new Vec3(pmin.X - grow, pmin.Y - grow, pmin.Z - grow); pmax = new Vec3(pmax.X + grow, pmax.Y + grow, pmax.Z + grow);
+        Shape blockShape;
+        Vec3 bmin, bmax;
+        if (block != null) { bmin = block.Mesh.Min; bmax = block.Mesh.Max; blockShape = block.Shape; }
+        else
+        {
+            double m = _margin.Value;
+            bmin = new Vec3(pmin.X - m, pmin.Y - m, pmin.Z - m); bmax = new Vec3(pmax.X + m, pmax.Y + m, pmax.Z + m);
+            blockShape = Occ.Translate(Occ.Box(bmax.X - bmin.X, bmax.Y - bmin.Y, bmax.Z - bmin.Z), new Vec3((bmin.X + bmax.X) / 2, (bmin.Y + bmax.Y) / 2, bmin.Z));
+        }
         const double tol = 1e-6;
         if (pmin.X < bmin.X - tol || pmin.Y < bmin.Y - tol || pmin.Z < bmin.Z - tol || pmax.X > bmax.X + tol || pmax.Y > bmax.Y + tol || pmax.Z > bmax.Z + tol)
             throw new FormatException("The part must sit inside the mold block. Move or enlarge the block so it surrounds the part.");
@@ -47,8 +63,12 @@ public sealed class MoldCommand : Command
             partShape = Occ.Sew([part.Shape], 1e-3, true);
             if (partShape.Count(SubKind.Solid) == 0) throw new FormatException("The part is not closed. Use a solid, or a surface that encloses a volume.");
         }
-        double partVolume = Occ.Mass(partShape).Volume;
-        var cavity = Occ.Cut(block.Shape, partShape);
+        var mass = Occ.Mass(partShape);
+        double partVolume = mass.Volume;
+        Shape tool = partShape;
+        if (_shrink.Value > 0) tool = Occ.Scale(tool, mass.Cog, 1 + _shrink.Value / 100);
+        if (Math.Abs(_offset.Value) > 1e-9) tool = Occ.Offset(tool, _offset.Value);
+        var cavity = Occ.Cut(blockShape, tool);
         if (cavity.Count(SubKind.Solid) == 0) throw new FormatException("The part does not cut the block.");
 
         int a = _axis.Index; // 0 = Z, 1 = X, 2 = Y
@@ -86,10 +106,15 @@ public sealed class MoldCommand : Command
         var o = new CommandOutput { Label = "Mold", Icon = "splitbody" };
         var down = Occ.Translate(lower, dir * (-_gap.Value / 2));
         var up = Occ.Translate(upper, dir * (_gap.Value / 2));
-        o.Replace.Add((block, down.Count(SubKind.Solid) > 0 ? down.Sub(SubKind.Solid, 0) : down));
-        o.Add.Add(new NewObject(up.Count(SubKind.Solid) > 0 ? up.Sub(SubKind.Solid, 0) : up, block.Name + " (upper half)", ObjKind.Solid));
+        var downSolid = down.Count(SubKind.Solid) > 0 ? down.Sub(SubKind.Solid, 0) : down;
+        string baseName = block?.Name ?? "Mold";
+        if (block != null) o.Replace.Add((block, downSolid)); else o.Add.Add(new NewObject(downSolid, baseName + " (lower half)", ObjKind.Solid));
+        o.Add.Add(new NewObject(up.Count(SubKind.Solid) > 0 ? up.Sub(SubKind.Solid, 0) : up, baseName + " (upper half)", ObjKind.Solid));
+        // the part gets its own colour and is shown see-through, so it reads as the thing being cast
+        double clear = 1 - _opacity.Value / 100; Guid partId = part.Id;
+        o.After = session => session.Update(partId, x => x.WithColor(0xFFE8873A).WithLook(x.Look with { Surface = (x.Look.Surface ?? new SurfaceStyle()) with { Transmission = (float)(clear * .9), Ior = 1.05f, Override = true } }), checkpoint: false);
         Results.Add(new ResultLine("Parting at", $"{split:0.###} mm along {(a == 0 ? "Z" : a == 1 ? "X" : "Y")}"));
-        Results.Add(new ResultLine("Cavity volume", $"{partVolume / 1000:0.###} cm³ (the part)"));
+        Results.Add(new ResultLine("Cavity volume", $"{Occ.Mass(tool).Volume / 1000:0.###} cm³ (the part {partVolume / 1000:0.###} cm³" + (_shrink.Value > 0 || Math.Abs(_offset.Value) > 0 ? $", grown by {_shrink.Value:0.##}% and {_offset.Value:0.##} mm)" : ")")));
         Results.Add(new ResultLine("Halves apart by", $"{_gap.Value:0.#} mm"));
         return o;
     }

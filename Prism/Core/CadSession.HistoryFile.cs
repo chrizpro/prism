@@ -21,7 +21,7 @@ public sealed partial class CadSession
     sealed record StepDto(string Label, string Icon, string? Pin, RecipeDto? Recipe, List<DocumentParameter> Parameters, List<Guid> Added, List<ObjDto> Modified, List<RemovedDto> Removed, string? DrawingState = null);
     sealed record HistoryDto(List<StepDto> Steps);
 
-    static bool Persisted(SceneObject o) => o.Asm is not Cam.ToolpathInfo { Transient: true };
+    static bool Persisted(SceneObject o) => !o.IsReference && o.Asm is not Cam.ToolpathInfo { Transient: true };
 
     static string? EncodeValue(object? v) => v switch
     {
