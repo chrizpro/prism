@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Prism.Core;
+using Prism.Core.Cam;
 using Prism.Core.Sketching;
 using Prism.Kernel;
 
@@ -17,7 +18,10 @@ public sealed class FoldCommand : Command
 {
     readonly SelectionSlot _sketch;
     readonly NumberParam _t, _r, _k, _angle;
-    readonly TextParam _angles;
+    readonly TextParam _angles, _radii;
+    readonly BoolParam _flat;
+    List<List<(double x, double y)>> _loops = [];
+    List<((double x, double y) a, (double x, double y) b)> _bendLines = [];
     readonly ChoiceParam _side;
 
     static double _lastT = 2, _lastR = 2;           // the rules stay for the next part
@@ -30,6 +34,9 @@ public sealed class FoldCommand : Command
         _k = Num("K-factor", 0.44, 0, 1, 0.01, "");
         _angle = Num("Bend angle", 90, 0.1, 180, 5, "°");
         _angles = Text("Angle of each bend (optional)", "", "Signed degrees in order, e.g. 90, -90, 180. Positive folds toward the sketch normal.");
+        _radii = Text("Radius of each bend (optional)", "", "Inside radii in mm, in the same order, e.g. 3, 80, 3. A large radius rolls a curve. An empty entry keeps the default radius.");
+        _flat = Check("Also make the flat pattern beside the part", true);
+        Add(new ActionParam { Label = "Save the flat pattern as DXF", Run = SaveDxf });
         _side = Choice("The metal lies", 0, "On the normal side of the sketch", "Opposite the normal");
     }
 
@@ -37,7 +44,7 @@ public sealed class FoldCommand : Command
     public override string Icon => "fold";
     public override string Hint => "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is.";
 
-    sealed record Bend(int Index, Vec3 P, Vec3 D, Vec3 W, double Theta, double Allowance);
+    sealed record Bend(int Index, Vec3 P, Vec3 D, Vec3 W, double Theta, double Allowance, double R);
     sealed record Zone(int Bend, int Low, int High, Shape Solid, double D0, double D1);
 
     static IEnumerable<Shape> Solids(Shape s) =>
@@ -63,6 +70,31 @@ public sealed class FoldCommand : Command
         return result;
     }
 
+    /// <summary>Inside radii in mm: the list overrides the default radius bend by bend; an empty entry keeps the default.</summary>
+    static double[] Radii(string text, double fallback, int count)
+    {
+        var result = Enumerable.Repeat(fallback, count).ToArray();
+        if (string.IsNullOrWhiteSpace(text)) return result;
+        var parts = text.Split([',', ';'], StringSplitOptions.None);
+        if (parts.Length > count) throw new InvalidOperationException($"{parts.Length} radii were typed but the sketch has {count} bend line{(count == 1 ? "" : "s")}.");
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(parts[i])) continue;
+            if (!double.TryParse(parts[i].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) || !double.IsFinite(v) || v < 0 || v > 1000)
+                throw new InvalidOperationException($"'{parts[i].Trim()}' is not a bend radius. Type millimetres from 0 to 1000 separated by commas, for example 3, 80.");
+            result[i] = v;
+        }
+        return result;
+    }
+
+    void SaveDxf()
+    {
+        if (_loops.Count == 0) throw new InvalidOperationException("Pick a sketch and build the fold first.");
+        var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Drawings");
+        var path = FlatDxf.Save(dir, "Folded sheet metal", _loops, _bendLines);
+        Results.Add(new ResultLine("Saved", path)); S.Say("Flat pattern saved to " + path);
+    }
+
     protected override CommandOutput? Build()
     {
         if (_sketch.Items.Count == 0) return null;
@@ -84,6 +116,7 @@ public sealed class FoldCommand : Command
         if (lines.Count == 0) throw new InvalidOperationException("Draw each bend as a construction line across the sheet in the same sketch. The normal lines make the outline.");
         if (lines.Count > 30) throw new InvalidOperationException("A sheet can have at most 30 bends.");
         var angles = Angles(_angles.Value, _angle.Value, lines.Count);
+        var radii = Radii(_radii.Value, r, lines.Count);
         var bends = new List<Bend>();
         for (int i = 0; i < lines.Count; i++)
         {
@@ -91,7 +124,7 @@ public sealed class FoldCommand : Command
             if (Math.Abs(deg) < 0.1 || Math.Abs(deg) > 180) throw new InvalidOperationException($"Bend {i + 1} has an angle of {deg:0.##}°. Use 0.1° to 180°, negative to fold the other way.");
             double theta = Math.Abs(deg) * Math.PI / 180;
             var d = (lines[i].b - lines[i].a).Normalized();
-            bends.Add(new Bend(i, lines[i].a, d, Vec3.Cross(n, d).Normalized(), deg < 0 ? -theta : theta, SheetFold.BendAllowance(theta, r, k, t)));
+            bends.Add(new Bend(i, lines[i].a, d, Vec3.Cross(n, d).Normalized(), deg < 0 ? -theta : theta, SheetFold.BendAllowance(theta, radii[i], k, t), radii[i]));
         }
 
         var (prof, _) = ProfileUtil.Resolve(S, _sketch, true);
@@ -165,18 +198,17 @@ public sealed class FoldCommand : Command
                 var b = bends[group.Key.Bend];
                 bool childOnPlus = other == group.Key.High;
                 var u = childOnPlus ? b.W : -b.W; var d = childOnPlus ? b.D : -b.D;
-                frames[other] = SheetFold.Child(frames[current], b.P, u, d, n, Math.Abs(b.Theta), b.Theta < 0 ? -1 : 1, r, k, t, z0);
+                frames[other] = SheetFold.Child(frames[current], b.P, u, d, n, Math.Abs(b.Theta), b.Theta < 0 ? -1 : 1, b.R, k, t, z0);
                 found[other] = (current, group.Key.Bend); order.Add((current, other, group.Key.Bend)); queue.Enqueue(other);
             }
         }
         if (frames.Count != cells.Count) throw new InvalidOperationException("Some flat regions are not joined to the rest by a bend. Check that every region touches a bend line.");
 
         // build the folded pieces: rigid regions and exact cylindrical strips for the zones
-        double rEff = Math.Max(r, 1e-3);
         Shape Sector(Zone z, Vec3 u, double theta, int s)
         {
             var b = bends[z.Bend];
-            double half = b.Allowance / 2, zIn = s > 0 ? z0 + t : z0;
+            double half = b.Allowance / 2, zIn = s > 0 ? z0 + t : z0, rEff = Math.Max(b.R, 1e-3);
             var start = b.P + b.D * z.D0;
             var centre = start - u * half + n * (zIn + s * rEff);
             Vec3 a0 = n * (-s), a1 = a0 * Math.Cos(theta) + u * Math.Sin(theta), am = a0 * Math.Cos(theta / 2) + u * Math.Sin(theta / 2);
@@ -206,9 +238,30 @@ public sealed class FoldCommand : Command
         Results.Add(new ResultLine("Bends", bends.Count.ToString()));
         Results.Add(new ResultLine("Blank", $"{box.Max.X - box.Min.X:0.###} × {box.Max.Y - box.Min.Y:0.###} × {box.Max.Z - box.Min.Z:0.###} mm bounding box of the flat sheet"));
         for (int i = 0; i < bends.Count; i++)
-            Results.Add(new ResultLine($"Bend {i + 1}", $"{Math.Abs(bends[i].Theta) * 180 / Math.PI:0.##}° {(bends[i].Theta < 0 ? "away from the normal" : "toward the normal")}, {bends[i].Allowance:0.###} mm of flat for the bend"));
+            Results.Add(new ResultLine($"Bend {i + 1}", $"{Math.Abs(bends[i].Theta) * 180 / Math.PI:0.##}° {(bends[i].Theta < 0 ? "away from the normal" : "toward the normal")}, inside radius {bends[i].R:0.###} mm, {bends[i].Allowance:0.###} mm of flat for the bend"));
         var o = new CommandOutput { Label = "Fold", Icon = "fold" };
         o.Add.Add(new(body, "Folded sheet metal", ObjKind.Solid));
+
+        // the flat pattern is the sketch itself: its outline with the holes, and a line along each bend zone; it is kept for the DXF whether or not it is drawn
+        var flatFace = prof.Sub(SubKind.Face, 0);
+        _loops = CamGeom.Loops(flatFace, 0.05).Where(l => l.closed).Select(l => l.pts.Select(q => plane.Project(q)).Select(q => (q.u, q.v)).ToList()).ToList();
+        _bendLines = zones.Select(z => (a: plane.Project(bends[z.Bend].P + bends[z.Bend].D * z.D0), b: plane.Project(bends[z.Bend].P + bends[z.Bend].D * z.D1)))
+            .Select(l => ((l.a.u, l.a.v), (l.b.u, l.b.v))).ToList();
+        if (_flat.Value)
+        {
+            double Reach(Shape shape, bool max)
+            {
+                var pr = shape.Props(); var along = new List<double>();
+                foreach (var x in new[] { pr.Min.X, pr.Max.X }) foreach (var y in new[] { pr.Min.Y, pr.Max.Y }) foreach (var z in new[] { pr.Min.Z, pr.Max.Z })
+                    along.Add(Vec3.Dot(new Vec3(x, y, z) - plane.Origin, plane.U));
+                return max ? along.Max() : along.Min();
+            }
+            double shift = Reach(body, true) + 20 - Reach(flatFace, false);           // beside the part, along the sketch's own U direction
+            var offset = plane.U * shift;
+            o.Add.Add(new(Occ.Translate(flatFace, offset), "Folded sheet metal flat", ObjKind.Surface));
+            var curves = zones.Select(z => Occ.Line(bends[z.Bend].P + bends[z.Bend].D * z.D0 + offset, bends[z.Bend].P + bends[z.Bend].D * z.D1 + offset)).ToList();
+            if (curves.Count > 0) o.Add.Add(new(curves.Count == 1 ? curves[0] : Occ.Compound(curves), "Bend lines", ObjKind.Curve));
+        }
         return o;
     }
 }

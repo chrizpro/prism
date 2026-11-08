@@ -377,9 +377,17 @@ def flange(profile, thickness=2, bend_radius=2, width=30, **p):
 
 
 def fold(sketch, thickness=2, bend_radius=2, angle=90, **p):
-    """Fold a flat sketch into sheet metal. The sketch holds the outline (normal lines, holes as loops) and each bend as a
-    construction line across it. ``angle`` is in degrees; pass ``angle_of_each_bend="90, -90"`` for different signed angles."""
-    return _one(run("fold", slots={"Flat sketch": sketch}, thickness=thickness, bend_radius=bend_radius, bend_angle=angle, **p), "fold")
+    """Fold a flat sketch into sheet metal and return the folded solid. The sketch holds the outline (normal lines, holes as loops) and each
+    bend as a construction line across it. ``angle`` is in degrees. ``angle_of_each_bend="90, -90"`` and ``radius_of_each_bend="3, 80"`` set signed
+    angles and inside radii bend by bend. The flat pattern is also made beside the part; pass ``also_make_the_flat_pattern_beside_the_part=False`` to skip it."""
+    made = run("fold", slots={"Flat sketch": sketch}, thickness=thickness, bend_radius=bend_radius, bend_angle=angle, **p)
+    return next((o for o in made if o.kind == "Solid"), None) or _one(made, "fold")
+
+
+def edge_flange(face, length=20, angle=90, bend_radius=2, **p):
+    """Add a flange along the edge of a sheet-metal body. ``face`` is the thin end face of the sheet as ``{"object": "Plate 1", "face": 3}``.
+    ``fold_toward="Down (the lower face)"`` folds the flange the other way."""
+    return run("edge_flange", slots={"Thin end face of the sheet": face}, flange_length=length, bend_angle=angle, bend_radius=bend_radius, **p)
 
 
 def flat_pattern(body, k_factor=0.44):

@@ -412,6 +412,11 @@ public static partial class ToolHelp
                     return new(Marked(K(Occ.Box(52, 20, 1.5)), K(Join([Occ.Line(new(-12, -10, 1.55), new(-12, 10, 1.55)), Occ.Line(new(12, -10, 1.55), new(12, 10, 1.55))])), b),
                         Plain(K(Occ.Extrude(K(Occ.Profile([side])), new(0, 20, 0))), a));
                 }
+                case "edge-flange":
+                {
+                    var side = K(Occ.Polyline([new(-12, -10, 0), new(12, -10, 0), new(12, -10, 14), new(10.5, -10, 14), new(10.5, -10, 1.5), new(-10.5, -10, 1.5), new(-10.5, -10, 0)], true));
+                    return new(Plain(K(Occ.Box(24, 20, 1.5)), b), Plain(K(Occ.Extrude(K(Occ.Profile([side])), new(0, 20, 0))), a));
+                }
                 case "flat-pattern":
                 {
                     var side = K(Occ.Polyline([new(-12, -10, 0), new(12, -10, 0), new(12, -10, 14), new(10.5, -10, 14), new(10.5, -10, 1.5), new(-10.5, -10, 1.5), new(-10.5, -10, 14), new(-12, -10, 14)], true));
@@ -482,6 +487,18 @@ public static partial class ToolHelp
                 }
                 case "trim":
                     return new(Lines(K(Lines2((-20, 0, 20, 0), (-8, -10, -8, 10), (8, -10, 8, 10))), b), Lines(K(Lines2((-20, 0, -8, 0), (8, 0, 20, 0), (-8, -10, -8, 10), (8, -10, 8, 10))), a));
+                case "grease-pencil":
+                {
+                    var frame = K(Lines2((-20, -10, 20, -10), (20, -10, 20, 10), (20, 10, -20, 10), (-20, 10, -20, -10)));
+                    var mark = K(Occ.Spline([new(-14, -2, 0), new(-6, 5, 0), new(2, -4, 0), new(10, 4, 0), new(15, -1, 0)]));
+                    return new(Lines(frame, b), Lines(K(Occ.Compound([frame, mark])), a));
+                }
+                case "grease-eraser":
+                {
+                    var one = K(Occ.Spline([new(-14, -2, 0), new(-6, 5, 0), new(2, -4, 0)]));
+                    var two = K(Occ.Spline([new(6, 6, 0), new(12, -2, 0), new(16, 5, 0)]));
+                    return new(Lines(K(Occ.Compound([one, two])), b), Lines(two, a));
+                }
                 case "extend":
                     return new(Lines(K(Lines2((-20, 0, 0, 0), (12, -10, 12, 10))), b), Lines(K(Lines2((-20, 0, 12, 0), (12, -10, 12, 10))), a));
                 case "project":

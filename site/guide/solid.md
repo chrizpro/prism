@@ -53,7 +53,7 @@ For parts without history, such as imported STEP files, use **Solid › Direct E
 1. Sketch the cross-section as an open chain of straight lines with sharp corners.
 2. **Sheet Metal › Flange**: set thickness, inside bend radius, width and which side the metal lies on. Corners become bends.
 3. Add cut-outs with Extrude, Hole, Fillet and Chamfer.
-4. **Flat Pattern** unfolds bodies whose bends are parallel, with a bend line per bend. Save it as DXF for laser or waterjet cutting.
+4. **Flat Pattern** unfolds bodies whose bends are parallel (slots and rounded corners are fine), with a bend line per bend. Save it as DXF for laser or waterjet cutting.
 
 For a part that bends in more than one direction, such as a tray or a box, start from the flat sheet instead:
 
@@ -61,6 +61,9 @@ For a part that bends in more than one direction, such as a tray or a box, start
 2. Draw each bend as a **construction line** across the sheet.
 3. **Sheet Metal › Fold**: pick the sketch and set thickness, inside bend radius and angle. Type signed angles in order to fold bends different ways, for example `90, -90`. The largest flat region stays where it is.
 4. Keep holes and notches clear of the bend lines: each bend takes a strip of the sheet as wide as its bend allowance.
+5. Type radii in **Radius of each bend** to mix sharp and rolled bends, for example `3, 80, 3`. The flat pattern is made beside the part, and **Save the flat pattern as DXF** writes it for cutting.
+
+To add a flange to an edge of a body that already exists, use **Sheet Metal › Edge Flange**: pick the thin end face of the sheet along the edge, then set the leg length, bend angle, inside radius and Up or Down.
 
 ## Drawings
 

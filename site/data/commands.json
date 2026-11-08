@@ -4363,6 +4363,55 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "edge_flange",
+  "title": "Edge Flange",
+  "hint": "Pick the thin end face of a sheet-metal body along the edge you want to flange. Set the length of the straight leg, the bend angle and the inside radius: a bend and a flange are added along the whole edge. Up and Down choose which face of the sheet the flange folds toward.",
+  "slots": [
+   {
+    "label": "Thin end face of the sheet",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Flange length",
+    "type": "number",
+    "default": 20,
+    "unit": "mm",
+    "min": 0.01,
+    "max": 100000
+   },
+   {
+    "label": "Bend angle",
+    "type": "number",
+    "default": 90,
+    "unit": "°",
+    "min": 0.1,
+    "max": 180
+   },
+   {
+    "label": "Bend radius (inside)",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000
+   },
+   {
+    "label": "Fold toward",
+    "type": "choice",
+    "default": "Up (the upper face of the sheet)",
+    "options": [
+     "Up (the upper face of the sheet)",
+     "Down (the lower face)"
+    ]
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "edge_surface",
   "title": "Edge Surface",
   "hint": "Pick two, three or four curves that meet end to end (two: a ruled surface). A smooth surface spans the gap between them.",
@@ -5943,7 +5992,7 @@
    {
     "label": "Bend radius (inside)",
     "type": "number",
-    "default": 2,
+    "default": 3,
     "unit": "mm",
     "min": 0,
     "max": 1000
@@ -5968,6 +6017,20 @@
     "label": "Angle of each bend (optional)",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Radius of each bend (optional)",
+    "type": "text",
+    "default": ""
+   },
+   {
+    "label": "Also make the flat pattern beside the part",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Save the flat pattern as DXF",
+    "type": "action"
    },
    {
     "label": "The metal lies",
