@@ -6,10 +6,11 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 
 ## What is here
 
-Models are grouped by the main Prism workflow they show; the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
+Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, CAM, CAE, ECAD. A model's section is the **first** workflow in its Workflow field, so name the main one first (`CAM / Solid` belongs under CAM, `Solid / Assembly` under Solid); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
+| CAM / Solid | Maple serving board (`serving-board`) |
 | Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
 | Solid / Assembly | Meridian orrery (`meridian-orrery`) |
 | Solid | Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
@@ -29,6 +30,8 @@ Sheet-metal parts are plain silver and the cardboard box is brown corrugated boa
 The cache is content-addressed. A changed model never replaces an already opened working copy. Delete or replace an entry to curate the next collection; existing user copies remain intact.
 
 ## Reproduce the new studies
+
+`python gallery/build_serving_board.py --discovery <discovery.json>` builds the maple serving board and its CNC plan ([#84](https://github.com/chrizpro/prism/issues/84)): a Solid body (R25 corners, a 4 mm juice well, a hand slot) and a saved CAM setup with four operations on a 6 mm wood end mill: face, pocket the well, pocket the slot through, and a tabbed profile. It asserts the volume, then runs Stock review and the design check and requires no gouges, rapid contacts or holder contacts. Building it exposed the three CAM bugs fixed beside it. `--render-only` reopens the saved model; `--no-render` skips the render. Decorative only: feeds and speeds are placeholders, so prove out any program on scrap.
 
 `python gallery/build_lotus_dish.py --discovery <discovery.json>` builds the Lotus dish with the Fold tool ([#83](https://github.com/chrizpro/prism/issues/83)): a square base, four petals that rise 50° and curl back 30°, with trapezoid tips, a ring of holes and slots. The script computes the signed per-bend angles in Fold's bend order, and asserts that the folded volume matches its own flat pattern and that all 17 holes are in it. `--render-only` reopens the saved model; `--no-render` skips the render. Decorative only.
 

@@ -41,6 +41,19 @@
       "Sha256": "62ba040c8d2d1db2c4e864e437758c0d0637d1808e01ffd0baa69c2b4b2299d2"
     },
     {
+      "Id": "serving-board",
+      "Name": "Maple serving board",
+      "Description": "A CNC-routed maple serving board with a juice well and hand slot, modeled in Solid and planned in CAM: face, pockets and a tabbed profile.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serving-board.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serving-board.png?v=5a42ddd12251845f",
+      "Bytes": 406086,
+      "Sha256": "ae11f16aff8e2b5312c7d316f7c41eb5046030470359fce31e8afca2f0e05c75"
+    },
+    {
       "Id": "fold-stand",
       "Name": "Fold tablet stand",
       "Description": "One bent sheet: a chamfered ledge, a leaning vented back rest and a hemmed top edge, shown with its flat pattern.",

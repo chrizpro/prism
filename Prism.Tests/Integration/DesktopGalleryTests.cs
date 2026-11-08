@@ -9,6 +9,31 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I009 | The serving board is one valid 300 x 160 x 18 mm solid with a saved CAM plan of four toolpaths")]
+    [Trait("TestId", "GAL-I009")]
+    public async Task ServingBoardKeepsItsCamPlan()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I009", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/serving-board.prism") });
+        var board = await mcp.Call("object_info", new { @object = "Serving board" });
+        Assert.True((bool?)board["valid"]);
+        var size = board["size"]!.AsArray().Select(v => (double)v!).ToArray();
+        Assert.InRange(size[0], 299.99, 300.01);
+        Assert.InRange(size[1], 159.99, 160.01);
+        Assert.InRange(size[2], 17.99, 18.01);
+        // two arcs-and-lines outline minus the juice well (stadium 90 wide, 4 deep) and the hand slot (16 wide, through)
+        double expected = (300 * 160 - (4 - Math.PI) * 625) * 18 - (Math.PI * 45 * 45 + 90 * 90) * 4 - (Math.PI * 64 + 20 * 16) * 14;
+        Assert.InRange((double)board["volume"]!, expected * .99, expected * 1.01);
+        var state = await mcp.Call("get_state", new { });
+        Assert.Equal(4, state["objects"]!.AsArray().Count(o => (string?)o!["kind"] == "Toolpath"));
+        await mcp.Call("view", new { yaw = -30, pitch = 38, fit = true, grid = false, display = "shaded" });
+        await mcp.Capture("serving-board");
+    }
+
     [Fact(DisplayName = "GAL-I008 | The lotus dish is one valid solid whose volume matches its flat pattern, and the flat pattern keeps all 17 holes")]
     [Trait("TestId", "GAL-I008")]
     public async Task LotusDishMatchesItsFlatPattern()

@@ -31,5 +31,6 @@ public partial class HomeView : UserControl
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseHome();
     void OnOpenFile(object? s, RoutedEventArgs e) { if (s is Button { Tag: string path }) Vm?.OpenPath(path); }
     async void OnGalleryRefresh(object? s, RoutedEventArgs e) { if (Vm is { } vm) await vm.LoadGallery(refresh: true); }
+    void OnGallerySection(object? s, RoutedEventArgs e) { if (s is Button { Tag: GallerySection section }) section.Toggle(); }
     async void OnGalleryOpen(object? s, RoutedEventArgs e) { if (s is Button { Tag: GalleryCard card } && Vm is { } vm) await vm.OpenGalleryCard(card); }
 }

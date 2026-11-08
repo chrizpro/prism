@@ -25,9 +25,24 @@ public sealed partial class GalleryCard(GalleryEntry entry) : ObservableObject
     [ObservableProperty] public partial string ActionLabel { get; set; } = "Download & open";
 }
 
+/// <summary>One titled group of gallery cards; shows its first few until expanded (always all while searching).</summary>
+public sealed partial class GallerySection(string title, System.Collections.Generic.List<GalleryCard> cards, bool searching, bool expanded, Action<GallerySection> toggled) : ObservableObject
+{
+    public string Title => title;
+    public string Heading => title + "  ·  " + cards.Count;
+    public System.Collections.Generic.List<GalleryCard> Cards => cards;
+    public bool Expanded { get; private set; } = expanded;
+    public bool CanExpand => !searching && cards.Count > GallerySections.Preview;
+    public System.Collections.Generic.IEnumerable<GalleryCard> Visible => searching || Expanded ? cards : cards.Take(GallerySections.Preview);
+    public string ToggleText => Expanded ? "Show fewer" : "Show all " + cards.Count;
+    public void Toggle() { Expanded = !Expanded; toggled(this); }
+}
+
 public sealed partial class MainViewModel
 {
     public ObservableCollection<GalleryCard> GalleryCards { get; } = [];
+    public ObservableCollection<GallerySection> GalleryGroups { get; } = [];
+    readonly System.Collections.Generic.HashSet<string> _expandedSections = new(StringComparer.OrdinalIgnoreCase);
     readonly ObservableCollection<GalleryCard> _galleryCards = [];
     public GalleryStore GallerySource { get; set; } = GalleryStore.Local;
     [ObservableProperty] public partial string GallerySearch { get; set; } = "";
@@ -49,7 +64,22 @@ public sealed partial class MainViewModel
         GalleryCards.Clear();
         foreach (var card in _galleryCards.Where(c => (c.Name + " " + c.Description + " " + c.Workflow).Contains(GallerySearch.Trim(), StringComparison.OrdinalIgnoreCase)))
             GalleryCards.Add(card);
+        BuildGallerySections();
         OnPropertyChanged(nameof(GalleryEmpty));
+    }
+    void BuildGallerySections()
+    {
+        bool searching = GallerySearch.Trim().Length > 0;
+        GalleryGroups.Clear();
+        foreach (var (name, entries) in GallerySections.Group(GalleryCards.Select(c => c.Entry)))
+        {
+            var cards = entries.Select(e => GalleryCards.First(c => c.Entry == e)).ToList();
+            GalleryGroups.Add(new GallerySection(name, cards, searching, _expandedSections.Contains(name), section =>
+            {
+                if (section.Expanded) _expandedSections.Add(section.Title); else _expandedSections.Remove(section.Title);
+                BuildGallerySections();
+            }));
+        }
     }
     public async Task LoadGallery(bool refresh = false)
     {
