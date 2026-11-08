@@ -14,6 +14,53 @@ public class GreasePencilTests
 {
     static PointerInfo Pointer(double x, double y, bool left = true) => new(x, y, left, false, false, false);
 
+    [Fact(DisplayName = "SKT-GP008 | Use orthographic view captures the current drawing plane and can recapture after orbit")]
+    [Trait("TestId", "SKT-GP008")]
+    public void OrthographicButtonCapturesAndRecapturesView()
+    {
+        var s = new CadSession();
+        s.EnterSketch(Plane3.XY);
+        var sk = s.Sketch!;
+        sk.Set3DEnabled(s, true);
+        var tool = new GreasePencilTool();
+        sk.SetTool(s, tool);
+        s.Camera.SetView(-35, 28);
+        s.SketchProjection(perspective: true);
+        var normal = s.Camera.EyeDirection;
+        var right = s.Camera.Right;
+        var up = s.Camera.Up;
+        tool.PanelSet(s, "orthographic", null);
+        Assert.True(s.Camera.Orthographic);
+        Assert.Equal(right, s.Camera.Right);
+        Assert.Equal(up, s.Camera.Up);
+        Assert.True(Assert.Single(tool.Panel!, c => c.Id == "view-plane").On);
+        // The chosen plane stays fixed even if the view changes before drawing.
+        s.Camera.SetView(-20, 40);
+        s.PointerDown(Pointer(400, 300));
+        s.PointerUp(Pointer(440, 340, false));
+        var first = Assert.Single(sk.Model.GreaseStrokes).Clone();
+        void AssertPlane(Prism.Core.Sketching.GreaseStroke stroke, Vec3 n)
+        {
+            foreach (var p in stroke.Points)
+            {
+                var world = sk.Plane.PointAt(p.U, p.V) + sk.Plane.Normal * p.Depth;
+                Assert.InRange(Math.Abs(Vec3.Dot(world - sk.Plane.Origin, n)), 0, 1e-8);
+            }
+        }
+        AssertPlane(first, normal);
+        var nextNormal = s.Camera.EyeDirection;
+        tool.PanelSet(s, "orthographic", null);
+        s.PointerDown(Pointer(400, 300));
+        s.PointerUp(Pointer(440, 340, false));
+        Assert.Equal(2, sk.Model.GreaseStrokes.Count);
+        AssertPlane(sk.Model.GreaseStrokes[1], nextNormal);
+        Assert.Equal(first.Points, sk.Model.GreaseStrokes[0].Points);
+        tool.PanelSet(s, "view-plane", false);
+        s.PointerDown(Pointer(400, 300));
+        s.PointerUp(Pointer(440, 340, false));
+        Assert.All(sk.Model.GreaseStrokes[2].Points, p => Assert.InRange(Math.Abs(p.Depth), 0, 1e-8));
+    }
+
     [Fact(DisplayName = "SKT-GP006 | Eraser drag removes only touched marks and undoes as one gesture")]
     [Trait("TestId", "SKT-GP006")]
     public void EraserGestureHasOneUndoAndDoesNotEraseGeometry()

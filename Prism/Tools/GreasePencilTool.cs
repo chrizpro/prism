@@ -22,6 +22,7 @@ public sealed class GreasePencilTool : SketchTool
     ];
     uint _color = 0xFFFACC15;
     bool _viewPlane;
+    Plane3? _capturedView;
     Plane3 _plane;
     public override string Name => "Grease pencil";
     public override string Prompt => "In orthographic view, drag to sketch a brainstorming mark. Escape cancels the current stroke; Ctrl+Z undoes a completed stroke.";
@@ -32,8 +33,8 @@ public sealed class GreasePencilTool : SketchTool
     [
         new(ToolControlKind.Info, "step", Prompt),
         .. Palette.Select(color => new ToolControl(ToolControlKind.Toggle, "color-" + color.Id, color.Name, On: _color == color.Color, Section: "Color")),
-        new(ToolControlKind.Button, "orthographic", "Use orthographic view", Section: PanelSettingsTitle),
-        new(ToolControlKind.Toggle, "view-plane", "Draw on view-facing plane", On: _viewPlane, Text: "Off: active sketch plane. On: plane facing the view through the active plane origin. Each stroke stays on its starting plane."),
+        new(ToolControlKind.Button, "orthographic", "Use orthographic view", Text: "Use the current view as the drawing plane and switch to orthographic projection. Click again after orbiting to choose a new plane.", Section: PanelSettingsTitle),
+        new(ToolControlKind.Toggle, "view-plane", "Draw on view-facing plane", On: _viewPlane, Text: "Off: active sketch plane. On: captured view plane through the active plane origin. Use orthographic view captures a new plane from the current view."),
         new(ToolControlKind.Info, "annotation", "Saved with this sketch. Marks do not snap, constrain, or form modeling profiles."),
         new(ToolControlKind.Button, "remove-last", "Remove last mark")
     ];
@@ -46,8 +47,22 @@ public sealed class GreasePencilTool : SketchTool
             if (value is true && color.Id != null) { _points.Clear(); _color = color.Color; }
             s.RaiseState(); s.Invalidate(); return;
         }
-        if (id == "orthographic") { _points.Clear(); s.SketchProjection(perspective: false); return; }
-        if (id == "view-plane") { _points.Clear(); _viewPlane = value is true; s.RaiseState(); s.Invalidate(); return; }
+        if (id == "orthographic")
+        {
+            _points.Clear();
+            _capturedView = new Plane3(Sk(s).Plane.Origin, s.Camera.Right, s.Camera.Up);
+            _viewPlane = true;
+            s.SketchProjection(perspective: false);
+            s.RaiseState();
+            s.Say("Grease pencil: drawing on the captured view plane. Orbit and click Use orthographic view again to choose a new plane.");
+            return;
+        }
+        if (id == "view-plane")
+        {
+            _points.Clear(); _viewPlane = value is true;
+            _capturedView = _viewPlane ? new Plane3(Sk(s).Plane.Origin, s.Camera.Right, s.Camera.Up) : null;
+            s.RaiseState(); s.Invalidate(); return;
+        }
         if (id != "remove-last" || Sk(s).Model.GreaseStrokes.Count == 0) return;
         _points.Clear();
         var sk = Sk(s);
@@ -61,7 +76,7 @@ public sealed class GreasePencilTool : SketchTool
         if (!p.Left || p.Alt) return false;
         if (!s.Camera.Orthographic) { s.Say("Switch to orthographic view to draw grease pencil marks."); return false; }
         _points.Clear();
-        _plane = _viewPlane ? new Plane3(Sk(s).Plane.Origin, s.Camera.Right, s.Camera.Up) : Sk(s).Plane;
+        _plane = _viewPlane && _capturedView is { } captured ? captured : Sk(s).Plane;
         Sample(s, p, true);
         return _points.Count > 0;
     }
