@@ -29,7 +29,8 @@ for n in sorted(names):
     else:
         families[f][2].append(n)
 total = sum(f[0] for f in families.values())
-print(f"{total} of {len(names)} registered commands are touched by the visual scripts ({100 * total // len(names)}%)\n")
+print(f"{total} of {len(names)} registered commands are exercised with real inputs by the visual scripts ({100 * total // len(names)}%)")
+print("The sweep scenario command__every-command-opens-and-cancels also starts and cancels all of them, so a crash on opening is caught for every command.\n")
 for f, (done, count, missing) in sorted(families.items(), key=lambda kv: -kv[1][1]):
     print(f"{f:22s} {done:3d} / {count:3d}")
 if "--list" in sys.argv:
