@@ -33,8 +33,15 @@ public class DesktopGalleryTests
         var flat = await mcp.Call("object_info", new { @object = "Flat pattern" });
         Assert.Equal((int)flat["faces"]! + 31, (int)flat["wires"]!);
         Assert.InRange((double)flat["size"]![1]!, 139.99, 140.01);
-        // Characterization of the K = 0.44 development (206.18 mm) recorded on 2026-11-08, not an independent calculation.
-        Assert.InRange((double)flat["size"]![0]!, 206.0, 206.4);
+        // Independent check: straight legs plus bend allowances. Inside-profile setbacks are r*tan(theta/2) and each bend adds
+        // theta*(r + K*t); the hem is a 180 degree bend of inside radius gap/2. Matches Flat Pattern to 4 decimals (2026-11-08).
+        const double t = 2, r = 3, k = .44, lip = 22, basePart = 62, rest = 110, hem = 8, gap = .5;
+        double th1 = Math.PI / 2, th2 = 70 * Math.PI / 180;
+        double Bend(double theta, double inside) => theta * (inside + k * t);
+        double Setback(double theta) => r * Math.Tan(theta / 2);
+        double expected = (lip - Setback(th1)) + (basePart - Setback(th1) - Setback(th2)) + (rest - Setback(th2))
+                          + Bend(th1, r) + Bend(th2, r) + hem + Bend(Math.PI, gap / 2);
+        Assert.InRange((double)flat["size"]![0]!, expected - .01, expected + .01);
         var tablet = await mcp.Call("object_info", new { @object = "Tablet (placeholder)" });
         Assert.InRange((double)tablet["min"]![2]!, .9, 1.1);
         var check = await mcp.Call("run_command", new { name = "interference", commit = false,

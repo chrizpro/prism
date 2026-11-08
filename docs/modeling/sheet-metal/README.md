@@ -34,7 +34,25 @@ Findings from building the [Fold gallery study](../../interface/gallery/README.m
 4. A 180° bend with a small gap produces a hem. Changing a dimension or angle regenerates the part.
 5. Invalid input is rejected with a message naming the cause.
 
-**Not in the first version (proposed):** curved or rolled bends, forming features such as louvres and ribs, multi-piece sheets, lap or welded seams, and automatic corner relief.
+**Not in the first version (proposed):** forming features such as louvres and ribs, multi-piece sheets, lap or welded seams, automatic corner relief, and genuinely conical or curved-crease bends (see below).
+
+### Proposed: curved bends from a sketch
+
+Idea: a bend is a **zone** that maps a strip of the flat sheet to 3D without stretching its neutral surface, so the straight bend is only the simplest zone type. Curves then come in tiers that reuse the same fold:
+
+1. **Roll band (curved profile, straight rulings).** The user marks a band between two straight lines in the flat sketch and draws its side-view profile as an ordinary sketch curve (arc, spline, any planar curve). The band's flat width is a derived reference dimension equal to the neutral length of that profile, so editing the profile moves everything attached to the band's edges. A circular arc is exactly one bend (radius R, angle Θ). A spline is split into tangent-continuous arcs within a chosen tolerance, each arc one zone, or into N small straight bends when the user prefers facets.
+2. **Cone roll (radial rulings).** The flat sketch holds an annular sector. A sector of angle φ becomes a cone of half-angle α where sin α = φ / 2π, so one number fixes the shape and the tool can solve either way (give α, get φ). It is closed form and stretch-free by construction.
+3. **Anything else** (general developable surfaces) would need a true isometric flattening solver, and is out of scope here.
+
+A curved crease cannot keep both sides flat, so a curved bend line always means at least one side becomes curved; the tool would say which side. Flanges around holes and other stretched shapes are forming, not bending.
+
+**What a throwaway prototype showed (2026-11-08, not committed; Prism 0.1.0-alpha.2 Linux native libraries with current `develop` managed code):**
+- Prism's Flat Pattern follows θ·(r + K·t) per bend with setbacks r·tan(θ/2) on the inside line, from the inside surface. This reproduced a 90° bend at K = 0.33 and 0.44 exactly and the Fold stand's 206.1838 mm blank to four decimals (hem as a 180° bend of radius gap/2).
+- Folding Prism's own U-channel blank (120.1894 mm) with a 70-line prototype gave an inner width of 60.000 and inner leg heights of 30.000, as Flange had drawn.
+- A four-bend tray folded from a cross gives inside depth 33.000 (r + wall) and inside size 106 × 66 mm, matching closed form, with a corner gap of ρ√2 = 5.487 mm between neighbouring walls, the number a relief rule would use.
+- One bend of radius 80 mm and 90° unfolds in Flat Pattern to 247.0460 mm, the same as the formula, so a circular arc is already one ordinary bend.
+- A chain of N equal adjacent bends equals one smooth arc to about 1e-13 mm. A spline as N straight facets (radius 0.5 mm) gave blank-length errors of −1.444, −0.363, −0.091 and −0.023 mm for N = 3, 6, 12 and 24.
+- **Prism's Flatten of a cone is not a true development.** It returns an area-preserving UV rectangle (138.227 mm, the circumference at the mean radius) with the warning "lengths and area may stretch", while the true layout of that frustum is an annular sector of 147.73°. So the existing Flatten cannot yet certify a cone as manufacturable; the closed-form cone zone above could.
 
 **Open decisions for the owner**
 - One connected sheet per part, or several pieces?
@@ -42,6 +60,7 @@ Findings from building the [Fold gallery study](../../interface/gallery/README.m
 - Should Flat Pattern also learn to unfold bodies with non-parallel bends, or only return the source flat for parts made flat-first?
 - Should slots and rounded corners unfold on bodies made with Flange ([#78](https://github.com/chrizpro/prism/issues/78))?
 - Which of the other candidates in #81 (a separate hem, an unfoldable corner treatment, unfolding one bend) are wanted?
+- How should curved bends be offered: roll band first with arcs and facets, or all tiers together? Should Flatten gain an analytic cone layout like its cylinder layout?
 - Should thickness, K-factor and minimum bend radius belong to the material? Library and custom materials carry mechanical and thermal data but nothing sheet-specific today.
 
 ## Verification
