@@ -1461,3 +1461,94 @@ def form_matrix():
             cad.call("object_update", object=o.name, visible=False)
     strip = ["Freeform primitives and the cage tools, each with its cage checked"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("iso (cages smoothed)", render(-25, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Primitives, booleans, analysis commands and surface offsets
+@scenario("solid__primitives-booleans-interference-properties-and-thicken", columns=1)
+def solid_misc():
+    rows = []
+
+    def two_boxes():
+        cad.call("document_new")
+        a = cad.box(width=20, depth=20, height=20, operation="New body"); a.rename("A")
+        b = cad.box(width=20, depth=20, height=20, operation="New body"); cad.move(b, x=10, y=10, z=10); b.rename("B")
+
+    def volume(n):
+        return cad.call("object_info", object=n)["volume"]
+
+    def rows_of(name, slots, params=None):
+        r = cad.call("run_command", name=name, slots=slots, params=params or {}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        return text
+
+    def case(label, fn):
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def solid_of(command, params, expect):
+        cad.call("document_new")
+        cad.call("run_command", name=command, params=params)
+        n = next(o.name for o in cad.objects() if o.kind == "Solid")
+        v = volume(n)
+        return abs(v - expect) < .005 * expect, f"volume {v:.0f} (expect {expect:.0f})"
+    case("Cone, base 16, top 4, height 30", lambda: solid_of("cone", {}, math.pi / 3 * 30 * (256 + 64 + 16)))
+    case("Cone, base 10, top 0 (a point), height 24", lambda: solid_of("cone", {"Base radius": 10, "Top radius": 0, "Height": 24}, math.pi / 3 * 24 * 100))
+    case("Torus, major 20, minor 5", lambda: solid_of("torus", {}, 2 * math.pi ** 2 * 20 * 25))
+
+    def boolean(command, expect_total, keep_names):
+        two_boxes()
+        cad.call("run_command", name=command, slots={{"union": "Base body", "subtract": "Body to cut from", "intersect": "Base body"}[command]: ["A"], {"union": "Other bodies", "subtract": "Tool bodies", "intersect": "Other bodies"}[command]: ["B"]})
+        total = sum(volume(o.name) for o in cad.objects() if o.kind == "Solid")
+        return abs(total - expect_total) < 5, f"volume {total:.0f} (expect {expect_total}); bodies left {len([o for o in cad.objects() if o.kind == 'Solid'])}"
+    case("Union of two overlapping 20 mm cubes", lambda: boolean("union", 15000, 1))
+    case("Subtract: the cube minus its overlap", lambda: boolean("subtract", 7000, 1))
+    case("Intersect: only the overlap remains", lambda: boolean("intersect", 1000, 1))
+
+    def interference():
+        two_boxes()
+        text = rows_of("interference", {"Bodies to check (none = all solids)": ["A", "B"]})
+        return "1,000 mm" in text, text[:110]
+    case("Interference finds the 1000 mm3 overlap", interference)
+
+    def properties():
+        two_boxes()
+        text = rows_of("properties", {"Bodies (none = all)": ["A"]}, {"Material": "Steel"})
+        return "62.8 g" in text, text[:110]
+    case("Properties: an 8000 mm3 steel cube weighs 62.8 g", properties)
+
+    def check():
+        two_boxes()
+        text = rows_of("check", {"Bodies (none = all)": ["A"]})
+        return "healthy" in text, text[-70:]
+    case("Check reports a healthy body", check)
+
+    def thicken():
+        cad.call("document_new")
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        surf = new_object(before, ("Surface",))
+        cad.call("run_command", name="thicken", slots={"Surface": [surf]}, params={"Thickness": 2})
+        n = next(o.name for o in cad.objects() if o.kind == "Solid")
+        v = volume(n)
+        return abs(v - 1200) < 30, f"volume {v:.0f} (expect 1200: 30 x 20 x 2)"
+    case("Thicken a 30 x 20 surface by 2", thicken)
+
+    def offset():
+        cad.call("document_new")
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        surf = new_object(before, ("Surface",))
+        b2 = names()
+        cad.call("run_command", name="offset_surface", slots={"Surface or face": [surf]}, params={"Offset distance": 5})
+        made = new_object(b2, ("Surface", "Solid"))
+        a1, a2 = cad.call("object_info", object=surf)["area"], cad.call("object_info", object=made)["area"] if made else 0
+        return made is not None and abs(a1 - a2) < 5, f"area {a1:.0f} offset to {a2:.0f} (the same sheet moved 5 mm)"
+    case("Offset a surface by 5", offset)
+    cad.call("document_new")
+    two_boxes()
+    strip = ["Primitives, booleans and the analysis commands, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("two overlapping cubes (the booleans' input)", render(-30, 30)), ("checks", text_panel(strip))]
