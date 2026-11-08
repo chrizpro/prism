@@ -1,5 +1,5 @@
 {
-  "sourceHash": "E9F4AC07CA9488EC7557A9A3C14E7F4883C42F27620C03938ABE4A0AA1E9A2F2",
+  "sourceHash": "FA1713D4585BC31DDFC2ACEDA410918CCC2062252B663DBCA97946DF5CE80280",
   "workspaces": [
     {
       "Id": "design",
@@ -5708,6 +5708,23 @@
               "id": "curvature|Curvature",
               "label": "Curvature",
               "description": "Curvature comb: hairs along splines, ellipses and arcs that show how sharply they bend. An even comb means a fair curve.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Brainstorm",
+          "tools": [
+            {
+              "id": "grease-pencil|Grease Pencil",
+              "label": "Grease Pencil",
+              "description": "In orthographic view, drag to sketch planar freehand brainstorming marks. Marks are saved annotations, separate from modeling curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "grease-eraser|Eraser",
+              "label": "Eraser",
+              "description": "Click or drag over grease pencil marks to erase whole strokes. Undo restores an erase gesture.",
               "shortcut": ""
             }
           ]
