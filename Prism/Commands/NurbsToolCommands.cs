@@ -56,6 +56,8 @@ static class NurbsUtil
         return res;
     }
 
+    public static Shape Join(IEnumerable<Shape> curves) => Occ.Profile(curves.ToList(), false);
+
     public static Vec3 DirectionOf(int choice) => choice switch { 0 => -Vec3.UnitZ, 1 => Vec3.UnitZ, 2 => -Vec3.UnitX, 3 => Vec3.UnitX, 4 => -Vec3.UnitY, _ => Vec3.UnitY };
     public static readonly string[] DirectionNames = ["Down (-Z)", "Up (+Z)", "Left (-X)", "Right (+X)", "Back (-Y)", "Front (+Y)"];
 }
@@ -178,7 +180,7 @@ public sealed class JoinCurvesCommand : Command
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var joined = Occ.Profile(_curves.Items.Select(i => NurbsUtil.Curve(S, i)).ToList(), false);
+        var joined = NurbsUtil.Join(_curves.Items.Select(i => NurbsUtil.Curve(S, i)));
         var o = NurbsUtil.Curves([joined], "Joined curve");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curves.Items);
         Results.Clear(); Results.Add(new ResultLine("Pieces", $"{joined.Count(SubKind.Wire)} curve(s) from {joined.Count(SubKind.Edge)} segments"));
@@ -270,7 +272,7 @@ public sealed class TrimCurveCommand : Command
     }
 }
 
-/// <summary>Cut a curve in two or more pieces.</summary>
+/// <summary>Compatibility adapter for saved Split steps and scripts; new work uses Trim Curve.</summary>
 public sealed class SplitCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -288,18 +290,19 @@ public sealed class SplitCurveCommand : Command
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var shape = NurbsUtil.Curve(S, _curve.Items[0]);
-        if (shape.Count(SubKind.Edge) != 1) throw new KernelException("Split works on one segment. Use Explode Curve first.");
-        var cuts = _at.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries)
-            .Select(t => double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v / 100 : double.NaN)
-            .Where(v => v > 0.001 && v < 0.999).Distinct().OrderBy(v => v).ToList();
-        if (cuts.Count == 0) throw new KernelException("Give one or more positions between 0 and 100 percent.");
-        var edges = new List<double> { 0 }; edges.AddRange(cuts); edges.Add(1);
-        var pieces = Enumerable.Range(0, edges.Count - 1).Select(i => Occ.CurveTrim(shape, edges[i], edges[i + 1])).ToList();
-        var o = NurbsUtil.Curves(pieces, "Curve piece");
-        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curve.Items);
-        Results.Clear(); Results.Add(new ResultLine("Pieces", pieces.Count.ToString()));
-        return o;
+        var trim = new TrimCurveCommand();
+        trim.Begin(S);
+        trim.ConfigureInputs(() =>
+        {
+            trim.Slots[0].TryAdd(_curve.Items[0]);
+            trim.Params.OfType<ChoiceParam>().Single(p => p.Label == "Action").Index = 1;
+            trim.Params.OfType<TextParam>().Single().Value = _at.Value;
+            trim.Params.OfType<BoolParam>().Single().Value = _keep.Value;
+        });
+        var output = trim.TryBuild() ?? throw new KernelException(trim.Error ?? "The curve could not be cut into pieces.");
+        Results.Clear();
+        foreach (var result in trim.Results) Results.Add(result);
+        return output;
     }
 }
 
@@ -358,7 +361,7 @@ public sealed class DivideCurveCommand : Command
         _curve = Slot(new SelectionSlot { Label = "Curve", Filter = NurbsUtil.CurveIn });
         _count = Add(new IntParam { Label = "Segments", Value = 10, Min = 1, Max = 500 });
     }
-    public override string Title => "Divide Curve";
+    public override string Title => "Points Along Curve";
     public override string Icon => "origin-point";
     public override string Hint => "Place points at equal distances along a curve. The length of the curve is reported.";
     protected override CommandOutput? Build()
@@ -523,13 +526,13 @@ public sealed class DuplicateEdgeCommand : Command
 {
     readonly SelectionSlot _edges;
     public DuplicateEdgeCommand() { _edges = Slot(new SelectionSlot { Label = "Edges", Filter = SelFilter.Edge, Multi = true }); }
-    public override string Title => "Duplicate Edge";
+    public override string Title => "Extract Edges";
     public override string Icon => "curve-through";
     public override string Hint => "Copy the edges you click as curves. Edges that touch end to end become one curve.";
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var joined = Occ.Profile(_edges.Items.Select(i => S.ShapeOf(i)!).ToList(), false);
+        var joined = NurbsUtil.Join(_edges.Items.Select(i => S.ShapeOf(i)!));
         return NurbsUtil.Curves([joined], "Edge curve");
     }
 }
