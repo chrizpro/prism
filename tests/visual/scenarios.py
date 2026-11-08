@@ -409,3 +409,47 @@ def sweep_matrix():
         if o.kind == "Curve":
             cad.call("object_update", object=o.name, visible=False)
     return [("iso, both sweeps", render(-30, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+@scenario("solid__fillet-chamfer-shell-every-option", columns=1)
+def fillet_chamfer_shell():
+    cad.call("document_new")
+    m = Matrix(spacing=60)
+    box_volume = 40 * 40 * 20
+    corner = lambda size: (1 - math.pi / 4) * size ** 2 * 20      # material a round of this radius removes along a 20 mm edge
+
+    cur = [""]
+
+    def on_box(label, fn):
+        def run():
+            cur[0] = f"T{m.slot}"
+            b = cad.box(width=40, depth=40, height=20, operation="New body"); b.rename(cur[0])
+            return fn()
+        m.check(label, run)
+
+    def edges(vertical_only=True, count=None):
+        hits = cad.call("solid_find", object=cur[0], kind="edges", limit=60, **({"direction": [0, 0, 1]} if vertical_only else {}))["hits"]
+        return [dict(object=cur[0], edge=h["edge"]) for h in hits[:count]]
+
+    def finish(expect=None, within=None, lo=None, hi=None):
+        info = cad.call("object_info", object=cur[0])
+        if expect is not None:
+            ok = abs(info["volume"] - expect) <= (within or .005 * box_volume)
+            detail = f"volume {info['volume']:.0f} (expect {expect:.0f})"
+        else:
+            ok = lo < info["volume"] < hi
+            detail = f"volume {info['volume']:.0f} (expect between {lo:.0f} and {hi:.0f})"
+        return cur[0], detail, ok and info["valid"]
+
+    on_box("Fillet 1 edge R5", lambda: (cad.call("run_command", name="fillet", slots={"Edges": edges(count=1)}, params={"Radius": 5}), finish(box_volume - corner(5), 15))[1])
+    on_box("Fillet 4 vertical edges R5", lambda: (cad.call("run_command", name="fillet", slots={"Edges": edges()}, params={"Radius": 5}), finish(box_volume - 4 * corner(5), 40))[1])
+    on_box("Fillet 1 edge, 2 to 8 (variable)", lambda: (cad.call("run_command", name="fillet", slots={"Edges": edges(count=1)}, params={"Radius": 2, "End radius (0 = same as radius)": 8}), finish(lo=box_volume - corner(8), hi=box_volume - corner(2)))[1])
+    on_box("Fillet all 12 edges R3", lambda: (cad.call("run_command", name="fillet", slots={"Edges": edges(False)}, params={"Radius": 3}), finish(lo=box_volume * .9, hi=box_volume * .99))[1])
+    on_box("Chamfer 1 edge 5", lambda: (cad.call("run_command", name="chamfer", slots={"Edges": edges(count=1)}, params={"Distance": 5}), finish(box_volume - .5 * 25 * 20, 15))[1])
+    on_box("Chamfer 4 vertical edges 5", lambda: (cad.call("run_command", name="chamfer", slots={"Edges": edges()}, params={"Distance": 5}), finish(box_volume - 4 * .5 * 25 * 20, 40))[1])
+
+    def top():
+        return cad.call("solid_find", object=cur[0], kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+    on_box("Shell inside 3, top open", lambda: (cad.call("run_command", name="shell", slots={"Faces to remove": [dict(object=cur[0], face=top())]}, params={"Wall thickness": 3, "Direction": "Inside"}), finish(box_volume - 34 * 34 * 17, 40))[1])
+    on_box("Shell outside 3, top open", lambda: (cad.call("run_command", name="shell", slots={"Faces to remove": [dict(object=cur[0], face=top())]}, params={"Wall thickness": 3, "Direction": "Outside"}), finish(lo=46 * 46 * 23 - box_volume - 1000, hi=46 * 46 * 23 - box_volume))[1])   # an outside offset rounds the new outer edges, so a little less than the flat-cornered 46 x 46 x 23 box
+    return [("iso, all variants", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
