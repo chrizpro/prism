@@ -922,3 +922,66 @@ def cae_other():
     bar()
     strip = ["Natural frequencies, conduction and fatigue, each against theory"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the bar (fixed base)", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Assembly: joints and Drive Joints
+@scenario("assembly__joints-revolute-slider-rigid-cylindrical", columns=1)
+def assembly_matrix():
+    rows = []
+    slot = [0]
+
+    def centre(name):
+        i = cad.call("object_info", object=name)
+        return [(a + b) / 2 for a, b in zip(i["min"], i["max"])], i["size"]
+
+    def drive(joint, value):
+        r = cad.call("run_command", name="drive_joints", commit=False)
+        labels = [p["label"] for p in r["activeCommand"]["params"]]
+        label = next((l for l in labels if joint.lower() in l.lower()), labels[0])
+        cad.call("command_set", params={label: value})
+        cad.call("command_commit")
+        cad.call("wait_idle")
+
+    def variant(label, kind, parent_face, child_face, build, value, check):
+        i = slot[0]
+        slot[0] += 1
+        try:
+            p, c = build(i)
+            r = cad.call("run_command", name="joint_" + kind, slots={"On the first part (face, circle edge or round face)": {"object": p, **parent_face(p)}, "On the part that moves": {"object": c, **child_face(c)}})
+            joints = [o["name"] for o in r.get("created", []) if o.get("kind") == "Joint"]
+            before = centre(c)
+            if value is not None:
+                drive(joints[0], value)
+            after = centre(c)
+            ok, detail = check(before, after)
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def cyl_face(name):
+        return {"face": cad.call("solid_find", object=name, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+
+    def top_face(name):
+        return {"face": cad.call("solid_find", object=name, kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]}
+
+    def bottom_face(name):
+        return {"face": cad.call("solid_find", object=name, kind="faces", type="Plane", facing=[0, 0, -1])["hits"][0]["face"]}
+
+    def pin_and_arm(i):
+        p = cad.cylinder(radius=10, height=10, operation="New body"); p.rename(f"Pin{i}"); cad.move(p, x=i * 80)
+        arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename(f"Arm{i}"); cad.move(arm, x=i * 80 + 5, z=12)
+        c = cad.cylinder(radius=10, height=5, operation="New body"); c.rename(f"Hub{i}"); cad.move(c, x=i * 80, z=12)
+        cad.union(c, arm)                       # the hub carries an arm, so a turn changes its outline
+        return f"Pin{i}", f"Hub{i}"
+
+    cad.call("document_new")
+    variant("Revolute: hub turns 90 about a pin", "revolute", cyl_face, cyl_face, pin_and_arm, 90, lambda b, a: (b[1][0] > b[1][1] + 5 and abs(a[1][1] - b[1][0]) < 1.5 and abs(a[1][0] - b[1][1]) < 1.5, f"outline {[round(v, 1) for v in b[1][:2]]} -> {[round(v, 1) for v in a[1][:2]]} (turning 90 degrees swaps the arm from along X to along Y)"))
+
+    def block_pair(i):
+        a = cad.box(width=30, depth=30, height=10, operation="New body"); a.rename(f"Base{i}"); cad.move(a, x=i * 80)
+        b = cad.box(width=20, depth=20, height=10, operation="New body"); b.rename(f"Slide{i}"); cad.move(b, x=i * 80, z=12)
+        return f"Base{i}", f"Slide{i}"
+    variant("Slider: block slides 15 along the joint axis", "slider", top_face, bottom_face, block_pair, 15, lambda b, a: (abs(math.dist(b[0], a[0]) - 15) < .6, f"moved {math.dist(b[0], a[0]):.2f} mm (expect 15)"))
+    variant("Rigid: block stays put when driven", "rigid", top_face, bottom_face, block_pair, None, lambda b, a: (math.dist(b[0], a[0]) < .01, "no motion"))
+    strip = ["Joints, each driven and the part's movement read back"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("iso (joints in place)", render(-30, 30)), ("checks", text_panel(strip))]
