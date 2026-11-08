@@ -38,3 +38,19 @@ Offset copies the selected geometry at a specified distance. Horizontal and Vert
 
 
 Desktop integration: [SKT-I001 viewport evidence](../../integration-evidence/README.md#sketch-constraints--skt-i001) covers Horizontal and Vertical glyphs and a driving line dimension.
+
+## Grease pencil
+
+**Approved scope (owner conversation, 2026-11-08):** freehand brainstorming annotations in both 2D and 3D sketch. The owner revised the initial 2D-only request to allow planar drawing in 3D sketch, and confirmed that drawing requires orthographic view while completed marks remain visible in perspective.
+
+In the contextual Sketch tab, choose **Brainstorm → Grease Pencil**, then drag with the left mouse button. Use **Use orthographic view** in the tool panel if needed. The default surface is the active sketch plane. Enable **Draw on view-facing plane** to draw on a plane facing the camera through the active plane origin. Each stroke captures its plane at pointer down, so orbiting does not turn a stroke into a spatial curve. Parallel rays cannot place a mark; choose a view-facing plane or look toward the drawing plane.
+
+Stroke width is 1–12 screen pixels (default 3). Strokes use an amber pencil color and do not snap. Release commits one undoable stroke; Escape discards the unfinished stroke. **Remove last mark** removes the newest mark on the active sketch section and is undoable. Switching tools discards an unfinished stroke. A click without movement creates no mark. Switching to perspective during a stroke cancels that stroke.
+
+Marks are stored separately from sketch points, entities and constraints. They survive sketch cloning, definition serialization and export, and a sketch containing only marks is retained on Finish. Their overlay is visible during editing and after Finish, including perspective view. They do not create profiles for extrusion, solver constraints, snapping targets or exported CAD curves.
+
+Implementation: [Grease pencil tool](../../../Prism/Tools/GreasePencilTool.cs), [sketch definition](../../../Prism/Core/Sketching/SketchModel.cs) and [maintained Unit checks](../../../Prism.Tests/Unit/Sketch/GreasePencilTests.cs). The checks cover pointer routing, independent annotations, undo/removal, canceled strokes, orthographic drawing, perspective display, cloning/serialization and a frozen view-facing plane in 3D sketch.
+
+Limits: no pressure sensitivity, color picker, eraser brush, curve conversion or individual-mark selection/transforms. Marks are local to their sketch section; geometry-edit tools operate on CAD entities rather than marks. Native Finish/file reopening and desktop viewport appearance require verification on a configured Prism workstation.
+
+Verification (2026-11-08): `/workspace/dotnet/dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj --no-restore --filter FullyQualifiedName~GreasePencilTests --verbosity minimal` compiled the application and passed all four maintained Unit checks (4 passed, 0 failed). The Headless runner was attempted but aborted before tests because this Linux environment lacks `PRISM_NATIVE_DIR` / `libprism_kernel`; no native viewport evidence is claimed. GitHub issue publication was blocked by automatic approval review, so issue tracking remains pending explicit owner authorization.

@@ -876,6 +876,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Tool("Slot", "slot", "Slot", () => new SlotTool(), "A slot: two arc centers, then the width."),
                     Tool("Text", "text", "Text", () => new SketchTextTool(), "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss."),
                     Tool("Spline", "spline", "Spline", () => new SplineTool(SketchTool.Recall("Spline") == 1), "Draw splines through fit points or shaped by control points.")),
+                G("Brainstorm",
+                    Btn("Grease\nPencil", "grease-pencil", () => Session.Sketch?.SetTool(Session, new GreasePencilTool()), "In orthographic view, drag to sketch planar freehand brainstorming marks. Marks are saved annotations, separate from modeling curves.", RibbonSize.Large, () => IsSketching, () => Session.Sketch?.Tool is GreasePencilTool)),
                 G("References"),
                 G("Modify",
                     Btn("Transform", "move", TransformSketchSelection, "Move, rotate or scale the selected points and curves with the gizmo, or type exact values in its panel. Select first (shortcut G); R rotates and S scales while the gizmo is showing.", RibbonSize.Large, () => IsSketching),

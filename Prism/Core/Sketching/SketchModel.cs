@@ -72,8 +72,18 @@ public sealed class SketchSection
     public SketchSection Clone() => new() { Name = Name, Plane = Plane, Model = Model.Clone() };
 }
 
+public sealed class GreaseStroke
+{
+    public List<GreasePoint> Points { get; set; } = [];
+    public float Width { get; set; } = 3;
+    public GreaseStroke Clone() => new() { Points = [.. Points], Width = Width };
+}
+
+public readonly record struct GreasePoint(double U, double V, double Depth = 0);
+
 public sealed class SketchModel
 {
+    public List<GreaseStroke> GreaseStrokes { get; set; } = [];
     public List<SketchSection> Sections { get; set; } = [];
     public List<SketchDatum> Datums { get; set; } = [];
     public List<SkPoint> Points { get; set; } = [];
@@ -96,7 +106,7 @@ public sealed class SketchModel
 
     public SketchModel Clone()
     {
-        var m = new SketchModel { NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, SharedNurbsCurves = SharedNurbsCurves, FreePointEditing = FreePointEditing, FlatDrawing = FlatDrawing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
+        var m = new SketchModel { GreaseStrokes = GreaseStrokes.Select(stroke => stroke.Clone()).ToList(), NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, SharedNurbsCurves = SharedNurbsCurves, FreePointEditing = FreePointEditing, FlatDrawing = FlatDrawing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });
