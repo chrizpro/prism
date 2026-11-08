@@ -1,5 +1,5 @@
 {
-  "sourceHash": "67E76742D3FCCD3A2607130CB5519930FC86209B56B39BA3819D491379D14298",
+  "sourceHash": "D8D8DD3244F67E63DF726B7746F03136891ED2D2AA2D14030B1E8B5390E71503",
   "workspaces": [
     {
       "Id": "design",
@@ -370,7 +370,7 @@
             {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
-              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
               "shortcut": ""
             },
             {
@@ -396,13 +396,12 @@
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
               "shortcut": ""
-            },
-            {
-              "id": "curve-through|Duplicate Edge",
-              "label": "Duplicate Edge",
-              "description": "Copy the edges you click as curves.",
-              "shortcut": ""
-            },
+            }
+          ]
+        },
+        {
+          "title": "Edit curves",
+          "tools": [
             {
               "id": "fillet|Fillet / Chamfer",
               "label": "Fillet / Chamfer",
@@ -434,6 +433,12 @@
               "shortcut": ""
             },
             {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
               "id": "trim|Trim Curve",
               "label": "Trim Curve",
               "description": "Keep part of a curve, or cut it into pieces.",
@@ -453,8 +458,8 @@
             },
             {
               "id": "origin-point|Divide",
-              "label": "Divide",
-              "description": "Points at equal distances along a curve; reports the length.",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -825,7 +830,7 @@
             {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
-              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
               "shortcut": ""
             },
             {
@@ -1197,7 +1202,7 @@
             {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
-              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
               "shortcut": ""
             },
             {
@@ -1222,12 +1227,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-through|Duplicate Edge",
-              "label": "Duplicate Edge",
-              "description": "Copy the edges you click as curves.",
               "shortcut": ""
             }
           ]
@@ -1266,6 +1265,12 @@
               "shortcut": ""
             },
             {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
               "id": "trim|Trim Curve",
               "label": "Trim Curve",
               "description": "Keep part of a curve, or cut it into pieces.",
@@ -1285,8 +1290,8 @@
             },
             {
               "id": "origin-point|Divide",
-              "label": "Divide",
-              "description": "Points at equal distances along a curve; reports the length.",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -1624,7 +1629,7 @@
             {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
-              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
               "shortcut": ""
             },
             {
@@ -1645,6 +1650,18 @@
               "shortcut": ""
             },
             {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
               "id": "trim|Trim Curve",
               "label": "Trim Curve",
               "description": "Keep part of a curve, or cut it into pieces.",
@@ -1657,15 +1674,21 @@
               "shortcut": ""
             },
             {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
               "id": "raise-degree|Rebuild Curve",
               "label": "Rebuild Curve",
               "description": "Redraw a curve with a chosen number of points.",
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "id": "origin-point|Divide",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -2153,7 +2176,7 @@
             {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
-              "description": "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file.",
+              "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
               "shortcut": ""
             },
             {
@@ -2178,12 +2201,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "curve-through|Duplicate Edge",
-              "label": "Duplicate Edge",
-              "description": "Copy the edges you click as curves.",
               "shortcut": ""
             }
           ]
@@ -2222,6 +2239,12 @@
               "shortcut": ""
             },
             {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
               "id": "trim|Trim Curve",
               "label": "Trim Curve",
               "description": "Keep part of a curve, or cut it into pieces.",
@@ -2241,8 +2264,8 @@
             },
             {
               "id": "origin-point|Divide",
-              "label": "Divide",
-              "description": "Points at equal distances along a curve; reports the length.",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -5359,6 +5382,23 @@
       "title": "Mold",
       "contextual": false,
       "groups": [
+        {
+          "title": "Part",
+          "tools": [
+            {
+              "id": "mold-file|Import from file",
+              "label": "Import from file",
+              "description": "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold.",
+              "shortcut": ""
+            },
+            {
+              "id": "mold-tab|From open tab",
+              "label": "From open tab",
+              "description": "Bring a part in from another open tab as a reference part.",
+              "shortcut": ""
+            }
+          ]
+        },
         {
           "title": "Mold",
           "tools": [

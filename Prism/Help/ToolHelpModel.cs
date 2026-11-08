@@ -323,6 +323,8 @@ public static partial class ToolHelp
         "new" => File(icon, "New", "Start an empty document."),
         "open" => File(icon, "Open", "Open a Prism or STEP file."),
         "save" or "saveas" => File(icon, "Save", "Save the document. Save As saves it under a new name."),
+        "mold-tab" => File(icon, "From open tab", "Copy a part from another open tab into this document as a reference part: shown here, not saved with this file."),
+        "mold-file" => File(icon, "Import from file", "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part: it is shown here but not saved with this file."),
         "import" => File(icon, "Import", "Bring in a file by its type: STEP, IGES, BREP, DXF (as a sketch), STL, OBJ, PLY or 3MF."),
         "export" or "step" or "stl" => File(icon, "Export", "Write the model to a standard file. Mesh formats export the selection, or everything if nothing is selected."),
         "gcode" => File(icon, "Import nozzle path", "Load a G-code toolpath to preview the print moves."),

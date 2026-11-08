@@ -91,4 +91,22 @@ public class MoldTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [AvaloniaFact(DisplayName = "MOLD-H005 | A part brought in from another open tab is a reference part that the saved file leaves out")]
+    [Trait("TestId", "MOLD-H005")]
+    public async Task PartFromOpenTabIsAReference()
+    {
+        var vm = new MainViewModel();
+        var api = new AutomationApi(vm, null);
+        var other = new Prism.Core.CadSession();
+        other.AddObject(Occ.Box(8, 8, 8), "Gear", ObjKind.Solid);
+        Prism.Commands.MoldSources.Documents = () => [("Gear tab", other)];
+        await Call(api, "run_command", "{\"name\":\"mold_part_from_tab\"}");
+        var brought = Assert.Single(vm.Session.Objects);
+        Assert.True(brought.IsReference);
+        Assert.StartsWith("Gear", brought.Name);
+        string path = Path.Combine(Path.GetTempPath(), "prism-tab-" + Guid.NewGuid().ToString("N") + ".prism");
+        try { vm.Session.Save(path); var again = new Prism.Core.CadSession(); again.Open(path); Assert.Empty(again.Objects); }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

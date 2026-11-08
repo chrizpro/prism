@@ -22,9 +22,14 @@ The part must lie completely inside the block, otherwise the tool says so and ch
 - **Block margin**: pick no block and Prism makes one around the part with this margin on every side; the halves are then both new bodies (*Mold (lower half)*, *Mold (upper half)*).
 - **Part opacity while exploded** (55% by default): once the mold exists the part changes colour (orange) and becomes see-through so it reads as the thing being cast.
 
-## Reference parts (not yet connected to import buttons)
+## Importing the part
 
-A body can be marked a **reference part**: it stays in the session, but is not saved with the file and cannot be a drawing source, so a saved mold opens (and imports into CAM) as the casing only. The marking exists and is tested (MOLD-H004). **Not done yet:** the *Import part from file* and *from open tab* buttons the owner asked for, which would import the part as a reference part.
+The **Part** group has two buttons, both bringing the part in as a **reference part**:
+
+- **Import from file**: STEP, IGES or BREP from your hard drive.
+- **From open tab**: copies the visible solids and surfaces of another open tab (pick the tab in the panel).
+
+A reference part stays in the session, is shown and works with Create Mold, but is **not saved with the file** and cannot be a drawing source, so a saved mold opens (and imports into CAM) as the casing only. Bodies that were already in the document are not reference parts and are saved as usual. Tests: MOLD-H004, MOLD-H005. Files such as STL that import through the mesh dialog are not marked as reference parts yet.
 
 ## Not included yet
 
