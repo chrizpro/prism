@@ -601,3 +601,42 @@ def sheetmetal_matrix():
         if o.kind in ("Curve", "Surface"):
             cad.call("object_update", object=o.name, visible=False)
     return [("iso, all variants", render(-25, 30)), ("from the front", render(0, 5)), ("checks", text_panel(m.strip()))]
+
+
+# ---------------------------------------------------------------- CAE: static study loads against hand calculations
+@scenario("cae__static-loads-against-hand-calculations", columns=1)
+def cae_loads():
+    """A 10 x 10 x 100 mm steel bar fixed at its base: each load type compared with beam and bar theory (E = 200 GPa)."""
+    E = 200000.0
+    area, inertia, length = 100.0, 10 * 10 ** 3 / 12, 100.0
+    rows = []
+
+    def case(label, load, expect, tol=.08, element=3.0):
+        cad.call("document_new")
+        b = cad.box(width=10, depth=10, height=100, operation="New body"); b.rename("Bar")
+        cad.call("material_apply", object="Bar", material="steel")
+        bottom = cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=[0, 0, -1])["hits"][0]["face"]
+        top = cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+        try:
+            cad.call("study_new", object="Bar", element_size=element)
+            cad.call("run_command", name="sim_fixed", slots={"Faces to support": [{"object": "Bar", "face": bottom}]})
+            name, params = load
+            slots = {} if name == "sim_gravity" else {"Faces to load": [{"object": "Bar", "face": top}]}
+            cad.call("run_command", name=name, slots=slots, params=params)
+            r = cad.call("study_run")["results"]
+            got = r["maxDisplacement_mm"]
+            ok = abs(got - expect) <= tol * expect and r["elements"] > 100
+            rows.append((label, f"displacement {got:.5f} mm (hand calculation {expect:.5f}), {r['elements']} elements, reaction {r['reactionNet_N']:.1f} N", ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    case("Axial force 1000 N (along the bar)", ("sim_force", {"Force": 1000, "Direction": "+Z"}), 1000 * length / (E * area))
+    case("Transverse force 100 N at the tip (bending)", ("sim_force", {"Force": 100, "Direction": "+Y"}), 100 * length ** 3 / (3 * E * inertia), tol=.12)
+    case("Pressure 10 MPa on the end (= 1000 N)", ("sim_pressure", {"Pressure": 10}), 1000 * length / (E * area))
+    case("Force into the face (along its normal), 1000 N", ("sim_force", {"Force": 1000}), 1000 * length / (E * area))
+    # the Gravity field tops out at 100 g: a larger value is silently clamped to 100 (seen while writing this: 100000 gave a 77 N reaction)
+    case("Gravity 100 g pulling down", ("sim_gravity", {"Gravity": 100, "Direction": "-Z"}), 7.85e-9 * 9810 * 100 * length ** 2 / (2 * E), tol=.1)
+    cad.call("document_new")
+    bar = cad.box(width=10, depth=10, height=100, operation="New body")
+    strip = [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the bar (fixed base, loaded top)", render(-30, 25)), ("checks", text_panel(strip))]
