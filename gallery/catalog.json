@@ -66,8 +66,8 @@
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serving-board.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serving-board.png?v=5a42ddd12251845f",
-      "Bytes": 406086,
-      "Sha256": "ae11f16aff8e2b5312c7d316f7c41eb5046030470359fce31e8afca2f0e05c75"
+      "Bytes": 406099,
+      "Sha256": "8818e8c05f28eb611c03e4ae7914a525aa41326b3b5e55d5d9366fea462f9109"
     },
     {
       "Id": "fold-stand",
@@ -202,15 +202,15 @@
     {
       "Id": "wrench",
       "Name": "Combination wrench",
-      "Description": "A 13 mm chrome-vanadium combination wrench, angled open end and hex box end. Opens on the Static tab with load cases ready: torque, overload and more.",
+      "Description": "A 13 mm chrome-vanadium combination wrench. Opens on the Static tab with five load cases, natural frequencies and a thermal setup ready to run.",
       "Workflow": "CAE / Solid",
       "Author": "Prism / Claude",
       "License": "MIT",
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8e68b29d7db15053",
-      "Bytes": 84076,
-      "Sha256": "3341c30f1367d18ddc10d08c38c5042b58b3343abd56c93957f12357aa562dde"
+      "Bytes": 86417,
+      "Sha256": "6ed93b0fe8747fca82ac3f55b585505ea9745d1fad780ecd5c2614ae72f670ef"
     }
   ]
 }
