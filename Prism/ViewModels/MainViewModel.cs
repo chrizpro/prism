@@ -804,6 +804,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 SketchGrp(), PlanesGrp(false),
                 G("Sheet metal",
                     Cmd("Flange", "flange", () => new ContourFlangeCommand(), "Make bent sheet metal from a sketch of its cross-section: set thickness, bend radius and width. Corners become bends."),
+                    Cmd("Fold", "fold", () => new FoldCommand(), "Fold a flat sketch of a sheet along its bend lines: draw the outline, mark each bend with a construction line, and set thickness, radius and angle. Makes trays, boxes and parts bent in several directions."),
                     Cmd("Flat\nPattern", "flat-pattern", () => new FlatPatternCommand(), "Unfold a bent body into its flat pattern with bend lines; save it as DXF for laser or waterjet cutting.")),
                 G("Cut-outs",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Extrude a sketch, and set Operation to Cut to make holes and slots through the metal. Use Through all to go through every layer."),

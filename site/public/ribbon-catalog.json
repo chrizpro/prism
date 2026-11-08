@@ -1,5 +1,5 @@
 {
-  "sourceHash": "FA1713D4585BC31DDFC2ACEDA410918CCC2062252B663DBCA97946DF5CE80280",
+  "sourceHash": "0110EC3783B1C82BBBACC58EDEBD4A3C1D8D99A1007B1B542E2AE16127C345C9",
   "workspaces": [
     {
       "Id": "design",
@@ -2868,6 +2868,12 @@
               "id": "flange|Flange",
               "label": "Flange",
               "description": "Make bent sheet metal from a sketch of its cross-section: set thickness, bend radius and width. Corners become bends.",
+              "shortcut": ""
+            },
+            {
+              "id": "fold|Fold",
+              "label": "Fold",
+              "description": "Fold a flat sketch of a sheet along its bend lines: draw the outline, mark each bend with a construction line, and set thickness, radius and angle. Makes trays, boxes and parts bent in several directions.",
               "shortcut": ""
             },
             {

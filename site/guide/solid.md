@@ -55,6 +55,13 @@ For parts without history, such as imported STEP files, use **Solid › Direct E
 3. Add cut-outs with Extrude, Hole, Fillet and Chamfer.
 4. **Flat Pattern** unfolds bodies whose bends are parallel, with a bend line per bend. Save it as DXF for laser or waterjet cutting.
 
+For a part that bends in more than one direction, such as a tray or a box, start from the flat sheet instead:
+
+1. Sketch the flat outline with normal lines. Holes, slots and corner notches go in the sketch too.
+2. Draw each bend as a **construction line** across the sheet.
+3. **Sheet Metal › Fold**: pick the sketch and set thickness, inside bend radius and angle. Type signed angles in order to fold bends different ways, for example `90, -90`. The largest flat region stays where it is.
+4. Keep holes and notches clear of the bend lines: each bend takes a strip of the sheet as wide as its bend allowance.
+
 ## Drawings
 
 **Analyze › Make Drawing** creates an engineering drawing with hidden-line views, automatic scale, overall dimensions, hole callouts, centerlines, an optional section and a title block, saved as SVG, PDF or DXF.

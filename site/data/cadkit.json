@@ -448,10 +448,19 @@
   "decorators": []
  },
  {
+  "name": "fold",
+  "kind": "function",
+  "doc": "Fold a flat sketch into sheet metal. The sketch holds the outline (normal lines, holes as loops) and each bend as a\nconstruction line across it. ``angle`` is in degrees; pass ``angle_of_each_bend=\"90, -90\"`` for different signed angles.",
+  "line": 379,
+  "module": "api.py",
+  "signature": "fold(sketch, thickness=2, bend_radius=2, angle=90, **p)",
+  "decorators": []
+ },
+ {
   "name": "flat_pattern",
   "kind": "function",
   "doc": "",
-  "line": 379,
+  "line": 385,
   "module": "api.py",
   "signature": "flat_pattern(body, k_factor=0.44)",
   "decorators": []
@@ -460,7 +469,7 @@
   "name": "drawing",
   "kind": "function",
   "doc": "Write an engineering drawing (.svg, .pdf or .dxf); see the drawing_export tool for the options.",
-  "line": 383,
+  "line": 389,
   "module": "api.py",
   "signature": "drawing(path, **options)",
   "decorators": []
@@ -469,7 +478,7 @@
   "name": "form_box",
   "kind": "function",
   "doc": "Create an editable subdivision box; accepts width, depth, height, faces_x/y/z.",
-  "line": 389,
+  "line": 395,
   "module": "api.py",
   "signature": "form_box(**params)",
   "decorators": []
@@ -478,7 +487,7 @@
   "name": "form_cylinder",
   "kind": "function",
   "doc": "Create an editable cylinder cage; accepts radius, height, sides, rings, caps.",
-  "line": 394,
+  "line": 400,
   "module": "api.py",
   "signature": "form_cylinder(**params)",
   "decorators": []
@@ -487,7 +496,7 @@
   "name": "form_loft",
   "kind": "function",
   "doc": "Loft an editable cage through ordered curve/sketch sections.",
-  "line": 399,
+  "line": 405,
   "module": "api.py",
   "signature": "form_loft(sections, **params)",
   "decorators": []
@@ -496,7 +505,7 @@
   "name": "form_pipe",
   "kind": "function",
   "doc": "Build an editable round tube along a curve/edge.",
-  "line": 404,
+  "line": 410,
   "module": "api.py",
   "signature": "form_pipe(path, **params)",
   "decorators": []
@@ -505,7 +514,7 @@
   "name": "form_info",
   "kind": "function",
   "doc": "Read a cage and its topology diagnostics; component indices are zero-based.",
-  "line": 409,
+  "line": 415,
   "module": "api.py",
   "signature": "form_info(obj, summary=False, only=None)",
   "decorators": []
@@ -514,7 +523,7 @@
   "name": "form_op",
   "kind": "function",
   "doc": "Undoable cage edit: e.g. bridge, set_vertices, inset, crease, move or insert_loop.",
-  "line": 417,
+  "line": 423,
   "module": "api.py",
   "signature": "form_op(obj, op, **options)",
   "decorators": []
@@ -523,7 +532,7 @@
   "name": "form_to_nurbs",
   "kind": "function",
   "doc": "Convert a cage to NURBS in place; save the editable form first if needed.",
-  "line": 422,
+  "line": 428,
   "module": "api.py",
   "signature": "form_to_nurbs(obj)",
   "decorators": []
@@ -532,7 +541,7 @@
   "name": "show",
   "kind": "function",
   "doc": "Print objects or results as compact JSON: the most complete thing an agent can read back.",
-  "line": 438,
+  "line": 444,
   "module": "api.py",
   "signature": "show(*things)",
   "decorators": []
@@ -541,7 +550,7 @@
   "name": "faces",
   "kind": "function",
   "doc": "Find faces by geometry instead of index: faces(b, type=\"Plane\", facing=(0, 0, 1)). Returns the tool's JSON\n(indices are 1-based, ready for fillet/chamfer/shell/hole slots). See help(\"solid_find\") for every filter.",
-  "line": 444,
+  "line": 450,
   "module": "api.py",
   "signature": "faces(obj, **filters)",
   "decorators": []
@@ -550,7 +559,7 @@
   "name": "edges",
   "kind": "function",
   "doc": "Find edges by geometry: edges(b, direction=(0, 0, 1), min_size=10). Same filters as faces().",
-  "line": 450,
+  "line": 456,
   "module": "api.py",
   "signature": "edges(obj, **filters)",
   "decorators": []
@@ -559,7 +568,7 @@
   "name": "check",
   "kind": "function",
   "doc": "Verify a body (validity, volume, closed, thin walls ...), or measure between obj and other. Returns JSON.",
-  "line": 455,
+  "line": 461,
   "module": "api.py",
   "signature": "check(obj, other=None, **kw)",
   "decorators": []
@@ -568,7 +577,7 @@
   "name": "commands",
   "kind": "function",
   "doc": "Names run() accepts, optionally those containing query.",
-  "line": 464,
+  "line": 470,
   "module": "api.py",
   "signature": "commands(query='')",
   "decorators": []
@@ -577,7 +586,7 @@
   "name": "describe",
   "kind": "function",
   "doc": "The slots (what to select) and parameters (name, type, default, range, options) of a command, as JSON.",
-  "line": 469,
+  "line": 475,
   "module": "api.py",
   "signature": "describe(command)",
   "decorators": []
@@ -586,7 +595,7 @@
   "name": "help",
   "kind": "function",
   "doc": "Search the commands and the cadkit functions for query and print a short answer.",
-  "line": 474,
+  "line": 480,
   "module": "api.py",
   "signature": "help(query='')",
   "decorators": []
@@ -595,7 +604,7 @@
   "name": "holes",
   "kind": "function",
   "doc": "Drill holes at world coordinates. ``target`` is a body (holes enter from the top, along world Z, by default) or a face;\n``points`` is a list of (x, y) or (x, y, z). Through all unless ``depth`` is given. Returns the body after the last hole.\nOther command parameters pass through, e.g. ``direction=\"World X\"``, ``hole_type=\"Threaded (modeled)\"``, ``metric_size=\"M6\"``.",
-  "line": 486,
+  "line": 492,
   "module": "api.py",
   "signature": "holes(target, points, diameter=6, depth=None, **params)",
   "decorators": []
@@ -604,7 +613,7 @@
   "name": "linear_pattern",
   "kind": "function",
   "doc": "Copy objects along one or two directions. Directions are \"X axis\", \"Y axis\" or \"Z axis\". Returns the new objects.",
-  "line": 506,
+  "line": 512,
   "module": "api.py",
   "signature": "linear_pattern(objects, count=4, spacing=20, direction='X axis', count2=1, spacing2=20, direction2='Y axis', **p)",
   "decorators": []
@@ -613,7 +622,7 @@
   "name": "circular_pattern",
   "kind": "function",
   "doc": "Copy objects around an axis through the world origin (axis_passes_through=\"Center of the objects\" to use their centre).\nresult=\"Join into a body\" or \"Cut from a body\" fuses or cuts the copies instead of leaving new bodies.",
-  "line": 512,
+  "line": 518,
   "module": "api.py",
   "signature": "circular_pattern(objects, count=6, angle=360, axis='Z axis', **p)",
   "decorators": []
@@ -622,7 +631,7 @@
   "name": "rib",
   "kind": "function",
   "doc": "Add a rib from a sketched line or open profile to the body it touches.",
-  "line": 518,
+  "line": 524,
   "module": "api.py",
   "signature": "rib(sketch, thickness=2, height=10, **p)",
   "decorators": []
@@ -631,7 +640,7 @@
   "name": "split_body",
   "kind": "function",
   "doc": "Split a body with a plane, face, surface or another solid.",
-  "line": 523,
+  "line": 529,
   "module": "api.py",
   "signature": "split_body(body, tool)",
   "decorators": []
@@ -640,7 +649,7 @@
   "name": "push_pull",
   "kind": "function",
   "doc": "Move planar faces along their normal: positive pulls out, negative pushes in.",
-  "line": 528,
+  "line": 534,
   "module": "api.py",
   "signature": "push_pull(faces, distance=10)",
   "decorators": []
@@ -649,7 +658,7 @@
   "name": "move_face",
   "kind": "function",
   "doc": "",
-  "line": 533,
+  "line": 539,
   "module": "api.py",
   "signature": "move_face(faces, x=0, y=0, z=0, tilt=0)",
   "decorators": []
@@ -658,7 +667,7 @@
   "name": "delete_face",
   "kind": "function",
   "doc": "Remove faces (a hole, fillet or pocket) and heal the body.",
-  "line": 537,
+  "line": 543,
   "module": "api.py",
   "signature": "delete_face(faces)",
   "decorators": []
@@ -667,7 +676,7 @@
   "name": "thicken",
   "kind": "function",
   "doc": "",
-  "line": 542,
+  "line": 548,
   "module": "api.py",
   "signature": "thicken(surface, thickness=3, **p)",
   "decorators": []
@@ -676,7 +685,7 @@
   "name": "cam_setup",
   "kind": "function",
   "doc": "Stock, work zero and default tool for machining a body: stock_allowance_xy, top_allowance, tool_diameter, cutting_feed ...",
-  "line": 547,
+  "line": 553,
   "module": "api.py",
   "signature": "cam_setup(body, name='Setup 1', **p)",
   "decorators": []
@@ -685,7 +694,7 @@
   "name": "cnc_profile",
   "kind": "function",
   "doc": "Cut along outlines. depth = total cutting depth; also tool_diameter, cutting_feed, depth_per_pass, cut=\"...\" ",
-  "line": 559,
+  "line": 565,
   "module": "api.py",
   "signature": "cnc_profile(outlines, depth=None, **p)",
   "decorators": []
@@ -694,7 +703,7 @@
   "name": "cnc_pocket",
   "kind": "function",
   "doc": "",
-  "line": 564,
+  "line": 570,
   "module": "api.py",
   "signature": "cnc_pocket(outlines, depth=None, **p)",
   "decorators": []
@@ -703,7 +712,7 @@
   "name": "cnc_adaptive",
   "kind": "function",
   "doc": "Pocket with even tool load (faster, deeper).",
-  "line": 568,
+  "line": 574,
   "module": "api.py",
   "signature": "cnc_adaptive(outlines, depth=None, **p)",
   "decorators": []
@@ -712,7 +721,7 @@
   "name": "cnc_drill",
   "kind": "function",
   "doc": "",
-  "line": 573,
+  "line": 579,
   "module": "api.py",
   "signature": "cnc_drill(holes, depth=None, **p)",
   "decorators": []
@@ -721,7 +730,7 @@
   "name": "cnc_face",
   "kind": "function",
   "doc": "Face the stock top.",
-  "line": 577,
+  "line": 583,
   "module": "api.py",
   "signature": "cnc_face(depth=None, **p)",
   "decorators": []
@@ -730,7 +739,7 @@
   "name": "cnc_finish",
   "kind": "function",
   "doc": "3D parallel finishing over a model (cutter=\"Ball nose\" by default).",
-  "line": 582,
+  "line": 588,
   "module": "api.py",
   "signature": "cnc_finish(model, depth=None, **p)",
   "decorators": []
@@ -739,7 +748,7 @@
   "name": "cnc_rough",
   "kind": "function",
   "doc": "Layered 3D roughing of setup stock with a flat end mill and finishing allowance.",
-  "line": 587,
+  "line": 593,
   "module": "api.py",
   "signature": "cnc_rough(model, depth=None, **p)",
   "decorators": []
@@ -748,7 +757,7 @@
   "name": "cnc_post",
   "kind": "function",
   "doc": "Write G-code for the toolpaths in the document. machine: \"GRBL\", \"Mach3\" or \"LinuxCNC\".",
-  "line": 592,
+  "line": 598,
   "module": "api.py",
   "signature": "cnc_post(machine='GRBL', save_to='', **p)",
   "decorators": []
@@ -757,7 +766,7 @@
   "name": "print_export",
   "kind": "function",
   "doc": "Write the model for a slicer. format: \"3MF\", \"STL\", \"OBJ\" or \"PLY\"; open_in: \"Bambu Studio\", \"OrcaSlicer\", \"PrusaSlicer\"\nor \"Save only\". Same file name each time, so the slicer can reload from disk.",
-  "line": 597,
+  "line": 603,
   "module": "api.py",
   "signature": "print_export(folder, name='part', format='3MF', open_in='Save only', **p)",
   "decorators": []
@@ -766,7 +775,7 @@
   "name": "fdm_check",
   "kind": "function",
   "doc": "Screen a CAD body or mesh for bed fit, nozzle walls and overhangs.",
-  "line": 603,
+  "line": 609,
   "module": "api.py",
   "signature": "fdm_check(model, **p)",
   "decorators": []
@@ -775,7 +784,7 @@
   "name": "resin_check",
   "kind": "function",
   "doc": "Sample resin cavities, potential cups, islands and thin features; sampling_size sets grid resolution.",
-  "line": 608,
+  "line": 614,
   "module": "api.py",
   "signature": "resin_check(model, **p)",
   "decorators": []
@@ -784,7 +793,7 @@
   "name": "cnc_design_check",
   "kind": "function",
   "doc": "Screen top-down access, reach and wall thickness.",
-  "line": 613,
+  "line": 619,
   "module": "api.py",
   "signature": "cnc_design_check(model, **p)",
   "decorators": []
@@ -793,7 +802,7 @@
   "name": "cnc_stock_review",
   "kind": "function",
   "doc": "Sample visible milling paths in the active setup and program order.",
-  "line": 618,
+  "line": 624,
   "module": "api.py",
   "signature": "cnc_stock_review(model, **p)",
   "decorators": []
@@ -802,7 +811,7 @@
   "name": "resin_export",
   "kind": "function",
   "doc": "Export for an external resin slicer; supports/exposure are configured there.",
-  "line": 623,
+  "line": 629,
   "module": "api.py",
   "signature": "resin_export(folder, name='part', format='3MF', open_in='Save only', **p)",
   "decorators": []

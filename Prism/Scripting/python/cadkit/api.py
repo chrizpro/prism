@@ -376,6 +376,12 @@ def flange(profile, thickness=2, bend_radius=2, width=30, **p):
     return _one(run("contour_flange", slots={"Profile sketch": profile}, thickness=thickness, bend_radius=bend_radius, width=width, **p), "flange")
 
 
+def fold(sketch, thickness=2, bend_radius=2, angle=90, **p):
+    """Fold a flat sketch into sheet metal. The sketch holds the outline (normal lines, holes as loops) and each bend as a
+    construction line across it. ``angle`` is in degrees; pass ``angle_of_each_bend="90, -90"`` for different signed angles."""
+    return _one(run("fold", slots={"Flat sketch": sketch}, thickness=thickness, bend_radius=bend_radius, bend_angle=angle, **p), "fold")
+
+
 def flat_pattern(body, k_factor=0.44):
     return run("flat_pattern", slots={"Sheet metal body": body}, k_factor=k_factor)
 
