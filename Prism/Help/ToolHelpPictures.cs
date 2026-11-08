@@ -406,6 +406,12 @@ public static partial class ToolHelp
                     return new(Lines(K(Occ.Polyline([new(-12, 0, 14), new(-12, 0, 0), new(12, 0, 0), new(12, 0, 14)], false)), b),
                         Plain(K(Occ.Extrude(K(Occ.Profile([side])), new(0, 20, 0))), a));
                 }
+                case "fold":
+                {
+                    var side = K(Occ.Polyline([new(-12, -10, 0), new(12, -10, 0), new(12, -10, 14), new(10.5, -10, 14), new(10.5, -10, 1.5), new(-10.5, -10, 1.5), new(-10.5, -10, 14), new(-12, -10, 14)], true));
+                    return new(Marked(K(Occ.Box(52, 20, 1.5)), K(Join([Occ.Line(new(-12, -10, 1.55), new(-12, 10, 1.55)), Occ.Line(new(12, -10, 1.55), new(12, 10, 1.55))])), b),
+                        Plain(K(Occ.Extrude(K(Occ.Profile([side])), new(0, 20, 0))), a));
+                }
                 case "flat-pattern":
                 {
                     var side = K(Occ.Polyline([new(-12, -10, 0), new(12, -10, 0), new(12, -10, 14), new(10.5, -10, 14), new(10.5, -10, 1.5), new(-10.5, -10, 1.5), new(-10.5, -10, 14), new(-12, -10, 14)], true));
