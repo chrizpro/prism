@@ -94,14 +94,16 @@ public sealed class GalleryStoreTests : IDisposable
         Assert.False(File.Exists(store.ModelPath(Entry)));
     }
 
-    [Fact(DisplayName = "GAL-U007 | Sections follow the workspace-tab order, group by the first workflow and keep catalog order inside")]
+    [Fact(DisplayName = "GAL-U007 | Sections follow the workspace-tab order; a model is listed under every workflow it names, in catalog order")]
     [Trait("TestId", "GAL-U007")]
     public void SectionsGroupByFirstWorkflowInTabOrder()
     {
         GalleryEntry E(string id, string workflow) => Entry with { Id = id, Workflow = workflow };
-        var groups = GallerySections.Group([E("a", "Sheet Metal"), E("b", "CAM / Solid"), E("c", "Freeform / Solid"), E("d", "solid / Assembly"), E("e", "Surface / NURBS"), E("f", "Sheet Metal"), E("g", "Robotics")]);
-        Assert.Equal(["Solid", "Surface", "Freeform", "Sheet Metal", "CAM", "Robotics"], groups.Select(g => g.Section));
+        var groups = GallerySections.Group([E("a", "Sheet Metal"), E("b", "CAM / Solid"), E("c", "Freeform / Solid"), E("d", "solid / Assembly"), E("e", "Surface / NURBS"), E("f", "Sheet Metal"), E("g", "Robotics"), E("h", "Solid / CAE / solid")]);
+        Assert.Equal(["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "CAE", "Robotics"], groups.Select(g => g.Section));
         Assert.Equal(["a", "f"], groups.Single(g => g.Section == "Sheet Metal").Items.Select(x => x.Id));
+        Assert.Equal(["b", "c", "d", "h"], groups.Single(g => g.Section == "Solid").Items.Select(x => x.Id));
+        Assert.Equal(["b"], groups.Single(g => g.Section == "CAM").Items.Select(x => x.Id));
         Assert.Equal("NURBS", GallerySections.Of(" NURBS "));
     }
 

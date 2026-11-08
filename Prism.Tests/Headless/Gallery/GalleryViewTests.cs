@@ -79,7 +79,7 @@ public class GalleryViewTests
             vm.GallerySearch = "no such thing";
             Assert.Empty(vm.GalleryGroups);
             vm.GallerySearch = "solid";
-            Assert.Equal(6, Assert.Single(vm.GalleryGroups).Visible.Count());
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
             vm.GallerySearch = "";
             Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
             vm.GalleryGroups[0].Toggle();

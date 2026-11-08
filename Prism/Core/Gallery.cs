@@ -29,20 +29,31 @@ public sealed record GalleryEntry(string Id, string Name, string Description, st
 public static class GallerySections
 {
     /// <summary>Workspace tabs in the order the gallery lists them. Models with another first workflow follow, in catalog order.</summary>
-    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "CAM", "CAE", "ECAD"];
+    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "CAE", "ECAD"];
     /// <summary>Models shown per section until the section is expanded.</summary>
     public const int Preview = 3;
 
-    public static string Of(string workflow)
+    public static string Of(string workflow) => Names(workflow)[0];
+
+    /// <summary>Every section a Workflow field names, in order: "Solid / CAE" belongs to both Solid and CAE.</summary>
+    public static IReadOnlyList<string> Names(string workflow)
     {
-        var first = workflow.Split('/')[0].Trim();
-        return Order.FirstOrDefault(o => o.Equals(first, StringComparison.OrdinalIgnoreCase)) ?? first;
+        var names = new List<string>();
+        foreach (var part in workflow.Split('/'))
+        {
+            var t = part.Trim();
+            if (t.Length == 0) continue;
+            var name = Order.FirstOrDefault(o => o.Equals(t, StringComparison.OrdinalIgnoreCase)) ?? t;
+            if (!names.Contains(name, StringComparer.OrdinalIgnoreCase)) names.Add(name);
+        }
+        return names.Count > 0 ? names : [workflow.Trim()];
     }
 
     public static IReadOnlyList<(string Section, List<GalleryEntry> Items)> Group(IEnumerable<GalleryEntry> entries)
     {
         var groups = new Dictionary<string, List<GalleryEntry>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var e in entries) { var k = Of(e.Workflow); if (!groups.TryGetValue(k, out var l)) groups[k] = l = []; l.Add(e); }
+        foreach (var e in entries)
+            foreach (var k in Names(e.Workflow)) { if (!groups.TryGetValue(k, out var l)) groups[k] = l = []; l.Add(e); }
         return groups.OrderBy(g => { int i = Array.FindIndex(Order, o => o.Equals(g.Key, StringComparison.OrdinalIgnoreCase)); return i < 0 ? Order.Length : i; })
             .Select(g => (g.Key, g.Value)).ToList();
     }
