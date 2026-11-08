@@ -1062,9 +1062,9 @@ def assembly_more():
     return [("iso (the gear pair, after driving)", render(-30, 30)), ("checks", text_panel(strip))]
 
 
-@scenario("cae__topology-optimization-keeps-half-the-block", columns=1, slow=True)
+@scenario("cae__topology-optimization-keeps-half-the-block", columns=1)
 def cae_topology():
-    """Open the saved wrench, run Generative on its torque study (about 8 minutes) and check it keeps about half the block."""
+    """Open the saved wrench, run Generative on its torque study (it took 16 seconds here; it was 8 minutes in an earlier build) and check it keeps about half the block."""
     open_model("wrench")
     cad.call("study_run")
     cad.call("run_command", name="generative", params={"Keep this much of the volume": 55, "Detail": "Coarse (fast)", "Most iterations": 40}, commit=False)
