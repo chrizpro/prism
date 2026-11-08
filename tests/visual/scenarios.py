@@ -681,3 +681,105 @@ def mold_matrix():
     variant("No block picked, margin 10", {"Block margin (when no block is picked)": 10, "Explode distance": 40}, own_block=False, check=lambda x: (abs(total(x) - (56 * 56 * 50 - cap_volume)) < 150, f"halves {total(x):.0f} (expect {56 * 56 * 50 - cap_volume:.0f}: a 56 x 56 x 50 block)"))
     strip = ["Left to right: " + " | ".join(r[0] for r in rows)[:140]] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("iso, every variant (part in the middle)", render(-25, 28)), ("from the front", render(0, 6)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Sketch: every constraint, dimension and entity type, read back from the solved sketch
+@scenario("sketch__constraints-dimensions-and-entities", columns=1)
+def sketch_matrix():
+    cad.call("document_new")
+    rows = []
+
+    def state():
+        return cad.call("sketch_state")
+
+    def P(st):
+        return {p["id"]: (p["u"], p["v"]) for p in st["points"]}
+
+    def E(st):
+        return {e["id"]: e for e in st["entities"]}
+
+    def case(label, build, check):
+        cad.call("sketch_begin", plane="XY")
+        try:
+            ids = build()
+            st = state()
+            ok, detail = check(st, ids)
+            rows.append((label, detail, ok and st["converged"]))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+        finally:
+            try:
+                cad.call("sketch_finish", keep=False)
+            except Exception:
+                pass
+
+    def lines(*segs):
+        cad.call("sketch_add", entities=[{"type": "line", "points": [list(a), list(b)]} for a, b in segs])
+        st = state()
+        return [e["id"] for e in st["entities"]], st
+
+    def ang(a, b, c, d):
+        v1, v2 = (b[0] - a[0], b[1] - a[1]), (d[0] - c[0], d[1] - c[1])
+        return math.degrees(math.atan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1]))
+
+    def two_line_ends(st, e):
+        p, en = P(st), E(st)[e]
+        return p[en["points"][0]], p[en["points"][1]]
+
+    def geometric(label, kind, segs, expect):
+        def build():
+            ids, st = lines(*segs)
+            refs = [ids[0]] if kind in ("horizontal", "vertical") else ids[:2]
+            cad.call("sketch_constrain", type=kind, refs=refs)
+            return ids
+        case(label, build, lambda st, ids: expect(st, ids))
+
+    geometric("Horizontal", "horizontal", [((0, 0), (10, 3))], lambda st, ids: (abs((a := two_line_ends(st, ids[0]))[0][1] - a[1][1]) < 1e-6, f"end points v {two_line_ends(st, ids[0])[0][1]:.3f} and {two_line_ends(st, ids[0])[1][1]:.3f}"))
+    geometric("Vertical", "vertical", [((0, 0), (3, 10))], lambda st, ids: (abs((a := two_line_ends(st, ids[0]))[0][0] - a[1][0]) < 1e-6, f"end points u {two_line_ends(st, ids[0])[0][0]:.3f} and {two_line_ends(st, ids[0])[1][0]:.3f}"))
+    geometric("Perpendicular", "perpendicular", [((0, 0), (20, 2)), ((0, 10), (15, 18))], lambda st, ids: (abs(abs(ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1]))) - 90) < .01, f"angle {ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1])):.2f} degrees"))
+    geometric("Parallel", "parallel", [((0, 0), (20, 2)), ((0, 10), (15, 18))], lambda st, ids: (abs(math.sin(math.radians(ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1]))))) < 1e-4, f"angle {ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1])):.3f} degrees"))
+    geometric("Equal length", "equal", [((0, 0), (20, 2)), ((0, 10), (15, 18))], lambda st, ids: (abs(math.dist(*two_line_ends(st, ids[0])) - math.dist(*two_line_ends(st, ids[1]))) < 1e-4, f"lengths {math.dist(*two_line_ends(st, ids[0])):.3f} and {math.dist(*two_line_ends(st, ids[1])):.3f}"))
+    geometric("Collinear", "collinear", [((0, 0), (20, 2)), ((5, 10), (15, 18))], lambda st, ids: (abs(ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1]))) < 1e-3 or abs(abs(ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1]))) - 180) < 1e-3, f"angle {ang(*two_line_ends(st, ids[0]), *two_line_ends(st, ids[1])):.3f} degrees"))
+
+    def tangent():
+        cad.call("sketch_add", entities=[{"type": "line", "points": [[0, 0], [40, 0]]}, {"type": "circle", "center": [20, 12], "radius": 6}])
+        st = state()
+        line = next(e["id"] for e in st["entities"] if e["type"] == "Line"); circle = next(e["id"] for e in st["entities"] if e["type"] == "Circle")
+        cad.call("sketch_constrain", type="tangent", refs=[line, circle])
+        return line, circle
+    case("Tangent line and circle", tangent, lambda st, ids: (abs(abs(P(st)[E(st)[ids[1]]["points"][0]][1] - two_line_ends(st, ids[0])[0][1]) - E(st)[ids[1]]["radius"]) < 1e-3, f"centre to line {abs(P(st)[E(st)[ids[1]]['points'][0]][1] - two_line_ends(st, ids[0])[0][1]):.3f}, radius {E(st)[ids[1]]['radius']:.3f}"))
+
+    def concentric():
+        cad.call("sketch_add", entities=[{"type": "circle", "center": [0, 0], "radius": 10}, {"type": "circle", "center": [4, 3], "radius": 4}])
+        ids = [e["id"] for e in state()["entities"]]
+        cad.call("sketch_constrain", type="concentric", refs=ids)
+        return ids
+    case("Concentric circles", concentric, lambda st, ids: (math.dist(P(st)[E(st)[ids[0]]["points"][0]], P(st)[E(st)[ids[1]]["points"][0]]) < 1e-6, "the two centres coincide"))
+
+    def dimension(label, entities, dim, pick, expect):
+        def build():
+            cad.call("sketch_add", entities=entities)
+            st = state()
+            cad.call("sketch_dimension", **dim(st))
+            return None
+        case(label, build, lambda st, ids: pick(st, expect))
+    dimension("Dimension: line length 25", [{"type": "line", "points": [[0, 0], [10, 3]]}], lambda st: {"type": "length", "refs": [st["entities"][0]["id"]], "value": 25}, lambda st, v: (abs(math.dist(*two_line_ends(st, st["entities"][0]["id"])) - v) < 1e-4, f"length {math.dist(*two_line_ends(st, st['entities'][0]['id'])):.4f}"), 25)
+    dimension("Dimension: circle radius 7", [{"type": "circle", "center": [0, 0], "radius": 3}], lambda st: {"type": "radius", "refs": [st["entities"][0]["id"]], "value": 7}, lambda st, v: (abs(st["entities"][0]["radius"] - v) < 1e-4, f"radius {st['entities'][0]['radius']:.4f}"), 7)
+    dimension("Dimension: circle diameter 12", [{"type": "circle", "center": [0, 0], "radius": 3}], lambda st: {"type": "diameter", "refs": [st["entities"][0]["id"]], "value": 12}, lambda st, v: (abs(st["entities"][0]["radius"] * 2 - v) < 1e-4, f"diameter {st['entities'][0]['radius'] * 2:.4f}"), 12)
+    dimension("Dimension: angle 60 between two lines", [{"type": "line", "points": [[0, 0], [20, 0]]}, {"type": "line", "points": [[0, 0], [15, 10]]}], lambda st: {"type": "angle", "refs": [e["id"] for e in st["entities"][:2]], "value": 60}, lambda st, v: (abs(abs(ang(*two_line_ends(st, st["entities"][0]["id"]), *two_line_ends(st, st["entities"][1]["id"]))) - v) < .01, f"angle {abs(ang(*two_line_ends(st, st['entities'][0]['id']), *two_line_ends(st, st['entities'][1]['id']))):.3f}"), 60)
+    dimension("Dimension: horizontal distance 14", [{"type": "line", "points": [[0, 0], [10, 3]]}], lambda st: {"type": "hdistance", "refs": [p["id"] for p in st["points"][:2]], "value": 14}, lambda st, v: (abs(abs(st["points"][1]["u"] - st["points"][0]["u"]) - v) < 1e-4, f"du {abs(st['points'][1]['u'] - st['points'][0]['u']):.4f}"), 14)
+    dimension("Dimension: vertical distance 9", [{"type": "line", "points": [[0, 0], [10, 3]]}], lambda st: {"type": "vdistance", "refs": [p["id"] for p in st["points"][:2]], "value": 9}, lambda st, v: (abs(abs(st["points"][1]["v"] - st["points"][0]["v"]) - v) < 1e-4, f"dv {abs(st['points'][1]['v'] - st['points'][0]['v']):.4f}"), 9)
+
+    # entity types: one sketch with a rectangle, circle, slot and ellipse far apart, extruded 5 mm: the volume is the sum of the areas
+    cad.call("document_new")
+    cad.call("sketch_begin", plane="XY")
+    cad.call("sketch_add", entities=[{"type": "rect", "corner1": [0, 0], "corner2": [20, 10]}, {"type": "circle", "center": [40, 5], "radius": 5},
+                                      {"type": "slot", "center1": [60, 5], "center2": [74, 5], "width": 6}, {"type": "ellipse", "center": [100, 5], "major": [108, 5], "minor": 4}])
+    prof = cad.get(cad.call("sketch_finish")["sketch"])
+    body = cad.extrude(prof, distance=5, operation="New body")
+    info = cad.call("object_info", object=body.name)
+    expect = (200 + math.pi * 25 + 14 * 6 + math.pi * 9 + math.pi * 8 * 4) * 5
+    rows.append(("Entities: rectangle, circle, slot, ellipse (extruded 5 mm)", f"volume {info['volume']:.0f} (expect {expect:.0f})", info["valid"] and abs(info["volume"] - expect) < .01 * expect))
+    cad.call("object_update", object=prof.name, visible=False)
+    strip = ["Constraints, dimensions and entities, each read back from the solved sketch"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the entity-types profile, extruded", render(-25, 35)), ("checks", text_panel(strip))]
