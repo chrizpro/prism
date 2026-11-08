@@ -23,7 +23,7 @@ Expand **My appearances**, enter a name and choose **Save as appearance…**. Yo
 
 ### Save a custom engineering material
 
-In the Materials library, choose a source material and expand **My custom materials**. Use **Duplicate as custom material…**, enter a name, edit properties in the displayed units and optionally record a source. Save it, then use **Apply Material** to assign it. Copies retain the source strength basis and solver limitations.
+In the Materials library, expand **My custom materials**. Choose **Create custom material…** to start with blank fields for your own isotropic properties, or select a source material and choose **Duplicate selected material…** to copy its values. Enter a name, edit properties in the displayed units and optionally record a source. Save it, then use **Apply Material** to assign it. Copies retain the source strength basis and solver limitations. **Cancel** discards the draft and returns to the library without saving or assigning it.
 
 Custom materials show **· Custom**, with **User-defined — not verified by Prism** in their details. Their properties and provenance are saved with document assignments. The reusable library stays on this computer; deleting an entry does not change existing assignments. Built-in materials retain their individual evidence status, including reference estimates.
 

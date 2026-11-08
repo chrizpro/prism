@@ -141,7 +141,7 @@ public sealed partial class MainViewModel
     partial void OnLookMetalChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
     partial void OnLookGlossChanged(double value) { OnPropertyChanged(nameof(LookRoughness)); PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
 
-    static string Rating(int n) => new string('●', Math.Clamp(n, 0, 5)) + new string('○', 5 - Math.Clamp(n, 0, 5));
+    static string Rating(int n) => n == 0 ? "Not specified" : new string('●', Math.Clamp(n, 0, 5)) + new string('○', 5 - Math.Clamp(n, 0, 5));
     static string F(double v, string fmt = "#,0.##") => double.IsNaN(v) ? "-" : v.ToString(fmt, CultureInfo.InvariantCulture);
 
     void RefreshMaterialList()

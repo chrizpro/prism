@@ -21,12 +21,39 @@ public sealed partial class MainViewModel
     public ObservableCollection<MaterialPropertyInput> CustomMaterialInputs { get; } = [];
     [ObservableProperty] public partial string CustomMaterialName { get; set; } = "";
     [ObservableProperty] public partial string CustomMaterialSource { get; set; } = "";
-    [ObservableProperty] public partial string CustomMaterialStatus { get; set; } = "Choose a library material, then duplicate it to customize its properties.";
+    [ObservableProperty] public partial string CustomMaterialStatus { get; set; } = "Create a material from your own properties, or duplicate a library material.";
     [ObservableProperty] public partial bool EditingCustomMaterial { get; set; }
+
+    public void CreateCustomMaterial()
+    {
+        _customMaterialTemplate = Materials.Default with
+        {
+            Name = "Generic isotropic material", Color = 0xFFFFFFFF, Metal = 0, Gloss = .35f,
+            Cost = 0, Corrosion = 0, Machining = 0, Uses = "User-defined material", Watch = "User-defined — not verified by Prism",
+            Evidence = new("User-defined", "User-entered isotropic properties; directional and nonlinear behavior is not modeled.",
+                "No user source recorded", "User-defined — not verified by Prism")
+        };
+        OpenCustomMaterialEditor();
+        CustomMaterialName = "";
+        foreach (var input in CustomMaterialInputs) input.Text = "";
+        CustomMaterialStatus = "Enter your material's properties. This editor uses an isotropic model; use a decimal point and NaN for inapplicable yield strength.";
+    }
+
+    public void CancelCustomMaterial()
+    {
+        EditingCustomMaterial = false;
+        CustomMaterialName = ""; CustomMaterialSource = ""; CustomMaterialInputs.Clear();
+        CustomMaterialStatus = "Creation canceled. No material was saved or assigned.";
+    }
 
     public void BeginCustomMaterial()
     {
         _customMaterialTemplate = SelectedMaterialRow?.Material ?? TargetsForLook().FirstOrDefault()?.Material ?? Materials.Default;
+        OpenCustomMaterialEditor();
+    }
+
+    void OpenCustomMaterialEditor()
+    {
         var m = _customMaterialTemplate;
         CustomMaterialName = m.Name + " copy"; CustomMaterialSource = "";
         CustomMaterialInputs.Clear();

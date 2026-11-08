@@ -208,4 +208,26 @@ public class AppearanceStudioTests
             vm.RemoveCustomMaterial();
         }
     }
+    [AvaloniaFact(DisplayName = "APP-H010 | Create custom material starts blank and Cancel discards the draft without changing selection or libraries")]
+    [Trait("TestId", "APP-H010")]
+    public void CreateAndCancelCustomMaterial()
+    {
+        var vm = new MainViewModel();
+        vm.SelectedMaterialRow = vm.MaterialList.Single(r => r.Material.Id == "6061");
+        var selected = vm.SelectedMaterialRow; var previous = vm.Session.Current;
+        var count = AppSettings.Current.CustomMaterials.Count;
+        vm.CreateCustomMaterial();
+        Assert.True(vm.EditingCustomMaterial); Assert.Equal("", vm.CustomMaterialName);
+        Assert.All(vm.CustomMaterialInputs, input => Assert.Equal("", input.Text));
+        vm.CustomMaterialName = "Unsaved"; vm.CustomMaterialInputs[0].Text = "2.8";
+        vm.CancelCustomMaterial();
+        Assert.False(vm.EditingCustomMaterial); Assert.Empty(vm.CustomMaterialInputs);
+        Assert.Equal("", vm.CustomMaterialName); Assert.Equal(count, AppSettings.Current.CustomMaterials.Count);
+        Assert.Same(selected, vm.SelectedMaterialRow); Assert.Same(previous, vm.Session.Current);
+        vm.BeginCustomMaterial(); Assert.Equal("2.7", vm.CustomMaterialInputs[0].Text);
+        vm.CancelCustomMaterial(); Assert.False(vm.EditingCustomMaterial);
+        var panel = new MaterialsPanel { DataContext = vm };
+        foreach (string name in new[] { "CreateCustomMaterial", "SaveCustomMaterial", "CancelCustomMaterial" })
+            Assert.Contains("studioAction", panel.FindControl<Button>(name)!.Classes);
+    }
 }

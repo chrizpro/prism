@@ -54,6 +54,8 @@ public partial class MaterialsPanel : UserControl
         if (Vm is { } vm && FinishLibrary.SelectedItem is FinishPreset preset && preset != vm.ActiveFinishPreset)
             vm.ApplyFinishPreset(preset);
     }
+    void OnCreateCustomMaterial(object? s, RoutedEventArgs e) => Vm?.CreateCustomMaterial();
+    void OnCancelCustomMaterial(object? s, RoutedEventArgs e) => Vm?.CancelCustomMaterial();
     void OnBeginCustomMaterial(object? s, RoutedEventArgs e) => Vm?.BeginCustomMaterial();
     void OnSaveCustomMaterial(object? s, RoutedEventArgs e) => Vm?.SaveCustomMaterial();
     void OnRemoveCustomMaterial(object? s, RoutedEventArgs e) => Vm?.RemoveCustomMaterial();
