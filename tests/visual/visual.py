@@ -76,6 +76,7 @@ def text_panel(lines, size=CELL):
     """A picture of text (numbers from an analysis, a check list) so it can be reviewed with the images."""
     image = Image.new("RGB", (2 * CELL[0], 12 + 14 * len(lines)), "white")
     image.strip = True            # laid out as a full-width strip under the pictures
+    image.lines = [str(line) for line in lines]   # also kept as text, so a run can be summarised without looking at the picture
     draw = ImageDraw.Draw(image)
     y = 6
     for line in lines:
@@ -201,8 +202,12 @@ def main():
         for name in names:
             t = time.monotonic()
             try:
-                path = save(name, sheet(SCENARIOS[name](), COLUMNS[name]))
-                report[name] = {"file": path.name, "kb": round(path.stat().st_size / 1024), "seconds": round(time.monotonic() - t)}
+                cells = SCENARIOS[name]()
+                path = save(name, sheet(cells, COLUMNS[name]))
+                lines = [line for _, im in cells for line in getattr(im, "lines", [])]
+                failed = [line for line in lines if line.startswith("FAIL") or "CHECK" in line and line.rstrip().endswith("FAIL")]
+                report[name] = {"file": path.name, "kb": round(path.stat().st_size / 1024), "seconds": round(time.monotonic() - t),
+                                "passed": sum(1 for line in lines if line.startswith("PASS") or line.rstrip().endswith("PASS")), "failed": failed}
                 if args.compare and (HERE / "approved" / path.name).exists():
                     report[name]["difference"] = round(difference(Image.open(path), Image.open(HERE / "approved" / path.name)), 2)
                 print(name, report[name], flush=True)
@@ -216,7 +221,17 @@ def main():
         log.close()
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "report.json").write_text(json.dumps(report, indent=2))
-    return 1 if any("error" in r for r in report.values()) else 0
+    # the short text an AI (or a person) needs: one line per scenario, then the lines that failed
+    summary = []
+    for name, r in report.items():
+        if "error" in r:
+            summary.append(f"CRASHED {name}: {r['error']}")
+        else:
+            summary.append(f"{'FAIL' if r['failed'] else 'ok  '} {name}: {r['passed']} passed, {len(r['failed'])} failed" + (f"  [{r.get('difference')} from approved]" if "difference" in r else ""))
+            summary += [f"      {line}" for line in r["failed"]]
+    (OUT / "summary.txt").write_text("\n".join(summary) + "\n")
+    print("\n" + "\n".join(summary))
+    return 1 if any("error" in r or r["failed"] for r in report.values()) else 0
 
 
 if __name__ == "__main__":

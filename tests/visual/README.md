@@ -11,6 +11,14 @@ python tests/visual/visual.py --discovery <discovery.json> --compare   # how far
 
 Start Prism with a private `PRISM_AUTOMATION_DISCOVERY` (as for the gallery scripts); set `PRISM_CCX` for scenarios that need CalculiX. Run **one** visual run at a time: two runs on one app mix up their pictures (the runner refuses to start a second).
 
+## Re-testing everything with few tokens
+
+1. Run the whole set (about 10 minutes, no AI needed): `python tests/visual/visual.py --discovery <discovery.json> --compare`.
+2. Read only `artifacts/visual/summary.txt`: one line per scenario (`ok` / `FAIL` / `CRASHED`), then the failing check lines with their numbers. The exit code is non-zero if anything failed. This is a few dozen lines, so an AI can read it for almost nothing.
+3. Open a picture only when it matters: a failing scenario, or one whose `[n from approved]` difference is large. Approved sheets and unchanged scenarios never need to be looked at.
+
+When asking an AI to do this, say: *run the visual scripts, read summary.txt, look only at the failing or changed sheets, and fix what is broken.*
+
 ## What a sheet is
 
 One scenario = one **contact sheet**, a small PNG named for what it tests, with several labeled views and a text strip of checks (each line `PASS` or `FAIL` with the numbers behind it). The files go to `artifacts/visual/` (ignored by git), with a `report.json` of sizes and timings. A scenario that crashes is reported as `FAILED` and the others still run.
