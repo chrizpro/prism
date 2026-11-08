@@ -59,7 +59,7 @@ For a part that bends in more than one direction, such as a tray or a box, start
 
 1. Sketch the flat outline with normal lines. Holes, slots and corner notches go in the sketch too.
 2. Draw each bend as a **construction line** across the sheet.
-3. **Sheet Metal › Fold**: pick the sketch and set thickness, inside bend radius and angle. Type signed angles in order to fold bends different ways, for example `90, -90`. The largest flat region stays where it is.
+3. **Sheet Metal › Fold**: pick the sketch and set thickness, inside bend radius and angle. Type signed angles in order to fold bends different ways, for example `90, -90`. The largest flat region stays where it is, unless you set **Fixed region** to the region over the sketch origin.
 4. Keep holes and notches clear of the bend lines: each bend takes a strip of the sheet as wide as its bend allowance.
 5. Type radii in **Radius of each bend** to mix sharp and rolled bends, for example `3, 80, 3`. The flat pattern is made beside the part, and **Save the flat pattern as DXF** writes it for cutting.
 

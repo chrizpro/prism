@@ -261,4 +261,57 @@ public class FoldTests
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
+
+    /// <summary>A 40 mm base with a 180° hem-style fold at each end, the legs of the given length lying back over the base.</summary>
+    static (CadSession session, SceneObject sketch) DoubleBackBlank(double leg)
+    {
+        var session = new CadSession();
+        double a = Math.PI * (R + K * T), x1 = leg + a / 2, x2 = leg + a + 40 + a / 2, length = leg + a + 40 + a + leg;
+        return (session, FlatSketch(session, Rectangle(length, 30), [((x1, -5), (x1, 35)), ((x2, -5), (x2, 35))]));
+    }
+
+    [AvaloniaFact(DisplayName = "FLD-H012 | Fold refuses flanges that overlap each other instead of fusing them silently")]
+    [Trait("TestId", "FLD-H012")]
+    public void FoldRefusesOverlappingFlanges()
+    {
+        // two 30 mm legs folded back over a 40 mm base meet and cross in the middle
+        var (session, sketch) = DoubleBackBlank(30);
+        AssertBuildFails(Fold(session, sketch, angles: "180, 180"), "overlap");
+        // 15 mm legs leave a gap between them: the same part is fine and keeps its full volume
+        var (okSession, okSketch) = DoubleBackBlank(15);
+        var body = Body(Fold(okSession, okSketch, angles: "180, 180"));
+        double sector = Math.PI * T * (R + T / 2);                                 // a 180° bend, per mm of its length
+        AssertClose(T * 30 * (15 + 40 + 15) + 30 * 2 * sector, body.Props().Volume, 1e-3, "Volume of the double-back part (mm³)");
+    }
+
+    [AvaloniaFact(DisplayName = "FLD-H013 | The fixed region can be the one over the sketch origin instead of the largest")]
+    [Trait("TestId", "FLD-H013")]
+    public void FixedRegionOverTheOrigin()
+    {
+        // the 17 mm leg is under the sketch origin (x from 0); the 27 mm leg is the larger region
+        var (session, sketch, _) = LBlank();
+        var largest = Body(Fold(session, sketch));
+        AssertClose(27 + R + T, largest.Props().Size.X, 1e-3, "Width with the long leg fixed (mm)");
+        var command = Fold(session, sketch);
+        SetChoice(command, "Fixed region", "The region over the sketch origin");
+        var held = Body(command);
+        // the 17 mm leg stays flat; the 27 mm leg rises: outside face at 17 + r + t, top at the 2 mm inside face plus r plus 27
+        var size = held.Props().Size;
+        AssertClose(17 + R + T, size.X, 1e-3, "Width with the short leg fixed (mm)");
+        AssertClose(T + R + 27, size.Z, 1e-3, "Height with the short leg fixed (mm)");
+        AssertClose(largest.Props().Volume, held.Props().Volume, 1e-3, "Same part, same volume (mm³)");
+
+        var off = FlatSketch(session, Rectangle(60, 40), [((30, -5), (30, 45))]);
+        var moved = Fold(session, off);
+        SetChoice(moved, "Fixed region", "The region over the sketch origin");
+        Body(moved);
+        var away = new Prism.Core.Sketching.SketchModel();
+        foreach (var (a, b) in new[] { ((100.0, 100.0), (160.0, 100.0)), ((160.0, 100.0), (160.0, 140.0)), ((160.0, 140.0), (100.0, 140.0)), ((100.0, 140.0), (100.0, 100.0)) })
+            away.AddLine(away.AddPoint(a.Item1, a.Item2), away.AddPoint(b.Item1, b.Item2));
+        away.AddLine(away.AddPoint(130, 95), away.AddPoint(130, 145), construction: true);
+        session.EnterSketch(Plane3.XY, away); session.ExitSketch(keep: true);
+        var elsewhere = Fold(session, session.Objects.Last(o => o.Kind == ObjKind.Sketch));
+        SetChoice(elsewhere, "Fixed region", "The region over the sketch origin");
+        AssertBuildFails(elsewhere, "origin is not on the sheet");
+    }
 }
