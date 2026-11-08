@@ -50,8 +50,7 @@ public class FoldTests
 
     static Shape Body(Command command)
     {
-        var added = Assert.Single(BuildOutput(command).Add);
-        Assert.Equal(ObjKind.Solid, added.Kind);
+        var added = Assert.Single(BuildOutput(command).Add, item => item.Kind == ObjKind.Solid);
         AssertValidSolid(added.Shape!);
         return added.Shape!;
     }
@@ -188,5 +187,78 @@ public class FoldTests
         var session = new CadSession();
         var sketch = FlatSketch(session, Rectangle(60, 40), [((30, -5), (30, 45))], [((30, 20), 4)]);
         AssertBuildFails(Fold(session, sketch), "hole, slot or notch");
+    }
+
+    [AvaloniaFact(DisplayName = "FLD-H008 | Fold lays out the flat pattern beside the part with every hole and a line for each bend zone")]
+    [Trait("TestId", "FLD-H008")]
+    public void FoldMakesFlatPattern()
+    {
+        var (session, sketch) = TrayBlank();
+        var command = Fold(session, sketch);
+        var output = BuildOutput(command);
+        double e = Allowance + 30;
+        var flat = Assert.Single(output.Add, item => item.Kind == ObjKind.Surface).Shape!.Props();
+        // the plus-shaped blank: 100 x 60 base, 30 + allowance of flap on each side
+        AssertClose(100 * 60 + 2 * e * 60 + 2 * e * 100, flat.Area, 1e-3, "Flat pattern area (mm²)");
+        AssertClose(100 + 2 * e, flat.Size.X, 1e-3, "Flat pattern length (mm)");
+        AssertClose(0, flat.Size.Z, 1e-6, "Flat pattern thickness (mm)");
+        var tray = Assert.Single(output.Add, item => item.Kind == ObjKind.Solid).Shape!.Props();
+        Assert.True(flat.Min.X >= tray.Max.X + 19.99, "The flat pattern lies beside the folded part");
+        var bendLines = Assert.Single(output.Add, item => item.Kind == ObjKind.Curve).Shape!;
+        Assert.Equal(4, bendLines.Count(SubKind.Edge));
+    }
+
+    [AvaloniaFact(DisplayName = "FLD-H009 | The flat pattern can be left out, and holes stay holes in it")]
+    [Trait("TestId", "FLD-H009")]
+    public void FlatPatternOptionalWithHoles()
+    {
+        var session = new CadSession();
+        double length = 17 + 27 + Allowance, line = 17 + Allowance / 2;
+        var sketch = FlatSketch(session, Rectangle(length, 40), [((line, -5), (line, 45))], [((37, 20), 5)]);
+        var withFlat = BuildOutput(Fold(session, sketch));
+        var flat = Assert.Single(withFlat.Add, item => item.Kind == ObjKind.Surface).Shape!;
+        AssertClose(length * 40 - Math.PI * 25, flat.Props().Area, 1e-3, "Flat area with the hole (mm²)");
+        Assert.Equal(2, flat.Sub(SubKind.Face, 0).Count(SubKind.Wire));
+        var command = Fold(session, sketch);
+        SetToggle(command, "Also make the flat pattern beside the part", false);
+        Assert.Single(BuildOutput(command).Add);
+    }
+
+    [AvaloniaFact(DisplayName = "FLD-H010 | Each bend can have its own inside radius, and bad radii are named")]
+    [Trait("TestId", "FLD-H010")]
+    public void PerBendRadii()
+    {
+        var session = new CadSession();
+        double a1 = Math.PI / 2 * (3 + K * T), a2 = Math.PI / 2 * (8 + K * T);
+        double x1 = 20 + a1 / 2, x2 = 20 + a1 + 40 + a2 / 2, length = 20 + a1 + 40 + a2 + 20;
+        var sketch = FlatSketch(session, Rectangle(length, 30), [((x1, -5), (x1, 35)), ((x2, -5), (x2, 35))]);
+        var command = Fold(session, sketch);
+        SetText(command, "Radius of each bend (optional)", "3, 8");
+        var body = Body(command);
+        double sector(double r) => Math.PI / 2 * T * (r + T / 2);                   // per mm of bend length
+        AssertClose(T * 30 * 80 + 30 * (sector(3) + sector(8)), body.Props().Volume, 1e-3, "Volume with radii 3 and 8 (mm³)");
+        Assert.Contains("inside radius 8 mm", Result(command, "Bend 2"));
+        var bad = Fold(session, sketch);
+        SetText(bad, "Radius of each bend (optional)", "3, wide");
+        AssertBuildFails(bad, "not a bend radius");
+        var many = Fold(session, sketch);
+        SetText(many, "Radius of each bend (optional)", "3, 3, 3");
+        AssertBuildFails(many, "3 radii");
+    }
+
+    [Fact(DisplayName = "FLD-H011 | The flat pattern DXF is written with outlines and bend lines")]
+    [Trait("TestId", "FLD-H011")]
+    public void FlatPatternDxfIsWritten()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "prism-fold-dxf-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = FlatDxf.Save(directory, "My tray", [[(0, 0), (60, 0), (60, 40), (0, 40)]], [((30, 0), (30, 40))]);
+            Assert.Equal("My_tray_flat.dxf", Path.GetFileName(path));
+            var text = File.ReadAllText(path);
+            Assert.Contains("ENTITIES", text);
+            Assert.True(text.Length > 200, "The DXF has content");
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
 }

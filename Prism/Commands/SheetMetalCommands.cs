@@ -361,15 +361,27 @@ public sealed class FlatPatternCommand : Command
     void SaveDxf()
     {
         if (_loops.Count == 0) throw new InvalidOperationException("Pick a sheet metal body first.");
-        double minx = _loops.Min(l => l.Min(p => p.x)), maxx = _loops.Max(l => l.Max(p => p.x)), miny = _loops.Min(l => l.Min(p => p.y)), maxy = _loops.Max(l => l.Max(p => p.y));
+        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Drawings");
+        var path = FlatDxf.Save(dir, _name, _loops, _bendLines);
+        Results.Add(new ResultLine("Saved", path)); S.Say("Flat pattern saved to " + path);
+    }
+}
+
+/// <summary>Writes a flat pattern (closed outlines and holes, plus bend lines in centre-line style) as a DXF drawing; shared by Flat Pattern and Fold.</summary>
+public static class FlatDxf
+{
+    /// <summary>Saves <paramref name="loops"/> and <paramref name="bendLines"/> (flat millimetres) to <paramref name="directory"/> as "{name}_flat.dxf" and returns the path.</summary>
+    public static string Save(string directory, string name, IReadOnlyList<List<(double x, double y)>> loops, IReadOnlyList<((double x, double y) a, (double x, double y) b)> bendLines)
+    {
+        double minx = loops.Min(l => l.Min(p => p.x)), maxx = loops.Max(l => l.Max(p => p.x)), miny = loops.Min(l => l.Min(p => p.y)), maxy = loops.Max(l => l.Max(p => p.y));
         const double m = 10;
         (double, double) T((double x, double y) p) => (p.x - minx + m, maxy - p.y + m);
         var prims = new List<Prim>();
-        foreach (var l in _loops) prims.Add(new PolyP(l.Select(T).ToArray(), LineStyle.Visible, true));
-        foreach (var (a, b) in _bendLines) prims.Add(new PolyP([T(a), T(b)], LineStyle.Center));
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Drawings"); Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, string.Concat(_name.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + "_flat.dxf");
+        foreach (var l in loops) prims.Add(new PolyP(l.Select(T).ToArray(), LineStyle.Visible, true));
+        foreach (var (a, b) in bendLines) prims.Add(new PolyP([T(a), T(b)], LineStyle.Center));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + "_flat.dxf");
         DrawingOutput.Save(path, prims, maxx - minx + 2 * m, maxy - miny + 2 * m);
-        Results.Add(new ResultLine("Saved", path)); S.Say("Flat pattern saved to " + path);
+        return path;
     }
 }

@@ -36,9 +36,9 @@ def find_faces(name, **filters):
 def cut(name, face, entities, depth=6):
     """Cut round holes through the sheet from a face sketch (u across the part, v along the face).
 
-    The default Extrude direction follows the sketch normal, which can point away from the metal: on the tilted back
-    rest the cut then silently removes nothing (and leaves zero-depth discs). The removed volume is checked against the
-    hole area times the thickness, and the cut is undone and repeated reversed when it fell short.
+    The default Extrude direction follows the sketch normal, which can point away from the metal. Extrude now turns such a
+    cut round itself (#79, fixed 2026-11-08), but this model was built before that, so the removed volume is still checked
+    against the hole area times the thickness, and the cut is undone and repeated reversed when it fell short.
     """
     cad.call("sketch_begin", plane=dict(object=name, face=face))
     cad.call("sketch_add", entities=entities)

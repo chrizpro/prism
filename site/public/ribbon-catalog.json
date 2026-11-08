@@ -1,5 +1,5 @@
 {
-  "sourceHash": "0110EC3783B1C82BBBACC58EDEBD4A3C1D8D99A1007B1B542E2AE16127C345C9",
+  "sourceHash": "CEA82D49C26E6E97DA657678FE988CA59AB92AA63B63EC9032560B9E3D0DE64C",
   "workspaces": [
     {
       "Id": "design",
@@ -2874,6 +2874,12 @@
               "id": "fold|Fold",
               "label": "Fold",
               "description": "Fold a flat sketch of a sheet along its bend lines: draw the outline, mark each bend with a construction line, and set thickness, radius and angle. Makes trays, boxes and parts bent in several directions.",
+              "shortcut": ""
+            },
+            {
+              "id": "edge-flange|Edge Flange",
+              "label": "Edge Flange",
+              "description": "Add a flange along an edge of a sheet-metal body: pick the thin end face, then set the leg length, bend angle and inside radius.",
               "shortcut": ""
             },
             {
