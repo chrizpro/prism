@@ -115,11 +115,18 @@ public abstract class BodyCommand : Command
         var clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-        if (Op.Index is 2 or 3 && reversed != null && OverlapOnce(target) < 1e-9)
+        if (Op.Index is 2 or 3 && reversed != null)
         {
-            // asked to cut, but the shape points away from the body: turn it round so it cuts
-            var back = reversed();
-            if (Overlap(target, back) > 1e-9) { tool = back; FlippedForCut = true; }
+            // A tool that only touches the body still overlaps it by a sliver: a sketch plane taken from a face of a bent body is accurate to about a micron.
+            // So "no overlap" means less than 1e-4 of the tool's own volume, not an absolute 1e-9 mm³.
+            double toolVolume = 0; try { toolVolume = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }
+            double sliver = Math.Max(1e-9, 1e-4 * toolVolume);
+            if (OverlapOnce(target) < sliver)
+            {
+                // asked to cut, but the shape points away from the body: turn it round so it cuts
+                var back = reversed();
+                if (Overlap(target, back) > sliver) { tool = back; FlippedForCut = true; }
+            }
         }
         var res = Op.Index switch
         {

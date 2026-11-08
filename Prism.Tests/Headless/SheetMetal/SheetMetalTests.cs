@@ -201,6 +201,32 @@ public class SheetMetalTests
         AssertBuildFails(command, "no bends");
     }
 
+    [AvaloniaFact(DisplayName = "SHM-H010 | Flat Pattern keeps a round-ended slot as a hole instead of mistaking its ends for bends")]
+    [Trait("TestId", "SHM-H010")]
+    public void FlatPatternIgnoresSlotEnds()
+    {
+        var session = new CadSession();
+        var flange = Flange(session, LProfile(session));
+        var bracket = Body(flange);
+        // a 6 mm wide, 16 mm long round-ended slot through the 2 mm leg that runs along +X (metal y in [0, 2], width along Z); its ends are partial cylinders with axes through the metal
+        var outline = Occ.Profile([
+            Occ.Line(new(15, -1, 10), new(15, -1, 20)), Occ.Arc3(new(15, -1, 20), new(18, -1, 23), new(21, -1, 20)),
+            Occ.Line(new(21, -1, 20), new(21, -1, 10)), Occ.Arc3(new(21, -1, 10), new(18, -1, 7), new(15, -1, 10)),
+        ], true);
+        var slot = Occ.Extrude(outline, new Vec3(0, 4, 0));
+        var slotted = session.AddObject(Occ.Cut(bracket, slot), "Slotted bracket", ObjKind.Solid);
+        double slotArea = Math.PI * 9 + 6 * 10;
+        AssertClose(bracket.Props().Volume - slotArea * Thickness, slotted.Shape.Props().Volume, 1e-3, "Volume after the slot (mm³)");
+
+        var command = Begin(session, () => new FlatPatternCommand());
+        Pick(command, "Sheet metal body", slotted);
+        var output = BuildOutput(command);
+        double length = 16 + 26 + Math.PI / 2 * (Radius + 0.44 * Thickness);
+        var flat = Assert.Single(output.Add, item => item.Kind == ObjKind.Surface).Shape!;
+        AssertClose(length * Width - slotArea, flat.Props().Area, 0.05, "Flat area with the slot as a hole (mm², arcs drawn as 0.05 mm chords)");
+        Assert.Single(command.Results, line => line.Label == "Bend");
+    }
+
     // ------------------------------------------------------------------ Flatten / Refold
 
     static (CadSession Session, SceneObject Cylinder, SelItem Wall) Cylinder()
