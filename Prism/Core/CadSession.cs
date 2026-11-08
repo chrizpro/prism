@@ -1695,7 +1695,9 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null);
+    /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
+    public string? OpeningTab { get; set; }
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -1758,7 +1760,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab);
         return JsonSerializer.Serialize(dto);
     }
 
@@ -1807,7 +1809,7 @@ public sealed partial class CadSession : ObservableObject
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
-        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home);
+        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab;
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
