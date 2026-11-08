@@ -12,6 +12,15 @@ public sealed class GreasePencilTool : SketchTool
     readonly List<GreasePoint> _points = [];
     double _lastX, _lastY;
     int _width = 3;
+    static readonly (string Id, string Name, uint Color)[] Palette =
+    [
+        ("red", "Red", 0xFFEF4444),
+        ("blue", "Blue", 0xFF3B82F6),
+        ("green", "Green", 0xFF22C55E),
+        ("yellow", "Yellow", 0xFFFACC15),
+        ("purple", "Purple", 0xFFA855F7)
+    ];
+    uint _color = 0xFFFACC15;
     bool _viewPlane;
     Plane3 _plane;
     public override string Name => "Grease pencil";
@@ -22,6 +31,7 @@ public sealed class GreasePencilTool : SketchTool
     public override IReadOnlyList<ToolControl>? Panel =>
     [
         new(ToolControlKind.Info, "step", Prompt),
+        .. Palette.Select(color => new ToolControl(ToolControlKind.Toggle, "color-" + color.Id, color.Name, On: _color == color.Color, Section: "Color")),
         new(ToolControlKind.Button, "orthographic", "Use orthographic view", Section: PanelSettingsTitle),
         new(ToolControlKind.Toggle, "view-plane", "Draw on view-facing plane", On: _viewPlane, Text: "Off: active sketch plane. On: plane facing the view through the active plane origin. Each stroke stays on its starting plane."),
         new(ToolControlKind.Info, "annotation", "Saved with this sketch. Marks do not snap, constrain, or form modeling profiles."),
@@ -30,6 +40,12 @@ public sealed class GreasePencilTool : SketchTool
 
     public override void PanelSet(CadSession s, string id, object? value)
     {
+        if (id.StartsWith("color-", StringComparison.Ordinal))
+        {
+            var color = Palette.FirstOrDefault(color => "color-" + color.Id == id);
+            if (value is true && color.Id != null) { _points.Clear(); _color = color.Color; }
+            s.RaiseState(); s.Invalidate(); return;
+        }
         if (id == "orthographic") { _points.Clear(); s.SketchProjection(perspective: false); return; }
         if (id == "view-plane") { _points.Clear(); _viewPlane = value is true; s.RaiseState(); s.Invalidate(); return; }
         if (id != "remove-last" || Sk(s).Model.GreaseStrokes.Count == 0) return;
@@ -78,7 +94,7 @@ public sealed class GreasePencilTool : SketchTool
         {
             var sk = Sk(s);
             sk.Push();
-            sk.Model.GreaseStrokes.Add(new GreaseStroke { Points = [.. _points], Width = _width });
+            sk.Model.GreaseStrokes.Add(new GreaseStroke { Points = [.. _points], Width = _width, Color = _color });
             s.NotifySketchChanged();
         }
         _points.Clear(); s.Invalidate();
@@ -94,6 +110,6 @@ public sealed class GreasePencilTool : SketchTool
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         if (_points.Count > 1)
-            o.AddPolyline(_points.Select(p => W(Sk(s), p.U, p.V) + Sk(s).Plane.Normal * p.Depth).ToList(), 0xFFE6A84A, _width);
+            o.AddPolyline(_points.Select(p => W(Sk(s), p.U, p.V) + Sk(s).Plane.Normal * p.Depth).ToList(), _color, _width);
     }
 }

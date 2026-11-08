@@ -714,7 +714,7 @@ public sealed partial class SketchContext
     {
         foreach (var stroke in model.GreaseStrokes)
             if (stroke.Points.Count > 1)
-                overlay.AddPolyline(stroke.Points.Select(p => plane.PointAt(p.U, p.V) + plane.Normal * p.Depth).ToList(), 0xFFE6A84A, stroke.Width);
+                overlay.AddPolyline(stroke.Points.Select(p => plane.PointAt(p.U, p.V) + plane.Normal * p.Depth).ToList(), stroke.Color, stroke.Width);
     }
 
     public void BuildOverlay(CadSession s, Overlay o)

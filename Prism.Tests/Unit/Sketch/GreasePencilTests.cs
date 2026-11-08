@@ -13,6 +13,39 @@ public class GreasePencilTests
 {
     static PointerInfo Pointer(double x, double y, bool left = true) => new(x, y, left, false, false, false);
 
+    [Theory(DisplayName = "SKT-GP005 | Each palette color survives preview, serialization, cloning and undo")]
+    [InlineData("red", 0xFFEF4444u)]
+    [InlineData("blue", 0xFF3B82F6u)]
+    [InlineData("green", 0xFF22C55Eu)]
+    [InlineData("yellow", 0xFFFACC15u)]
+    [InlineData("purple", 0xFFA855F7u)]
+    [Trait("TestId", "SKT-GP005")]
+    public void PaletteColorPersistsPerStroke(string name, uint expected)
+    {
+        var s = new CadSession();
+        s.EnterSketch(Plane3.XY);
+        var sk = s.Sketch!;
+        var tool = new GreasePencilTool();
+        sk.SetTool(s, tool);
+        tool.PanelSet(s, "color-" + name, true);
+        Assert.Equal("color-" + name, Assert.Single(tool.Panel!, c => c.Id.StartsWith("color-") && c.On).Id);
+        tool.PointerDown(s, Pointer(400, 300));
+        tool.PointerMove(s, Pointer(420, 310));
+        var preview = new Overlay();
+        tool.BuildOverlay(s, preview);
+        Assert.Equal(expected, Assert.Single(preview.Lines).Color);
+        tool.PointerUp(s, Pointer(440, 300, false));
+        tool.PanelSet(s, "color-" + (name == "red" ? "blue" : "red"), true);
+        var restored = JsonSerializer.Deserialize<SketchModel>(JsonSerializer.Serialize(sk.ExportModel()))!;
+        Assert.Equal(expected, Assert.Single(restored.Clone().GreaseStrokes).Color);
+        var overlay = new Overlay();
+        SketchContext.DrawGrease(overlay, restored, sk.Plane);
+        Assert.All(overlay.Lines, line => Assert.Equal(expected, line.Color));
+        tool.PanelSet(s, "remove-last", null);
+        Assert.True(sk.TryUndo(s));
+        Assert.Equal(expected, Assert.Single(sk.Model.GreaseStrokes).Color);
+    }
+
     [Fact(DisplayName = "SKT-GP001 | A freehand stroke is one undoable annotation without modeling entities")]
     [Trait("TestId", "SKT-GP001")]
     public void StrokeIsIndependentOfGeometryAndUndoable()

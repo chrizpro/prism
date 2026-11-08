@@ -75,8 +75,9 @@ public sealed class SketchSection
 public sealed class GreaseStroke
 {
     public List<GreasePoint> Points { get; set; } = [];
+    public uint Color { get; set; } = 0xFFE6A84A;
     public float Width { get; set; } = 3;
-    public GreaseStroke Clone() => new() { Points = [.. Points], Width = Width };
+    public GreaseStroke Clone() => new() { Points = [.. Points], Width = Width, Color = Color };
 }
 
 public readonly record struct GreasePoint(double U, double V, double Depth = 0);
