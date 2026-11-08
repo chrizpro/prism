@@ -15,16 +15,16 @@
 **How it works**
 1. Sketch the flat outline with normal lines. Holes, slots and rounded corners drawn inside or on the outline are part of the sheet.
 2. Draw each bend as a **construction line** across the sheet in the same sketch. The line is treated as infinite and is the middle of the bend.
-3. **Sheet Metal › Fold**: pick the sketch and set Thickness, Bend radius (inside), K-factor (default 0.44, as in Flat Pattern), Bend angle (default 90°) and which side of the sketch plane the metal lies on.
+3. **Sheet Metal › Fold**: pick the sketch and set Thickness, Bend radius (inside), K-factor (default 0.44, as in Flat Pattern), Bend angle (default 90°), which side of the sketch plane the metal lies on, and **Fixed region**: the largest region (default) or the region over the sketch origin.
 4. Bends are numbered left to right, then bottom to top. **Angle of each bend** takes signed degrees in that order, for example `90, -90, 180`, and **Radius of each bend** takes inside radii in millimetres, for example `3, 80, 3`; an empty entry keeps the default. Positive folds toward the sketch normal, negative the other way; angles go up to 180°. A large radius rolls a curve.
 5. **Also make the flat pattern beside the part** (on by default) adds the unfolded sheet with its holes and a bend line per zone. **Save the flat pattern as DXF** writes it for laser or waterjet cutting.
 
 **Behavior**
 - A bend line is the middle of a **bend zone** as wide as the bend allowance θ·(r + K·t), with K measured from the inside surface, the formula Flat Pattern uses. The zone becomes an exact cylindrical strip. The flat regions between zones stay rigid.
-- The largest flat region stays where it was drawn; the others fold from it one bend at a time.
+- One flat region stays where it was drawn and the others fold from it one bend at a time: the largest by default, or the one over the sketch origin when **Fixed region** says so (useful when a lid or flap is larger than the base). If the origin is not on the sheet, that choice is refused.
 - Parts bent in several directions work. Hems are 180° bends.
 - A zone must be a clean rectangle of metal. Bends may meet outside the outline but not inside it, a bend may not pass through a hole, slot or notch, and every flat region must be joined to the rest by a bend. Corner reliefs are drawn in the sketch (a plus-shaped blank leaves the corners open); Fold does not add them.
-- Errors name the cause and make no body: no construction lines, a bend that does not cross the sheet, bends that cross inside the sheet, a bend through a hole or notch or without metal on one side, bends that form a closed loop, regions not joined by a bend, an angle that is not a number or outside 0.1° to 180°, a radius that is not a number from 0 to 1000 mm, more angles or radii than bends, or flanges that fold into each other.
+- Errors name the cause and make no body: no construction lines, a bend that does not cross the sheet, bends that cross inside the sheet, a bend through a hole or notch or without metal on one side, bends that form a closed loop, regions not joined by a bend, an angle that is not a number or outside 0.1° to 180°, a radius that is not a number from 0 to 1000 mm, more angles or radii than bends, or flanges that overlap each other. Overlap is found by comparing the joined volume with the sum of the folded pieces: pieces that only touch add up exactly, pieces that cross lose the shared part.
 - The flat pattern is the sketch's own outline moved beside the part along the sketch's U direction, so it works on any sketch plane. The sketch stays in the document.
 
 **Acceptance criteria**
@@ -35,12 +35,14 @@
 5. The flat pattern's area, length and bend-line count match the blank, and it lies beside the part (FLD-H008); it can be left out (FLD-H009); the DXF is written (FLD-H011).
 6. Invalid input is rejected with a message naming the cause (FLD-H006, FLD-H007, FLD-H010).
 7. The bend allowance and the placement of a folded region follow the arithmetic in FLD-U001 to FLD-U003, including that a chain of equal adjacent bends equals one arc.
+8. Two flanges folded so that they cross are refused with the overlap volume, while a pair that clears each other keeps its full volume (FLD-H012).
+9. The region over the sketch origin can be held fixed instead of the largest, giving the matching part in the other position; an origin off the sheet is refused (FLD-H013).
 
 **Limits**
 - Flat Pattern, the tool for existing bodies, still refuses a body with bends in more than one direction ("not all parallel"). A part made with Fold gets its flat pattern from Fold itself.
 - Bend lines are straight. A circular roll is one bend with a large radius and angle, but splines, cones, forming features (louvres, ribs), multi-piece sheets and lap or welded seams are not covered.
 - There is no live preview handle or per-bend table: per-bend angles and radii are typed as lists.
-- Fold checks that the joined result is one valid solid, not every possible collision between folded flanges; use Interference.
+- Fold refuses a result that is not one valid solid or whose flanges overlap. It does not check clearance between flanges that nearly touch, which Interference reports.
 
 ## Edge Flange
 
@@ -101,13 +103,12 @@ A curved crease cannot keep both sides flat, so a curved bend line always means 
 - Should Fold keep bends as construction lines, or move to a Bend tool that picks ordinary lines and gives each its own settings? (The first version used construction lines because they need no new selection mode.)
 - Should the Flat Pattern tool learn to unfold non-parallel bends, given that Fold makes its own flat pattern?
 - How should the rest of curved bends be offered: splines as arcs or facets, and a cone roll? Should Flatten gain an analytic cone layout like its cylinder layout?
-- Should the choice of Fold's fixed region be changeable (it is the largest region today)?
 - Should Edge Flange be able to flange part of an edge, or a curved edge, and should it add a hem and relief option?
 - Should thickness, K-factor and minimum bend radius belong to the material? Library and custom materials carry mechanical and thermal data but nothing sheet-specific today.
 
 ## Verification
 
-[Sheet metal tests](../../../Prism.Tests/Headless/SheetMetal/SheetMetalTests.cs) check Flange volume and bounds for both metal sides, width direction (forward, reversed, centred), hem, a two-bend channel and rejected profiles; Flat Pattern size and bend allowance for three K-factors, placement and the no-bend error; and Flatten / Refold on the documented radius 25 × 70 mm cylinder for each Create choice. [Fold tests](../../../Prism.Tests/Headless/SheetMetal/FoldTests.cs) (FLD-H001 to FLD-H011) check Fold against Flange, the closed-form tray, holes, signed angles, the Flat Pattern round trip, the flat pattern output, per-bend radii, the DXF writer and the rejections, and [Fold arithmetic tests](../../../Prism.Tests/Unit/SheetMetal/SheetFoldTests.cs) (FLD-U001 to FLD-U003) check the bend allowance and region placement without the kernel. [Edge Flange tests](../../../Prism.Tests/Headless/SheetMetal/EdgeFlangeTests.cs) (EFL-H001 to EFL-H004) check the flange against the closed-form bracket. Run `./tools/test.ps1 -Feature SheetMetal`. [Flatten and Refold](../../flatten-refold.md) also has its standalone suite.
+[Sheet metal tests](../../../Prism.Tests/Headless/SheetMetal/SheetMetalTests.cs) check Flange volume and bounds for both metal sides, width direction (forward, reversed, centred), hem, a two-bend channel and rejected profiles; Flat Pattern size and bend allowance for three K-factors, placement and the no-bend error; and Flatten / Refold on the documented radius 25 × 70 mm cylinder for each Create choice. [Fold tests](../../../Prism.Tests/Headless/SheetMetal/FoldTests.cs) (FLD-H001 to FLD-H013) check Fold against Flange, the closed-form tray, holes, signed angles, the Flat Pattern round trip, the flat pattern output, per-bend radii, the DXF writer, overlapping flanges, the fixed-region choice and the rejections, and [Fold arithmetic tests](../../../Prism.Tests/Unit/SheetMetal/SheetFoldTests.cs) (FLD-U001 to FLD-U003) check the bend allowance and region placement without the kernel. [Edge Flange tests](../../../Prism.Tests/Headless/SheetMetal/EdgeFlangeTests.cs) (EFL-H001 to EFL-H004) check the flange against the closed-form bracket. Run `./tools/test.ps1 -Feature SheetMetal`. [Flatten and Refold](../../flatten-refold.md) also has its standalone suite.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
 

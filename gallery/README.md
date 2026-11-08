@@ -2,7 +2,22 @@
 
 Curated native examples for the [startup gallery](../docs/interface/gallery/README.md), tracked by [#61](https://github.com/chrizpro/prism/issues/61). Models and preview images are hosted here and downloaded on demand; the app embeds only `catalog.json`.
 
-Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery and the Fold tablet stand; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
+Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand and the cardboard box; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
+
+## What is here
+
+Models are grouped by the main Prism workflow they show; the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
+
+| Workflow | Models (catalog ID) |
+| --- | --- |
+| Sheet Metal | Cardboard box (`cardboard-box`), Fold tablet stand (`fold-stand`) |
+| Solid / Assembly | Meridian orrery (`meridian-orrery`) |
+| Solid | Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
+| Freeform / Solid | Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
+| Freeform | Azure handled bottle (`azure-bottle`) |
+| Surface / NURBS | Halo pendant (`halo-pendant`), Transition duct (`transition-duct`), Arc mouse (`arc-mouse`) |
+
+Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 
 ## Updating the collection
 
@@ -14,6 +29,8 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 The cache is content-addressed. A changed model never replaces an already opened working copy. Delete or replace an entry to curate the next collection; existing user copies remain intact.
 
 ## Reproduce the new studies
+
+`python gallery/build_cardboard_box.py --discovery <discovery.json>` builds the cardboard box with the Fold tool ([#82](https://github.com/chrizpro/prism/issues/82)): one plus-shaped die-line sketch (base, four walls, and on the back wall a hinged lid and a front lip, with handle slots in the short walls) and one construction line per bend, folded in a single step with **Fixed region** set to the region over the sketch origin. Fold also lays out the die line beside the box. The script asserts the box's size from the board thickness and dimensions; Fold itself refuses overlapping flanges. `--render-only` reopens the saved model; `--no-render` skips the render. A concept model, not a packaging design.
 
 `python gallery/build_sheetmetal.py --discovery <discovery.json>` builds Fold ([#80](https://github.com/chrizpro/prism/issues/80)), a one-piece sheet-metal tablet stand. It sketches the cross-section, makes the bends and hem with Flange, chamfers the corners, cuts 30 round vents and a cable hole through the bent body, and unfolds it with Flat Pattern beside the part. Each cut is checked against its expected volume and repeated reversed when the default direction points away from the metal ([#79](https://github.com/chrizpro/prism/issues/79)); it avoids slots and rounded corners, which Flat Pattern rejects ([#78](https://github.com/chrizpro/prism/issues/78)). The tablet is a scale placeholder. `--render-only` reopens the saved model; `--no-render` skips the render. The blank is shown beside the part, and no DXF is written. This is a visual and workflow study, not a tested product design.
 

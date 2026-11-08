@@ -22,7 +22,7 @@ public sealed class FoldCommand : Command
     readonly BoolParam _flat;
     List<List<(double x, double y)>> _loops = [];
     List<((double x, double y) a, (double x, double y) b)> _bendLines = [];
-    readonly ChoiceParam _side;
+    readonly ChoiceParam _side, _fixed;
 
     static double _lastT = 2, _lastR = 2;           // the rules stay for the next part
 
@@ -35,6 +35,7 @@ public sealed class FoldCommand : Command
         _angle = Num("Bend angle", 90, 0.1, 180, 5, "°");
         _angles = Text("Angle of each bend (optional)", "", "Signed degrees in order, e.g. 90, -90, 180. Positive folds toward the sketch normal.");
         _radii = Text("Radius of each bend (optional)", "", "Inside radii in mm, in the same order, e.g. 3, 80, 3. A large radius rolls a curve. An empty entry keeps the default radius.");
+        _fixed = Choice("Fixed region", 0, "The largest region", "The region over the sketch origin");
         _flat = Check("Also make the flat pattern beside the part", true);
         Add(new ActionParam { Label = "Save the flat pattern as DXF", Run = SaveDxf });
         _side = Choice("The metal lies", 0, "On the normal side of the sketch", "Opposite the normal");
@@ -42,7 +43,7 @@ public sealed class FoldCommand : Command
 
     public override string Title => "Fold";
     public override string Icon => "fold";
-    public override string Hint => "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is.";
+    public override string Hint => "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is, unless you fix the region over the sketch origin.";
 
     sealed record Bend(int Index, Vec3 P, Vec3 D, Vec3 W, double Theta, double Allowance, double R);
     sealed record Zone(int Bend, int Low, int High, Shape Solid, double D0, double D1);
@@ -183,6 +184,14 @@ public sealed class FoldCommand : Command
 
         // fold outward from the largest region, one bend at a time
         int baseKey = cellVolume.MaxBy(kv => kv.Value).Key;
+        if (_fixed.Index == 1)
+        {
+            int originKey = KeyAt(plane.Origin);
+            var probe = Occ.Vertex(plane.Origin + n * (z0 + t / 2));
+            if (!cells.TryGetValue(originKey, out var under) || under.All(piece => Occ.Distance(piece, probe).Distance > 1e-6))
+                throw new InvalidOperationException("The sketch origin is not on the sheet, so there is no region there to hold fixed. Draw the part around the origin, or fix the largest region.");
+            baseKey = originKey;
+        }
         var frames = new Dictionary<int, Rigid> { [baseKey] = Rigid.Identity };
         var order = new List<(int parent, int child, int bend)>();
         var queue = new Queue<int>(); queue.Enqueue(baseKey);
@@ -234,6 +243,10 @@ public sealed class FoldCommand : Command
         for (int i = 1; i < pieces.Count; i++) body = Occ.Fuse(body, pieces[i]);
         if (!body.IsValid || body.Count(SubKind.Solid) != 1)
             throw new InvalidOperationException("The folded pieces did not join into one solid. A flange may be folding into another one: use a smaller angle or leave more room.");
+        // Pieces that only touch add up to the joined volume; pieces that overlap lose the shared part when they fuse, so a shortfall means flanges cross each other.
+        double expected = pieces.Sum(piece => Math.Abs(Occ.Mass(piece).Volume)), joined = Math.Abs(Occ.Mass(body).Volume);
+        if (expected - joined > 1e-5 * expected + 1e-3)
+            throw new InvalidOperationException($"Folded flanges overlap each other by about {expected - joined:0.##} mm³. Shorten a flange, change an angle, or fold it the other way.");
 
         Results.Add(new ResultLine("Bends", bends.Count.ToString()));
         Results.Add(new ResultLine("Blank", $"{box.Max.X - box.Min.X:0.###} × {box.Max.Y - box.Min.Y:0.###} × {box.Max.Z - box.Min.Z:0.###} mm bounding box of the flat sheet"));

@@ -5971,7 +5971,7 @@
  {
   "name": "fold",
   "title": "Fold",
-  "hint": "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is.",
+  "hint": "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is, unless you fix the region over the sketch origin.",
   "slots": [
    {
     "label": "Flat sketch (outline and bend lines)",
@@ -5984,7 +5984,7 @@
    {
     "label": "Thickness",
     "type": "number",
-    "default": 2,
+    "default": 3,
     "unit": "mm",
     "min": 0.01,
     "max": 100
@@ -5992,7 +5992,7 @@
    {
     "label": "Bend radius (inside)",
     "type": "number",
-    "default": 3,
+    "default": 0.5,
     "unit": "mm",
     "min": 0,
     "max": 1000
@@ -6022,6 +6022,15 @@
     "label": "Radius of each bend (optional)",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Fixed region",
+    "type": "choice",
+    "default": "The largest region",
+    "options": [
+     "The largest region",
+     "The region over the sketch origin"
+    ]
    },
    {
     "label": "Also make the flat pattern beside the part",

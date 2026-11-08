@@ -9,6 +9,37 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I007 | The cardboard box is one valid solid of the expected size, and its die line has both handle slots")]
+    [Trait("TestId", "GAL-I007")]
+    public async Task CardboardBoxFoldedFromDieLine()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I007", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/cardboard-box.prism") });
+        // 150 x 100 x 60 mm inside, 3 mm board, 0.5 mm inside radius, 1 mm gap between the lid lip and the front wall, 25 mm lip
+        const double length = 150, width = 100, height = 60, board = 3, radius = .5, k = .33, gap = 1, lip = 25;
+        var box = await mcp.Call("object_info", new { @object = "Cardboard box" });
+        Assert.True((bool?)box["valid"]);
+        var size = box["size"]!.AsArray().Select(v => (double)v!).ToArray();
+        Assert.InRange(size[0], length + 2 * (radius + board) - .01, length + 2 * (radius + board) + .01);
+        Assert.InRange(size[1], 2 * (width / 2 + radius + board) + gap + board - .01, 2 * (width / 2 + radius + board) + gap + board + .01);
+        Assert.InRange(size[2], 2 * (board + radius) + height - .01, 2 * (board + radius) + height + .01);
+        // the die line: base, two side arms, a front arm and the long back arm (wall, hinge, lid, hinge, lip), minus the two 9 x 32 mm slots (area 9 * 32 + pi * 4.5^2 each)
+        double a = Math.PI / 2 * (radius + k * board), lid = width + board + gap;
+        double area = length * width + 2 * (a + height) * width + (a + height) * length + (a + height + a + lid + a + lip) * length - 2 * (9 * 32 + Math.PI * 4.5 * 4.5);
+        var flat = await mcp.Call("object_info", new { @object = "Box blank (die line)" });
+        Assert.InRange((double)flat["area"]!, area * .999, area * 1.001);
+        Assert.Equal((int)flat["faces"]! + 2, (int)flat["wires"]!);
+        foreach (var angle in new[] { ("front-quarter", -38), ("rear-quarter", 150) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = 28, fit = true, grid = false, display = "shaded" });
+            await mcp.Capture("cardboard-box-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I006 | Fold stand vents and cable hole pass through the sheet and appear in the flat pattern")]
     [Trait("TestId", "GAL-I006")]
     public async Task SheetMetalStandHolesAndFlatPattern()

@@ -15,8 +15,9 @@ import build_examples as study
 
 cad = study.cad
 
-PAINT = dict(material="5052", color="#1D7C8E", metal=.2, roughness=.42, surface=dict(Coat=.45, CoatRoughness=.25, Bump=.02))
-BARE = dict(material="5052", color="#C9D0D6", metal=.9, roughness=.3, pattern="Brushed", patternScale=2, surface=dict(Anisotropy=.4))
+# Sheet metal reads as plain silver: brushed aluminium for the part, the same metal a touch lighter for its flat pattern.
+SILVER = dict(material="5052", color="#BEC4CA", metal=.95, roughness=.3, pattern="Brushed", patternScale=3, surface=dict(Anisotropy=.45, Coat=.06))
+BARE = dict(material="5052", color="#CDD2D7", metal=.95, roughness=.3, pattern="Brushed", patternScale=3, surface=dict(Anisotropy=.45, Coat=.06))
 GLASS = dict(material="pc", color="#10151B", roughness=.06, surface=dict(Coat=.9, CoatRoughness=.03))
 
 THICKNESS, BEND_R, WIDTH, HEM = 2.0, 3.0, 140.0, 8.0
@@ -93,7 +94,7 @@ def build():
         assert info["valid"]
 
         cad.call("object_update", object=profile.name, visible=False)
-        cad.call("material_apply", object=name, **PAINT)
+        cad.call("material_apply", object=name, **SILVER)
 
         # Flat Pattern: the unfolded sheet is placed beside the part, with the holes and a line at each bend.
         cad.flat_pattern(name, k_factor=.44)

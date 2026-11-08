@@ -379,7 +379,7 @@ def flange(profile, thickness=2, bend_radius=2, width=30, **p):
 def fold(sketch, thickness=2, bend_radius=2, angle=90, **p):
     """Fold a flat sketch into sheet metal and return the folded solid. The sketch holds the outline (normal lines, holes as loops) and each
     bend as a construction line across it. ``angle`` is in degrees. ``angle_of_each_bend="90, -90"`` and ``radius_of_each_bend="3, 80"`` set signed
-    angles and inside radii bend by bend. The flat pattern is also made beside the part; pass ``also_make_the_flat_pattern_beside_the_part=False`` to skip it."""
+    angles and inside radii bend by bend. The flat pattern is also made beside the part; pass ``also_make_the_flat_pattern_beside_the_part=False`` to skip it. ``fixed_region="The region over the sketch origin"`` holds that region still instead of the largest."""
     made = run("fold", slots={"Flat sketch": sketch}, thickness=thickness, bend_radius=bend_radius, bend_angle=angle, **p)
     return next((o for o in made if o.kind == "Solid"), None) or _one(made, "fold")
 
