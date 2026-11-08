@@ -32,13 +32,16 @@ FAST = False
 
 
 COLUMNS = {}
+SLOW = set()
 
 
-def scenario(name, columns=2):
+def scenario(name, columns=2, slow=False):
     """Register ``fn() -> [(label, PIL.Image)]`` under a file-friendly name that says what is tested. ``columns=1`` gives wide pictures (a row of variants)."""
     def wrap(fn):
         SCENARIOS[name] = fn
         COLUMNS[name] = columns
+        if slow:
+            SLOW.add(name)
         return fn
     return wrap
 
@@ -175,11 +178,14 @@ def main():
     parser.add_argument("--out")
     parser.add_argument("--fast", action="store_true", help="fewer samples per render: quicker and noisier")
     parser.add_argument("--compare", action="store_true", help="compare each new sheet with tests/visual/approved/")
+    parser.add_argument("--slow", action="store_true", help="also run the slow scenarios (minutes each, for example topology optimization)")
+    parser.add_argument("--repeat", type=int, default=1, help="run the whole selection this many times and report any check that is not identical every time (flakiness)")
+    parser.add_argument("--shuffle", type=int, metavar="SEED", help="run the scenarios in a random order (seeded), to find tests that depend on what ran before")
     args = parser.parse_args()
     if args.out:
         OUT = Path(args.out)
     FAST = args.fast
-    names = [n for n in SCENARIOS if not args.only or any(o in n for o in args.only)]
+    names = [n for n in SCENARIOS if (not args.only or any(o in n for o in args.only)) and (args.slow or n not in SLOW or args.only)]
     if args.list:
         print("\n".join(SCENARIOS))
         return 0
@@ -199,21 +205,31 @@ def main():
     bridge, log = study.connect_mcp(args.discovery)
     report = {}
     try:
-        for name in names:
-            t = time.monotonic()
-            try:
-                cells = SCENARIOS[name]()
-                path = save(name, sheet(cells, COLUMNS[name]))
-                lines = [line for _, im in cells for line in getattr(im, "lines", [])]
-                failed = [line for line in lines if line.startswith("FAIL") or "CHECK" in line and line.rstrip().endswith("FAIL")]
-                report[name] = {"file": path.name, "kb": round(path.stat().st_size / 1024), "seconds": round(time.monotonic() - t),
-                                "passed": sum(1 for line in lines if line.startswith("PASS") or line.rstrip().endswith("PASS")), "failed": failed}
-                if args.compare and (HERE / "approved" / path.name).exists():
-                    report[name]["difference"] = round(difference(Image.open(path), Image.open(HERE / "approved" / path.name)), 2)
-                print(name, report[name], flush=True)
-            except Exception as error:  # a broken scenario is a finding, not a reason to stop the run
-                report[name] = {"error": f"{type(error).__name__}: {error}"[:300]}
-                print(name, "FAILED", report[name]["error"], flush=True)
+        history = {}
+        import random
+        for repetition in range(max(1, args.repeat)):
+            order = list(names)
+            if args.shuffle is not None:
+                random.Random(args.shuffle + repetition).shuffle(order)
+            if args.repeat > 1 or args.shuffle is not None:
+                print(f"--- run {repetition + 1} of {args.repeat}: {', '.join(n.split('__')[0] for n in order[:6])}...", flush=True)
+            for name in order:
+                t = time.monotonic()
+                try:
+                    cells = SCENARIOS[name]()
+                    path = save(name, sheet(cells, COLUMNS[name]))
+                    lines = [line for _, im in cells for line in getattr(im, "lines", [])]
+                    failed = [line for line in lines if line.startswith("FAIL") or "CHECK" in line and line.rstrip().endswith("FAIL")]
+                    report[name] = {"file": path.name, "kb": round(path.stat().st_size / 1024), "seconds": round(time.monotonic() - t),
+                                    "passed": sum(1 for line in lines if line.startswith("PASS") or line.rstrip().endswith("PASS")), "failed": failed, "lines": lines}
+                    if args.compare and (HERE / "approved" / path.name).exists():
+                        report[name]["difference"] = round(difference(Image.open(path), Image.open(HERE / "approved" / path.name)), 2)
+                    print(name, report[name], flush=True)
+                except Exception as error:  # a broken scenario is a finding, not a reason to stop the run
+                    report[name] = {"error": f"{type(error).__name__}: {error}"[:300]}
+                    print(name, "FAILED", report[name]["error"], flush=True)
+                history.setdefault(name, []).append(report.get(name, {}).get("lines") if "lines" in report.get(name, {}) else report.get(name, {}).get("error"))
+        report_unstable = {n: runs for n, runs in history.items() if len({json.dumps(r) for r in runs}) > 1}
     finally:
         lock.unlink(missing_ok=True)
         bridge.terminate()
@@ -229,9 +245,18 @@ def main():
         else:
             summary.append(f"{'FAIL' if r['failed'] else 'ok  '} {name}: {r['passed']} passed, {len(r['failed'])} failed" + (f"  [{r.get('difference')} from approved]" if "difference" in r else ""))
             summary += [f"      {line}" for line in r["failed"]]
+    for n, runs in report_unstable.items():
+        first = runs[0] if isinstance(runs[0], list) else [str(runs[0])]
+        for k, other in enumerate(runs[1:], 2):
+            other = other if isinstance(other, list) else [str(other)]
+            differing = [f"run 1: {a}  |  run {k}: {b}" for a, b in zip(first, other) if a != b] or [f"run 1 had {len(first)} lines, run {k} had {len(other)}"]
+            summary.append(f"UNSTABLE {n}")
+            summary += [f"      {line[:300]}" for line in differing[:4]]
+    if (args.repeat > 1 or args.shuffle is not None) and not report_unstable:
+        summary.append(f"stable: every check gave the same result in all {args.repeat} runs")
     (OUT / "summary.txt").write_text("\n".join(summary) + "\n")
     print("\n" + "\n".join(summary))
-    return 1 if any("error" in r or r["failed"] for r in report.values()) else 0
+    return 1 if report_unstable or any("error" in r or r["failed"] for r in report.values()) else 0
 
 
 if __name__ == "__main__":
