@@ -211,6 +211,41 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8e68b29d7db15053",
       "Bytes": 86436,
       "Sha256": "514313158a77970462085b80ea4f9fbffa1bef58a3aff383289b589e852f527c"
+    },
+    {
+      "Id": "relief-plaque",
+      "Name": "Carved lotus plaque",
+      "Description": "A maple block with a lotus picture carved by CNC: Image Carve turns the picture's brightness into depth. Opens on CAM with Playback ready.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/relief-plaque.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/relief-plaque.png?v=67dbcc5b2e8b7c78",
+      "Bytes": 2467009,
+      "Sha256": "5e41b24db37d4b684757a242bba69459a400c2aaac86fbd980c126361524d861",
+      "Extras": [
+        {
+          "Label": "carving image (PNG)",
+          "FileName": "relief-lotus.png",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/relief-lotus.png",
+          "Bytes": 29153,
+          "Sha256": "05c0729c8638f5563b75228e394270d2b60c9cd018313551bb24e9e228198076"
+        }
+      ]
+    },
+    {
+      "Id": "injection-mold",
+      "Name": "Injection mold",
+      "Description": "A block and a cap-shaped part made into a two-part mold with Create Mold, split at the cap's widest point and shown exploded.",
+      "Workflow": "Mold / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/injection-mold.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/injection-mold.png?v=3f871a82fcab939b",
+      "Bytes": 29540,
+      "Sha256": "9e22d640f1c254683c5968d5c4dd20a9daf0d41877924091fa13217e6e7a79e6"
     }
   ]
 }

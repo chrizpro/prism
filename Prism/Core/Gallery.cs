@@ -29,7 +29,7 @@ public sealed record GalleryEntry(string Id, string Name, string Description, st
 public static class GallerySections
 {
     /// <summary>Workspace tabs in the order the gallery lists them. Models with another first workflow follow, in catalog order.</summary>
-    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "CAE", "ECAD"];
+    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "Mold", "CAE", "ECAD"];
     /// <summary>Models shown per section until the section is expanded.</summary>
     public const int Preview = 3;
 
