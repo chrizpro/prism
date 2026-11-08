@@ -600,7 +600,7 @@ public sealed class CncPostCommand : Command
     {
         _ctl = Choice("Machine", 0, "GRBL (hobby routers and mills)", "Mach3", "LinuxCNC");
         _zero = Choice("Work zero (G54)", 2, "Lower-left corner of the model, top surface", "The model's own origin", "Saved CAM setup");
-        _path = Text("Save to (blank = Documents\\Prism\\GCode)", "", "full path of the program file, e.g. part.nc");
+        _path = Text("Save to (blank = Documents\\Prism\\GCode)", "", "program file (e.g. part.nc) or a folder");
         Add(new ActionParam { Label = "Save G-code", Run = Save });
     }
 
@@ -629,7 +629,12 @@ public sealed class CncPostCommand : Command
             foreach(var tp in paths)CamValidation.Validate(S,tp);
             if(paths.Select(p=>p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup at a time. Select its saved setup and use Saved CAM setup work zero.");
             string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "GCode"); Directory.CreateDirectory(dir);
-            string file = string.IsNullOrWhiteSpace(_path.Value) ? Path.Combine(dir, $"program_{DateTime.Now:yyyyMMdd_HHmmss}.nc") : _path.Value;
+            string given = _path.Value?.Trim().Trim('"') ?? "";
+            string stamped = $"program_{DateTime.Now:yyyyMMdd_HHmmss}.nc";
+            // A folder (existing, or written with a trailing slash) gets a timestamped program file inside it.
+            bool isFolder = given.Length > 0 && (Directory.Exists(given) || given.EndsWith('/') || given.EndsWith('\\'));
+            string file = given.Length == 0 ? Path.Combine(dir, stamped) : isFolder ? Path.Combine(given, stamped) : given;
+            var parent = Path.GetDirectoryName(Path.GetFullPath(file)); if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
             string title = S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "Prism program";
             bool lathe = paths.All(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal));
             if (!lathe && paths.Any(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal))) { S.Say("Turning and milling toolpaths go to different machines. Hide one kind and post again.", true); return; }
