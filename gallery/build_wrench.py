@@ -2,14 +2,15 @@
 
 An 8 mm plate: a 38 mm round head at the origin with a 13 mm jaw slot angled 15 degrees off the handle axis, a handle that tapers from 24 mm to 16 mm wide, and
 a 34 mm ring end 175 mm away with a 13 mm hexagon hole. Outer corners are rounded and the faces are edge-softened. Five static load cases are saved in the file
-(self weight, a hammer blow on the ring end, a 900 N cheater-pipe overload, 300 N torque through the box end, 300 N torque through the open end). The file reopens
-on the CAE tab with the open-end torque case active, so the user only has to press Run. The script solves all five, checks the load balance, that the torque
+(self weight, a hammer blow on the ring end, a 900 N cheater-pipe overload, 300 N torque through the box end, 300 N torque through the open end), plus a natural-frequency and a thermal setup (these two need CalculiX). The file reopens
+on the CAE tab with the open-end torque case active, so the user only has to press Run. The script also keeps a natural-frequency and a thermal setup (CalculiX) and solves all of them. It checks the load balance, that the torque
 cases stay elastic (safety factor above 1) and the overload yields, and that a coarser mesh agrees on displacement.
 
 python gallery/build_wrench.py --discovery <discovery.json> [--render-only] [--no-render]
 """
 import argparse
 import math
+import time
 
 import build_examples as study
 
@@ -52,6 +53,45 @@ def new_study(fixed, loads):
         cad.call("run_command", name=slots[0], slots={slots[1]: [{"object": "Wrench", "face": f} for f in slots[2]]}, params=params)
 
 
+def analysis(command, slots, params):
+    """Run a CalculiX analysis (modal or thermal), keep its setup in the file and return its result rows."""
+    cad.call("run_command", name=command, slots=slots, params=params, commit=False)
+    cad.call("command_set", params={"Run analysis": True})
+    deadline = time.monotonic() + 600
+    while True:
+        reply = cad.call("command_set", params={})
+        rows = reply.get("results", [])
+        text = " ".join(map(str, rows))
+        assert not reply.get("error") and "Status: Failed" not in text, (reply.get("error"), rows)
+        if "Status: Complete" in text:
+            break
+        assert time.monotonic() < deadline, rows
+        time.sleep(2)
+    cad.call("command_set", params={"Save setup": True})
+    cad.call("command_commit")
+    return rows
+
+
+def topology_check():
+    """Open the saved wrench, run Generative on its open-end torque case (about 8 minutes) and check it keeps the part stiff with less material. Nothing is saved."""
+    cad.call("file", action="open", path=str(study.ROOT / "gallery/models/wrench.prism"))
+    cad.call("study_run")
+    cad.call("run_command", name="generative", params={"Keep this much of the volume": 55, "Detail": "Coarse (fast)", "Most iterations": 40}, commit=False)
+    cad.call("command_set", params={"Generate": True})
+    deadline = time.monotonic() + 1500
+    while True:
+        rows = cad.call("command_set", params={}).get("results", [])
+        text = " ".join(map(str, rows))
+        assert "Failed" not in text, rows
+        if "Status: Done" in text:
+            break
+        assert time.monotonic() < deadline, rows
+        time.sleep(5)
+    share = float(next(x for x in rows if x.startswith("Result volume")).split("(")[1].split("%")[0])
+    assert 40 < share < 60, rows
+    print("topology optimization keeps %.1f %% of the block:" % share, [x for x in rows if x.startswith(("Stiffness", "Mass"))])
+
+
 def build():
     cad.call("document_new")
     with cad.history("Combination wrench - Solid and CAE workflow"):
@@ -85,18 +125,48 @@ def build():
     def force_case(label, fixed, load_faces, newtons):
         new_study(fixed, [(("sim_force", "Faces to load", load_faces), {"Force": newtons, "Direction": "+Y"})])
         results[label] = cad.call("study_run")["results"]
+    def gravity_case():
+        cad.call("study_new", object="Wrench", element_size=MESH)
+        cad.call("run_command", name="sim_fixed", slots={"Faces to support": [{"object": "Wrench", "face": f} for f in jaw_faces]})
+        cad.call("run_command", name="sim_gravity", params={"Gravity": 1, "Direction": "-Z"})
+        results["self weight"] = cad.call("study_run")["results"]
+
+    def hammer_case():
+        new_study(jaw_faces, [(("sim_pressure", "Faces to load", ring_outer), {"Pressure": 5})])
+        results["hammer blow, 5 MPa on the ring end"] = cad.call("study_run")["results"]
+
     # primary case is created last so it is the active study when the file is saved
+    gravity_case()
+    hammer_case()
     force_case("cheater pipe 900 N, open end", jaw_faces, ring_outer, 900)
     force_case("torque 300 N, box end", hex_faces, head_outer, 300)
     force_case("torque 300 N, open end", jaw_faces, ring_outer, 300)
     for label, r in results.items():
-        assert abs(r["reactionNet_N"] - r["appliedNet_N"]) < 1, (label, r)
+        if label != "self weight":
+            assert abs(r["reactionNet_N"] - r["appliedNet_N"]) < 1, (label, r)
         print("%-30s von Mises %6.1f MPa  displacement %.3f mm  safety %.2f  (%d elements)" % (label, r["maxVonMises_MPa"], r["maxDisplacement_mm"], r["minSafetyFactor"], r["elements"]))
     assert results["torque 300 N, open end"]["minSafetyFactor"] > 1 and results["torque 300 N, box end"]["minSafetyFactor"] > 1
     assert results["cheater pipe 900 N, open end"]["minSafetyFactor"] < results["torque 300 N, open end"]["minSafetyFactor"]
     # linear: tripling the force triples displacement and stress
     a, b = results["cheater pipe 900 N, open end"], results["torque 300 N, open end"]
     assert abs(a["maxDisplacement_mm"] / b["maxDisplacement_mm"] - 3) < .02, (a, b)
+    modes = analysis("cae_modal", {"Solid bodies": ["Wrench"], "Fixed support faces": [{"object": "Wrench", "face": f} for f in jaw_faces]},
+                     {"Number of modes": 6, "Setup name": "Natural frequencies, jaw held"})
+    frequencies = [float(x.split(": ")[1].split()[0]) for x in modes if x.startswith("Mode ")]
+    assert len(frequencies) == 6 and 100 < frequencies[0] < 400 and frequencies == sorted(frequencies), frequencies
+    heat = analysis("cae_thermal", {"Solid bodies": ["Wrench"], "First temperature faces": [{"object": "Wrench", "face": f} for f in jaw_faces],
+                                    "Second temperature faces": [{"object": "Wrench", "face": f} for f in hex_faces]},
+                    {"Thermal analysis": "Steady conduction", "First temperature": 100, "Second temperature": 20, "Setup name": "Hot jaw, cold ring end"})
+    temps = {x.split(": ")[0]: float(x.split(": ")[1].split()[0]) for x in heat if x.split(": ")[0].endswith("temperature")}
+    assert abs(temps["Maximum temperature"] - 100) < .5 and abs(temps["Minimum temperature"] - 20) < .5, temps
+    print("first mode %.1f Hz; temperatures %s" % (frequencies[0], temps))
+    # fatigue on the open-end torque case, loaded from zero to peak 1,000,000 times: it must meet the requirement
+    cad.call("run_command", name="cae_fatigue", params={"Load ratio R (min / max)": 0, "Required life": 1000000, "Surface finish": "Machined", "Mean-stress correction": "Goodman"}, commit=False)
+    cad.call("command_set", params={"Show on model": True})
+    fatigue = cad.call("command_set", params={}).get("results", [])
+    cad.call("command_cancel")
+    assert any(x.startswith("Verdict: Meets") for x in fatigue), fatigue
+    print(next(x for x in fatigue if x.startswith("Fatigue safety factor")))
     cad.call("select_tab", title="Static")   # the file reopens on the Static tab with the open-end torque case active
     return "wrench", -35, 45
 
@@ -106,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument("--discovery", required=True)
     parser.add_argument("--render-only", action="store_true")
     parser.add_argument("--no-render", action="store_true")
+    parser.add_argument("--topology-check", action="store_true", help="also run Generative on the saved model (slow, about 8 minutes)")
     args = parser.parse_args()
     bridge, log = study.connect_mcp(args.discovery)
     try:
@@ -115,6 +186,8 @@ if __name__ == "__main__":
         else:
             model = build()
         study.verify_and_save(*model, render=not args.no_render, distance=420)
+        if args.topology_check:
+            topology_check()
     finally:
         bridge.terminate()
         bridge.wait(timeout=10)

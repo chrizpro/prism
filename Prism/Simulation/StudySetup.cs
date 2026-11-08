@@ -15,7 +15,10 @@ public static class StudySetup
 {
     public static string Signature(SceneObject body)
     {
-        string brep=body.Shape.ToBrep();
+        // A shape built in this session and the same shape read back from a saved file can differ in unimportant B-rep details (tolerances, cache flags).
+        // Hash the form that a save and reopen produces, which is stable, so a study saved with a document still matches its body when the file is reopened.
+        string brep;
+        using(var settled=Occ.FromBrep(body.Shape.ToBrep()))brep=settled.ToBrep();
         // OCCT's topology section contains Free/Modified/Checked cache flags.
         // Meshing changes Checked without changing geometry. Ignore only those
         // three flags, retaining orientation/closure and all geometric data.
