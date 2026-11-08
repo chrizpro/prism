@@ -89,6 +89,8 @@ public class AppearanceStudioTests
     {
         var vm = new MainViewModel(); var panel = new MaterialsPanel { DataContext = vm };
         Assert.False(vm.CanApplyAppearance); Assert.False(panel.FindControl<Button>("ResetFinish")!.IsEnabled);
+        Assert.False(panel.FindControl<Button>("GenericAppearance")!.IsEnabled);
+        Assert.NotNull(panel.FindControl<ComboBox>("SavedAppearanceLibrary"));
         foreach (string name in new[] { "GradientOptions", "WeatherOptions", "ImageOptions", "ReflectionOptions" }) Assert.False(panel.FindControl<Expander>(name)!.IsExpanded);
         Assert.NotNull(panel.FindControl<Button>("ChooseColor")!.Flyout);
         Assert.Equal(2, panel.FindControl<TabControl>("StudioTabs")!.Items.Count);
@@ -112,7 +114,7 @@ public class AppearanceStudioTests
     public void FamilyChipsNarrowTheList()
     {
         var vm = new MainViewModel();
-        Assert.Equal(1 + Materials.Categories.Count(), vm.MaterialFamilies.Count);
+        Assert.Equal(2 + Materials.Categories.Count(), vm.MaterialFamilies.Count);
         Assert.Equal(Materials.All.Count, vm.MaterialFamilies.Sum(f => f.Index == 0 ? 0 : f.Count));
         Assert.Equal(Materials.All.Count, vm.MaterialList.Count);
 
@@ -129,5 +131,81 @@ public class AppearanceStudioTests
 
         vm.MaterialSearch = ""; vm.SelectFamily(0);   // back to the whole library
         Assert.Equal(Materials.All.Count, vm.MaterialList.Count);
+    }
+    [AvaloniaFact(DisplayName = "APP-H008 | Generic and saved appearances preserve assigned material and undo as one multi-body edit")]
+    [Trait("TestId", "APP-H008")]
+    public void SavedAppearancesPreserveTargetMaterials()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var a = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        var b = CreateBoxBody(s, new(20, 0, 0), 10, 10, 10);
+        s.SelectItems([SelItem.Of(a)]); vm.ApplyMaterial(Materials.Find("6061")!);
+        vm.ApplyGenericAppearance();
+        Assert.Equal(0xFFFFFFFFu, s.Find(a.Id)!.Color);
+        Assert.Equal(SurfacePattern.Plain, s.Find(a.Id)!.Look.Pattern);
+        Assert.Equal("6061", s.Find(a.Id)!.Material!.Id);
+        vm.SurfaceBump = .6; vm.TextureSize = 17;
+        try
+        {
+            vm.SavedAppearanceName = "Test saved appearance"; vm.SaveCustomAppearance();
+            var recipe = Assert.Single(vm.SavedAppearances, x => x.Name == "Test saved appearance");
+            vm.SaveCustomAppearance(); Assert.Single(vm.SavedAppearances, x => x.Name == recipe.Name);
+            s.SelectItems([SelItem.Of(b)]); vm.ApplyMaterial(Materials.Find("304")!);
+            s.SelectItems([SelItem.Of(s.Find(a.Id)!), SelItem.Of(s.Find(b.Id)!)]);
+            var previous = s.Current;
+            vm.SelectedSavedAppearance = recipe; vm.ApplySavedAppearance();
+            Assert.Equal("6061", s.Find(a.Id)!.Material!.Id); Assert.Equal("304", s.Find(b.Id)!.Material!.Id);
+            Assert.Equal(recipe.Surface, s.Find(b.Id)!.Look.Surface);
+            s.Undo(); Assert.Same(previous, s.Current); s.Redo();
+            vm.RemoveSavedAppearance();
+            Assert.Equal(recipe.Surface, s.Find(b.Id)!.Look.Surface);
+        }
+        finally
+        {
+            vm.SelectedSavedAppearance = vm.SavedAppearances.FirstOrDefault(x => x.Name == "Test saved appearance");
+            vm.RemoveSavedAppearance();
+        }
+    }
+    [AvaloniaFact(DisplayName = "APP-H009 | Custom material copies validate input and stay distinct from library sources")]
+    [Trait("TestId", "APP-H009")]
+    public void CustomMaterialsValidateAndPersistWithoutEditingSource()
+    {
+        var vm = new MainViewModel();
+        vm.SelectedMaterialRow = vm.MaterialList.Single(r => r.Material.Id == "6061");
+        vm.BeginCustomMaterial(); vm.CustomMaterialName = "Test custom alloy";
+        vm.CustomMaterialInputs[0].Text = "0"; vm.SaveCustomMaterial();
+        Assert.True(vm.EditingCustomMaterial);
+        Assert.DoesNotContain(vm.MaterialList, r => r.Material.Name == "Test custom alloy");
+        try
+        {
+            vm.CustomMaterialInputs[0].Text = "2.8"; vm.CustomMaterialSource = "Supplier test"; vm.SaveCustomMaterial();
+            Assert.False(vm.EditingCustomMaterial);
+            var row = Assert.Single(vm.MaterialList, r => r.Material.Name == "Test custom alloy");
+            Assert.Equal("Test custom alloy · Custom", row.Name);
+            Assert.Equal("User-defined — not verified by Prism", vm.MatDataStatus);
+            Assert.Equal(2.8, row.Material.Density);
+            Assert.Equal(2.7, Materials.Find("6061")!.Density);
+            var settings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Environment.GetEnvironmentVariable("PRISM_SETTINGS_FILE")!))!;
+            Assert.Contains(settings.CustomMaterials, m => m.Id == row.Material.Id && m.Evidence.Source == "Supplier test");
+            var body = CreateBoxBody(vm.Session, new(0, 0, 0), 10, 10, 10);
+            vm.Session.SelectItems([SelItem.Of(body)]); vm.ApplyMaterial();
+            Assert.Contains("Custom", vm.AssignedText); Assert.Contains("not verified by Prism", vm.AssignedData);
+            string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".prism");
+            try
+            {
+                vm.Session.Save(path);
+                vm.RemoveCustomMaterial(); Assert.DoesNotContain(vm.MaterialList, r => r.Material.Id == row.Material.Id);
+                var reopened = new CadSession(); reopened.Open(path);
+                Assert.Equal(row.Material, Assert.Single(reopened.Objects).Material);
+            }
+            finally { File.Delete(path); }
+            vm.SelectFamily(0); Assert.Contains(vm.MaterialList, r => r.Material.Id == "6061");
+        }
+        finally
+        {
+            vm.SelectFamily(0);
+            vm.SelectedMaterialRow = vm.MaterialList.FirstOrDefault(r => r.Material.Name == "Test custom alloy");
+            vm.RemoveCustomMaterial();
+        }
     }
 }

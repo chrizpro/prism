@@ -44,12 +44,19 @@ public partial class MaterialsPanel : UserControl
 
     MainViewModel? Vm => DataContext as MainViewModel;
     void OnShowLibrary(object? s, RoutedEventArgs e) { Vm?.ShowAssignedMaterial(); StudioTabs.SelectedIndex = 1; }
+    void OnGenericAppearance(object? s, RoutedEventArgs e) => Vm?.ApplyGenericAppearance();
+    void OnSaveAppearance(object? s, RoutedEventArgs e) => Vm?.SaveCustomAppearance();
+    void OnApplySavedAppearance(object? s, RoutedEventArgs e) => Vm?.ApplySavedAppearance();
+    void OnRemoveSavedAppearance(object? s, RoutedEventArgs e) => Vm?.RemoveSavedAppearance();
     void OnResetFinish(object? s, RoutedEventArgs e) => Vm?.ResetAppearance();
     void OnFinishPicked(object? s, SelectionChangedEventArgs e)
     {
         if (Vm is { } vm && FinishLibrary.SelectedItem is FinishPreset preset && preset != vm.ActiveFinishPreset)
             vm.ApplyFinishPreset(preset);
     }
+    void OnBeginCustomMaterial(object? s, RoutedEventArgs e) => Vm?.BeginCustomMaterial();
+    void OnSaveCustomMaterial(object? s, RoutedEventArgs e) => Vm?.SaveCustomMaterial();
+    void OnRemoveCustomMaterial(object? s, RoutedEventArgs e) => Vm?.RemoveCustomMaterial();
     void OnApply(object? s, RoutedEventArgs e) => Vm?.ApplyMaterial();
     void OnFamily(object? s, RoutedEventArgs e) { if (s is Button { Tag: int index }) Vm?.SelectFamily(index); }
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseMaterials();
