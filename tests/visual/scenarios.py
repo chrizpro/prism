@@ -1552,3 +1552,79 @@ def solid_misc():
     two_boxes()
     strip = ["Primitives, booleans and the analysis commands, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("two overlapping cubes (the booleans' input)", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Static study setup tools: torque, roller and directional supports, saved selections, convergence
+@scenario("cae__torque-roller-directional-support-and-saved-selections", columns=1)
+def sim_setup_matrix():
+    rows = []
+    E, nu = 200000.0, 0.3
+    G = E / (2 * (1 + nu))
+
+    def bar():
+        cad.call("document_new")
+        b = cad.box(width=10, depth=10, height=100, operation="New body"); b.rename("Bar")
+        cad.call("material_apply", object="Bar", material="steel")
+        face = lambda facing: cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=facing)["hits"][0]["face"]
+        cad.call("study_new", object="Bar", element_size=3.0)
+        return face([0, 0, -1]), face([0, 0, 1]), face([1, 0, 0])
+
+    def item(f):
+        return [{"object": "Bar", "face": f}]
+
+    def case(label, fn):
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def torque():
+        bottom, top, _ = bar()
+        cad.call("run_command", name="sim_fixed", slots={"Faces to support": item(bottom)})
+        cad.call("run_command", name="sim_torque", slots={"Faces to load": item(top)}, params={"Torque": 10000})
+        r = cad.call("study_run")["results"]
+        # square bar torsion: twist = T L / (G k a^4), k = 0.1406; the corner (a / sqrt 2 from the axis) moves twist * 7.07
+        corner = 10000 * 100 / (G * 0.1406 * 10 ** 4) * (10 / math.sqrt(2))
+        return abs(r["maxDisplacement_mm"] - corner) < .12 * corner, f"corner moves {r['maxDisplacement_mm']:.4f} mm (torsion theory {corner:.4f}); elements {r['elements']}"
+    case("Torque 10 N-m on the end of a square bar", torque)
+
+    def roller():
+        bottom, top, side = bar()
+        cad.call("run_command", name="sim_roller", slots={"Faces to support": item(bottom)}, params={"Lock X": False, "Lock Y": False, "Lock Z": True})
+        cad.call("run_command", name="sim_fixed_dirs", slots={"Faces to support": item(side)}, params={"Lock X": True, "Lock Y": False, "Lock Z": False})
+        cad.call("run_command", name="sim_force", slots={"Faces to load": item(top)}, params={"Force": 1000, "Direction": "-Z"})
+        r = cad.call("study_run")["results"]
+        # the base may slide sideways but not drop: the bar compresses 1000 N * 100 / (E A) = 0.005 mm, and the Poisson swelling is free (a roller does not clamp it)
+        return abs(r["maxDisplacement_mm"] - 0.005) < .0012 and abs(r["reactionNet_N"] - 1000) < 2, f"displacement {r['maxDisplacement_mm']:.5f} mm (compression 0.00500), reaction {r['reactionNet_N']:.1f} N"
+    case("Roller base (Z locked only) plus a directional side support", roller)
+
+    def saved_selection():
+        bottom, top, _ = bar()
+        cad.call("run_command", name="cae_save_faces", slots={"Faces": item(bottom)}, params={"Selection name": "Base"})
+        r = cad.call("run_command", name="cae_recall_faces", commit=False)
+        label = next(p for p in r["activeCommand"]["params"] if p["label"] == "Named selection")
+        cad.call("command_cancel")
+        return "Base" in str(label.get("value")) or "Base" in str(label.get("options")), f"named selections now offered: {label.get('value')} / {label.get('options')}"
+    case("Saved face selection can be recalled by name", saved_selection)
+
+    def convergence():
+        bottom, top, _ = bar()
+        cad.call("run_command", name="sim_fixed", slots={"Faces to support": item(bottom)})
+        cad.call("run_command", name="sim_force", slots={"Faces to load": item(top)}, params={"Force": 100, "Direction": "+Y"})
+        cad.call("run_command", name="cae_convergence", commit=False)
+        cad.call("command_set", params={"Compare three meshes": True})
+        deadline = time.monotonic() + 240
+        text = ""
+        while time.monotonic() < deadline:
+            r = cad.call("command_set", params={})
+            text = " | ".join(str(x) for x in r.get("results", []))
+            if "displacement" in text.lower() and ("converged" in text.lower() or "change" in text.lower() or text.count("mm") >= 3):
+                break
+            time.sleep(3)
+        cad.call("command_cancel")
+        return bool(text), text[:130] or "no result"
+    case("Mesh refinement compares three meshes", convergence)
+    bar()
+    strip = ["Static-study setup tools against hand calculations"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the bar", render(-30, 25)), ("checks", text_panel(strip))]
