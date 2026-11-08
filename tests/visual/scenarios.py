@@ -18,11 +18,11 @@ def sketch(entities, plane="XY", offset=None):
     return cad.get(cad.call("sketch_finish")["sketch"])
 
 
-def gcode_of(object_name_hint=None):
+def gcode_of(zero="Saved CAM setup"):
     """Post every toolpath in the open document to a temporary file and return the program text."""
     path = Path(tempfile.gettempdir()) / "prism-visual.nc"
     path.unlink(missing_ok=True)
-    cad.call("run_command", name="cnc_post", params={"Save to": str(path), "Save G-code": True}, commit=False)
+    cad.call("run_command", name="cnc_post", params={"Save to": str(path), "Work zero (G54)": zero}, commit=False)
     cad.call("command_set", params={"Save G-code": True})
     cad.call("command_cancel")
     return path.read_text() if path.exists() else ""
@@ -453,3 +453,75 @@ def fillet_chamfer_shell():
     on_box("Shell inside 3, top open", lambda: (cad.call("run_command", name="shell", slots={"Faces to remove": [dict(object=cur[0], face=top())]}, params={"Wall thickness": 3, "Direction": "Inside"}), finish(box_volume - 34 * 34 * 17, 40))[1])
     on_box("Shell outside 3, top open", lambda: (cad.call("run_command", name="shell", slots={"Faces to remove": [dict(object=cur[0], face=top())]}, params={"Wall thickness": 3, "Direction": "Outside"}), finish(lo=46 * 46 * 23 - box_volume - 1000, hi=46 * 46 * 23 - box_volume))[1])   # an outside offset rounds the new outer edges, so a little less than the flat-cornered 46 x 46 x 23 box
     return [("iso, all variants", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+# ---------------------------------------------------------------- CAM: every option of the milling operations, read back from the posted G-code
+def cut_moves(gcode):
+    """The (x, y, z) end points of the cutting (G1) moves of a program."""
+    x = y = z = 0.0
+    out = []
+    for raw in gcode.splitlines():
+        words = {w[0]: w[1:] for w in raw.split("(")[0].split() if len(w) > 1 and w[0] in "GXYZ"}
+        feed = words.get("G") in ("1", "01")
+        x, y, z = (float(words[a]) if a in words else v for a, v in (("X", x), ("Y", y), ("Z", z)))
+        if feed and any(a in words for a in "XYZ"):
+            out.append((x, y, z))
+    return out
+
+
+def area(points):
+    return .5 * sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(points, points[1:] + points[:1]))
+
+
+@scenario("cam__milling-every-option-from-the-gcode")
+def cam_matrix():
+    cells, rows = [], []
+
+    def variant(label, build, check):
+        cad.call("document_new")
+        try:
+            outline = sketch([{"type": "rect", "corner1": [0, 0], "corner2": [40, 30]}]).name
+            build(outline)
+            text = gcode_of("The model's own origin")
+            moves = cut_moves(text)
+            ok, detail = check(moves)
+            cells.append((label, toolpath_plot(text, title=label[:18])))
+        except Exception as error:
+            ok, detail = False, str(error)[:110]
+            cells.append((label + " FAILED", text_panel([detail])))
+        rows.append((label, detail, ok))
+
+    def extents(m):
+        xs, ys = [p[0] for p in m], [p[1] for p in m]
+        return min(xs), max(xs), min(ys), max(ys)
+
+    def near(got, want, tol=.3):
+        return all(abs(a - b) <= tol for a, b in zip(got, want))
+
+    def profile(params):
+        return lambda outline: cad.call("run_command", name="cnc_profile", slots={"Outlines (curves, sketches, edges or flat faces)": [outline]}, params={"Tool diameter": 6, "Total cutting depth": 6, **params})
+
+    variant("Profile, outside the line", profile({"Cut": "Outside the line"}), lambda m: (near(extents(m), (-3, 43, -3, 33)), f"extents {tuple(round(v, 1) for v in extents(m))} (expect -3..43, -3..33)"))
+    variant("Profile, inside the line", profile({"Cut": "Inside the line"}), lambda m: (near(extents(m), (3, 37, 3, 27)), f"extents {tuple(round(v, 1) for v in extents(m))} (expect 3..37, 3..27)"))
+    variant("Profile, on the line", profile({"Cut": "On the line"}), lambda m: (near(extents(m), (0, 40, 0, 30)), f"extents {tuple(round(v, 1) for v in extents(m))} (expect 0..40, 0..30)"))
+    variant("Profile, climb (outside)", profile({"Cut": "Outside the line", "Direction": "Climb"}), lambda m: (area([p[:2] for p in m if abs(p[2] - m[-1][2]) < .01]) > 0, "outside climb runs counter-clockwise"))
+    variant("Profile, conventional (outside)", profile({"Cut": "Outside the line", "Direction": "Conventional"}), lambda m: (area([p[:2] for p in m if abs(p[2] - m[-1][2]) < .01]) < 0, "outside conventional runs clockwise"))
+    variant("Profile, 4 holding tabs", profile({"Cut": "Outside the line", "Holding tabs": 4, "Tab width": 6, "Tab height": 2}), lambda m: (any(abs(p[2] - (-4)) < .01 for p in m) and min(p[2] for p in m) <= -5.99, f"deepest {min(p[2] for p in m):.1f}, tab level z -4 {'present' if any(abs(p[2] + 4) < .01 for p in m) else 'missing'}"))
+    variant("Pocket, tool 6, stepover 45", lambda o: cad.call("run_command", name="cnc_pocket", slots={"Outlines of the pocket (islands inside are left)": [o]}, params={"Tool diameter": 6, "Total cutting depth": 3, "Stepover": 45}), lambda m: (near(extents(m), (3, 37, 3, 27)), f"extents {tuple(round(v, 1) for v in extents(m))} (expect 3..37, 3..27), deepest {min(p[2] for p in m):.1f}"))
+
+    def drill(o):
+        plate = cad.box(width=40, depth=30, height=10, operation="New body"); plate.rename("Drill plate")
+        cad.call("sketch_begin", plane="XY"); cad.call("sketch_add", entities=[{"type": "circle", "center": [0, 0], "radius": 2.5}]); hole = cad.get(cad.call("sketch_finish")["sketch"])
+        cad.run("extrude", slots={"Profile": hole.name}, distance=20, operation="Cut", extent="Symmetric")
+        face = cad.call("solid_find", object="Drill plate", kind="faces", type="Cylinder", limit=4)["hits"][0]["face"]
+        cad.call("run_command", name="cnc_drill", slots={"Holes (round faces or circular edges)": [{"object": "Drill plate", "face": face}]}, params={"Tool diameter": 5, "Top of the material (Z)": 10, "Total cutting depth": 8, "Drill each hole as deep as it is": False, "Peck depth (0 = straight in)": 3})
+    variant("Drill, 3 mm pecks to 8 below the top", drill, lambda m: (abs(min(p[2] for p in m) - 2) < .01 and len({round(p[2], 2) for p in m}) >= 3, f"deepest z {min(p[2] for p in m):.1f} (the plate top is z 10, so 8 deep ends at 2), {len({round(p[2], 2) for p in m})} depth levels from 3 mm pecks"))
+
+    def face_ok(m):
+        centres = sorted({round(p[0], 2) for p in m})            # passes run along Y, so each pass is one x
+        gaps = [b - a for a, b in zip(centres, centres[1:])]
+        covered = centres[0] - 6 <= 0 and centres[-1] + 6 >= 60 and all(g <= 12 + .01 for g in gaps)
+        return covered, f"{len(centres)} passes, x centres {centres[0]}..{centres[-1]}, largest gap {max(gaps):.1f} (tool 12, so the 0..60 area is covered)"
+    variant("Face along Y, stepover 70", lambda o: cad.call("run_command", name="cnc_face", params={"Tool diameter": 12, "X from": 0, "X to": 60, "Y from": 0, "Y to": 40, "Passes run along": "Y", "Stepover": 70}), face_ok)
+    strip = ["Left to right, top to bottom: " + " | ".join(r[0] for r in rows)[:140]] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return cells + [("checks", text_panel(strip))]
