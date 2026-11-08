@@ -568,9 +568,11 @@ public sealed partial class AutomationApi
         ["nurbs_patch"] = () => new NurbsPatchCommand(), ["curve_control"] = () => new CurveByPointsCommand(false), ["curve_through"] = () => new CurveByPointsCommand(true), ["sketch_3d"] = () => new Sketch3DCommand(), ["construction_plane"] = () => new ConstructionPlaneCommand(), ["render"] = () => new RenderCommand(), ["form_loft"] = () => new FormLoftCommand(), ["form_sweep"] = () => new FormSweepCommand(), ["form_extrude"] = () => new FormExtrudeCommand(), ["place_image"] = () => new PlaceImageCommand(), ["edit_image"] = () => new EditImageCommand(), ["set_image_scale"] = () => new CalibrateImageCommand(), ["contour_flange"] = () => new ContourFlangeCommand(), ["fold"] = () => new FoldCommand(), ["edge_flange"] = () => new EdgeFlangeCommand(), ["flat_pattern"] = () => new FlatPatternCommand(), ["unstitch"] = () => new UnstitchCommand(), ["untrim"] = () => new UntrimCommand(), ["extend_surface"] = () => new ExtendSurfaceCommand(), ["reverse_normal"] = () => new ReverseNormalCommand(), ["drawing"] = () => new DrawingCommand(), ["form_revolve"] = () => new FormRevolveCommand(), ["form_pipe"] = () => new FormPipeCommand(), ["trim_surface"] = () => new TrimSurfaceCommand(), ["boundary_fill"] = () => new BoundaryFillCommand(), ["fill_opening"] = () => new FillOpeningCommand(), ["generative"] = () => new GenerativeCommand(), ["cnc_profile"] = () => new ProfileCommand(), ["cnc_pocket"] = () => new PocketCommand(), ["cnc_drill"] = () => new DrillCommand(), ["cnc_face"] = () => new FaceMillCommand(), ["cnc_post"] = () => new CncPostCommand(), ["slice"] = () => new SliceCommand(), ["toolpath_view"] = () => new ToolpathViewCommand(), ["push_pull"] = () => new PushPullCommand(), ["draft_face"] = () => new DraftFaceCommand(), ["replace_face"] = () => new ReplaceFaceCommand(), ["move_face"] = () => new MoveFaceCommand(), ["split_body"] = () => new SplitBodyCommand(), ["move_hole"] = () => new MoveHoleCommand(), ["delete_face"] = () => new DeleteFaceCommand(), ["offset_face"] = () => new OffsetFaceCommand(), ["rotate_face"] = () => new RotateFaceCommand(), ["remove_fillets"] = () => new RemoveFilletsCommand(), ["split_face"] = () => new SplitFaceCommand(), ["merge_faces"] = () => new MergeFacesCommand(), ["fill_cap"] = () => new FillCapCommand(), ["extend_trim_face"] = () => new ExtendTrimFaceCommand(), ["match_face"] = () => new MatchFaceCommand(), ["flatten"] = () => new FlattenCommand(), ["warp"] = () => new WarpCommand(), ["intersect_curves"] = () => new IntersectCurvesCommand(), ["render_animation"] = () => new RenderAnimationCommand(), ["ar"] = () => new ArCommand(), ["insert_component"] = () => new InsertComponentCommand(), ["joint_rigid"] = () => new JointCommand(Core.Assembly.JointType.Rigid), ["joint_revolute"] = () => new JointCommand(Core.Assembly.JointType.Revolute), ["joint_slider"] = () => new JointCommand(Core.Assembly.JointType.Slider), ["joint_cylindrical"] = () => new JointCommand(Core.Assembly.JointType.Cylindrical), ["drive_joints"] = () => new DriveJointsCommand(), ["move_component"] = () => new MoveComponentCommand(), ["explode"] = () => new ExplodeCommand(), ["animation"] = () => new AnimationCommand(), ["curve_equation"] = () => new EquationCurveCommand(false), ["curve_table"] = () => new EquationCurveCommand(true),
     };
 
-    void ApplyParams(Command c, JsonObject? ps)
+    // Actions (e.g. Run checks) are collected, not run: inside ConfigureInputs a command's OnChanged is suppressed, so an action run there would do nothing visible.
+    List<ActionParam> ApplyParams(Command c, JsonObject? ps)
     {
-        if (ps == null) return;
+        var actions = new List<ActionParam>();
+        if (ps == null) return actions;
         foreach (var (key, val) in ps)
         {
             if (val == null) continue;
@@ -588,9 +590,10 @@ public sealed partial class AutomationApi
                     int idx = val is JsonValue jv && jv.TryGetValue<double>(out var d) ? (int)d : ch.Options.ToList().FindIndex(o => o.Contains(val.ToString(), StringComparison.OrdinalIgnoreCase));
                     if (idx < 0 || idx >= ch.Options.Count) throw new ArgumentException($"'{val}' is not an option of '{key}'. Options: {string.Join(", ", ch.Options)}");
                     ch.Index = idx; break;
-                case ActionParam a: a.Run(); break;
+                case ActionParam a: if (!(val is JsonValue av && av.TryGetValue<bool>(out var on) && !on)) actions.Add(a); break;
             }
         }
+        return actions;
     }
 
     void ApplySlots(Command c, JsonObject? slots)
@@ -819,13 +822,15 @@ public sealed partial class AutomationApi
                 if (S.ActiveCommand != cmd) throw new InvalidOperationException(S.Status);
                 try
                 {
+                    var actions = new List<ActionParam>();
                     cmd.ConfigureInputs(() =>
                     {
                         ApplySlots(cmd, a["slots"] as JsonObject);
-                        ApplyParams(cmd, a["params"] as JsonObject);
+                        actions = ApplyParams(cmd, a["params"] as JsonObject);
                         if (a["points"] is JsonArray pts && cmd is CurveByPointsCommand cc) cc.SetPoints(pts.Select(p => V3(p!)));
                     });
                     cmd.OnChanged();
+                    foreach (var act in actions) act.Run();
                     if (Bool(a, "commit", true))
                     {
                         S.CommitCommand();
@@ -846,8 +851,10 @@ public sealed partial class AutomationApi
             Schema(null, ("params", "object", "Parameter label -> value."), ("slots", "object", "Slot label -> selection.")), a =>
             {
                 var c = S.ActiveCommand ?? throw new InvalidOperationException("No command is active.");
-                c.ConfigureInputs(() => { ApplySlots(c, a["slots"] as JsonObject); ApplyParams(c, a["params"] as JsonObject); });
+                var actions = new List<ActionParam>();
+                c.ConfigureInputs(() => { ApplySlots(c, a["slots"] as JsonObject); actions = ApplyParams(c, a["params"] as JsonObject); });
                 c.OnChanged();
+                foreach (var act in actions) act.Run();
                 return CommandJson(c, full: false);
             });
 
