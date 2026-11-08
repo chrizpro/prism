@@ -119,3 +119,43 @@ public sealed class MoldCommand : Command
         return o;
     }
 }
+
+/// <summary>Where Create Mold's "part from an open tab" finds the other open documents (set by the main window).</summary>
+public static class MoldSources
+{
+    public static Func<IReadOnlyList<(string Name, CadSession Session)>>? Documents { get; set; }
+}
+
+/// <summary>Bring a part from another open document into this one as a reference part: it is shown and used for the mold, but not saved with this file.</summary>
+public sealed class MoldPartFromTabCommand : Command
+{
+    readonly ChoiceParam _tab;
+    readonly IReadOnlyList<(string Name, CadSession Session)> _docs;
+
+    public MoldPartFromTabCommand()
+    {
+        _docs = MoldSources.Documents?.Invoke() ?? [];
+        _tab = Choice("Open tab", 0, _docs.Count == 0 ? ["(no other tab is open)"] : _docs.Select(d => d.Name).ToArray());
+    }
+
+    public override string Title => "Part from Open Tab";
+    public override string Icon => "mold-tab";
+    public override string OkText => "Bring in the part";
+    public override string Hint => "Copy every visible solid and surface of another open tab into this document as a reference part. It is not saved with this file and is left out of drawings, so the mold file contains only the casing.";
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_docs.Count == 0) { Results.Add(new ResultLine("Open tabs", "Open the part in another tab first.")); return null; }
+        var source = _docs[Math.Clamp(_tab.Index, 0, _docs.Count - 1)].Session;
+        var bodies = source.Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind is ObjKind.Solid or ObjKind.Surface).ToList();
+        if (bodies.Count == 0) throw new FormatException("That tab has no solid or surface to bring in.");
+        var o = new CommandOutput { Label = "Part from tab", Icon = "mold-tab" };
+        foreach (var b in bodies) o.Add.Add(new NewObject(Occ.Copy(b.Shape), b.Name, b.Kind));
+        var names = bodies.Select(b => b.Name).ToHashSet();
+        var before = S.Objects.Select(x => x.Id).ToHashSet();
+        o.After = session => { foreach (var x in session.Objects.Where(x => !before.Contains(x.Id))) session.Update(x.Id, y => y.WithReference(true), checkpoint: false); };
+        Results.Add(new ResultLine("Bodies", bodies.Count.ToString()));
+        return o;
+    }
+}

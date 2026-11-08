@@ -51,6 +51,7 @@ public static partial class ToolHelp
         Commands.FaceMillCommand => Find("cnc-face"),
         Commands.ImageReliefCommand => Find("cnc-image"),
         Commands.MoldCommand => Find("mold"),
+        Commands.MoldPartFromTabCommand => Find("mold-tab"),
         Commands.Rough3DCommand => Find("cnc-rough"),
         Commands.ParallelFinishCommand => Find("cnc-finish"),
         Commands.CncPostCommand => Find("cnc-post"),
@@ -190,6 +191,7 @@ public static partial class ToolHelp
 
     static string? ForTabButton(string tab, string icon) => (tab, icon) switch
     {
+        ("Mold", "mold-file") => Find("mold-file")?.Icon,
         ("View", "ortho" or "perspective" or "xray" or "isolate") => Find(icon)?.Icon,
         ("View", "zebra" or "clear-analysis") => Find(icon)?.Icon,
         ("Static", "sim-study") => Find("sim-study")?.Icon,

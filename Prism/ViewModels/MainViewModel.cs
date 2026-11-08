@@ -64,6 +64,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
+        MoldSources.Documents = () => Documents.Where(d => !ReferenceEquals(d, ActiveDocument)).Select(d => (d.Title, d.Session)).ToList();
         BuildRibbon();
         HookMaterials();
         AttachSession(Session);
@@ -288,6 +289,18 @@ public sealed partial class MainViewModel : ViewModelBase
             Session.AddPrepared(prepared, path);
         }
         catch (Exception e) { finished = true; Session.Say(e.Message, true); }
+    }
+
+    /// <summary>Import a part from disk for a mold. It becomes a reference part: shown here, not saved with the file, left out of drawings.</summary>
+    public async void ImportMoldPart()
+    {
+        if (PickOpenFile == null) return;
+        var path = await PickOpenFile("Import the part for a mold", ["*.step", "*.stp", "*.iges", "*.igs", "*.brep"]);
+        if (path == null) return;
+        var before = Session.Objects.Select(o => o.Id).ToHashSet();
+        await ImportPath(path);
+        foreach (var o in Session.Objects.Where(o => !before.Contains(o.Id) && o.Kind is ObjKind.Solid or ObjKind.Surface)) Session.Update(o.Id, x => x.WithReference(true), checkpoint: false);
+        Session.Say("The part is a reference: it is not saved with this file. Use Create Mold with it.");
     }
 
     public async void ImportStep()
@@ -1232,7 +1245,7 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
                 Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
-        var mold = new RibbonTab { Title = "Mold", Groups = [G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
+        var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", ImportMoldPart, "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",
             Cmd("Select static study","sim-new",()=>new SelectStudyCommand(),"Select a saved static study."),
