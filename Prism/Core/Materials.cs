@@ -36,13 +36,25 @@ public sealed record Material(
     string Uses, string Watch)
 {
     public MaterialEvidence Evidence { get; init; } = MaterialEvidence.For(Id);
+    public SavedAppearance? DefaultAppearance { get; init; }
+    [JsonIgnore] public bool IsCustom => Id.StartsWith("custom:", StringComparison.Ordinal);
+    [JsonIgnore] public string DisplayName => IsCustom ? Name + " · Custom" : Name;
     /// <summary>Strength-to-weight: ultimate strength per density (kN*m/kg).</summary>
     public double SpecificStrength => Ultimate / Density;
     /// <summary>Stiffness-to-weight: modulus per density (MN*m/kg).</summary>
     public double SpecificStiffness => Youngs / Density;
     /// <summary>Thermal diffusivity in mm2/s (k / (rho * cp)).</summary>
     public double Diffusivity => Conductivity / (Density * 1000 * SpecificHeat) * 1e6;
-    [JsonIgnore] public Appearance Look => new(Id, Metal, Gloss, PhysicalSnapshot: this, Surface: Id == "glass" ? new SurfaceStyle { Transmission = 1, Ior = 1.52f, AbsorptionColor = Color, AbsorptionDistance = 100 } : null);
+    [JsonIgnore] public Appearance Look
+    {
+        get
+        {
+            var look = new Appearance(Id, Metal, Gloss, PhysicalSnapshot: this, Surface: Id == "glass" ? new SurfaceStyle { Transmission = 1, Ior = 1.52f, AbsorptionColor = Color, AbsorptionDistance = 100 } : null);
+            if (DefaultAppearance is not { } recipe) return look;
+            var applied = recipe.ApplyTo(look);
+            return applied with { Surface = applied.Surface! with { Override = false } };
+        }
+    }
     public bool HasYield => double.IsFinite(Yield);
 
     public override string ToString() => Name;

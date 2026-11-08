@@ -12,12 +12,33 @@ Material answers **what the part is made from**. Appearance answers **how its su
 
 **Family-first browsing, owner-directed 2026-11-11 (proposed pending review):** the library is browsed family → member instead of one flat list. A wrap of family chips (All, Steel, Stainless Steel, Plastic, …; each shows its member count) filters the list to that family's grades and types — click "Steel" to see its ten grades, then pick A36 vs 4140. The text search always spans the whole library so exact-grade users never navigate. Chip state mirrors `MaterialCategoryIndex`; verified by `APP-H007` in `Prism.Tests/Headless/Solid/AppearanceStudioTests.cs`. Open decision: sub-family grouping inside the largest families (e.g. plastics by role) is not modeled — chips are flat categories.
 
+## Generic and reusable custom looks
+
+Delivery tracked in [issue #75](https://github.com/chrizpro/prism/issues/75).
+
+**Owner approved in this conversation (2026-11-08):** implement on a branch from `develop`; use **Generic appearance** for the neutral starting look, save named custom appearances, and allow user-defined engineering material copies with an explicit unverified status. Physical displacement remains later-version work. AI bitmap generation remains a future integration; the current assistant does not establish an image-generation capability.
+
+- **Generic appearance** is visible without expanding presets. It starts with white, nonmetallic color, no pattern and default roughness, clearing previous visual layers while preserving physical material identity and properties. Import a color image under **Image textures**, then adjust placement and reflection/detail. The pattern option is named **No pattern**; the serialized `Plain` enum stays compatible.
+- **My appearances** saves the first selected body's complete visual recipe: color, finish, procedural settings, embedded images (including decals), placement, glass and reflection settings. Enter a unique name (1–80 characters), then **Save as appearance…**. Saved entries show **· Custom**. Selecting an entry does not apply it until **Apply** is pressed.
+- Applying a saved appearance affects supported selected bodies in one Undo step and retains each body's engineering snapshot. Entries live in this computer's preferences and are available across documents and restarts. Applied appearances remain embedded in native documents and survive library deletion. **Remove saved** removes only the reusable entry. Duplicate names are rejected without overwriting an entry.
+- These entries describe appearance only; they make no claim about engineering properties. A shared appearance library and import/export of library files remain future scope. Bitmaps retain the existing image-import limits; embedded recipes increase local preferences file size.
+
+### User-defined engineering materials
+
+**My custom materials** in the Materials library offers **Create custom material…** for a blank isotropic material, with empty name and numeric fields ready for user input. No engineering values are taken from the selected library row. Cost, corrosion and machining ratings are unspecified. **Duplicate selected material…** separately copies the selected library row (or assigned material, or default steel when neither exists). Edit density, modulus, yield/ultimate strength, Poisson ratio, conductivity, expansion, service temperature and specific heat with explicit units; add optional source notes and save under a unique custom name. Decimal entry uses a point. Positive fields and finite numbers are validated; Poisson ratio must be between −1 and 0.5, temperature above −273.15 °C, and yield may be `NaN` when inapplicable. Saving does not assign the material; use the existing Apply control. **Cancel** exits either editor, discards the draft and leaves selection, assignments and saved libraries unchanged. Create/duplicate actions hide during editing; Save and Cancel remain side by side. The new library controls use the existing studio action/link styles, labeled fields and stretch layouts.
+
+**Owner-directed follow-up (2026-11-08):** add a distinct creation action and cancel path, and match the appearance/material library controls to the existing panel design. APP-H010 characterizes create/cancel isolation and action styling; native execution remains subject to the verification limitation below.
+
+Custom materials appear in the **Custom** family and ordinary filtered/sorted lists as **Name · Custom**. Details and assigned-property displays say **User-defined — not verified by Prism**. The identity, source notes and unverified evidence travel with the assigned physical snapshot in native documents. Library copies are stored locally and can be removed without changing existing document assignments. Built-in reference estimates and partially checked entries keep their existing evidence labels. Copies retain the source strength basis, cost/corrosion/machining ratings, appearance defaults (including wood grain and glass transmission) and solver model restrictions; editing numbers does not certify an isotropic model for wood, laminates or elastomers. Source values are never changed.
+
+Verification: [custom recipe/material Unit tests](../../Prism.Tests/Unit/Appearance/CustomAppearanceTests.cs), [preferences persistence tests](../../Prism.Tests/Unit/Appearance/AppearancePreferencesTests.cs), [studio Headless tests](../../Prism.Tests/Headless/Solid/AppearanceStudioTests.cs). Current-branch execution results are recorded below after validation.
+
 ## Selection, defaults and overrides
 
 - **APP-001:** appearance preserves material identity, pinned engineering properties, geometry and analysis inputs. Dirt/rust and bump are visual effects: they do not calculate corrosion, remove metal, add coating thickness, change mass or create machinable relief.
 - Open **Materials** on the ribbon. Live edits apply to selected solid, surface and freeform bodies. Fields show the first supported selection's values; edits affect all supported selected bodies. No selection disables editing. Face-specific assignment and mesh objects are outside this workflow.
 - Material assignment supplies its default look unless an explicit visual override exists. Overrides survive reassignment. Recognizable legacy overrides on assigned materials also survive. Old unassigned custom colors lack reliable metadata; editing their appearance once establishes an explicit override.
-- **Reset finish** restores the current material/default appearance. Choosing a finish preset replaces visual layers with that preset. Both retain engineering data. The six preview swatches are illustrative drawings, not viewport renders.
+- **Reset finish** restores the current material/default appearance. Choosing a finish preset replaces visual layers with that preset. Both retain engineering data. The preset preview swatches are illustrative drawings, not viewport renders.
 - **APP-002:** multi-body changes and slider/wheel pointer gestures group live updates into one Undo step. Numeric/keyboard edits support Undo/Redo. Native `.prism` save/reopen retains layers and embedded images; files without additive fields retain their original finishes.
 - While the studio is visible, selection edges remain and full-face selection tint is suppressed so actual colors can be judged.
 
@@ -31,7 +52,7 @@ The picker offers an HSV wheel, brightness, palette, eight recent colors per ses
 
 ## Surface layers
 
-Roughness runs from polished (0) to matte (1), with a renderer floor of 0.06. Existing gloss remains compatible (`roughness = 1 - gloss`). Surface finishes retain From material, Plain, Wood grain, Brushed metal, Cast finish and Carbon weave, with millimeter size and world-Z grain rotation.
+Roughness runs from polished (0) to matte (1), with a renderer floor of 0.06. Existing gloss remains compatible (`roughness = 1 - gloss`). Surface finishes retain From material, No pattern, Wood grain, Brushed metal, Cast finish and Carbon weave, with millimeter size and world-Z grain rotation.
 
 | Expandable section | Behavior |
 | --- | --- |
@@ -90,3 +111,20 @@ The approved rendering follow-up adds HDR environment lighting, final denoising,
 Full UV editing, arbitrary gradient meshes, per-face appearance, tangent-space normal maps, automatic cavity/edge wear, displacement geometry and subsurface scattering remain future scope. A plausible appearance does not certify an engineering material or manufacturing process.
 
 Combined-source verification on 2026-11-05 passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [release integration report](../engineering/release-readiness-2026-11-05.md) for desktop results and source revisions.
+
+## Custom libraries — branch verification, 2026-11-08
+
+Managed Linux cloud environment, .NET SDK 10.0.403 installed locally:
+
+- `dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj --no-restore --filter Feature=Appearance --verbosity quiet`: **28 passed, 0 failed, 0 skipped**. Includes recipe and settings serialization, safe save failure, physical provenance, model restrictions and preservation of source appearance defaults.
+- `dotnet build Prism.Tests/Headless/Prism.HeadlessTests.csproj --no-restore --verbosity quiet`: **succeeded**, 0 errors; six existing analyzer warnings in unrelated modeling tests.
+- Attempted `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj --filter 'TestId=APP-H005|TestId=APP-H007|TestId=APP-H008' --verbosity quiet`: **aborted before test execution** because this environment has no locally built `libprism_kernel` / `PRISM_NATIVE_DIR`. The final maintained scenarios include APP-H009 for custom material save/assignment/native reopen; these workflow tests are compiled but not claimed as executed.
+- `git -c core.whitespace=cr-at-eol diff --check`: passed. Existing CRLF files retain their line endings.
+
+Remaining verification: run `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj --filter Feature=Appearance` and desktop appearance integration on a configured native workstation. No new viewport evidence or interactive desktop validation is claimed for this delivery. The branch remains a draft pending that validation.
+
+### Create/cancel and panel-style follow-up — 2026-11-08
+
+- Appearance Unit checks rerun: **28 passed**, no failures/skips. Headless project build succeeded; native workflow execution still requires the native workstation.
+- An isolated Avalonia panel harness using the real MainViewModel, MaterialsPanel, studio theme and bundled Inter font exercised blank Create, draft Cancel preserving selection/document state, Duplicate copying selected properties, and Create → Save → Remove. All assertions passed without geometry operations. This is a manual panel check, not an execution of the native Headless xUnit suite.
+- Reviewed actual 312px panel captures in dark and light themes for the editor and create/duplicate actions. Cancel is visible above the fields and beside Save; buttons use existing studio action/link templates. Preview harness and captures are retained in the task workspace under `scratch/prism-panel-preview/`, outside the repository. No native viewport evidence is claimed.
