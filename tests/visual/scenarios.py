@@ -1414,3 +1414,50 @@ def mesh_matrix():
     fresh()
     strip = ["Mesh tools on a meshed 20 mm sphere"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the meshed sphere (kept beside its solid)", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Freeform: primitive cages and the form_extrude/revolve/loft/sweep/pipe tools
+@scenario("freeform__primitive-cages-and-form-extrude-revolve-loft-sweep-pipe", columns=1)
+def form_matrix():
+    cad.call("document_new")
+    rows = []
+    done = [0]
+
+    def forms():
+        return [o for o in cad.objects() if o.kind == "Form"]
+
+    def variant(label, build, check):
+        x0 = done[0] * 80
+        done[0] += 1
+        try:
+            before = {o.name for o in forms()}
+            build(x0)
+            made = [o for o in forms() if o.name not in before]
+            if not made:
+                raise RuntimeError("no Freeform body was made")
+            info = cad.form_info(made[0], summary=True)
+            ok, detail = check(info)
+            topo = info["topology"]
+            rows.append((label, f"{detail}; closed {info['closed']}, cage valid {topo['cageValid']}, Euler {topo['eulerCharacteristic']}", ok and topo["cageValid"] and not topo["nonManifoldEdges"] and not topo["windingConflicts"]))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    run = lambda name, params=None, slots=None: cad.call("run_command", name=name, params=params or {}, slots=slots or {})
+    variant("Box 2 x 2 x 2 faces", lambda x: run("form_box", {"Position X": x}), lambda i: (i["faceCount"] == 24 and i["closed"], f"{i['faceCount']} faces (expect 24)"))
+    variant("Box 3 x 2 x 1 faces", lambda x: run("form_box", {"Faces X": 3, "Faces Y": 2, "Faces Z": 1, "Position X": x}), lambda i: (i["faceCount"] == 22 and i["closed"], f"{i['faceCount']} faces (expect 22)"))
+    variant("Sphere, 3 faces per side", lambda x: run("form_sphere", {"Faces per side": 3, "Position X": x}), lambda i: (i["faceCount"] == 54 and i["closed"], f"{i['faceCount']} faces (expect 54)"))
+    variant("Sphere, 2 faces per side", lambda x: run("form_sphere", {"Faces per side": 2, "Position X": x}), lambda i: (i["faceCount"] == 24 and i["closed"], f"{i['faceCount']} faces (expect 24)"))
+    variant("Cylinder, 8 sides, 3 rings, capped", lambda x: run("form_cylinder", {"Sides": 8, "Rings": 3, "Caps": True, "Position X": x}), lambda i: (i["closed"] and i["topology"]["eulerCharacteristic"] == 2, f"{i['faceCount']} faces"))
+    variant("Cylinder, 6 sides, no caps", lambda x: run("form_cylinder", {"Sides": 6, "Rings": 2, "Caps": False, "Position X": x}), lambda i: (not i["closed"], f"{i['faceCount']} faces, open at both ends"))
+    variant("Torus, 12 x 6 segments", lambda x: run("form_torus", {"Segments around": 12, "Segments of tube": 6, "Position X": x}), lambda i: (i["faceCount"] == 72 and i["closed"] and i["topology"]["eulerCharacteristic"] == 0, f"{i['faceCount']} faces (expect 72), a torus has Euler 0"))
+    variant("Plane, 4 x 4 faces", lambda x: run("form_plane", {"Position X": x}), lambda i: (i["faceCount"] == 16 and not i["closed"], f"{i['faceCount']} faces (expect 16), an open sheet"))
+    variant("Form extrude of a closed ring, 30 high", lambda x: run("form_extrude", {"Distance": 30, "Direction": "Z"} if False else {"Distance": 30}, {"Profile (curve or sketch)": [curve([[8 * math.cos(i * math.pi / 4) + x, 8 * math.sin(i * math.pi / 4), 0] for i in range(8)], closed=True)]}), lambda i: (i["closed"] and abs(i["max"][2] - i["min"][2] - 30) < .5, f"height {i['max'][2] - i['min'][2]:.1f} (expect 30)"))
+    variant("Form revolve of a profile, 360 degrees", lambda x: run("form_revolve", {"Axis through the origin": "Z", "Angle (degrees)": 360, "Segments around": 12}, {"Profile (curve or sketch)": [curve([[10 + x * 0, 0, 0], [12, 0, 10], [10, 0, 20]])]}), lambda i: (abs(i["max"][2] - i["min"][2] - 20) < 1, f"height {i['max'][2] - i['min'][2]:.1f} (expect 20)"))
+    variant("Form loft through two rings", lambda x: run("form_loft", {}, {"Sections (curves or sketches, in order)": [ring(0, 10), ring(25, 6)]}), lambda i: (abs(i["max"][2] - i["min"][2] - 25) < 1, f"height {i['max'][2] - i['min'][2]:.1f} (expect 25)"))
+    variant("Form sweep of a ring along a straight path", lambda x: run("form_sweep", {}, {"Profile (curve or sketch)": [ring(0, 5)], "Path (curve or edge)": [line_curve((0, 0, 0), (0, 0, 40))]}), lambda i: (abs(i["max"][2] - i["min"][2] - 40) < 1, f"height {i['max'][2] - i['min'][2]:.1f} (expect 40)"))
+    variant("Form pipe along a path, radius 4 to 6", lambda x: run("form_pipe", {"Radius at the start": 4, "Radius at the end": 6, "Sides": 8}, {"Path (curve or edge)": [line_curve((0, 0, 0), (0, 0, 40))]}), lambda i: (abs(i["max"][2] - i["min"][2] - 40) < 1.5, f"height {i['max'][2] - i['min'][2]:.1f} (expect 40)"))
+    for o in cad.objects():
+        if o.kind == "Curve":
+            cad.call("object_update", object=o.name, visible=False)
+    strip = ["Freeform primitives and the cage tools, each with its cage checked"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("iso (cages smoothed)", render(-25, 30)), ("checks", text_panel(strip))]
