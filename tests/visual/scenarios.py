@@ -1628,3 +1628,158 @@ def sim_setup_matrix():
     bar()
     strip = ["Static-study setup tools against hand calculations"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the bar", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- CAM review tools, G-code import and Image Carve options
+@scenario("cam__review-order-playback-library-import-and-image-carve", columns=1)
+def cam_review_matrix():
+    rows = []
+    from PIL import Image as PilImage
+
+    def setup():
+        cad.call("document_new")
+        b = cad.box(width=60, depth=40, height=10, operation="New body"); b.rename("Blk")
+        cad.call("run_command", name="cam_setup", slots={"Model body": ["Blk"]}, params={"Setup name": "Top", "Stock allowance XY": 2, "Top allowance": 1, "Work zero (G54)": "Model origin"})
+        for z in (11, 10):
+            cad.call("run_command", name="cnc_face", params={"X from": -30, "X to": 30, "Y from": -20, "Y to": 20, "Top of the material (Z)": z, "Total cutting depth": 1, "Depth per pass": 1})
+
+    def results(name, slots=None, params=None, commit=False):
+        r = cad.call("run_command", name=name, slots=slots or {}, params=params or {}, commit=commit)
+        lines = [f"{x['label']}: {x['value']}" for x in (r.get("activeCommand") or {}).get("results", [])]
+        if not commit:
+            cad.call("command_cancel")
+        return lines
+
+    def case(label, fn):
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    setup()
+    case("Tool library lists its presets", lambda: (lambda t: ("Available tools: 8" in " ".join(t), t[0]))(results("cam_tool_library")))
+    case("Setup sheet lists the setup and both operations", lambda: (lambda t: (any(x.startswith("Setup: Top") for x in t) and sum("CNC face" in x for x in t) == 2, f"{len(t)} rows: {t[0]} / {t[2][:40]}"))(results("cam_review")))
+
+    def order():
+        cad.call("run_command", name="cam_operation_order", commit=False)
+        cad.call("command_set", params={"Operation": "2. CNC face 2", "Move to position": 1})
+        cad.call("command_commit")
+        t = results("cam_review")
+        faces = [x.split(":")[0] for x in t if "CNC face" in x]
+        return faces[0] == "CNC face 2", f"setup sheet order now {faces} (expect face 2 first)"
+    case("Operation order: move face 2 to the front", order)
+
+    def playback():
+        cad.call("run_command", name="cam_playback", commit=False)
+        cad.call("command_set", params={"Seek position": 50})
+        cad.call("command_set", params={"Seek": True})
+        r = cad.call("command_set", params={})
+        text = " | ".join(str(x) for x in r.get("results", []))
+        cad.call("command_cancel")
+        return "Choose a path" not in text and bool(text), text[:120]
+    case("Playback seeks to the middle of a path", playback)
+
+    def second_setup():
+        cad.call("run_command", name="cam_setup", slots={"Model body": ["Blk"]}, params={"Setup name": "Side", "Stock allowance XY": 3, "Work zero (G54)": "Model origin"})
+        t = results("cam_select_setup")
+        cad.call("run_command", name="cam_select_setup", params={"Saved setup": "Top"}, commit=False)
+        cad.call("command_set", params={"Use setup": True})
+        t2 = " ".join(str(x) for x in cad.call("command_set", params={}).get("results", []))
+        cad.call("command_cancel")
+        return "Saved setups: 2" in " ".join(t) and "Active setup: Top" in t2, f"{t[1] if len(t) > 1 else t}; after choosing Top: {t2[:50]}"
+    case("Two saved setups can be switched", second_setup)
+
+    def design():
+        cad.call("run_command", name="cnc_design_check", slots={"Model": ["Blk"]}, commit=False)
+        cad.call("command_set", params={"Run checks": True})
+        cad.call("wait_idle", timeout_ms=60000)
+        time.sleep(1)
+        text = " | ".join(str(x) for x in cad.call("command_set", params={}).get("results", []))
+        cad.call("command_cancel")
+        return "Closed, manifold" in text, text[:120]
+    case("Design check finds a healthy block", design)
+
+    def imported():
+        path = Path(tempfile.gettempdir()) / "prism-visual-import.nc"
+        path.write_text("G21 G90\nG0 Z5\nG0 X0 Y0\nG1 Z-1 F200\nG1 X30 F800\nG1 Y20\nG1 X0\nG1 Y0\nG0 Z5\n")
+        before = len([o for o in cad.objects() if o.kind == "Toolpath"])
+        cad.call("run_command", name="cam_import_gcode", params={"G-code file": str(path)})
+        after = len([o for o in cad.objects() if o.kind == "Toolpath"])
+        return after == before + 1, f"toolpaths {before} -> {after}"
+    case("Import a G-code file as a toolpath", imported)
+
+    def carve(deep, bit, label):
+        image = Path(tempfile.gettempdir()) / "prism-visual-carve.png"
+        PilImage.frombytes("L", (2, 1), bytes([0, 255])).save(image)       # left black, right white
+        cad.call("document_new")
+        cad.call("run_command", name="cnc_image_relief", params={"Image file": str(image), "Width of the carving": 10, "Tool diameter": 2, "Total cutting depth": 2, "Top of the material (Z)": 0, "Stepover": 50, "Deepest where the image is": deep, "Bit": bit})
+        text = gcode_of("The model's own origin")
+        moves = cut_moves(text)
+        left = [p[2] for p in moves if p[0] < 4.5]
+        right = [p[2] for p in moves if p[0] > 5.5]
+        ok = abs(min(left) - -2) < .05 if deep == "Dark" else abs(min(right) - -2) < .05
+        return ok, f"left half z {min(left):.2f}, right half z {min(right):.2f} ({deep.lower()} is deepest); bit {bit}"
+    case("Image Carve, dark areas deepest", lambda: carve("Dark", "Ball nose", ""))
+    case("Image Carve, light areas deepest", lambda: carve("Light", "Flat end mill", ""))
+    setup()
+    strip = ["CAM review tools, G-code import and Image Carve options"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the stock block with two facing operations", render(-30, 28)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- ECAD: board, board from an outline, board holes, component envelopes
+@scenario("ecad__board-outline-holes-and-component-envelopes", columns=1)
+def ecad_matrix():
+    rows = []
+
+    def solids():
+        return [o for o in cad.objects() if o.kind == "Solid"]
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def board(params, expect):
+        cad.call("run_command", name="pcb_board", params=params)
+        i = cad.call("object_info", object=solids()[0].name)
+        return abs(i["volume"] - expect) < .005 * expect and i["valid"], f"volume {i['volume']:.1f} (expect {expect:.1f}), size {[round(v, 2) for v in i['size']]}"
+    plain = 80 * 50 * 1.6
+    hole = math.pi * 1.6 ** 2 * 1.6
+    case("Board 80 x 50 x 1.6 with four mounting holes", lambda: board({}, plain - 4 * hole))
+    case("Board without mounting holes", lambda: board({"Four mounting holes": False}, plain))
+    case("Board 100 x 60 x 2, bigger 4 mm holes", lambda: board({"Board width (X)": 100, "Board length (Y)": 60, "Board thickness": 2, "Mounting hole diameter": 4}, 100 * 60 * 2 - 4 * math.pi * 4 * 2))
+
+    def from_outline():
+        cad.call("sketch_begin", plane="XY")
+        cad.call("sketch_add", entities=[{"type": "polyline", "points": [[0, 0], [60, 0], [60, 20], [30, 40], [0, 20]], "closed": True}])
+        s = cad.call("sketch_finish")["sketch"]
+        cad.call("run_command", name="pcb_from_outline", slots={"Closed planar outline": [s]}, params={"Board thickness": 1.6})
+        i = cad.call("object_info", object=solids()[0].name)
+        area = 60 * 20 + .5 * 60 * 20
+        return abs(i["volume"] - area * 1.6) < .01 * area * 1.6, f"volume {i['volume']:.1f} (expect {area * 1.6:.1f}: a house-shaped outline of {area:.0f} mm2)"
+    case("Board from a house-shaped outline", from_outline)
+
+    def extra_hole():
+        cad.call("run_command", name="pcb_board", params={"Four mounting holes": False})
+        n = solids()[0].name
+        cad.call("run_command", name="pcb_hole", slots={"Board body": [n]}, params={"Hole center X": 10, "Hole center Y": 5, "Hole diameter": 5})
+        i = cad.call("object_info", object=n)
+        expect = plain - math.pi * 2.5 ** 2 * 1.6
+        return abs(i["volume"] - expect) < .005 * expect, f"volume {i['volume']:.1f} (expect {expect:.1f})"
+    case("Add a 5 mm hole to a board", extra_hole)
+
+    def envelope():
+        cad.call("run_command", name="pcb_board", params={"Four mounting holes": False})
+        cad.call("run_command", name="component_envelope", params={"Reference designator": "U7", "Body width (X)": 12, "Body length (Y)": 8, "Body height": 4, "Center X": 10, "Center Y": 5, "Board face elevation (Z)": 1.6})
+        bodies = solids()
+        top = max(cad.call("object_info", object=o.name)["max"][2] for o in bodies)
+        return len(bodies) == 2 and abs(top - 5.6) < .05, f"{len(bodies)} bodies, highest point z {top:.2f} (expect 1.6 + 4 = 5.6)"
+    case("Component envelope 12 x 8 x 4 on the top face", envelope)
+    cad.call("run_command", name="pcb_board", params={})
+    cad.call("run_command", name="component_envelope", params={"Reference designator": "U1", "Center X": 10, "Center Y": 5})
+    strip = ["Board and component envelope tools, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a board with a component envelope", render(-30, 35)), ("checks", text_panel(strip))]
