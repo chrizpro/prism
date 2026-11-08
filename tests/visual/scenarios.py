@@ -525,3 +525,79 @@ def cam_matrix():
     variant("Face along Y, stepover 70", lambda o: cad.call("run_command", name="cnc_face", params={"Tool diameter": 12, "X from": 0, "X to": 60, "Y from": 0, "Y to": 40, "Passes run along": "Y", "Stepover": 70}), face_ok)
     strip = ["Left to right, top to bottom: " + " | ".join(r[0] for r in rows)[:140]] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return cells + [("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- sheet metal: Contour Flange, Edge Flange and Fold options
+@scenario("sheetmetal__flange-edge-flange-and-fold-options", columns=1)
+def sheetmetal_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=90)
+    count = [0]
+
+    def unique(prefix):
+        count[0] += 1
+        return f"{prefix}{count[0]}"
+
+    def solid_info(name):
+        return cad.call("object_info", object=name)
+
+    def contour(label, params, check):
+        def run():
+            before = names()
+            prof = sketch([{"type": "polyline", "points": [[0, 20], [0, 0], [60, 0]]}], plane="XZ").name
+            cad.call("run_command", name="contour_flange", slots={"Profile sketch (straight lines)": [prof]}, params=params)
+            n = made_since(before)
+            cad.call("object_update", object=prof, visible=False)
+            i = solid_info(n)
+            ok, detail = check(i)
+            return n, detail, ok and i["valid"]
+        m.check(label, run)
+
+    base = {}
+    size = lambda i: tuple(round(v, 1) for v in i["size"])
+    contour("Contour flange, width 30", {"Thickness": 2, "Bend radius (inside)": 2, "Width": 30}, lambda i: (abs(i["size"][1] - 30) < .1 and 59 < i["size"][0] < 64 and 19 < i["size"][2] < 24, f"size {size(i)} (expect 60 x 30 x 20)"))
+    contour("Contour flange, bend radius 6", {"Thickness": 2, "Bend radius (inside)": 6, "Width": 30}, lambda i: (abs(i["size"][1] - 30) < .1, f"size {size(i)}, volume {i['volume']:.0f}"))
+    contour("Contour flange, centred on the sketch plane", {"Thickness": 2, "Bend radius (inside)": 2, "Width": 30, "Centred on the sketch plane": True}, lambda i: (abs(i["min"][1] + 15) < .2 and abs(i["max"][1] - 15) < .2, f"y {i['min'][1]:.1f}..{i['max'][1]:.1f} (expect -15..15)"))
+    contour("Contour flange, thicker 4 mm", {"Thickness": 4, "Bend radius (inside)": 2, "Width": 30}, lambda i: (i["volume"] > 1.5 * 2 * 30 * 78 * .9, f"volume {i['volume']:.0f} (about twice the 2 mm sheet)"))
+    contour("Contour flange with a hem", {"Thickness": 2, "Bend radius (inside)": 2, "Width": 30, "Hem length at the end (0 = no hem)": 8, "Hem gap": 0.5}, lambda i: (i["volume"] > 4600, f"volume {i['volume']:.0f} (more than the plain flange's 4500: the hem adds a returned 8 mm lip)"))
+
+    def edge(label, params, check):
+        def run():
+            n = unique("Sheet")
+            sheet = cad.box(width=60, depth=40, height=2, operation="New body"); sheet.rename(n)
+            end = [h["face"] for h in cad.call("solid_find", object=n, kind="faces", type="Plane", facing=[1, 0, 0])["hits"]][0]
+            cad.call("run_command", name="edge_flange", slots={"Thin end face of the sheet": [{"object": n, "face": end}]}, params=params)
+            i = solid_info(n)
+            ok, detail = check(i)
+            return n, detail, ok and i["valid"]
+        m.check(label, run)
+    edge("Edge flange 20, 90 degrees up", {"Flange length": 20, "Bend angle": 90, "Bend radius (inside)": 2}, lambda i: (21 < i["size"][2] < 27, f"height {i['size'][2]:.1f} (expect about 22 to 25)"))
+    edge("Edge flange 20, 45 degrees up", {"Flange length": 20, "Bend angle": 45, "Bend radius (inside)": 2}, lambda i: (14 < i["size"][2] < 20, f"height {i['size'][2]:.1f} (expect about 16 to 18)"))
+    edge("Edge flange 20, 90 degrees down", {"Flange length": 20, "Bend angle": 90, "Bend radius (inside)": 2, "Fold toward": "Down (the lower face)"}, lambda i: (i["min"][2] < -18, f"z {i['min'][2]:.1f}..{i['max'][2]:.1f} (expect it to hang below the sheet)"))
+
+    def fold(label, angle, check):
+        def run():
+            before = names()
+            cad.call("sketch_begin", plane="XY")
+            cad.call("sketch_add", entities=[{"type": "polyline", "points": [[0, 0], [100, 0], [100, 40], [0, 40]], "closed": True}])
+            cad.call("sketch_add", entities=[{"type": "line", "points": [[50, -300], [50, 300]], "construction": True}])
+            flat = cad.call("sketch_finish")["sketch"]
+            made = cad.run("fold", slots={"Flat sketch": flat}, thickness=2, bend_radius=2, k_factor=.44, angle_of_each_bend=str(angle))
+            solid = next(o for o in made if o.kind == "Solid")
+            n = unique("Fold")
+            solid.rename(n)
+            for o in made:
+                if o.kind != "Solid":
+                    cad.call("object_update", object=o.name, visible=False)
+            cad.call("object_update", object=flat, visible=False)
+            i = solid_info(n)
+            ok, detail = check(i)
+            return n, detail, ok and i["valid"]
+        m.check(label, run)
+    fold("Fold, one bend 90", 90, lambda i: (45 < i["size"][2] < 56 and abs(i["size"][1] - 40) < .1 and i["max"][2] > 45 and i["min"][2] > -3, f"z {i['min'][2]:.1f}..{i['max'][2]:.1f}, y size {i['size'][1]:.0f} (expect a wall rising 50 above the base)"))
+    fold("Fold, one bend 45", 45, lambda i: (30 < i["size"][2] < 40, f"height {i['size'][2]:.1f} (expect about 35 to 37)"))
+    fold("Fold, one bend -90", -90, lambda i: (45 < i["size"][2] < 56 and i["min"][2] < -45 and i["max"][2] < 3, f"z {i['min'][2]:.1f}..{i['max'][2]:.1f} (expect the wall to hang 50 below the base)"))
+    for o in cad.objects():
+        if o.kind in ("Curve", "Surface"):
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, all variants", render(-25, 30)), ("from the front", render(0, 5)), ("checks", text_panel(m.strip()))]
