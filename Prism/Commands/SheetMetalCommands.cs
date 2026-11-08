@@ -200,6 +200,23 @@ public sealed class FlatPatternCommand : Command
         public Vec3 Dir; public List<int> Next = [];
     }
 
+    /// <summary>True when another cylinder shares this one's axis line and axial extent with a different radius: the two surfaces of one bend.</summary>
+    static bool HasConcentricPartner(Occ.CylFace?[] cylinders, int index)
+    {
+        var a = cylinders[index]!.Value; var axis = a.Axis.Normalized();
+        double lo = Vec3.Dot(a.Origin, axis) + a.V0, hi = Vec3.Dot(a.Origin, axis) + a.V1;
+        for (int j = 0; j < cylinders.Length; j++)
+        {
+            if (j == index || cylinders[j] is not { } b) continue;
+            var other = b.Axis.Normalized();
+            if (Vec3.Cross(axis, other).Length > 1e-3 || Vec3.Cross(axis, b.Origin - a.Origin).Length > 1e-3 || Math.Abs(a.Radius - b.Radius) < 1e-6) continue;
+            double sign = Vec3.Dot(axis, other) > 0 ? 1 : -1, shift = Vec3.Dot(b.Origin, axis);
+            double blo = shift + (sign > 0 ? b.V0 : -b.V1), bhi = shift + (sign > 0 ? b.V1 : -b.V0);
+            if (Math.Abs(blo - lo) < 1e-3 && Math.Abs(bhi - hi) < 1e-3) return true;
+        }
+        return false;
+    }
+
     static (double x, double y) Sub((double x, double y) a, (double x, double y) b) => (a.x - b.x, a.y - b.y);
     static double Dist((double x, double y) a, (double x, double y) b) => Math.Sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
@@ -212,6 +229,10 @@ public sealed class FlatPatternCommand : Command
         var faces = Enumerable.Range(0, nf).Select(i => S.ShapeOf(new SelItem(obj.Id, SelKind.Face, i)) ?? throw new InvalidOperationException("Could not read a face.")).ToList();
         var cyl = new Occ.CylFace?[nf];
         for (int i = 0; i < nf; i++) { var c = Occ.Cylinders(faces[i]); if (c.Count == 1 && !c[0].Full) cyl[i] = c[0]; }
+        // A bend has an inner and an outer cylinder on one axis across the same width. A slot end or a rounded corner is a single wall, so it is not a bend:
+        // it stays part of the flat outline, which the planar faces carry.
+        var partial = (Occ.CylFace?[])cyl.Clone();
+        for (int i = 0; i < nf; i++) if (partial[i] != null && !HasConcentricPartner(partial, i)) cyl[i] = null;
         int firstBend = Array.FindIndex(cyl, c => c != null);
         if (firstBend < 0) throw new InvalidOperationException("This body has no bends, so it is already flat.");
         var d = cyl[firstBend]!.Value.Axis.Normalized();
