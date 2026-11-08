@@ -1329,3 +1329,88 @@ def curve_matrix():
         if o.kind == "Sketch":
             cad.call("object_update", object=o.name, visible=False)
     return [("iso", render(-20, 40)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+# ---------------------------------------------------------------- Mesh tools on a meshed 20 mm sphere
+@scenario("mesh__convert-reduce-smooth-offset-split-section-and-checks", columns=1)
+def mesh_matrix():
+    rows = []
+    sphere_volume = 4 / 3 * math.pi * 20 ** 3
+
+    def fresh(detail="Normal"):
+        cad.call("document_new")
+        s = cad.sphere(radius=20, operation="New body"); s.rename("S")
+        cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["S"]}, params={"Detail": detail, "Keep the original body": True})
+        return next(o.name for o in cad.objects() if o.kind == "Mesh")
+
+    def meshes():
+        return [cad.call("object_info", object=o.name) for o in cad.objects() if o.kind == "Mesh"]
+
+    def variant(label, build, check):
+        try:
+            mesh = fresh()
+            build(mesh)
+            ok, detail = check(meshes())
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    counts = {}
+    for detail in ("Coarse (draft)", "Normal", "Fine (print quality)"):
+        try:
+            fresh(detail)
+            info = meshes()[0]
+            counts[detail] = (info["triangles"], info["volume"])
+        except Exception as error:
+            rows.append((f"Solid to mesh, {detail}", str(error)[:100], False))
+    if len(counts) == 3:
+        t = [counts[k][0] for k in counts]
+        rows.append(("Solid to mesh: coarse < normal < fine", f"triangles {t}, fine volume {counts['Fine (print quality)'][1]:.0f} (sphere {sphere_volume:.0f})", t[0] < t[1] < t[2] and abs(counts["Fine (print quality)"][1] - sphere_volume) < .01 * sphere_volume))
+
+    variant("Reduce to 50 percent of the triangles", lambda n: cad.call("run_command", name="mesh_reduce", slots={"Mesh": [n]}, params={"Reduce to": 0, "Keep": 50}), lambda ms: (abs(ms[0]["triangles"] - 1417) < 150 and abs(ms[0]["volume"] - sphere_volume) < .06 * sphere_volume, f"{ms[0]['triangles']} triangles (target about 1417), volume {ms[0]['volume']:.0f}"))
+    variant("Smooth, 5 iterations", lambda n: cad.call("run_command", name="mesh_smooth", slots={"Mesh": [n]}, params={"Iterations": 5}), lambda ms: (ms[0]["watertight"] and .8 * sphere_volume < ms[0]["volume"] < 1.0 * sphere_volume, f"volume {ms[0]['volume']:.0f} (a bit below the sphere's {sphere_volume:.0f}), watertight {ms[0]['watertight']}"))
+    variant("Offset +2 mm (grows)", lambda n: cad.call("run_command", name="mesh_offset", slots={"Mesh": [n]}, params={"Offset (+ grows, - shrinks)": 2}), lambda ms: (abs(ms[0]["max"][2] - ms[0]["min"][2] - 44) < .3, f"height {ms[0]['max'][2] - ms[0]['min'][2]:.2f} (expect 44)"))
+    variant("Split at the equator", lambda n: cad.call("run_command", name="mesh_split", slots={"Mesh": [n]}, params={"Cut plane": 0, "Position along the normal": 0, "Normal X": 0, "Normal Y": 0, "Normal Z": 1}), lambda ms: (any(abs(i["max"][2] - i["min"][2] - 20) < .3 for i in ms), f"heights {[round(i['max'][2] - i['min'][2], 1) for i in ms]} (expect a 20 mm half)"))
+    variant("Repair keeps a sphere watertight", lambda n: cad.call("run_command", name="mesh_repair", slots={"Meshes": [n]}), lambda ms: (ms[0]["watertight"] and ms[0]["holes"] == 0 and abs(ms[0]["volume"] - sphere_volume) < .03 * sphere_volume, f"watertight {ms[0]['watertight']}, holes {ms[0]['holes']}, volume {ms[0]['volume']:.0f}"))
+
+    def to_solid(n):
+        cad.call("run_command", name="mesh_to_solid", slots={"Mesh": [n]}, params={"Create": 0, "Reduce to at most (triangles)": 3000})
+    try:
+        mesh = fresh()
+        to_solid(mesh)
+        solids = [cad.call("object_info", object=o.name) for o in cad.objects() if o.kind == "Solid" and o.name != "S"]
+        v = solids[0]["volume"] if solids else 0
+        rows.append(("Mesh to solid", f"{len(solids)} new solid(s), volume {v:.0f} (sphere {sphere_volume:.0f})", bool(solids) and abs(v - sphere_volume) < .03 * sphere_volume))
+    except Exception as error:
+        rows.append(("Mesh to solid", str(error)[:120], False))
+
+    def section(n):
+        cad.call("run_command", name="mesh_section", slots={"Mesh": [n]}, params={"Section plane": 0, "Number of sections": 5, "Spacing": 6, "Create curves from the sections": True})
+    try:
+        mesh = fresh()
+        section(mesh)
+        curves_made = [o for o in cad.objects() if o.kind in ("Curve", "Sketch")]
+        rows.append(("Mesh sections, 5 every 6 mm", f"{len(curves_made)} section curve(s) (5 planes, but the one touching the sphere at a single point makes no curve: expect 4)", len(curves_made) == 4))
+    except Exception as error:
+        rows.append(("Mesh sections, 5 every 6 mm", str(error)[:120], False))
+
+    try:
+        mesh = fresh()
+        r = cad.call("run_command", name="mesh_check", slots={"Meshes": [mesh]}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        rows.append(("Mesh check reports a closed sphere", text[:130], "Watertight: Yes" in text and "Manifold: Yes" in text))
+    except Exception as error:
+        rows.append(("Mesh check reports a closed sphere", str(error)[:120], False))
+
+    try:
+        mesh = fresh()
+        r = cad.call("run_command", name="mesh_deviation", slots={"Mesh to check": [mesh], "Compare with (CAD body or mesh)": ["S"]}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        rows.append(("Mesh deviation from its own sphere", text[:130] or "no result", not r["activeCommand"].get("error")))
+    except Exception as error:
+        rows.append(("Mesh deviation from its own sphere", str(error)[:120], False))
+    fresh()
+    strip = ["Mesh tools on a meshed 20 mm sphere"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the meshed sphere (kept beside its solid)", render(-30, 25)), ("checks", text_panel(strip))]
