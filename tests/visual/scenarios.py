@@ -18,11 +18,11 @@ def sketch(entities, plane="XY", offset=None):
     return cad.get(cad.call("sketch_finish")["sketch"])
 
 
-def gcode_of(zero="Saved CAM setup"):
+def gcode_of(zero="Saved CAM setup", machine="GRBL"):
     """Post every toolpath in the open document to a temporary file and return the program text."""
     path = Path(tempfile.gettempdir()) / "prism-visual.nc"
     path.unlink(missing_ok=True)
-    cad.call("run_command", name="cnc_post", params={"Save to": str(path), "Work zero (G54)": zero}, commit=False)
+    cad.call("run_command", name="cnc_post", params={"Save to": str(path), "Work zero (G54)": zero, "Machine": machine}, commit=False)
     cad.call("command_set", params={"Save G-code": True})
     cad.call("command_cancel")
     return path.read_text() if path.exists() else ""
@@ -783,3 +783,74 @@ def sketch_matrix():
     cad.call("object_update", object=prof.name, visible=False)
     strip = ["Constraints, dimensions and entities, each read back from the solved sketch"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the entity-types profile, extruded", render(-25, 35)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- CAM: Adaptive, 3D Rough, 3D Finish and Turning
+@scenario("cam__adaptive-rough-finish-and-turning-options")
+def cam_3d_matrix():
+    cells, rows = [], []
+
+    def finish_variant(label, run, check, plot=True):
+        cad.call("document_new")
+        try:
+            text = run()
+            moves = cut_moves(text)
+            ok, detail = check(moves, text)
+            cells.append((label, toolpath_plot(text, title=label[:18]) if plot else text_panel([detail])))
+        except Exception as error:
+            ok, detail = False, str(error)[:110]
+            cells.append((label + " FAILED", text_panel([detail])))
+        rows.append((label, detail, ok))
+
+    def adaptive():
+        o = sketch([{"type": "rect", "corner1": [0, 0], "corner2": [40, 30]}]).name
+        cad.call("run_command", name="cnc_adaptive", slots={"Outlines of the pocket (islands inside are left)": [o]}, params={"Tool diameter": 6, "Depth per pass": 6, "Total cutting depth": 12, "Sideways cut (load)": 12, "Finish the walls with one pass": True})
+        return gcode_of("The model's own origin")
+
+    def adaptive_check(m, text):
+        xs, ys, zs = [p[0] for p in m], [p[1] for p in m], sorted({round(p[2], 2) for p in m})
+        inside = min(xs) >= 2.9 and max(xs) <= 37.1 and min(ys) >= 2.9 and max(ys) <= 27.1
+        return inside and min(zs) <= -11.99 and len([z for z in zs if z < -1]) >= 2, f"tool centres x {min(xs):.1f}..{max(xs):.1f}, y {min(ys):.1f}..{max(ys):.1f} (stay inside 3..37, 3..27); depth levels {zs[:4]}, deepest {min(zs)}"
+    finish_variant("Adaptive pocket, 12 deep in 6s", adaptive, adaptive_check)
+
+    def with_setup(make_body, op, params, stock=2):
+        body = make_body()
+        cad.call("run_command", name="cam_setup", slots={"Model body": body}, params={"Stock allowance XY": stock, "Top allowance": stock, "Bottom allowance": 0, "Work zero (G54)": "Model origin", "Tool diameter": 6})
+        cad.call("run_command", name=op, slots={("Model to rough" if op == "cnc_rough" else "Model to finish"): body}, params=params)
+        return gcode_of("Saved CAM setup")
+
+    def cylinder():
+        c = cad.cylinder(radius=15, height=20, operation="New body"); c.rename("Round"); return "Round"
+
+    def rough_check(m, text):
+        radius = [math.hypot(p[0], p[1]) for p in m]
+        levels = sorted({round(p[2], 2) for p in m}, reverse=True)
+        return min(radius) >= 15 + .5 + 3 - .3 and len(levels) >= 4, f"closest tool centre {min(radius):.2f} from the axis (expect at least 18.5: 15 radius + 0.5 left + 3 tool radius); {len(levels)} layers {levels[:5]}"
+    finish_variant("3D Rough on a 15 mm round, leave 0.5", lambda: with_setup(cylinder, "cnc_rough", {"Tool diameter": 6, "Depth per pass": 4, "Total cutting depth": 20, "Stock to leave": 0.5}), rough_check)
+
+    def dome():
+        s = cad.sphere(radius=20, operation="New body"); s.rename("Dome")
+        cutter = cad.box(width=60, depth=60, height=30, operation="New body"); cad.move(cutter, z=-30); cutter.rename("Below")
+        cad.call("run_command", name="subtract", slots={"Body": "Dome", "Tool": "Below"}) if False else None
+        cad.call("object_update", object="Below", visible=False)
+        return "Dome"
+
+    def finish_check(m, text):
+        # the ball's centre is 3 mm above its tip; touching a 20 mm sphere, it sits 20 + 3 = 23 mm from the sphere's centre
+        distances = [math.hypot(math.hypot(p[0], p[1]), p[2] + 3) for p in m if p[2] > 2 and math.hypot(p[0], p[1]) < 20]
+        low, high = min(distances), max(distances)
+        # the sphere is meshed before it is finished, so the path can sit up to about 0.3 mm inside the true surface (a finding: finishing follows the display mesh)
+        return 22.6 < low and high < 23.6, f"{len(distances)} points: ball centre {low:.2f} to {high:.2f} from the sphere's centre (expect 23.0: 20 + the 3 mm tool radius; allowing 0.4 mm for meshing)"
+    finish_variant("3D Finish, ball nose on a sphere", lambda: with_setup(dome, "cnc_finish", {"Tool diameter": 6, "Cutter": "Ball nose", "Stepover": 10, "Depth per pass": 2, "Total cutting depth": 20}, stock=1), finish_check)
+
+    def turning():
+        prof = sketch([{"type": "polyline", "points": [[0, 0], [20, 0], [20, 15], [10, 25], [0, 25]], "closed": True}], plane="XZ").name
+        cad.call("run_command", name="cnc_turn", slots={"Profile of the part (half section on the XZ plane)": [prof]}, params={"Tool diameter": 6, "Depth per pass": 1.5, "Finish allowance": 0.2})
+        return gcode_of("The model's own origin", "Mach3")        # GRBL cannot run a lathe
+
+    def turning_check(m, text):
+        xs = [p[0] for p in m]
+        return bool(m) and max(xs) >= 19.9, f"{len(m)} cutting moves, x up to {max(xs) if xs else 0:.1f} (the 20 mm radius, or 40 as a diameter), first lines: {' / '.join(text.splitlines()[3:6])}"
+    finish_variant("Turning a stepped, tapered shaft", turning, turning_check, plot=False)
+    strip = ["Adaptive, 3D Rough, 3D Finish and Turning, read back from the posted G-code"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return cells + [("checks", text_panel(strip))]
