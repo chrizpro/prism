@@ -102,9 +102,19 @@ def mold():
             ("checks", text_panel([f"bodies: {[o.name for o in cad.objects()]}", f"halves: {[round(i['volume']) for i in infos]}", f"CHECK two halves + the part: {'PASS' if len(halves) == 2 else 'FAIL'}"]))]
 
 
+def model_check(model):
+    """PASS or FAIL line for a model that was just opened: it has objects and every solid and surface is valid."""
+    state = cad.call("get_state")["objects"]
+    bodies = [o for o in state if o["kind"] in ("Solid", "Surface", "Form")]
+    bad = [o["name"] for o in bodies if o["kind"] != "Form" and not cad.call("object_info", object=o["name"]).get("valid", False)]   # a Freeform cage has no exact-shape validity
+    ok = len(state) > 0 and bool(bodies) and not bad
+    return f"{'PASS' if ok else 'FAIL'}  {model}: {len(state)} objects, {len(bodies)} bodies, invalid: {bad or 'none'}"
+
+
 def two_views(model, a=(-35, 28), b=(0, 89), la="iso", lb="top", distance=None):
     open_model(model)
-    return [(la, render(*a, distance=distance)), (lb, render(*b, distance=distance))]
+    check = model_check(model)
+    return [(la, render(*a, distance=distance)), (lb, render(*b, distance=distance)), ("checks", text_panel([check]))]
 
 
 @scenario("sheetmetal__lotus-dish-folded-and-flat-pattern")
@@ -167,22 +177,28 @@ def orrery():
     whole = render(-38, 20, distance=1250)
     cad.call("run_command", name="explode", params={"Explode": 0.9}, commit=True)
     cad.call("wait_idle")
+    grown = cad.call("get_state")
     exploded = render(-38, 20, distance=2300)
+    spread = max(cad.call("object_info", object=o["name"])["max"][2] for o in grown["objects"] if o["kind"] == "Solid")
     cad.call("run_command", name="explode", params={"Explode": 0.0}, commit=True)
-    return [("assembled", whole), ("exploded view", exploded)]
+    settled = max(cad.call("object_info", object=o["name"])["max"][2] for o in cad.call("get_state")["objects"] if o["kind"] == "Solid")
+    ok = spread > settled + 20
+    return [("assembled", whole), ("exploded view", exploded), ("checks", text_panel([model_check("meridian-orrery"), f"{'PASS' if ok else 'FAIL'}  Exploded at 0.9 the highest part rises to z {spread:.0f}; closed again it is back to {settled:.0f}"]))]
 
 
 @scenario("gallery__every-model-opens-and-renders")
 def gallery_overview():
     catalog = json.loads((ROOT / "gallery/catalog.json").read_text(encoding="utf-8"))
-    cells = []
+    cells, lines = [], []
     for item in catalog["Items"]:
         try:
             open_model(item["Id"])
+            lines.append(model_check(item["Id"]))
             cells.append((item["Id"], render(-35, 28, samples=4)))
         except Exception as error:
+            lines.append(f"FAIL  {item['Id']}: {str(error)[:100]}")
             cells.append((item["Id"] + " FAILED", text_panel([str(error)[:300]])))
-    return cells
+    return cells + [("checks", text_panel(lines))]
 
 
 # ---------------------------------------------------------------- feature matrices: every option of a tool, side by side in one document
@@ -985,3 +1001,83 @@ def assembly_matrix():
     variant("Rigid: block stays put when driven", "rigid", top_face, bottom_face, block_pair, None, lambda b, a: (math.dist(b[0], a[0]) < .01, "no motion"))
     strip = ["Joints, each driven and the part's movement read back"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("iso (joints in place)", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+@scenario("assembly__cylindrical-joint-and-gear-coupling", columns=1)
+def assembly_more():
+    rows = []
+    cad.call("document_new")
+
+    def size(name):
+        i = cad.call("object_info", object=name)
+        return i["size"], [(a + b) / 2 for a, b in zip(i["min"], i["max"])]
+
+    def pin_and_hub(i):
+        p = cad.cylinder(radius=10, height=10, operation="New body"); p.rename(f"Pin{i}"); cad.move(p, x=i * 80)
+        arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename(f"Arm{i}"); cad.move(arm, x=i * 80 + 5, z=12)
+        hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename(f"Hub{i}"); cad.move(hub, x=i * 80, z=12)
+        cad.union(hub, arm)
+        cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+        return f"Pin{i}", f"Hub{i}", cyl
+
+    def joint(kind, pin, hub, cyl):
+        r = cad.call("run_command", name="joint_" + kind, slots={"On the first part (face, circle edge or round face)": {"object": pin, **cyl(pin)}, "On the part that moves": {"object": hub, **cyl(hub)}})
+        return next(o["name"] for o in r.get("created", []) if o.get("kind") == "Joint")
+
+    def drive(values):
+        r = cad.call("run_command", name="drive_joints", commit=False)
+        labels = [p["label"] for p in r["activeCommand"]["params"]]
+        cad.call("command_set", params={label: v for label, v in zip(labels, values)})
+        cad.call("command_commit")
+        cad.call("wait_idle")
+        return labels
+
+    try:
+        pin, hub, cyl = pin_and_hub(0)
+        j = joint("cylindrical", pin, hub, cyl)
+        (sb, cb) = size(hub)
+        drive([90, 10])
+        (sa, ca) = size(hub)
+        ok = abs(sa[1] - sb[0]) < 1.5 and abs(abs(ca[2] - cb[2]) - 10) < .6
+        rows.append(("Cylindrical: turn 90 and slide 10", f"outline {[round(v, 1) for v in sb[:2]]} -> {[round(v, 1) for v in sa[:2]]}, centre z moved {ca[2] - cb[2]:.2f} (expect a 90 degree turn and 10 mm along the axis)", ok))
+    except Exception as error:
+        rows.append(("Cylindrical: turn 90 and slide 10", str(error)[:120], False))
+
+    try:
+        cad.call("document_new")
+        p1, h1, c1 = pin_and_hub(0)
+        p2, h2, c2 = pin_and_hub(1)
+        j1, j2 = joint("revolute", p1, h1, c1), joint("revolute", p2, h2, c2)
+        cad.call("run_command", name="gear_pair", commit=False)
+        cad.call("command_set", params={"Leading joint": j1, "Following joint": j2, "Leading size (teeth, or pulley or pitch diameter)": 20, "Following size (same unit)": 40, "Direction": "Opposite way (external gears)"})
+        cad.call("command_commit")
+        drive_labels = drive([90])
+        s2, _ = size(h2)
+        # the follower turns 90 * 20 / 40 = 45 degrees: a 30 x 6 arm at 45 degrees has a bounding box of (30 + 6) * cos 45 = 25.5 each way
+        expect = (30 + 6) * math.cos(math.radians(45))
+        rows.append(("Gear pair 20:40, leader 90 degrees", f"follower outline {[round(v, 1) for v in s2[:2]]} (expect about {expect:.1f} x {expect:.1f} for a 45 degree turn)", abs(s2[0] - expect) < 1.5 and abs(s2[1] - expect) < 1.5))
+    except Exception as error:
+        rows.append(("Gear pair 20:40, leader 90 degrees", str(error)[:120], False))
+    strip = ["A cylindrical joint, and a gear coupling driven through its leading joint"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("iso (the gear pair, after driving)", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+@scenario("cae__topology-optimization-keeps-half-the-block", columns=1, slow=True)
+def cae_topology():
+    """Open the saved wrench, run Generative on its torque study (about 8 minutes) and check it keeps about half the block."""
+    open_model("wrench")
+    cad.call("study_run")
+    cad.call("run_command", name="generative", params={"Keep this much of the volume": 55, "Detail": "Coarse (fast)", "Most iterations": 40}, commit=False)
+    cad.call("command_set", params={"Generate": True})
+    deadline = time.monotonic() + 1500
+    rows_ = []
+    while time.monotonic() < deadline:
+        rows_ = cad.call("command_set", params={}).get("results", [])
+        text = " ".join(map(str, rows_))
+        if "Status: Done" in text or "Failed" in text:
+            break
+        time.sleep(5)
+    share = float(next(x for x in rows_ if x.startswith("Result volume")).split("(")[1].split("%")[0])
+    cad.call("command_cancel")
+    ok = 40 < share < 60
+    return [("the wrench", render(-35, 45, distance=330)), ("checks", text_panel([f"{'PASS' if ok else 'FAIL'}  Generative at a 55% target keeps {share:.1f}% of the block", *[str(r)[:100] for r in rows_ if str(r).startswith(("Stiffness", "Mass", "Iterations"))]]))]

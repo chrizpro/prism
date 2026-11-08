@@ -19,6 +19,15 @@ Start Prism with a private `PRISM_AUTOMATION_DISCOVERY` (as for the gallery scri
 
 When asking an AI to do this, say: *run the visual scripts, read summary.txt, look only at the failing or changed sheets, and fix what is broken.*
 
+## Finding flaky tests
+
+- `--repeat N` runs the whole selection N times and reports every check whose result or numbers differ between runs (`UNSTABLE` in `summary.txt`, with both values), and exits non-zero if any did.
+- `--shuffle SEED` runs the scenarios in a random (seeded) order, which finds tests that only pass because of what ran before them. Use it with `--repeat`: each repetition gets a new order.
+- `--slow` adds the scenarios that take minutes (topology optimization).
+- A good soak before a release: `python tests/visual/visual.py --discovery <json> --fast --repeat 3 --shuffle 1`.
+
+What this does not cover: timing races that need a person's speed, such as clicking while a preview is still computing; those need the Windows desktop tests.
+
 ## What a sheet is
 
 One scenario = one **contact sheet**, a small PNG named for what it tests, with several labeled views and a text strip of checks (each line `PASS` or `FAIL` with the numbers behind it). The files go to `artifacts/visual/` (ignored by git), with a `report.json` of sizes and timings. A scenario that crashes is reported as `FAILED` and the others still run.
