@@ -1081,3 +1081,151 @@ def cae_topology():
     cad.call("command_cancel")
     ok = 40 < share < 60
     return [("the wrench", render(-35, 45, distance=330)), ("checks", text_panel([f"{'PASS' if ok else 'FAIL'}  Generative at a 55% target keeps {share:.1f}% of the block", *[str(r)[:100] for r in rows_ if str(r).startswith(("Stiffness", "Mass", "Iterations"))]]))]
+
+
+# ---------------------------------------------------------------- Surface commands: extrude, revolve, loft, sweep, pipe, thicken, offset, ruled, planar
+def new_object(before, kinds=("Surface", "Solid")):
+    return next((o.name for o in cad.objects() if o.kind in kinds and o.name not in before), None)
+
+
+def line_curve(a, b):
+    return curve([list(a), [(x + y) / 2 for x, y in zip(a, b)], list(b)])
+
+
+@scenario("surface__extrude-revolve-loft-sweep-pipe-and-offsets", columns=1)
+def surface_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=70)
+
+    def surface(label, command, slots_fn, params, expect, key="area", tol=.03, plane_of=None):
+        def run():
+            before = names()
+            slots = slots_fn()
+            cad.call("run_command", name=command, slots=slots, params=params)
+            n = new_object(before)
+            if n is None:
+                raise RuntimeError("nothing was made")
+            info = cad.call("object_info", object=n)
+            got = info[key]
+            ok = info["valid"] and abs(got - expect) <= tol * expect
+            return n, f"{key} {got:.0f} (expect {expect:.0f})", ok
+        m.check(label, run)
+
+    flat = lambda: {"Profile": line_curve((0, 0, 0), (30, 0, 0))}
+    surface("Extrude surface: distance 20", "extrude_surface", flat, {"Extent": "Distance", "Distance": 20}, 600)
+    surface("Extrude surface: reversed", "extrude_surface", flat, {"Extent": "Distance", "Distance": 20, "Reverse direction": True}, 600)
+    surface("Extrude surface: two sides 20 + 10", "extrude_surface", flat, {"Extent": "Two sides", "Distance": 20, "Distance 2 (other side)": 10}, 900)
+    surface("Extrude surface: symmetric 20", "extrude_surface", flat, {"Extent": "Symmetric", "Distance": 20}, 600)
+    vertical = lambda: {"Profile": line_curve((0, 0, 0), (0, 0, 30))}
+    surface("Revolve surface: full 360 about Z", "revolve_surface", lambda: {"Profile": curve([[10, 0, 0], [10, 0, 15], [10, 0, 30]], "XZ" and "XY", 0)}, {"Extent": "Full 360°"}, 2 * math.pi * 10 * 30, tol=.04)
+    surface("Loft surface: circle 10 to 4 over 30", "loft_surface", lambda: {"Sections (in order)": [ring(0, 10), ring(30, 4)]}, {}, math.pi * 14 * math.hypot(30, 6), tol=.04)
+    surface("Loft surface: 6-12-6 ruled", "loft_surface", lambda: {"Sections (in order)": [ring(0, 6), ring(15, 12), ring(30, 6)]}, {"Straight (ruled) transitions": True}, 2 * math.pi * 18 * math.hypot(15, 6), tol=.04)
+    path = lambda: [line_curve((0, 0, 0), (0, 0, 40))]
+    surface("Sweep surface: circle r5 along a straight 40", "sweep_surface", lambda: {"Profile": ring(0, 5), "Path": path()[0]}, {}, 2 * math.pi * 5 * 40, tol=.04)
+    surface("Pipe: radius 5 along 40 (solid)", "pipe", lambda: {"Path curve": path()[0]}, {"Radius at the start": 5, "Radius at the end": 5}, math.pi * 25 * 40, key="volume", tol=.03)
+    surface("Pipe: tapered radius 5 to 10", "pipe", lambda: {"Path curve": path()[0]}, {"Radius at the start": 5, "Radius at the end": 10}, math.pi / 3 * 40 * (25 + 50 + 100), key="volume", tol=.04)
+    surface("Ruled surface between two 30 mm lines 20 apart", "ruled_surface", lambda: {"First curve": line_curve((0, 0, 0), (30, 0, 0)), "Second curve": line_curve((0, 20, 0), (30, 20, 0))}, {}, 600)
+    surface("Planar surface from a closed circle r10", "planar_surface", lambda: {"Closed boundary": ring(0, 10)}, {}, math.pi * 100, tol=.03)
+    for o in cad.objects():
+        if o.kind == "Curve":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, every surface and pipe", render(-25, 30)), ("from the front", render(0, 5)), ("checks", text_panel(m.strip()))]
+
+
+# ---------------------------------------------------------------- Sweep: every registered command starts and cancels without crashing
+@scenario("command__every-command-opens-and-cancels", columns=1)
+def every_command_opens():
+    """Start each command on a document with a solid, a sketch and a curve in it, read its panel and cancel. A missing-selection message is fine;
+    a crash message (null reference, missing native function, index error) is a bug."""
+    cad.call("document_new")
+    box = cad.box(width=30, depth=30, height=20, operation="New body"); box.rename("Solid")
+    cad.call("sketch_begin", plane="XY"); cad.call("sketch_add", entities=[{"type": "rect", "corner1": [0, 0], "corner2": [20, 20]}]); cad.call("sketch_finish")
+    curve([[0, 0, 0], [10, 5, 10], [20, 0, 20]])
+    crash_words = ("NullReference", "Object reference", "entry point", "Index was out", "Unhandled", "Sequence contains", "KeyNotFound", "InvalidCast", "NotImplemented", "StackOverflow", "Specified argument")
+    import re
+    source = (ROOT / "Prism/Automation/AutomationApi.cs").read_text(encoding="utf-8")
+    commands = sorted(set(re.findall(r'\["([a-z_0-9]+)"\] = \(\) =>', source)) | set(re.findall(r'Registry\.TryAdd\("([a-z_0-9]+)"', source)))
+    crashed, quiet, slow = [], 0, []
+    for name in commands:
+        started = time.monotonic()
+        try:
+            cad.call("run_command", name=name, commit=False)
+            quiet += 1
+        except Exception as error:
+            text = str(error)
+            if any(w in text for w in crash_words):
+                crashed.append(f"{name}: {text[:110]}")
+        finally:
+            try:
+                cad.call("command_cancel")
+            except Exception:
+                pass
+        if time.monotonic() - started > 8:
+            slow.append(f"{name} {time.monotonic() - started:.0f}s")
+    lines = [f"{'PASS' if not crashed else 'FAIL'}  {len(commands)} commands started and cancelled: {quiet} opened cleanly, {len(commands) - quiet - len(crashed)} asked for a selection first, {len(crashed)} crashed",
+             f"{'PASS' if not slow else 'FAIL'}  none took more than 8 seconds to open" + (f" (slow: {', '.join(slow)})" if slow else "")] + [f"FAIL  {c}" for c in crashed]
+    return [("the document the commands were started in", render(-30, 28)), ("checks", text_panel(lines))]
+
+
+# ---------------------------------------------------------------- Direct modeling and holes on a 40 x 30 x 20 block
+@scenario("solid__direct-modeling-and-holes-every-option", columns=1)
+def direct_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=60)
+    base = 40 * 30 * 20
+    cur = [""]
+
+    def on_block(label, fn):
+        def run():
+            cur[0] = f"D{m.slot}"
+            b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename(cur[0])
+            return fn()
+        m.check(label, run)
+
+    def face(facing):
+        return {"object": cur[0], "face": cad.call("solid_find", object=cur[0], kind="faces", type="Plane", facing=facing)["hits"][0]["face"]}
+
+    def result(expect=None, tol=None, lo=None, hi=None, extra=""):
+        i = cad.call("object_info", object=cur[0])
+        if expect is not None:
+            ok, detail = abs(i["volume"] - expect) <= (tol if tol is not None else .004 * base), f"volume {i['volume']:.0f} (expect {expect:.0f}){extra}"
+        else:
+            ok, detail = lo < i["volume"] < hi, f"volume {i['volume']:.0f} (expect between {lo:.0f} and {hi:.0f}){extra}"
+        return cur[0], detail, ok and i["valid"]
+
+    def go(command, slots, params=None):
+        cad.call("run_command", name=command, slots=slots, params=params or {})
+
+    on_block("Push/pull top +10", lambda: (go("push_pull", {"Faces to push or pull": [face([0, 0, 1])]}, {"Distance (positive pulls out, negative pushes in)": 10}), result(base + 40 * 30 * 10))[1])
+    on_block("Push/pull top -5", lambda: (go("push_pull", {"Faces to push or pull": [face([0, 0, 1])]}, {"Distance (positive pulls out, negative pushes in)": -5}), result(base - 40 * 30 * 5))[1])
+    on_block("Offset +X face by 4", lambda: (go("offset_face", {"Faces to offset": [face([1, 0, 0])]}, {"Offset distance (positive moves faces out)": 4}), result(base + 4 * 30 * 20))[1])
+    on_block("Move +X face by 6", lambda: (go("move_face", {"Flat faces to move": [face([1, 0, 0])]}, {"Move X": 6}), result(base + 6 * 30 * 20))[1])
+    on_block("Move top face, tilted 10 degrees", lambda: (go("move_face", {"Flat faces to move": [face([0, 0, 1])]}, {"Tilt angle": 10, "Tilt about": "World Y"}), result(lo=base * .8, hi=base * 1.2))[1])
+    on_block("Rotate +X face 5 degrees about Z", lambda: (go("rotate_face", {"Flat faces to rotate": [face([1, 0, 0])]}, {"Rotation angle": 5, "Rotate about": "World Z"}), result(lo=base * .9, hi=base * 1.1))[1])
+    on_block("Draft the +X face 5 degrees on the bottom plane", lambda: (go("draft_face", {"Faces to draft": [face([1, 0, 0])], "Neutral plane (a plane or flat face the walls hinge on)": [face([0, 0, -1])]}, {"Draft angle": 5}), result(lo=base * .9, hi=base * 1.1))[1])
+
+    def hole_block(params, expect, label_extra=""):
+        go("hole", {"Body or entry face": [face([0, 0, 1])]}, params)
+        return result(expect, tol=.01 * base, extra=label_extra)
+    on_block("Hole, plain 8 mm through", lambda: hole_block({"Diameter": 8, "Extent": "Through all"}, base - math.pi * 16 * 20))
+    on_block("Hole, plain 8 mm blind 10", lambda: hole_block({"Diameter": 8, "Extent": "Blind", "Hole depth": 10}, base - math.pi * 16 * 10))
+    on_block("Hole, offset 10 mm from the centre", lambda: hole_block({"Diameter": 6, "Center offset U": 10, "Extent": "Through all"}, base - math.pi * 9 * 20))
+    on_block("Hole, threaded M6 modeled through", lambda: (go("hole", {"Body or entry face": [face([0, 0, 1])]}, {"Hole type": "Threaded (modeled)", "Metric size": "M6 × 1", "Extent": "Through all"}), result(lo=base - math.pi * 9 * 20 * 1.1, hi=base - math.pi * 4 * 20 * .9))[1])
+
+    def hole_then(command, slot_label, params, expect):
+        go("hole", {"Body or entry face": [face([0, 0, 1])]}, {"Diameter": 8, "Extent": "Through all"})
+        side = cad.call("solid_find", object=cur[0], kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]
+        go(command, {slot_label: [{"object": cur[0], "face": side}]}, params)
+        return result(expect, tol=.01 * base)
+    on_block("Delete the hole's face (hole fills in)", lambda: hole_then("delete_face", "Faces to remove (a hole, fillet, pocket...)", {}, base))
+    on_block("Move the hole 5 mm", lambda: hole_then("move_hole", "A hole or boss (click its round face)", {"Move X": 5}, base - math.pi * 16 * 20))
+    on_block("Resize the hole to 12 mm", lambda: hole_then("move_hole", "A hole or boss (click its round face)", {"New diameter (0 = keep)": 12}, base - math.pi * 36 * 20))
+
+    def round_then_remove():
+        edges = [e for e in cad.call("solid_find", object=cur[0], kind="edges", limit=60)["hits"] if abs(e.get("center", [0, 0, 0])[2] - 20) < .01][:4]
+        cad.fillet([dict(object=cur[0], edge=e["edge"]) for e in edges], radius=5)
+        go("remove_fillets", {"Or a body to clean up": [cur[0]]}, {"Also remove all rounds up to radius (0 = only picked)": 5})
+        return result(base, tol=.003 * base)
+    on_block("Remove the four R5 top-edge fillets from a body", round_then_remove)
+    known = ["KNOWN ISSUE #87: Remove Fillets cannot find the rounds on a block whose four vertical edges are all filleted (the outline is classified as a Slot), and picking a fillet face through the API is refused"]
+    return [("iso, every variant", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip() + known))]
