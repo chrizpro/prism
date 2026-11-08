@@ -123,6 +123,29 @@ public class GalleryViewTests
         await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"nope\"}")!));
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H006 | A file saved with an opening command reopens with that command open, ready to press its button")]
+    [Trait("TestId", "GAL-H006")]
+    public async Task FileReopensWithItsCommandOpen()
+    {
+        var vm = new MainViewModel();
+        var api = new Prism.Automation.AutomationApi(vm, null);
+        string tab = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Last().Title;
+        await api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + tab + "\",\"command\":\"box\"}")!);
+        Assert.Equal("box", vm.Session.OpeningCommand);
+        string path = Path.Combine(Path.GetTempPath(), "prism-cmd-" + Guid.NewGuid().ToString("N") + ".prism");
+        try
+        {
+            vm.Session.AddObject(Occ.Box(10, 20, 30), "Part", ObjKind.Solid);
+            vm.Session.Save(path);
+            vm.SelectTab(vm.Tabs.First(t => !t.IsFile && !t.IsContextual));
+            vm.OpenPath(path);
+            Assert.NotNull(vm.Session.ActiveCommand);
+            Assert.Equal("box", vm.Session.OpeningCommand);
+            await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + tab + "\",\"command\":\"nope\"}")!));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H002 | Failed model download leaves the current work and startup screen intact")]
     [Trait("TestId", "GAL-H002")]
     public async Task FailedDownloadDoesNotReplaceUserDocument()
