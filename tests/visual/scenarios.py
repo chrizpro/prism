@@ -1229,3 +1229,48 @@ def direct_matrix():
     on_block("Remove the four R5 top-edge fillets from a body", round_then_remove)
     known = ["KNOWN ISSUE #87: Remove Fillets cannot find the rounds on a block whose four vertical edges are all filleted (the outline is classified as a Slot), and picking a fillet face through the API is refused"]
     return [("iso, every variant", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip() + known))]
+
+
+# ---------------------------------------------------------------- Transforms and patterns: move, rotate, scale, mirror, linear, circular and table patterns
+@scenario("solid__move-rotate-scale-mirror-and-patterns", columns=1)
+def transform_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=0)       # each variant is built where it will be seen: rows of results stacked along Y
+    rows_done = [0]
+
+    def variant(label, build, check):
+        y0 = rows_done[0] * 60
+        rows_done[0] += 1
+        try:
+            before = names()
+            primary = build(y0)
+            made = [o.name for o in cad.objects() if o.kind == "Solid" and o.name not in before] + ([primary] if primary else [])
+            ok, detail = check(sorted(set(made)))
+            m.rows.append((label, detail, ok))
+        except Exception as error:
+            m.rows.append((label, str(error)[:120], False))
+
+    def block(y0, w=20, d=10, h=10, x=0):
+        b = cad.box(width=w, depth=d, height=h, operation="New body"); b.rename(f"Src{rows_done[0]}"); cad.move(b, x=x, y=y0)
+        return b.name
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def run(command, slots, params):
+        cad.call("run_command", name=command, slots=slots, params=params)
+
+    variant("Move by (30, 0, 5)", lambda y: (lambda n: (run("move", {"Objects": [n]}, {"Δ X": 30, "Δ Z": 5}), n)[1])(block(y)), lambda ns: (abs(info(ns[0])["min"][0] - 20) < .01 and abs(info(ns[0])["min"][2] - 5) < .01, f"x from {info(ns[0])['min'][0]:.1f}, z from {info(ns[0])['min'][2]:.1f} (expect 20 and 5)"))
+    variant("Move, keep a copy", lambda y: (lambda n: (run("move", {"Objects": [n]}, {"Δ X": 30, "Create copy": True}), n)[1])(block(y)), lambda ns: (len(ns) == 2, f"{len(ns)} bodies (expect the original and a copy)"))
+    variant("Rotate 90 degrees about Z", lambda y: (lambda n: (run("rotate", {"Objects": [n]}, {"Axis": "Z", "Angle": 90, "Pivot": "Object center"}), n)[1])(block(y)), lambda ns: (abs(info(ns[0])["size"][0] - 10) < .01 and abs(info(ns[0])["size"][1] - 20) < .01, f"outline {[round(v, 1) for v in info(ns[0])['size'][:2]]} (expect 10 x 20)"))
+    variant("Scale by 2 about the centre", lambda y: (lambda n: (run("scale", {"Objects": [n]}, {"Factor": 2, "Pivot": "Object center"}), n)[1])(block(y)), lambda ns: (abs(info(ns[0])["volume"] - 2000 * 8) < 20, f"volume {info(ns[0])['volume']:.0f} (expect 16000: 2 cubed times 2000)"))
+    variant("Mirror across the YZ plane, with a copy", lambda y: (lambda n: (run("mirror", {"Objects": [n]}, {"Mirror plane": "YZ (X = 0)", "Create copy": True}), n)[1])(block(y, x=30)), lambda ns: (len(ns) == 2 and abs(min(info(n)["min"][0] for n in ns) + 40) < .01, f"{len(ns)} bodies, left edge at {min(info(n)['min'][0] for n in ns):.1f} (expect -40)"))
+
+    def pin(y):
+        p = cad.cylinder(radius=3, height=6, operation="New body"); p.rename(f"Pin{rows_done[0]}"); cad.move(p, x=20, y=y)
+        return p.name
+    variant("Linear pattern, 4 at 15 mm", lambda y: (lambda n: (run("pattern_linear", {"Objects": [n]}, {"Direction 1": "X axis", "Count 1": 4, "Spacing 1": 15}), n)[1])(pin(y)), lambda ns: (len(ns) == 4 and abs(max(info(n)["max"][0] for n in ns) - min(info(n)["min"][0] for n in ns) - 51) < .1, f"{len(ns)} bodies over {max(info(n)['max'][0] for n in ns) - min(info(n)['min'][0] for n in ns):.1f} mm (expect 4 over 51)"))
+    variant("Linear pattern, 3 x 2 grid", lambda y: (lambda n: (run("pattern_linear", {"Objects": [n]}, {"Direction 1": "X axis", "Count 1": 3, "Spacing 1": 12, "Direction 2": "Y axis", "Count 2": 2, "Spacing 2": 12}), n)[1])(pin(y)), lambda ns: (len(ns) == 6, f"{len(ns)} bodies (expect 6)"))
+    variant("Circular pattern, 6 about Z", lambda y: (lambda n: (run("pattern_circular", {"Objects": [n]}, {"Axis": "Z axis", "Axis passes through": "World origin", "Count": 6}), n)[1])(pin(0 + rows_done[0] * 0)), lambda ns: (len(ns) == 6 and abs(max(info(n)["max"][0] for n in ns) - min(info(n)["min"][0] for n in ns) - 46) < .5, f"{len(ns)} bodies over {max(info(n)['max'][0] for n in ns) - min(info(n)['min'][0] for n in ns):.1f} mm across (expect 6 around a 20 mm radius: 46)"))
+    variant("Table pattern, 3 positions", lambda y: (lambda n: (run("pattern_table", {"Objects to pattern": [n]}, {"Rows are": "Offsets from the original", "Positions": "10, 0, 0\n20, 0, 0\n30, 0, 5"}), n)[1])(pin(y)), lambda ns: (len(ns) == 4, f"{len(ns)} bodies (expect the original and 3 copies)"))
+    return [("iso, results of each", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]

@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / "Prism/Automation/AutomationApi.cs").read_text(encoding="utf-8")
 names = set(re.findall(r'\["([a-z_0-9]+)"\] = \(\) =>', source)) | set(re.findall(r'Registry\.TryAdd\("([a-z_0-9]+)"', source))
 scripts = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "tests/visual").glob("*.py") if p.name != "coverage.py")
-used = set(re.findall(r'name="([a-z_0-9]+)"', scripts))
+sweep_source = scripts.split("def every_command_opens")[0] + scripts.split("def every_command_opens")[1].split("@scenario")[1] if "def every_command_opens" in scripts else scripts
+used = {n for n in names if re.search(rf'["\']{n}["\']', sweep_source)}   # a command named as a string literal in a scenario other than the start-and-cancel sweep
 helpers = {"box": "box", "cylinder": "cylinder", "sphere": "sphere", "union": "union", "fillet": "fillet", "shell": "shell", "extrude": "extrude", "revolve": "revolve",
            "move": "move", "holes": "hole", "fold": "fold", "chamfer": "chamfer"}
 used |= {command for helper, command in helpers.items() if re.search(rf"cad\.{helper}\(|cad\.run\(\"{helper}\"", scripts)}
