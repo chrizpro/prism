@@ -298,7 +298,7 @@ public class CurveToolTests
         AssertBuildFails(command, "one segment");
     }
 
-    [AvaloniaTheory(DisplayName = "CRV-H017 | Split Curve cuts a 100 mm line at the listed percentages")]
+    [AvaloniaTheory(DisplayName = "CRV-H017 | Legacy Split adapter cuts a 100 mm line at the listed percentages")]
     [InlineData("50", new[] { 50.0, 50.0 })]
     [InlineData("10; 40", new[] { 10.0, 30.0, 60.0 })]
     [InlineData("0, 30, 100, 30", new[] { 30.0, 70.0 })]
@@ -317,7 +317,7 @@ public class CurveToolTests
         Assert.Equal(source.Id, Assert.Single(output.Remove).Id);
     }
 
-    [AvaloniaFact(DisplayName = "CRV-H018 | Split Curve refuses positions outside 0–100 % and can keep the original")]
+    [AvaloniaFact(DisplayName = "CRV-H018 | Legacy Split adapter refuses positions outside 0–100 % and can keep the original")]
     [Trait("TestId", "CRV-H018")]
     public void SplitCurveValidatesPositions()
     {
@@ -369,7 +369,7 @@ public class CurveToolTests
 
     // ------------------------------------------------------------------ Divide / Rebuild
 
-    [AvaloniaFact(DisplayName = "CRV-H021 | Divide Curve places Segments + 1 points and reports length and spacing")]
+    [AvaloniaFact(DisplayName = "CRV-H021 | Points Along Curve places Segments + 1 points and reports length and spacing")]
     [Trait("TestId", "CRV-H021")]
     public void DivideCurvePlacesPoints()
     {
@@ -482,7 +482,7 @@ public class CurveToolTests
         AssertBuildFails(command, "do not cross");
     }
 
-    [AvaloniaFact(DisplayName = "CRV-H028 | Duplicate Edge copies the four top edges of a box as one closed 40 mm curve")]
+    [AvaloniaFact(DisplayName = "CRV-H028 | Extract Edges copies the four top edges of a box as one closed 40 mm curve")]
     [Trait("TestId", "CRV-H028")]
     public void DuplicateEdgeJoinsTopLoop()
     {

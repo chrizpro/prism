@@ -37,6 +37,10 @@ public static class CommandCatalog
                 key = typeof(FlattenCommand).FullName + "|Flatten / Refold";
             if (key == typeof(BoundaryFillCommand).FullName + "|Create Enclosed Solid")
                 key = typeof(BoundaryFillCommand).FullName + "|Enclosed Body";
+            if (key == typeof(DivideCurveCommand).FullName + "|Divide Curve")
+                key = typeof(DivideCurveCommand).FullName + "|Points Along Curve";
+            if (key == typeof(DuplicateEdgeCommand).FullName + "|Duplicate Edge")
+                key = typeof(DuplicateEdgeCommand).FullName + "|Extract Edges";
             return _map.TryGetValue(key, out var make) ? make : null;
         }
     }
