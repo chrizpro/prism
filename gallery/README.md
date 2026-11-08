@@ -20,6 +20,10 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 
 Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 
+## Extra files
+
+A catalog entry can list `Extras` (an animation video, an exploded view image): give each a `Label` and a `FileName` placed in `gallery/extras/`, and `python gallery/update_catalog.py` fills in the URL, size and SHA-256. The app offers them in a dropdown on the model's card. The orrery's video was made from 48 frames of *Drive Joints* renders, encoded with `ffmpeg -stream_loop 1 -framerate 24 -i f%03d.png -c:v libx264 -pix_fmt yuv420p -crf 26 -movflags +faststart`.
+
 ## Updating the collection
 
 1. Build and save a `.prism` model in Prism. Reopen it and inspect geometry, materials and appearance. Keep useful source curves/surfaces hidden in the document. Supply a reproducible script where possible.

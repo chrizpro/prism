@@ -98,7 +98,8 @@
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="17"/>
                                                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Height="54" FontSize="12" Classes="soft"/>
                                                     <TextBlock Text="{Binding Credit}" FontSize="11" Classes="faint"/>
-                                                    <Button Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                                    <Button Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="{Binding NoExtras}"/>
+                                                    <SplitButton Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" IsVisible="{Binding HasExtras}" Loaded="OnExtrasLoaded" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
                                                     <TextBlock Text="{Binding VersionHint}" IsVisible="{Binding !Compatible}" FontSize="11" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </StackPanel>

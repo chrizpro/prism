@@ -19,6 +19,9 @@ public sealed partial class GalleryCard(GalleryEntry entry) : ObservableObject
     public string Credit => "Made with Prism MCP · " + Entry.Author + " · " + Entry.License;
     public bool Compatible => Entry.IsCompatible(AppInfo.Version);
     public string VersionHint => "Requires Prism " + Entry.MinimumVersion;
+    public System.Collections.Generic.IReadOnlyList<GalleryExtra> Extras => Entry.Extras ?? [];
+    public bool HasExtras => Extras.Count > 0;
+    public bool NoExtras => !HasExtras;
     public bool CanOpen => Compatible && !Busy;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CanOpen))] public partial bool Busy { get; set; }
     [ObservableProperty] public partial Bitmap? Preview { get; set; }
@@ -138,6 +141,21 @@ public sealed partial class MainViewModel
         _galleryCards.Clear();
         foreach (var entry in catalog.Items) _galleryCards.Add(new GalleryCard(entry));
         FilterGallery();
+    }
+    /// <summary>Saves a model's extra file (animation video, exploded view) into the workspace's Gallery folder.</summary>
+    public async Task DownloadGalleryExtra(GalleryCard card, GalleryExtra extra)
+    {
+        if (GalleryBusy) return;
+        GalleryBusy = true;
+        GalleryStatus = "Downloading " + extra.Label + "…";
+        try
+        {
+            string folder = Path.Combine(HasWorkspace ? WorkspaceFolder : DefaultWorkspacePath, "Gallery");
+            string path = await GallerySource.SaveExtra(extra, folder);
+            GalleryStatus = "Saved " + extra.Label + " of " + card.Name + " to " + path;
+        }
+        catch (Exception e) { GalleryStatus = "Could not download " + extra.Label + ": " + e.Message; }
+        finally { GalleryBusy = false; }
     }
     public async Task OpenGalleryCard(GalleryCard card)
     {

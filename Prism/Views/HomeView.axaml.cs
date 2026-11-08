@@ -32,5 +32,17 @@ public partial class HomeView : UserControl
     void OnOpenFile(object? s, RoutedEventArgs e) { if (s is Button { Tag: string path }) Vm?.OpenPath(path); }
     async void OnGalleryRefresh(object? s, RoutedEventArgs e) { if (Vm is { } vm) await vm.LoadGallery(refresh: true); }
     void OnGallerySection(object? s, RoutedEventArgs e) { if (s is Button { Tag: GallerySection section }) section.Toggle(); }
+    void OnExtrasLoaded(object? s, RoutedEventArgs e)
+    {
+        if (s is not SplitButton { Tag: GalleryCard card } button || button.Flyout != null) return;
+        var flyout = new MenuFlyout();
+        foreach (var extra in card.Extras)
+        {
+            var item = new MenuItem { Header = "Download " + extra.Label };
+            item.Click += async (_, _) => { if (Vm is { } vm) await vm.DownloadGalleryExtra(card, extra); };
+            flyout.Items.Add(item);
+        }
+        button.Flyout = flyout;
+    }
     async void OnGalleryOpen(object? s, RoutedEventArgs e) { if (s is Button { Tag: GalleryCard card } && Vm is { } vm) await vm.OpenGalleryCard(card); }
 }
