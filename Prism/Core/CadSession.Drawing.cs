@@ -75,6 +75,7 @@ public sealed partial class CadSession
         var ids = sources.Distinct().ToList();
         var bodies = ids.Select(id => Find(id) ?? throw new InvalidOperationException("A source body is missing. Choose model bodies again.")).ToList();
         if (bodies.Count == 0) throw new InvalidOperationException("Choose at least one model body.");
+        if (bodies.Any(o => o.IsReference)) throw new InvalidOperationException("A reference part (for example the part inside a mold) is not part of the file, so it cannot be a drawing source.");
         if (bodies.Any(o => !o.HasBrep || o.IsAnnotation || o.Kind is not (ObjKind.Solid or ObjKind.Surface or ObjKind.Form))) throw new InvalidOperationException("Choose solid, surface or Freeform bodies.");
         // HLR/section algorithms can add OCCT curve/cache data to their input topology. Work on a deep
         // copy so preparing a drawing never mutates the source model or its persisted revision.

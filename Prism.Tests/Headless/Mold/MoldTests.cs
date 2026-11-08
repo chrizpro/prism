@@ -50,4 +50,45 @@ public class MoldTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => Call(api, "run_command", "{\"name\":\"mold\",\"slots\":{\"Mold block\":\"Block 1\",\"Part to cast\":\"Outside 1\"}}"));
         Assert.Equal(2, s.Objects.Count(o => o.Kind == ObjKind.Solid));
     }
+
+    [AvaloniaFact(DisplayName = "MOLD-H003 | Create Mold makes its own block, grows the cavity by shrinkage and offset, recolours the part and makes it see-through")]
+    [Trait("TestId", "MOLD-H003")]
+    public async Task AutoBlockShrinkageOffsetAndPartLook()
+    {
+        var vm = new MainViewModel();
+        var api = new AutomationApi(vm, null);
+        var s = vm.Session;
+        var part = s.AddObject(Occ.Translate(Occ.Box(20, 20, 20), new Vec3(0, 0, 10)), "Part", ObjKind.Solid);
+        await Call(api, "run_command", "{\"name\":\"mold\",\"slots\":{\"Part to cast\":\"Part 1\"},\"params\":{\"Block margin (when no block is picked)\":15.0,\"Shrinkage allowance\":2.0,\"Cavity offset (clearance)\":1.0,\"Explode distance\":30.0,\"Part opacity while exploded\":40.0}}");
+        var halves = s.Objects.Where(o => o.Kind == ObjKind.Solid && o.Id != part.Id).OrderBy(o => o.Mesh.Min.Z).ToList();
+        Assert.Equal(2, halves.Count);
+        double side = 20 + 2 * 1.2 + 2 * 15;   // part, the cavity's growth (offset 1 mm plus 2 percent shrinkage) and the margin on each side
+        double cavity = Occ.Mass(Occ.Offset(Occ.Scale(Occ.Translate(Occ.Box(20, 20, 20), new Vec3(0, 0, 10)), new Vec3(0, 0, 20), 1.02), 1)).Volume;
+        double total = Occ.Mass(halves[0].Shape).Volume + Occ.Mass(halves[1].Shape).Volume;
+        Assert.InRange(total, (side * side * side - cavity) * .99, (side * side * side - cavity) * 1.01);
+        var styled = s.Find(part.Id)!;
+        Assert.Equal(0xFFE8873Au, styled.Color);
+        Assert.InRange(styled.Look.Surface!.Transmission, .5, .6);   // 40 percent opaque
+        Assert.False(styled.IsReference);
+    }
+
+    [AvaloniaFact(DisplayName = "MOLD-H004 | A reference part is shown in the session but is not saved with the file")]
+    [Trait("TestId", "MOLD-H004")]
+    public void ReferencePartIsNotSaved()
+    {
+        var s = new Prism.Core.CadSession();
+        s.AddObject(Occ.Box(10, 10, 10), "Casing", ObjKind.Solid);
+        var part = s.AddObject(Occ.Translate(Occ.Box(4, 4, 4), new Vec3(0, 0, 3)), "Imported part", ObjKind.Solid);
+        s.Update(part.Id, x => x.WithReference(true), checkpoint: false);
+        string path = Path.Combine(Path.GetTempPath(), "prism-ref-" + Guid.NewGuid().ToString("N") + ".prism");
+        try
+        {
+            s.Save(path);
+            var reopened = new Prism.Core.CadSession(); reopened.Open(path);
+            Assert.Equal(2, s.Objects.Count);
+            Assert.StartsWith("Casing", Assert.Single(reopened.Objects).Name);
+            Assert.Throws<InvalidOperationException>(() => s.GenerateDrawingView(s.Drawings.Sheets.FirstOrDefault() ?? throw new InvalidOperationException("no sheet"), "front", [part.Id]));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

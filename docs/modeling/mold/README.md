@@ -15,6 +15,17 @@ The owner wanted the split to be user-defined:
 
 The part must lie completely inside the block, otherwise the tool says so and changes nothing. The first half replaces the block (it keeps the block's name) and the second becomes a new body named *… (upper half)*.
 
+## Options for making a real mold
+
+- **Shrinkage allowance** (% , 0 by default): the cavity is the part scaled up about its centre, so the moulded part comes out the right size after it shrinks.
+- **Cavity offset** (mm, 0 by default; negative shrinks): grows the cavity all round, for clearance or a tool offset.
+- **Block margin**: pick no block and Prism makes one around the part with this margin on every side; the halves are then both new bodies (*Mold (lower half)*, *Mold (upper half)*).
+- **Part opacity while exploded** (55% by default): once the mold exists the part changes colour (orange) and becomes see-through so it reads as the thing being cast.
+
+## Reference parts (not yet connected to import buttons)
+
+A body can be marked a **reference part**: it stays in the session, but is not saved with the file and cannot be a drawing source, so a saved mold opens (and imports into CAM) as the casing only. The marking exists and is tested (MOLD-H004). **Not done yet:** the *Import part from file* and *from open tab* buttons the owner asked for, which would import the part as a reference part.
+
 ## Not included yet
 
 Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, shrinkage allowance and more than two parts. The existing **Tooling** tab keeps draft and section analysis for checking the part. The mold is an illustration of the process, not a validated mold design.
