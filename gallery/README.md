@@ -2,7 +2,7 @@
 
 Curated native examples for the [startup gallery](../docs/interface/gallery/README.md), tracked by [#61](https://github.com/chrizpro/prism/issues/61). Models and preview images are hosted here and downloaded on demand; the app embeds only `catalog.json`.
 
-Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand and the cardboard box; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
+Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
 ## What is here
 
@@ -10,7 +10,7 @@ Models are grouped by the main Prism workflow they show; the catalog's **Workflo
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
-| Sheet Metal | Cardboard box (`cardboard-box`), Fold tablet stand (`fold-stand`) |
+| Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
 | Solid / Assembly | Meridian orrery (`meridian-orrery`) |
 | Solid | Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
 | Freeform / Solid | Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
@@ -29,6 +29,8 @@ Sheet-metal parts are plain silver and the cardboard box is brown corrugated boa
 The cache is content-addressed. A changed model never replaces an already opened working copy. Delete or replace an entry to curate the next collection; existing user copies remain intact.
 
 ## Reproduce the new studies
+
+`python gallery/build_lotus_dish.py --discovery <discovery.json>` builds the Lotus dish with the Fold tool ([#83](https://github.com/chrizpro/prism/issues/83)): a square base, four petals that rise 50° and curl back 30°, with trapezoid tips, a ring of holes and slots. The script computes the signed per-bend angles in Fold's bend order, and asserts that the folded volume matches its own flat pattern and that all 17 holes are in it. `--render-only` reopens the saved model; `--no-render` skips the render. Decorative only.
 
 `python gallery/build_cardboard_box.py --discovery <discovery.json>` builds the cardboard box with the Fold tool ([#82](https://github.com/chrizpro/prism/issues/82)): one plus-shaped die-line sketch (base, four walls, and on the back wall a hinged lid and a front lip, with handle slots in the short walls) and one construction line per bend, folded in a single step with **Fixed region** set to the region over the sketch origin. Fold also lays out the die line beside the box. The script asserts the box's size from the board thickness and dimensions; Fold itself refuses overlapping flanges. `--render-only` reopens the saved model; `--no-render` skips the render. A concept model, not a packaging design.
 

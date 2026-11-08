@@ -314,4 +314,18 @@ public class FoldTests
         SetChoice(elsewhere, "Fixed region", "The region over the sketch origin");
         AssertBuildFails(elsewhere, "origin is not on the sheet");
     }
+
+    [AvaloniaFact(DisplayName = "FLD-H014 | A bend line is infinite: drawing it far from the sheet folds the same part as drawing it across the sheet")]
+    [Trait("TestId", "FLD-H014")]
+    public void BendLineMayBeDrawnFarAway()
+    {
+        double length = 17 + 27 + Allowance, line = 17 + Allowance / 2;
+        var near = new CadSession();
+        var nearBody = Body(Fold(near, FlatSketch(near, Rectangle(length, 40), [((line, -5), (line, 45))])));
+        // the same line on x = 17 + allowance / 2, but with both of its points hundreds of millimetres from the sheet
+        var far = new CadSession();
+        var farBody = Body(Fold(far, FlatSketch(far, Rectangle(length, 40), [((line, -900), (line, -800))])));
+        AssertClose(nearBody.Props().Volume, farBody.Props().Volume, 1e-4, "Volume with a distant bend line (mm³)");
+        AssertClose(nearBody.Props().Size.X, farBody.Props().Size.X, 1e-4, "Width with a distant bend line (mm)");
+    }
 }

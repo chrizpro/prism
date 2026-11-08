@@ -28,6 +28,19 @@
       "Sha256": "6dead80d1a828bcd5183bdeaf4e00660a6236fbc938799b14c6cd2b5630de7e2"
     },
     {
+      "Id": "lotus-dish",
+      "Name": "Lotus dish",
+      "Description": "A silver dish folded from one flat sheet: four trapezoid petals that rise and curl back, with a ring of holes and slots.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/lotus-dish.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/lotus-dish.png?v=50fa5b6d9d12d629",
+      "Bytes": 172454,
+      "Sha256": "62ba040c8d2d1db2c4e864e437758c0d0637d1808e01ffd0baa69c2b4b2299d2"
+    },
+    {
       "Id": "fold-stand",
       "Name": "Fold tablet stand",
       "Description": "One bent sheet: a chamfered ledge, a leaning vented back rest and a hemmed top edge, shown with its flat pattern.",

@@ -9,6 +9,34 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I008 | The lotus dish is one valid solid whose volume matches its flat pattern, and the flat pattern keeps all 17 holes")]
+    [Trait("TestId", "GAL-I008")]
+    public async Task LotusDishMatchesItsFlatPattern()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I008", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/lotus-dish.prism") });
+        // 1.5 mm metal, 2 mm inside radius, K = 0.44, 70 mm wide bends: four of 50 degrees and four of 30 degrees
+        const double t = 1.5, r = 2, k = .44, width = 70;
+        double Zone(double degrees) => degrees * Math.PI / 180 * (r + k * t);
+        double Sector(double degrees) => degrees * Math.PI / 180 * t * (r + t / 2);
+        var dish = await mcp.Call("object_info", new { @object = "Lotus dish" });
+        var flat = await mcp.Call("object_info", new { @object = "Lotus dish flat pattern" });
+        Assert.True((bool?)dish["valid"]);
+        double expected = t * ((double)flat["area"]! - 4 * (Zone(50) + Zone(30)) * width) + 4 * width * (Sector(50) + Sector(30));
+        Assert.InRange((double)dish["volume"]!, expected * .999, expected * 1.001);
+        // one outline per face, plus the centre hole, eight ring holes, four petal slots and four tip holes
+        Assert.Equal((int)flat["faces"]! + 17, (int)flat["wires"]!);
+        foreach (var angle in new[] { ("front-quarter", -35, 32), ("top", 0, 89) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = angle.Item3, fit = true, grid = false, display = "shaded" });
+            await mcp.Capture("lotus-dish-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I007 | The cardboard box is one valid solid of the expected size, and its die line has both handle slots")]
     [Trait("TestId", "GAL-I007")]
     public async Task CardboardBoxFoldedFromDieLine()
