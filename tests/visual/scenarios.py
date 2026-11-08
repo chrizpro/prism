@@ -1783,3 +1783,125 @@ def ecad_matrix():
     cad.call("run_command", name="component_envelope", params={"Reference designator": "U1", "Center X": 10, "Center Y": 5})
     strip = ["Board and component envelope tools, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a board with a component envelope", render(-30, 35)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Surface building and editing: patch, edge surface, extend, rebuild, unstitch and knit, boundary fill, emboss, deform
+@scenario("surface__patch-edge-extend-rebuild-unstitch-knit-emboss-deform", columns=1)
+def surface_edit_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def sheet():
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        return new_object(before, ("Surface",))
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def nurbs():
+        before = names()
+        cad.call("run_command", name="nurbs_patch", params={"Width": 80, "Height": 60})
+        n = new_object(before, ("Surface",))
+        return abs(info(n)["size"][0] - 80) < .5 and abs(info(n)["size"][1] - 60) < .5, f"size {[round(v, 1) for v in info(n)['size']]}, area {info(n)['area']:.0f} (expect 80 x 60 across; the area is a bit over 4800 because the default patch has a gentle relief)"
+    case("NURBS patch 80 x 60", nurbs)
+
+    def unstitch_knit():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Cube")
+        cad.call("run_command", name="unstitch", slots={"Faces, or whole surfaces and bodies": ["Cube"]})
+        pieces = [o for o in cad.objects() if o.kind == "Surface"]
+        cad.call("run_command", name="knit", slots={"Surfaces": [o.name for o in pieces]}, params={"Make solid if closed": True})
+        solids = [o for o in cad.objects() if o.kind == "Solid"]
+        v = info(solids[0].name)["volume"] if solids else 0
+        return len(pieces) == 6 and abs(v - 24000) < 50, f"unstitched into {len(pieces)} faces, knitted back to a solid of {v:.0f} (expect 6 and 24000)"
+    case("Unstitch a block into 6 faces and knit them back", unstitch_knit)
+
+    def fill():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Cube")
+        cad.call("run_command", name="unstitch", slots={"Faces, or whole surfaces and bodies": ["Cube"]})
+        pieces = [o.name for o in cad.objects() if o.kind == "Surface"]
+        cad.call("run_command", name="boundary_fill", slots={"Surfaces, planes and bodies": pieces})
+        solids = [o for o in cad.objects() if o.kind == "Solid"]
+        v = max((info(o.name)["volume"] for o in solids), default=0)
+        return abs(v - 24000) < 50, f"enclosed space became a solid of {v:.0f} (expect 24000)"
+    case("Boundary fill turns six faces into a solid", fill)
+
+    def edge():
+        before = names()
+        curves = [line_curve((0, 0, 0), (30, 0, 0)), line_curve((30, 0, 0), (30, 20, 0)), line_curve((30, 20, 0), (0, 20, 0)), line_curve((0, 20, 0), (0, 0, 0))]
+        cad.call("run_command", name="edge_surface", slots={"Boundary curves (2 to 4)": curves})
+        n = new_object(before, ("Surface",))
+        return abs(info(n)["area"] - 600) < 12, f"area {info(n)['area']:.0f} (expect 600)"
+    case("Edge surface across four curves", edge)
+
+    def patch():
+        before = names()
+        cad.call("run_command", name="patch", slots={"Boundary: curves, sketches or edges": [ring(0, 10)]})
+        n = new_object(before, ("Surface",))
+        return abs(info(n)["area"] - math.pi * 100) < 8, f"area {info(n)['area']:.0f} (expect {math.pi * 100:.0f}: a flat disc)"
+    case("Patch fills a flat ring", patch)
+
+    def rebuild():
+        s = sheet()
+        before = names()
+        cad.call("run_command", name="rebuild_surface", slots={"Surface or face": [s]}, params={"Points in U": 6, "Points in V": 6, "Keep the original": True})
+        n = new_object(before, ("Surface",))
+        return n is not None and abs(info(n)["area"] - 600) < 15, f"rebuilt area {info(n)['area'] if n else 0:.0f} (expect 600)"
+    case("Rebuild a surface on a 6 x 6 grid", rebuild)
+
+    def reverse():
+        s = sheet()
+        cad.call("run_command", name="reverse_normal", slots={"Surfaces": [s]})
+        return info(s)["valid"], f"valid {info(s)['valid']}, area {info(s)['area']:.0f}"
+    case("Reverse the normal of a surface", reverse)
+
+    def extend():
+        s = sheet()
+        edges = cad.call("solid_find", object=s, kind="edges", limit=8)["hits"]
+        top = max(edges, key=lambda e: e.get("center", [0, 0, 0])[2])
+        before = {o.name: info(o.name)["area"] for o in cad.objects() if o.kind == "Surface"}
+        cad.call("run_command", name="extend_surface", slots={"Surface or face": [s], "Edge to extend": [{"object": s, "edge": top["edge"]}]}, params={"Extend by": 10})
+        areas = [info(o.name)["area"] for o in cad.objects() if o.kind == "Surface"]
+        return any(abs(a - 900) < 20 for a in areas), f"areas {[round(a) for a in areas]} (expect 900: 30 x 30 after extending the top edge by 10)"
+    case("Extend a surface by 10", extend)
+
+    def emboss(style, sign):
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Plate")
+        top = cad.call("solid_find", object="Plate", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+        cad.call("sketch_begin", plane={"object": "Plate", "face": top})
+        cad.call("sketch_add", entities=[{"type": "circle", "center": [0, 0], "radius": 5}])
+        s = cad.call("sketch_finish")["sketch"]
+        cad.call("run_command", name="emboss", slots={"Sketch (text or shape)": [s]}, params={"Style": style, "Height / depth": 2})
+        v = info("Plate")["volume"]
+        expect = 24000 + sign * math.pi * 25 * 2
+        return abs(v - expect) < 25, f"volume {v:.0f} (expect {expect:.0f})"
+    case("Emboss a 5 mm disc 2 mm high", lambda: emboss("Emboss (raised)", 1))
+    case("Engrave a 5 mm disc 2 mm deep", lambda: emboss("Engrave (cut in)", -1))
+
+    def draft():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Block")
+        r = cad.call("run_command", name="draft", params={"Pull direction": "Z (up)", "Minimum draft angle": 3}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        return bool(text), text[:120]
+    case("Draft analysis of a straight-walled block", draft)
+
+    def deform():
+        s = sheet()
+        before = names()
+        cad.call("run_command", name="deform", slots={"Curves or surfaces": [s]}, params={"Deform": "Bend", "Along axis": "Z", "Bend toward": "+X", "Angle": 45})
+        made = [o for o in cad.objects() if o.kind in ("Surface", "Curve") and o.name not in before]
+        i = info(made[0].name) if made else info(s)
+        return info(s)["valid"] and bool(made or i), f"{len(made)} new object(s), size {[round(v, 1) for v in i['size']]} (a flat 30 x 20 sheet bent 45 degrees about its height)"
+    case("Deform: bend a sheet 45 degrees", deform)
+    cad.call("document_new")
+    cad.call("run_command", name="nurbs_patch", params={"Width": 80, "Height": 60})
+    strip = ["Surface building and editing tools, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a NURBS patch", render(-30, 35)), ("checks", text_panel(strip))]
