@@ -452,6 +452,7 @@ def build():
         cad.call("command_set", params={"Position X": 0, "Position Y": 0, "Position Z": SUN_Z, "Power": 30000,
                                         "Colour temperature": 3200, "Lamp size (radius)": 12})
         cad.call("command_commit")
+    cad.call("select_tab", title="Assemble", command="drive_joints")   # the file reopens with Drive Joints open, ready to turn the knob
     return "meridian-orrery", -38, 20
 
 

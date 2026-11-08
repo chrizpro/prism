@@ -98,6 +98,7 @@ def build():
     for want in ("Possible gouges: 0 moves", "Rapid contacts: 0 sampled moves", "Holder contacts: 0 sampled moves"):
         assert want in text, text
     assert "Closed, manifold" in "\n".join(map(str, review("cnc_design_check", board.name)))
+    cad.call("select_tab", title="Subtractive", command="cam_playback")   # the file reopens on the CAM tab with Playback open
     return "serving-board", -30, 38
 
 

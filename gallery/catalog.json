@@ -11,8 +11,8 @@
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-orrery.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-orrery.png?v=56d5dc1880d963bf",
-      "Bytes": 6512993,
-      "Sha256": "04bfe2147478e3b665b55e1f507dab8952dca0636427a2b444f1a66adecf6eab",
+      "Bytes": 6514648,
+      "Sha256": "b7d63746be180b90e85da4dacd36e5aba52919f9e3da3656a5f7cc641b5535d1",
       "Extras": [
         {
           "Label": "animation video (MP4)",
@@ -66,8 +66,8 @@
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serving-board.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serving-board.png?v=5a42ddd12251845f",
-      "Bytes": 406099,
-      "Sha256": "8818e8c05f28eb611c03e4ae7914a525aa41326b3b5e55d5d9366fea462f9109"
+      "Bytes": 406135,
+      "Sha256": "a0523cc4a079663fff78e6c3bbd5b4eb24af0c95ae51255304ff7064fbdff07a"
     },
     {
       "Id": "fold-stand",
@@ -209,8 +209,8 @@
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8e68b29d7db15053",
-      "Bytes": 86417,
-      "Sha256": "6ed93b0fe8747fca82ac3f55b585505ea9745d1fad780ecd5c2614ae72f670ef"
+      "Bytes": 86436,
+      "Sha256": "514313158a77970462085b80ea4f9fbffa1bef58a3aff383289b589e852f527c"
     }
   ]
 }

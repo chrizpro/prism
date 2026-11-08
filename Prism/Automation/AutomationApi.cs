@@ -514,6 +514,13 @@ public sealed partial class AutomationApi
     } : null;
 
     // ================================================================= command helpers
+    /// <summary>A new instance of a command by its automation name, with its factory set, or null when the name is unknown.</summary>
+    public static Command? CreateCommand(string name)
+    {
+        if (!Registry.TryGetValue(name, out var make)) return null;
+        var cmd = make(); cmd.Factory = make; return cmd;
+    }
+
     static readonly Dictionary<string, Func<Command>> Registry = new(StringComparer.OrdinalIgnoreCase)
     {
         ["cae_select_study"] = () => new SelectStudyCommand(), ["cae_save_faces"] = () => new NamedFacesCommand(), ["cae_recall_faces"] = () => new RecallFacesCommand(), ["cae_saved"] = () => new SavedCaeCommand(), ["cae_convergence"] = () => new ConvergenceCommand(), ["cae_export"] = () => new ExportStudyCommand(),
@@ -848,13 +855,16 @@ public sealed partial class AutomationApi
             });
 
         Add("select_tab", "Switch the ribbon to a workspace tab by its title (for example Static, CAM, Solid). The document remembers it and reopens on that tab.",
-            Schema(["title"], ("title", "string", "Tab title, matched case-insensitively.")), a =>
+            Schema(["title"], ("title", "string", "Tab title, matched case-insensitively."), ("command", "string", "Optional command name (for example cam_playback or drive_joints) to leave open when the file is opened, so the user only presses its Play or Run button. Omit to clear.")), a =>
             {
                 var title = Str(a, "title");
                 var tab = _vm.Tabs.FirstOrDefault(t => !t.IsFile && !t.IsContextual && t.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
                     ?? throw new ArgumentException($"No tab '{title}'. Tabs: {string.Join(", ", _vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Select(t => t.Title))}");
+                var opening = a["command"]?.ToString();
+                if (opening != null && CreateCommand(opening) == null) throw new ArgumentException($"Unknown command '{opening}'." + CommandHint(opening));
                 _vm.SelectTab(tab);
-                return new JsonObject { ["tab"] = tab.Title };
+                S.OpeningCommand = opening;
+                return new JsonObject { ["tab"] = tab.Title, ["command"] = opening };
             });
 
         Add("command_set", "Change parameters and/or selection slots of the command currently open in the panel (live preview updates).",

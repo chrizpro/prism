@@ -52,6 +52,7 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         var title = Session.OpeningTab;
         if (title != null && Tabs.FirstOrDefault(t => t.Title == title && !t.IsFile && !t.IsContextual) is { } tab) { SelectTab(tab); Session.OpeningTab = title; }
+        if (Session.OpeningCommand is { } name && Session.ActiveCommand == null && Prism.Automation.AutomationApi.CreateCommand(name) is { } command) { var keep = Session.OpeningCommand; Session.StartCommand(command); Session.OpeningCommand = keep; }
     }
 
     public void SelectTab(RibbonTab tab) { SelectedTab = tab; RibbonCollapsed = false; }
