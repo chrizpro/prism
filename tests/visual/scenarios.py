@@ -273,3 +273,139 @@ def extrude_matrix():
             cad.call("object_update", object=o.name, visible=False)
     strip = ["Left to right: " + " | ".join(r[0] for r in rows)] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("iso, all variants", render(-25, 32, samples=None)), ("from the front: heights and the z = 0 base line", render(0, 2)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- revolve, loft and sweep matrices
+def curve(points, plane="XY", offset=0, closed=False):
+    """A curve object through points (Loft and Sweep take curves, not sketches). Give the points' real z: the Plane offset is ignored when points are supplied."""
+    before = names()
+    cad.call("run_command", name="curve_through", points=points, params={"Draw on plane": {"XY": "XY (ground)", "XZ": "XZ (front)", "YZ": "YZ (side)"}[plane], "Plane offset": offset, "Closed": closed})
+    return next(o for o in cad.objects() if o.name not in before and o.kind == "Curve").name
+
+
+def ring(z, r, n=16):
+    return curve([[r * math.cos(2 * math.pi * i / n), r * math.sin(2 * math.pi * i / n), z] for i in range(n)], "XY", 0, closed=True)
+
+
+class Matrix:
+    """Collects (label, detail, passed) rows for the text strip; each variant is built at the origin, checked, then moved to its own slot along X."""
+
+    def __init__(self, spacing=70):
+        self.rows, self.slot, self.spacing = [], 0, spacing
+
+    def check(self, label, fn):
+        try:
+            name, detail, ok = fn()
+        except Exception as error:
+            self.rows.append((label, str(error)[:120], False)); return
+        if name:
+            cad.move(cad.get(name), x=self.slot * self.spacing)
+        self.slot += 1
+        self.rows.append((label, detail, ok))
+
+    def strip(self):
+        return ["Left to right: " + " | ".join(r[0] for r in self.rows)[:140]] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in self.rows]
+
+
+def made_since(before):
+    return next((o.name for o in cad.objects() if o.kind == "Solid" and o.name not in before), None)
+
+
+@scenario("solid__revolve-every-extent-axis-and-operation", columns=1)
+def revolve_matrix():
+    cad.call("document_new")
+    m = Matrix()
+    ring_area = math.pi * (20 ** 2 - 10 ** 2)
+    full = ring_area * 30
+
+    def rect(x0, x1, z0, z1, plane="XZ"):
+        return sketch([{"type": "rect", "corner1": [x0, z0], "corner2": [x1, z1]}], plane=plane).name
+
+    def revolve(label, params, expect, profile=None, tol=.01):
+        def run():
+            before = names()
+            cad.call("run_command", name="revolve", slots={"Profile": profile or rect(10, 20, 0, 30)}, params={"Operation": "New body", **params})
+            n = made_since(before)
+            info = cad.call("object_info", object=n)
+            return n, f"volume {info['volume']:.0f} (expect {expect:.0f})", info["valid"] and abs(info["volume"] - expect) <= tol * expect
+        m.check(label, run)
+
+    revolve("Full 360", {"Extent": "Full 360°"}, full)
+    revolve("Angle 180", {"Extent": "Angle", "Angle": 180}, full / 2)
+    revolve("Angle 90, reversed", {"Extent": "Angle", "Angle": 90, "Reverse direction": True}, full / 4)
+    revolve("Two sides 90 + 45", {"Extent": "Two sides", "Angle": 90, "Angle 2 (other side)": 45}, full * 135 / 360)
+    revolve("Symmetric 120", {"Extent": "Symmetric", "Angle": 120}, full * 120 / 360)
+    revolve("About World X (profile becomes a disc)", {"Extent": "Full 360°", "Axis": "World X"}, math.pi * 30 ** 2 * 10)
+
+    def groove():
+        base = cad.cylinder(radius=25, height=30, operation="New body"); base.rename("Groove base")
+        cad.call("run_command", name="revolve", slots={"Profile": rect(20, 25, 10, 20)}, params={"Extent": "Full 360°", "Operation": "Cut"})
+        info = cad.call("object_info", object="Groove base")
+        expect = math.pi * 25 ** 2 * 30 - math.pi * (25 ** 2 - 20 ** 2) * 10
+        return "Groove base", f"volume {info['volume']:.0f} (expect {expect:.0f})", abs(info["volume"] - expect) < .01 * expect
+    m.check("Cut a groove from a cylinder", groove)
+
+    def boss():
+        base = cad.cylinder(radius=10, height=10, operation="New body"); base.rename("Boss base")
+        cad.call("run_command", name="revolve", slots={"Profile": rect(10, 15, 0, 10)}, params={"Extent": "Full 360°", "Operation": "Join"})
+        info = cad.call("object_info", object="Boss base")
+        expect = math.pi * 15 ** 2 * 10
+        return "Boss base", f"volume {info['volume']:.0f} (expect {expect:.0f})", abs(info["volume"] - expect) < .01 * expect
+    m.check("Join a ring onto a cylinder", boss)
+    for o in cad.objects():
+        if o.kind == "Sketch":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, all variants", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+@scenario("solid__loft-sections-ruled-and-bulge", columns=1)
+def loft_matrix():
+    cad.call("document_new")
+    m = Matrix()
+    cylinder = math.pi * 10 ** 2 * 30
+
+    def loft(label, radii, expect, ruled=False, tol=.04):
+        def run():
+            before = names()
+            sections = [ring(i * 30 / (len(radii) - 1), r) for i, r in enumerate(radii)]
+            cad.call("run_command", name="loft", slots={"Sections (in order)": sections}, params={"Straight (ruled) transitions": ruled})
+            n = made_since(before)
+            info = cad.call("object_info", object=n)
+            return n, f"volume {info['volume']:.0f} (expect about {expect:.0f}), height {info['size'][2]:.1f}", info["valid"] and abs(info["volume"] - expect) <= tol * expect and abs(info["size"][2] - 30) < .5
+        m.check(label, run)
+
+    loft("Two equal circles (cylinder)", [10, 10], cylinder)
+    loft("Taper 10 to 4 (cone frustum)", [10, 4], math.pi / 3 * 30 * (100 + 40 + 16))
+    loft("Three sections 6-12-6, ruled", [6, 12, 6], 2 * math.pi / 3 * 15 * (36 + 72 + 144), ruled=True)
+    # a smooth loft through radii 6, 12, 6 follows the parabola r(u) = 6 + 24 u (1 - u): volume = 30 pi * integral of r^2 = 30 pi * 103.2
+    loft("Three sections 6-12-6, smooth (parabolic bulge)", [6, 12, 6], 30 * math.pi * 103.2, tol=.02)
+    for o in cad.objects():
+        if o.kind == "Curve":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, all variants", render(-25, 30)), ("from the front", render(0, 5)), ("checks", text_panel(m.strip()))]
+
+
+@scenario("solid__sweep-straight-and-curved-path", columns=1)
+def sweep_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=90)
+    area = math.pi * 25
+
+    def sweep(label, path_points, length, plane="XY", tol=.03):
+        def run():
+            before = names()
+            profile = ring(0, 5)
+            path = curve(path_points, plane, 0)
+            cad.call("run_command", name="sweep", slots={"Profile": profile, "Path": path})
+            n = made_since(before)
+            info = cad.call("object_info", object=n)
+            return n, f"volume {info['volume']:.0f} (expect {area * length:.0f})", info["valid"] and abs(info["volume"] - area * length) <= tol * area * length
+        m.check(label, run)
+
+    sweep("Straight path 40", [[0, 0, 0], [0, 0, 20], [0, 0, 40]], 40)
+    quarter = [[30 * (1 - math.cos(t * math.pi / 2 / 8)), 0, 30 * math.sin(t * math.pi / 2 / 8)] for t in range(9)]
+    sweep("Quarter-circle path R30", quarter, 30 * math.pi / 2, tol=.05)
+    for o in cad.objects():
+        if o.kind == "Curve":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, both sweeps", render(-30, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
