@@ -38,6 +38,7 @@ public sealed partial class MainViewModel
         new("assemble", "Assemble", "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.", ["Home", "Assemble", "Joints", "Animate", "Analyze", "View"], "Assemble"),
         new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "Animate", "View"], "Render"),
         new("make", "CAM", "CNC machining and stock review, FDM preparation and resin cavity checks. Export to your preferred slicer.", ["Home", "Subtractive", "3D FDM", "3D Resin", "Analyze", "View"], "Subtractive"),
+        new("mold", "Mold", "Make a two-part mold from a block and the part inside it, split where you choose and shown exploded; check draft and sections with Tooling.", ["Home", "Solid", "Direct Modeling", "Mold", "Tooling", "Analyze", "View"], "Mold"),
         new("script", "Script", "Write Python that builds and changes models. The editor sits beside the model; everything a script makes is one undo step.", ["Home", "Script", "View"], "Script"),
         new("all", "All tabs", "Show every tab.", []),
     ];

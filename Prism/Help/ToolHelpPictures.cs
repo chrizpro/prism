@@ -137,6 +137,9 @@ public static partial class ToolHelp
                     var rib = K(Occ.Extrude(K(Occ.Profile([outline])), new(0, 3, 0)));
                     return new(Marked(bracket, K(Occ.Line(new(8, 0, 4.05), new(-14, 0, 22))), b), Plain(K(Occ.Fuse(bracket, rib)), a));
                 }
+                case "mold":
+                    return new(Marked(K(Occ.Box(36, 24, 16)), K(Mv(Occ.Box(12, 8, 6), 0, 0, 5)), b),
+                        Plain(K(Join([Mv(Occ.Box(36, 24, 7), 0, 0, -6), Mv(Occ.Box(36, 24, 7), 0, 0, 14)])), a));
                 case "splitbody":
                     return new(Marked(K(Occ.Box(30, 20, 14)), K(Mv(Occ.Box(0.3, 30, 22), 0, 0, -4)), b),
                         Plain(K(Join([Mv(Occ.Box(14, 20, 14), -8, 0, 0), Mv(Occ.Box(14, 20, 14), 8, 0, 0)])), a));

@@ -49,6 +49,8 @@ public static partial class ToolHelp
         Commands.TurnCommand => Find("cnc-turn"),
         Commands.DrillCommand => Find("cnc-drill"),
         Commands.FaceMillCommand => Find("cnc-face"),
+        Commands.ImageReliefCommand => Find("cnc-image"),
+        Commands.MoldCommand => Find("mold"),
         Commands.Rough3DCommand => Find("cnc-rough"),
         Commands.ParallelFinishCommand => Find("cnc-finish"),
         Commands.CncPostCommand => Find("cnc-post"),
