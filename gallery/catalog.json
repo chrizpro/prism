@@ -198,6 +198,19 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/transition-duct.png?v=5ba0a2af5b25781c",
       "Bytes": 1762530,
       "Sha256": "3e5a0ccdb34e35ac4e704d2a9b9e60a7f617413c59720f8ebeba277047ed727f"
+    },
+    {
+      "Id": "wrench",
+      "Name": "Open-end wrench",
+      "Description": "A flat steel 13 mm open-end wrench, modeled in Solid and checked with a static study: 200 N at the handle, safety factor 1.65, matched to beam theory.",
+      "Workflow": "CAE / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8601d21b683fd318",
+      "Bytes": 30266,
+      "Sha256": "ea772541a0182714570201ea49f5c83153387d333293e38a8ca1ae1f206724c8"
     }
   ]
 }
