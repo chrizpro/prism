@@ -2,6 +2,7 @@
 import json
 import math
 import tempfile
+import time
 from pathlib import Path
 
 from visual import cad, open_model, render, scenario, study, text_panel, toolpath_plot
@@ -854,3 +855,70 @@ def cam_3d_matrix():
     finish_variant("Turning a stepped, tapered shaft", turning, turning_check, plot=False)
     strip = ["Adaptive, 3D Rough, 3D Finish and Turning, read back from the posted G-code"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return cells + [("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- CAE: natural frequencies, conduction and fatigue against hand calculations
+@scenario("cae__modal-thermal-and-fatigue-against-theory", columns=1)
+def cae_other():
+    """The same 10 x 10 x 100 mm steel bar fixed at its base: cantilever frequencies, a conduction gradient and a fatigue verdict."""
+    rows = []
+
+    def bar():
+        cad.call("document_new")
+        b = cad.box(width=10, depth=10, height=100, operation="New body"); b.rename("Bar")
+        cad.call("material_apply", object="Bar", material="steel")
+        face = lambda facing: cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=facing)["hits"][0]["face"]
+        return face([0, 0, -1]), face([0, 0, 1])
+
+    def analysis(command, slots, params):
+        cad.call("run_command", name=command, slots=slots, params=params, commit=False)
+        cad.call("command_set", params={"Run analysis": True})
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline:
+            rows_ = cad.call("command_set", params={}).get("results", [])
+            text = " ".join(map(str, rows_))
+            if "Status: Complete" in text or "Status: Failed" in text:
+                break
+            time.sleep(2)
+        cad.call("command_cancel")
+        return rows_
+
+    try:
+        bottom, top = bar()
+        rows_ = analysis("cae_modal", {"Solid bodies": ["Bar"], "Fixed support faces": [{"object": "Bar", "face": bottom}]}, {"Number of modes": 4})
+        modes = [float(r.split(": ")[1].split()[0]) for r in rows_ if r.startswith("Mode ")]
+        E, rho, I, A, L = 200000.0, 7.85e-9, 10 * 10 ** 3 / 12, 100.0, 100.0
+        f1 = 1.875 ** 2 / (2 * math.pi) * math.sqrt(E * I / (rho * A * L ** 4))
+        ok = len(modes) == 4 and abs(modes[0] - f1) < .08 * f1 and abs(modes[1] - modes[0]) < .02 * modes[0] and modes == sorted(modes)
+        rows.append(("Natural frequencies, cantilever", f"modes {[round(m, 1) for m in modes]} Hz; first bending {f1:.1f} Hz by beam theory (a square bar has two equal first modes)", ok))
+    except Exception as error:
+        rows.append(("Natural frequencies, cantilever", str(error)[:120], False))
+
+    try:
+        bottom, top = bar()
+        rows_ = analysis("cae_thermal", {"Solid bodies": ["Bar"], "First temperature faces": [{"object": "Bar", "face": bottom}], "Second temperature faces": [{"object": "Bar", "face": top}]},
+                         {"Thermal analysis": "Steady conduction", "First temperature": 100, "Second temperature": 20})
+        temps = {r.split(": ")[0]: float(r.split(": ")[1].split()[0]) for r in rows_ if r.split(": ")[0].endswith("temperature")}
+        rows.append(("Steady conduction, 100 C to 20 C", f"minimum {temps.get('Minimum temperature')} C and maximum {temps.get('Maximum temperature')} C (expect exactly 20 and 100)", abs(temps.get("Minimum temperature", 0) - 20) < .5 and abs(temps.get("Maximum temperature", 0) - 100) < .5))
+    except Exception as error:
+        rows.append(("Steady conduction, 100 C to 20 C", str(error)[:120], False))
+
+    for force, low, high in ((1000.0, 8, 1e6), (6000.0, 1.0, 3.5)):
+        try:
+            bottom, top = bar()
+            cad.call("study_new", object="Bar", element_size=3.0)
+            cad.call("run_command", name="sim_fixed", slots={"Faces to support": [{"object": "Bar", "face": bottom}]})
+            cad.call("run_command", name="sim_force", slots={"Faces to load": [{"object": "Bar", "face": top}]}, params={"Force": force, "Direction": "+Z"})
+            cad.call("study_run")
+            cad.call("run_command", name="cae_fatigue", params={"Load ratio R (min / max)": -1, "Required life": 1000000, "Surface finish": "Machined"}, commit=False)
+            cad.call("command_set", params={"Show on model": True})
+            fat = cad.call("command_set", params={}).get("results", [])
+            cad.call("command_cancel")
+            sf = float(next(r for r in fat if r.startswith("Fatigue safety factor")).split(": ")[1].split()[0])
+            verdict = next((r for r in fat if r.startswith("Verdict")), "")
+            rows.append((f"Fatigue, fully reversed {force:.0f} N for 1e6 cycles", f"safety factor {sf:.2f} (expect between {low} and {high:g}); {verdict}", low < sf < high and (("Meets" in verdict) == (sf >= 1))))
+        except Exception as error:
+            rows.append((f"Fatigue, fully reversed {force:.0f} N for 1e6 cycles", str(error)[:120], False))
+    bar()
+    strip = ["Natural frequencies, conduction and fatigue, each against theory"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the bar (fixed base)", render(-30, 25)), ("checks", text_panel(strip))]
