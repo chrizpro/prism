@@ -640,3 +640,44 @@ def cae_loads():
     bar = cad.box(width=10, depth=10, height=100, operation="New body")
     strip = [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the bar (fixed base, loaded top)", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Mold: every option of Create Mold
+@scenario("mold__create-mold-every-option", columns=1)
+def mold_matrix():
+    rows = []
+    slot = [0]
+    cap_volume = math.pi * 18 ** 2 * 30
+    block_volume = 100 * 70 * 60
+
+    def variant(label, params, slots_extra=None, own_block=True, check=None):
+        i = slot[0]
+        slot[0] += 1
+        try:
+            if own_block:
+                blk = cad.box(width=100, depth=70, height=60, operation="New body"); blk.rename(f"Blk{i}")
+            cap = cad.cylinder(radius=18, height=30, operation="New body"); cap.rename(f"Cap{i}")
+            cad.move(cap, x=0, y=0, z=15)
+            before = names()
+            slots = {"Part to cast (solid, or a closed surface)": f"Cap{i}", **({"Mold block (optional: Prism makes one around the part)": f"Blk{i}"} if own_block else {})}
+            cad.call("run_command", name="mold", slots=slots, params=params)
+            halves = sorted([o for o in cad.objects() if o.kind == "Solid" and o.name not in before or (o.name == f"Blk{i}")], key=lambda o: (o.name))
+            halves = [h for h in halves if not h.name.startswith("Cap")]
+            infos = [cad.call("object_info", object=h.name) for h in halves]
+            ok, detail = check(infos)
+            for o in halves + [cad.get(f"Cap{i}")]:
+                cad.move(o, x=i * 130)
+            rows.append((label, detail, ok and len(halves) == 2 and all(x["valid"] for x in infos)))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    total = lambda infos: sum(x["volume"] for x in infos)
+    variant("Split 50 percent along Z", {"Parting direction": "Z", "Split at": 50, "Explode distance": 40}, check=lambda x: (abs(total(x) - (block_volume - cap_volume)) < 80, f"halves {total(x):.0f} (expect {block_volume - cap_volume:.0f})"))
+    variant("Shrinkage 2 percent", {"Shrinkage allowance": 2, "Explode distance": 40}, check=lambda x: (abs(total(x) - (block_volume - cap_volume * 1.02 ** 3)) < 120, f"halves {total(x):.0f} (expect {block_volume - cap_volume * 1.02 ** 3:.0f}: the cavity is 1.02 cubed larger)"))
+    variant("Cavity offset 1 mm", {"Cavity offset (clearance)": 1, "Explode distance": 40}, check=lambda x: (block_volume - total(x) > cap_volume * 1.08 and block_volume - total(x) < math.pi * 19 ** 2 * 32, f"cavity {block_volume - total(x):.0f} (between {cap_volume * 1.08:.0f} and {math.pi * 19 ** 2 * 32:.0f})"))
+    variant("Split 25 percent along Z", {"Split at": 25, "Explode distance": 40}, check=lambda x: (abs(min(i["volume"] for i in x) - 100 * 70 * 15 + 0) < 6000, f"smaller half {min(i['volume'] for i in x):.0f} (a quarter of the block is about 105000 minus the cavity)"))
+    variant("Split along X", {"Parting direction": "X (left and right halves)", "Explode distance": 40}, check=lambda x: (abs((max(i["min"][0] for i in x) - min(i["max"][0] for i in x)) - 40) < .5, f"gap along X {max(i['min'][0] for i in x) - min(i['max'][0] for i in x):.1f} (expect 40)"))
+    variant("Split along Y", {"Parting direction": "Y (front and back halves)", "Explode distance": 40}, check=lambda x: (abs((max(i["min"][1] for i in x) - min(i["max"][1] for i in x)) - 40) < .5, f"gap along Y {max(i['min'][1] for i in x) - min(i['max'][1] for i in x):.1f} (expect 40)"))
+    variant("No block picked, margin 10", {"Block margin (when no block is picked)": 10, "Explode distance": 40}, own_block=False, check=lambda x: (abs(total(x) - (56 * 56 * 50 - cap_volume)) < 150, f"halves {total(x):.0f} (expect {56 * 56 * 50 - cap_volume:.0f}: a 56 x 56 x 50 block)"))
+    strip = ["Left to right: " + " | ".join(r[0] for r in rows)[:140]] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("iso, every variant (part in the middle)", render(-25, 28)), ("from the front", render(0, 6)), ("checks", text_panel(strip))]
