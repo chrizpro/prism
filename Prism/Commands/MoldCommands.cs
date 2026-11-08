@@ -112,7 +112,14 @@ public sealed class MoldCommand : Command
         o.Add.Add(new NewObject(up.Count(SubKind.Solid) > 0 ? up.Sub(SubKind.Solid, 0) : up, baseName + " (upper half)", ObjKind.Solid));
         // the part gets its own colour and is shown see-through, so it reads as the thing being cast
         double clear = 1 - _opacity.Value / 100; Guid partId = part.Id;
-        o.After = session => session.Update(partId, x => x.WithColor(0xFFE8873A).WithLook(x.Look with { Surface = (x.Look.Surface ?? new SurfaceStyle()) with { Transmission = (float)(clear * .9), Ior = 1.05f, Override = true } }), checkpoint: false);
+        var blockColor = block?.Color; var blockLook = block?.Look; string upperName = baseName + " (upper half)";
+        o.After = session =>
+        {
+            // the new half looks like the block it was cut from
+            if (blockColor is { } bc && blockLook is { } bl && session.Objects.LastOrDefault(x => x.Name.StartsWith(upperName, StringComparison.Ordinal)) is { } half)
+                session.Update(half.Id, x => x.WithColor(bc).WithLook(bl), checkpoint: false);
+            session.Update(partId, x => x.WithColor(0xFFE8873A).WithLook(x.Look with { Surface = (x.Look.Surface ?? new SurfaceStyle()) with { Transmission = (float)(clear * .9), Ior = 1.05f, Override = true } }), checkpoint: false);
+        };
         Results.Add(new ResultLine("Parting at", $"{split:0.###} mm along {(a == 0 ? "Z" : a == 1 ? "X" : "Y")}"));
         Results.Add(new ResultLine("Cavity volume", $"{Occ.Mass(tool).Volume / 1000:0.###} cm³ (the part {partVolume / 1000:0.###} cm³" + (_shrink.Value > 0 || Math.Abs(_offset.Value) > 0 ? $", grown by {_shrink.Value:0.##}% and {_offset.Value:0.##} mm)" : ")")));
         Results.Add(new ResultLine("Halves apart by", $"{_gap.Value:0.#} mm"));
