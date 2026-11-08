@@ -847,6 +847,16 @@ public sealed partial class AutomationApi
                 return res;
             });
 
+        Add("select_tab", "Switch the ribbon to a workspace tab by its title (for example Static, CAM, Solid). The document remembers it and reopens on that tab.",
+            Schema(["title"], ("title", "string", "Tab title, matched case-insensitively.")), a =>
+            {
+                var title = Str(a, "title");
+                var tab = _vm.Tabs.FirstOrDefault(t => !t.IsFile && !t.IsContextual && t.Title.Equals(title, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new ArgumentException($"No tab '{title}'. Tabs: {string.Join(", ", _vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Select(t => t.Title))}");
+                _vm.SelectTab(tab);
+                return new JsonObject { ["tab"] = tab.Title };
+            });
+
         Add("command_set", "Change parameters and/or selection slots of the command currently open in the panel (live preview updates).",
             Schema(null, ("params", "object", "Parameter label -> value."), ("slots", "object", "Slot label -> selection.")), a =>
             {
