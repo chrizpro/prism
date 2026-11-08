@@ -12,7 +12,23 @@
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-orrery.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-orrery.png?v=56d5dc1880d963bf",
       "Bytes": 6512993,
-      "Sha256": "04bfe2147478e3b665b55e1f507dab8952dca0636427a2b444f1a66adecf6eab"
+      "Sha256": "04bfe2147478e3b665b55e1f507dab8952dca0636427a2b444f1a66adecf6eab",
+      "Extras": [
+        {
+          "Label": "animation video (MP4)",
+          "FileName": "meridian-orrery-animation.mp4",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/meridian-orrery-animation.mp4",
+          "Bytes": 563065,
+          "Sha256": "3348840b50ddd61c5c41d8326f2b2297f99a6139487254be09926f4e522e5687"
+        },
+        {
+          "Label": "exploded view (PNG)",
+          "FileName": "meridian-orrery-exploded.png",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/meridian-orrery-exploded.png",
+          "Bytes": 326205,
+          "Sha256": "a570f5b233a3158a86ae46c8a411cf9b8e75516d86232a64857bfc4f6d4334eb"
+        }
+      ]
     },
     {
       "Id": "cardboard-box",

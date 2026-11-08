@@ -105,6 +105,29 @@ public sealed class GalleryStoreTests : IDisposable
         Assert.Equal("NURBS", GallerySections.Of(" NURBS "));
     }
 
+    [Fact(DisplayName = "GAL-U008 | Extra files (video, exploded view) are verified, saved under new names and validated in the catalog")]
+    [Trait("TestId", "GAL-U008")]
+    public async Task ExtraFilesAreVerifiedAndNeverOverwritten()
+    {
+        byte[] video = "mp4 bytes"u8.ToArray();
+        var extra = new GalleryExtra("animation video (MP4)", "table-animation.mp4", "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/table-animation.mp4",
+            video.Length, Convert.ToHexString(SHA256.HashData(video)));
+        var entry = Entry with { Extras = [extra] };
+        var parsed = GalleryCatalog.Parse(new GalleryCatalog(1, [entry]).ToJson());
+        Assert.Equal(entry, Assert.Single(parsed.Items));
+        Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [Entry with { Extras = [extra with { FileName = "../evil.mp4" }] }]).ToJson()));
+        Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [Entry with { Extras = [extra with { Url = "http://example.com/a.mp4" }] }]).ToJson()));
+        using var transport = new Transport(_ => Reply(video));
+        var store = Store(transport);
+        string folder = Path.Combine(root, "out");
+        string first = await store.SaveExtra(extra, folder), second = await store.SaveExtra(extra, folder);
+        Assert.NotEqual(first, second);
+        Assert.Equal(video, await File.ReadAllBytesAsync(first));
+        using var bad = new Transport(_ => Reply("changed!!"u8.ToArray()));
+        await Assert.ThrowsAsync<InvalidDataException>(() => Store(bad).SaveExtra(extra, Path.Combine(root, "bad")));
+        Assert.Empty(Directory.Exists(Path.Combine(root, "bad")) ? Directory.GetFiles(Path.Combine(root, "bad")) : []);
+    }
+
     [Fact(DisplayName = "GAL-U006 | Offline preview cache remains readable; tampered model cache is rejected")]
     [Trait("TestId", "GAL-U006")]
     public async Task OfflinePreviewsAndModelCacheIntegrity()
