@@ -43,6 +43,10 @@ Two kinds of scenarios:
 
 Look at a sheet; when it is right, copy it into `tests/visual/approved/`. `--compare` then prints a mean pixel difference (0 to 255) between the new sheet and the approved one. Path-traced renders are noisy, so only large differences matter; a later test can assert a threshold. Only approved sheets belong in git (about 60 to 100 KB each, so a few MB for the whole set). Re-approve rarely: every change to a committed PNG adds its size to the history again.
 
+## How much is covered
+
+`python tests/visual/coverage.py` counts which registered commands the scripts touch (`--list` names the rest). Touching is weaker than testing every option: only the feature-matrix scenarios vary options.
+
 ## Limits
 
 Prism's renderer does not draw toolpaths, reference pictures, curves or analysis colours, and the window screenshot works only on Windows. So CAM scenarios plot the toolpath from the posted G-code, CAE scenarios print their numbers into the strip, and curves are checked numerically.
