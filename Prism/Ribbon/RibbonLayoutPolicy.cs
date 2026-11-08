@@ -27,7 +27,7 @@ public static class RibbonLayoutPolicy
         "Image", "Apply", "Library", "Orientation", "Navigate", "Layout", "Display",
         "Show", "Section", "Drawing", "Exchange", "Export", "Output", "Share", "Your own editor",
         // always the last three, then the way out
-        "Transform", "Inspect", "Appearance", "Close", "Exit",
+        "Transform", "Inspect", "Appearance", "Close", "Brainstorm", "Exit",
     });
 
     public static int Rank(string section)

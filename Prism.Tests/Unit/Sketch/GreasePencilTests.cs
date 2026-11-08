@@ -2,6 +2,7 @@ using System.Text.Json;
 using Prism.Core;
 using Prism.Core.Sketching;
 using Prism.Kernel;
+using Prism.Ribbon;
 using Xunit;
 
 namespace Prism.UnitTests.Sketch;
@@ -12,6 +13,47 @@ namespace Prism.UnitTests.Sketch;
 public class GreasePencilTests
 {
     static PointerInfo Pointer(double x, double y, bool left = true) => new(x, y, left, false, false, false);
+
+    [Fact(DisplayName = "SKT-GP006 | Eraser drag removes only touched marks and undoes as one gesture")]
+    [Trait("TestId", "SKT-GP006")]
+    public void EraserGestureHasOneUndoAndDoesNotEraseGeometry()
+    {
+        var s = new CadSession();
+        s.EnterSketch(Plane3.XY);
+        var sk = s.Sketch!;
+        var pencil = new GreasePencilTool();
+        sk.SetTool(s, pencil);
+        foreach (int x in new[] { 400, 500, 700 })
+        {
+            pencil.PointerDown(s, Pointer(x, 300));
+            pencil.PointerUp(s, Pointer(x, 340, false));
+        }
+        int point = sk.Model.AddPoint(10, 20);
+        var eraser = new GreaseEraserTool();
+        sk.SetTool(s, eraser);
+        s.PointerDown(Pointer(350, 320));
+        s.PointerMove(Pointer(550, 320)); // Swept brush crosses two strokes, even without intermediate events.
+        s.PointerUp(Pointer(550, 320, false));
+        Assert.Single(sk.Model.GreaseStrokes);
+        Assert.NotNull(sk.Model.PointOrNull(point));
+        Assert.True(sk.TryUndo(s));
+        Assert.Equal(3, sk.Model.GreaseStrokes.Count);
+        Assert.NotNull(sk.Model.PointOrNull(point));
+        s.SketchProjection(perspective: true);
+        Assert.False(eraser.PointerDown(s, Pointer(400, 320)));
+        Assert.Equal(3, sk.Model.GreaseStrokes.Count);
+    }
+
+    [Fact(DisplayName = "SKT-GP007 | Brainstorm sorts immediately before Exit in the sketch ribbon")]
+    [Trait("TestId", "SKT-GP007")]
+    public void BrainstormPrecedesExit()
+    {
+        var tab = new RibbonTab { Title = "Sketch" };
+        foreach (string name in new[] { "Exit", "Brainstorm", "Display", "Draw" })
+            tab.Groups.Add(new RibbonGroup { Title = name });
+        RibbonLayoutPolicy.Order(tab);
+        Assert.Equal(new[] { "Draw", "Display", "Brainstorm", "Exit" }, tab.Groups.Select(g => g.Title));
+    }
 
     [Theory(DisplayName = "SKT-GP005 | Each palette color survives preview, serialization, cloning and undo")]
     [InlineData("red", 0xFFEF4444u)]
