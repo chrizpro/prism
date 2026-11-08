@@ -2,7 +2,7 @@
 
 Curated native examples for the [startup gallery](../docs/interface/gallery/README.md), tracked by [#61](https://github.com/chrizpro/prism/issues/61). Models and preview images are hosted here and downloaded on demand; the app embeds only `catalog.json`.
 
-Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform and Surface/NURBS construction.
+Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens and the Meridian orrery; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS and Assembly construction.
 
 ## Updating the collection
 
@@ -14,6 +14,8 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 The cache is content-addressed. A changed model never replaces an already opened working copy. Delete or replace an entry to curate the next collection; existing user copies remain intact.
 
 ## Reproduce the new studies
+
+`python gallery/build_orrery.py --discovery <discovery.json>` builds Meridian ([#74](https://github.com/chrizpro/prism/issues/74)), a geared brass orrery and Prism's first gallery assembly. The movement is modeled: involute spur gears (one spline per tooth flank, phased so every mesh seats a tooth in a gap), six nested orbit tubes on a stepped fixed arbor, a blued-steel layshaft with an ebony winding knob, and a two-stage idler that drives Saturn from Jupiter's tube. Each moving part has a revolute joint and the gear couplings use the modeled tooth counts, so **Assemble › Drive Joints** on *Revolute 1* turns every planet at its gear ratio: Mercury 4, Venus 62/38, Earth 1, Mars 35/65, Jupiter 12/138 and Saturn 12/138 × 42/84 × 56/70 per layshaft turn. The Moon follows Earth's arm at 37:3. Planet maps and the zodiac enamel are procedural images from `orrery_textures.py` (Pillow and numpy), embedded in the model. A lamp inside the frosted-glass sun makes it glow in renders. `--render-only` reopens the saved model to iterate the preview; `--no-render` skips the render. The orrery is a display piece: the ratios are approximations (Mercury 0.250 vs 0.241 years, Saturn 28.75 vs 29.46 years), the couplings are ideal (no tooth contact or friction) and planet sizes and distances are not to scale. The script creates each new solid with the finished solids hidden, because the automatic New body/Cut check measures exact distances to every visible solid and takes minutes next to many-toothed wheels.
 
 `python gallery/build_racer.py --discovery <discovery.json>` builds Comet, the stylized open-wheel racer inspired by the owner's reference. It uses editable Freeform red bodywork and cockpit pieces, rounded solid tires/rims, blue wings, yellow endplates and native racing-number graphics. `--render-only` reopens the saved model to iterate its preview. This is a visual concept with intentionally simple chassis/axle connections and no functional vehicle engineering.
 

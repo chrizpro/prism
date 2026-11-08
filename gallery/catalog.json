@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "meridian-orrery",
+      "Name": "Meridian orrery",
+      "Description": "A geared brass orrery: turn the knob and six planets and the Moon orbit at their gear ratios around a glowing sun.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-orrery.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-orrery.png?v=56d5dc1880d963bf",
+      "Bytes": 6512993,
+      "Sha256": "04bfe2147478e3b665b55e1f507dab8952dca0636427a2b444f1a66adecf6eab"
+    },
+    {
       "Id": "comet-racer",
       "Name": "Comet number-one racer",
       "Description": "A playful open-wheel racecar with red bodywork, big slick tires and blue wings.",

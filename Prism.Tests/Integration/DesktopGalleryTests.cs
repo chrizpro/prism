@@ -9,6 +9,73 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I005 | Meridian winding knob drives every orbit at its modeled tooth ratio with clear meshes")]
+    [Trait("TestId", "GAL-I005")]
+    public async Task OrreryGearTrainRatiosAndMeshes()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I005", "Light");
+        await mcp.Initialize();
+        await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models/meridian-orrery.prism") });
+        // Layshaft turn -> planet turn, from the modeled tooth counts (Saturn through the 42:84 and 56:70 idler stages).
+        var ratios = new (string planet, double ratio)[]
+        {
+            ("Mercury", 80.0 / 20), ("Venus", 62.0 / 38), ("Earth", 1), ("Mars", 35.0 / 65),
+            ("Jupiter", 12.0 / 138), ("Saturn", 12.0 / 138 * 42 / 84 * 56 / 70),
+        };
+        async Task<Dictionary<string, double[]>> Centres()
+        {
+            var result = new Dictionary<string, double[]>();
+            foreach (string name in ratios.Select(r => r.planet).Append("Moon"))
+            {
+                var info = await mcp.Call("object_info", new { @object = name });
+                result[name] = info["center"]!.AsArray().Select(v => (double)v!).ToArray();
+            }
+            return result;
+        }
+        static double Turn(double[] from, double[] to, double[]? about = null)
+        {
+            about ??= [0, 0];
+            double a = Math.Atan2(from[1] - about[1], from[0] - about[0]), b = Math.Atan2(to[1] - about[1], to[0] - about[0]);
+            return Math.IEEERemainder((b - a) * 180 / Math.PI, 360);
+        }
+        var before = await Centres();
+        foreach (var centre in before.Values) Assert.InRange(centre[2], before["Earth"][2] - .001, before["Earth"][2] + .001);
+        var drive = await mcp.Call("run_command", new { name = "drive_joints", commit = false });
+        string knob = (string)drive["activeCommand"]!["params"]![0]!["label"]!;
+        Assert.StartsWith("Revolute 1 ", knob);
+        await mcp.Call("command_set", new { @params = new Dictionary<string, object> { [knob] = 36 } });
+        await mcp.Call("command_commit");
+        var after = await Centres();
+        foreach (var (planet, ratio) in ratios)
+            Assert.InRange(Turn(before[planet], after[planet]), -36 * ratio - .01, -36 * ratio + .01);
+        // The Moon carrier follows Earth's orbit joint at 37:3, so it turns 13 1/3 times Earth's turn (480 deg = -120 deg mod 360).
+        double moon = Turn(new[] { before["Moon"][0] - before["Earth"][0], before["Moon"][1] - before["Earth"][1] },
+                           new[] { after["Moon"][0] - after["Earth"][0], after["Moon"][1] - after["Earth"][1] });
+        Assert.InRange(Math.IEEERemainder(moon - -36 * (1 + 37.0 / 3), 360), -.01, .01);
+        await mcp.Call("history", new { action = "undo" });
+
+        foreach (var group in new[]
+                 {
+                     new[] { "Layshaft", "Mercury carrier", "Venus carrier", "Earth carrier", "Mars carrier", "Jupiter carrier" },
+                     new[] { "Saturn idler", "Jupiter carrier", "Saturn carrier" },
+                 })
+        {
+            var check = await mcp.Call("run_command", new { name = "interference", commit = false,
+                                                            slots = new Dictionary<string, object> { ["Bodies to check (none = all solids)"] = group } });
+            string result = check["activeCommand"]!["results"]!.ToJsonString();
+            await mcp.Call("command_cancel");
+            Assert.Contains("No interference", result);
+        }
+        foreach (var angle in new[] { ("front-quarter", -38, 20), ("side", 0, 8), ("top", -38, 89) })
+        {
+            await mcp.Call("view", new { yaw = angle.Item2, pitch = angle.Item3, fit = true, grid = false, display = "shaded" });
+            await mcp.Capture("orrery-" + angle.Item1);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I004 | Comet wheels are symmetric and grounded with clear front and rear wings")]
     [Trait("TestId", "GAL-I004")]
     public async Task RacerLayoutAndWingClearances()
