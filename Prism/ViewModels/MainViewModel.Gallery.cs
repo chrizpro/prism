@@ -173,6 +173,7 @@ public sealed partial class MainViewModel
             document.Open(path);
             AddRecent(path);
             CloseHome();
+            ShowOpeningTab();
             card.ActionLabel = "Open a copy";
             GalleryStatus = "Opened an editable copy of " + card.Name + ".";
         }

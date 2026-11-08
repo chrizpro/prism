@@ -44,7 +44,14 @@ public sealed partial class MainViewModel : ViewModelBase
     partial void OnSelectedTabChanged(RibbonTab? oldValue, RibbonTab? newValue)
     {
         if (oldValue != null) oldValue.IsSelected = false;
-        if (newValue != null) { newValue.IsSelected = true; if (!newValue.IsFile && !newValue.IsContextual) _lastNormalTab = newValue; }
+        if (newValue != null) { newValue.IsSelected = true; if (!newValue.IsFile && !newValue.IsContextual) _lastNormalTab = newValue; Session.OpeningTab = newValue.Title; }
+    }
+
+    /// <summary>After a file opens, go to the tab it was saved on, so a ready-made study, CAM plan or animation is in front of the user.</summary>
+    public void ShowOpeningTab()
+    {
+        var title = Session.OpeningTab;
+        if (title != null && Tabs.FirstOrDefault(t => t.Title == title && !t.IsFile && !t.IsContextual) is { } tab) { SelectTab(tab); Session.OpeningTab = title; }
     }
 
     public void SelectTab(RibbonTab tab) { SelectedTab = tab; RibbonCollapsed = false; }

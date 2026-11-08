@@ -146,5 +146,6 @@ public sealed partial class MainViewModel
         });
         AddRecent(path);
         CloseHome();
+        ShowOpeningTab();
     }
 }

@@ -88,6 +88,27 @@ public class GalleryViewTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H004 | A saved file reopens on the ribbon tab it was last worked in")]
+    [Trait("TestId", "GAL-H004")]
+    public void FileReopensOnItsSavedTab()
+    {
+        var vm = new MainViewModel();
+        var tabs = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).ToList();
+        var work = tabs[^1];
+        string path = Path.Combine(Path.GetTempPath(), "prism-tab-" + Guid.NewGuid().ToString("N") + ".prism");
+        try
+        {
+            vm.SelectTab(work);
+            vm.Session.AddObject(Occ.Box(10, 20, 30), "Part", ObjKind.Solid);
+            vm.Session.Save(path);
+            vm.SelectTab(tabs[0]);
+            vm.OpenPath(path);
+            Assert.Equal(work.Title, vm.SelectedTab?.Title);
+            Assert.Equal(work.Title, vm.Session.OpeningTab);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H002 | Failed model download leaves the current work and startup screen intact")]
     [Trait("TestId", "GAL-H002")]
     public async Task FailedDownloadDoesNotReplaceUserDocument()
