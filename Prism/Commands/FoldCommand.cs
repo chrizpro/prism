@@ -132,6 +132,10 @@ public sealed class FoldCommand : Command
         if (prof.Count(SubKind.Face) != 1) throw new InvalidOperationException("Draw one closed outline for the sheet. Holes and slots inside it are fine.");
         var plate = Occ.Extrude(Occ.Translate(prof.Sub(SubKind.Face, 0), n * z0), n * t);
         var box = plate.Props(); double reach = (box.Max - box.Min).Length + 10;
+        // A bend line is infinite, but its two drawn points can be anywhere. Take the reference point of each bend on the line nearest the middle of the sheet,
+        // so a strip of this reach always spans the whole sheet however far away the line was drawn.
+        var middle = (box.Min + box.Max) * 0.5;
+        bends = bends.Select(b => b with { P = b.P + b.D * Vec3.Dot(middle - b.P, b.D) }).ToList();
 
         // each bend zone is a strip across the plate; the rest of the plate falls into flat regions
         var strips = bends.Select(b =>
