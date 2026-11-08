@@ -1274,3 +1274,58 @@ def transform_matrix():
     variant("Circular pattern, 6 about Z", lambda y: (lambda n: (run("pattern_circular", {"Objects": [n]}, {"Axis": "Z axis", "Axis passes through": "World origin", "Count": 6}), n)[1])(pin(0 + rows_done[0] * 0)), lambda ns: (len(ns) == 6 and abs(max(info(n)["max"][0] for n in ns) - min(info(n)["min"][0] for n in ns) - 46) < .5, f"{len(ns)} bodies over {max(info(n)['max'][0] for n in ns) - min(info(n)['min'][0] for n in ns):.1f} mm across (expect 6 around a 20 mm radius: 46)"))
     variant("Table pattern, 3 positions", lambda y: (lambda n: (run("pattern_table", {"Objects to pattern": [n]}, {"Rows are": "Offsets from the original", "Positions": "10, 0, 0\n20, 0, 0\n30, 0, 5"}), n)[1])(pin(y)), lambda ns: (len(ns) == 4, f"{len(ns)} bodies (expect the original and 3 copies)"))
     return [("iso, results of each", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+# ---------------------------------------------------------------- Curve tools
+@scenario("curve__divide-trim-split-extend-join-offset-fillet-and-more", columns=1)
+def curve_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=0)
+
+    def curves(before):
+        return [o.name for o in cad.objects() if o.kind == "Curve" and o.name not in before]
+
+    def size(n):
+        return cad.call("object_info", object=n)["size"]
+
+    def rect(y0, w=30, h=20):
+        cad.call("sketch_begin", plane="XY")
+        cad.call("sketch_add", entities=[{"type": "rect", "corner1": [0, y0], "corner2": [w, y0 + h]}])
+        return cad.call("sketch_finish")["sketch"]
+
+    row = [0]
+
+    def variant(label, build, check):
+        y0 = row[0] * 40
+        row[0] += 1
+        try:
+            before = names()
+            result = build(y0)
+            made = curves(before)
+            ok, detail = check(result, made)
+            m.rows.append((label, detail, ok))
+        except Exception as error:
+            m.rows.append((label, str(error)[:120], False))
+
+    seg = lambda y: line_curve((0, y, 0), (40, y, 0))
+    run = lambda command, slots, params=None: cad.call("run_command", name=command, slots=slots, params=params or {})
+    variant("Divide a 40 mm line into 4", lambda y: (lambda c: run("curve_divide", {"Curve": [c]}, {"Segments": 4}))(seg(y)), lambda r, made: (len(made) >= 1 and abs(size(made[0])[0] - 40) < .5, f"{len(made)} object made, spanning {size(made[0])[0] if made else 0:.1f} mm (Points Along Curve makes the 4+1 division points along the 40 mm line)"))
+    variant("Trim a line to 25-75 percent", lambda y: (lambda c: run("curve_trim", {"Curve (a single segment)": [c]}, {"Keep from (%)": 25, "Keep to (%)": 75, "Keep the original": True}))(seg(y)), lambda r, made: (any(abs(size(n)[0] - 20) < .5 for n in made), f"new piece lengths {[round(size(n)[0], 1) for n in made]} (expect 20)"))
+    variant("Split a line at 50 percent", lambda y: (lambda c: run("curve_split", {"Curve (a single segment)": [c]}, {"Split at (% , separated)": "50", "Keep the original": True}))(seg(y)), lambda r, made: (sum(1 for n in made if abs(size(n)[0] - 20) < .5) >= 2, f"piece lengths {[round(size(n)[0], 1) for n in made]} (expect two of 20)"))
+    variant("Extend a line by 10", lambda y: (lambda c: run("curve_extend", {"Curve (a single segment)": [c]}, {"Length": 10, "Keep the original": True}))(seg(y)), lambda r, made: (any(abs(size(n)[0] - 50) < 1 for n in made), f"lengths {[round(size(n)[0], 1) for n in made]} (expect one of 50)"))
+    variant("Join two end-to-end lines", lambda y: (lambda a, b: run("curve_join", {"Curves to join": [a, b]}, {"Keep the originals": True}))(line_curve((0, y, 0), (20, y, 0)), line_curve((20, y, 0), (45, y, 0))), lambda r, made: (any(abs(size(n)[0] - 45) < 1 for n in made), f"lengths {[round(size(n)[0], 1) for n in made]} (expect one of 45)"))
+    variant("Offset a rectangle outward by 5", lambda y: run("curve_offset", {"Flat curve or sketch": [rect(y)]}, {"Offset distance": 5}), lambda r, made: (any(abs(size(n)[0] - 40) < 1 or abs(size(n)[0] - 20) < 1 for n in made) and bool(made), f"outlines {[[round(v, 1) for v in size(n)[:2]] for n in made]} (expect 40 x 30 outward or 20 x 10 inward)"))
+    variant("Fillet the corners of a rectangle R4", lambda y: run("curve_fillet", {"Flat curve or sketch": [rect(y)]}, {"Fillet radius": 4, "Keep the original curve": True}), lambda r, made: (any(abs(size(n)[0] - 30) < .5 and abs(size(n)[1] - 20) < .5 for n in made), f"outlines {[[round(v, 1) for v in size(n)[:2]] for n in made]} (the size is unchanged: only the corners round)"))
+    variant("Chamfer the corners of a rectangle 4", lambda y: run("curve_chamfer", {"Flat curve or sketch": [rect(y)]}, {"Chamfer distance": 4, "Keep the original curve": True}), lambda r, made: (any(abs(size(n)[0] - 30) < .5 for n in made), f"outlines {[[round(v, 1) for v in size(n)[:2]] for n in made]}"))
+    variant("Explode a rectangle into its sides", lambda y: run("curve_explode", {"Curve or sketch": [rect(y)]}, {"Keep the original": True}), lambda r, made: (len(made) >= 4, f"{len(made)} curves (expect 4 sides)"))
+    variant("Rebuild a curve with 8 points", lambda y: (lambda c: run("curve_rebuild", {"Curve": [c]}, {"Points": 8, "Keep the original": True}))(seg(y)), lambda r, made: (len(made) >= 1, f"{len(made)} new curve(s)"))
+    variant("Curve from an equation: circle radius 10 (angles in radians)", lambda y: run("curve_equation", {}, {"Points from": "Equation", "Coordinates": 0, "x  |  r  |  ρ": "10*cos(t)", "y  |  θ  |  θ": "10*sin(t)", "z  |  z  |  φ": "0", "t from": 0, "t to": 6.2831853, "Angles in": "Radians"}), lambda r, made: (any(abs(size(n)[0] - 20) < .6 and abs(size(n)[1] - 20) < .6 for n in made), f"outlines {[[round(v, 1) for v in size(n)[:2]] for n in made]} (expect 20 x 20)"))
+
+    def contour(y):
+        b = cad.box(width=30, depth=20, height=20, operation="New body"); b.rename("Contoured")
+        run("curve_contour", {"Body or surface": [b.name]}, {"Slice along": "Z", "Spacing": 5})
+    variant("Contour curves of a 20 mm block every 5 mm", contour, lambda r, made: (len(made) >= 3, f"{len(made)} section curves (expect 3 inside the block at 5, 10 and 15 mm; the faces at 0 and 20 are not cut)"))
+    for o in cad.objects():
+        if o.kind == "Sketch":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso", render(-20, 40)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
