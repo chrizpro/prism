@@ -6,7 +6,7 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 
 ## What is here
 
-Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, CAM, CAE, ECAD. A model's section is the **first** workflow in its Workflow field, so name the main one first (`CAM / Solid` belongs under CAM, `Solid / Assembly` under Solid); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
+Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, CAM, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
