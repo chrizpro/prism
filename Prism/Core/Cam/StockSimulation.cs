@@ -57,7 +57,7 @@ public static class StockSimulation
                         if(d2<=holderDiameter*holderDiameter/4 && stock[i]>tip.Z+fluteLength+tolerance)holderHit=true;
                         if(d2>radius*radius)continue;
                         double bottom=tip.Z+(ball?radius-Math.Sqrt(Math.Max(0,radius*radius-d2)):0);
-                        if(!cutting){if(stock[i]>bottom+tolerance)rapidHit=true;continue;}
+                        if(!cutting){if(stock[i]>lo.Z+tolerance&&stock[i]>bottom+tolerance)rapidHit=true;continue;} // a cell at the stock floor holds no material, so leaving a hole that went into the spoilboard is not a collision
                         if(model[i]>lo.Z+tolerance&&bottom<model[i]-tolerance)gougeHit=true;
                         stock[i]=Math.Max(lo.Z,Math.Min(stock[i],bottom));
                     }

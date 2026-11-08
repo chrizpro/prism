@@ -35,7 +35,7 @@ For end users, **Settings → AI Assistant → MCP** generates the same configur
 | `screenshot` | PNG of the whole window (ribbon, panels, viewport) |
 | `list_ribbon`, `ribbon_click` | Click any ribbon button by label (optionally `tab`) |
 | `run_command` | Start + fill + commit any modeling command (box … loft, fillet, booleans, transforms, surfaces, nurbs_patch, curves) |
-| `command_set`, `command_commit`, `command_cancel` | Work with a command left open for preview |
+| `command_set`, `command_commit`, `command_cancel` | Work with a command left open for preview. A parameter that is a button (for example `"Run checks": true`, `"Save G-code": true`) is pressed after the other values are applied and the preview has refreshed |
 | `solid_find` | Find faces or edges of a solid by geometry rather than by index: `type` (Plane, Cylinder, Line, Circle…), `facing`+`angle`, `direction`+`angle`, `radius`, `box`, `near`+`distance`, `of_face` (edges bounding a face), `min_size`/`max_size`, `sort` (`size`, `x`, `y`, `z`, prefix `-` for descending), `limit`. `select:true` selects the hits; `summary:true` returns only counts per type. Hits are 1-based and can be used directly in `run_command` slots. |
 | `solid_check` | With `object` alone, check validity, volume, area, bounds, centre of mass and topology. With `a` and `b`, measure minimum distance and closest points between objects, faces or edges. Use `object` as a shorthand for the first body when only `b` is given. Whole solid pairs can also report overlap volume. |
 | `sketch_begin`, `sketch_add`, `sketch_finish` | Programmatic sketching (line, polyline, rect, circle, arc, spline) on XY/XZ/YZ or a planar face |
