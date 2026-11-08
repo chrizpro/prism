@@ -10,7 +10,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
-| CAE / Solid | Open-end wrench (`wrench`) |
+| CAE / Solid | Combination wrench (`wrench`) |
 | CAM / Solid | Maple serving board (`serving-board`) |
 | Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
 | Solid / Assembly | Meridian orrery (`meridian-orrery`) |
@@ -36,7 +36,7 @@ The cache is content-addressed. A changed model never replaces an already opened
 
 ## Reproduce the new studies
 
-`python gallery/build_wrench.py --discovery <discovery.json>` builds the open-end wrench and runs a static study on it ([#85](https://github.com/chrizpro/prism/issues/85)): a 6 mm steel flat wrench for 13 mm nuts, jaw flats fixed, 200 N sideways at the handle end, 10-node tetrahedra at 2 mm. It checks the result against beam theory (tip deflection and root stress of the handle as a cantilever), repeats the solve at 3 mm to show convergence, and requires a safety factor above 1. The saved model holds the body only; study results are not stored in the file, so rerun the script or Prism's Static Study to see them. `--render-only` reopens the saved model. An illustration, not a certified tool design.
+`python gallery/build_wrench.py --discovery <discovery.json>` builds the combination wrench and sets up its static studies ([#85](https://github.com/chrizpro/prism/issues/85)): an 8 mm plate with an angled 13 mm open end, a tapered handle and a hex box end, rounded corners, chrome-vanadium appearance. Three load cases are saved in the file (300 N through the open end, 300 N through the box end, 900 N cheater-pipe overload) with the open-end case active, and the file reopens on the **Static** tab, so the user only presses Run. The script solves them, checks the load balance, that the torque cases stay elastic and the overload yields, and that tripling the force triples displacement. More analyses (modal, thermal, fatigue, topology, a hammer blow, self weight) are planned for this part. Study results are not stored in the file. `--render-only` reopens the saved model. An illustration, not a certified tool design.
 
 `python gallery/build_serving_board.py --discovery <discovery.json>` builds the maple serving board and its CNC plan ([#84](https://github.com/chrizpro/prism/issues/84)): a Solid body (R25 corners, a 4 mm juice well, a hand slot) and a saved CAM setup with four operations on a 6 mm wood end mill: face, pocket the well, pocket the slot through, and a tabbed profile. It asserts the volume, then runs Stock review and the design check and requires no gouges, rapid contacts or holder contacts. Building it exposed the three CAM bugs fixed beside it. `--render-only` reopens the saved model; `--no-render` skips the render. Decorative only: feeds and speeds are placeholders, so prove out any program on scrap.
 

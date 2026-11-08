@@ -201,16 +201,16 @@
     },
     {
       "Id": "wrench",
-      "Name": "Open-end wrench",
-      "Description": "A flat steel 13 mm open-end wrench, modeled in Solid and checked with a static study: 200 N at the handle, safety factor 1.65, matched to beam theory.",
+      "Name": "Combination wrench",
+      "Description": "A 13 mm chrome-vanadium combination wrench, angled open end and hex box end. Opens on the Static tab with load cases ready: torque, overload and more.",
       "Workflow": "CAE / Solid",
       "Author": "Prism / Claude",
       "License": "MIT",
       "MinimumVersion": "0.1.0",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8601d21b683fd318",
-      "Bytes": 30266,
-      "Sha256": "ea772541a0182714570201ea49f5c83153387d333293e38a8ca1ae1f206724c8"
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8e68b29d7db15053",
+      "Bytes": 84076,
+      "Sha256": "3341c30f1367d18ddc10d08c38c5042b58b3343abd56c93957f12357aa562dde"
     }
   ]
 }

@@ -109,6 +109,20 @@ public class GalleryViewTests
         finally { if (File.Exists(path)) File.Delete(path); }
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H005 | The select_tab tool switches the ribbon tab and the document remembers it")]
+    [Trait("TestId", "GAL-H005")]
+    public async Task SelectTabToolSetsTheOpeningTab()
+    {
+        var vm = new MainViewModel();
+        var api = new Prism.Automation.AutomationApi(vm, null);
+        var target = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Last();
+        var result = await api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + target.Title.ToLowerInvariant() + "\"}")!);
+        Assert.Equal(target.Title, (string?)result!["tab"]);
+        Assert.Same(target, vm.SelectedTab);
+        Assert.Equal(target.Title, vm.Session.OpeningTab);
+        await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"nope\"}")!));
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H002 | Failed model download leaves the current work and startup screen intact")]
     [Trait("TestId", "GAL-H002")]
     public async Task FailedDownloadDoesNotReplaceUserDocument()
