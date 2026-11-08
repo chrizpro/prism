@@ -596,7 +596,9 @@ public sealed partial class AutomationApi
                 case ChoiceParam ch:
                     int idx = val is JsonValue jv && jv.TryGetValue<double>(out var d) ? (int)d : ch.Options.ToList().FindIndex(o => o.Contains(val.ToString(), StringComparison.OrdinalIgnoreCase));
                     if (idx < 0 || idx >= ch.Options.Count) throw new ArgumentException($"'{val}' is not an option of '{key}'. Options: {string.Join(", ", ch.Options)}");
-                    ch.Index = idx; break;
+                    // choosing the value that is already selected is still a choice: a command that guesses a value (Extrude's automatic operation) must not override it later
+                    if (ch.Index == idx) ch.Changed?.Invoke(); else ch.Index = idx;
+                    break;
                 case ActionParam a: if (!(val is JsonValue av && av.TryGetValue<bool>(out var on) && !on)) actions.Add(a); break;
             }
         }
