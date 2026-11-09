@@ -1,5 +1,7 @@
 # Freeform tab
 
+The public [Freeform walkthrough](../../../site/guide/freeform.md) includes actual app captures of the control cage, vertex selection with soft influence and the quality markers. [Image provenance and documentation verification](../../../site/README.md#guide-images) record their source and limits. These are workflow illustrations, not additional feature-test executions.
+
 The most common tools have their own buttons. The next most common sit in a dropdown or a small group. **Edit Freeform** holds the rest, so nothing appears in both places.
 
 Living Revolve requirements are maintained in the [Freeform Revolve section](../revolve/README.md#freeform-revolve); this cage command is separate from exact Solid, Surface and NURBS Revolve.

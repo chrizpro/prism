@@ -42,15 +42,36 @@ public sealed class ContourFlangeCommand : Command
 
     protected override void UpdateVisibility() { }
 
-    public override HandleSpec? Handle
+    public override IReadOnlyList<HandleSpec> Handles
     {
         get
         {
-            if (_profile.Items.Count == 0 || _sym.Value) return null;
-            var o = S.Find(_profile.Items[0].Obj); if (o?.SketchPlane is not { } pl) return null;
-            return new HandleSpec(pl.Origin, pl.Normal * (_flip.Value ? -1 : 1), _w);
+            if (_profile.Items.Count == 0) return [];
+            var o = S.Find(_profile.Items[0].Obj); if (o?.SketchPlane is not { } pl || o.SketchData is not { } model) return [];
+            var list = new List<HandleSpec>();
+            if (!_sym.Value) list.Add(new(pl.Origin, pl.Normal * (_flip.Value ? -1 : 1), _w));
+            try
+            {
+                var P = ChainOf(model).Select(q => pl.PointAt(q.u, q.v)).ToList();
+                if (P.Count >= 2)
+                {
+                    var nrm = pl.Normal.Normalized();
+                    double s = _side.Index == 0 ? 1 : -1;
+                    var d0 = (P[1] - P[0]).Normalized();
+                    list.Add(new(P[0], Vec3.Cross(nrm, d0).Normalized() * s, _t));                 // thickness: sideways off the first leg
+                    if (P.Count >= 3)
+                    {
+                        var d1 = (P[2] - P[1]).Normalized();
+                        var bis = (d1 - d0).Normalized();                                          // toward the bend centre side
+                        if (bis.Length > 0.5) list.Add(new(P[1], bis * s, _r));
+                    }
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+            return list;
         }
     }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     static List<(double u, double v)> ChainOf(SketchModel m)
     {
@@ -179,6 +200,23 @@ public sealed class FlatPatternCommand : Command
         public Vec3 Dir; public List<int> Next = [];
     }
 
+    /// <summary>True when another cylinder shares this one's axis line and axial extent with a different radius: the two surfaces of one bend.</summary>
+    static bool HasConcentricPartner(Occ.CylFace?[] cylinders, int index)
+    {
+        var a = cylinders[index]!.Value; var axis = a.Axis.Normalized();
+        double lo = Vec3.Dot(a.Origin, axis) + a.V0, hi = Vec3.Dot(a.Origin, axis) + a.V1;
+        for (int j = 0; j < cylinders.Length; j++)
+        {
+            if (j == index || cylinders[j] is not { } b) continue;
+            var other = b.Axis.Normalized();
+            if (Vec3.Cross(axis, other).Length > 1e-3 || Vec3.Cross(axis, b.Origin - a.Origin).Length > 1e-3 || Math.Abs(a.Radius - b.Radius) < 1e-6) continue;
+            double sign = Vec3.Dot(axis, other) > 0 ? 1 : -1, shift = Vec3.Dot(b.Origin, axis);
+            double blo = shift + (sign > 0 ? b.V0 : -b.V1), bhi = shift + (sign > 0 ? b.V1 : -b.V0);
+            if (Math.Abs(blo - lo) < 1e-3 && Math.Abs(bhi - hi) < 1e-3) return true;
+        }
+        return false;
+    }
+
     static (double x, double y) Sub((double x, double y) a, (double x, double y) b) => (a.x - b.x, a.y - b.y);
     static double Dist((double x, double y) a, (double x, double y) b) => Math.Sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 
@@ -191,6 +229,10 @@ public sealed class FlatPatternCommand : Command
         var faces = Enumerable.Range(0, nf).Select(i => S.ShapeOf(new SelItem(obj.Id, SelKind.Face, i)) ?? throw new InvalidOperationException("Could not read a face.")).ToList();
         var cyl = new Occ.CylFace?[nf];
         for (int i = 0; i < nf; i++) { var c = Occ.Cylinders(faces[i]); if (c.Count == 1 && !c[0].Full) cyl[i] = c[0]; }
+        // A bend has an inner and an outer cylinder on one axis across the same width. A slot end or a rounded corner is a single wall, so it is not a bend:
+        // it stays part of the flat outline, which the planar faces carry.
+        var partial = (Occ.CylFace?[])cyl.Clone();
+        for (int i = 0; i < nf; i++) if (partial[i] != null && !HasConcentricPartner(partial, i)) cyl[i] = null;
         int firstBend = Array.FindIndex(cyl, c => c != null);
         if (firstBend < 0) throw new InvalidOperationException("This body has no bends, so it is already flat.");
         var d = cyl[firstBend]!.Value.Axis.Normalized();
@@ -319,15 +361,27 @@ public sealed class FlatPatternCommand : Command
     void SaveDxf()
     {
         if (_loops.Count == 0) throw new InvalidOperationException("Pick a sheet metal body first.");
-        double minx = _loops.Min(l => l.Min(p => p.x)), maxx = _loops.Max(l => l.Max(p => p.x)), miny = _loops.Min(l => l.Min(p => p.y)), maxy = _loops.Max(l => l.Max(p => p.y));
+        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Drawings");
+        var path = FlatDxf.Save(dir, _name, _loops, _bendLines);
+        Results.Add(new ResultLine("Saved", path)); S.Say("Flat pattern saved to " + path);
+    }
+}
+
+/// <summary>Writes a flat pattern (closed outlines and holes, plus bend lines in centre-line style) as a DXF drawing; shared by Flat Pattern and Fold.</summary>
+public static class FlatDxf
+{
+    /// <summary>Saves <paramref name="loops"/> and <paramref name="bendLines"/> (flat millimetres) to <paramref name="directory"/> as "{name}_flat.dxf" and returns the path.</summary>
+    public static string Save(string directory, string name, IReadOnlyList<List<(double x, double y)>> loops, IReadOnlyList<((double x, double y) a, (double x, double y) b)> bendLines)
+    {
+        double minx = loops.Min(l => l.Min(p => p.x)), maxx = loops.Max(l => l.Max(p => p.x)), miny = loops.Min(l => l.Min(p => p.y)), maxy = loops.Max(l => l.Max(p => p.y));
         const double m = 10;
         (double, double) T((double x, double y) p) => (p.x - minx + m, maxy - p.y + m);
         var prims = new List<Prim>();
-        foreach (var l in _loops) prims.Add(new PolyP(l.Select(T).ToArray(), LineStyle.Visible, true));
-        foreach (var (a, b) in _bendLines) prims.Add(new PolyP([T(a), T(b)], LineStyle.Center));
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Drawings"); Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, string.Concat(_name.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + "_flat.dxf");
+        foreach (var l in loops) prims.Add(new PolyP(l.Select(T).ToArray(), LineStyle.Visible, true));
+        foreach (var (a, b) in bendLines) prims.Add(new PolyP([T(a), T(b)], LineStyle.Center));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '_')) + "_flat.dxf");
         DrawingOutput.Save(path, prims, maxx - minx + 2 * m, maxy - miny + 2 * m);
-        Results.Add(new ResultLine("Saved", path)); S.Say("Flat pattern saved to " + path);
+        return path;
     }
 }

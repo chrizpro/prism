@@ -11,3 +11,5 @@
 Use the [ribbon and workspace index](tabs/README.md) to find guides by their location in the app.
 
 See [desktop integration evidence](integration-evidence/README.md) for viewport captures by test ID. See the [test readiness report](engineering/test-readiness-report.md) for maintained coverage and why other workflows still need verification.
+
+The [2026-11-07 develop audit](engineering/develop-audit-2026-11-07.md) records the multi-agent worktree/stash inventory, generated documentation refresh and actual Windows verification before pushing the consolidated work.

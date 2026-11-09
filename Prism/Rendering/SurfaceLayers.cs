@@ -10,13 +10,14 @@ public readonly record struct SurfaceSample(Vector3 Color, float Metal, float Ro
 public sealed class SurfaceLayers
 {
     public SurfaceStyle Style { get; }
-    readonly SurfaceImage? _color, _rough, _bump;
+    readonly SurfaceImage? _color, _rough, _bump, _decal;
     public SurfaceLayers(SurfaceStyle? style)
     {
         Style = (style ?? new()).Validated();
         _color = Style.ColorMap is { } c ? SurfaceImage.Decode(c) : null;
         _rough = Style.RoughnessMap is { } r ? SurfaceImage.Decode(r) : null;
         _bump = Style.BumpMap is { } b ? SurfaceImage.Decode(b) : null;
+        _decal = Style.DecalMap is { } d ? SurfaceImage.Decode(d, keepAlpha: true) : null;
     }
     public static Vector3 Srgb(uint c) => new((c >> 16 & 255) / 255f, (c >> 8 & 255) / 255f, (c & 255) / 255f);
     public static Vector3 Rotate(Vector3 p, float degrees)
@@ -80,6 +81,14 @@ public sealed class SurfaceLayers
         var w = Vector3.Abs(n); w *= w; w *= w; w /= Math.Max(w.X + w.Y + w.Z, 1e-6f);
         return Sample(p.Y, p.Z) * w.X + Sample(p.X, p.Z) * w.Y + Sample(p.X, p.Y) * w.Z;
     }
+    /// <summary>Planar-projected decal sample (rgb premultiplied by its alpha). Outside the image or fully transparent pixels return black, so the base shows through; Repeat tiles the artwork.</summary>
+    public static Vector4 SampleDecal(SurfaceImage image, SurfaceStyle s, Vector3 local)
+    {
+        var p = MapPosition(s, local); float u = p.X, v = p.Y / s.TextureAspect;
+        if (!s.TextureRepeat && (u < 0 || u > 1 || v < 0 || v > 1)) return Vector4.Zero;
+        var d = image.Sample4(u, v, s.TextureRepeat);
+        return new Vector4(d.X * d.W, d.Y * d.W, d.Z * d.W, d.W);
+    }
     float Height(Vector3 local, Vector3 normal)
     {
         if (_bump != null) return Vector3.Dot(SampleImage(_bump, Style, local, normal), new Vector3(.2126f, .7152f, .0722f));
@@ -90,6 +99,7 @@ public sealed class SurfaceLayers
         var s = Style;
         color = GradientColor(s, local, color);
         if (_color != null) color *= SampleImage(_color, s, local, normal);
+        if (_decal != null) { var d = SampleDecal(_decal, s, local); color = d.W >= 1 ? new Vector3(d.X, d.Y, d.Z) : color * (1 - d.W) + new Vector3(d.X, d.Y, d.Z); }
         if (_rough != null) roughness = Vector3.Dot(SampleImage(_rough, s, local, normal), new Vector3(.2126f, .7152f, .0722f));
         float mask = WeatherMask(s, local), detail = Noise(local / s.PatchSize * 3.1f + new Vector3(s.Seed % 997));
         var weather = s.Weathering == WeatheringKind.Rust ? Vector3.Lerp(new(.18f, .055f, .018f), new(.65f, .28f, .075f), detail) : Vector3.Lerp(new(.12f, .095f, .065f), new(.37f, .30f, .20f), detail);

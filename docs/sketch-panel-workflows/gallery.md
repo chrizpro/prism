@@ -48,10 +48,13 @@
 | Rectangle | 3-point | [Dark](recttool-0-2-dark.png) | [Light](recttool-0-2-light.png) |
 | Select |  | [Dark](selecttool-0-0-dark.png) | [Light](selecttool-0-0-light.png) |
 | Select |  | [Dark](selecttool-0-1-dark.png) | [Light](selecttool-0-1-light.png) |
+| Select |  | [Dark](selecttool-0-2-dark.png) | [Light](selecttool-0-2-light.png) |
 | Select |  | [Dark](selecttool-1-0-dark.png) | [Light](selecttool-1-0-light.png) |
 | Select |  | [Dark](selecttool-1-1-dark.png) | [Light](selecttool-1-1-light.png) |
+| Select |  | [Dark](selecttool-1-2-dark.png) | [Light](selecttool-1-2-light.png) |
 | Edit Geometry | Geometry | [Dark](sketchgeometryedittool-0-0-dark.png) | [Light](sketchgeometryedittool-0-0-light.png) |
 | Edit Geometry | Geometry | [Dark](sketchgeometryedittool-0-1-dark.png) | [Light](sketchgeometryedittool-0-1-light.png) |
+| Edit Geometry | Geometry | [Dark](sketchgeometryedittool-0-2-dark.png) | [Light](sketchgeometryedittool-0-2-light.png) |
 | Mirror | Live | [Dark](sketchmirrortool-0-0-dark.png) | [Light](sketchmirrortool-0-0-light.png) |
 | Mirror | Copy | [Dark](sketchmirrortool-0-1-dark.png) | [Light](sketchmirrortool-0-1-light.png) |
 | Pattern | Linear | [Dark](sketchpatterntool-0-0-dark.png) | [Light](sketchpatterntool-0-0-light.png) |

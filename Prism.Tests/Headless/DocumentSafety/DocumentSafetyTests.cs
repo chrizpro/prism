@@ -30,7 +30,11 @@ public class DocumentSafetyTests : IDisposable
         Environment.SetEnvironmentVariable("PRISM_SETTINGS_FILE", Path.Combine(folder, "settings.json"));
     }
     static void AddBody(CadSession session) => session.AddObject(Occ.Box(10, 20, 30), "Test part", ObjKind.Solid);
-    static Task Drain() => Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background).GetTask();
+    // The window-close handlers are async and continue on later dispatcher turns, so one Background pass is sometimes not enough (SAV-H006 failed about one full run in five). Pass several times.
+    static async Task Drain()
+    {
+        for (int i = 0; i < 6; i++) { await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background).GetTask(); await Task.Yield(); }
+    }
     static DragEventArgs Drop(MainWindow window, string[] paths, bool over = false)
     {
         var data = new DataObject(); data.Set(DataFormats.FileNames, paths);
@@ -100,6 +104,41 @@ public class DocumentSafetyTests : IDisposable
         Assert.Equal(3, vm.Documents.Count); Assert.False(first.Session.Dirty); Assert.True(second.Session.Dirty);
         Assert.True(File.Exists(first.Session.FilePath));
         Assert.False(MainViewModel.NeedsCloseDecision(pristine));
+    }
+
+    [AvaloniaFact(DisplayName = "SAV-H012 | Nothing created means no close prompt: undo to the start, empty sketch or unused tool")]
+    [Trait("TestId", "SAV-H012")]
+    public void EmptyDocumentsDoNotPromptOnExit()
+    {
+        var vm = new MainViewModel(); var tab = vm.ActiveDocument!;
+        Assert.False(MainViewModel.NeedsCloseDecision(tab));
+        AddBody(tab.Session);
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Undo();
+        Assert.Empty(tab.Session.Objects); Assert.False(tab.Session.Dirty);
+        Assert.False(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Redo();
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Undo();
+        tab.Session.StartCommand(() => new BoxCommand());
+        try { Assert.False(MainViewModel.NeedsCloseDecision(tab)); }
+        finally { tab.Session.CancelCommand(); }
+        tab.Session.EnterSketch(Plane3.XY);
+        try { Assert.False(MainViewModel.NeedsCloseDecision(tab)); }
+        finally { tab.Session.ExitSketch(false); }
+    }
+
+    [AvaloniaFact(DisplayName = "SAV-H013 | A change outside the timeline keeps a document unsaved even after undo returns its geometry to the start")]
+    [Trait("TestId", "SAV-H013")]
+    public void OffTimelineChangesSurviveUndo()
+    {
+        var vm = new MainViewModel(); var tab = vm.ActiveDocument!;
+        AddBody(tab.Session);                 // already dirty
+        tab.Session.EditedLights();           // a lights change is not a history step
+        tab.Session.Undo();
+        Assert.Empty(tab.Session.Objects);
+        Assert.True(tab.Session.Dirty);
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
     }
 
     [AvaloniaFact(DisplayName = "SAV-H002 | Canceled Save As and a failed destination keep unsaved work open")]

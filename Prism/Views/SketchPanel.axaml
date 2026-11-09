@@ -62,14 +62,12 @@
         <StackPanel>
         <StackPanel Margin="12,12,12,10" Spacing="8">
             <TextBlock Text="Drawing" Classes="section"/>
-            <CheckBox Name="Enable3D" Content="3D sketch" IsChecked="{Binding SketchSpatialEnabled, Mode=TwoWay}" ToolTip.Tip="Off: a plain 2D sketch on the active plane. On: spatial tools are available and you can choose between drawing flat and drawing in space. Switch it any time."/>
+            <CheckBox Content="3D sketch" IsChecked="{Binding SketchSpatialEnabled, Mode=TwoWay}" ToolTip.Tip="Off: a plain 2D sketch on its own plane. On: draw anywhere in space, with or without a guide plane."/>
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="{Binding SketchSpatialEnabled}">
-                <RadioButton Content="Draw flat" GroupName="SketchDrawingMode" IsChecked="{Binding SketchDrawFlat, Mode=TwoWay}" ToolTip.Tip="Draw on the active plane, then change the view to edit the curve points from another direction."/>
-                <RadioButton Grid.Column="1" Name="DrawInSpace" Content="Draw in space" GroupName="SketchDrawingMode" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="Use the drawing gizmo to place geometry on planes in space."/>
+                <RadioButton Content="No plane" GroupName="SketchDrawingMode" IsChecked="{Binding SketchDrawFlat, Mode=TwoWay}" ToolTip.Tip="Points go where you click: on the point, curve, edge or face under the pointer, otherwise on the grid you are looking at. In a view square to an axis, the depth along that axis stays fixed."/>
+                <RadioButton Grid.Column="1" Name="DrawInSpace" Content="With plane" GroupName="SketchDrawingMode" IsChecked="{Binding Sketch3DEnabled, Mode=TwoWay}" ToolTip.Tip="A guide plane follows your click. Rest on one of its three squares and hold Ctrl to lock drawing to that plane; hover along an axis to draw along it."/>
             </Grid>
-            <CheckBox Name="Free3DEditing" IsVisible="{Binding Sketch3DEnabled}" IsChecked="{Binding SketchFreeEditing, Mode=TwoWay}" ToolTip.Tip="Allow selected points to move out of their drawing plane. Use the gizmo arrows and plane squares to control movement. Off restricts point movement to its plane." HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><TextBlock Text="Free 3D editing (Not limited to the plane)" TextWrapping="Wrap"/></CheckBox>
-            <Button Content="Add points to a curve" Tag="spline-points" Click="OnSketchAction" HorizontalAlignment="Stretch" ToolTip.Tip="Click along a spline to insert an editable point. Lines and arcs use their defining points."/>
-            <TextBlock Text="New geometry stays on the active plane. Orbiting changes only the view." IsVisible="{Binding SketchDrawFlat}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
+            <TextBlock Text="Orbiting changes only the view; points follow where you click." IsVisible="{Binding SketchNoPlaneNote}" Classes="faint" TextWrapping="Wrap" FontSize="11.5"/>
         </StackPanel>
         <!-- Every sketch-tool family uses the same ordered, collapsible presentation. -->
         <ItemsControl ItemsSource="{Binding ToolSections}" Margin="0,0,0,4"/>

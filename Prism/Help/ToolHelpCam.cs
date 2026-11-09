@@ -32,6 +32,9 @@ public static partial class ToolHelp
         "cnc-drill" => Topic(icon, "Drill", "Drill holes, with peck cycles for deep holes.", "Input: hole positions", "Result: holes drilled",
             "1. Select circles or points for the holes.\n2. Set depth and peck.\n3. Review the cycle before creating it.",
             "Peck drilling retracts to clear chips; use it when depth is more than a few diameters."),
+        "cnc-image" => Topic(icon, "Image Carve", "Carve a picture into the top of the stock: darker or lighter areas are cut deeper.", "Input: a picture file and the stock", "Generated cutting moves",
+            "1. Type the picture's path and the width of the carving.\n2. Choose whether dark or light areas are deepest, the bit and the depth.\n3. Review the toolpath, which shows the pattern, then create it.",
+            "Use a ball nose bit for smooth relief and a small stepover for fine detail."),
         "cnc-face" => Topic(icon, "Face", "Skim the top of the stock flat with back-and-forth passes.", "Input: raw stock", "Generated cutting moves",
             "1. Select the stock or the area to face.\n2. Set tool diameter and depth.\n3. Review the toolpath before creating it.",
             "Face first so later operations start from a clean, flat top."),
@@ -134,6 +137,12 @@ public static partial class ToolHelp
                 using var drilled = result;
                 var b = marked.Tessellate();
                 return new(Src(b, topic.BeforeLabel, b.SegEdge.Distinct().Where(e => e >= 12).ToArray(), null, Blue), Src(drilled.Tessellate(), topic.AfterLabel));
+            }
+            case "cnc-image":
+            {
+                using var stock = Occ.Box(40, 30, 10);
+                using var path = Paths(Zigzag(-15, 15, -10, 10, 2.5, 10, (x, y) => 10 - 1.5 * (0.5 + 0.5 * Math.Sin(x * 0.5) * Math.Cos(y * 0.5))));
+                return FromShapes(stock, path, topic, pathAfter: true);
             }
             case "cnc-face":
             {

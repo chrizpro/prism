@@ -197,8 +197,11 @@ def verify_and_save(id, yaw, pitch, render=True, distance=None):
     cad.call("view", yaw=yaw, pitch=pitch, fit=True, grid=False, display="shaded")
     if distance is not None: cad.call("view", distance=distance)
     cad.call("wait_idle")
-    screenshot = cad.call("screenshot", viewport=True, max_width=1200)
-    (ROOT / "artifacts/gallery" / (id + "-viewport.png")).write_bytes(base64.b64decode(screenshot["_image"]["data"]))
+    try:
+        screenshot = cad.call("screenshot", viewport=True, max_width=1200)
+        (ROOT / "artifacts/gallery" / (id + "-viewport.png")).write_bytes(base64.b64decode(screenshot["_image"]["data"]))
+    except cad.CadError as error:  # window capture is implemented on Windows only
+        print("viewport screenshot skipped:", error, flush=True)
     (ROOT / "artifacts/gallery" / (id + "-validation.json")).write_text(json.dumps(reports, indent=2))
     if render:
         cad.call("run_command", name="render", commit=False)

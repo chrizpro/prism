@@ -1,7 +1,7 @@
 [
  {
   "name": "assistant",
-  "description": "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI API key).",
+  "description": "Drive the in-app AI assistant panel (for testing the assistant itself). action: open | close | send (text) | transcript | new | provider (index 0 Codex login, 1 Claude API key, 2 OpenAI/Codex API key).",
   "inputSchema": {
    "type": "object",
    "properties": {
@@ -87,6 +87,27 @@
   }
  },
  {
+  "name": "datum",
+  "description": "Model datums and the move gizmo. action: arm (kind: point|axis|plane — the persistent click-to-place tool; click with the pointer tool), finish (stop placing), gizmo (show the free gizmo; move:true = the Move tool's grab mode), bind (bind the current selection to the gizmo), list (placed datums).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "arm | finish | gizmo | bind | list.",
+     "type": "string"
+    },
+    "kind": {
+     "description": "point | axis | plane.",
+     "type": "string"
+    },
+    "move": {
+     "description": "Arm Move mode on the gizmo.",
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ {
   "name": "delete_objects",
   "description": "Delete objects by name.",
   "inputSchema": {
@@ -164,6 +185,100 @@
    },
    "required": [
     "document"
+   ]
+  }
+ },
+ {
+  "name": "drawing_document",
+  "description": "Edit the Drawing workspace document using the same model and history as the desktop editor. Actions: state, new_sheet, sheet_settings, add_view, suggest, accept, move, update, parts, delete_annotation, export. New views have no automatic annotations. View kinds: base, section, detail; projected orientations: projected:above/below/left/right with parent_id. Suggestions are previewed until accepted. PDF can include all sheets.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "Operation",
+     "type": "string"
+    },
+    "sheet_id": {
+     "description": "Sheet identity; defaults to first sheet",
+     "type": "string"
+    },
+    "view_id": {
+     "description": "View identity",
+     "type": "string"
+    },
+    "parent_id": {
+     "description": "Parent view identity",
+     "type": "string"
+    },
+    "orientation": {
+     "description": "front/top/right/back/left/bottom/iso or projected:above/below/left/right",
+     "type": "string"
+    },
+    "kind": {
+     "description": "base/section/detail",
+     "type": "string"
+    },
+    "sources": {
+     "description": "Source body names or IDs; required for a base view",
+     "type": "array",
+     "items": {}
+    },
+    "x": {
+     "description": "Paper X or move delta in mm",
+     "type": "number"
+    },
+    "y": {
+     "description": "Paper Y or move delta in mm",
+     "type": "number"
+    },
+    "scale": {
+     "description": "Positive view scale",
+     "type": "number"
+    },
+    "vertical": {
+     "description": "Vertical section cutting line",
+     "type": "boolean"
+    },
+    "cut": {
+     "description": "Section coordinate in model mm",
+     "type": "number"
+    },
+    "radius": {
+     "description": "Detail radius in model mm",
+     "type": "number"
+    },
+    "ratio": {
+     "description": "Detail magnification",
+     "type": "number"
+    },
+    "category": {
+     "description": "Overall size / Diameters / Center marks / Hole positions",
+     "type": "string"
+    },
+    "suggestions": {
+     "description": "Suggestion IDs from the most recent preview",
+     "type": "array",
+     "items": {}
+    },
+    "annotation_id": {
+     "description": "Annotation identity",
+     "type": "string"
+    },
+    "settings": {
+     "description": "Sheet settings: name/title/number/material/notes/units/format/scale/generalTolerance",
+     "type": "object"
+    },
+    "path": {
+     "description": "Export file path .pdf/.svg/.dxf",
+     "type": "string"
+    },
+    "all": {
+     "description": "Export all sheets to PDF",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "action"
    ]
   }
  },
@@ -808,7 +923,7 @@
  },
  {
   "name": "material_apply",
-  "description": "Give an object a library material (color, finish and density come with it), or just set its finish/color. 'material' is an id or name from material_list; omit it to only change metal/gloss/color. Returns the object's mass when it is a solid.",
+  "description": "Give an object a library material (color, finish and density come with it), or just set its finish/color. 'material' is an id or name from material_list; explicit visual overrides survive material assignment. Omit it to only edit appearance. Returns the object's mass when it is a solid.",
   "inputSchema": {
    "type": "object",
    "properties": {
@@ -847,6 +962,18 @@
     "patternAngle": {
      "description": "Pattern angle about world Z, degrees.",
      "type": "number"
+    },
+    "roughness": {
+     "description": "0 polished to 1 matte; exclusive with gloss.",
+     "type": "number"
+    },
+    "surface": {
+     "description": "Replace visual layers using SurfaceStyle JSON: Gradient 0..4, Axis 0..2, Color2/3/4 ARGB integers, GradientSize/Offset/Angle, Weathering 0..2, Coverage, PatchSize, WeatheringRoughness, BottomOnly, WeatherHeight, Seed, Bump, Coat, CoatRoughness, TextureSize/Angle and embedded ColorMap/RoughnessMap/BumpMap.",
+     "type": "object"
+    },
+    "resetAppearance": {
+     "description": "Restore assigned material/default appearance.",
+     "type": "boolean"
     }
    },
    "required": [
@@ -1099,6 +1226,50 @@
   }
  },
  {
+  "name": "render_setup",
+  "description": "The picture-wide render choices stored on the document. action: state (current setup) | set (env, background, exposure, fit, offsets) | set_background (import a PNG/JPEG file as the backdrop image; produces it first with run_script if asked to generate one).",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "state | set | set_background",
+     "type": "string"
+    },
+    "env": {
+     "description": "studio | sky | dark_studio | lights_only | hdr",
+     "type": "string"
+    },
+    "background": {
+     "description": "environment | white | transparent | green | black | gradient | image",
+     "type": "string"
+    },
+    "exposure": {
+     "description": "0.1-10.",
+     "type": "number"
+    },
+    "fit": {
+     "description": "fill | fit | stretch (background image only).",
+     "type": "string"
+    },
+    "offset_x": {
+     "description": "-1..1",
+     "type": "number"
+    },
+    "offset_y": {
+     "description": "-1..1",
+     "type": "number"
+    },
+    "path": {
+     "description": "Full path of the image file for set_background (≤16 MB; the generated folder Prism/generated is the right place for AI-made backdrops).",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
   "name": "ribbon_click",
   "description": "Click a ribbon button by its label (exactly what a user would click). Optionally pass 'tab' to disambiguate (e.g. 'Extrude' exists on Solid and Surface). Commands open their panel; use command_set / command_commit next.",
   "inputSchema": {
@@ -1194,6 +1365,34 @@
   }
  },
  {
+  "name": "script_editor",
+  "description": "The built-in script editor (one Python file). action: open | state | get | set (replace ALL of the script; keeps a rollback point) | insert (text before 'line', default: at the end) | rollback (restore the previous version; repeat to step back) | run | save.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "open | state | get | set | insert | rollback | run | save",
+     "type": "string"
+    },
+    "text": {
+     "description": "Source code for set/insert.",
+     "type": "string"
+    },
+    "line": {
+     "description": "Insert before this 1-based line; default appends.",
+     "type": "integer"
+    },
+    "path": {
+     "description": "Save path for save.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
+   ]
+  }
+ },
+ {
   "name": "select",
   "description": "Set the document selection (outside of commands). Items are object names, or {object, face} / {object, edge} (1-based).",
   "inputSchema": {
@@ -1211,6 +1410,26 @@
    },
    "required": [
     "items"
+   ]
+  }
+ },
+ {
+  "name": "select_tab",
+  "description": "Switch the ribbon to a workspace tab by its title (for example Static, CAM, Solid). The document remembers it and reopens on that tab.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "description": "Tab title, matched case-insensitively.",
+     "type": "string"
+    },
+    "command": {
+     "description": "Optional command name (for example cam_playback or drive_joints) to leave open when the file is opened, so the user only presses its Play or Run button. Omit to clear.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "title"
    ]
   }
  },
@@ -1233,6 +1452,33 @@
    "required": [
     "object",
     "points"
+   ]
+  }
+ },
+ {
+  "name": "settings",
+  "description": "Application and assistant settings. action: list | get | set | reset | open (open the Settings window at 'page'). 'key' comes from list, 'value' for set. API keys and the automation token are never exposed.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "action": {
+     "description": "list | get | set | reset | open",
+     "type": "string"
+    },
+    "key": {
+     "description": "Setting key from list.",
+     "type": "string"
+    },
+    "value": {
+     "description": "New value."
+    },
+    "page": {
+     "description": "Settings page for open: appearance | interaction | workspace | toolbars | ribbon | assistant | keyboard",
+     "type": "string"
+    }
+   },
+   "required": [
+    "action"
    ]
   }
  },
@@ -1574,10 +1820,7 @@
     "b": {
      "description": "Second item for a distance."
     }
-   },
-   "required": [
-    "object"
-   ]
+   }
   }
  },
  {
@@ -1808,7 +2051,7 @@
  },
  {
   "name": "workspace",
-  "description": "Switch workspace: design | scan | cae (or simulate) | assemble | render | ar | make | script | all. CAE includes Static, Thermal, Dynamics, Motion (kinematics and rigid-body motion of an assembly) and Fluids. make opens Manufacture/CAM.",
+  "description": "Switch workspace: design | drawing | scan | cae (or simulate) | assemble | render | ar | make | script | all. CAE includes Static, Thermal, Dynamics, Motion (kinematics and rigid-body motion of an assembly) and Fluids. make opens Manufacture/CAM.",
   "inputSchema": {
    "type": "object",
    "properties": {

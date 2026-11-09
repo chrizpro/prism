@@ -15,7 +15,7 @@ public sealed class SketchGeometryEditTool(int variant = 0) : SketchTool
     // Edit Geometry offers the same Box / Lasso choice as Select. The spline mode has no method choice: it is a tool of its own, started from the sketch panel.
     public override IReadOnlyList<ToolOption> Options => variant == 1 ? [] : _inner.Options;
     public override int OptionIndex => variant == 1 ? 0 : _inner.OptionIndex;
-    protected override void ApplyOption(int index) { if (variant == 0 && _inner is SelectTool select) select.UseLasso(index == 1); }
+    protected override void ApplyOption(int index) { if (variant == 0 && _inner is SelectTool select) select.UseMethod(index); }
     protected override void ResetState(CadSession s) => _inner.Activate(s);
     public override void Activate(CadSession s) => _inner.Activate(s);
     public override void Deactivate(CadSession s) => _inner.Deactivate(s);

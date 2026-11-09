@@ -6,6 +6,7 @@ using System.Linq;
 using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.Kernel;
+using Prism.Meshing;
 
 namespace Prism.Commands;
 
@@ -328,6 +329,31 @@ public sealed class MoveComponentCommand : Command
     public override string Icon => "move";
     public override string Hint => "Position a free component: move it, or turn it about its own centre. A component held by a joint moves with the joint instead (use Drive Joints).";
 
+    Vec3? Centre(out double size)
+    {
+        size = 30;
+        if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj || obj.Component == null) return null;
+        var m = obj.Mesh; size = Math.Max((m.Max - m.Min).Length * 0.5, 10);
+        return (m.Min + m.Max) * 0.5;
+    }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (Centre(out var size) is not { } c) return [];
+            var rx = SurfaceMath.Basis(Vec3.UnitX);
+            var ry = SurfaceMath.Basis(Vec3.UnitY);
+            var rz = SurfaceMath.Basis(Vec3.UnitZ);
+            return
+            [
+                new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz),
+                new(c, Vec3.UnitX, _rx, 1, rx.u, size), new(c, Vec3.UnitY, _ry, 1, ry.u, size), new(c, Vec3.UnitZ, _rz, 1, rz.u, size),
+            ];
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
     static Xform Rot(Vec3 axis, double deg)
     {
         double a = deg * Math.PI / 180, c = Math.Cos(a), s = Math.Sin(a); var k = axis.Normalized();
@@ -395,6 +421,22 @@ public sealed class ComponentPatternCommand : Command
         double x = k.X, y = k.Y, z = k.Z, t = 1 - c;
         return new([t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c], Vec3.Zero);
     }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj) return [];
+            var m = obj.Mesh; var c = (m.Min + m.Max) * 0.5;
+            if (_kind.Index == 0) return [new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz)];
+            var axis = _axis.Index switch { 0 => Vec3.UnitX, 1 => Vec3.UnitY, _ => Vec3.UnitZ };
+            var through = new Vec3(_cx.Value, _cy.Value, _cz.Value);
+            var foot = through + axis * Vec3.Dot(c - through, axis);
+            var rel = c - foot; if (rel.Length < 1e-6) return [new(c, Vec3.UnitX, _cx), new(c, Vec3.UnitY, _cy), new(c, Vec3.UnitZ, _cz)];
+            return [new(foot, axis, _angle, 1, rel.Normalized(), rel.Length)];
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     protected override CommandOutput? Build()
     {

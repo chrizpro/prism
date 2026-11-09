@@ -49,16 +49,40 @@ public sealed class FeatureEditCommand : Command
         _action.Index = action;
     });
 
-    public override HandleSpec? Handle
+    public override IReadOnlyList<HandleSpec> Handles
     {
         get
         {
-            if (S == null || _action.Index is not (0 or 2) || _faces.Items.Count == 0) return null;
-            if (DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } f) return null;
-            var (dir, p) = _drag.Index switch { 1 => (Vec3.UnitY, _dy), 2 => (Vec3.UnitZ, _dz), _ => (Vec3.UnitX, _dx) };
-            return new HandleSpec(f.Centre, dir, p);
+            if (S == null || _faces.Items.Count == 0) return [];
+            try
+            {
+                if (DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } f) return [];
+                if (_action.Index is 0 or 2)
+                {
+                    var (dir, p) = _drag.Index switch { 1 => (Vec3.UnitY, _dy), 2 => (Vec3.UnitZ, _dz), _ => (Vec3.UnitX, _dx) };
+                    return [new(f.Centre, dir, p)];
+                }
+                if (_action.Index != 1) return [];
+                var b = Meshing.SurfaceMath.Basis(f.Dir);
+                if (f.Round is { } r) return [new(r.Origin, b.u, _dia, 2)];                        // the tip sits on the new wall
+                if (f.Kind == FeatureKind.Fillet) return [new(f.Centre, b.u, _filletR)];
+                if (f.Kind == FeatureKind.Slot)
+                {
+                    var ends = f.Faces.Select(i => Occ.AxisOf(body.Shape.Sub(SubKind.Face, i))).Where(a => a != null).Select(a => a!.Value.Origin).Distinct().ToList();
+                    if (ends.Count >= 2)
+                    {
+                        var span = ends[1] - ends[0]; if (span.Length < 1e-9) return [];
+                        var along = span.Normalized(); var mid = (ends[0] + ends[1]) * 0.5;
+                        var across = Vec3.Cross(f.Dir, along).Normalized();
+                        return [new(mid, across, _width, 0.5), new(mid, along, _length, 0.5)];   // tips at the new walls
+                    }
+                }
+                return [];
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
         }
     }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     public override string Title => "Edit Feature";
     public override string Icon => "movehole";

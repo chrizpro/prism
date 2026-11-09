@@ -43,6 +43,8 @@ Select a separate reference body, face or plane in **Extend to (face, plane or b
 
 The maintained body-target checks use New body, so the reference remains a separate unchanged solid after commit. A missing selected target produces no output. A target behind the active direction reports an error; Reverse direction can make that target reachable.
 
+**Observed fix (2026-11-08, [#79](https://github.com/chrizpro/prism/issues/79)):** the automatic turn-around of a one-way Cut judged "the tool does not overlap the body" as an overlap under 1e-9 mm³. A sketch plane taken from a face of a bent body is only accurate to about a micron, so the tool overlapped by a sliver, did not turn, and the cut silently removed nothing. The cutoff is now 1e-4 of the tool's own volume. [EXT-H009](../../../Prism.Tests/Headless/Extrude/ExtrudeCutDirectionTests.cs) reproduces it on tilted faces with the sketch plane 0, 1 and 10 microns inside the metal. Whether automatic reversal should exist at all is still the open question below.
+
 For a body target, the current code projects its bounding-box limits onto the extrusion direction. For a planar face or construction plane, it calculates a plane intersection from the profile center. These paths are not a general per-point trim to arbitrary curved geometry. Curved/nonintersecting targets, plane/face selection, offsets and tolerances still need their own review and additional coverage. See the feature-level test links below for the executable checks rather than a duplicated option-to-test matrix.
 
 #### Related feature variants

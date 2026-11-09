@@ -24,16 +24,18 @@
             <Border Grid.Row="0" Padding="14,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
                 <StackPanel Spacing="8">
                     <TextBlock Name="NameText" Classes="panelTitle" TextTrimming="CharacterEllipsis"/>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button Name="RunBtn" Classes="primary" Content="▶  Run" Click="OnRun" ToolTip.Tip="Run the script (F5)" Padding="14,5"/>
-                        <Button Name="StopBtn" Classes="ghost" Content="■  Stop" Click="OnStop" ToolTip.Tip="Stop the running script (Shift+F5)" Padding="12,5" IsEnabled="False"/>
-                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,4"/>
-                        <Button Classes="ghost" Content="New" Click="OnNew" Padding="10,5" ToolTip.Tip="Start a new script"/>
-                        <Button Name="OpenBtn" Classes="ghost" Content="Open ▾" Click="OnOpenMenu" Padding="10,5" ToolTip.Tip="Open one of your scripts or an example"/>
-                        <Button Classes="ghost" Content="Save" Click="OnSave" Padding="10,5" ToolTip.Tip="Save the script (Ctrl+S)"/>
-                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,4"/>
-                        <Button Classes="ghost" Content="Edit in ▾" Click="OnEditInMenu" Padding="10,5" ToolTip.Tip="Open this script in your own editor. The library sits next to your scripts, so it works there too."/>
-                    </StackPanel>
+                    <WrapPanel>
+                        <Button Name="RunBtn" Classes="primary" Content="▶  Run" Click="OnRun" ToolTip.Tip="Run the script (F5)" Padding="14,5" Margin="0,0,6,4"/>
+                        <Button Name="StopBtn" Classes="ghost" Content="■  Stop" Click="OnStop" ToolTip.Tip="Stop the running script (Shift+F5)" Padding="12,5" IsEnabled="False" Margin="0,0,6,4"/>
+                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,4,10,4"/>
+                        <Button Classes="ghost" Content="New" Click="OnNew" Padding="10,5" ToolTip.Tip="Start a new script" Margin="0,0,6,4"/>
+                        <Button Name="OpenBtn" Classes="ghost" Content="Open ▾" Click="OnOpenMenu" Padding="10,5" ToolTip.Tip="Open one of your scripts or an example" Margin="0,0,6,4"/>
+                        <Button Classes="ghost" Content="Save" Click="OnSave" Padding="10,5" ToolTip.Tip="Save the script (Ctrl+S)" Margin="0,0,6,4"/>
+                        <Button Classes="ghost" Content="✦ AI" Click="OnAskAi" Padding="10,5" ToolTip.Tip="Write this script with the assistant — it replaces the whole script, and ⟲ undoes a rewrite" Margin="0,0,6,4"/>
+                        <Button Name="RollbackBtn" Classes="ghost" Content="⟲" Click="OnRollback" Padding="8,5" IsEnabled="False" ToolTip.Tip="Roll back the assistant's last rewrite" Margin="0,0,6,4"/>
+                        <Border Width="1" Background="{DynamicResource Line}" Margin="4,4,10,4"/>
+                        <Button Classes="ghost" Content="Edit in ▾" Click="OnEditInMenu" Padding="10,5" ToolTip.Tip="Open this script in your own editor. The library sits next to your scripts, so it works there too." Margin="0,0,6,4"/>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 

@@ -206,6 +206,12 @@
                                             <Button Content="Import bump…" Tag="bump" Click="OnImportMap" HorizontalAlignment="Stretch"/>
                                             <Button Content="×" Tag="bump" Click="OnClearMap" ToolTip.Tip="Remove bump image"/>
                                         </Grid>
+                                        <TextBlock Text="{Binding DecalMapStatus}" Classes="meta"/>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                            <Button Content="Import decal…" Tag="decal" Click="OnImportMap" HorizontalAlignment="Stretch"/>
+                                            <Button Content="×" Tag="decal" Click="OnClearMap" ToolTip.Tip="Remove decal image"/>
+                                        </Grid>
+                                        <TextBlock Text="A decal keeps its transparency and is laid flat once over the texture placement (turn Repeat off to keep the edges clear)." Classes="meta" TextWrapping="Wrap"/>
                                         <TextBlock Text="Projection" Classes="meta"/>
                                         <ComboBox ItemsSource="{Binding TextureProjections}" SelectedIndex="{Binding TextureProjectionMode}" HorizontalAlignment="Stretch"/>
                                         <TextBlock Text="Projection axis" Classes="meta"/>
@@ -326,11 +332,24 @@
                     <TextBlock Text="{Binding AssignedData}" TextWrapping="Wrap" FontSize="11"/>
                 </Expander>
 
-                <TextBox Text="{Binding MaterialSearch}" Watermark="Search: steel, nylon, heat sink..." Padding="8,6" CornerRadius="5" Margin="0,6,0,0"/>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                    <ComboBox Grid.Column="0" Classes="field" ItemsSource="{Binding MaterialCategories}" SelectedIndex="{Binding MaterialCategoryIndex}" HorizontalAlignment="Stretch" ToolTip.Tip="Material family"/>
-                    <ComboBox Grid.Column="1" Classes="field" ItemsSource="{Binding MaterialSorts}" SelectedIndex="{Binding MaterialSortIndex}" HorizontalAlignment="Stretch" ToolTip.Tip="Sort by"/>
-                </Grid>
+                <TextBox Text="{Binding MaterialSearch}" Watermark="Search all 125: steel, nylon, heat sink..." Padding="8,6" CornerRadius="5" Margin="0,6,0,0"/>
+                <ItemsControl ItemsSource="{Binding MaterialFamilies}" Margin="0,2,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:MaterialFamilyRow">
+                            <Button Classes="matChip" Classes.on="{Binding IsActive}" Tag="{Binding Index}" Click="OnFamily" Margin="0,0,6,6" ToolTip.Tip="{Binding Tip}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Border Width="8" Height="8" CornerRadius="4" Background="{Binding Color, Converter={x:Static c:ArgbToBrush.Instance}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}"/>
+                                    <TextBlock Text="{Binding Count}" Classes="meta" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ComboBox Classes="field" ItemsSource="{Binding MaterialSorts}" SelectedIndex="{Binding MaterialSortIndex}" HorizontalAlignment="Stretch" ToolTip.Tip="Sort by"/>
                 <TextBlock Text="{Binding MatResultCount}" Classes="meta"/>
 
                 <ListBox Classes="studioList" ItemsSource="{Binding MaterialList}" SelectedItem="{Binding SelectedMaterialRow}" MaxHeight="168" Background="Transparent" DoubleTapped="OnListDoubleTapped">

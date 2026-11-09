@@ -64,7 +64,7 @@ public sealed partial class MainViewModel
                 if (Match(CadSession.OriginNames[i]) || (filtering && "origin".Contains(filter, StringComparison.OrdinalIgnoreCase)))
                 {
                     var n = new BrowserNode { Kind = NodeKind.Origin, OriginIndex = i, Title = CadSession.OriginNames[i], Icon = icons[i], VisibilityEdited = OnNodeVisibility };
-                    n.SetVisibleSilently(s.OriginVisible[i]);
+                    n.SetVisibleSilently(s.OriginShown(i));
                     sub.Children.Add(n);
                 }
             if (sub.Children.Count == 0) return;
@@ -93,7 +93,7 @@ public sealed partial class MainViewModel
                     Badge = o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
                     VisibilityEdited = OnNodeVisibility, RenameEdited = OnNodeRenamed,
                 };
-                n.SetVisibleSilently(o.Visible);
+                n.SetVisibleSilently(s.PlaneShown(o));
                 if (o.SketchData is { } model && model.Entities.Any(e => e.Construction) && o.Id != s.Sketch?.EditingId)
                     n.Children.Add(ConstructionNode(o.Id, model));
                 if (o.SketchData is { } saved && o.Id != s.Sketch?.EditingId)
@@ -200,7 +200,11 @@ public sealed partial class MainViewModel
                 }
                 s.Invalidate();
             }
-            else if (n.Kind == NodeKind.Object) s.Update(n.ObjectId, o => o.WithVisible(v), checkpoint: false);
+            else if (n.Kind == NodeKind.Object)
+            {
+                if (n.ObjKind == ObjKind.Plane && s.Find(n.ObjectId) is { } plane) s.SetPlaneShown(plane, v);
+                else s.Update(n.ObjectId, o => o.WithVisible(v), checkpoint: false);
+            }
         }
         void Cascade(BrowserNode n, bool v)
         {

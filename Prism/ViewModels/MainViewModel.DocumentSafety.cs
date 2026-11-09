@@ -10,7 +10,8 @@ namespace Prism.ViewModels;
 public sealed partial class MainViewModel
 {
     [ObservableProperty] public partial string RecoveryStatus { get; set; } = "Recovery copies are off.";
-    public static bool NeedsCloseDecision(DocumentTab tab) => tab.Session.Dirty || tab.Session.Sketch != null || tab.Session.ActiveCommand != null;
+    /// <summary>Changed documents, or a sketch with something drawn. An empty sketch or a tool opened but not used creates nothing, so it never prompts.</summary>
+    public static bool NeedsCloseDecision(DocumentTab tab) => tab.Session.Dirty || tab.Session.Sketch is { HasContent: true };
 
     public async Task<bool> SaveDocumentAsync(DocumentTab tab, bool saveAs = false)
     {

@@ -8,6 +8,8 @@ Scripts drive the running application through `cadkit`, a Python library that sh
 2. **Run Script...** on the Script ribbon. Pick any `.py` file; it runs and shows the console.
 3. **Your own editor.** The **VS Code** and **PyCharm** buttons open the script there. The scripts folder (`Documents\Prism\Scripts`) holds a copy of `cadkit` next to your scripts, so `import cadkit` just works. Run from the IDE while Prism is open; `cadkit` finds the application by itself.
 
+<GuideImage image="script-editor-workspace" />
+
 ## A first script
 
 ```python

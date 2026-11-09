@@ -452,8 +452,8 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh, "uDraftSin", (float)Math.Sin(s.DraftMin * Math.PI / 180));
         U1(_mesh, "uCurvRange", (float)s.CurvRange);
 
-        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true).ToList();
-        var usedMaps=visible.SelectMany(o=>new[]{o.Look.Surface?.ColorMap,o.Look.Surface?.RoughnessMap,o.Look.Surface?.BumpMap}).Where(d=>d!=null).ToHashSet();
+        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true && o.Id != s.Sketch?.EditingId).ToList();   // a sketch being edited is drawn by the editor, not twice
+        var usedMaps=visible.SelectMany(o=>new[]{o.Look.Surface?.ColorMap,o.Look.Surface?.RoughnessMap,o.Look.Surface?.BumpMap,o.Look.Surface?.DecalMap}).Where(d=>d!=null).SelectMany(d=>new[]{d!,d+"!a"}).ToHashSet();
         foreach(var key in _surfaceTex.Keys.Where(k=>!usedMaps.Contains(k)).ToArray()){gl.DeleteTexture(_surfaceTex[key]);_surfaceTex.Remove(key);}
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
         foreach (var vo in visible) SyncCurvature(fineShading && vo.Kind is not (ObjKind.Curve or ObjKind.Sketch) ? vo.FineMesh : vo.Mesh, s.Analysis == CadSession.AnalysisKind.Curvature && !s.Zebra);
@@ -540,11 +540,14 @@ public sealed unsafe class GlViewport : Decorator
                     break;
             }
         }
-        foreach (var (dict, col, wd) in new[] { (sel, 0xFFFF8A1Fu, 3.2f), (hov, 0xFF35B6FFu, 3.0f) })
+        // Hovered edge: heavy blue. The rest of its chain: a thinner blue line that replaces the orange of edges already picked; the halo below marks the whole chain.
+        foreach (var (dict, col, wd, alpha) in new[] { (sel, 0xFFFF8A1Fu, 3.2f, 1f), (preview, 0xFF35B6FFu, 2.4f, 1f), (hov, 0xFF35B6FFu, 3.0f, 1f) })
             foreach (var o in visible)
             {
                 if (!dict.TryGetValue(o.Id, out var hl)) continue;
                 var g = Upload(o.Mesh); var m = o.Mesh;
+                var chain = ReferenceEquals(dict, sel) && preview.TryGetValue(o.Id, out var pv) ? pv : null;
+                var hovered = chain != null && hov.TryGetValue(o.Id, out var hv) ? hv : null;
                 if (hl.Object)
                 {
                     if (mode == DisplayMode.Wireframe && o.Kind is (ObjKind.Form or ObjKind.Mesh))
@@ -555,8 +558,22 @@ public sealed unsafe class GlViewport : Decorator
                     else DrawEdges(gl, g, 0, g.SegCount, C2(col), wd * scale, 0.0012f);
                 }
                 foreach (var e in hl.Edges)
-                    if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], C2(col), (wd + 0.8f) * scale, 0.0012f);
+                {
+                    if (chain != null && (chain.Edges.Contains(e) || hovered?.Edges.Contains(e) == true)) continue;
+                    if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], Faded(col, alpha), (wd + 0.8f * alpha) * scale, 0.0012f);
+                }
             }
+
+        // A translucent halo over every edge the rule would take, the hovered one included: on top of the blue lines it turns them purple, so the chain reads as one group at a glance.
+        foreach (var o in visible)
+        {
+            if (!preview.TryGetValue(o.Id, out var chainHighlight) || chainHighlight.Edges.Count == 0) continue;
+            var m = o.Mesh; var g = Upload(m);
+            var haloEdges = new HashSet<int>(chainHighlight.Edges);
+            if (hov.TryGetValue(o.Id, out var hoveredHighlight)) haloEdges.UnionWith(hoveredHighlight.Edges);
+            foreach (var e in haloEdges)
+                if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], (0.96f, 0.22f, 0.72f, 0.42f), 11f * scale, 0.0016f);
+        }
 
         // ---- simulation result: the deformed, colored surface stands in for the body
         gl.UseProgram(_mesh);U1(_mesh,"uPattern",(int)SurfacePattern.Plain);ClearSurface();
@@ -636,14 +653,16 @@ public sealed unsafe class GlViewport : Decorator
 
     static Vector3 V(Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
     static (float, float, float, float) C2(uint c) => C(c);
+    static (float, float, float, float) Faded(uint c, float alpha) { var (r, g, b, _) = C(c); return (r, g, b, alpha); }
 
     (float metal, float gloss) _look = (0f, 0.35f);
 
     readonly Dictionary<string,uint> _surfaceTex = new();
-    uint SurfaceTexture(GL gl,string data)
+    uint SurfaceTexture(GL gl,string data,bool alpha=false)
     {
-        if (_surfaceTex.TryGetValue(data,out uint tex)) return tex;
-        var image=SurfaceImage.Decode(data);
+        var key=alpha?data+"!a":data;
+        if (_surfaceTex.TryGetValue(key,out uint tex)) return tex;
+        var image=SurfaceImage.Decode(data,alpha);
         tex=gl.GenTexture(); gl.BindTexture(TextureTarget.Texture2D,tex);
         fixed(byte* bytes=image.Rgba) gl.TexImage2D(TextureTarget.Texture2D,0,InternalFormat.Rgba8,(uint)image.Width,(uint)image.Height,0,Silk.NET.OpenGL.PixelFormat.Rgba,PixelType.UnsignedByte,bytes);
         gl.GenerateMipmap(TextureTarget.Texture2D);
@@ -651,7 +670,7 @@ public sealed unsafe class GlViewport : Decorator
         gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureMagFilter,(int)TextureMagFilter.Linear);
         gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureWrapS,(int)TextureWrapMode.Repeat);
         gl.TexParameter(TextureTarget.Texture2D,TextureParameterName.TextureWrapT,(int)TextureWrapMode.Repeat);
-        _surfaceTex[data]=tex; return tex;
+        _surfaceTex[key]=tex; return tex;
     }
     void ClearSurface() { U1(_mesh,"uLayers",0); }
     void SetSurface(GL gl,SceneObject obj)
@@ -674,10 +693,10 @@ public sealed unsafe class GlViewport : Decorator
         U2(_mesh,"uAnisotropy",style.Anisotropy,style.AnisotropyAngle*(float)Math.PI/180);
         U2(_mesh,"uTransmission",style.Transmission*(1-obj.Look.Metal),style.Ior);U3(_mesh,"uAbsorptionTint",SurfaceLayers.Srgb(style.AbsorptionColor));
         int unit=0;
-        foreach(var (name,data) in new[]{("Color",style.ColorMap),("Rough",style.RoughnessMap),("Bump",style.BumpMap)})
+        foreach(var (name,data) in new[]{("Color",style.ColorMap),("Rough",style.RoughnessMap),("Bump",style.BumpMap),("Decal",style.DecalMap)})
         {
             gl.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0+unit));
-            uint tex=data==null?0:SurfaceTexture(gl,data);
+            uint tex=data==null?0:SurfaceTexture(gl,data,name=="Decal");
             gl.BindTexture(TextureTarget.Texture2D,tex);U1(_mesh,"uHas"+name+"Map",tex==0?0:1);U1(_mesh,"u"+name+"Map",unit++);
         }
         gl.ActiveTexture(TextureUnit.Texture0);
@@ -716,24 +735,19 @@ public sealed unsafe class GlViewport : Decorator
         Math.Abs(a.X) > 0.9 ? new(0.86f, 0.27f, 0.27f) : Math.Abs(a.Y) > 0.9 ? new(0.30f, 0.68f, 0.34f) : new(0.27f, 0.45f, 0.86f);
 
     /// <summary>The principal plane facing the camera when the view is (nearly) axis-aligned, else the ground plane.</summary>
-    public static Plane3 ViewGridPlane(Camera cam)
-    {
-        var e = cam.EyeDirection; double ax = Math.Abs(e.X), ay = Math.Abs(e.Y), az = Math.Abs(e.Z);
-        const double near = 0.95;       // within about 18 degrees of looking straight along an axis
-        if (ax >= near && ax >= ay && ax >= az) return Plane3.YZ;
-        if (ay >= near && ay >= ax && ay >= az) return Plane3.XZ;
-        return Plane3.XY;
-    }
+    public static Plane3 ViewGridPlane(Camera cam) => cam.AxisFacingPlane() ?? Plane3.XY;
 
-    /// <summary>The sketch grid remains on its entry plane, independently of the active drawing frame.</summary>
-    public static Plane3 DisplayGridPlane(CadSession s)
-        => s.Sketch?.GridPlane ?? s.ActiveCommand?.WorkPlane ?? ViewGridPlane(s.Camera);
+    /// <summary>
+    /// Orthographic views snapped to a world axis show the grid of the plane being looked at — drawing flat or in space alike.
+    /// Perspective keeps the one grid on the plane that was picked (the sketch's entry plane, or a command's work plane).
+    /// </summary>
+    public static Plane3 DisplayGridPlane(CadSession s) => s.DisplayGridPlane();
 
     void DrawGrid(GL gl, CadSession s, Matrix4x4 vp, float scale)
     {
         var cam = s.Camera;
         // The large reference grid must not swing through the viewport when a drawing plane or gizmo changes.
-        // Outside a sketch, commands retain their work-plane grid and idle views use the camera-facing principal plane.
+        // A snapped orthographic view shows the plane it faces; anything else keeps the picked context plane.
         var pl = DisplayGridPlane(s);
         double ext = Math.Max(cam.Distance * 30, 400);
         var center = pl.Origin + pl.U * Vec3.Dot(cam.Target - pl.Origin, pl.U) + pl.V * Vec3.Dot(cam.Target - pl.Origin, pl.V);
@@ -851,6 +865,13 @@ public sealed unsafe class GlViewport : Decorator
 
     void StopHold() { _holdTimer?.Stop(); _holdTimer = null; }
 
+    /// <summary>
+    /// Shift or Ctrl with a right or middle drag pans; a plain drag orbits. Ctrl that is holding a 3D sketch's drawing-plane
+    /// lock keeps orbiting, so the view can be turned without letting go of the plane.
+    /// </summary>
+    public static bool PansWith(CadSession s, KeyModifiers modifiers) =>
+        modifiers.HasFlag(KeyModifiers.Shift) || modifiers.HasFlag(KeyModifiers.Control) && s.Sketch?.LockedPlane is not >= 0;
+
     void OnPressed(object? _, PointerPressedEventArgs e)
     {
         Focus();
@@ -861,7 +882,7 @@ public sealed unsafe class GlViewport : Decorator
         var props = pt.Properties;
         if (props.IsMiddleButtonPressed || props.IsRightButtonPressed || (props.IsLeftButtonPressed && e.KeyModifiers.HasFlag(KeyModifiers.Alt) && s.Sketch == null))
         {
-            _nav = e.KeyModifiers.HasFlag(KeyModifiers.Shift) || e.KeyModifiers.HasFlag(KeyModifiers.Control) ? Nav.Pan : Nav.Orbit;
+            _nav = PansWith(s, e.KeyModifiers) ? Nav.Pan : Nav.Orbit;
             if (props.IsMiddleButtonPressed && e.ClickCount == 2) { s.ZoomExtents(); _nav = Nav.None; }
             e.Pointer.Capture(_host);
             if (props.IsRightButtonPressed && CameraIndex == 0 && _nav == Nav.Orbit && MarkingMenu != null && AppSettings.Current.MarkingMenu)

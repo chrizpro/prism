@@ -4,6 +4,7 @@ using System.Linq;
 using Prism.Core;
 using Prism.Core.Form;
 using Prism.Kernel;
+using Prism.Meshing;
 
 namespace Prism.Commands;
 
@@ -17,6 +18,12 @@ public abstract class BodyCommand : Command
     bool _manualOp; int _autoIdx = -1;
     /// <summary>True when Cut had to point the other way to reach the body.</summary>
     protected bool FlippedForCut;
+    /// <summary>Set once the first combine ran: booleans on curved geometry (lofts, sweeps) can take seconds, and the
+    /// preview rebuilds on every pick or tweak, so after one slow combine the preview shows the un-combined tool until OK.</summary>
+    bool _heavyCombine;
+    const double HeavyCombineMs = 250;
+    /// <summary>Previews of heavy combines skip the boolean work; the commit build still runs everything.</summary>
+    bool SkipCombine => _heavyCombine && !Committing;
 
     protected void AddOperation(bool auto = false)
     {
@@ -66,6 +73,8 @@ public abstract class BodyCommand : Command
     {
         var o = new CommandOutput(); FlippedForCut = false;
         if (Op == null) { o.Add.Add(new(tool, name, kind)); return o; }
+        var overlap = new Dictionary<SceneObject, double>();
+        double OverlapOnce(SceneObject body) => overlap.TryGetValue(body, out var v) ? v : overlap[body] = Overlap(body, tool);
         if (AutoOp)
         {
             if (_autoIdx >= 0 && Op.Index != _autoIdx) _manualOp = true;        // the user chose something themselves: leave it alone
@@ -74,22 +83,50 @@ public abstract class BodyCommand : Command
                 int want = 0;
                 if (NearestBody(tool) is { } near)
                 {
-                    double vol = 0; try { vol = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }       // a reversed solid reports a negative volume
-                    double inside = vol > 1e-6 ? Overlap(near, tool) / vol : 0;
-                    if (inside > 0.35) want = 2;
-                    Results.Add(new ResultLine("Automatic operation", $"{inside * 100:0}% of the new shape is inside {near.Name} -> {(want == 2 ? "Cut" : "new body")} (choose another Operation to override)"));      // mostly inside a body: that is a cut (a wing root or boss that only pokes in stays a new body)
+                    if (SkipCombine)
+                    {
+                        want = _autoIdx > 0 ? _autoIdx : 0;       // keep the earlier automatic pick; the exact overlap is deferred to OK
+                        Results.Add(new ResultLine("Automatic operation", $"combining with {near.Name} is slow; the result is computed on OK"));
+                    }
+                    else
+                    {
+                        double vol = 0; try { vol = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }       // a reversed solid reports a negative volume
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        double inside = vol > 1e-6 ? OverlapOnce(near) / vol : 0;
+                        if (!_heavyCombine && sw.ElapsedMilliseconds > HeavyCombineMs) _heavyCombine = true;
+                        want = inside > 0.35 ? 2 : 0;
+                        Results.Add(new ResultLine("Automatic operation", $"{inside * 100:0}% of the new shape is inside {near.Name} -> {(want == 2 ? "Cut" : "new body")} (choose another Operation to override)"));      // mostly inside a body: that is a cut (a wing root or boss that only pokes in stays a new body)
+                    }
                 }
                 if (want != Op.Index) { Op.SetSilently(want); UpdateVisibility(); }
-                _autoIdx = want;
+                if (!SkipCombine) _autoIdx = want;
             }
         }
         if (Op.Index == 0) { o.Add.Add(new(tool, name, kind)); return o; }
         var target = ResolveTarget(tool);
-        if (Op.Index is 2 or 3 && reversed != null && Overlap(target, tool) < 1e-9)
+        if (SkipCombine)
         {
-            // asked to cut, but the shape points away from the body: turn it round so it cuts
-            var back = reversed();
-            if (Overlap(target, back) > 1e-9) { tool = back; FlippedForCut = true; }
+            // a curved combine (loft, sweep...) can take seconds; rebuilding on every preview stalls the whole UI.
+            // Show the tool as it would look as a new body until the user presses OK, which runs the real boolean.
+            Results.Add(new ResultLine("Combine", $"{Op.Options[Op.Index]} with {target.Name} is computed when you press OK"));
+            o.Add.Add(new(tool, name, kind));
+            return o;
+        }
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+        if (Op.Index is 2 or 3 && reversed != null)
+        {
+            // A tool that only touches the body still overlaps it by a sliver: a sketch plane taken from a face of a bent body is accurate to about a micron.
+            // So "no overlap" means less than 1e-4 of the tool's own volume, not an absolute 1e-9 mm³.
+            double toolVolume = 0; try { toolVolume = Math.Abs(Occ.Mass(tool).Volume); } catch (Exception e) when (e is not OutOfMemoryException) { }
+            double sliver = Math.Max(1e-9, 1e-4 * toolVolume);
+            if (OverlapOnce(target) < sliver)
+            {
+                // asked to cut, but the shape points away from the body: turn it round so it cuts
+                var back = reversed();
+                if (Overlap(target, back) > sliver) { tool = back; FlippedForCut = true; }
+            }
         }
         var res = Op.Index switch
         {
@@ -100,6 +137,8 @@ public abstract class BodyCommand : Command
         o.Replace.Add((target, res));
         if (Op.Index == 2) o.Ghosts.Add(tool);       // show the tool faintly so you can see what is being cut away
         return o;
+        }
+        finally { if (clock.ElapsedMilliseconds > HeavyCombineMs) _heavyCombine = true; }
     }
 
     protected bool TargetMissing => Op != null && Op.Index != 0 && Target!.Items.Count == 0 && !Bodies().Any();
@@ -119,6 +158,24 @@ public abstract class PrimitiveCommand : BodyCommand
         AddOperation();
     }
 
+    /// <summary>Dimension arrows anchored on the previewed shape; the base adds position arrows from the world origin.</summary>
+    protected virtual IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield break; }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            var pos = new Vec3(X.Value, Y.Value, Z.Value);
+            var list = new List<HandleSpec>(DimHandles(pos));
+            // the tips mark the X / Y / Z position components (the shape sits where the tips point)
+            list.Add(new(Vec3.Zero, Vec3.UnitX, X));
+            list.Add(new(Vec3.Zero, Vec3.UnitY, Y));
+            list.Add(new(Vec3.Zero, Vec3.UnitZ, Z));
+            return list;
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
     protected override CommandOutput? Build()
     {
         if (TargetMissing) return null;
@@ -135,6 +192,12 @@ public sealed class BoxCommand : PrimitiveCommand
     protected override string Prefix => "Box";
     public BoxCommand() { W = Num("Width (X)", 40, 0.001); D = Num("Depth (Y)", 30, 0.001); H = Num("Height (Z)", 20, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Box(W.Value, D.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, W);
+        yield return new(pos, Vec3.UnitY, D);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class CylinderCommand : PrimitiveCommand
@@ -144,6 +207,11 @@ public sealed class CylinderCommand : PrimitiveCommand
     protected override string Prefix => "Cylinder";
     public CylinderCommand() { R = Num("Radius", 12, 0.001); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cylinder(R.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class SphereCommand : PrimitiveCommand
@@ -153,6 +221,7 @@ public sealed class SphereCommand : PrimitiveCommand
     protected override string Prefix => "Sphere";
     public SphereCommand() { R = Num("Radius", 18, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Sphere(R.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, Vec3.UnitX, R); }
 }
 
 public sealed class ConeCommand : PrimitiveCommand
@@ -162,6 +231,12 @@ public sealed class ConeCommand : PrimitiveCommand
     protected override string Prefix => "Cone";
     public ConeCommand() { R1 = Num("Base radius", 16, 0); R2 = Num("Top radius", 4, 0); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cone(R1.Value, R2.Value, H.Value);
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R1);
+        yield return new(pos + Vec3.UnitZ * H.Value, Vec3.UnitX, R2);
+        yield return new(pos, Vec3.UnitZ, H);
+    }
 }
 
 public sealed class TorusCommand : PrimitiveCommand
@@ -171,6 +246,11 @@ public sealed class TorusCommand : PrimitiveCommand
     protected override string Prefix => "Torus";
     public TorusCommand() { R = Num("Major radius", 20, 0.002); r = Num("Minor radius", 5, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Torus(R.Value, Math.Min(r.Value, R.Value * 0.99));
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
+    {
+        yield return new(pos, Vec3.UnitX, R);
+        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitX, r);   // minor radius sits at the ring's centre line
+    }
 }
 
 // ---------------------------------------------------------------- profile helpers
@@ -427,10 +507,21 @@ public sealed class ExtrudeCommand : BodyCommand
     {
         get
         {
-            if (!Resolved() || Ext > 2) return [];
+            if (!Resolved()) return [];
             var dir = _hc.n * Sign;
-            var list = new List<HandleSpec> { new(_hc.origin, dir, _dist, Ext == 2 ? 2 : 1) };         // symmetric: the arrow marks one half
-            if (Ext == 1) list.Add(new HandleSpec(_hc.origin, -dir, _dist2));
+            var list = new List<HandleSpec>();
+            if (Ext <= 2)
+            {
+                list.Add(new(_hc.origin, dir, _dist, Ext == 2 ? 2 : 1));                          // symmetric: the arrow marks one half
+                if (Ext == 1) list.Add(new HandleSpec(_hc.origin, -dir, _dist2));
+                if (!_surface)
+                {
+                    var k = SurfaceMath.Basis(dir).u;                                             // any in-plane axis: the taper leans every wall alike
+                    double radius = Math.Max(Math.Abs(_dist.Value), 10);
+                    list.Add(new HandleSpec(_hc.origin, k, _taper, 1, dir, radius));
+                }
+            }
+            else if (Ext == 3) list.Add(new(_hc.origin, dir, _toOffset));                         // gap past / short of the target
             return list;
         }
     }
@@ -598,7 +689,7 @@ public sealed class RevolveCommand : BodyCommand
     {
         get
         {
-            if (_profile.Items.Count == 0 || _extent.Index == 1 || _extent.Index == 3) return [];
+            if (_profile.Items.Count == 0 || _extent.Index == 1) return [];
             try
             {
                 if (!Axis(out var o, out var a)) return [];
@@ -612,6 +703,7 @@ public sealed class RevolveCommand : BodyCommand
                 double r = radial.Length; if (r < 1e-6) return [];
                 var tangent = Vec3.Cross(a, radial).Normalized() * (_flip.Value ? -1 : 1);
                 double mul = 180 / (Math.PI * r);                    // degrees per mm of arc, so the arrow tip follows the swept arc
+                if (_extent.Index == 3) return [new(_hc.center, tangent, _angle, mul * 2)];   // symmetric: the angle is split, each side sweeps half
                 var list = new List<HandleSpec> { new(_hc.center, tangent, _angle, mul) };
                 if (_extent.Index == 2) list.Add(new HandleSpec(_hc.center, -tangent, _angle2, mul));
                 return list;
@@ -646,6 +738,8 @@ public sealed class RevolveCommand : BodyCommand
 
 public sealed class SweepCommand : BodyCommand
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly bool _surface;
     readonly SelectionSlot _profile, _path, _rail;
     readonly ChoiceParam _orient;
@@ -664,6 +758,25 @@ public sealed class SweepCommand : BodyCommand
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
     protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _rail.Items.Count == 0; }
+
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (_rail.Items.Count > 0 || _path.Items.Count == 0 || _profile.Items.Count == 0 || Math.Abs(_endScale.Value - 1) < 1e-9) return null;
+            try
+            {
+                var pts = S.EdgePoints(_path.Items[^1]); if (pts.Count < 2) return null;
+                var end = pts[^1]; var t = (end - pts[^2]).Normalized();
+                var prof = SlotShape(_profile, false); var c = CenterOf(prof); var m = prof.Tessellate();
+                double r0 = 0;
+                for (int i = 0; i + 2 < m.Positions.Length; i += 3) r0 = Math.Max(r0, (new Vec3(m.Positions[i], m.Positions[i + 1], m.Positions[i + 2]) - c).Length);
+                if (r0 < 1e-9) return null;
+                return new HandleSpec(end, SurfaceMath.Basis(t).u, _endScale, 1 / r0);   // the tip sits where the rim scales to
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+        }
+    }
 
     // each click replaces the pick: a sweep has exactly one profile, one path and at most one second rail
     public override bool PickPoint(PickResult hit, bool additive)
@@ -712,6 +825,7 @@ public sealed class LoftCommand : BodyCommand
     readonly List<string> _pointNames = ["None"];
     readonly List<Vec3> _pointPositions = [];
     readonly ChoiceParam _endPoint;
+    public override bool WantsHomeView => true;
     protected override void OnBegin()
     {
         base.OnBegin();
@@ -802,6 +916,23 @@ public sealed class LoftCommand : BodyCommand
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
+        // Preview faces are drawn after scene edges. Keep Loft's curve candidates
+        // visible while collecting inputs, then draw the picked groups on top.
+        if (ActiveSlot == _sections || ActiveSlot == _rails)
+            foreach (var obj in s.Objects.Where(obj => obj.Visible && !s.HiddenIds.Contains(obj.Id) && obj.Kind is ObjKind.Sketch or ObjKind.Curve))
+            {
+                var mesh = obj.Mesh;
+                for (int segment = 0; segment < mesh.SegEdge.Length; segment++)
+                {
+                    int i = segment * 6;
+                    var points = mesh.EdgePoints;
+                    var item = new SelItem(obj.Id, SelKind.Edge, mesh.SegEdge[segment]);
+                    bool hovered = s.Hover == item || s.Hover == SelItem.Of(obj);
+                    o.AddLine(new(points[i], points[i + 1], points[i + 2]),
+                        new(points[i + 3], points[i + 4], points[i + 5]),
+                        hovered ? 0xFF35B6FF : obj.Color, hovered ? 3f : 2.4f);
+                }
+            }
         void Draw(List<List<SelItem>> groups, uint color, string name)
         {
             for (int n = 0; n < groups.Count; n++)
@@ -859,7 +990,7 @@ public sealed class LoftCommand : BodyCommand
     }
 }
 
-/// <summary>Loft that follows guide rails: the plain loft is cut by planes square to the first rail, and each cut is moved (one rail) or moved, turned and scaled (two rails) so it touches the rails; the final loft goes through those cuts.</summary>
+/// <summary>Fit slices of the unguided loft to rail positions in each slice's plane, then loft through the fitted sections.</summary>
 static class GuidedLoft
 {
     public static Shape Build(List<Shape> secs, List<Shape> rails, bool solid, bool ruled, int steps)
@@ -869,7 +1000,8 @@ static class GuidedLoft
         if (samples.Count == 0) throw new KernelException("Could not read the guide rail.");
         var pts = samples[0].Select(s => s.p).ToList();
         // the rail runs from the first section to the last: make sure of that
-        if (Occ.Distance(secs[0], rails[0]).Distance > Occ.Distance(secs[^1], rails[0]).Distance) pts.Reverse();
+        using (var start = Occ.Vertex(pts[0]))
+            if (Occ.Distance(secs[0], start).Distance > Occ.Distance(secs[^1], start).Distance) pts.Reverse();
         bool wantClosed = IsClosed(secs[0]);
         // cut parallel to the sections, not square to the rail: where a rail leans, a cut square to it is an oblique slice of the profile and comes out larger
         Vec3? n0 = SectionNormal(secs[0]), n1 = SectionNormal(secs[^1]);
@@ -897,8 +1029,10 @@ static class GuidedLoft
                 }
                 catch (KernelException) { skipped++; continue; }                          // a cut that misses the skin is simply skipped
             }
-            var fitted = Fit(w, pts[i], rails);
-            if (axis.Length > 0) fitted = Seam(fitted, Occ.Distance(fitted, rails[0]).A, axis, refSign);
+            // End sections are constraints, not candidates for another fit.
+            var fitted = axis.Length > 0 ? Fit(w, pts[i], axis, rails) : w;
+            if (axis.Length > 0) fitted = Seam(fitted, pts[i], axis, refSign);
+            else fitted = Seam(fitted, pts[i], (i == 0 ? n0 : n1) ?? along, refSign, preserveGeometry: true);
             wires.Add(fitted); sizes.Add(fitted.Props().Size.Length);
         }
         // a section whose size jumps away from both neighbours was fitted to the wrong place on a rail: leave it out
@@ -909,9 +1043,9 @@ static class GuidedLoft
         }
         if (wires.Count < 2) throw new KernelException("The guide rail does not run along the shape.");
         try { return Occ.Loft(wires, solid, ruled); }
-        catch (KernelException)
+        catch (KernelException error)
         {
-            throw new KernelException($"The guide rails could not steer a loft through these sections ({wires.Count} of {pts.Count} cuts were usable). Each rail should touch the outline of every section and run roughly along the loft; a rail that bends sharply fails near its ends.");
+            throw new KernelException($"The guide rails could not steer a loft through these sections ({wires.Count} of {pts.Count} cuts were usable). Each rail should touch the outline of every section and run roughly along the loft; a rail that bends sharply fails near its ends. {error.Message}");
         }
     }
 
@@ -961,17 +1095,35 @@ static class GuidedLoft
     /// A smooth closed section is a single edge whose start is wherever its cut happened to begin. Lofting through several such sections twists
     /// them or fails, so each is rebuilt to start where the first rail touches it and run the same way round as the first section.
     /// </summary>
-    static Shape Seam(Shape w, Vec3 start, Vec3 axis, double refSign)
+    static Shape Seam(Shape w, Vec3 start, Vec3 axis, double refSign, bool preserveGeometry = false)
     {
-        if (refSign == 0 || w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 17, 1) is not { Count: 1 } samples) return w;
+        if (refSign == 0 || w.Count(SubKind.Edge) != 1 || Occ.CurveSamples(w, 129, 1) is not { Count: 1 } samples) return w;
         var pts = samples[0].Select(s => s.p).ToList();
         if ((pts[0] - pts[^1]).Length > 1e-6) return w;
         pts.RemoveAt(pts.Count - 1);
         int k = 0; for (int i = 1; i < pts.Count; i++) if ((pts[i] - start).Length < (pts[k] - start).Length) k = i;
-        pts = pts.Skip(k).Concat(pts.Take(k)).ToList(); pts[0] = start;
+        // Move the seam on the existing periodic curve. Replacing one sample by
+        // the attachment point changes the curve and causes phase jumps between slices.
+        double low = Math.Max(0, (k - 1.0) / pts.Count), high = Math.Min(1, (k + 1.0) / pts.Count);
+        double Gap(double t)
+        {
+            using var part = Occ.CurveTrim(w, t, t + 1e-6);
+            return (Occ.EdgeInfoOf(part).Start - start).Length;
+        }
+        // Include the other side of the periodic boundary when the best sample is zero.
+        if (k == 0 && Gap(1 - 0.5 / pts.Count) < Gap(0.5 / pts.Count)) { low = 1 - 1.0 / pts.Count; high = 1; }
+        for (int i = 0; i < 40; i++)
+        {
+            double a = low + (high - low) / 3, b = high - (high - low) / 3;
+            if (Gap(a) < Gap(b)) high = b; else low = a;
+        }
+        using var aligned = Occ.CurveTrim(w, (low + high) / 2, 1 + (low + high) / 2);
         double area = 0; for (int i = 0; i < pts.Count; i++) area += Vec3.Dot(axis, Vec3.Cross(pts[i], pts[(i + 1) % pts.Count]));
-        if (Math.Sign(area) == -refSign) pts = pts.Take(1).Concat(Enumerable.Reverse(pts.Skip(1))).ToList();
-        return Occ.Profile([Occ.Spline(pts, true)], false);
+        if (preserveGeometry)
+            return Occ.Profile([Math.Sign(area) == -refSign ? Occ.Reverse(aligned) : aligned], false);
+        var ordered = Occ.CurveSamples(aligned, 33, 1)[0].Take(32).Select(s => s.p).ToList();
+        if (Math.Sign(area) == -refSign) ordered = ordered.Take(1).Concat(Enumerable.Reverse(ordered.Skip(1))).ToList();
+        return Occ.Profile([Occ.PeriodicSection(ordered)], false);
     }
 
     /// <summary>True when every end point of the edges is shared by another edge, so the chain has no loose ends.</summary>
@@ -981,14 +1133,41 @@ static class GuidedLoft
         for (int i = 0; i < w.Count(SubKind.Edge); i++) { var e = Occ.EdgeInfoOf(w.Sub(SubKind.Edge, i)); ends.Add(e.Start); ends.Add(e.End); }
         return ends.Count > 0 && ends.All(p => ends.Count(q => (q - p).Length < 1e-5) % 2 == 0);
     }
-    static Shape Fit(Shape w, Vec3 railPoint, List<Shape> rails)
+    static Shape Fit(Shape w, Vec3 railPoint, Vec3 normal, List<Shape> rails)
     {
-        var a1 = Occ.Distance(w, rails[0]);
-        var res = Occ.Translate(w, a1.B - a1.A);                                // rail 1: slide the section onto the rail
-        if (rails.Count < 2) return res;
-        var p1 = a1.B;
-        var d2 = Occ.Distance(res, rails[1]);
-        var from = d2.A - p1; var to = d2.B - p1;
+        using var first = Occ.Vertex(railPoint);
+        if (rails.Count < 2) return Occ.Translate(w, railPoint - Occ.Distance(w, first).A);
+        using var crossings = Occ.Section(rails[1], railPoint, normal);
+        if (crossings.Count(SubKind.Vertex) != 1)
+            throw new KernelException("Each guide rail must cross each intermediate section plane once.");
+        using var second = crossings.Sub(SubKind.Vertex, 0);
+        var target = second.Props().Center;
+        // Interior nearest points on a closed oval can jump between its two
+        // sides. Use the corresponding diameter in the section plane instead.
+        Vec3 sourceFirst, sourceSecond;
+        if (IsClosed(w))
+        {
+            var outline = Occ.CurveSamples(w, 129, 64).SelectMany(e => e.Take(e.Length - 1).Select(p => p.p)).ToList();
+            var center = outline.Aggregate(Vec3.Zero, (sum, p) => sum + p) / outline.Count;
+            var direction = (target - railPoint).Normalized();
+            using var diameter = Occ.Section(w, center, Vec3.Cross(normal, direction));
+            var intersections = Enumerable.Range(0, diameter.Count(SubKind.Vertex)).Select(i =>
+            {
+                using var vertex = diameter.Sub(SubKind.Vertex, i);
+                return vertex.Props().Center;
+            }).ToList();
+            if (intersections.Count < 2) throw new KernelException("The guide rails could not locate opposite sides of the closed section.");
+            sourceFirst = intersections.MinBy(p => Vec3.Dot(p, direction));
+            sourceSecond = intersections.MaxBy(p => Vec3.Dot(p, direction));
+        }
+        else
+        {
+            sourceFirst = Occ.Distance(w, first).A;
+            sourceSecond = Occ.Distance(w, second).A;
+        }
+        var res = Occ.Translate(w, railPoint - sourceFirst);
+        var p1 = railPoint;
+        var from = sourceSecond - sourceFirst; var to = target - p1;
         if (from.Length < 1e-6 || to.Length < 1e-6) return res;
         double k = to.Length / from.Length;
         if (k < 0.05 || k > 20) return res;                                    // the rail is not near this cut: leave it
@@ -1006,6 +1185,8 @@ static class GuidedLoft
 // ---------------------------------------------------------------- dress-up
 public abstract class EdgeDressCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     protected readonly SelectionSlot Edges;
     protected readonly NumberParam Size;
     protected EdgeDressCommand(double size)
@@ -1040,6 +1221,26 @@ public sealed class FilletCommand : EdgeDressCommand
     public override string Hint => "Click edges on a body (click again to deselect). Give an end radius to make the fillet grow or shrink along each edge.";
     protected override Shape Apply(Shape s, int[] edges, double size)
         => _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            var list = new List<HandleSpec>(); if (Handle is { } h) list.Add(h);
+            if (Edges.Items.Count == 0 || _endRadius.Value <= 1e-9) return list;
+            try
+            {
+                var pts = S.EdgePoints(Edges.Items[0]); var obj = S.Find(Edges.Items[0].Obj);
+                if (pts.Count < 2 || obj == null) return list;
+                var end = pts[^1]; var mid = (obj.Mesh.Min + obj.Mesh.Max) * 0.5;
+                var dir = end - mid; var tan = (pts[^1] - pts[^2]).Normalized(); dir -= tan * Vec3.Dot(dir, tan);
+                if (dir.Length < 1e-9) dir = Vec3.UnitZ;
+                list.Add(new HandleSpec(end, dir.Normalized(), _endRadius));
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+            return list;
+        }
+    }
 }
 
 public sealed class ChamferCommand : EdgeDressCommand
@@ -1052,6 +1253,8 @@ public sealed class ChamferCommand : EdgeDressCommand
 
 public sealed class ShellCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly SelectionSlot _faces;
     readonly NumberParam _t;
     readonly ChoiceParam _dir;

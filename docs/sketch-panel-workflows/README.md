@@ -10,12 +10,12 @@ Tool metadata assigns controls to their section without duplicating views. Tools
 
 ## Coverage and screenshots
 
-The [complete gallery](gallery.md) and [machine-readable inventory](inventory.json) cover 21 concrete tool types and 64 variants, including all 12 supported constraint types, drawing methods, and boolean construction variants. Each has a screenshot in both themes.
+The [complete gallery](gallery.md) and [machine-readable inventory](inventory.json) cover 22 concrete tool types and 69 variants, including all 12 supported constraint types, drawing methods, and boolean construction variants. Each has a screenshot in both themes. Select and Edit Geometry are the sketch panel itself — their captures show the dock's sketch overview, not a tool panel; their Box / Lasso / Paint method lives on the ribbon's Select group.
 
 - Rectangle: [dark](rectangle-dimensions-dark.png), [light](rectangle-dimensions-light.png)
 - Ellipse: [dark](ellipse-dimensions-dark.png), [light](ellipse-dimensions-light.png)
 - Offset: [dark](offset-selected-dark.png), [light](offset-selected-light.png)
 
-`dotnet run --project tests/Prism.SketchPanelWorkflowTests -c Release` regenerates the inventory and screenshots. Its 341 checks audit every exposed method and control, consecutive steps, live-edit state, collapsibility, numeric feedback, narrow dock layouts, and actual rectangle/offset geometry created through the shared actions. These are captures of implemented Avalonia controls, not design mockups.
+`dotnet run --project tests/Prism.SketchPanelWorkflowTests -c Release` regenerates the inventory and screenshots. Its 330 checks audit every exposed method and control, consecutive steps, live-edit state, collapsibility, numeric feedback, narrow dock layouts, and actual rectangle/offset geometry created through the shared actions. These are captures of implemented Avalonia controls, not design mockups.
 
 The existing SketchModeTests (109 checks), ProjectionTests (34), PanelWorkflowTests (20), and WorkflowTests (43) also pass. The separate SketchSpaceTests suite stops at its pre-existing expectation that entering 3D Edit Geometry leaves gizmo setup; the current implementation and SketchModeTests instead explicitly begin 3D geometry editing in setup. This panel change leaves that behavior and assertion unchanged.

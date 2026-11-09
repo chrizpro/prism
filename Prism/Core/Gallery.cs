@@ -11,11 +11,52 @@ using System.Threading.Tasks;
 
 namespace Prism.Core;
 
+/// <summary>An optional extra file offered beside a model, for example its animation video or exploded view image.</summary>
+public sealed record GalleryExtra(string Label, string FileName, string Url, long Bytes, string Sha256);
+
 public sealed record GalleryEntry(string Id, string Name, string Description, string Workflow,
-    string Author, string License, string MinimumVersion, string ModelUrl, string PreviewUrl, long Bytes, string Sha256)
+    string Author, string License, string MinimumVersion, string ModelUrl, string PreviewUrl, long Bytes, string Sha256, List<GalleryExtra>? Extras = null)
 {
+    public bool Equals(GalleryEntry? other) => other != null && Id == other.Id && Name == other.Name && Description == other.Description && Workflow == other.Workflow &&
+        Author == other.Author && License == other.License && MinimumVersion == other.MinimumVersion && ModelUrl == other.ModelUrl && PreviewUrl == other.PreviewUrl &&
+        Bytes == other.Bytes && Sha256 == other.Sha256 && (Extras ?? []).SequenceEqual(other.Extras ?? []);
+    public override int GetHashCode() => HashCode.Combine(Id, Sha256, Bytes, Extras?.Count ?? 0);
     public bool IsCompatible(string version) => Version.TryParse(MinimumVersion, out var required) &&
         Version.TryParse(version.Split('-')[0].Split('+')[0], out var current) && current >= required;
+}
+
+/// <summary>How the startup gallery groups models: by the first workflow named in a model's Workflow field.</summary>
+public static class GallerySections
+{
+    /// <summary>Workspace tabs in the order the gallery lists them. Models with another first workflow follow, in catalog order.</summary>
+    public static readonly string[] Order = ["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "Mold", "CAE", "ECAD"];
+    /// <summary>Models shown per section until the section is expanded.</summary>
+    public const int Preview = 3;
+
+    public static string Of(string workflow) => Names(workflow)[0];
+
+    /// <summary>Every section a Workflow field names, in order: "Solid / CAE" belongs to both Solid and CAE.</summary>
+    public static IReadOnlyList<string> Names(string workflow)
+    {
+        var names = new List<string>();
+        foreach (var part in workflow.Split('/'))
+        {
+            var t = part.Trim();
+            if (t.Length == 0) continue;
+            var name = Order.FirstOrDefault(o => o.Equals(t, StringComparison.OrdinalIgnoreCase)) ?? t;
+            if (!names.Contains(name, StringComparer.OrdinalIgnoreCase)) names.Add(name);
+        }
+        return names.Count > 0 ? names : [workflow.Trim()];
+    }
+
+    public static IReadOnlyList<(string Section, List<GalleryEntry> Items)> Group(IEnumerable<GalleryEntry> entries)
+    {
+        var groups = new Dictionary<string, List<GalleryEntry>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in entries)
+            foreach (var k in Names(e.Workflow)) { if (!groups.TryGetValue(k, out var l)) groups[k] = l = []; l.Add(e); }
+        return groups.OrderBy(g => { int i = Array.FindIndex(Order, o => o.Equals(g.Key, StringComparison.OrdinalIgnoreCase)); return i < 0 ? Order.Length : i; })
+            .Select(g => (g.Key, g.Value)).ToList();
+    }
 }
 
 public sealed record GalleryCatalog(int SchemaVersion, List<GalleryEntry> Items)
@@ -34,6 +75,10 @@ public sealed record GalleryCatalog(int SchemaVersion, List<GalleryEntry> Items)
                 !AllowedUrl(e.ModelUrl) || !AllowedUrl(e.PreviewUrl) || e.Bytes <= 0 || e.Bytes > 256 * 1024 * 1024 ||
                 !Regex.IsMatch(e.Sha256 ?? "", @"\A[0-9a-fA-F]{64}\z"))
                 throw new InvalidDataException("Invalid gallery entry.");
+        foreach (var x in catalog.Items.SelectMany(e => e.Extras ?? []))
+            if (x == null || string.IsNullOrWhiteSpace(x.Label) || !Regex.IsMatch(x.FileName ?? "", @"\A[A-Za-z0-9][A-Za-z0-9._-]{0,79}\z") ||
+                !AllowedUrl(x.Url) || x.Bytes <= 0 || x.Bytes > 128 * 1024 * 1024 || !Regex.IsMatch(x.Sha256 ?? "", @"\A[0-9a-fA-F]{64}\z"))
+                throw new InvalidDataException("Invalid gallery extra file.");
         return catalog;
     }
     public string ToJson() => JsonSerializer.Serialize(this, Json);
@@ -116,6 +161,21 @@ public sealed class GalleryStore(HttpClient http, string root)
                 return path;
             }
             catch { File.Delete(path); throw; }
+        }
+    }
+    /// <summary>Downloads an extra file (video, exploded view image), verifies its size and hash, and saves it under a new name in <paramref name="folder"/>.</summary>
+    public async Task<string> SaveExtra(GalleryExtra extra, string folder, CancellationToken token = default)
+    {
+        var data = await Download(extra.Url, extra.Bytes, token);
+        if (data.LongLength != extra.Bytes || !Convert.ToHexString(SHA256.HashData(data)).Equals(extra.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The download is incomplete or has changed. Refresh the gallery and try again.");
+        Directory.CreateDirectory(folder);
+        string stem = Path.GetFileNameWithoutExtension(extra.FileName), ext = Path.GetExtension(extra.FileName);
+        for (int i = 1; ; i++)
+        {
+            string path = Path.Combine(folder, stem + (i == 1 ? "" : "-" + i) + ext);
+            try { await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None); await target.WriteAsync(data, token); return path; }
+            catch (IOException) when (File.Exists(path)) { }
         }
     }
     async Task<byte[]> Download(string url, long limit, CancellationToken token)

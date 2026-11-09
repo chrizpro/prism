@@ -9,6 +9,8 @@ namespace Prism.Core;
 /// <summary>Lights and the picture backdrop: kept on the document, drawn in the viewport, used by the next render.</summary>
 public sealed partial class CadSession
 {
+    /// <summary>UI hook: opens the assistant with the render-background task (set by the view; null in headless hosts).</summary>
+    public Action? GenerateBackgroundAi;
     public List<RenderLight> Lights { get; private set; } = [];
     public RenderSetup RenderSetup { get; set; } = new();
     public Guid? SelectedLightId { get; set; }

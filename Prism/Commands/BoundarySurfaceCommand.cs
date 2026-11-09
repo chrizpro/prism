@@ -15,6 +15,8 @@ namespace Prism.Commands;
 /// </summary>
 public sealed class BoundarySurfaceCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     sealed class FillReq
     {
         public List<Shape> Hosts = []; public List<int> Ids = []; public List<int> Orders = []; public List<double> Weights = [];

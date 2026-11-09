@@ -319,10 +319,10 @@ CK_API void* ck_polyline(const double* xyz, int n, int closed) {
 #include <math_Vector.hxx>
 // Closed cubic curve through the points, periodic with a knot at every point (chord-length parameters, closing chord included).
 // OCCT's own periodic interpolation comes out lopsided, so the pole system is solved here.
-static Handle(Geom_BSplineCurve) periodic_spline(const std::vector<gp_Pnt>& q) {
+static Handle(Geom_BSplineCurve) periodic_spline(const std::vector<gp_Pnt>& q, bool uniform = false) {
     const int n = (int)q.size();
     std::vector<double> t(n + 1, 0.0);
-    for (int i = 0; i < n; ++i) t[i + 1] = t[i] + std::max(q[i].Distance(q[(i + 1) % n]), 1e-9);
+    for (int i = 0; i < n; ++i) t[i + 1] = t[i] + (uniform ? 1.0 : std::max(q[i].Distance(q[(i + 1) % n]), 1e-9));
     TColStd_Array1OfReal knots(1, n + 1);
     TColStd_Array1OfInteger mults(1, n + 1);
     for (int i = 0; i <= n; ++i) { knots(i + 1) = t[i]; mults(i + 1) = 1; }
@@ -360,6 +360,18 @@ CK_API void* ck_spline(const double* xyz, int n, int closed) {
     CATCH(nullptr)
 }
 // Control-point curve with a clamped uniform knot vector.
+// Matching knots keep corresponding Loft sections compatible without a large
+// union of slightly different chord-length knot sequences.
+CK_API void* ck_spline_periodic_uniform(const double* xyz, int n) {
+    TRY
+        if (n < 4) { fail("A periodic section needs at least four points."); return nullptr; }
+        std::vector<gp_Pnt> q;
+        for (int i = 0; i < n; ++i) q.emplace_back(xyz[3*i], xyz[3*i+1], xyz[3*i+2]);
+        Handle(Geom_BSplineCurve) c = periodic_spline(q, true);
+        if (c.IsNull()) { fail("Periodic section interpolation failed."); return nullptr; }
+        return wrap(BRepBuilderAPI_MakeEdge(c).Edge());
+    CATCH(nullptr)
+}
 CK_API void* ck_nurbs_curve(const double* xyz, int n, int degree) {
     TRY
         int deg = std::min(degree, n - 1);
@@ -817,11 +829,29 @@ CK_API int ck_children(void* s, void** out, int max) {
 CK_API int ck_shape_type(void* s) { TRY return (int)get(s).ShapeType(); CATCH(-1) } // TopAbs_ShapeEnum: 0 compound,1 compsolid,2 solid,3 shell,4 face,5 wire,6 edge,7 vertex
 CK_API int ck_is_valid(void* s) { TRY return BRepCheck_Analyzer(get(s)).IsValid() ? 1 : 0; CATCH(0) }
 
+// Integrate spline knot spans separately to keep volume stable across trimmed faces.
+static void volumeProperties(const TopoDS_Shape& shape, GProp_GProps& props, bool moments = false) {
+    if (TopExp_Explorer(shape, TopAbs_SOLID).More()) {
+        for (TopExp_Explorer faces(shape, TopAbs_FACE); faces.More(); faces.Next()) {
+            auto type = BRepAdaptor_Surface(TopoDS::Face(faces.Current())).GetType();
+            if (type == GeomAbs_BSplineSurface || type == GeomAbs_BezierSurface) {
+                if (BRepGProp::VolumePropertiesGK(shape, props, 1e-8, /*OnlyClosed=*/false,
+                    /*IsUseSpan=*/true, /*CGFlag=*/moments, /*IFlag=*/moments) < 0) {
+                    props = GProp_GProps();
+                    BRepGProp::VolumeProperties(shape, props, 1e-9);
+                }
+                return;
+            }
+        }
+    }
+    BRepGProp::VolumeProperties(shape, props);
+}
+
 // props: [volume, area, minx,miny,minz, maxx,maxy,maxz]
 CK_API int ck_props(void* s, double* out) {
     TRY
         GProp_GProps v, a;
-        BRepGProp::VolumeProperties(get(s), v);
+        volumeProperties(get(s), v);
         BRepGProp::SurfaceProperties(get(s), a, 1e-9);
         // tight box (BRepBndLib::Add alone follows NURBS control polygons, which stick out far past the real surface)
         // Measurement bounds must come from the geometry. Display triangulations carry
@@ -1055,7 +1085,7 @@ CK_API void* ck_vertex(double x, double y, double z) {
 CK_API int ck_mass(void* s, double* out) {
     TRY
         GProp_GProps v, a;
-        BRepGProp::VolumeProperties(get(s), v);
+        volumeProperties(get(s), v, true);
         BRepGProp::SurfaceProperties(get(s), a, 1e-9);
         bool solid = std::abs(v.Mass()) > 1e-9;
         GProp_GProps& g = solid ? v : a;

@@ -50,6 +50,7 @@ const guideSidebar = [
   ] },
   { text: 'About Prism', items: [
     { text: 'Install Prism', link: '/download' },
+    { text: 'Keyboard shortcuts', link: '/reference/hotkeys' },
     { text: 'Known issues', link: '/reference/known-issues' },
     { text: 'Current limitations', link: '/reference/limitations' },
     { text: 'Credits and licenses', link: '/reference/credits' },
@@ -109,6 +110,7 @@ export default defineConfig({
       '/development': guideSidebar,
       '/reference/limitations': guideSidebar,
       '/reference/known-issues': guideSidebar,
+      '/reference/hotkeys': guideSidebar,
       '/reference/credits': guideSidebar,
       '/reference/privacy': guideSidebar,
       '/tools/': toolSidebar,

@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
                 tab.Groups.Add(G("Create", new[] { primitives.Items[0] }.Concat(features.Items).ToArray()));
             }
             if (tab.Title == "Solid") tab.Groups.RemoveAll(g => g.Title == "Direct");
-            if(modeling.Contains(tab.Title) || tab.Title=="Sketch")
+            if(modeling.Contains(tab.Title))
                 tab.Groups.Add(DatumGroup());
             if (tab.Title == "Solid")
             {

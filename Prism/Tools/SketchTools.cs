@@ -97,7 +97,7 @@ public abstract class SketchTool : IViewportTool
         o.AddPolyline(pts, col, w);
     }
 
-    protected const uint Rubber = 0xFF7AA7E8;
+    public const uint Rubber = 0xFF7AA7E8;
 }
 
 /// <summary>Shared click handling for tools that collect snapped points.</summary>
@@ -107,7 +107,7 @@ public abstract class ClickTool : SketchTool
     public override string PanelActionTitle => "Place geometry";
     protected virtual string PlacementAction => "Place point";
     protected readonly List<SnapInfo> Clicks = [];
-    public Vec3? LastPlacedWorld(CadSession s) => Clicks.Count > 0 ? Sk(s).Plane.PointAt(Clicks[^1].U, Clicks[^1].V) : null;
+    public virtual Vec3? LastPlacedWorld(CadSession s) => Clicks.Count > 0 ? Sk(s).Plane.PointAt(Clicks[^1].U, Clicks[^1].V) : null;
     protected override void ResetState(CadSession s) { PreservePending(s); Clicks.Clear(); ResetTyping(); }
 
     // ---- typed entry: type the length / angle / width the tool is asking for, Tab moves between fields, Enter places it
@@ -982,13 +982,26 @@ public sealed class PolygonTool(bool circumscribed) : ClickTool
 // =============================================================== Slot (center to center)
 public sealed class SlotTool : ClickTool
 {
-    protected override string PlacementAction => Clicks.Count == 1 ? "Set centerline" : "Create slot";
+    bool _fromCenter;
+    static readonly ToolOption[] SlotOptions = [new("Center to center", "Click the two arc centers, then the width", "slot"), new("From center", "Click the middle of the slot, then one arc center (the other mirrors it), then the width", "slot")];
+    public override IReadOnlyList<ToolOption> Options => SlotOptions;
+    public override int OptionIndex => _fromCenter ? 1 : 0;
+    protected override void ApplyOption(int index) => _fromCenter = index == 1;
+    public override string Mode => _fromCenter ? "From center" : "Center to center";
+
+    /// <summary>The two arc centers once two points are placed: both clicks, or, drawing from the center, the second click and its mirror through the first.</summary>
+    (SnapInfo a, SnapInfo b) ArcCenters(IReadOnlyList<SnapInfo> c)
+        => _fromCenter ? (new SnapInfo(2 * c[0].U - c[1].U, 2 * c[0].V - c[1].V, SnapKind.Grid, -1), c[1]) : (c[0], c[1]);
+
+    protected override string PlacementAction => Clicks.Count == 1 ? (_fromCenter ? "Set one arc center" : "Set centerline") : "Create slot";
     protected override SnapInfo Constrain(CadSession s,SnapInfo sn)
         =>Shift&&Clicks.Count==1?LockDirection(sn,Clicks[0]):sn;
     public override string Name => "Slot";
-    public override string Prompt => "Slot: click the first arc center, the second arc center, then a point that sets the width. Type numbers for exact sizes.";
+    public override string Prompt => _fromCenter
+        ? "Slot from center: click the middle of the slot, then one arc center (the other is its mirror), then a point that sets the width. Type numbers for exact sizes."
+        : "Slot: click the first arc center, the second arc center, then a point that sets the width. Type numbers for exact sizes.";
 
-    protected override TypedField[]? TypedFields(CadSession s) => Clicks.Count == 0 ? null : Clicks.Count == 1 ? [new("Length", " mm"), new("Angle", "°")] : [new("Width", " mm")];
+    protected override TypedField[]? TypedFields(CadSession s) => Clicks.Count == 0 ? null : Clicks.Count == 1 ? [new(_fromCenter ? "Half length" : "Length", " mm"), new("Angle", "°")] : [new("Width", " mm")];
     protected override double[]? LiveValues(CadSession s, SnapInfo h)
     {
         if (Clicks.Count == 0) return null;
@@ -1007,7 +1020,9 @@ public sealed class SlotTool : ClickTool
     {
         Clicks.Add(sn);
         if (Clicks.Count < 3) return;
-        var c = Clicks.ToList(); Clicks.Clear();
+        var drawn = Clicks.ToList(); Clicks.Clear();
+        var (first, second) = ArcCenters(drawn);
+        var c = new List<SnapInfo> { first, second, drawn[2] };
         double dx = c[1].U - c[0].U, dy = c[1].V - c[0].V, len = Dist(c[0].U, c[0].V, c[1].U, c[1].V);
         if (len < 1e-6) return;
         double ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
@@ -1016,7 +1031,10 @@ public sealed class SlotTool : ClickTool
         sk.Edit(s, "That slot", () =>
         {
             var m = sk.Model;
-            int c1 = sk.PointFor(c[0]), c2 = sk.PointFor(c[1]);
+            // drawing from the center: the middle click is a real point, held at the middle of the line between the two arc centers
+            int mid = _fromCenter ? sk.PointFor(drawn[0]) : -1;
+            int c1 = _fromCenter ? m.AddPoint(c[0].U, c[0].V) : sk.PointFor(c[0]), c2 = _fromCenter ? sk.PointFor(drawn[1]) : sk.PointFor(c[1]);
+            if (_fromCenter) { int axis = m.AddLine(c1, c2, true); m.Add(CType.Midpoint, 0, 0, false, mid, axis); }
             int p1p = m.AddPoint(c[0].U + nx * r, c[0].V + ny * r), p1m = m.AddPoint(c[0].U - nx * r, c[0].V - ny * r);
             int p2p = m.AddPoint(c[1].U + nx * r, c[1].V + ny * r), p2m = m.AddPoint(c[1].U - nx * r, c[1].V - ny * r);
             int top = m.AddLine(p1p, p2p, sk.Construction), bottom = m.AddLine(p1m, p2m, sk.Construction);
@@ -1034,8 +1052,13 @@ public sealed class SlotTool : ClickTool
         var sk = Sk(s);
         if (Clicks.Count == 0 || Hot is not { } h) return;
         var a = Clicks[0];
-        if (Clicks.Count == 1) { o.AddLine(W(sk, a.U, a.V), W(sk, h.U, h.V), Rubber, 1.5f); return; }
-        var b = Clicks[1];
+        if (Clicks.Count == 1)
+        {
+            o.AddLine(W(sk, a.U, a.V), W(sk, h.U, h.V), Rubber, 1.5f);
+            if (_fromCenter) o.AddLine(W(sk, a.U, a.V), W(sk, 2 * a.U - h.U, 2 * a.V - h.V), Rubber, 1.5f);
+            return;
+        }
+        (a, var b) = ArcCenters(Clicks);
         double dx = b.U - a.U, dy = b.V - a.V, len = Math.Max(Dist(a.U, a.V, b.U, b.V), 1e-9), ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
         double r = Math.Abs((h.U - a.U) * nx + (h.V - a.V) * ny);
         double ang = Math.Atan2(uy, ux);
@@ -1068,14 +1091,37 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
 
     protected override void Click(CadSession s, SketchContext sk, SnapInfo sn)
     {
-        if (!controlPoints && Clicks.Count >= 3 && sn.Kind == SnapKind.Point && Clicks[0].Kind == SnapKind.Point && sn.Id == Clicks[0].Id) { Commit(s, true); return; }
+        if (_carried == null && !controlPoints && Clicks.Count >= 3 && sn.Kind == SnapKind.Point && Clicks[0].Kind == SnapKind.Point && sn.Id == Clicks[0].Id) { Commit(s, true); return; }
         if (Clicks.Count > 0 && Dist(Clicks[^1].U, Clicks[^1].V, sn.U, sn.V) < 1e-6) return;
+        if (Clicks.Count == 0 && _carried != null && sk.WorldOf(sn).DistanceTo(sk.WorldIn(_home, _carried[^1])) < 1e-6) return;   // the shared point is already placed
         Clicks.Add(sn);
     }
 
+    /// <summary>Points placed before the drawing plane changed, in the coordinates of the plane the spline started on (its home).</summary>
+    List<SnapInfo>? _carried;
+    int _home = -1;
+    int Placed => Clicks.Count + (_carried?.Count ?? 0);
+
+    /// <summary>Hands over every point placed so far, in home-plane coordinates, so the next plane continues the same curve.</summary>
+    internal (int home, List<SnapInfo> points)? TakeForPlaneSwitch(CadSession s)
+    {
+        var sk = Sk(s);
+        if (Placed == 0) return null;
+        int home = _carried != null ? _home : sk.ActivePlane;
+        var points = _carried?.ToList() ?? [];
+        // Clicks on the home plane keep their snaps (and so their constraints); clicks elsewhere become plain offset points.
+        points.AddRange(home == sk.ActivePlane ? Clicks : Clicks.Select(c => sk.ToSection(home, sk.WorldOf(c))));
+        Clicks.Clear(); _carried = null;
+        return (home, points);
+    }
+
+    internal void Carry(int home, List<SnapInfo> points) { _home = home; _carried = points; }
+
+    public override Vec3? LastPlacedWorld(CadSession s) => Clicks.Count == 0 && _carried != null ? Sk(s).WorldIn(_home, _carried[^1]) : base.LastPlacedWorld(s);
+
     public override void PreservePending(CadSession s)
     {
-        if(Clicks.Count>=2)Commit(s,false);else base.PreservePending(s);
+        if(Placed>=2)Commit(s,false);else base.PreservePending(s);
     }
     protected override void Finish(CadSession s) => Commit(s, false);
     public override void FinishFeed(CadSession s, bool closed = false) => Commit(s, closed, false);
@@ -1084,6 +1130,12 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
     void Commit(CadSession s, bool closed, bool lastRepeatsFirst = true)
     {
         var sk = Sk(s);
+        if (_carried != null)
+        {
+            var (home, points) = TakeForPlaneSwitch(s)!.Value;
+            sk.AddSpaceSpline(s, home, points, closed, controlPoints);
+            return;
+        }
         if(Clicks.Count<2) { base.PreservePending(s);Clicks.Clear();s.Invalidate();return; }
         var c = Clicks.ToList(); Clicks.Clear();
         if (closed && lastRepeatsFirst && c.Count > 0) c.RemoveAt(c.Count - 1);
@@ -1095,10 +1147,26 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
         });
     }
 
+    /// <summary>Preview of a spline continued from earlier planes, built in home-plane coordinates so it bends through every plane.</summary>
+    void CarriedOverlay(CadSession s, SketchContext sk, Overlay o)
+    {
+        foreach (var c in _carried!) o.AddDot(sk.WorldIn(_home, c), 0xFF4C94FF, 8);
+        var all = _carried.Concat(Clicks.Select(c => sk.ToSection(_home, sk.WorldOf(c)))).ToList();
+        if (Hot is { } h) all.Add(sk.ToSection(_home, sk.WorldOf(h)));
+        if (all.Count < 2) return;
+        if (all.Count < 3) { o.AddLine(sk.WorldIn(_home, all[0]), sk.WorldIn(_home, all[1]), Rubber, 2f); return; }
+        var plane = sk.DrawingPlanes[_home].Plane;
+        var tmp = new SketchModel();
+        var ids = all.Select(p => { int id = tmp.AddPoint(p.U, p.V); tmp.P(id).Z = p.Depth; return id; }).ToList();
+        int eid = tmp.AddSpline(ids, false, controlPoints);
+        o.AddPolyline(tmp.SplineSamples3(tmp.E(eid)).Select(q => plane.PointAt(q.x, q.y) + plane.Normal * q.z).ToList(), Rubber, 2f);
+    }
+
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         var sk = Sk(s);
         foreach (var c in Clicks) o.AddDot(W(sk, c.U, c.V), 0xFF4C94FF, 8);
+        if (_carried != null) { CarriedOverlay(s, sk, o); return; }
         if (Clicks.Count == 0 || Hot is not { } h) return;
         var all = Clicks.Select(c => (c.U, c.V)).ToList(); all.Add((h.U, h.V));
         if (all.Count < 3) { o.AddLine(W(sk, all[0].U, all[0].V), W(sk, all[1].U, all[1].V), Rubber, 2f); return; }

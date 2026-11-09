@@ -1,114 +1,5 @@
 [
  {
-  "name": "adaptive_clear",
-  "title": "CNC Adaptive Clearing",
-  "hint": "Pick the closed outlines of the area to clear (loops inside another loop are islands). The tool follows a path that keeps its sideways cut small and even, so you can cut deeper and faster without overloading the cutter. Pre-drill or ramp in at the start points: the tool plunges straight down. Use a cutter with flutes long enough for the depth per pass.",
-  "slots": [
-   {
-    "label": "Outlines of the pocket (islands inside are left)",
-    "accepts": "AnyCurve, Face, Edge",
-    "multi": true,
-    "optional": false
-   }
-  ],
-  "params": [
-   {
-    "label": "Tool from the library",
-    "type": "choice",
-    "default": "Custom (my own values)",
-    "options": [
-     "Custom (my own values)",
-     "3 mm flat end mill, aluminium",
-     "6 mm flat end mill, aluminium",
-     "10 mm flat end mill, aluminium",
-     "6 mm flat end mill, wood / MDF",
-     "6 mm flat end mill, plastic",
-     "6 mm flat end mill, mild steel",
-     "3 mm ball nose, aluminium",
-     "6 mm ball nose, wood / MDF"
-    ]
-   },
-   {
-    "label": "Tool diameter",
-    "type": "number",
-    "default": 6,
-    "unit": "mm",
-    "min": 0.1,
-    "max": 100
-   },
-   {
-    "label": "Spindle speed",
-    "type": "number",
-    "default": 12000,
-    "unit": "rpm",
-    "min": 100,
-    "max": 60000
-   },
-   {
-    "label": "Cutting feed",
-    "type": "number",
-    "default": 800,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 20000
-   },
-   {
-    "label": "Plunge feed",
-    "type": "number",
-    "default": 300,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 10000
-   },
-   {
-    "label": "Depth per pass",
-    "type": "number",
-    "default": 6,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 100
-   },
-   {
-    "label": "Clearance above the material",
-    "type": "number",
-    "default": 5,
-    "unit": "mm",
-    "min": 0.5,
-    "max": 100
-   },
-   {
-    "label": "Top of the material (Z)",
-    "type": "number",
-    "default": 0,
-    "unit": "mm",
-    "min": -100000,
-    "max": 100000
-   },
-   {
-    "label": "Total cutting depth",
-    "type": "number",
-    "default": 12,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 10000
-   },
-   {
-    "label": "Sideways cut (load)",
-    "type": "number",
-    "default": 12,
-    "unit": "% of tool",
-    "min": 2,
-    "max": 40
-   },
-   {
-    "label": "Finish the walls with one pass",
-    "type": "boolean",
-    "default": true
-   }
-  ],
-  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
- },
- {
   "name": "animation",
   "title": "Animation",
   "hint": "Scrub to a time, change the joint values or the exploded view, and press 'Key the changed values'. Play to see it move. Save animation stores the keys with the document. Render Animation (Render tab) turns it into pictures or a movie.",
@@ -417,7 +308,7 @@
    {
     "label": "Output folder",
     "type": "text",
-    "default": "C:\\Users\\chris\\Documents\\Prism\\CAE"
+    "default": "Prism/CAE"
    },
    {
     "label": "Export static results",
@@ -1270,7 +1161,7 @@
    {
     "label": "Setup sheet folder",
     "type": "text",
-    "default": "C:\\Users\\chris\\Documents\\Prism\\CAM"
+    "default": "Prism/CAM"
    },
    {
     "label": "Save setup sheet",
@@ -1570,6 +1461,115 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "cnc_adaptive",
+  "title": "CNC Adaptive Clearing",
+  "hint": "Pick the closed outlines of the area to clear (loops inside another loop are islands). The tool follows a path that keeps its sideways cut small and even, so you can cut deeper and faster without overloading the cutter. Pre-drill or ramp in at the start points: the tool plunges straight down. Use a cutter with flutes long enough for the depth per pass.",
+  "slots": [
+   {
+    "label": "Outlines of the pocket (islands inside are left)",
+    "accepts": "AnyCurve, Face, Edge",
+    "multi": true,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 12000,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 800,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 300,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 12,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Sideways cut (load)",
+    "type": "number",
+    "default": 12,
+    "unit": "% of tool",
+    "min": 2,
+    "max": 40
+   },
+   {
+    "label": "Finish the walls with one pass",
+    "type": "boolean",
+    "default": true
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "cnc_design_check",
   "title": "CNC Design Check",
   "hint": "Screen +Z tool access, reach and thin walls on the model. Red faces are hidden from a top-down approach; orange faces exceed the selected reach. This does not certify tool access to corners or holes.",
@@ -1847,6 +1847,267 @@
     "options": [
      "X",
      "Y"
+    ]
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "cnc_finish",
+  "title": "CNC 3D Finish",
+  "hint": "Pick a solid. The tool runs back and forth in parallel lines over its top surface, following the shape down to its lowest point. A ball nose leaves a smooth surface at a small stepover; a flat end mill suits flatter shapes. Only surfaces the tool can reach from above are cut.",
+  "slots": [
+   {
+    "label": "Model to finish",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 12000,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 800,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 300,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Cutter",
+    "type": "choice",
+    "default": "Ball nose",
+    "options": [
+     "Ball nose",
+     "Flat end mill"
+    ]
+   },
+   {
+    "label": "Stepover",
+    "type": "number",
+    "default": 10,
+    "unit": "% of tool",
+    "min": 1,
+    "max": 95
+   },
+   {
+    "label": "Scan angle",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -90,
+    "max": 90
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "cnc_image_relief",
+  "title": "CNC Image Carve",
+  "hint": "Carve a picture into the top of the stock. Each pixel's brightness sets the depth, so the passes show the pattern the bit cuts. Use a ball nose bit for smooth relief. The carving is placed with its lower-left corner at X from / Y from and keeps the picture's proportions.",
+  "slots": [],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 16000,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 1000,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 300,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Image file",
+    "type": "text",
+    "default": ""
+   },
+   {
+    "label": "X from",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Y from",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Width of the carving",
+    "type": "number",
+    "default": 100,
+    "unit": "mm",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Stepover",
+    "type": "number",
+    "default": 15,
+    "unit": "% of tool",
+    "min": 1,
+    "max": 95
+   },
+   {
+    "label": "Deepest where the image is",
+    "type": "choice",
+    "default": "Dark",
+    "options": [
+     "Dark",
+     "Light"
+    ]
+   },
+   {
+    "label": "Bit",
+    "type": "choice",
+    "default": "Ball nose",
+    "options": [
+     "Ball nose",
+     "Flat end mill"
     ]
    }
   ],
@@ -2306,6 +2567,141 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "cnc_turn",
+  "title": "CNC Turning",
+  "hint": "Sketch the half section of the part on the XZ plane: X is the radius, Z runs along the axis, and the end to be faced is at the highest Z. The tool starts at the front and cuts toward the chuck. Depth per pass is the radial depth of each roughing cut. Tool nose radius is not compensated: leave the allowance for it. Post the program for Mach3 or LinuxCNC; X is written as a diameter.",
+  "slots": [
+   {
+    "label": "Profile of the part (half section on the XZ plane)",
+    "accepts": "AnyCurve, Edge",
+    "multi": true,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 1500,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 200,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 100,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 1.5,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Stock diameter (0 = automatic)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 2000
+   },
+   {
+    "label": "Extra length to face off",
+    "type": "number",
+    "default": 1,
+    "unit": "mm",
+    "min": 0,
+    "max": 100
+   },
+   {
+    "label": "Finish allowance",
+    "type": "number",
+    "default": 0.2,
+    "unit": "mm",
+    "min": 0,
+    "max": 10
+   },
+   {
+    "label": "Face the end",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Rough turn",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Finish turn",
+    "type": "boolean",
+    "default": true
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "component_envelope",
   "title": "Component Envelope",
   "hint": "Place an approximate package or keepout for enclosure checks. Coordinates use world XY; elevation is the mounting face. For accurate connectors or packages, import a STEP model.",
@@ -2635,6 +3031,14 @@
     "label": "…or a list of values",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Position along the curve",
+    "type": "number",
+    "default": 0,
+    "unit": "%",
+    "min": 0,
+    "max": 100
    },
    {
     "label": "Also on the other side",
@@ -3532,6 +3936,23 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "curve_on_surface",
+  "title": "Draw on Surface",
+  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes.",
+  "slots": [],
+  "params": [
+   {
+    "label": "Add more points",
+    "type": "action"
+   },
+   {
+    "label": "Clear points",
+    "type": "action"
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "curve_project",
   "title": "Project Curve",
   "hint": "Project curves onto a surface or face: straight along a direction, or by pulling each point to the nearest spot on the surface.",
@@ -4355,6 +4776,55 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "edge_flange",
+  "title": "Edge Flange",
+  "hint": "Pick the thin end face of a sheet-metal body along the edge you want to flange. Set the length of the straight leg, the bend angle and the inside radius: a bend and a flange are added along the whole edge. Up and Down choose which face of the sheet the flange folds toward.",
+  "slots": [
+   {
+    "label": "Thin end face of the sheet",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Flange length",
+    "type": "number",
+    "default": 20,
+    "unit": "mm",
+    "min": 0.01,
+    "max": 100000
+   },
+   {
+    "label": "Bend angle",
+    "type": "number",
+    "default": 90,
+    "unit": "°",
+    "min": 0.1,
+    "max": 180
+   },
+   {
+    "label": "Bend radius (inside)",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000
+   },
+   {
+    "label": "Fold toward",
+    "type": "choice",
+    "default": "Up (the upper face of the sheet)",
+    "options": [
+     "Up (the upper face of the sheet)",
+     "Down (the lower face)"
+    ]
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "edge_surface",
   "title": "Edge Surface",
   "hint": "Pick two, three or four curves that meet end to end (two: a ruled surface). A smooth surface spans the gap between them.",
@@ -4881,6 +5351,16 @@
     "label": "Mirror top to bottom",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Gizmo (T move, R rotate, S scale)",
+    "type": "choice",
+    "default": "Move",
+    "options": [
+     "Move",
+     "Rotate",
+     "Scale"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -5897,6 +6377,91 @@
    {
     "label": "Export the outline as DXF",
     "type": "action"
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "fold",
+  "title": "Fold",
+  "hint": "Pick a sketch of the flat sheet: draw its outline with normal lines, and each place it bends as a construction line across the sheet. Set the thickness, bend radius and angle: the sheet folds along those lines. The largest flat region stays where it is, unless you fix the region over the sketch origin.",
+  "slots": [
+   {
+    "label": "Flat sketch (outline and bend lines)",
+    "accepts": "SketchObj",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Thickness",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0.01,
+    "max": 100
+   },
+   {
+    "label": "Bend radius (inside)",
+    "type": "number",
+    "default": 2,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000
+   },
+   {
+    "label": "K-factor",
+    "type": "number",
+    "default": 0.44,
+    "unit": "",
+    "min": 0,
+    "max": 1
+   },
+   {
+    "label": "Bend angle",
+    "type": "number",
+    "default": 90,
+    "unit": "°",
+    "min": 0.1,
+    "max": 180
+   },
+   {
+    "label": "Angle of each bend (optional)",
+    "type": "text",
+    "default": ""
+   },
+   {
+    "label": "Radius of each bend (optional)",
+    "type": "text",
+    "default": ""
+   },
+   {
+    "label": "Fixed region",
+    "type": "choice",
+    "default": "The largest region",
+    "options": [
+     "The largest region",
+     "The region over the sketch origin"
+    ]
+   },
+   {
+    "label": "Also make the flat pattern beside the part",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Save the flat pattern as DXF",
+    "type": "action"
+   },
+   {
+    "label": "The metal lies",
+    "type": "choice",
+    "default": "On the normal side of the sketch",
+    "options": [
+     "On the normal side of the sketch",
+     "Opposite the normal"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -9209,6 +9774,109 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "mold",
+  "title": "Create Mold",
+  "hint": "Pick the part (and a block around it, or let Prism make one). Prism cuts the part's shape out of the block, splits the block where you choose (a percentage along the parting direction, or a plane or face you pick) and pulls the two halves apart to show the cavity.",
+  "slots": [
+   {
+    "label": "Mold block (optional: Prism makes one around the part)",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Part to cast (solid, or a closed surface)",
+    "accepts": "Solid, SurfaceObj",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Parting plane or face (optional, replaces the setting above)",
+    "accepts": "SurfaceObj, Face, Plane",
+    "multi": false,
+    "optional": true
+   }
+  ],
+  "params": [
+   {
+    "label": "Parting direction",
+    "type": "choice",
+    "default": "Z (top and bottom halves)",
+    "options": [
+     "Z (top and bottom halves)",
+     "X (left and right halves)",
+     "Y (front and back halves)"
+    ]
+   },
+   {
+    "label": "Split at",
+    "type": "number",
+    "default": 50,
+    "unit": "% of the block",
+    "min": 0,
+    "max": 100
+   },
+   {
+    "label": "Explode distance",
+    "type": "number",
+    "default": 40,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000
+   },
+   {
+    "label": "Shrinkage allowance",
+    "type": "number",
+    "default": 0,
+    "unit": "%",
+    "min": 0,
+    "max": 20
+   },
+   {
+    "label": "Cavity offset (clearance)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -50,
+    "max": 50
+   },
+   {
+    "label": "Block margin (when no block is picked)",
+    "type": "number",
+    "default": 20,
+    "unit": "mm",
+    "min": 1,
+    "max": 500
+   },
+   {
+    "label": "Part opacity while exploded",
+    "type": "number",
+    "default": 55,
+    "unit": "%",
+    "min": 5,
+    "max": 100
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "mold_part_from_tab",
+  "title": "Part from Open Tab",
+  "hint": "Copy every visible solid and surface of another open tab into this document as a reference part. It is not saved with this file and is left out of drawings, so the mold file contains only the casing.",
+  "slots": [],
+  "params": [
+   {
+    "label": "Open tab",
+    "type": "choice",
+    "default": "(no other tab is open)",
+    "options": [
+     "(no other tab is open)"
+    ]
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "motion_force",
   "title": "Force / Torque",
   "hint": "A push or a turning moment on a part: a weight, a wind load, a punch stroke. It can be constant, a pulse or alternating, and its direction is fixed in space or turns with the part. It acts when a Motion Study includes masses and forces.",
@@ -9914,127 +10582,6 @@
     "type": "number",
     "default": 5,
     "unit": "mm"
-   }
-  ],
-  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
- },
- {
-  "name": "parallel_finish",
-  "title": "CNC 3D Finish",
-  "hint": "Pick a solid. The tool runs back and forth in parallel lines over its top surface, following the shape down to its lowest point. A ball nose leaves a smooth surface at a small stepover; a flat end mill suits flatter shapes. Only surfaces the tool can reach from above are cut.",
-  "slots": [
-   {
-    "label": "Model to finish",
-    "accepts": "Solid",
-    "multi": false,
-    "optional": false
-   }
-  ],
-  "params": [
-   {
-    "label": "Tool from the library",
-    "type": "choice",
-    "default": "Custom (my own values)",
-    "options": [
-     "Custom (my own values)",
-     "3 mm flat end mill, aluminium",
-     "6 mm flat end mill, aluminium",
-     "10 mm flat end mill, aluminium",
-     "6 mm flat end mill, wood / MDF",
-     "6 mm flat end mill, plastic",
-     "6 mm flat end mill, mild steel",
-     "3 mm ball nose, aluminium",
-     "6 mm ball nose, wood / MDF"
-    ]
-   },
-   {
-    "label": "Tool diameter",
-    "type": "number",
-    "default": 6,
-    "unit": "mm",
-    "min": 0.1,
-    "max": 100
-   },
-   {
-    "label": "Spindle speed",
-    "type": "number",
-    "default": 12000,
-    "unit": "rpm",
-    "min": 100,
-    "max": 60000
-   },
-   {
-    "label": "Cutting feed",
-    "type": "number",
-    "default": 800,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 20000
-   },
-   {
-    "label": "Plunge feed",
-    "type": "number",
-    "default": 300,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 10000
-   },
-   {
-    "label": "Depth per pass",
-    "type": "number",
-    "default": 2,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 100
-   },
-   {
-    "label": "Clearance above the material",
-    "type": "number",
-    "default": 5,
-    "unit": "mm",
-    "min": 0.5,
-    "max": 100
-   },
-   {
-    "label": "Top of the material (Z)",
-    "type": "number",
-    "default": 0,
-    "unit": "mm",
-    "min": -100000,
-    "max": 100000
-   },
-   {
-    "label": "Total cutting depth",
-    "type": "number",
-    "default": 3,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 10000
-   },
-   {
-    "label": "Cutter",
-    "type": "choice",
-    "default": "Ball nose",
-    "options": [
-     "Ball nose",
-     "Flat end mill"
-    ]
-   },
-   {
-    "label": "Stepover",
-    "type": "number",
-    "default": 10,
-    "unit": "% of tool",
-    "min": 1,
-    "max": 95
-   },
-   {
-    "label": "Scan angle",
-    "type": "number",
-    "default": 0,
-    "unit": "°",
-    "min": -90,
-    "max": 90
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -10805,6 +11352,40 @@
     "label": "Mirror left to right",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Move right",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000
+   },
+   {
+    "label": "Move up",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000
+   },
+   {
+    "label": "Turn",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   },
+   {
+    "label": "Gizmo (T move, R rotate, S scale)",
+    "type": "choice",
+    "default": "Move",
+    "options": [
+     "Move",
+     "Rotate",
+     "Scale"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -10833,7 +11414,7 @@
    {
     "label": "Folder",
     "type": "text",
-    "default": "C:\\Users\\chris\\Documents\\Prism\\Print"
+    "default": "Prism/Print"
    },
    {
     "label": "File name",
@@ -11243,7 +11824,7 @@
  {
   "name": "render",
   "title": "Render",
-  "hint": "Orbit to the view you want, choose size, quality, lighting and background (white, black, green screen, studio gradient or transparent), add your own sun or lamps, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.",
+  "hint": "Orbit to the view you want, choose size, quality, lighting and background (white, black, green screen, studio gradient, imported image or transparent), add your own sun or lamps, then press Start render. The picture appears over the viewport and sharpens as it goes; Stop whenever it looks good enough. Higher quality means less grain and takes longer.",
   "slots": [],
   "params": [
    {
@@ -11280,7 +11861,8 @@
      "Studio (soft white boxes)",
      "Sky and sun",
      "Dark studio",
-     "Only my lights"
+     "Only my lights",
+     "HDR environment"
     ]
    },
    {
@@ -11293,8 +11875,83 @@
      "Transparent",
      "Green screen (chroma key)",
      "Black",
-     "Studio gradient"
+     "Studio gradient",
+     "Imported image"
     ]
+   },
+   {
+    "label": "Denoise final image",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Import HDR environment…",
+    "type": "action",
+    "advanced": true
+   },
+   {
+    "label": "Remove HDR environment",
+    "type": "action",
+    "advanced": true
+   },
+   {
+    "label": "HDR rotation",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360,
+    "advanced": true
+   },
+   {
+    "label": "HDR intensity",
+    "type": "number",
+    "default": 1,
+    "unit": "×",
+    "min": 0,
+    "max": 100,
+    "advanced": true
+   },
+   {
+    "label": "Import background image…",
+    "type": "action"
+   },
+   {
+    "label": "Remove background image",
+    "type": "action"
+   },
+   {
+    "label": "Generate background with AI…",
+    "type": "action"
+   },
+   {
+    "label": "Image placement",
+    "type": "choice",
+    "default": "Fill (crop)",
+    "options": [
+     "Fill (crop)",
+     "Fit (white border)",
+     "Stretch"
+    ],
+    "advanced": true
+   },
+   {
+    "label": "Image horizontal offset",
+    "type": "number",
+    "default": 0,
+    "unit": "× width",
+    "min": -1,
+    "max": 1,
+    "advanced": true
+   },
+   {
+    "label": "Image vertical offset",
+    "type": "number",
+    "default": 0,
+    "unit": "× height",
+    "min": -1,
+    "max": 1,
+    "advanced": true
    },
    {
     "label": "Ground plane with shadows",
@@ -11450,7 +12107,7 @@
    {
     "label": "Folder",
     "type": "text",
-    "default": "C:\\Users\\chris\\Documents\\Prism\\Print"
+    "default": "Prism/Print"
    },
    {
     "label": "File name",
@@ -13052,141 +13709,6 @@
      "The front side (where the tool's normal points, or outside a solid)",
      "The back side (the other side, or inside a solid)"
     ]
-   }
-  ],
-  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
- },
- {
-  "name": "turn",
-  "title": "CNC Turning",
-  "hint": "Sketch the half section of the part on the XZ plane: X is the radius, Z runs along the axis, and the end to be faced is at the highest Z. The tool starts at the front and cuts toward the chuck. Depth per pass is the radial depth of each roughing cut. Tool nose radius is not compensated: leave the allowance for it. Post the program for Mach3 or LinuxCNC; X is written as a diameter.",
-  "slots": [
-   {
-    "label": "Profile of the part (half section on the XZ plane)",
-    "accepts": "AnyCurve, Edge",
-    "multi": true,
-    "optional": false
-   }
-  ],
-  "params": [
-   {
-    "label": "Tool from the library",
-    "type": "choice",
-    "default": "Custom (my own values)",
-    "options": [
-     "Custom (my own values)",
-     "3 mm flat end mill, aluminium",
-     "6 mm flat end mill, aluminium",
-     "10 mm flat end mill, aluminium",
-     "6 mm flat end mill, wood / MDF",
-     "6 mm flat end mill, plastic",
-     "6 mm flat end mill, mild steel",
-     "3 mm ball nose, aluminium",
-     "6 mm ball nose, wood / MDF"
-    ]
-   },
-   {
-    "label": "Tool diameter",
-    "type": "number",
-    "default": 6,
-    "unit": "mm",
-    "min": 0.1,
-    "max": 100
-   },
-   {
-    "label": "Spindle speed",
-    "type": "number",
-    "default": 1500,
-    "unit": "rpm",
-    "min": 100,
-    "max": 60000
-   },
-   {
-    "label": "Cutting feed",
-    "type": "number",
-    "default": 200,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 20000
-   },
-   {
-    "label": "Plunge feed",
-    "type": "number",
-    "default": 100,
-    "unit": "mm/min",
-    "min": 1,
-    "max": 10000
-   },
-   {
-    "label": "Depth per pass",
-    "type": "number",
-    "default": 1.5,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 100
-   },
-   {
-    "label": "Clearance above the material",
-    "type": "number",
-    "default": 2,
-    "unit": "mm",
-    "min": 0.5,
-    "max": 100
-   },
-   {
-    "label": "Top of the material (Z)",
-    "type": "number",
-    "default": 0,
-    "unit": "mm",
-    "min": -100000,
-    "max": 100000
-   },
-   {
-    "label": "Total cutting depth",
-    "type": "number",
-    "default": 3,
-    "unit": "mm",
-    "min": 0.05,
-    "max": 10000
-   },
-   {
-    "label": "Stock diameter (0 = automatic)",
-    "type": "number",
-    "default": 0,
-    "unit": "mm",
-    "min": 0,
-    "max": 2000
-   },
-   {
-    "label": "Extra length to face off",
-    "type": "number",
-    "default": 1,
-    "unit": "mm",
-    "min": 0,
-    "max": 100
-   },
-   {
-    "label": "Finish allowance",
-    "type": "number",
-    "default": 0.2,
-    "unit": "mm",
-    "min": 0,
-    "max": 10
-   },
-   {
-    "label": "Face the end",
-    "type": "boolean",
-    "default": true
-   },
-   {
-    "label": "Rough turn",
-    "type": "boolean",
-    "default": true
-   },
-   {
-    "label": "Finish turn",
-    "type": "boolean",
-    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."

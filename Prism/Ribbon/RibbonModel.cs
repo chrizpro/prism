@@ -47,6 +47,10 @@ public sealed partial class RibbonButton : RibbonItem
     }
     public string? ToolHelpIcon => IsSplit ? Current?.ExampleIcon : ExampleIcon;
     public bool HasExample => ToolHelpIcon != null;
+    /// <summary>The ribbon this button was built on, used to link it to its section of the website's tool reference.</summary>
+    public string TabTitle { get; set; } = "";
+    public string DocumentationTab => IsSplit && Current != null ? Current.DocumentationTab : TabTitle;
+    public string DocumentationLabel => IsSplit && Current != null ? Current.DocumentationLabel : Label.Replace("\n", " ");
     public string DocumentationId => IsSplit && Current != null ? Current.DocumentationId
         : Id.Length > 0 ? Id : Icon + "|" + Label.Replace("\n", " ");
 

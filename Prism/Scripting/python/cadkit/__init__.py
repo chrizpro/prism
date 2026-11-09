@@ -16,7 +16,7 @@ from .api import (
     box, cylinder, sphere, cone, torus,
     flatten, refold, wrap, extrude, revolve, sweep, loft, fillet, chamfer, shell, union, subtract, intersect,
     move, rotate, scale, mirror,
-    flange, flat_pattern, drawing, image, edit_image,
+    flange, fold, edge_flange, flat_pattern, drawing, image, edit_image,
     linear_pattern, circular_pattern, rib, split_body, push_pull, move_face, delete_face, thicken,
     cam_setup, cnc_profile, cnc_pocket, cnc_adaptive, cnc_drill, cnc_face, cnc_finish, cnc_post, print_export,
     fdm_check, resin_check, cnc_design_check, cnc_stock_review, resin_export, cnc_rough,

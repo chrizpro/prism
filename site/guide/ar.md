@@ -11,6 +11,8 @@ Use **Share → AR & sharing → AR Export** from Home, Assemble, Render, or Ani
 
 Prism exports GLB for compatible Android and web viewers and USDZ for supported Apple viewers. Actual AR availability depends on the device and its viewer.
 
+<GuideImage image="ar-export-panel" />
+
 ## Stop sharing
 
 Choose **Stop Sharing** in the same ribbon menu or **Stop sharing** in the AR tool panel. The ribbon action is enabled while the local sharing server is running.

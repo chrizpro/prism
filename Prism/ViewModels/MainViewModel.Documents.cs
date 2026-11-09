@@ -95,7 +95,7 @@ public sealed partial class MainViewModel
     {
         s.ProtectPendingCommand = true;
         _onScene = () => { RebuildBrowser(); UpdateSelectionInfo(); UpdateTitle(); RefreshRibbon(); ApplyWorkspace(); SyncLook(); InvalidateStudios(); };
-        _onSelection = () => { UpdateSelectionInfo(); RefreshRibbon(); SyncLook(); RefreshStudios(); };
+        _onSelection = () => { UpdateSelectionInfo(); UpdatePanels(); RefreshRibbon(); SyncLook(); RefreshStudios(); };
         _onView = () => { CommandError = s.CommandError;RefreshGizmoPanel(); };
         _onStudy = RefreshSim;
         _onInput = r => { _input = r; InputPrompt = r.Prompt; InputText = r.Initial; InputOpen = true; };
@@ -111,7 +111,7 @@ public sealed partial class MainViewModel
                 case nameof(CadSession.StatusIsError): OnPropertyChanged(nameof(AssistanceStatus)); break;
             }
         };
-        s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory;
+        s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory; s.OriginChanged += RebuildBrowser;
         s.LogChanged += RefreshStudioActivity;
         HookRender(s);
         _onPartInfo = SyncPartInfo; s.PartInfoChanged += _onPartInfo;
@@ -129,7 +129,7 @@ public sealed partial class MainViewModel
         if (_onInput != null) s.InputRequested -= _onInput;
         if (_onProp != null) s.PropertyChanged -= _onProp;
         UnhookRender(s);
-        s.StateChanged -= OnStateChanged; s.TimelineChanged -= RebuildHistory; s.SketchChanged -= RebuildSketchPanel;
+        s.StateChanged -= OnStateChanged; s.TimelineChanged -= RebuildHistory; s.SketchChanged -= RebuildSketchPanel; s.OriginChanged -= RebuildBrowser;
     }
 
     CadSession _session = new();

@@ -43,6 +43,9 @@ public sealed partial class SketchContext
     public HashSet<int> SelPoints { get; } = [];
     public int HoverEntity { get; set; } = -1;
     public int HoverPoint { get; set; } = -1;
+    /// <summary>Curve hovered on an inactive drawing plane (section index and entity id) — lit up so it reads as clickable; -1/-1 for none.</summary>
+    public int HoverOtherSection { get; set; } = -1;
+    public int HoverOtherEntity { get; set; } = -1;
     public SnapInfo? Cursor { get; set; }
     readonly Stack<SpaceSnapshot> _undo = new();
     readonly List<(SkConstraint c, Vec3 pos)> _dimLabels = [];
@@ -61,7 +64,7 @@ public sealed partial class SketchContext
         Result = SketchSolver.Solve(Model);
     }
 
-    public bool HasContent => _sections.Any(section => section.Model.Entities.Count > 0) || Datums.Count > 0;
+    public bool HasContent => _sections.Any(section => section.Model.Entities.Count > 0 || section.Model.GreaseStrokes.Count > 0) || Datums.Count > 0;
 
     public bool EntityVisible(SkEntity e) => !e.Construction || Model.ShowConstruction;
     public bool PointVisible(int id) => id == 0 || Model.ShowConstruction || Model.Entities.Any(e => !e.Construction && Model.PointsOf(e).Contains(id)) && !TextFitPoint(id);
@@ -431,6 +434,12 @@ public sealed partial class SketchContext
             if (Math.Abs(Vec3.Dot(inferred-Plane.Origin,Plane.Normal)) > 1e-6) return null;
             var snapped=Plane.Project(inferred); return new SnapInfo(snapped.u,snapped.v,SnapKind.Grid,-1);
         }
+        // Drawing in space, points are found where they show on screen, at their real depth, even when the drawing plane is edge-on.
+        if (allow && Is3DEnabled && DrawingAxis == 0 && SnapSpacePoint(s, px, py, excludePoints, out _) is { } spacePoint)
+        {
+            if (spacePoint.Kind == SnapKind.Point) Hover("p" + spacePoint.Id, spacePoint.U, spacePoint.V, spacePoint.Id);
+            return spacePoint;
+        }
         if (PlanePoint(s, px, py) is not { } uv) return null;
         if (DrawingAxis != 0)
         {
@@ -701,9 +710,17 @@ public sealed partial class SketchContext
     // ---------------------------------------------------------------- overlay
     static readonly uint ColFree = 0xFF4C94FF, ColFixed = 0xFFEAF0FA, ColConstr = 0xFFB79CFF, ColSel = 0xFFFFC53D, ColHover = 0xFF35B6FF, ColConflict = 0xFFFF6B6F;
 
+    public static void DrawGrease(Overlay overlay, SketchModel model, Plane3 plane)
+    {
+        foreach (var stroke in model.GreaseStrokes)
+            if (stroke.Points.Count > 1)
+                overlay.AddPolyline(stroke.Points.Select(p => plane.PointAt(p.U, p.V) + plane.Normal * p.Depth).ToList(), stroke.Color, stroke.Width);
+    }
+
     public void BuildOverlay(CadSession s, Overlay o)
     {
         BuildSpaceOverlay(s, o);
+        foreach (var section in _sections) DrawGrease(o, section.Model, section.Plane);
         var cam = s.Camera;
         var free = Result.FreeEntities;
         bool conflict = !Result.Converged;

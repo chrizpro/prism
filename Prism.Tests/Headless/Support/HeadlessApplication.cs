@@ -14,6 +14,9 @@ public static class HeadlessApplication
 {
     public static AppBuilder BuildAvaloniaApp()
     {
+        // Tests can change and save preferences; they must never write the user's settings.json.
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PRISM_SETTINGS_FILE")))
+            Environment.SetEnvironmentVariable("PRISM_SETTINGS_FILE", Path.Combine(Path.GetTempPath(), $"prism-headless-settings-{Environment.ProcessId}.json"));
         if (!OperatingSystem.IsWindows())
             return BuildWithUnixNativeDirectory();
 

@@ -161,6 +161,12 @@ public sealed class FillOpeningCommand : Command
         foreach (var loop in loops)
         {
             try { patches.Add(_continuity.Index == 0 ? Occ.Patch(loop.Select(i => shape.Sub(SubKind.Edge, i)).ToList()) : Occ.PatchSupported(shape, loop.ToArray(), _continuity.Index)); }
+            catch (KernelException e) when (_continuity.Index == 0)
+            {
+                // a position-only patch cannot be built across a single closed edge such as a circle ("V1==V2"); a patch supported by the surface can
+                try { patches.Add(Occ.PatchSupported(shape, loop.ToArray(), 1)); Results.Add(new ResultLine("Opening", "filled with a tangent patch: a position-only patch cannot span this boundary", 1)); }
+                catch (KernelException e2) { Results.Add(new ResultLine("Opening", "could not be filled: " + e.Message + " / " + e2.Message, 2)); }
+            }
             catch (KernelException e) { Results.Add(new ResultLine("Opening", "could not be filled: " + e.Message, 2)); }
         }
         if (patches.Count == 0) throw new FormatException("The opening could not be filled with the selected continuity. Try a different continuity or boundary.");

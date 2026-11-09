@@ -97,13 +97,46 @@ public class SolidRibbonTests
         Assert.Same(solid, vm.SelectedTab);
     }
 
-    [AvaloniaFact(DisplayName = "SOL-H054 | The Solid Datum Gizmo opens its settings panel")]
+    [AvaloniaFact(DisplayName = "SOL-H054 | The Solid Datum Gizmo arms the gizmo placement tool and shows the Datum panel")]
     [Trait("TestId", "SOL-H054")]
-    public void DatumGizmoOpensPanel()
+    public void DatumGizmoArmsPlacementTool()
     {
         var vm = new MainViewModel();
         SolidButtons(vm).Single(button => button.Label == "Gizmo").Invoke();
-        Assert.True(vm.ShowGizmoPanel);
+        Assert.True(vm.Session.FreeTool is Prism.Core.DatumPickTool { Kind: Prism.Core.Sketching.SketchDatumKind.Gizmo });
+        Assert.True(vm.ShowDatumPanel);
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H085 | Every command-search hit carries a documentation path: a guide card where one exists, always a doc id")]
+    [Trait("TestId", "SOL-H085")]
+    public void SearchHitsCarryDocumentation()
+    {
+        var vm = new MainViewModel();
+        vm.SearchText = "extrude";
+        var hit = vm.SearchResults.First();
+        Assert.Equal("Extrude", hit.Label);
+        // The "?" affordance opens this card: an authored topic with purpose and steps.
+        Assert.NotNull(hit.Button.ToolHelpIcon);
+        var topic = Help.ToolHelp.Find(hit.Button.ToolHelpIcon);
+        Assert.NotNull(topic);
+        Assert.False(string.IsNullOrWhiteSpace(topic.Purpose));
+        // The Learn More link always has a target id, for commands and plain buttons alike.
+        Assert.All(vm.AllCommandHits().ToList(), h => Assert.False(string.IsNullOrWhiteSpace(h.Button.DocumentationId)));
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H089 | Every ribbon button resolves a hover-help topic")]
+    [Trait("TestId", "SOL-H089")]
+    public void RibbonButtonsCarryHoverHelp()
+    {
+        var vm = new MainViewModel();
+        var all = vm.Tabs.SelectMany(tab => tab.Buttons).Distinct().ToList();
+        // Leaf buttons resolve an authored topic; split parents inherit their current child's topic at hover time.
+        var uncovered = all.Where(button => button.Menu == null && button.ExampleIcon == null && string.IsNullOrWhiteSpace(button.Description))
+            .Select(button => button.Label.Replace('\n', ' ')).OrderBy(label => label).ToList();
+        Assert.True(uncovered.Count == 0, "Ribbon buttons with no hover content: " + string.Join(", ", uncovered));
+        var topicless = all.Where(button => button.Menu == null && button.ExampleIcon == null)
+            .Select(button => button.Label.Replace('\n', ' ')).OrderBy(label => label).ToList();
+        Assert.True(topicless.Count == 0, "Ribbon buttons resolving no authored topic: " + string.Join(", ", topicless));
     }
 
     internal static IReadOnlyList<RibbonButton> SolidButtons(MainViewModel vm) =>

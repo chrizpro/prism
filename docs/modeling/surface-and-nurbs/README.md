@@ -62,6 +62,8 @@ The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface
 
 ## Maintained option coverage
 
+The public [Surfaces and NURBS walkthrough](../../../site/guide/surfacing.md) includes actual app captures for ordered Loft profiles, Thicken, NURBS Control Grid, selected control-point editing and zebra inspection. The separate Surface and NURBS ribbon pages use their own workflow captures. These are documentation examples; [capture provenance and verification](../../../site/README.md#guide-images) are separate from the maintained tests below. Proposed feature requirements remain proposed.
+
 [Surface tool tests](../../../Prism.Tests/Headless/Surfacing/SurfaceToolTests.cs) cover Edge Surface (two and four curves), Blend Surface at each continuity and fullness, Sweep 2 Rails as surface and solid, Rebuild Surface, Network Surface, Planar Surface with a hole, Knit with and without solid and its tolerance, Trim Surface with a solid or a surface on either side, Enclosed Body with listed spaces, Unsew of whole bodies and single faces, both Untrim modes, Extend and Reverse Normal. [Inspect tool tests](../../../Prism.Tests/Headless/Solid/AnalysisToolTests.cs) cover Surface Continuity and Match Surface at G0, G1 and G2.
 
 Fixed on 2026-11-05: Rebuild Surface's "Largest deviation (approx.)" used to measure distance to the result's tessellation vertices, so an exactly reproduced flat sheet reported several millimetres and a warning. It now measures the distance from points sampled on the original to the rebuilt surface, and the test asserts 0 mm for the flat sheet.

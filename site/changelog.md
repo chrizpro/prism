@@ -1,5 +1,17 @@
 # Changes
 
+## 0.2.0 alpha
+
+Curves, selection and sketching polish, plus new keys and links.
+
+- **Draw on Surface** (Curves group, next to Project): click a few points on a face, surface, freeform form, NURBS surface or mesh and a smooth curve passes through them, over the edge onto the next face. Drag a point to move it, Delete removes it, Esc stops adding points so you can adjust, and Enter or **Make curve** finishes. This replaces the old "draw on the curved surface" option of Create Sketch.
+- **Chain selection you can see.** Under Connected chain, Tangent chain and Partial loop, every edge a click would take lights up with a magenta halo, the hovered edge heavier. In Face selection mode a tool that picks edges offers none, while whole curves and sketches (text, outlines) stay pickable in every mode.
+- **Loft, Sweep, Boundary, Ruled, Patch, Blend, Fillet and Chamfer, Shell, and Freeform Loft and Sweep** open in perspective at the home view when you start them from an orthographic or straight-on view.
+- **View cube**: the projection (orthographic and perspective) and roll buttons work again.
+- **Sketching**: Slot has a **From center** option; Mirror has a two-step panel and fills in the line it thinks you mean; a construction curve previews dashed while you draw it; Offset no longer leaves gaps where lines only touch; editing a saved sketch no longer shows its curves twice.
+- **Closing** no longer asks to save a document where nothing was created, including after undoing everything or opening a sketch or tool without using it.
+- **F** fits the view (Zoom Extents), alongside Home. Command search shows each command's current key, including changed and custom shortcuts, and a new [Keyboard shortcuts](/reference/hotkeys) page lists them all. **Learn More** on a tool's hover help opens that tool's row on its ribbon's page of this site.
+
 ## 0.1.0 alpha
 
 - Prism is in alpha: an Alpha badge next to the wordmark opens the known issues. **Help (?) → Report a bug** opens the GitHub form; **Give feedback** is also in Help. Optional exit-feedback reminders appear on closures 1, 5, 15, 25, … . Crash diagnostics are reviewed locally before opening a GitHub draft.

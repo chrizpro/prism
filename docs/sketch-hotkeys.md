@@ -11,7 +11,7 @@ Canonical catalogue: [SketchShortcuts.cs](../Prism/Core/SketchShortcuts.cs). Upd
 | A | Arc |
 | D | Dimension |
 | Shift | Hold axis direction for lines, splines, arc directions, slot centers and polygons; square rectangles; circle ellipses |
-| G | Toggle gizmo setup in 3D, or for an active 2D datum gizmo |
+| G | (retired in sketches; see [Two ways to sketch](unified-sketch.md#two-ways-to-sketch)) |
 | W / R / S with a gizmo target | Move / rotate / scale from the center handle |
 | E | Toggle geometry editing in 3D |
 | Delete | Delete selection |

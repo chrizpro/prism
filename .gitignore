@@ -475,3 +475,8 @@ native/build-wasm/
 
 # Scratch build copies and one-off experiment output (GBs of published app binaries)
 work/
+
+# Local agent checkouts, input attachments and browser inspection output.
+/.claude/
+/.codex-remote-attachments/
+/.playwright-mcp/

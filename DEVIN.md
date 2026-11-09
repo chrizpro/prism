@@ -9,3 +9,5 @@ The local desktop can have OCCT, native DLLs, solver tools and UI dependencies u
 Keep feature documents, maintained test classes and relevant issues linked at file/folder level. Individual cases remain in descriptive facts and `Feature`, `Layer`, `TestId` traits. Do not maintain option-to-test matrices or introduce Gherkin files. Maintained tests belong under the solution-managed `Prism.Tests/` projects; preserve older standalone `tests/` suites.
 
 Current owner direction is direct work on `develop`, as recorded in the shared workflow. `main` is the public branch that publishes the website and releases; do not commit to it unless the owner asks for a merge. Preserve unrelated local changes. Integration is deferred; when introduced, attach representative viewport images to the relevant issue with test ID and source revision.
+
+- To find bugs in tools and their options, follow the [visual feature scripts technique](docs/engineering/requirements-and-testing.md#visual-feature-scripts-testsvisual) (`tests/visual/`).

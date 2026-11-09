@@ -22,8 +22,11 @@ public sealed class AutomationServer : IDisposable
     readonly AutomationApi _api;
     readonly HttpListener _listener = new();
     readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
+    readonly string _assistantToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
     readonly CancellationTokenSource _cts = new();
     public static string DiscoveryPath => Environment.GetEnvironmentVariable("PRISM_AUTOMATION_DISCOVERY") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "automation.json");
+    /// <summary>Discovery file for the in-app assistant when file access is off: same port, a restricted token the bridge picks up via --discovery.</summary>
+    public static string AssistantDiscoveryPath => Path.Combine(Path.GetDirectoryName(DiscoveryPath)!, "assistant-automation.json");
     public int Port { get; }
     public string Token => _token;
     /// <summary>The running server, so the script runner can hand scripts its address.</summary>
@@ -45,6 +48,7 @@ public sealed class AutomationServer : IDisposable
             s._listener.Start();
             Directory.CreateDirectory(Path.GetDirectoryName(DiscoveryPath)!);
             File.WriteAllText(DiscoveryPath, JsonSerializer.Serialize(new { port = s.Port, token = s._token, pid = Environment.ProcessId }));
+            File.WriteAllText(AssistantDiscoveryPath, JsonSerializer.Serialize(new { port = s.Port, token = s._assistantToken, pid = Environment.ProcessId, restricted = true }));
             // keep the MCP bridge's offline tool list in step with this build, so a client that lists tools before the app is running sees them all
             try { File.WriteAllText(Path.Combine(Path.GetDirectoryName(DiscoveryPath)!, "mcp-tools-cache.json"), api.Describe().ToJsonString()); } catch { }
             _ = Task.Run(s.Loop);
@@ -69,12 +73,15 @@ public sealed class AutomationServer : IDisposable
         var rq = ctx.Request; var rs = ctx.Response;
         try
         {
-            if (!string.IsNullOrEmpty(rq.Headers["Origin"]) || rq.Headers["X-Prism-Token"] != _token) { rs.StatusCode = 403; Write(rs, new JsonObject { ["ok"] = false, ["error"] = "forbidden" }); return; }
+            var token = rq.Headers["X-Prism-Token"];
+            bool assistant = token == _assistantToken;
+            if (!string.IsNullOrEmpty(rq.Headers["Origin"]) || (token != _token && !assistant)) { rs.StatusCode = 403; Write(rs, new JsonObject { ["ok"] = false, ["error"] = "forbidden" }); return; }
             var path = rq.Url!.AbsolutePath;
             if (path == "/ping") { Write(rs, new JsonObject { ["ok"] = true, ["pid"] = Environment.ProcessId }); return; }
-            if (path == "/tools") { Write(rs, new JsonObject { ["ok"] = true, ["tools"] = _api.Describe() }); return; }
+            if (path == "/tools") { Write(rs, new JsonObject { ["ok"] = true, ["tools"] = _api.Describe(restricted: assistant) }); return; }
             if (path == "/script" && rq.HttpMethod == "POST")
             {
+                if (assistant) { Write(rs, new JsonObject { ["ok"] = false, ["error"] = AutomationApi.RestrictedMessage }); return; }
                 using var sr = new StreamReader(rq.InputStream, Encoding.UTF8);
                 var body = JsonNode.Parse(await sr.ReadToEndAsync())!.AsObject();
                 var code = body["code"]?.GetValue<string>() ?? throw new ArgumentException("code is required");
@@ -106,7 +113,7 @@ public sealed class AutomationServer : IDisposable
                 var body = JsonNode.Parse(await sr.ReadToEndAsync())!.AsObject();
                 try
                 {
-                    var res = await _api.CallAsync(body["tool"]!.ToString(), body["args"] as JsonObject ?? []);
+                    var res = await _api.CallAsync(body["tool"]!.ToString(), body["args"] as JsonObject ?? [], restricted: assistant);
                     Write(rs, new JsonObject { ["ok"] = true, ["result"] = res });
                 }
                 catch (Exception e)
@@ -132,5 +139,6 @@ public sealed class AutomationServer : IDisposable
         _cts.Cancel();
         try { _listener.Stop(); } catch { }
         try { if (File.Exists(DiscoveryPath) && File.ReadAllText(DiscoveryPath).Contains($"\"port\":{Port}")) File.Delete(DiscoveryPath); } catch { }
+        try { File.Delete(AssistantDiscoveryPath); } catch { }
     }
 }

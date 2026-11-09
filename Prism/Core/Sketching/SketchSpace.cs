@@ -8,6 +8,9 @@ namespace Prism.Core;
 
 public enum SketchGizmoOperation { Move, Rotate, Size }
 
+/// <summary>What a click, box, lasso or paint takes in a sketch: a whole shape, a single curve, or points.</summary>
+public enum SketchPick { Object, Edge, Point }
+
 /// <summary>Work planes share a sketch document, but each retains its own planar constraint system.</summary>
 public sealed partial class SketchContext
 {
@@ -34,6 +37,8 @@ public sealed partial class SketchContext
     public int ActivePlane => _activeSection;
     public Plane3 RootPlane => _sections[0].Plane;
     public bool GizmoEditing { get; private set; }
+    /// <summary>The pick level of the Select tool. Object takes the whole shape a curve belongs to (a rectangle's four sides), Edge one curve, Point only points.</summary>
+    public SketchPick PickLevel { get; set; } = SketchPick.Object;
     /// <summary>When on, transforming points is not restricted to their drawing plane: they can be lifted off it along any direction.</summary>
     public bool FreeEditing { get; set; }
     public bool Is3DEnabled { get; private set; }
@@ -72,6 +77,8 @@ public sealed partial class SketchContext
         _cueTimer.Start();
     }
     public int LockedPlane => _lockedPlane;
+    /// <summary>The three plane squares are drawn, offered and hit at this multiple of their original size (owner decision 2026-11-07; tune after use).</summary>
+    public const double PlaneSquareScale = 2.0;
     bool PlaneHandlesOffered => _planeHandlesNear && !IsDrawingFlat && !GizmoEditing && Tool is ClickTool;
     Vec3? _lastPlacement;
     int _gizmoDrag = -1;
@@ -80,11 +87,14 @@ public sealed partial class SketchContext
     SpaceSnapshot? _dragSnapshot;
     bool _dragChanged;
     bool _suppressFollow;
+    /// <summary>While a scale block is dragged: the factor along each gizmo axis (only one differs from 1).</summary>
+    Vec3? _axisScale;
 
     void InitializeSpace(Plane3 plane, SketchModel? source)
     {
         var model = source?.Clone() ?? new SketchModel();
         var children = model.Sections;
+        // A new sketch is a plain 2D sketch on its plane (a NURBS one switches to 3D, No plane); a saved one reopens as it was left.
         Is3DEnabled = model.SharedNurbsCurves || (model.SpatialEditing ?? children.Count > 0);
         FreeEditing = model.FreePointEditing ?? (source == null || model.SharedNurbsCurves);
         IsDrawingFlat = model.FlatDrawing ?? !(model.SpatialEditing ?? children.Count > 0);
@@ -143,7 +153,7 @@ public sealed partial class SketchContext
     void ClearPlaneSelection()
     {
         ClearGizmoTarget();
-        SelEntities.Clear(); SelPoints.Clear(); ExtraSelection.Clear(); Blamed.Clear(); SelConstraint = HoverEntity = HoverPoint = -1;
+        SelEntities.Clear(); SelPoints.Clear(); ExtraSelection.Clear(); Blamed.Clear(); SelConstraint = HoverEntity = HoverPoint = HoverOtherSection = HoverOtherEntity = -1;
         Cursor = null; _lastPlacement = null; DrawingAxis = 0; _combKey = null;
         _inferredVisualAxis = -1; _axisPreview = null;
         _dimLabels.Clear(); _glyphs.Clear();
@@ -222,6 +232,21 @@ public sealed partial class SketchContext
         bool sameSupport = Math.Abs(Vec3.Dot(frame.Origin - previous.Origin, previous.Normal)) < 1e-7 && frame.U.DistanceTo(previous.U) < 1e-7 && frame.V.DistanceTo(previous.V) < 1e-7;
         if (sameSupport && (Model.Entities.Count > 0 || (Tool as ClickTool)?.LastPlacedWorld(s) != null || SamePlane(previous, frame))) return;
         var anchor = (Tool as ClickTool)?.LastPlacedWorld(s);
+        // A spline stays one curve across the switch: its points so far travel with the new tool instead of being committed here.
+        if (Tool is SplineTool spline && spline.TakeForPlaneSwitch(s) is { } carried)
+        {
+            bool editingGizmo = GizmoEditing;
+            var homePlane = _sections[carried.home].Plane;
+            var world = carried.points.Select(p => WorldIn(carried.home, p)).ToList();
+            SetDrawingPlaneCore(s, frame, false, syncGizmo: false, recordUndo: recordUndo);
+            // A plane with no finished curves is reused for the new plane rather than kept: re-express the points in its new frame.
+            var points = SamePlane(homePlane, _sections[carried.home].Plane) ? carried.points : world.Select(w => ToSection(carried.home, w)).ToList();
+            var next = new SplineTool(spline.OptionIndex == 1);
+            next.Carry(carried.home, points);
+            SetTool(s, next);
+            GizmoEditing = editingGizmo;
+            return;
+        }
         SketchTool? continuation = Tool switch
         {
             LineTool line => new LineTool(line.OptionIndex),
@@ -241,6 +266,38 @@ public sealed partial class SketchContext
             }
             GizmoEditing = gizmoEditing;
         }
+    }
+
+    /// <summary>World position of a click on the active drawing plane, including its offset along the normal.</summary>
+    internal Vec3 WorldOf(SnapInfo point) => Plane.PointAt(point.U, point.V) + Plane.Normal * point.Depth;
+
+    /// <summary>A world position in another drawing plane's coordinates: a plain point whose offset along that plane's normal is its Depth.</summary>
+    internal SnapInfo ToSection(int section, Vec3 world)
+    {
+        var plane = _sections[section].Plane;
+        var (u, v) = plane.Project(world);
+        return new(u, v, SnapKind.Grid, -1, Depth: Vec3.Dot(world - plane.Origin, plane.Normal));
+    }
+
+    internal Vec3 WorldIn(int section, SnapInfo point) => _sections[section].Plane.PointAt(point.U, point.V) + _sections[section].Plane.Normal * point.Depth;
+
+    /// <summary>
+    /// Adds a spline whose points were placed on several drawing planes. It belongs to the plane it was started on;
+    /// points placed on later planes keep their position as offsets along that plane's normal. One undo step, and the
+    /// active drawing plane is unchanged.
+    /// </summary>
+    internal bool AddSpaceSpline(CadSession s, int home, IReadOnlyList<SnapInfo> points, bool closed, bool controlPoints)
+    {
+        if (home < 0 || home >= _sections.Count || points.Count < 2) return false;
+        int active = _activeSection;
+        var snapshot = CaptureSpace();
+        bool added;
+        _activeSection = home;
+        try { added = Edit(s, "That spline", () => Model.AddSpline(points.Select(PointFor).ToList(), closed && !controlPoints, controlPoints, Construction)); }
+        finally { _activeSection = active; }
+        if (added) { _undo.Pop(); _undo.Push(snapshot); }
+        Solve(s); s.Invalidate();
+        return added;
     }
 
     public void SetGizmoEditing(CadSession s, bool editing)
@@ -386,7 +443,7 @@ public sealed partial class SketchContext
         int[][] pairs = [[0, 1], [0, 2], [1, 2]];
         if (((GizmoEditing || GeometryEditing) && (editing || transforming) || PlaneHandlesOffered) && display.PlaneHandles && display.Allows(0,active))
             for (int i = 0; i < 3; i++)
-                if (display.AxisVisible(pairs[i][0])&&display.AxisVisible(pairs[i][1])&&(!PlanarGizmoActive || i == GizmoPlaneIndex)) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28), i + 4);
+                if (display.AxisVisible(pairs[i][0])&&display.AxisVisible(pairs[i][1])&&(!PlanarGizmoActive || i == GizmoPlaneIndex)) Test(origin + (basis[pairs[i][0]] + basis[pairs[i][1]]) * (length * .28 * PlaneSquareScale), i + 4);
         // Position the gizmo in G mode; outside G, Edit Sketch handles transform its selected target.
         if (editing || transforming)
         {
@@ -403,6 +460,10 @@ public sealed partial class SketchContext
                         Test(point, axis + 7, display.Tolerance);
                 }
             }
+            // Scale blocks at the axis tips squash or stretch the selection along that one gizmo axis (11..13); the square in the middle scales evenly.
+            if (transforming && !PlanarGizmoActive && display.Allows(2,active))
+                for (int axis = 0; axis < 3; axis++)
+                    if (display.AxisVisible(axis) && (axis != 2 || FreeEditing)) Test(origin + basis[axis] * length * 1.18, 11 + axis);
             if (display.Allows(2,active)) Test(GizmoVisual.UniformPoint(s, origin, length), 10);
         }
         return handle;
@@ -416,9 +477,11 @@ public sealed partial class SketchContext
 
     public bool SpacePointerDown(CadSession s, PointerInfo p)
     {
+        if (Tool is GreasePencilTool or GreaseEraserTool) return false;
         if (!Is3DEnabled && !PlanarGizmoActive) return p.Left && !p.Alt && Tool is SelectTool && PickDatum(s,p.X,p.Y);
         if (!p.Left) return false;
         if (IsDrawingFlat && Is3DEnabled && !GizmoEditing && !p.Alt && !p.Ctrl) FollowViewForFlatDrawing(s, p);
+        if (!IsDrawingFlat && Is3DEnabled && !GizmoEditing && !p.Alt && !p.Ctrl && _inferredPlane < 0) FollowViewForNewShape(s, p);
         _gizmoCopyBase = null; _gizmoCopyOriginals = null; _gizmoCopyDrag = false;
         if (_inferredPlane >= 0 && !IsDrawingFlat && !GizmoEditing && !p.Alt && !p.Ctrl && Tool is ClickTool drawing && GizmoPlaneIndex != _inferredPlane)
         {
@@ -435,7 +498,8 @@ public sealed partial class SketchContext
             _gizmoCopyBase = before; _gizmoCopyOriginals = originals; _gizmoCopyDrag = true;
             _confirmedEntities.Clear(); _confirmedEntities.UnionWith(SelEntities); _confirmedPoints.Clear();
         }
-        bool editing = GizmoEditing || p.Ctrl;
+        // Ctrl normally lends the gizmo handles for a drag; while it holds a drawing-plane lock the click draws instead.
+        bool editing = GizmoEditing || p.Ctrl && _lockedPlane < 0;
         bool transforming = GeometryEditing && !GizmoEditing && !p.Ctrl && HasGeometrySelection;
         int hit = GizmoHit(s, p.X, p.Y, editing);
         // Curve insertion belongs to the spline tool; selection routing must not consume its clicks.
@@ -466,6 +530,14 @@ public sealed partial class SketchContext
                 if (p.Shift) { AddOrRemoveBoundEntity(s, eid); return true; }
                 return RetargetBoundSelection(s, entity: eid);
             }
+            // The curve under the pointer may live on another drawing plane: switch to it and bind what is there in the same click.
+            if (!p.Shift && PickOtherPlane(s, p.X, p.Y) is >= 0 and int boundPlane)
+            {
+                SelectPlane(s, boundPlane);
+                int re = PickEntity(s, p.X, p.Y), rp = re < 0 ? PickPoint(s, p.X, p.Y) : -1;
+                if (re >= 0 || rp >= 0) return RetargetBoundSelection(s, point: rp, entity: re);
+                return true;
+            }
             return LockedTargetClick(s);
         }
         if (hit < 0 && !editing && Tool is ClickTool && _axisPreview is { } candidate && _inferredVisualAxis >= 0 && Math.Abs(Vec3.Dot(candidate - Plane.Origin,Plane.Normal)) > 1e-6)
@@ -494,8 +566,9 @@ public sealed partial class SketchContext
         if (hit < 0) return GizmoEditing;
         if (hit is >= 1 and <= 6) GizmoOperation = SketchGizmoOperation.Move;
         else if (hit is >= 7 and <= 9) GizmoOperation = SketchGizmoOperation.Rotate;
-        else if (hit == 10) GizmoOperation = SketchGizmoOperation.Size;
+        else if (hit == 10 || hit is >= 11 and <= 13) GizmoOperation = SketchGizmoOperation.Size;
         if (hit is >= 1 and <= 3) ChooseGizmoAxis(s, hit - 1);
+        _axisScale = null;
         _dragSnapshot = CaptureSpace();
         _geometryDrag=transforming; _geometryValid=true; _geometryError="";
         _gizmoDrag = hit; _dragX = p.X; _dragY = p.Y; _dragPlane = _gizmoFrame; _dragSize = GizmoSize; _dragChanged = false;
@@ -515,13 +588,79 @@ public sealed partial class SketchContext
             return;
         }
         if (Tool is not ClickTool click || click.LastPlacedWorld(s) != null) return;
+        // No plane means no hidden plane: every new shape lies on the principal plane that faces the view as it is now (keeping the current depth),
+        // so the same click in the same view always lands in the same place however the view was reached.
         var e = s.Camera.EyeDirection; double ax = Math.Abs(e.X), ay = Math.Abs(e.Y), az = Math.Abs(e.Z);
-        const double near = 0.99;     // within about 8 degrees of an axis: a casually tilted view keeps the current plane
-        Plane3? view = ax >= near && ax >= ay && ax >= az ? Plane3.YZ : ay >= near && ay >= ax && ay >= az ? Plane3.XZ : az >= near ? Plane3.XY : null;
-        if (view is not { } target || Math.Abs(Vec3.Dot(target.Normal, Plane.Normal)) > .999 && Math.Abs(Vec3.Dot(target.Origin - Plane.Origin, target.Normal)) < 1e-7) return;
+        var face = ax >= ay && ax >= az ? Plane3.YZ : ay >= az ? Plane3.XZ : Plane3.XY;
+        var target = Math.Abs(Vec3.Dot(face.Normal, Plane.Normal)) > .999 ? Plane : new Plane3(Plane.Origin, face.U, face.V);
+        // A shape that begins on existing geometry away from this plane begins exactly there, on the plane through that spot.
+        if (NearbyStart(s, p) is { } start && Math.Abs(Vec3.Dot(start - target.Origin, target.Normal)) > 1e-6) target = new Plane3(start, target.U, target.V);
+        if (Math.Abs(Vec3.Dot(target.Normal, Plane.Normal)) > .999 && Math.Abs(Vec3.Dot(target.Origin - Plane.Origin, target.Normal)) < 1e-7) return;
         _gizmoFrame = target; GizmoPlaneIndex = 0;
         ApplyGizmoDrawingPlane(s, recordUndo: false);
         _gizmoFrame = Plane; GizmoPlaneIndex = 0;
+    }
+
+    /// <summary>
+    /// Drawing in space, a new shape (nothing placed yet: after Enter, Esc or a tool change) starts on the gizmo plane that faces the
+    /// view, when the view is snapped to an axis or the current plane has turned close to edge-on. A casually tilted view keeps the
+    /// current plane, and a shape in progress, a Ctrl lock or a hovered plane square always win. A shape started on an existing point
+    /// gets that plane through the point, so it starts exactly there.
+    /// </summary>
+    /// <summary>The point or curve near the pointer that a new shape would begin on, at its real position — a point of this sketch on another plane, or a point or curve of another sketch or a body.</summary>
+    Vec3? NearbyStart(CadSession s, PointerInfo p)
+    {
+        if (SnapSpacePoint(s, p.X, p.Y, null, out var sketchPoint) != null) return sketchPoint;
+        if ((SnapReferenceSketches(s, p.X, p.Y, true) ?? SnapReferenceSketches(s, p.X, p.Y, false) ?? (SnapOtherCurves ? SnapExternal(s, p.X, p.Y) : null)) is { Kind: SnapKind.External } other && Math.Abs(other.Depth) > 1e-6)
+            return Plane.PointAt(other.U, other.V) + Plane.Normal * other.Depth;
+        return null;
+    }
+
+    void FollowViewForNewShape(CadSession s, PointerInfo p)
+    {
+        if (Tool is not ClickTool click || click.LastPlacedWorld(s) != null) return;
+        var eye = s.Camera.EyeDirection; var axes = Basis;
+        int[] normalOf = [2, 1, 0];   // the gizmo axis each of its XY, XZ and YZ planes is normal to
+        int facing = Enumerable.Range(0, 3).MaxBy(i => Math.Abs(Vec3.Dot(eye, axes[normalOf[i]])));
+        bool axisView = Math.Abs(Vec3.Dot(eye, axes[normalOf[facing]])) >= 0.99;  // within about 8 degrees of an axis
+        bool edgeOn = Math.Abs(Vec3.Dot(eye, Plane.Normal)) < 0.26;                // within about 15 degrees of edge-on
+        // A new shape that begins on an existing point away from the current plane takes its plane from that click — the plane facing the
+        // view, through the point — however the view is tilted, so a curve can always be started from another curve.
+        var start = NearbyStart(s, p);
+        bool offPlane = start is { } st && Math.Abs(Vec3.Dot(st - Plane.Origin, Plane.Normal)) > 1e-6;
+        if (!axisView && !edgeOn && !offPlane) return;
+        if (!offPlane && Math.Abs(Vec3.Dot(axes[normalOf[facing]], Plane.Normal)) > .999) return;
+        if (start is { } at) _gizmoFrame = new(at, _gizmoFrame.U, _gizmoFrame.V);
+        SetGizmoPlane(s, facing);
+    }
+
+    /// <summary>
+    /// Drawing in space, the sketch point nearest the pointer on screen, taken at its real position: points on other drawing planes,
+    /// and points lifted off their plane (a spline continued across planes, free 3D editing), are reached exactly even when the drawing
+    /// plane is edge-on. A point of the active plane keeps its identity, so a new curve shares it; one elsewhere is placed on top of it.
+    /// </summary>
+    SnapInfo? SnapSpacePoint(CadSession s, double px, double py, ICollection<int>? excludePoints, out Vec3 world)
+    {
+        world = default; SnapInfo? best = null; double distance = 10;
+        for (int i = 0; i < _sections.Count; i++)
+        {
+            var section = _sections[i]; var model = section.Model; bool active = i == _activeSection;
+            foreach (var point in model.Points)
+            {
+                if (active ? !PointVisible(point.Id) || excludePoints?.Contains(point.Id) == true
+                    : point.Id == 0 || !(model.ShowConstruction || model.Entities.Any(e => !e.Construction && model.PointsOf(e).Contains(point.Id)))) continue;
+                var at = section.Plane.PointAt(point.X, point.Y) + section.Plane.Normal * point.Z;
+                if (s.Camera.Project(at) is not { } q) continue;
+                double d = Math.Sqrt(Math.Pow(q.x - px, 2) + Math.Pow(q.y - py, 2));
+                if (d >= distance) continue;
+                double depth = Vec3.Dot(at - Plane.Origin, Plane.Normal);
+                if (!active && Math.Abs(depth) > 1e-6 && !SnapsKeepDepth) continue;
+                var (u, v) = Plane.Project(at);
+                best = active ? new(point.X, point.Y, SnapKind.Point, point.Id, Depth: point.Z) : new(u, v, SnapKind.External, -1, "Point", Depth: depth);
+                distance = d; world = at;
+            }
+        }
+        return best;
     }
 
     /// <summary>A shape in progress must not be torn across planes: switching is fine when nothing is pending or the last point already lies on the new plane.</summary>
@@ -539,7 +678,7 @@ public sealed partial class SketchContext
         for (int i = 0; i < 3; i++)
         {
             var a = axes[pairs[i][0]]; var b = axes[pairs[i][1]];
-            var p0 = origin + (a + b) * length * .13; var p1 = p0 + a * length * .3; var p2 = p1 + b * length * .3; var p3 = p0 + b * length * .3;
+            var p0 = origin + (a + b) * length * (.13 * PlaneSquareScale); var p1 = p0 + a * length * (.3 * PlaneSquareScale); var p2 = p1 + b * length * (.3 * PlaneSquareScale); var p3 = p0 + b * length * (.3 * PlaneSquareScale);
             var q = new[] { p0, p1, p2, p3 }.Select(v => s.Camera.Project(v)).ToArray();
             if (q.Any(v => v == null)) continue;
             double cx = q.Average(v => v!.Value.x), cy = q.Average(v => v!.Value.y);
@@ -561,10 +700,11 @@ public sealed partial class SketchContext
 
     public bool SpacePointerMove(CadSession s, PointerInfo p)
     {
+        if (Tool is GreasePencilTool or GreaseEraserTool) return false;
         if (!Is3DEnabled && !PlanarGizmoActive) return false;
         if (_gizmoDrag < 0)
         {
-            int hover = GizmoHit(s,p.X,p.Y,GizmoEditing || p.Ctrl);
+            int hover = GizmoHit(s,p.X,p.Y,GizmoEditing || p.Ctrl && _lockedPlane < 0);
             if (hover != _gizmoHover) { _gizmoHover = hover; s.Invalidate(); }
             _inferredVisualAxis = -1; _axisPreview = null;
             bool near = false;
@@ -574,7 +714,7 @@ public sealed partial class SketchContext
                 && s.Camera.Project(GizmoFrame.Origin + Basis[0] * HandleLength(s)) is { } reachPx)
             {
                 double reach = Math.Max(40, Math.Sqrt(Math.Pow(reachPx.x - gizmoPx.x, 2) + Math.Pow(reachPx.y - gizmoPx.y, 2)));
-                near = Math.Sqrt(Math.Pow(p.X - gizmoPx.x, 2) + Math.Pow(p.Y - gizmoPx.y, 2)) < reach * .75 || _gizmoHover is >= 4 and <= 6;
+                near = Math.Sqrt(Math.Pow(p.X - gizmoPx.x, 2) + Math.Pow(p.Y - gizmoPx.y, 2)) < reach * (.75 * PlaneSquareScale / 1.5) || _gizmoHover is >= 4 and <= 6;
             }
             // the plane is only offered after the pointer has rested on its square for the cue delay; until then nothing is lit and clicks go to the current plane
             int hovered = near ? PlaneSquareUnder(s, p.X, p.Y) : -1;
@@ -620,7 +760,20 @@ public sealed partial class SketchContext
         if (Math.Abs(dx) + Math.Abs(dy) < 2 && !_dragChanged) return true;
         _dragChanged = true;
         var axes = new[] { _dragPlane.U, _dragPlane.V, _dragPlane.Normal };
-        if (_gizmoDrag == 10 || GizmoOperation == SketchGizmoOperation.Size && _gizmoDrag == 0)
+        if (_gizmoDrag is >= 11 and <= 13)
+        {
+            // drag a scale block along its axis: moving it by its own distance from the center changes the scale by 1
+            int axis = _gizmoDrag - 11; double length = HandleLength(s);
+            var q0 = s.Camera.Project(_dragPlane.Origin); var q1 = s.Camera.Project(_dragPlane.Origin + axes[axis] * length * 1.18);
+            double factor = 1;
+            if (q0 != null && q1 != null)
+            {
+                double ax = q1.Value.x - q0.Value.x, ay = q1.Value.y - q0.Value.y, den = ax * ax + ay * ay;
+                if (den > 1e-6) factor = GizmoVisual.SnapScale(Math.Max(.02, 1 + (dx * ax + dy * ay) / den), p.Alt);
+            }
+            _axisScale = new(axis == 0 ? factor : 1, axis == 1 ? factor : 1, axis == 2 ? factor : 1);
+        }
+        else if (_gizmoDrag == 10 || GizmoOperation == SketchGizmoOperation.Size && _gizmoDrag == 0)
             GizmoSize = Math.Clamp(_dragSize * GizmoVisual.SnapScale(Math.Exp((dx - dy) / 180), p.Alt), .25, 8);
         else if (_gizmoDrag == 0 && GizmoOperation == SketchGizmoOperation.Rotate)
         {
@@ -672,7 +825,7 @@ public sealed partial class SketchContext
             _gizmoFrame = new(_dragPlane.Origin + delta, _dragPlane.U, _dragPlane.V);
         }
         if(_geometryDrag&&_dragSnapshot is { } snapshot)
-            _geometryValid=PreviewGeometryTransform(s,snapshot,_gizmoFrame,GizmoSize/_dragSize);
+            _geometryValid=_axisScale is { } perAxis ? PreviewGeometryTransform(s,snapshot,_dragPlane,1,perAxis) : PreviewGeometryTransform(s,snapshot,_gizmoFrame,GizmoSize/_dragSize);
         s.NotifySketchChanged();
         s.Invalidate(); return true;
     }
@@ -709,7 +862,7 @@ public sealed partial class SketchContext
         }
         _dragSnapshot = null; _gizmoDrag = -1;
         _gizmoCopyBase = null; _gizmoCopyOriginals = null; _gizmoCopyDrag = false;
-        _geometryDrag=false;
+        _geometryDrag=false; _axisScale = null;
         if (!changed && handle is >= 4 and <= 6) SelectGizmoPlane(s,handle-4);
         Solve(s); RememberGizmoTargetCenter();s.RaiseState(); s.Invalidate(); return true;
     }
@@ -782,9 +935,10 @@ public sealed partial class SketchContext
         DrawingAxis=Array.IndexOf(pairs[GizmoPlaneIndex],SelectedGizmoAxis)+1; s.Invalidate();
     }
 
-    int PickOtherPlane(CadSession s, double x, double y)
+    /// <summary>The nearest curve under the pointer on a non-active drawing plane: (section index, entity id), or (-1,-1) for none.</summary>
+    public (int section, int entity) PickOtherEntity(CadSession s, double x, double y)
     {
-        int result = -1; double best = 8;
+        (int section, int entity) result = (-1, -1); double best = 8;
         for (int i = 0; i < _sections.Count; i++)
         {
             if (i == _activeSection) continue;
@@ -795,12 +949,14 @@ public sealed partial class SketchContext
                 {
                     var a = s.Camera.Project(points[k - 1]); var b = s.Camera.Project(points[k]); if (a == null || b == null) continue;
                     var (_, distance) = Picking.SegDist(x, y, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
-                    if (distance < best) { best = distance; result = i; }
+                    if (distance < best) { best = distance; result = (i, entity.Id); }
                 }
             }
         }
         return result;
     }
+
+    int PickOtherPlane(CadSession s, double x, double y) => PickOtherEntity(s, x, y).section;
 
     /// <summary>
     /// Sketches that were already turned into features are hidden; one the user shows again is there to be used. Its geometry behaves as if it
@@ -812,8 +968,7 @@ public sealed partial class SketchContext
     SnapInfo? SnapReferenceSketches(CadSession s, double px, double py, bool pointsOnly)
     {
         SnapInfo? best = null; double distance = pointsOnly ? 10 : 8;
-        // drawing in space, a point, line or spline can start or end exactly on geometry that sits off the drawing plane
-        bool keepsDepth = Is3DEnabled && (Tool is PointTool || !IsDrawingFlat && Tool is LineTool or SplineTool);
+        bool keepsDepth = SnapsKeepDepth;
         void Candidate(Vec3 world, double screenDistance, string note)
         {
             if (screenDistance >= distance) return;
@@ -862,15 +1017,19 @@ public sealed partial class SketchContext
         return best;
     }
 
+    /// <summary>Drawing in space, a point, line or spline can start or end exactly on geometry that sits off the drawing plane: the placed point keeps its real position as an offset along the plane's normal.</summary>
+    bool SnapsKeepDepth => Is3DEnabled && Tool is PointTool or LineTool or SplineTool;
+
     SnapInfo? SnapExternal(CadSession s, double px, double py)
     {
         SnapInfo? best = null; double distance = 10;
+        bool keepsDepth = SnapsKeepDepth;
         void Candidate(Vec3 world, double screenDistance)
         {
             bool projected = Math.Abs(Vec3.Dot(world - Plane.Origin, Plane.Normal)) > 1e-6;
-            if (projected && !ProjectsOtherCurves || screenDistance >= distance) return;
+            if (projected && !ProjectsOtherCurves && !keepsDepth || screenDistance >= distance) return;
             var (u, v) = Plane.Project(world);
-            best = new(u, v, projected ? SnapKind.Projected : SnapKind.External, -1); distance = screenDistance;
+            best = new(u, v, projected && !keepsDepth ? SnapKind.Projected : SnapKind.External, -1, Depth: keepsDepth ? Vec3.Dot(world - Plane.Origin, Plane.Normal) : 0); distance = screenDistance;
         }
         void Point(Vec3 world)
         {
@@ -883,7 +1042,7 @@ public sealed partial class SketchContext
         foreach (var section in _sections.Where((_, i) => i != _activeSection))
         {
             foreach (var point in section.Model.Points.Where(point => point.Id != 0 && (section.Model.ShowConstruction || section.Model.Entities.Any(entity => !entity.Construction && section.Model.PointsOf(entity).Contains(point.Id)))))
-                Point(section.Plane.PointAt(point.X, point.Y));
+                Point(section.Plane.PointAt(point.X, point.Y) + section.Plane.Normal * point.Z);
             foreach (var (entity, points) in section.Model.Polylines(section.Plane))
             {
                 if (entity.Construction && !section.Model.ShowConstruction) continue;
@@ -928,7 +1087,8 @@ public sealed partial class SketchContext
             {
                 if (entity.Construction && !_sections[i].Model.ShowConstruction) continue;
                 bool picked = ExtraSelection.TryGetValue(i, out var chosen) && chosen.Contains(entity.Id);
-                o.AddPolyline(points, picked ? 0xFFFFC53D : 0xA080A9CD, picked ? 3.8f : 1.8f);
+                bool hov = HoverOtherSection == i && HoverOtherEntity == entity.Id;
+                o.AddPolyline(points, picked ? 0xFFFFC53D : hov ? ColHover : 0xA080A9CD, picked || hov ? 3.8f : 1.8f);
             }
         }
         if (!Is3DEnabled && !PlanarGizmoActive) return;
@@ -960,8 +1120,8 @@ public sealed partial class SketchContext
             {
                 if (!display.AxisVisible(pairs[i][0])||!display.AxisVisible(pairs[i][1])||PlanarGizmoActive && i != GizmoPlaneIndex || _lockedPlane >= 0 && i != _lockedPlane) continue;
                 var pair = pairs[i]; var a = axes[pair[0]]; var b = axes[pair[1]];
-                var p0 = origin + (a + b) * length * .13; var p1 = p0 + a * length * .3;
-                var p2 = p1 + b * length * .3; var p3 = p0 + b * length * .3;
+                var p0 = origin + (a + b) * length * (.13 * PlaneSquareScale); var p1 = p0 + a * length * (.3 * PlaneSquareScale);
+                var p2 = p1 + b * length * (.3 * PlaneSquareScale); var p3 = p0 + b * length * (.3 * PlaneSquareScale);
                 uint accent = GizmoVisual.Accent;
                 uint color = (accent & 0xFFFFFF) | (_gizmoHover == i + 4 ? 0xA0000000u : 0x30000000u);
                 o.AddTri(p0, p1, p2, color); o.AddTri(p0, p2, p3, color);
@@ -980,9 +1140,10 @@ public sealed partial class SketchContext
         }
         for (int operation = 0; operation < 3; operation++)
         {
-            int hotAxis = operation == 0 && _gizmoHover is >= 1 and <= 3 ? _gizmoHover - 1 : operation == 1 && _gizmoHover is >= 7 and <= 9 ? _gizmoHover - 7 : -1;
+            int hotAxis = operation == 0 && _gizmoHover is >= 1 and <= 3 ? _gizmoHover - 1 : operation == 1 && _gizmoHover is >= 7 and <= 9 ? _gizmoHover - 7 : operation == 2 && _gizmoHover is >= 11 and <= 13 ? _gizmoHover - 11 : -1;
+            bool scaleBlocks = GeometryEditing && !GizmoEditing && HasGeometrySelection && !PlanarGizmoActive;
             GizmoVisual.DrawOperation(o, s, origin, axes, operation, active, hotAxis,
-                _gizmoHover == 0 && operation == (int)GizmoOperation || _gizmoHover == 10 && operation == 2, axisScale:false, planar:PlanarGizmoActive);
+                _gizmoHover == 0 && operation == (int)GizmoOperation || _gizmoHover == 10 && operation == 2, axisScale:scaleBlocks, planar:PlanarGizmoActive);
         }
         var colors = GizmoVisual.AxisColors;
         if (_axisPreview is { } point && _inferredVisualAxis >= 0)

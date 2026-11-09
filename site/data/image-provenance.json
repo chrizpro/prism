@@ -1,0 +1,243 @@
+{
+  "captureDate": "2026-11-07",
+  "baseRevision": "4667c70edb83d8f052992716655bb74ce9368462",
+  "workingTree": "dirty; base revision is not the capture binary build revision",
+  "binarySha256": {
+    "Prism.Desktop/bin/Release/net10.0/Prism.dll": "1a63e1c238389482966f2c1e9b0ee3c517e372aebc7e87ac63b7f44ccf935768",
+    "Prism.Desktop/bin/Release/net10.0/Prism.Desktop.dll": "acf22d42543142214fe7c12426a2d4a41f30fd6af22f03781d72eb9663604470",
+    "artifacts/tests/integration/bin/Prism.Mcp.dll": "96a4f7cb892ea9ab21f17c569231c2fc6005f95ff469fe9a80c99b1b6d0bba0d",
+    "Prism.Desktop/bin/Release/net10.0/prism_kernel.dll": "7d2df87887e695ab8c7ed1f313c156b5f6da6887a00fd1c9313b251df065d76c",
+    "Prism.Desktop/bin/Release/net10.0/prism_sim.dll": "146418a975581940442ea5b5b685bfa1279573822014d47c4303cbbcfb698b54"
+  },
+  "conversion": "PNG to lossless WebP; original pixel dimensions preserved",
+  "captures": {
+    "cam-stock-setup": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "d1a53de4e7a112016b0022dc79e92bf5bd77792f7a487fcd7f249cf62dea9d7d",
+      "assetSha256": "b62546d9160a9197b80991c8f6cea7c7e3bf8da2fe85c70df7acf3e879b6ab96"
+    },
+    "cam-profile-preview": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "e810ef74db5ed4acd00aee5180c9a793c0f597725907a20ebc1b86e56a3ec65b",
+      "assetSha256": "3e1ecc66c87983c4327e24081dddb156192d8ee61c448251baf1e1ac180254c7"
+    },
+    "cam-toolpath-playback": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "f20b01bbf1a46b18c1a2ee0b2b30cbed26c353c4d80fdb678e44d4152f513af7",
+      "assetSha256": "77f6a48bda2f26532d5f4dd9351aec8b545ad94fe5efdf415816e26423461a45"
+    },
+    "cam-fdm-check": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "867e8bb879b7dfbbf342aebedc1b217165c3387e83ea275237edb87efc6cf35b",
+      "assetSha256": "ee6c5c8aac7ecffd76e0b39ef17d85142821c7bc2410e0a70739ba4e8d0f0035"
+    },
+    "cam-resin-check": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "3c18429d548b4fbf72f740e0187f1082f1a58a06d65d7194f2da21d39dc8f962",
+      "assetSha256": "b3d4851ef4009b58dd4158ff872443f0a4356c25dbb4952c3b10286a998fb042"
+    },
+    "assembly-components": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "0fb1945e864f53141969eea2bc46b341cffc67bb1eb34d92968c9127867c6271",
+      "assetSha256": "22934ebc0a2ee0f752cb5f5446b966850f5739b1ccaafbed9b822e532c316b14"
+    },
+    "assembly-revolute-setup": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "7d3eefeb6a16f07169063b7f9f1747d0cf12530bda358a271dd8243d7863a2a3",
+      "assetSha256": "b0de1a8a113b5f18686e73b8f099dfd72850c497f77b73e8ac695be2bff34f66"
+    },
+    "assembly-drive-joint": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "bd060b5487aab7128baf2d6f03af27aea007d55d3a0d707f7c3510e14b5a3e11",
+      "assetSha256": "b81c67508d45904800b96b787da444198aec4a095bf255dc953e1391d11262f2"
+    },
+    "simulation-static-loads": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "839eac05686a5bb76751ceae5f325c239471b0a640dd4819688a3ad2b4b73e9b",
+      "assetSha256": "6b541c69afbf0849ebece0debcabd725785dbf6bc0b480525a63cfe9fef38319"
+    },
+    "simulation-static-stress": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "1a2435f9e23e29d70e026342039458a2682fac878a8ed6a13e1b8133bfb5cc79",
+      "assetSha256": "f97eb0011eec64613c2eafa9b2c21024ed5a36ddc7a993ef76758baabd51397e"
+    },
+    "simulation-thermal-result": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "ee409528e6b227dababf02c49c5a8807aeeb06348bdef8e1c6a77fb563381819",
+      "assetSha256": "d2d3446a1e1f3b954237729a08b90121f3d04f7c7e59a8bba0c390b7b535f844"
+    },
+    "simulation-natural-frequency": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "43a072438605fba276baeab82ec3f3989a6b80be3a435abcc18f783df16d79b1",
+      "assetSha256": "491f557df08c4b40898bce32f6eb086b854b51e8d164e5385029e5b6c24756c1"
+    },
+    "simulation-motion-study": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "5249305c1e705e7f67f43c5252ec1499f67b1c2a0ffb5c75cf35ca711d61650e",
+      "assetSha256": "3afd6d5eeedabeddff157ce52d9cca7ffaba3143a0db0ed63ac341a3f34477a6"
+    },
+    "simulation-pipe-flow": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "e19839261ae988efe5023b3631af4d7564bfa1751b71686297062de3e4ab3b21",
+      "assetSha256": "75c9bc044578df94e1e59fecfbe81e69620afc20dff91eca8654a704edd03172"
+    },
+    "ecad-board-envelopes": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "2d5e91a54bb3e72c6f31faa1a71055f7528b4cf7815945b492b1103e96a77d26",
+      "assetSha256": "a8d0c4a13b6ab32e0aff240885cc8d50f74f0c690599334e51438858a46b8484"
+    },
+    "scan-mesh-quality": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "73ba95c6b219f98dc9ea6841a314606483d8c2fe228c452ef663d803ebf532ed",
+      "assetSha256": "fdfcaa46fc2c975fc79fbf88d7226350c2c543c2dd4a0421e8cff637a3e6482c"
+    },
+    "scan-section-sketch": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "e29bd8efc54e86f13d8da935c4d4b5e6fe551cf8d9cc1ac093def5fe748f67ef",
+      "assetSha256": "aace5df4c4742f871b0d655a7754f0c6f96a67472c34db2180246eb5e4672ea1"
+    },
+    "ar-export-panel": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "1f3fe64dd4f85122a541df6ce6aa838d511ef9ec24ad90a702485c3aef3f10f3",
+      "assetSha256": "4d989c45a0a4c6b704e695ee18d27868a03636223ff5076af37804a4513611c5"
+    },
+    "freeform-cage-editor": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "b80806d0872823c938ba78e7a823ca4c8c0bc55fe7e1b98a40efc1a19644b246",
+      "assetSha256": "6300a82e8b398b87ec7d5f36d1802cd816db83c1a7ed6b5a81341c61a078a940"
+    },
+    "render-image-settings": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "709694652013a7ddbfaa591ba6640d9dc18e99a4387ced21174d47918ecd4dd8",
+      "assetSha256": "79175ec19e000fb9654f93666f8dcb795b81e8b5a3c19ab53b973d79a59f3350"
+    },
+    "materials-studio": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "a4c6f435825049111dacb8aa72c51e33832b58e0f0d15815d8fdd824aed0fc8c",
+      "assetSha256": "a956f5354111fbdf4d3500fe163b462c5a5ea391daec722a64f311b30409d807"
+    },
+    "assistant-modeling-panel": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "16fd69a09c892b5ee2222278ebf2dcec7d4d041d509326215b3abeed2c09cc5b",
+      "assetSha256": "50aea6753fe317234571f7b5ae9af66f1837efdb30b746967bc0b30228996371"
+    },
+    "script-editor-workspace": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "79323b68f9052b9ac2f9244b507b148ad9641017894964b5436cdaf2e9d19db1",
+      "assetSha256": "eb5527b908fbaaad2229874a4e72176a76a9260149345ca7de0fbe74a84c7cb3"
+    },
+    "modeling-workspace-overview": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "ebea01d2f1dead1ecdd8510f6a9ad55be757859d7e30c256f3dad3d38e018e5e",
+      "assetSha256": "e825926346c53bc49899207659ad16d9fac436e904dbbf7ab3cff70b4e12a9c9"
+    },
+    "sketch-dimensions": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "9b26686623b146ffae37fb6d17acac0b189089957ba4c2476b73368559c71cf3",
+      "assetSha256": "e2f4a72aa77b4e1d174f58acc89ddd7a10f5afd9d349b04ed2e27de567eaf1b7"
+    },
+    "solid-extrude-preview": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "76ec8cf218392000125809387a30b7a5e67a3eeeb0865af7ef6f3b1e495b6af4",
+      "assetSha256": "f1b0d4bc785f494d1f6af43c1b8b9a149cc5d84e4d8b12224860abbcf0f5b23c"
+    },
+    "solid-extrude-result": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "01cf0cbebb64f0f9ce5fb1ef061cd7cd3f59895de6594dfdb5a5afe3b2880c94",
+      "assetSha256": "cc4f0785ecb39f1784eb5ba86e4847b13776b6252df94bf9c7096a6e26fe04c1"
+    },
+    "drawing-workspace": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "3e5b2490d1dcc60f33ebd9f69b82e9328e68036e196baf6ccaee89fb211689a2",
+      "assetSha256": "4cf54c9f3d1206ddfc5179deac54a96ed5eb06fc07b903de44525a9934094079"
+    },
+    "surface-zebra-inspection": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "276abfbf6143f57d1b0524fd30723724994604b92fd883adf38761a831a23b3b",
+      "assetSha256": "cd718203c224931d68b72fdf1d3a647f289c2a7b72fa152fcedf50bc93006c11"
+    },
+    "solid-fillet-edges": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "ac0dd5d803b1ab5193cb011a05de36049d3b4d39ee9345196efffef203344b6b",
+      "assetSha256": "c86b2daf0f50aa5ef67dde8314c14eaf7977c40c590e194e08eeba0452b3322e"
+    },
+    "solid-shell-result": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "b089648412fb7985198adfca2e7f063d2f246f8dff2199746a9bcf66e8f941a7",
+      "assetSha256": "44f32244f34a39262166d7db6cc70aba123edd1f45888d20a155a7634b73eb2a"
+    },
+    "solid-linear-pattern": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "a0bd1892b5c203d3e766eba2735d39af42a220c3b00bbcd61a332f5feeed3cae",
+      "assetSha256": "bd05cc7eac696c6f96ed244ee1079f866c7c6dec2b235d39ea4ec9906c1b3675"
+    },
+    "nurbs-control-grid": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "58ce4362b15e7fe2bd50e53bd74d085b368e409b3dd8c40ed4b2a33d172d6389",
+      "assetSha256": "d0357672604b1d622ea0043ea353f87af1c7acae2492bc11def9e9ff4fde85f7"
+    },
+    "nurbs-edit-control-points": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "823afd2bfd1e51718d32a6ce13e0f55d7d6e26b36d19b6a7c288e0b27980218f",
+      "assetSha256": "e8a3fd82fa1c65239207fdba8ca7dd3f76208cd937af4a2b8a860400deabb6a3"
+    },
+    "surface-loft-sections": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "c0c63e1205fc9897ee66ac9ea567d83e87b40be54335ee03e2e6601a44ac2c1b",
+      "assetSha256": "4eff07fda9974460c074107cdc085172ff3b3f0094f27124662bf38908b21d31"
+    },
+    "surface-thicken-preview": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "368b1078efc995819f85ad415d7f5646cff04e010de1397d5a84e9db228e370f",
+      "assetSha256": "6b92f1074b1b931b639a81e1e30531acae36cfcadd1eafb3f1e56af666ebfee7"
+    },
+    "freeform-soft-selection": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "a7bbcaf0e7b4df0553163a3c6cfea1ef2325bf3ea46abec7015da461b3dd3b4e",
+      "assetSha256": "465d5259b4f3fa9b7e0c42970e5225e19906e80764480aa9e7849cc8086db511"
+    },
+    "freeform-quality-review": {
+      "method": "Prism.Mcp screenshot",
+      "captured": "2026-11-07",
+      "originalSha256": "168a852046ff71929c5764fb73a335c2d897730417889c2ba1f6dc329273fa97",
+      "assetSha256": "9733243d0be442e87acd7874f2315e3e6318bf2492fa45e089ee0e4ca3a63d7b"
+    }
+  }
+}

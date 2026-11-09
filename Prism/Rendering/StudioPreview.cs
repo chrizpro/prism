@@ -9,7 +9,7 @@ using Prism.Kernel;
 namespace Prism.Rendering;
 
 /// <summary>A snapshot of actual viewport mesh data. No live session or native handles are used by the worker.</summary>
-public sealed record StudioPreviewSource(MeshData Mesh, int[] Edges, int[] Faces, bool Error, string Caption, uint? HighlightColor = null, bool MonoScalars = false, bool Perspective = false);
+public sealed record StudioPreviewSource(MeshData Mesh, int[] Edges, int[] Faces, bool Error, string Caption, uint? HighlightColor = null, bool MonoScalars = false, bool Perspective = false, bool WholeView = false);
 public sealed record StudioPreviewPixels(byte[] Bgra, int Width, int Height, int HighlightPixels);
 
 /// <summary>Small cached diagnostic renders, using the application's tessellation and projection camera.</summary>
@@ -34,7 +34,8 @@ public static class StudioPreview
         for (int t = 0; t < mesh.TriangleCount; t++) if (selectedFaces.Contains(mesh.TriFace[t]))
             for (int j = 0; j < 3; j++) focusPoints.Add(P(mesh.Positions, mesh.Indices[t * 3 + j] * 3));
         var min = mesh.Min; var max = mesh.Max;
-        bool focused = focusPoints.Count > 0;
+        // Highlights normally pull the camera in; WholeView keeps the whole mesh framed when they are only context.
+        bool focused = focusPoints.Count > 0 && !source.WholeView;
         if (focused)
         {
             var lo = new Vec3(focusPoints.Min(p => p.X), focusPoints.Min(p => p.Y), focusPoints.Min(p => p.Z));

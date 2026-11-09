@@ -2,6 +2,139 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "kestrel-r07",
+      "Name": "Kestrel R-07",
+      "Description": "A sci-fi sensor pod with layered armor, recessed vents, and a detailed optical head.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 8575975,
+      "Sha256": "b32e3e28312fe7c677bb63a7285e2bdbb7c14125d6a701a1d0133fbcabab31b3",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/kestrel-r07.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/kestrel-r07.png?v=7aba0bbb2318de33"
+    },
+    {
+      "Id": "peregrine-s4",
+      "Name": "Peregrine S4",
+      "Description": "A quadcopter concept with a smooth spline-lofted fuselage, rounded arms, and four detailed rotor assemblies.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 11244640,
+      "Sha256": "1eddba4745f6f81d69efc5335c3686338cfc3810d368d65c2cc325df732c60b1",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/peregrine-s4.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/peregrine-s4.png?v=acfb6cf416832ecf"
+    },
+    {
+      "Id": "apex-r07",
+      "Name": "Apex R07",
+      "Description": "A racing helmet concept with editable Freeform shell and visor cages, trim, and solid hinge details.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 388361,
+      "Sha256": "9ebc358256f222d7fb3bc1fa57ae09c9c5dfc4683a8b0df662ed927cd4c68896",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/apex-r07.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/apex-r07.png?v=8cdbe3bed4476e42"
+    },
+    {
+      "Id": "relay-s1",
+      "Name": "Relay S1",
+      "Description": "A game controller with a mirrored Freeform shell and swept grips, a slim graphite insert, and orange-accented controls.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 436568,
+      "Sha256": "ef89d5aa3004c2cf9b58e3091ae8330c91017a332f07b2bedac867fd04d51d33",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/relay-s1.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/relay-s1.png?v=3aa36647c18acc50"
+    },
+    {
+      "Id": "meridian-orrery",
+      "Name": "Meridian orrery",
+      "Description": "A geared brass orrery: turn the knob and six planets and the Moon orbit at their gear ratios around a glowing sun.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-orrery.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-orrery.png?v=56d5dc1880d963bf",
+      "Bytes": 6514648,
+      "Sha256": "b7d63746be180b90e85da4dacd36e5aba52919f9e3da3656a5f7cc641b5535d1",
+      "Extras": [
+        {
+          "Label": "animation video (MP4)",
+          "FileName": "meridian-orrery-animation.mp4",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/meridian-orrery-animation.mp4",
+          "Bytes": 563065,
+          "Sha256": "3348840b50ddd61c5c41d8326f2b2297f99a6139487254be09926f4e522e5687"
+        },
+        {
+          "Label": "exploded view (PNG)",
+          "FileName": "meridian-orrery-exploded.png",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/meridian-orrery-exploded.png",
+          "Bytes": 326205,
+          "Sha256": "a570f5b233a3158a86ae46c8a411cf9b8e75516d86232a64857bfc4f6d4334eb"
+        }
+      ]
+    },
+    {
+      "Id": "cardboard-box",
+      "Name": "Cardboard box",
+      "Description": "A shoebox-style carton with a hinged lid, front lip and handle slots, folded from one flat die line and shown beside it.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/cardboard-box.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cardboard-box.png?v=555df98f8658c716",
+      "Bytes": 93518,
+      "Sha256": "6dead80d1a828bcd5183bdeaf4e00660a6236fbc938799b14c6cd2b5630de7e2"
+    },
+    {
+      "Id": "lotus-dish",
+      "Name": "Lotus dish",
+      "Description": "A silver dish folded from one flat sheet: four trapezoid petals that rise and curl back, with a ring of holes and slots.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/lotus-dish.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/lotus-dish.png?v=50fa5b6d9d12d629",
+      "Bytes": 172454,
+      "Sha256": "62ba040c8d2d1db2c4e864e437758c0d0637d1808e01ffd0baa69c2b4b2299d2"
+    },
+    {
+      "Id": "serving-board",
+      "Name": "Maple serving board",
+      "Description": "A CNC-routed maple serving board with a juice well and hand slot, modeled in Solid and planned in CAM: face, pockets and a tabbed profile.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serving-board.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serving-board.png?v=5a42ddd12251845f",
+      "Bytes": 406135,
+      "Sha256": "a0523cc4a079663fff78e6c3bbd5b4eb24af0c95ae51255304ff7064fbdff07a"
+    },
+    {
+      "Id": "fold-stand",
+      "Name": "Fold tablet stand",
+      "Description": "One bent sheet: a chamfered ledge, a leaning vented back rest and a hemmed top edge, shown with its flat pattern.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/fold-stand.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/fold-stand.png?v=84aacbb543fa5b59",
+      "Bytes": 2117921,
+      "Sha256": "2133d1ca7c14ed66781d8d87428d10229b9222c6e9bd58888f524d8eed346360"
+    },
+    {
       "Id": "comet-racer",
       "Name": "Comet number-one racer",
       "Description": "A playful open-wheel racecar with red bodywork, big slick tires and blue wings.",
@@ -117,6 +250,54 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/transition-duct.png?v=5ba0a2af5b25781c",
       "Bytes": 1762530,
       "Sha256": "3e5a0ccdb34e35ac4e704d2a9b9e60a7f617413c59720f8ebeba277047ed727f"
+    },
+    {
+      "Id": "wrench",
+      "Name": "Combination wrench",
+      "Description": "A 13 mm chrome-vanadium combination wrench. Opens on the Static tab with five load cases, natural frequencies and a thermal setup ready to run.",
+      "Workflow": "CAE / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench.png?v=8e68b29d7db15053",
+      "Bytes": 86436,
+      "Sha256": "514313158a77970462085b80ea4f9fbffa1bef58a3aff383289b589e852f527c"
+    },
+    {
+      "Id": "relief-plaque",
+      "Name": "Carved lotus plaque",
+      "Description": "A maple block with a lotus picture carved by CNC: Image Carve turns the picture's brightness into depth. Opens on CAM with Playback ready.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/relief-plaque.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/relief-plaque.png?v=67dbcc5b2e8b7c78",
+      "Bytes": 2467009,
+      "Sha256": "5e41b24db37d4b684757a242bba69459a400c2aaac86fbd980c126361524d861",
+      "Extras": [
+        {
+          "Label": "carving image (PNG)",
+          "FileName": "relief-lotus.png",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/relief-lotus.png",
+          "Bytes": 29153,
+          "Sha256": "05c0729c8638f5563b75228e394270d2b60c9cd018313551bb24e9e228198076"
+        }
+      ]
+    },
+    {
+      "Id": "injection-mold",
+      "Name": "Injection mold",
+      "Description": "A block and a cap-shaped part made into a two-part mold with Create Mold, split at the cap's widest point and shown exploded.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Claude",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/injection-mold.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/injection-mold.png?v=3f871a82fcab939b",
+      "Bytes": 29540,
+      "Sha256": "9e22d640f1c254683c5968d5c4dd20a9daf0d41877924091fa13217e6e7a79e6"
     }
   ]
 }

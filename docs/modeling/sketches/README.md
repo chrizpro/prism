@@ -2,6 +2,8 @@
 
 Create Sketch starts on XY, XZ, YZ, a construction plane, or a planar face. Offset moves the base plane along its normal. A picked planar face supplies the actual drawing plane. Datum Point activates the reference-point tool while a sketch is open and places a point on its active plane.
 
+While a command is asking for a plane, origin planes and hidden construction planes appear for picking, and their browser eyes show checked to match. Turning an eye off suppresses that plane until the command ends; turning off a plane that was already switched on hides it for good, like any object eye. A new pick reveals suppressed planes again. Settings → Interaction → **Reference plane size** scales how big all of these planes draw (25–200 %); pick bounds follow the drawn size. [SOL-H078–H080](../../../Prism.Tests/Headless/Solid/SketchAndDatumTests.cs) cover the reveal, browser sync, suppression lifetime and scaled pick bounds.
+
 ## Verification
 
 [Sketch entry and point tests](../../../Prism.Tests/Headless/Solid/SketchAndDatumTests.cs) and [offset sketch entry](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs). [Tracking issue #33](https://github.com/chrizpro/prism/issues/33).
@@ -12,14 +14,14 @@ Sketch tool families within the contextual Sketch tab have separate workflows. D
 
 ## Sketch contextual tab
 
-Sketch has 40 shipped ribbon entries. Several tools expose more modes and controls in the sketch panel than the ribbon catalog lists.
+Sketch has 49 shipped ribbon entries. Several tools expose more modes and controls in the sketch panel than the ribbon catalog lists.
 
 | Area | Tool families |
 | --- | --- |
-| Select and Datum | Select with box or lasso, Gizmo, Point, Axis, Plane, Save gizmo |
+| Select and Datum | The same Select group as every other tab (Object, Face ▾, Paint ▾, Invert, Through): Object arms the sketch Select tool, the drag methods set its rectangle, lasso or paint selection, and the body-only controls are unavailable in a sketch ([SKT-H015](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs)); the sketch tab has no Datum group |
 | References | Project / Include, To construction, Construction |
 | Draw | Line, [Rectangle](rectangle/README.md), Ellipse, Arc, Polygon, Slot, Text, Spline |
-| Modify | Trim, Extend, Offset, Fillet, Chamfer, Mirror, Pattern |
+| Modify | Edit, Trim, Extend, Offset, Fillet, Chamfer, Mirror, Pattern |
 | Constrain | Horizontal, Vertical, Coincident, Parallel, Perpendicular, Tangent, Equal, Midpoint, Concentric, Collinear, Symmetric, Fix |
 | Dimension and display | Smart, Horizontal and Vertical dimensions, Curvature |
 | Exit | Finish Sketch, Cancel |
@@ -36,3 +38,58 @@ Offset copies the selected geometry at a specified distance. Horizontal and Vert
 
 
 Desktop integration: [SKT-I001 viewport evidence](../../integration-evidence/README.md#sketch-constraints--skt-i001) covers Horizontal and Vertical glyphs and a driving line dimension.
+
+## Grease pencil
+
+**Approved scope (owner conversation, 2026-11-08):** freehand brainstorming annotations in both 2D and 3D sketch. The owner revised the initial 2D-only request to allow planar drawing in 3D sketch, and confirmed that drawing requires orthographic view while completed marks remain visible in perspective.
+
+In the contextual Sketch tab, find **Brainstorm** immediately left of **Exit**, choose **Grease Pencil** from its Pencil/Eraser dropdown, then drag with the left mouse button. The default surface is the active sketch plane. **Use orthographic view** captures the current camera orientation as the drawing plane through the active plane origin, enables **Draw on view-facing plane**, and switches projection to orthographic without changing the view angle. Orbit and click the button again to choose a new drawing plane; existing marks keep their positions. Enabling **Draw on view-facing plane** also captures the current view; turning it off returns to the active sketch plane. The captured plane remains fixed until recaptured. Each stroke stays planar even if you orbit while drawing. This button behavior was clarified and approved by the owner on 2026-11-08. Parallel rays cannot place a mark; choose a view-facing plane or look toward the drawing plane.
+
+Stroke width is 1–12 screen pixels (default 3). The owner approved five organization colors on 2026-11-08: **red, blue, green, yellow and purple**. Choose one in the tool panel; yellow is the default for new strokes. Each stroke retains its own color through saving, cloning, undo and perspective display. Earlier uncolored strokes retain their legacy amber appearance. Marks do not snap. Release commits one undoable stroke; Escape discards the unfinished stroke. Choose **Eraser** from the same dropdown to click or drag a 12-pixel-radius brush over whole marks on the active sketch section. A swept drag erases strokes crossed between pointer events; one erase gesture is one undo step. Erasing requires orthographic view and leaves CAD geometry alone. **Remove last mark** removes the newest mark on the active sketch section and is undoable. Switching tools discards an unfinished stroke. A click without movement creates no mark. Switching to perspective during a stroke cancels that stroke.
+
+Marks are stored separately from sketch points, entities and constraints. They survive sketch cloning, definition serialization and export, and a sketch containing only marks is retained on Finish. Their overlay is visible during editing and after Finish, including perspective view. They do not create profiles for extrusion, solver constraints, snapping targets or exported CAD curves.
+
+Implementation: [Grease pencil tool](../../../Prism/Tools/GreasePencilTool.cs), [sketch definition](../../../Prism/Core/Sketching/SketchModel.cs) and [maintained Unit checks](../../../Prism.Tests/Unit/Sketch/GreasePencilTests.cs). The checks cover pointer routing, independent annotations, undo/removal, canceled strokes, orthographic drawing, perspective display, cloning/serialization, a frozen view-facing plane in 3D sketch, ribbon ordering and undoable eraser gestures.
+
+Limits: no pressure sensitivity, custom color picker, partial-stroke erasing, curve conversion or individual-mark selection/transforms. Marks are local to their sketch section; geometry-edit tools operate on CAD entities rather than marks. Native Finish/file reopening and desktop viewport appearance require verification on a configured Prism workstation.
+
+Verification (2026-11-08): `/workspace/dotnet/dotnet test Prism.Tests/Unit/Prism.UnitTests.csproj --no-restore --filter FullyQualifiedName~GreasePencilTests --verbosity minimal` compiled the application and passed all twelve maintained Unit cases (12 passed, 0 failed), including all five palette colors, swept erasing with undo, ribbon ordering, and current-view capture/recapture without moving existing marks. The Headless runner was attempted but aborted before tests because this Linux environment lacks `PRISM_NATIVE_DIR` / `libprism_kernel`; no native viewport evidence is claimed. GitHub issue publication was blocked by automatic approval review, so issue tracking remains pending explicit owner authorization.
+
+Desktop build investigation (2026-11-08): `dotnet build Prism.Desktop/Prism.Desktop.csproj --verbosity minimal` and `dotnet build Prism.Desktop/Prism.Desktop.csproj --no-restore -c Release --verbosity minimal` both succeeded with zero errors. Existing compiler warnings and a transitive `Tmds.DBus.Protocol` advisory remain. The owner-reported Rider failure has not reproduced; its first error and branch are needed to diagnose it.
+
+Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its reference-catalog check because the generated catalog omitted the new ribbon group. Regenerated `site/public/ribbon-catalog.json` from the shipped ribbon. The .NET catalog check, `site` documentation build and `web` website build all passed locally (Astro telemetry disabled in this sandbox). No merge conflict with the current `develop` branch was found.
+
+## Drawing directly on a surface
+
+**Status: Approved by the owner 2026-11-09; implemented. Automated tests pass on Linux; not yet tried by hand in the desktop app.** Replaces the former *Draw on the curved surface* option of Create Sketch (a sketch on a tangent plane, projected onto the face when finished), which is removed. Create Sketch still opens an ordinary planar sketch on a flat face or plane. Delivery issue: to be linked.
+
+**Draw on Surface** (Curves group, next to Project, on every ribbon that offers Project; scripting name `curve_on_surface`) draws a curve directly on a surface, as NX and Creo do, with curves only: no sketch constraints or dimensions.
+
+- **What it draws on.** Any visible object that has a surface: solid faces, surface bodies, freeform (SubD) forms, NURBS surfaces and meshes. Nothing is limited to solids.
+- **How (owner direction 2026-11-09: work like the spline tool).** Click a few points on the surface and a smooth spline passes through them. The points are the fit points: drag a placed point to move it (it follows the surface under the pointer), press Delete to remove the selected one (Backspace and Undo remove the last), and keep clicking to add more. A preview shows where the next click would take the curve. **Esc** stops adding points but keeps the curve (owner direction 2026-11-09): points can still be dragged and deleted, **Add more points** in the panel resumes placing, and Enter, double-click or **Make curve** finishes. Esc again, or Esc with fewer than two points, cancels. Fewer points make a calmer curve. An earlier version routed a shortest path between clicks over the mesh; it looked blocky and was removed, along with its curve-style options.
+- **Curve quality (owner requirement: curves feed patterns and lofts, so they must be smooth, never blocky or edgy).** The curve is a centripetal Catmull-Rom spline through the points (no overshoot or loops), sampled and moved onto the surface, then fitted with an interpolating kernel spline through the clicked points and every third sample, so it is continuous in tangent and curvature through the points. It uses the fine tessellation, not the display mesh.
+- **Across faces and bodies.** A curve that runs past the edge of a face continues onto the neighbouring face, over the shared edge, as one curve. It can also continue onto another body that touches the first. It never crosses empty space: a click that cannot be joined to the previous point over surface is refused with a message. An open edge with no neighbour ends the path there.
+- **Result.** One ordinary **Curve on surface** object. It is fixed: it does not follow later changes to the body, surface or cage (the owner may improve on this in a later version). On an exact solid or surface body the curve is then pulled onto the true surface, and left on the displayed surface if that step fails or changes its length by more than 3%.
+- **Freeform forms** are drawn on the smooth surface they display, not the cage.
+
+**Limits.** The curve is laid on a triangle mesh (the fine tessellation for solids and surface bodies), so on a curved face it is only as close as that tessellation until the exact-surface step pulls it onto a solid or surface body; freeform forms and meshes stay on their meshes. Smoothness has been reasoned about and unit-tested for position and turning angle only: it has not been inspected on screen, and curvature-comb or zebra checks of the result are still to do. Points cannot yet be inserted between existing ones, and the curve cannot be closed. Two bodies are joined only where their meshes share corner points; bodies that merely touch with different tessellation are not joined. Faces are not trimmed or split by the curve. Finding the triangle under the pointer walks the whole mesh, so very large scenes may preview slowly. Open decisions: whether the curve should stay attached to its body (the owner said not for now); sharp versus tangent edges and seam, pole and trim behaviour inside a single face are not specially handled.
+
+**Acceptance criteria.** A point off the surface is moved onto the chosen part. A curve over the shared edge of two faces stays on both and passes the clicked points exactly. Two surfaces that do not touch are never joined. A curve on a curved face stays on it, passes the clicked points and has no sharp turns. Moving one point keeps the others exactly (all tested without the kernel). A curve drawn on a sphere, a cylinder-to-cap edge, a surface body, a SubD form and a NURBS patch lies on the surface within the display tolerance: **not yet verified**, it needs the native kernel.
+
+**Tests.** [Surface path tests](../../../Prism.Tests/Unit/Sketch/SurfaceGraphTests.cs) (SKT-SF001 to SKT-SF005) and [Esc behaviour](../../../Prism.Tests/Headless/Sketch/DrawOnSurfaceTests.cs) (SKT-H022): passed (Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). The former SKT-H020 and SKT-H021 tests of the plane projection were removed with it.
+
+## Editing a saved sketch shows its curves once
+
+Bug fix 2026-11-09 (owner report: editing a sketch of splines showed double the curves, not on top of each other). While a sketch is open for editing, the saved sketch object is no longer drawn, because the sketch editor draws the same curves itself. The editor previews a spline with a fast Catmull-Rom curve and the saved object uses the kernel's interpolating spline, which differ between the fit points, so both being visible looked like two curves. Known gap: that difference remains, so a spline can change slightly in shape when the sketch is finished; the two should be brought to one definition. The change is in the viewport drawing and is not covered by an automated test.
+
+## Offset joins curves that only touch
+
+Bug fix 2026-11-09 (owner report with a screenshot: offsetting an L-shaped outline left gaps at its two inside corners). A chain of curves was followed only through shared points, but lines drawn to meet one another are often tied by a point-on-curve constraint and keep separate points. Offset split the outline there and left each piece's ends unjoined. Curves that end at the same position are now treated as joined, so the outline offsets as one ring. Test: [SKT-U010](../../../Prism.Tests/Unit/Sketch/OffsetTests.cs), passed (Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). Not covered: three or more curves meeting at one spot still stop the chain there.
+
+## Slot from center, Mirror steps and dashed construction preview
+
+Owner requests 2026-11-09, implemented. They compile, but have no automated test and have not been tried by hand in the desktop app.
+
+- **Slot** has two modes in its options: **Center to center** (as before) and **From center**: click the middle of the slot, then one arc center (the other is its mirror through the middle), then the width. The middle click becomes a point held at the midpoint of a construction line between the two arc centers. The typed length in this mode is the half length.
+- **Mirror** has a two-step panel like Offset: **1. Select curves** (click, Shift adds more, or select them before choosing Mirror; **Done selecting** or Enter moves on) and **2. Mirror line**. Step 2 fills the **Mirror line** field with the line the tool thinks you mean: the line under the pointer (it stays filled when the pointer moves to the panel), or, before any hover, the only construction line in the sketch. **Mirror across this line** (or Enter) applies it, and clicking any line in the sketch still applies that line directly. Owner direction 2026-11-09; no automated test, not run.
+- **Construction mode (X)** previews the curve being drawn as a dashed line from the first moment, not only after it is placed. It applies to the rubber-band line of every drawing tool, not to Mirror or Offset previews.

@@ -86,6 +86,24 @@ The owner has authorized desktop integration testing. Attach representative actu
 
 Follow the current owner branch policy, presently direct work on `develop`. When PRs are in use, keep them focused and use `Fixes #N` only when the change actually resolves that issue; otherwise use `Refs #N`. A change that alters behavior should update the existing specification in the same change after approval. If a test and doc disagree, raise the discrepancy rather than silently changing either.
 
+## Visual feature scripts (tests/visual)
+
+Besides the xUnit projects, `tests/visual/` holds Python scripts that drive the **running app** through its automation API (`cadkit`), check results against known answers, and save one small picture per scenario (about 60 to 100 KB) so a person can review them later. They were built to find bugs, and they did: look here before writing the same kind of check by hand. Details and commands are in [tests/visual/README.md](../../tests/visual/README.md).
+
+**The technique, which future agents should repeat for new tools:**
+
+1. **Test the tools and their options, not finished demo parts.** One scenario per tool family (for example Extrude: every extent and operation), with one variant per option (symmetric, two directions, one direction, cut, join...). Name the scenario and its file after what is tested, such as `solid__extrude-every-extent-and-operation`.
+2. **Each variant has a known answer** (volume, area, size, hand calculation, G-code line, count of files). Print the expected and measured value in the picture's text strip, with PASS or FAIL. Check numbers, not only that something appeared.
+3. **Put as much as possible in one picture** (several variants in a grid plus the text strip) to keep disk use small. Pictures are quantized PNGs. Only reviewed, approved sheets go in `tests/visual/approved/`.
+4. **Work around what the renderer cannot draw.** Toolpaths are plotted from the posted G-code, analysis results are printed as numbers, curves and pictures are checked numerically. Never render a document with nothing to draw (issue #90).
+5. **Drive mouse tools with the `pointer` call** at world positions (Measure, Probe, Create Face, Select Region, Edit Form, Edit Control Points, Set Image Scale). Set the camera first with `view`. Tools whose effect is only drawn on screen are checked by reading their settings back.
+6. **Record real bugs as issues and keep the script green with a `KNOWN ISSUE #n` line** in the strip, so the suite stays usable and the line disappears when the bug is fixed. Fix the product when the fix is small; add a maintained test for what you fixed. Do not change an expectation just to pass: check the product's own definition first (several early failures were wrong expectations about defaults, units and conventions).
+7. **Cover every registered command.** `python tests/visual/coverage.py --list` names the commands no script touches. A sweep scenario starts and cancels every command, so a crash on opening is caught for all of them. Only commands that need hardware (AR) may stay uncovered; say so.
+8. **Check for flakiness before trusting a result:** `--repeat 2 --shuffle <seed>` reruns everything in a different order and reports UNSTABLE when a check changes between runs. Keep detail text free of generated names and numbers so runs compare equal.
+9. **Practical rules learned:** one run at a time (a lock file prevents two runs corrupting renders); start the app with `PRISM_CCX` pointing at CalculiX or every CAE scenario fails; poll long jobs instead of sleeping; write and publish `scenarios.py` edits with unique anchors and check `grep -c "@scenario"` and the line count before committing, because one careless text replacement once deleted 900 lines.
+
+These scripts run on a machine that can start the desktop app (Linux with software GL works); they are evidence for Prism's observable behavior, so they follow the requirements-first rule: characterize existing behavior freely, but propose new or ambiguous requirements for owner review before encoding them.
+
 ## Local validation versus cloud validation
 
 Prism uses .NET 10, Avalonia, native Open CASCADE and additional native/CAE dependencies. `README.md` describes build prerequisites. The existing `tests/` directory includes executable .NET projects invoked with `dotnet run --project tests/<project> -c Release`. These are **not necessarily xUnit**. Some checks require native DLLs staged under `native/bin`, external solvers, or Windows GUI resources; validate those on the owner's configured desktop. GitHub's existing `.github/workflows/docs.yml` builds the documentation site, not a full native application test matrix.

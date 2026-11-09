@@ -148,7 +148,7 @@
 
                                     <DataTemplate DataType="vm:CommandHit">
 
-                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
 
                                             <c:IconView Icon="{Binding Icon}" Width="22" Height="22" VerticalAlignment="Center" Dimmed="{Binding !Enabled}"/>
 
@@ -161,6 +161,10 @@
                                             </StackPanel>
 
                                             <TextBlock Grid.Column="2" Text="{Binding Shortcut}" Classes="faint" VerticalAlignment="Center"/>
+
+                                            <Button Grid.Column="3" Content="?" Classes="faint ghost" Padding="7,1" FontWeight="SemiBold" VerticalAlignment="Center"
+
+                                                    Click="OnSearchHelpClick" ToolTip.Tip="Open this tool's guide (F1): what it does, the steps, and a link to the full documentation."/>
 
                                         </Grid>
 
@@ -743,7 +747,7 @@
 
                 <!-- AI assistant -->
 
-                <v:AssistantPanel IsVisible="{Binding AssistantOpen}" HorizontalAlignment="Right" VerticalAlignment="Stretch" Margin="0,8,8,56" Width="400"/>
+                <v:AssistantPanel IsVisible="{Binding AssistantOpen}" HorizontalAlignment="Right" VerticalAlignment="Stretch" Margin="0,8,8,56" Width="400" ZIndex="20"/>
 
 
 
@@ -824,6 +828,7 @@
 
                     <v:CommandPanel IsVisible="{Binding ShowCommandPanel}"/>
                     <v:GizmoOptionsPanel IsVisible="{Binding ShowGizmoPanel}"/>
+                    <v:DatumOptionsPanel IsVisible="{Binding ShowDatumPanel}"/>
 
                     <v:SketchPanel IsVisible="{Binding ShowSketchPanel}"/>
 

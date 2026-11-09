@@ -12,8 +12,122 @@ namespace Prism.HeadlessTests.Loft;
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/loft/README.md">Living Loft specification and variant boundaries.</seealso>
 [Trait("Layer", "Headless")]
 [Trait("Feature", "Loft")]
-public class LoftCommandTests
+public class LoftCommandTests(Xunit.Abstractions.ITestOutputHelper output)
 {
+    [AvaloniaTheory(DisplayName = "LFT-H009 | Straight matching rails retain the analytic square frustum")]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [Trait("TestId", "LFT-H009")]
+    public void StraightMatchingRails_RetainFrustum(int railCount, bool reverseRail)
+    {
+        var session = new CadSession();
+        var lower = RectangleSection(session, 0, 10, 10);
+        var upper = RectangleSection(session, 20, 12, 12);
+        var first = CreateCurve(session, reverseRail ? [new(0, 0, 20), Vec3.Zero] : [Vec3.Zero, new(0, 0, 20)]);
+        var second = CreateCurve(session, [new(10, 10, 0), new(12, 12, 20)]);
+        var loft = Begin(session, () => new LoftCommand());
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", lower, upper);
+            SetSelection(loft, "Guide rails (optional, one or two)", railCount == 1 ? [first] : [first, second]);
+        });
+        var solid = BuildSingleAddedShape(loft);
+        AssertValidSolid(solid);
+        AssertNear(20.0 / 3 * (100 + 120 + 144), solid.Props().Volume, "Guided square frustum volume (mm³)");
+        AssertBounds(solid, Vec3.Zero, new(12, 12, 20));
+    }
+
+    [AvaloniaTheory(DisplayName = "LFT-H008 | Curved two-rail ellipse loft retains profiles and follows both rails without a dense display mesh")]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [Trait("TestId", "LFT-H008")]
+    public void CurvedRails_EllipticalSections_FollowRailsInEitherProfileOrder(bool reverse, bool swapRails)
+    {
+        var session = new CadSession();
+        var lower = session.AddObject(Occ.Ellipse(Vec3.Zero, Vec3.UnitZ, Vec3.UnitX, 71.67792467182227, 39.178793951444064), "Lower", ObjKind.Curve);
+        var upper = session.AddObject(Occ.Ellipse(new(0, 0, 120), Vec3.UnitZ, Vec3.UnitX, 31.59994528542702, 27.232473172807023), "Upper", ObjKind.Curve);
+        var right = session.AddObject(Occ.Spline([new(31.59994528542702, 0, 120), new(31.59994528542702, 0, 77.1344648707616), new(71.67792467182227, 0, 0)]), "Right rail", ObjKind.Curve);
+        var left = session.AddObject(Occ.Spline([new(-31.59994528542702, 0, 120), new(-22.202528792560337, 0, 83.04166993725521), new(-71.67792467182227, 0, 0)]), "Left rail", ObjKind.Curve);
+        var loft = Begin(session, () => new LoftCommand(surface: true));
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", reverse ? lower : upper, reverse ? upper : lower);
+            SetSelection(loft, "Guide rails (optional, one or two)", swapRails ? left : right, swapRails ? right : left);
+        });
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var surface = BuildSingleAddedShape(loft);
+        output.WriteLine($"Build: {clock.Elapsed.TotalSeconds:F3} s");
+        Assert.True(surface.IsValid);
+        Assert.Equal(0, surface.Count(SubKind.Solid));
+        foreach (var source in new[] { lower, upper, right, left })
+        {
+            double maximumGap = 0;
+            foreach (var sample in Occ.CurveSamples(source.Shape, 49, 1)[0])
+            {
+                using var vertex = Occ.Vertex(sample.p);
+                maximumGap = Math.Max(maximumGap, Occ.Distance(vertex, surface).Distance);
+            }
+            output.WriteLine($"{source.Name}: maximum of 49 sampled gaps = {maximumGap:F6} mm");
+            // End profiles remain exact; the sampled rail fit interpolates only
+            // twelve section planes and does not promise exact rail coincidence between them.
+            Assert.InRange(maximumGap, 0, source == lower || source == upper ? 1e-5 : 0.05);
+        }
+        // Bound representation complexity rather than relying on workstation timing.
+        clock.Restart();
+        int triangles = surface.Tessellate().Indices.Length / 3;
+        output.WriteLine($"Display mesh: {clock.Elapsed.TotalSeconds:F3} s, {triangles} triangles");
+        Assert.InRange(triangles, 1, 30000);
+        Assert.Equal(4, session.Objects.Count);
+    }
+
+    [AvaloniaFact(DisplayName = "LFT-H007 | Front-view sketch rail stays visible and can be picked and removed with a loft preview")]
+    [Trait("TestId", "LFT-H007")]
+    public void SketchRail_WithPreview_IsOverlaidAndPickable()
+    {
+        var session = new CadSession();
+        var lower = CreateCurve(session, [new(0, 0, 0), new(10, 0, 0)]);
+        var upper = CreateCurve(session, [new(0, 0, 12), new(10, 0, 12)]);
+        var sketch = new Prism.Core.Sketching.SketchModel();
+        sketch.AddLine(sketch.AddPoint(5, 0), sketch.AddPoint(5, 12));
+        session.EnterSketch(new Plane3(Vec3.Zero, Vec3.UnitX, Vec3.UnitZ), sketch);
+        session.ExitSketch(keep: true);
+        var rail = session.Objects.Last(o => o.Kind == ObjKind.Sketch);
+        var loft = StartCommand(session, lower, () => new LoftCommand(surface: true));
+        loft.ConfigureInputs(() => SetSelection(loft, "Sections (in order)", lower, upper));
+        session.RefreshPreview(loft);
+        Assert.NotEmpty(session.Preview);
+        var rails = loft.Slots.Single(slot => slot.Caption == "Guide rails");
+        foreach (var slot in loft.Slots) slot.IsActive = slot == rails;
+        session.Camera = new Camera { Yaw = 0, Pitch = 0, Orthographic = true, Target = new(5, 0, 6) };
+        var overlay = new Overlay();
+        loft.BuildOverlay(session, overlay);
+        Assert.Contains(overlay.Lines, line => (line.A - new Vec3(5, 0, 0)).Length < 1e-6 &&
+            (line.B - new Vec3(5, 0, 12)).Length < 1e-6 && line.Color == rail.Color);
+        var pixel = session.Camera.Project(new(5, 0, 6))!.Value;
+        var hit = session.Pick(pixel.x, pixel.y, rails.PickFilter)!.Value;
+        Assert.Equal(rail.Id, hit.Item.Obj);
+        Assert.True(loft.PickPoint(hit, false));
+        Assert.Equal(hit.Item, Assert.Single(rails.Items));
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.Contains(overlay.Lines, line => line.Color == 0xFFFF8A1F);
+        Assert.True(loft.PickPoint(hit, false));
+        Assert.Empty(rails.Items);
+
+        session.Update(rail.Id, obj => obj.WithVisible(false), checkpoint: false);
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.DoesNotContain(overlay.Lines, line => Math.Abs(line.A.X - 5) < 1e-6 && Math.Abs(line.B.X - 5) < 1e-6);
+        session.Update(rail.Id, obj => obj.WithVisible(true), checkpoint: false);
+        session.HiddenIds.Add(rail.Id);
+        overlay.Clear();
+        loft.BuildOverlay(session, overlay);
+        Assert.DoesNotContain(overlay.Lines, line => Math.Abs(line.A.X - 5) < 1e-6 && Math.Abs(line.B.X - 5) < 1e-6);
+    }
+
     static SceneObject RectangleSection(CadSession session, double z, double width = 10, double height = 6, bool closed = true) =>
         CreateCurve(session, [new Vec3(0, 0, z), new Vec3(width, 0, z), new Vec3(width, height, z), new Vec3(0, height, z)], closed);
 
@@ -132,5 +246,46 @@ public class LoftCommandTests
         Assert.True(cage.IsClosed());
         AssertNear(0, cage.V.Min(point => point.Z), "Cage lower Z (mm)");
         AssertNear(12, cage.V.Max(point => point.Z), "Cage upper Z (mm)");
+    }
+
+    [AvaloniaFact(DisplayName = "LFT-H010 | A combine that proves slow once is deferred to OK in later previews")]
+    [Trait("TestId", "LFT-H010")]
+    public void HeavyCombine_PreviewShowsTool_CommitAppliesBoolean()
+    {
+        // Booleans between curved loft surfaces take seconds; rebuilding that on every preview stalls the UI.
+        // After one slow combine the preview must show the raw tool, while OK still applies the real boolean.
+        var session = new CadSession();
+        static Vec3[] Ring(double z, double r) => Enumerable.Range(0, 60).Select(i =>
+        {
+            double a = i * 2 * Math.PI / 60, rr = r * (1 + 0.2 * Math.Sin(5 * a));
+            return new Vec3(rr * Math.Cos(a), rr * Math.Sin(a), z);
+        }).ToArray();
+        var body = session.AddObject(Occ.Loft(
+            [Occ.Spline(Ring(15, 25), true), Occ.Spline(Ring(60, 18), true)], solid: true, ruled: false), "Body", ObjKind.Solid);
+        var lower = session.AddObject(Occ.Spline(Ring(0, 30), true), "Lower", ObjKind.Curve);
+        var upper = session.AddObject(Occ.Spline(Ring(40, 20), true), "Upper", ObjKind.Curve);
+        var loft = Begin(session, () => new LoftCommand());
+        loft.ConfigureInputs(() =>
+        {
+            SetSelection(loft, "Sections (in order)", lower, upper);
+            SetChoice(loft, "Operation", "Intersect");
+        });
+        var first = loft.TryBuild();                     // pays the curved-surface boolean once
+        Assert.True(first != null, loft.Error);
+        Assert.Single(first.Replace);                  // normal combine result while it was still cheap to assume
+
+        var preview = loft.TryBuild();                 // combine measured heavy: the preview shows the tool instead
+        Assert.True(preview != null, loft.Error);
+        var added = Assert.Single(preview.Add);
+        Assert.NotNull(added.Shape);
+        Assert.Empty(preview.Replace);
+        Assert.Contains("computed when you press OK", Result(loft, "Combine"));
+
+        loft.Committing = true;                        // pressing OK always runs the real boolean
+        var committed = loft.TryBuild();
+        Assert.True(committed != null, loft.Error);
+        var replacement = Assert.Single(committed.Replace);
+        Assert.Equal(body.Id, replacement.Old.Id);
+        AssertValidSolid(replacement.New);
     }
 }

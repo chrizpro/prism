@@ -1,0 +1,268 @@
+{
+  "cam-stock-setup": {
+    "src": "/images/guides/cam-stock-setup.webp",
+    "alt": "Prism CAM Setup with a plate selected as the model body",
+    "caption": "Choose the model, name the setup and set stock allowances before generating operations.",
+    "width": 1500,
+    "height": 920
+  },
+  "cam-profile-preview": {
+    "src": "/images/guides/cam-profile-preview.webp",
+    "alt": "CNC Profile preview showing passes around a plate and its operation panel",
+    "caption": "Profile preview for the plate, with 12 mm cutting depth and four holding tabs. Check the passes before confirming.",
+    "width": 1500,
+    "height": 920
+  },
+  "cam-toolpath-playback": {
+    "src": "/images/guides/cam-toolpath-playback.webp",
+    "alt": "Toolpath Playback paused with a cutter visible on the CNC profile",
+    "caption": "Playback paused at 45 percent. The cutter marker shows its position along the programmed path; this is a motion preview.",
+    "width": 1500,
+    "height": 920
+  },
+  "cam-fdm-check": {
+    "src": "/images/guides/cam-fdm-check.webp",
+    "alt": "FDM Preparation panel with the Azure bottle selected and nozzle settings visible",
+    "caption": "FDM preparation setup for the Azure bottle. Select the model and set nozzle, wall and overhang settings before running checks; this capture shows setup, not a completed report.",
+    "width": 1500,
+    "height": 920
+  },
+  "cam-resin-check": {
+    "src": "/images/guides/cam-resin-check.webp",
+    "alt": "Resin Preparation panel with a bottle selected and sampling settings visible",
+    "caption": "Resin preparation setup for the Azure bottle. Sampling size and minimum feature size control the geometric screening; this capture shows setup, not a completed report.",
+    "width": 1500,
+    "height": 920
+  },
+  "assembly-components": {
+    "src": "/images/guides/assembly-components.webp",
+    "alt": "Two separate assembly components, a gray base and blue arm",
+    "caption": "A gray reference base and blue moving arm, made into separate components before adding a joint.",
+    "width": 1500,
+    "height": 920
+  },
+  "assembly-revolute-setup": {
+    "src": "/images/guides/assembly-revolute-setup.webp",
+    "alt": "Revolute Joint panel showing a face picked on each of two components",
+    "caption": "The two joint picks identify the reference component and moving component. The viewport shows their joint frames before confirmation.",
+    "width": 1500,
+    "height": 920
+  },
+  "assembly-drive-joint": {
+    "src": "/images/guides/assembly-drive-joint.webp",
+    "alt": "Drive Joints with the blue arm rotated to 55 degrees above a fixed base",
+    "caption": "Drive Joints at 55 degrees. The joint handle and angle field let you check relative movement before setting up a motion study.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-static-loads": {
+    "src": "/images/guides/simulation-static-loads.webp",
+    "alt": "Static study setup for a cantilever beam with a support and applied load",
+    "caption": "The cantilever study has a fixed end and a 100 N downward load at the other end. Review supports and loads before solving.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-static-stress": {
+    "src": "/images/guides/simulation-static-stress.webp",
+    "alt": "Solved cantilever beam colored by von Mises stress with a legend and study settings",
+    "caption": "Solved example: a 100 N load on an aluminum cantilever, using a 5 mm element size. The legend is in MPa; these numbers describe this example only.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-thermal-result": {
+    "src": "/images/guides/simulation-thermal-result.webp",
+    "alt": "Thermal result with a beam colored from 100 to 20 degrees Celsius",
+    "caption": "Steady conduction with opposite ends held at 100 and 20 degrees Celsius. Read the temperature scale separately from a structural stress scale.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-natural-frequency": {
+    "src": "/images/guides/simulation-natural-frequency.webp",
+    "alt": "Natural Frequencies result displaying the first cantilever mode and its color legend",
+    "caption": "The first mode of the fixed-end beam is about 821 Hz in this example. Mode magnitude is relative; it is not a forced-response displacement.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-motion-study": {
+    "src": "/images/guides/simulation-motion-study.webp",
+    "alt": "Motion Study for an oscillating revolute joint with the arm in an intermediate pose",
+    "caption": "A two-second movement-only study of the revolute joint. The arm oscillates about its starting angle; masses and forces are disabled for this example.",
+    "width": 1500,
+    "height": 920
+  },
+  "simulation-pipe-flow": {
+    "src": "/images/guides/simulation-pipe-flow.webp",
+    "alt": "Pipe Flow panel beside a tube with a 10 mm bore",
+    "caption": "Pipe Flow uses entered dimensions and fluid properties. This example uses a 10 mm bore, 100 mm length and 0.5 L/min; the tube illustrates those dimensions.",
+    "width": 1500,
+    "height": 920
+  },
+  "ecad-board-envelopes": {
+    "src": "/images/guides/ecad-board-envelopes.webp",
+    "alt": "A green circuit board with mounting holes and three component envelopes in Prism",
+    "caption": "A rectangular board with mounting holes and approximate envelopes for a controller, connector and tall component. These are mechanical volumes, not electrical detail.",
+    "width": 1500,
+    "height": 920
+  },
+  "scan-mesh-quality": {
+    "src": "/images/guides/scan-mesh-quality.webp",
+    "alt": "Mouse housing mesh with aspect-ratio colors and highlighted narrow triangles",
+    "caption": "Mesh Quality on a deliberately coarse tessellation of the mouse housing. The colors and highlighted triangles help identify areas needing review.",
+    "width": 1500,
+    "height": 920
+  },
+  "scan-section-sketch": {
+    "src": "/images/guides/scan-section-sketch.webp",
+    "alt": "Section Sketch preview through a mouse housing mesh",
+    "caption": "Section Sketch fits editable curves through slices of the mesh. Here three parallel XZ sections are spaced 8 mm apart.",
+    "width": 1500,
+    "height": 920
+  },
+  "ar-export-panel": {
+    "src": "/images/guides/ar-export-panel.webp",
+    "alt": "AR Export settings for a camera lens, including scale and export controls",
+    "caption": "AR export setup for the camera lens at tabletop scale. Export creates viewer files; sharing to a phone is a separate action.",
+    "width": 1500,
+    "height": 920
+  },
+  "freeform-cage-editor": {
+    "src": "/images/guides/freeform-cage-editor.webp",
+    "alt": "Edit Freeform showing the control cage over a smooth bottle",
+    "caption": "The white control cage sits over the smooth Azure bottle. Edit the coarse cage to change the form rather than editing every rendered triangle.",
+    "width": 1500,
+    "height": 920
+  },
+  "render-image-settings": {
+    "src": "/images/guides/render-image-settings.webp",
+    "alt": "Render Image panel beside a camera lens model",
+    "caption": "Choose image and lighting settings in Render Image before starting the render. The viewport shown here is the interactive model view.",
+    "width": 1500,
+    "height": 920
+  },
+  "materials-studio": {
+    "src": "/images/guides/materials-studio.webp",
+    "alt": "Appearance studio beside a selected duct model",
+    "caption": "The Appearance studio edits the selected body finish. Engineering material assignment is available from the separate Materials tab.",
+    "width": 1500,
+    "height": 920
+  },
+  "assistant-modeling-panel": {
+    "src": "/images/guides/assistant-modeling-panel.webp",
+    "alt": "Prism assistant panel open beside a camera lens model",
+    "caption": "The assistant panel sits beside the model so you can review its work. This capture shows the panel before a request is sent.",
+    "width": 1500,
+    "height": 920
+  },
+  "script-editor-workspace": {
+    "src": "/images/guides/script-editor-workspace.webp",
+    "alt": "Python script editor and console beside a camera lens model",
+    "caption": "The Script workspace keeps the model, Python source and console together. This example reads the open model and fits the camera.",
+    "width": 1500,
+    "height": 920
+  },
+  "modeling-workspace-overview": {
+    "src": "/images/guides/modeling-workspace-overview.webp",
+    "alt": "Prism Design workspace with a camera lens model, browser and document tabs",
+    "caption": "The Design workspace keeps document tabs, the model browser, ribbon and viewport together. Switch workspaces at the top for other tasks.",
+    "width": 1500,
+    "height": 920
+  },
+  "sketch-dimensions": {
+    "src": "/images/guides/sketch-dimensions.webp",
+    "alt": "Sketch of a rectangular plate with two circles and dimensions of 80, 50 and 10 mm",
+    "caption": "An 80 by 50 mm profile with a 10 mm diameter dimension on the left circle. The remaining degrees of freedom are shown in the Sketch panel.",
+    "width": 1500,
+    "height": 920
+  },
+  "solid-extrude-preview": {
+    "src": "/images/guides/solid-extrude-preview.webp",
+    "alt": "Extrude preview of a plate profile with two holes and an 8 mm distance",
+    "caption": "An 8 mm extrusion preview of the plate profile. The two inner circles become holes through the solid.",
+    "width": 1500,
+    "height": 920
+  },
+  "solid-extrude-result": {
+    "src": "/images/guides/solid-extrude-result.webp",
+    "alt": "Completed extruded plate with two holes and an editable history",
+    "caption": "The confirmed plate retains its sketch and extrusion in the design history. Reopen the feature to change its depth.",
+    "width": 1500,
+    "height": 920
+  },
+  "drawing-workspace": {
+    "src": "/images/guides/drawing-workspace.webp",
+    "alt": "Editable A4 drawing sheet with four plate views, dimensions and hole center marks",
+    "caption": "The plate as an editable A4 drawing: top, isometric, front and right views, with accepted overall dimensions, diameter annotations and center marks.",
+    "width": 1500,
+    "height": 920
+  },
+  "surface-zebra-inspection": {
+    "src": "/images/guides/surface-zebra-inspection.webp",
+    "alt": "Zebra reflection stripes over a curved transition duct",
+    "caption": "Zebra stripes make changes in surface reflection easier to inspect. Look for how the stripes flow across the regions you are comparing.",
+    "width": 1500,
+    "height": 920
+  },
+  "solid-fillet-edges": {
+    "src": "/images/guides/solid-fillet-edges.webp",
+    "alt": "Fillet preview with the twelve edges of a box selected",
+    "caption": "Fillet rounds the selected edges. This example previews a 2 mm radius on all twelve edges of a box.",
+    "width": 1500,
+    "height": 920
+  },
+  "solid-shell-result": {
+    "src": "/images/guides/solid-shell-result.webp",
+    "alt": "Completed open-top box with visible inner walls and a Shell history step",
+    "caption": "A confirmed Shell removes the top face of this box and leaves 2 mm walls. The cavity and rim are visible in the finished solid.",
+    "width": 1500,
+    "height": 920
+  },
+  "solid-linear-pattern": {
+    "src": "/images/guides/solid-linear-pattern.webp",
+    "alt": "Linear Pattern preview of three rounded bodies with numbered instances",
+    "caption": "Three instances of a rounded body, spaced 100 mm along X. The numbered preview helps check the direction and count before confirming.",
+    "width": 1500,
+    "height": 920
+  },
+  "nurbs-control-grid": {
+    "src": "/images/guides/nurbs-control-grid.webp",
+    "alt": "NURBS Control Grid panel defining a six by five point patch",
+    "caption": "Control Grid starts a single NURBS patch. Here the panel defines a 90 by 60 mm patch, six by five control points and degree three.",
+    "width": 1500,
+    "height": 920
+  },
+  "nurbs-edit-control-points": {
+    "src": "/images/guides/nurbs-edit-control-points.webp",
+    "alt": "NURBS patch control net with one raised control point selected and its XYZ gizmo visible",
+    "caption": "Edit Points shows the control net over the surface. One interior point has been raised; the selected point and XYZ gizmo show where the edit acts.",
+    "width": 1500,
+    "height": 920
+  },
+  "surface-loft-sections": {
+    "src": "/images/guides/surface-loft-sections.webp",
+    "alt": "Surface Loft preview through three closed profiles listed in order",
+    "caption": "Loft passes through these three ordered profiles to form an open surface. The white section curves show the inputs; the blue sheet is the preview.",
+    "width": 1500,
+    "height": 920
+  },
+  "surface-thicken-preview": {
+    "src": "/images/guides/surface-thicken-preview.webp",
+    "alt": "Thicken preview adding a three millimeter wall to a lofted surface",
+    "caption": "Thicken gives the lofted surface a 3 mm wall. The upper rim makes the added thickness visible; the panel controls the amount and direction.",
+    "width": 1500,
+    "height": 920
+  },
+  "freeform-soft-selection": {
+    "src": "/images/guides/freeform-soft-selection.webp",
+    "alt": "Freeform vertex selection and transform gizmo on a bottle control cage",
+    "caption": "Vertex mode in Edit Freeform, with two vertices selected and a 60 mm soft-selection radius. The gizmo acts on the selection while nearby cage points can follow.",
+    "width": 1500,
+    "height": 920
+  },
+  "freeform-quality-review": {
+    "src": "/images/guides/freeform-quality-review.webp",
+    "alt": "Freeform Quality marking poles and an n-gon on the Azure bottle",
+    "caption": "Check Quality marks cage topology on the smooth form: yellow poles have three edges, red poles have five or more, and blue marks identify n-gons. No comparison reference is selected here.",
+    "width": 1500,
+    "height": 920
+  }
+}

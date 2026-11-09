@@ -1,5 +1,5 @@
 {
-  "sourceHash": "0B8DAB9B1ADAFED55AB92E4248956FB48E8B87452958EB538A9D07943DB9E079",
+  "sourceHash": "1A7932D36284D634405CA8A85FBEF753C20C184C696F12CB2659ABE0E582157C",
   "workspaces": [
     {
       "Id": "design",
@@ -101,6 +101,20 @@
         "Subtractive",
         "3D FDM",
         "3D Resin",
+        "Analyze",
+        "View"
+      ]
+    },
+    {
+      "Id": "mold",
+      "Name": "Mold",
+      "Tip": "Make a two-part mold from a block and the part inside it, split where you choose and shown exploded; check draft and sections with Tooling.",
+      "Tabs": [
+        "Home",
+        "Solid",
+        "Direct Modeling",
+        "Mold",
+        "Tooling",
         "Analyze",
         "View"
       ]
@@ -279,6 +293,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -304,25 +324,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -369,6 +383,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {
@@ -625,7 +645,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -734,6 +754,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -759,25 +785,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -997,7 +1017,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -1106,6 +1126,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -1131,25 +1157,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -1196,6 +1216,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {
@@ -1406,7 +1432,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -1533,6 +1559,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -1558,25 +1590,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -1947,7 +1973,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -2062,6 +2088,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -2087,25 +2119,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -2152,6 +2178,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {
@@ -2413,7 +2445,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -2540,6 +2572,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -2565,25 +2603,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -2676,7 +2708,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -2796,6 +2828,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -2821,25 +2859,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -2868,6 +2900,18 @@
               "id": "flange|Flange",
               "label": "Flange",
               "description": "Make bent sheet metal from a sketch of its cross-section: set thickness, bend radius and width. Corners become bends.",
+              "shortcut": ""
+            },
+            {
+              "id": "fold|Fold",
+              "label": "Fold",
+              "description": "Fold a flat sketch of a sheet along its bend lines: draw the outline, mark each bend with a construction line, and set thickness, radius and angle. Makes trays, boxes and parts bent in several directions.",
+              "shortcut": ""
+            },
+            {
+              "id": "edge-flange|Edge Flange",
+              "label": "Edge Flange",
+              "description": "Add a flange along an edge of a sheet-metal body: pick the thin end face, then set the leg length, bend angle and inside radius.",
               "shortcut": ""
             },
             {
@@ -2913,7 +2957,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -3022,6 +3066,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -3047,25 +3097,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -3155,7 +3199,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -3342,6 +3386,12 @@
               "id": "cnc-face|Face",
               "label": "Face",
               "description": "Face the stock with zigzag passes.",
+              "shortcut": ""
+            },
+            {
+              "id": "cnc-image|Image Carve",
+              "label": "Image Carve",
+              "description": "Carve a picture into the stock: depth follows brightness.",
               "shortcut": ""
             },
             {
@@ -3629,6 +3679,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -3784,6 +3840,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -3809,25 +3871,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -3970,7 +4026,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -4079,6 +4135,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -4104,25 +4166,19 @@
             {
               "id": "sketch-point|Point",
               "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
               "shortcut": ""
             },
             {
               "id": "origin-axis|Axis",
               "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
               "shortcut": ""
             },
             {
               "id": "origin-plane|Plane",
               "label": "Plane",
-              "description": "Save the current sketch datum plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "description": "Place a datum plane on a face, plane or the work plane.",
               "shortcut": ""
             }
           ]
@@ -4218,7 +4274,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Translate objects.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
               "shortcut": ""
             },
             {
@@ -4324,6 +4380,12 @@
               "id": "sel-lasso|Lasso",
               "label": "Lasso",
               "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
               "shortcut": ""
             },
             {
@@ -4855,6 +4917,12 @@
               "shortcut": ""
             },
             {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
@@ -5028,6 +5096,12 @@
               "id": "sel-lasso|Lasso",
               "label": "Lasso",
               "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
               "shortcut": ""
             },
             {
@@ -5300,6 +5374,40 @@
       ]
     },
     {
+      "title": "Mold",
+      "contextual": false,
+      "groups": [
+        {
+          "title": "Part",
+          "tools": [
+            {
+              "id": "mold-file|Import from file",
+              "label": "Import from file",
+              "description": "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold.",
+              "shortcut": ""
+            },
+            {
+              "id": "mold-tab|From open tab",
+              "label": "From open tab",
+              "description": "Bring a part in from another open tab as a reference part.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Mold",
+          "tools": [
+            {
+              "id": "mold|Create Mold",
+              "label": "Create Mold",
+              "description": "Cut a part out of a block, split the block and pull the halves apart.",
+              "shortcut": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "Materials",
       "contextual": true,
       "groups": [
@@ -5399,44 +5507,57 @@
           "title": "Select",
           "tools": [
             {
-              "id": "sel-object|Select",
-              "label": "Select",
-              "description": "Select geometry and drag it. Points and curves move while every constraint stays satisfied.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Datum",
-          "tools": [
-            {
-              "id": "move|Gizmo",
-              "label": "Gizmo",
-              "description": "Position and bind the gizmo; adjust its handles and snapping.",
+              "id": "sel-object|Object",
+              "label": "Object",
+              "description": "Pick whole bodies, surfaces and curves.",
               "shortcut": ""
             },
             {
-              "id": "sketch-point|Point",
-              "label": "Point",
-              "description": "Place a reference point on the active drawing plane of a 2D or 3D sketch.",
+              "id": "sel-face|Face",
+              "label": "Face",
+              "description": "Pick individual faces.",
               "shortcut": ""
             },
             {
-              "id": "origin-axis|Axis",
-              "label": "Axis",
-              "description": "Save the selected gizmo axis as a datum in a 2D or 3D sketch.",
+              "id": "sel-edge|Edge",
+              "label": "Edge",
+              "description": "Pick individual edges.",
               "shortcut": ""
             },
             {
-              "id": "origin-plane|Plane",
-              "label": "Plane",
-              "description": "Save the current sketch datum plane.",
+              "id": "sel-vertex|Vertex",
+              "label": "Vertex",
+              "description": "Select cage vertices (1 while editing Freeform).",
               "shortcut": ""
             },
             {
-              "id": "origin-plane|Save gizmo",
-              "label": "Save gizmo",
-              "description": "Save the current gizmo as a sketch datum.",
+              "id": "sel-rect|Rectangle",
+              "label": "Rectangle",
+              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-lasso|Lasso",
+              "label": "Lasso",
+              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-paint|Paint",
+              "label": "Paint",
+              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-invert|Invert",
+              "label": "Invert",
+              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "xray|Through",
+              "label": "Through",
+              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -5520,6 +5641,18 @@
         {
           "title": "Modify",
           "tools": [
+            {
+              "id": "move|Transform",
+              "label": "Transform",
+              "description": "Move, rotate or scale the selected points and curves with the gizmo, or type exact values in its panel. Select first (shortcut G); R rotates and S scales while the gizmo is showing.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Insert Point",
+              "label": "Insert Point",
+              "description": "Add a point to a curve you already drew: click a line, arc, circle or spline. A line becomes two lines, an arc or circle two arcs, and a spline gains a point.",
+              "shortcut": ""
+            },
             {
               "id": "trim|Trim",
               "label": "Trim",
@@ -5664,6 +5797,23 @@
           ]
         },
         {
+          "title": "Brainstorm",
+          "tools": [
+            {
+              "id": "grease-pencil|Grease Pencil",
+              "label": "Grease Pencil",
+              "description": "In orthographic view, drag to sketch planar freehand brainstorming marks. Marks are saved annotations, separate from modeling curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "grease-eraser|Eraser",
+              "label": "Eraser",
+              "description": "Click or drag over grease pencil marks to erase whole strokes. Undo restores an erase gesture.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Exit",
           "tools": [
             {
@@ -5746,7 +5896,13 @@
               "id": "zoom-extents|Zoom Extents",
               "label": "Zoom Extents",
               "description": "Fit everything in the window.",
-              "shortcut": "Home"
+              "shortcut": "F"
+            },
+            {
+              "id": "home-set|Set Home",
+              "label": "Set Home",
+              "description": "Make the view you see now the home view, and turn Front, Top, Right and the view cube to match it. Useful when an imported mesh or an awkwardly modeled part sits at an odd angle. Once set, this button puts the original orientation back.",
+              "shortcut": ""
             },
             {
               "id": "ortho|Orthographic",

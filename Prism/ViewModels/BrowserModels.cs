@@ -86,6 +86,7 @@ public sealed class CommandHit
     public string Label => Button.Label.Replace("\n", " ");
     public string Description => Button.Description;
     public string Icon => Button.Icon;
-    public string Shortcut => Button.Shortcut;
+    /// <summary>The key(s) bound to this command right now, including changes and custom shortcuts; the ribbon's own label when the key catalogue has none.</summary>
+    public string Shortcut => Core.Hotkeys.ShortcutFor(Tab, Label) is { Length: > 0 } keys ? keys : Button.Shortcut;
     public bool Enabled => Button.IsEnabled;
 }

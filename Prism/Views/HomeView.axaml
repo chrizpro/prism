@@ -75,26 +75,39 @@
                     <TextBox Text="{Binding GallerySearch}" Watermark="Find a model or workflow…" Width="340" HorizontalAlignment="Left"/>
                     <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding GalleryBusy}"/>
                     <TextBlock Text="No examples match your search." Classes="faint" IsVisible="{Binding GalleryEmpty}"/>
-                    <ItemsControl ItemsSource="{Binding GalleryCards}">
-                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl ItemsSource="{Binding GalleryGroups}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:GalleryCard">
-                                <Border Width="270" Margin="0,0,16,16" CornerRadius="8" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource PanelBg}" ClipToBounds="True">
-                                    <StackPanel>
-                                        <Panel Height="168" Background="#EDF0F4">
-                                            <c:IconView Icon="box" Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            <Image Source="{Binding Preview}" Stretch="UniformToFill" AutomationProperties.Name="{Binding Name}"/>
-                                        </Panel>
-                                        <StackPanel Margin="14" Spacing="7">
-                                            <TextBlock Text="{Binding Workflow}" Classes="soft" FontSize="11"/>
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="17"/>
-                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Height="54" FontSize="12" Classes="soft"/>
-                                            <TextBlock Text="{Binding Credit}" FontSize="11" Classes="faint"/>
-                                            <Button Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                                            <TextBlock Text="{Binding VersionHint}" IsVisible="{Binding !Compatible}" FontSize="11" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
+                            <DataTemplate DataType="vm:GallerySection">
+                                <StackPanel Spacing="10" Margin="0,6,0,0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding Heading}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Content="{Binding ToggleText}" Tag="{Binding}" Click="OnGallerySection" IsVisible="{Binding CanExpand}"/>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding Visible}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:GalleryCard">
+                                        <Border Width="270" Margin="0,0,16,16" CornerRadius="8" BorderBrush="{DynamicResource Line}" BorderThickness="1" Background="{DynamicResource PanelBg}" ClipToBounds="True">
+                                            <StackPanel>
+                                                <Panel Height="168" Background="#EDF0F4">
+                                                    <c:IconView Icon="box" Width="44" Height="44" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <Image Source="{Binding Preview}" Stretch="UniformToFill" AutomationProperties.Name="{Binding Name}"/>
+                                                </Panel>
+                                                <StackPanel Margin="14" Spacing="7">
+                                                    <TextBlock Text="{Binding Workflow}" Classes="soft" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="17"/>
+                                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Height="54" FontSize="12" Classes="soft"/>
+                                                    <TextBlock Text="{Binding Credit}" FontSize="11" Classes="faint"/>
+                                                    <Button Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="{Binding NoExtras}"/>
+                                                    <SplitButton Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" IsVisible="{Binding HasExtras}" Loaded="OnExtrasLoaded" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                                    <TextBlock Text="{Binding VersionHint}" IsVisible="{Binding !Compatible}" FontSize="11" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                                </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

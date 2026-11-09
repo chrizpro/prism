@@ -20,7 +20,7 @@ public sealed class SurfaceImage
         var data = Convert.ToBase64String(File.ReadAllBytes(path));
         _ = Decode(data); return data;
     }
-    public static unsafe SurfaceImage Decode(string data)
+    public static unsafe SurfaceImage Decode(string data, bool keepAlpha = false)
     {
         if (data.Length > MaxBytes * 4L / 3 + 4) throw new ArgumentException("Image exceeds the 16 MB limit.");
         using var stream = new MemoryStream(Convert.FromBase64String(data));
@@ -44,6 +44,7 @@ public sealed class SurfaceImage
             int a = bytes[i + 3];
             if (a is > 0 and < 255 && target.AlphaFormat == Avalonia.Platform.AlphaFormat.Premul)
                 for (int k = 0; k < 3; k++) bytes[i + k] = (byte)Math.Min(255, bytes[i + k] * 255 / a);
+            if (keepAlpha) continue;                    // decals keep straight rgb + alpha so the base surface shows through
             // Transparent pixels are composited on white, consistently for textures and backplates.
             for (int k = 0; k < 3; k++) bytes[i + k] = (byte)((bytes[i + k] * a + 255 * (255 - a) + 127) / 255);
             bytes[i + 3] = 255;
@@ -63,6 +64,21 @@ public sealed class SurfaceImage
             int i = (py * Width + px) * 4; return new Vector3(Rgba[i], Rgba[i + 1], Rgba[i + 2]) / 255;
         }
         return Vector3.Lerp(Vector3.Lerp(Pixel(ix, iy), Pixel(ix + 1, iy), x - ix), Vector3.Lerp(Pixel(ix, iy + 1), Pixel(ix + 1, iy + 1), x - ix), y - iy);
+    }
+    /// <summary>Bilinear sample of all four channels (straight rgb + alpha) — used by the decal layer.</summary>
+    public Vector4 Sample4(float u, float v, bool repeat = true)
+    {
+        u = repeat ? u - MathF.Floor(u) : Math.Clamp(u, 0, 1);
+        v = repeat ? v - MathF.Floor(v) : Math.Clamp(v, 0, 1);
+        float x = u * Width - .5f, y = v * Height - .5f;
+        int ix = (int)MathF.Floor(x), iy = (int)MathF.Floor(y);
+        Vector4 Pixel(int px, int py)
+        {
+            px = repeat ? (px % Width + Width) % Width : Math.Clamp(px, 0, Width - 1);
+            py = repeat ? (py % Height + Height) % Height : Math.Clamp(py, 0, Height - 1);
+            int i = (py * Width + px) * 4; return new Vector4(Rgba[i], Rgba[i + 1], Rgba[i + 2], Rgba[i + 3]) / 255;
+        }
+        return Vector4.Lerp(Vector4.Lerp(Pixel(ix, iy), Pixel(ix + 1, iy), x - ix), Vector4.Lerp(Pixel(ix, iy + 1), Pixel(ix + 1, iy + 1), x - ix), y - iy);
     }
     public Vector3 Triplanar(Vector3 p, Vector3 n)
     {

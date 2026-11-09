@@ -17,12 +17,12 @@ public sealed partial class MainViewModel
     bool _syncingRightPanels;
     string? _lastPanelContext;
     string _panelBeforeOperation = "context";
-    public string ContextPanelId => ActiveCommand != null ? "command" : IsSketching ? "sketch" : WorkspaceId == "simulate" && Session.ActiveStudy != null ? "simulation" : ShowScriptPanel && WorkspaceId == "script" ? "script" : "properties";
+    public string ContextPanelId => ActiveCommand != null ? "command" : IsSketching ? "sketch" : Session.FreeTool is Core.DatumPickTool || SelectedDatum != null ? "datum" : WorkspaceId == "simulate" && Session.ActiveStudy != null ? "simulation" : ShowScriptPanel && WorkspaceId == "script" ? "script" : "properties";
     string RightPanelContentId => SelectedRightPanel == "context" ? ContextPanelId : SelectedRightPanel;
     public bool IsRightPanelOpen(string id) => _openRightPanels.Contains(id) || ContextPanelId == id;
     public static string PanelTitle(string id) => id switch
     {
-        "command" => "Command", "sketch" => "Sketch", "appearance" => "Appearance", "diagnostics" => "Diagnostics",
+        "command" => "Command", "sketch" => "Sketch", "datum" => "Datum", "appearance" => "Appearance", "diagnostics" => "Diagnostics",
         "references" => "References", "parameters" => "Parameters", "script" => "Script", "data" => "Data", "simulation" => "Simulation", "library" => "Parts library", "gizmo"=>"Gizmo", _ => "Properties",
     };
 
@@ -62,15 +62,17 @@ public sealed partial class MainViewModel
             {
                 string? previous = _lastPanelContext;
                 _lastPanelContext = context;
-                if (context is "sketch" or "command")
+                if (context is "sketch" or "command" or "datum")
                 { _panelBeforeOperation = SelectedRightPanel; SelectedRightPanel = "context"; }
-                else if (previous is "sketch" or "command" && SelectedRightPanel == "context" && _openRightPanels.Contains(_panelBeforeOperation))
+                else if (previous is "sketch" or "command" or "datum" && SelectedRightPanel == "context" && _openRightPanels.Contains(_panelBeforeOperation))
                     SelectedRightPanel = _panelBeforeOperation;
             }
             string content = RightPanelContentId;
             StudioPanel = content is "diagnostics" or "references" or "parameters" ? content : null;
             ShowCommandPanel = content == "command" && ActiveCommand != null;
             ShowGizmoPanel=content=="gizmo";
+            ShowDatumPanel = content == "datum";
+            if (ShowDatumPanel) RefreshDatumPanel();
             ShowSketchPanel = content == "sketch" && IsSketching;
             ShowMaterialsPanel = content == "appearance";
             ShowLibraryPanel = content == "library";

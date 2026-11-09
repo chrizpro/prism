@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Prism.Core;
@@ -39,6 +40,7 @@ public partial class SettingsWindow : Window
         AccentChoice.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "Blue", "Teal", "Purple", "Orange", "Rose" }, s.AccentColor));
         ThemeDark.IsChecked = s.Theme == "Dark"; ThemeLight.IsChecked = s.Theme == "Light"; ThemeSystem.IsChecked = s.Theme == "System";
         MarkingOn.IsChecked = s.MarkingMenu; HoldMs.Value = s.MarkingHoldMs; HoldLabel.Text = $"Hold time: {s.MarkingHoldMs} ms";
+        PlaneScale.Value = s.PlaneScale * 100; PlaneScaleLabel.Text = $"Plane size: {(int)PlaneScale.Value} %";
         ReverseScrollZoom.IsChecked = s.ReverseScrollZoom;
         ShowGridOnStart.IsChecked = s.ShowGridOnStart;
         BuildGridSwatches();
@@ -397,7 +399,110 @@ public partial class SettingsWindow : Window
         if (PageAppearance == null) return;
         int i = Nav.SelectedIndex;
         PageAppearance.IsVisible = i == 0; PageInteraction.IsVisible = i == 1; PageWorkspace.IsVisible = i == 2; PageToolbars.IsVisible = i == 3; PageRibbon.IsVisible = i == 4; PageAssistant.IsVisible = i == 5; PageKeyboard.IsVisible = i == 6;
+        if (i == 5) FillMcp();
     }
+
+    void FillMcp()
+    {
+        if (McpConfig == null) return;
+        McpConfig.Text = "── Claude (claude_desktop_config.json or .mcp.json) ──\n" + Prism.Automation.AssistantService.McpSnippet("claude") +
+            "\n── Codex (~/.codex/config.toml) ──\n" + Prism.Automation.AssistantService.McpSnippet("codex");
+    }
+
+    async void OnCopyMcp(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string kind }) return;
+        var text = Prism.Automation.AssistantService.McpSnippet(kind);
+        var top = TopLevel.GetTopLevel(this);
+        if (top?.Clipboard is { } clip) await clip.SetTextAsync(text);
+        if (McpConfig != null) McpConfig.Text = text;
+        if (sender is Button b) { var was = b.Content; b.Content = "Copied ✓"; await Task.Delay(1200); b.Content = was; }
+    }
+
+    void OnInstallMcp(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string kind }) return;
+        var note = Prism.Automation.AssistantService.InstallMcpConfig(kind);
+        if (McpNote != null) McpNote.Text = note;
+    }
+
+    /// <summary>Open a page by id (used by the settings MCP tool and the search box).</summary>
+    public void OpenPage(string? page)
+    {
+        Nav.SelectedIndex = page switch { "appearance" => 0, "interaction" => 1, "workspace" => 2, "toolbars" => 3, "ribbon" => 4, "assistant" => 5, "keyboard" => 6, _ => 0 };
+    }
+
+    // ------------------------------------------------------------ settings search
+
+    /// <summary>One searchable entry: what shows, which page, extra words it should match, and the control to focus.</summary>
+    sealed record SettingHit(string Title, int Page, string Keys, string? Control)
+    {
+        public override string ToString() => Title;
+    }
+
+    static readonly SettingHit[] SettingIndex =
+    [
+        new("Theme (Dark, Light, Match Windows)", 0, "theme dark light system windows appearance night color mode", "ThemeDark"),
+        new("Interface color", 0, "accent interface color blue teal purple orange rose highlight", "AccentChoice"),
+        new("3D view backdrop and grid look", 0, "grid backdrop view colors preset swatch scene", "ShowGridOnStart"),
+        new("Show the grid when Prism starts", 0, "grid show start startup", "ShowGridOnStart"),
+        new("Help context location", 1, "help context hints status bar viewport tips", "HelpContextLocation"),
+        new("Reverse scroll-wheel zoom", 1, "scroll wheel zoom reverse navigation mouse direction", "ReverseScrollZoom"),
+        new("Use the right-click menu (marking menu)", 1, "right click marking menu ring radial pie gesture", "MarkingOn"),
+        new("Hold time for the right-click menu", 1, "hold time marking menu delay milliseconds", "HoldMs"),
+        new("Reference plane size", 1, "reference origin construction plane size scale sketch pick clutter small", "PlaneScale"),
+        new("Workspace folder", 2, "workspace folder parts files documents directory location", "WsPath"),
+        new("Show the home screen when Prism starts", 2, "home screen start startup open recent", "WsHome"),
+        new("Autosave and recovery copies", 2, "autosave recovery backup crash restore unfinished", "RecoveryEnabled"),
+        new("Recovery copy interval", 2, "recovery minutes interval autosave every frequency", "RecoveryInterval"),
+        new("Recover autosaved work", 2, "recover autosaved work restore lost", "RecoveryEnabled"),
+        new("Toolbars over the 3D view", 3, "quickbar toolbar floating buttons in-graphics history panel", null),
+        new("Status bar contents", 3, "status bar bottom contents coordinates", null),
+        new("Ribbon tabs and commands", 4, "ribbon tabs groups commands customize hide move reorder", "Filter"),
+        new("AI provider (Codex, Claude, OpenAI)", 5, "ai assistant provider codex claude anthropic openai chatgpt", "AiProvider"),
+        new("AI model", 5, "model models gpt claude sonnet opus codex list refresh", "AiModel"),
+        new("AI reasoning effort", 5, "effort reasoning thinking level low medium high", "AiEffort"),
+        new("Assistant API key", 5, "api key anthropic openai secret token", "AiKey"),
+        new("Remember the API key", 5, "remember key save store persist", "AiRemember"),
+        new("Let the assistant open, save and export files", 5, "file files save export allow permission assistant", "AiFiles"),
+        new("MCP — use Prism from an external agent", 5, "mcp claude codex agent client setup bridge config json toml", "McpConfig"),
+        new("Keyboard shortcuts", 6, "keyboard shortcuts hotkeys keys bindings assign", null),
+        new("Add a custom shortcut", 6, "add custom shortcut command ribbon gesture", null),
+    ];
+
+    List<SettingHit> _hits = [];
+
+    void OnSearch(object? sender, TextChangedEventArgs e)
+    {
+        var q = (Search.Text ?? "").Trim();
+        var terms = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        _hits = terms.Length == 0 ? [] : SettingIndex.Where(h => terms.All(t => $"{h.Title} {h.Keys}".Contains(t, StringComparison.OrdinalIgnoreCase))).Take(9).ToList();
+        SearchResults.ItemsSource = _hits;
+        SearchResults.IsVisible = _hits.Count > 0;
+        SearchResults.SelectedIndex = _hits.Count > 0 ? 0 : -1;
+    }
+
+    void OnSearchKey(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key == Avalonia.Input.Key.Escape) { Search.Text = ""; SearchResults.IsVisible = false; e.Handled = true; }
+        else if (e.Key == Avalonia.Input.Key.Enter && _hits.Count > 0) { GoTo(_hits[Math.Max(0, SearchResults.SelectedIndex)]); e.Handled = true; }
+        else if (e.Key == Avalonia.Input.Key.Down && SearchResults.IsVisible) { SearchResults.SelectedIndex = Math.Min(SearchResults.SelectedIndex + 1, _hits.Count - 1); SearchResults.Focus(); e.Handled = true; }
+    }
+
+    void OnSearchPick(object? sender, SelectionChangedEventArgs e)
+    {
+        if (SearchResults.SelectedItem is SettingHit h) GoTo(h);
+    }
+
+    void GoTo(SettingHit h)
+    {
+        Nav.SelectedIndex = h.Page;
+        Search.Text = ""; SearchResults.IsVisible = false;
+        if (h.Control != null)
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => this.FindControl<Control>(h.Control)?.Focus(), Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    void OnAiRefresh(object? sender, RoutedEventArgs e) { if (_vm != null) _ = _vm.RefreshAssistantModels(force: true); }
 
     void OnTheme(object? sender, RoutedEventArgs e)
     {
@@ -438,6 +543,12 @@ public partial class SettingsWindow : Window
     {
         if (_loading || HoldLabel == null) return;
         AppSettings.Current.MarkingHoldMs = (int)HoldMs.Value; HoldLabel.Text = $"Hold time: {(int)HoldMs.Value} ms"; AppSettings.Save();
+    }
+
+    void OnPlaneScale(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_loading || PlaneScaleLabel == null) return;
+        AppSettings.Current.PlaneScale = PlaneScale.Value / 100; PlaneScaleLabel.Text = $"Plane size: {(int)PlaneScale.Value} %"; AppSettings.Save();
     }
 
     // ------------------------------------------------------------ ribbon editor

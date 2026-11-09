@@ -53,6 +53,117 @@ public class GalleryViewTests
                 : new HttpResponseMessage(HttpStatusCode.NotFound));
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H003 | Each gallery section shows its first three models until expanded; searching shows every match")]
+    [Trait("TestId", "GAL-H003")]
+    public async Task SectionsShowThreeUntilExpanded()
+    {
+        var vm = new MainViewModel();
+        var template = new GalleryEntry("m0", "Model 0", "A model", "Solid", "Prism", "MIT", "0.1.0", "https://github.com/a/model", "https://github.com/a/image", 1, new string('a', 64));
+        var items = Enumerable.Range(0, 5).Select(i => template with { Id = "solid-" + i, Name = "Solid " + i }).Append(template with { Id = "cam-0", Name = "Board", Workflow = "Solid / CAM" })
+            .Append(template with { Id = "cam-1", Name = "Router", Workflow = "CAM" }).ToList();
+        string root = Path.Combine(Path.GetTempPath(), "prism-gallery-sections-" + Guid.NewGuid());
+        using var http = new HttpClient(new CatalogTransport(new GalleryCatalog(1, items).ToJson()));
+        vm.GallerySource = new GalleryStore(http, root);
+        try
+        {
+            await vm.LoadGallery();
+            Assert.Equal(["Solid", "CAM"], vm.GalleryGroups.Select(g => g.Title));
+            var solid = vm.GalleryGroups[0];
+            Assert.Equal(3, solid.Visible.Count());
+            Assert.True(solid.CanExpand);
+            Assert.Equal("Show all 6", solid.ToggleText);
+            Assert.False(vm.GalleryGroups[1].CanExpand);
+            solid.Toggle();
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
+            Assert.Equal("Show fewer", vm.GalleryGroups[0].ToggleText);
+            vm.GallerySearch = "no such thing";
+            Assert.Empty(vm.GalleryGroups);
+            vm.GallerySearch = "solid";
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
+            vm.GallerySearch = "";
+            Assert.Equal(6, vm.GalleryGroups[0].Visible.Count());
+            vm.GalleryGroups[0].Toggle();
+            Assert.Equal(3, vm.GalleryGroups[0].Visible.Count());
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [AvaloniaFact(DisplayName = "GAL-H004 | A saved file reopens on the ribbon tab it was last worked in")]
+    [Trait("TestId", "GAL-H004")]
+    public void FileReopensOnItsSavedTab()
+    {
+        var vm = new MainViewModel();
+        var tabs = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).ToList();
+        var work = tabs[^1];
+        string path = Path.Combine(Path.GetTempPath(), "prism-tab-" + Guid.NewGuid().ToString("N") + ".prism");
+        try
+        {
+            vm.SelectTab(work);
+            vm.Session.AddObject(Occ.Box(10, 20, 30), "Part", ObjKind.Solid);
+            vm.Session.Save(path);
+            vm.SelectTab(tabs[0]);
+            vm.OpenPath(path);
+            Assert.Equal(work.Title, vm.SelectedTab?.Title);
+            Assert.Equal(work.Title, vm.Session.OpeningTab);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [AvaloniaFact(DisplayName = "GAL-H007 | The bundled injection mold is visible in the CAM section")]
+    [Trait("TestId", "GAL-H007")]
+    public async Task BundledInjectionMoldAppearsInCam()
+    {
+        var vm = new MainViewModel();
+        string root = Path.Combine(Path.GetTempPath(), "prism-gallery-bundled-" + Guid.NewGuid());
+        using var http = new HttpClient(new CatalogTransport("{}"));
+        vm.GallerySource = new GalleryStore(http, root);
+        try
+        {
+            await vm.LoadGallery();
+            var cam = Assert.Single(vm.GalleryGroups, section => section.Title == "CAM");
+            Assert.Contains(cam.Visible, card => card.Entry.Id == "injection-mold");
+            Assert.DoesNotContain(vm.GalleryGroups, section => section.Title == "Mold");
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [AvaloniaFact(DisplayName = "GAL-H005 | The select_tab tool switches the ribbon tab and the document remembers it")]
+    [Trait("TestId", "GAL-H005")]
+    public async Task SelectTabToolSetsTheOpeningTab()
+    {
+        var vm = new MainViewModel();
+        var api = new Prism.Automation.AutomationApi(vm, null);
+        var target = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Last();
+        var result = await api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + target.Title.ToLowerInvariant() + "\"}")!);
+        Assert.Equal(target.Title, (string?)result!["tab"]);
+        Assert.Same(target, vm.SelectedTab);
+        Assert.Equal(target.Title, vm.Session.OpeningTab);
+        await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"nope\"}")!));
+    }
+
+    [AvaloniaFact(DisplayName = "GAL-H006 | A file saved with an opening command reopens with that command open, ready to press its button")]
+    [Trait("TestId", "GAL-H006")]
+    public async Task FileReopensWithItsCommandOpen()
+    {
+        var vm = new MainViewModel();
+        var api = new Prism.Automation.AutomationApi(vm, null);
+        string tab = vm.Tabs.Where(t => !t.IsFile && !t.IsContextual).Last().Title;
+        await api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + tab + "\",\"command\":\"box\"}")!);
+        Assert.Equal("box", vm.Session.OpeningCommand);
+        string path = Path.Combine(Path.GetTempPath(), "prism-cmd-" + Guid.NewGuid().ToString("N") + ".prism");
+        try
+        {
+            vm.Session.AddObject(Occ.Box(10, 20, 30), "Part", ObjKind.Solid);
+            vm.Session.Save(path);
+            vm.SelectTab(vm.Tabs.First(t => !t.IsFile && !t.IsContextual));
+            vm.OpenPath(path);
+            Assert.NotNull(vm.Session.ActiveCommand);
+            Assert.Equal("box", vm.Session.OpeningCommand);
+            await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync("select_tab", (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse("{\"title\":\"" + tab + "\",\"command\":\"nope\"}")!));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H002 | Failed model download leaves the current work and startup screen intact")]
     [Trait("TestId", "GAL-H002")]
     public async Task FailedDownloadDoesNotReplaceUserDocument()

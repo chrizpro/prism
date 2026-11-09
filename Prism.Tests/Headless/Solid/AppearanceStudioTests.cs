@@ -106,4 +106,28 @@ public class AppearanceStudioTests
         vm.ApplyMaterial(Materials.Find("6061")!);
         Assert.Equal(0xFF2244CCu, s.Find(body.Id)!.Color); Assert.Equal("6061", s.Find(body.Id)!.Look.MaterialId);
     }
+
+    [AvaloniaFact(DisplayName = "APP-H007 | Family chips cover the whole library and selecting one narrows the list to that family's grades")]
+    [Trait("TestId", "APP-H007")]
+    public void FamilyChipsNarrowTheList()
+    {
+        var vm = new MainViewModel();
+        Assert.Equal(1 + Materials.Categories.Count(), vm.MaterialFamilies.Count);
+        Assert.Equal(Materials.All.Count, vm.MaterialFamilies.Sum(f => f.Index == 0 ? 0 : f.Count));
+        Assert.Equal(Materials.All.Count, vm.MaterialList.Count);
+
+        var steel = vm.MaterialFamilies.Single(f => f.Name == "Steel");
+        vm.SelectFamily(steel.Index);
+        Assert.True(steel.IsActive);
+        Assert.False(vm.MaterialFamilies.First(f => f.Index == 0).IsActive);
+        Assert.All(vm.MaterialList, r => Assert.Equal("Steel", r.Material.Category));
+        Assert.Equal(Materials.All.Count(m => m.Category == "Steel"), vm.MaterialList.Count);
+
+        vm.MaterialSearch = "mild";
+        var row = Assert.Single(vm.MaterialList);
+        Assert.Equal("a36", row.Material.Id);
+
+        vm.MaterialSearch = ""; vm.SelectFamily(0);   // back to the whole library
+        Assert.Equal(Materials.All.Count, vm.MaterialList.Count);
+    }
 }

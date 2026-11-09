@@ -18,6 +18,11 @@ def updated_catalog(folder):
         item["Sha256"] = hashlib.sha256(model).hexdigest()
         base = "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/"
         item["ModelUrl"] = base + "models/" + id + ".prism"
+        for extra in item.get("Extras", []):
+            data = (folder / "extras" / extra["FileName"]).read_bytes()
+            extra["Url"] = base + "extras/" + extra["FileName"]
+            extra["Bytes"] = len(data)
+            extra["Sha256"] = hashlib.sha256(data).hexdigest()
         item["PreviewUrl"] = base + "previews/" + id + ".png?v=" + hashlib.sha256(preview).hexdigest()[:16]
     return json.dumps(catalog, indent=2) + "\n"
 
@@ -28,6 +33,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     folder = Path(__file__).resolve().parent
     content = updated_catalog(folder)
+    readme = (folder / "README.md").read_text(encoding="utf-8")
+    missing = [item["Id"] for item in json.loads(content)["Items"] if "`" + item["Id"] + "`" not in readme]
+    assert not missing, "Add these models to the index in gallery/README.md: " + ", ".join(missing)
     if args.check:
         assert (folder / "catalog.json").read_text(encoding="utf-8") == content, "Run python gallery/update_catalog.py"
         print("Catalog model sizes, hashes and preview revisions match.")

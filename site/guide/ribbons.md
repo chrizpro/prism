@@ -8,6 +8,8 @@ Prism organizes tools by task, then uses a shared order for the sections that ap
 
 Not every ribbon needs every section. Specialized sections such as Supports, Loads, or Surface Continuity appear at the appropriate point in the workflow. Shared sections retain their relative order throughout the application.
 
+<GuideImage image="modeling-workspace-overview" />
+
 ## Compact groups
 
 Move stays directly accessible. Rotate, Scale, Mirror, and Duplicate share the same transform menu across modeling ribbons, including Mesh and ECAD. Pattern methods live together, and related operations use flat menus rather than nested menus.

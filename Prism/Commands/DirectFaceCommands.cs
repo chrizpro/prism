@@ -24,6 +24,7 @@ public sealed class OffsetFaceCommand : Command
     public override string Title => "Offset Face";
     public override string Icon => "pushpull";
     public override string OkText => "Apply";
+    public override HandleSpec? Handle => _faces.Items.Count == 0 ? null : SurfaceHandle(_faces.Items[0], _dist);
     public override string Hint => "Edit existing geometry: pick faces and a distance, and every face moves along its own normal. Positive moves a face out of the part (the body grows), negative moves it in. Flat faces slide and their neighbours extend or trim to follow; a whole hole or boss changes radius (a hole gets smaller when offset out). Clicking any face of a hole, slot, pocket or boss picks the whole feature.";
 
     protected override CommandOutput? Build()
@@ -83,6 +84,33 @@ public sealed class RotateFaceCommand : Command
     public override string Title => "Rotate Face";
     public override string Icon => "moveface";
     public override string OkText => "Apply";
+    public override HandleSpec? Handle
+    {
+        get
+        {
+            if (_faces.Items.Count == 0 || S.PlaneOf(_faces.Items[0]) is not { } pl) return null;
+            Vec3 axis, pt = pl.Origin;
+            if (_edge.Items.Count > 0)
+            {
+                var e = S.ShapeOf(_edge.Items[0]); if (e == null) return null;
+                var ei = Occ.EdgeInfoOf(e); if (ei.Type != "Line" || (ei.End - ei.Start).Length < 1e-9) return null;
+                axis = (ei.End - ei.Start).Normalized();
+                pt = ei.Start + axis * Vec3.Dot(pl.Origin - ei.Start, axis);   // foot of the face centre on the hinge line
+            }
+            else axis = _axis.Index switch { 0 => pl.U, 1 => pl.V, 2 => Vec3.UnitX, 3 => Vec3.UnitY, _ => Vec3.UnitZ };
+            var lever = pl.Origin - pt; lever -= axis * Vec3.Dot(lever, axis);
+            Vec3 refDir; double radius;
+            if (lever.Length > 1e-6) { refDir = lever.Normalized(); radius = lever.Length; }
+            else
+            {
+                var n = S.FaceFrame(_faces.Items[0]) is { } f ? f.normal : pl.Normal;
+                var n0 = n - axis * Vec3.Dot(n, axis); if (n0.Length < 1e-6) return null;
+                refDir = n0.Normalized();
+                radius = S.Find(_faces.Items[0].Obj) is { } o ? Math.Max((o.Mesh.Max - o.Mesh.Min).Length * 0.15, 10) : 10;
+            }
+            return new HandleSpec(pt, axis, _angle, 1, refDir, radius);
+        }
+    }
     public override string Hint => "Edit existing flat faces: pick them, then pick a straight edge to turn about, or leave the edge empty and choose the face's own direction or a world axis (through the middle of the face). The face tilts by the angle and the body stretches to follow; neighbouring faces extend or trim. A picked edge wins over the “Rotate about” choice.";
 
     protected override CommandOutput? Build()

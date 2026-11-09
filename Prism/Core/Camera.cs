@@ -38,6 +38,16 @@ public sealed class Camera
     public Vec3 Forward => -EyeDirection;
     public Vec3 Right => Vec3.Cross(Forward, Up).Normalized();
 
+    /// <summary>The principal plane squarely facing this view — within about 18° of looking straight along a world axis — else null off-axis.</summary>
+    public Plane3? AxisFacingPlane()
+    {
+        var e = EyeDirection; double ax = Math.Abs(e.X), ay = Math.Abs(e.Y), az = Math.Abs(e.Z);
+        const double near = 0.95;
+        if (ax >= near && ax >= ay && ax >= az) return Plane3.YZ;
+        if (ay >= near && ay >= ax && ay >= az) return Plane3.XZ;
+        return az >= near ? Plane3.XY : null;
+    }
+
     public double NearPlane => Math.Max(Distance * 0.01, 0.01);
     public double FarPlane => Distance * 400 + 1e4;
 

@@ -80,6 +80,7 @@ public partial class ScriptPanel : UserControl
     {
         if (_bound is not { } s) return;
         RunBtn.IsEnabled = !s.Running; StopBtn.IsEnabled = s.Running;
+        RollbackBtn.IsEnabled = s.AiSnapshotCount > 0;
         NameText.Text = s.DisplayName + (s.Dirty ? " •" : "");
         var lang = s.Language;
         StatusText.Text = s.Running ? "Running..." : lang.IsAvailable(out var d) ? $"{lang.Name}: {d}" + (s.ErrorLine > 0 ? $"   |   error on line {s.ErrorLine}: {s.ErrorText}" : "") : d;
@@ -108,6 +109,8 @@ public partial class ScriptPanel : UserControl
     void OnClose(object? sender, RoutedEventArgs e) { if (Vm != null) Vm.ShowScriptPanel = false; }
     void OnClear(object? sender, RoutedEventArgs e) { _console.Clear(); Console.Text = ""; }
     void OnNew(object? sender, RoutedEventArgs e) => _bound?.New();
+    void OnAskAi(object? sender, RoutedEventArgs e) => Vm?.AskAssistantForScript();
+    void OnRollback(object? sender, RoutedEventArgs e) => _bound?.RollbackAi();
 
     void OnEditInMenu(object? sender, RoutedEventArgs e)
     {

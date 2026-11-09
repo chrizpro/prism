@@ -135,7 +135,8 @@ public sealed partial class MainViewModel
     }
 
     public event Action? OpenTraditionalMenu;
-    public Action? RequestSettings;
+    /// <summary>Opens the Settings window; null or a page id (appearance, interaction, workspace, toolbars, ribbon, assistant, keyboard).</summary>
+    public Action<string?>? RequestSettings;
 
     /// <summary>The ordinary menu behind the 6 o'clock entry. Changes with what is going on: a command or sketch open, something selected, hidden things.</summary>
     public IReadOnlyList<MenuSpec> BuildTraditionalMenu()
@@ -186,7 +187,7 @@ public sealed partial class MainViewModel
             ]));
         list.Add(new("Zoom to fit", () => s.ZoomExtents()));
         list.Add(MenuSpec.Sep);
-        list.Add(new("Settings…", () => RequestSettings?.Invoke()));
+        list.Add(new("Settings…", () => RequestSettings?.Invoke(null)));
         return list;
     }
 

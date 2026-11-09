@@ -8,7 +8,12 @@ namespace Prism.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow() { InitializeComponent(); InitializeDocumentSafety(); InitializeFileDrop(); }
+    public MainWindow()
+    {
+        InitializeComponent(); InitializeDocumentSafety(); InitializeFileDrop();
+        // the command search list is a popup of its own: when another application (a browser opened from Learn More, for example) takes over, it must not stay on top of it
+        Deactivated += (_, _) => { if (DataContext is MainViewModel { SearchOpen: true } vm) { vm.SearchText = ""; vm.SearchOpen = false; } };
+    }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
@@ -110,13 +115,17 @@ public partial class MainWindow : Window
             case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
             case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");
             case "view.lookat": return s.Key("LookAt");
-            case "view.extents": s.ZoomExtents(); return true;
+            case "view.extents": case "view.extents.home": s.ZoomExtents(); return true;
             case "app.search": (Content as MainView)?.FocusSearch(); return true;
             case "sketch.gizmo.move": return free && gizmoTarget && s.Key("GizmoMove");
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");
             case "sketch.gizmo.size": return free && gizmoTarget && s.Key("GizmoSize");
-            case "sketch.gizmo": if(free && vm.CanPlaceGizmo){ if(vm.ShowGizmoPanel){ if(vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.FinishGizmoPanel();} if(vm.ShowGizmoPanel)vm.CloseGizmoPanel(); return true; } vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
-            case "datum.gizmo": if(s.Sketch!=null||(s.ActiveCommand!=null&&!vm.CanPlaceGizmo))return false;vm.OpenGizmoFromHotkey();return true;
+            case "sketch.gizmo": if(s.Sketch!=null)return false;     // the sketch gizmo's own editing is retired: planes and gizmos come from the Datum tools
+            if(free && vm.CanPlaceGizmo){ if(vm.ShowGizmoPanel){ if(vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.FinishGizmoPanel();} if(vm.ShowGizmoPanel)vm.CloseGizmoPanel(); return true; } vm.OpenGizmoFromHotkey();return true;} return free && s.Key(SketchShortcuts.GizmoCommand);
+            case "datum.gizmo":
+                // In a sketch G takes the gizmo on the selected points and curves (again closes its panel); it places nothing.
+                if(s.Sketch!=null){ if(!free||!gizmoTarget)return false; if(vm.ShowGizmoPanel){vm.CloseGizmoPanel();return true;} vm.TransformSketchSelection();return true; }
+                if(s.ActiveCommand!=null&&!vm.CanPlaceGizmo)return false;vm.OpenGizmoFromHotkey();return true;
             case "sketch.edit": return free && s.Key(SketchShortcuts.EditCommand);
             case "sketch.plane.yz": return free && s.Key("PlaneYZ");
             case "sketch.plane.xz": return free && s.Key("PlaneXZ");

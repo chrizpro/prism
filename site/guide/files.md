@@ -4,6 +4,8 @@
 
 Save editable work as `.prism`. Existing `.ourcad` documents remain readable and appear in file dialogs, workspace listings, and the parts library. You can open one and save a new `.prism` copy.
 
+<GuideImage image="modeling-workspace-overview" />
+
 ## Exchange formats
 
 Use **File → Exchange → Import** or **Export**. Supported geometry and mesh paths include STEP, IGES, BREP, DXF, STL, OBJ, PLY, and 3MF, with capabilities depending on the format. GLB export is also available.

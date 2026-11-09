@@ -133,7 +133,13 @@ public sealed partial class CadSession : ObservableObject
         OriginChanged?.Invoke(); Invalidate();
     }
     readonly HashSet<int> _originSuppressed = [];
+    readonly HashSet<Guid> _planeSuppressed = [];
     Command? _suppCmd;
+    /// <summary>Suppression belongs to the command that was active when the user hid the row; a new command reveals everything again.</summary>
+    void SyncSuppression()
+    {
+        if (!ReferenceEquals(_suppCmd, ActiveCommand)) { _suppCmd = ActiveCommand; _originSuppressed.Clear(); _planeSuppressed.Clear(); }
+    }
     public static Plane3 OriginPlane(int i) => i == 0 ? Plane3.XY : i == 1 ? Plane3.XZ : Plane3.YZ;
     public static (Vec3 o, Vec3 dir) OriginAxis(int i) => (Vec3.Zero, i == 3 ? Vec3.UnitX : i == 4 ? Vec3.UnitY : Vec3.UnitZ);
 
@@ -143,7 +149,7 @@ public sealed partial class CadSession : ObservableObject
 
     [ObservableProperty] public partial string Status { get; set; } = "Ready";
     [ObservableProperty] public partial bool StatusIsError { get; set; }
-    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.ShadedEdges;
+    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.Shaded;
     /// <summary>See-through bodies: faces turn translucent so hidden edges and inner shapes show.</summary>
     [ObservableProperty] public partial bool XRay { get; set; }
     [ObservableProperty] public partial bool Zebra { get; set; }
@@ -152,11 +158,30 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial bool SketchGridSnap { get; set; }
     [ObservableProperty] public partial bool Ortho { get; set; }
     [ObservableProperty] public partial string? FilePath { get; set; }
-    [ObservableProperty] public partial bool Dirty { get; set; }
+    /// <summary>
+    /// The document has changes that are not saved. Every assignment is seen, not only changes of value: an edit outside the timeline
+    /// made while the document is already dirty must still keep it dirty after undo returns the timeline to its saved state.
+    /// </summary>
+    public bool Dirty
+    {
+        get => _dirty;
+        set
+        {
+            if (!value) { _cleanNode = Current; _offHistoryEdit = false; }
+            else if (!_markingHistory && !_navigating) _offHistoryEdit = true;
+            SetProperty(ref _dirty, value);
+        }
+    }
+    bool _dirty;
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
     public Vec3? ViewportCursor { get; set; }
 
-    public CadSession() { Current = Root; }
+    public CadSession() { Current = Root; _cleanNode = Root; }
+
+    /// <summary>History state matching the last save/open/new. Returning to it by undo or an abandoned edit leaves nothing unsaved.</summary>
+    HistoryNode _cleanNode;
+    /// <summary>A change outside the timeline (lights, data sheets, studies...) that undo cannot revert.</summary>
+    bool _offHistoryEdit, _markingHistory;
 
     public bool CanUndo => Current.Parent != null;
     public bool CanRedo => Current.Preferred != null;
@@ -223,7 +248,7 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Announce that the next scene change is a history step with this label.</summary>
-    void Checkpoint(string label = "Edit", string icon = "box") { _pendingLabel = label; _pendingIcon = icon; Dirty = true; }
+    void Checkpoint(string label = "Edit", string icon = "box") { _pendingLabel = label; _pendingIcon = icon; _markingHistory = true; try { Dirty = true; } finally { _markingHistory = false; } }
 
     /// <summary>Make <paramref name="node"/> the current state. Redo will follow this path afterwards.</summary>
     public void GoTo(HistoryNode node)
@@ -237,7 +262,7 @@ public sealed partial class CadSession : ObservableObject
         Objects = node.After;
         DocumentParameters = node.Parameters;
         RestoreDrawings(node);
-        Dirty = true;
+        Dirty = _offHistoryEdit || node != _cleanNode;
         PruneSelection();
         RaiseScene();
         _navigating = false;
@@ -327,9 +352,9 @@ public sealed partial class CadSession : ObservableObject
         DocumentParameters = []; RebuildIssue = null; PartInfo = new(); PartInfoChanged?.Invoke();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
-        DataSheets.Clear(); DataChanged?.Invoke();
+        DataSheets.Clear(); DataChanged?.Invoke(); LoadHome(null);
         Drawings = new(); _drawingRevisions.Clear(); DrawingsChanged?.Invoke();
-        FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
+        FilePath = null; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
     }
     // ------------------------------------------------------------ mutation
     public SceneObject AddObject(Shape? shape, string namePrefix, ObjKind? kind = null, uint? color = null, Plane3? plane = null, bool checkpoint = true, Form.SubdMesh? form = null, Sketching.SketchModel? sketch = null)
@@ -406,6 +431,30 @@ public sealed partial class CadSession : ObservableObject
         }
         var ids = _selection.Select(s => s.Obj).Distinct().ToHashSet();
         if (ids.Count == 0) return;
+        // Datum picks remove just that entry — deleting the host object would take every sibling datum with it.
+        var datums = _selection.Where(i => i.Kind == SelKind.Datum).ToList();
+        if (datums.Count > 0)
+        {
+            Checkpoint("Delete datum", "delete");
+            foreach (var g in datums.GroupBy(i => i.Obj))
+            {
+                Update(g.Key, o =>
+                {
+                    if (o.SketchData is not { } model) return o;
+                    var m = model.Clone();
+                    foreach (var idx in g.Select(i => i.Index).OrderByDescending(x => x))
+                        if (idx < m.Datums.Count) m.Datums.RemoveAt(idx);
+                    return o.WithSketch(m);
+                }, checkpoint: false);
+                var host = Find(g.Key);
+                if (host?.SketchData is { Datums.Count: 0, Sections.Count: 0, Entities.Count: 0 }
+                    && host.Kind == ObjKind.Sketch && host.HasBrep && host.Shape.Kind == ShapeKind.Vertex)
+                    Objects = Objects.RemoveAll(o => o.Id == g.Key);        // empty carrier goes away too
+            }
+            _selection.RemoveAll(i => i.Kind == SelKind.Datum);
+            ids = _selection.Select(s => s.Obj).Distinct().ToHashSet();
+            if (ids.Count == 0) { ClearSelection(); RaiseScene(); return; }
+        }
         Checkpoint("Delete", "delete");
         Objects = Objects.RemoveAll(o => ids.Contains(o.Id));
         ClearSelection();
@@ -454,6 +503,7 @@ public sealed partial class CadSession : ObservableObject
         if (additive) { if (!_selection.Remove(item)) _selection.Add(item); }
         else { _selection.Clear(); _selection.Add(item); }
         SelectionChanged?.Invoke(); Invalidate();
+        if (!additive && item.Kind == SelKind.Datum) ShowDatumOrientation(item);
     }
     void PruneSelection()
     {
@@ -469,7 +519,7 @@ public sealed partial class CadSession : ObservableObject
     {
         switch (it.Kind)
         {
-            case SelKind.Datum: return DatumOf(it) is { } datum && (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane));
+            case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
             case SelKind.Face: return f.HasFlag(SelFilter.Face);
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
             case SelKind.Origin: return it.Index < 3 ? f.HasFlag(SelFilter.Plane) : it.Index < 6 && f.HasFlag(SelFilter.Axis);
@@ -518,7 +568,7 @@ public sealed partial class CadSession : ObservableObject
         var res = new List<Vec3>();
         var o = Find(it.Obj); if (o == null) return res;
         var m = o.Mesh; var E = m.EdgePoints;
-        if (it.Index + 1 >= m.EdgeSegStart.Length) return res;
+        if (it.Index < 0 || it.Index + 1 >= m.EdgeSegStart.Length) return res;
         for (int s = m.EdgeSegStart[it.Index]; s < m.EdgeSegStart[it.Index + 1]; s++)
         {
             if (res.Count == 0) res.Add(new(E[6 * s], E[6 * s + 1], E[6 * s + 2]));
@@ -545,8 +595,14 @@ public sealed partial class CadSession : ObservableObject
     {
         get
         {
-            if (ActiveCommand?.ActiveSlot is { } slot) return slot.PickFilter;
-            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis };
+            if (ActiveCommand?.ActiveSlot is { } slot)
+            {
+                // a slot that takes edges by rule (single edge, chain, partial loop) offers no edges while picking faces. Whole curves and
+                // sketches (text, an outline) are objects, not edges of a body, so they stay pickable in every mode.
+                var f = slot.PickFilter;
+                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
+            }
+            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
 
@@ -554,10 +610,28 @@ public sealed partial class CadSession : ObservableObject
     public bool OriginShown(int i)
     {
         if (OriginVisible[i]) return true;
-        if (!ReferenceEquals(_suppCmd, ActiveCommand)) { _suppCmd = ActiveCommand; _originSuppressed.Clear(); }
+        SyncSuppression();
         if (_originSuppressed.Contains(i)) return false;
         var f = ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None;
         return (i < 3 && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
+    }
+
+    /// <summary>A construction plane is drawn and pickable while switched on, or while a command is asking for a plane and the user has not hidden it this time.</summary>
+    public bool PlaneShown(SceneObject obj)
+    {
+        if (obj.Kind != ObjKind.Plane || obj.Visible) return obj.Visible;
+        SyncSuppression();
+        if (_planeSuppressed.Contains(obj.Id)) return false;
+        return (ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None).HasFlag(SelFilter.Plane);
+    }
+
+    /// <summary>The browser eye for a construction plane: a persistent switch like any object, except that hiding a plane a command only revealed is remembered until that command ends.</summary>
+    public void SetPlaneShown(SceneObject obj, bool v)
+    {
+        if (obj.Visible != v) Update(obj.Id, o => o.WithVisible(v), checkpoint: false);
+        if (!v && ActiveCommand != null) { _suppCmd = ActiveCommand; _planeSuppressed.Add(obj.Id); }
+        else _planeSuppressed.Remove(obj.Id);
+        RaiseState();
     }
 
     public double OriginSize()
@@ -567,9 +641,12 @@ public sealed partial class CadSession : ObservableObject
         return Math.Max(r * 0.85, 60);
     }
 
+    /// <summary>The display scale the user picked for reference planes in Settings → Interaction; pick bounds scale with the drawn size.</summary>
+    static double PlaneScale => AppSettings.Current.PlaneScale;
+
     PickResult? PickOrigin(double px, double py, SelFilter filter)
     {
-        var cam = Camera; double size = OriginSize();
+        var cam = Camera; double size = OriginSize() * PlaneScale;
         var (o, d) = cam.Ray(px, py);
         PickResult? best = null;
         if (filter.HasFlag(SelFilter.Plane))
@@ -621,9 +698,9 @@ public sealed partial class CadSession : ObservableObject
         PickResult? best = null;
         foreach (var obj in Objects)
         {
-            if (obj.Kind != ObjKind.Plane || !obj.Visible || HiddenIds.Contains(obj.Id) || obj.SketchPlane is not { } pl) continue;
+            if (obj.Kind != ObjKind.Plane || !PlaneShown(obj) || HiddenIds.Contains(obj.Id) || obj.SketchPlane is not { } pl) continue;
             if (pl.Intersect(o, d) is not { } hit) continue;
-            var (u, v) = pl.Project(hit); var (hu, hv) = PlaneHalfSize(obj);
+            var (u, v) = pl.Project(hit); var (hu, hv) = PlaneHalfSize(obj); hu *= PlaneScale; hv *= PlaneScale;
             if (Math.Abs(u) > hu || Math.Abs(v) > hv) continue;
             double depth = cam.Project(hit)?.depth ?? 1;
             if (best == null || depth < best.Value.Depth) best = new PickResult(SelItem.Of(obj), hit, pl.Normal, depth);
@@ -791,6 +868,9 @@ public sealed partial class CadSession : ObservableObject
             try { faces = FeatureFinder.Expand(body, it.Index, slot.Intent).Where(i => i != it.Index).Select(i => new SelItem(it.Obj, SelKind.Face, i)).ToList(); }
             catch (Exception) { faces = []; }
         }
+        // a chain/partial-loop slot previews the edges the click would add, drawn lighter than the hovered edge
+        else if (h is { Kind: SelKind.Edge } eit && ActiveCommand?.ActiveSlot is { } eslot && Matches(eit, eslot.PickFilter))
+            faces.AddRange(Prism.Commands.SelectionChains.Preview(this, eslot, eit));
         if (faces.Count == 0 && HoverPreview.Count == 0) return;
         HoverPreview = faces; Invalidate();
     }
@@ -853,10 +933,19 @@ public sealed partial class CadSession : ObservableObject
         ClearPendingNotice();
         if (ActiveCommand != null) CancelCommand();
         if (Sketch != null) { Say("Finish or cancel the sketch first.", true); return; }
+        SetFreeTool(null);
         ActiveCommand = cmd;
         cmd.Begin(this);
+        if (cmd.WantsHomeView && (Ortho || Camera.Orthographic || IsStraightOn(Camera))) { Ortho = false; Camera.Orthographic = false; GoHome(); }
         Say(cmd.Hint.Length > 0 ? cmd.Hint : cmd.Title);
         RaiseState();
+    }
+
+    /// <summary>Looking almost exactly along a world axis, as in the standard Front, Top and Side views.</summary>
+    static bool IsStraightOn(Camera c)
+    {
+        double q = Math.PI / 2;
+        return Math.Abs(Math.Round(c.Yaw / q) * q - c.Yaw) < 0.09 && (Math.Abs(c.Pitch) < 0.09 || Math.Abs(Math.Round(c.Pitch / q) * q - c.Pitch) < 0.09);
     }
 
     void ClearPendingNotice() { _deferred = null; _pendingStepOnly=false; PendingNotice = null; }
@@ -1162,6 +1251,7 @@ public sealed partial class CadSession : ObservableObject
     public void EnterSketch(Plane3 plane, Sketching.SketchModel? model = null, Guid? editing = null, bool alignView = true)
     {
         if (Sketch != null) return;
+        SetFreeTool(null);
         Sketch = new SketchContext(plane, model, editing);
         Camera.Locked = false;
         // A flat sketch is drawn looking straight at its plane without perspective; a 3D sketch keeps perspective so depth reads.
@@ -1203,6 +1293,7 @@ public sealed partial class CadSession : ObservableObject
         return true;
     }
 
+    /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
     public void ExitSketch(bool keep)
     {
         var sk = Sketch; if (sk == null) return;
@@ -1255,14 +1346,17 @@ public sealed partial class CadSession : ObservableObject
         RaiseState();
     }
     // ------------------------------------------------------------ tools
-    public IViewportTool? ActiveTool => ActiveCommand?.Tool ?? Sketch?.Tool;
+    public IViewportTool? ActiveTool => ActiveCommand?.Tool ?? Sketch?.Tool ?? FreeTool;
     public bool ToolOwnsPointer => ActiveTool != null;
 
     /// <summary>Free-standing datum gizmo; visible only in plain model view.</summary>
     public DatumGizmoTool? Datum { get; private set; }
     public bool DatumVisible => Datum != null && ActiveCommand == null && Sketch == null;
-    public void ShowDatumGizmo(Vec3 at)
+    /// <param name="keepTool">Leave a running datum placement tool armed (the gizmo then only fixes the orientation of what was just placed).</param>
+    public void ShowDatumGizmo(Vec3 at, bool keepTool = false)
     {
+        // A gizmo asked for by name replaces any placement tool, so a split button never stays stuck on the previous choice.
+        if (!keepTool && FreeTool != null) SetFreeTool(null);
         Datum ??= new DatumGizmoTool();
         Datum.Place(at);
         Say("Datum gizmo placed. Drag its handles, or set exact values in the Gizmo panel.");
@@ -1273,7 +1367,9 @@ public sealed partial class CadSession : ObservableObject
     public bool PointerDown(PointerInfo p)
     {
         if (ActiveCommand == null && Sketch?.SpacePointerDown(this, p) == true) return true;
-        if (DatumVisible && Datum!.PointerDown(this, p)) return true;
+        // A placement tool (Datum Point, Axis, Plane) owns every click: the move gizmo must not grab bodies or handles under it.
+        // Placement tools yield only to the orientation gizmo's own handles; a click that misses them still places.
+        if (DatumVisible && FreeTool is null or DatumPickTool && Datum!.PointerDown(this, p)) return true;
         if (ActiveTool is { } t && t.PointerDown(this, p)) return true;
         if (Sketch != null) return true; // never fall back to selection while sketching
         if (ActiveCommand != null)
@@ -1281,10 +1377,12 @@ public sealed partial class CadSession : ObservableObject
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
             var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; return true; }
             if (TryBeginRegion(p)) return true;
+            if (TryBeginClickDrag(p)) return true;
             ClickAt(p);
             return true;
         }
         if (TryBeginRegion(p)) return true;
+        if (TryBeginClickDrag(p)) return true;
         ClickAt(p);
         return true;
     }
@@ -1298,8 +1396,10 @@ public sealed partial class CadSession : ObservableObject
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
-            bool over = hhs.Any(hh => HandleHit(hh, p.X, p.Y));
-            if (over != _handleHover) { _handleHover = over; Invalidate(); }
+            int hot = -1;
+            for (int i = 0; i < hhs.Count; i++) if (HandleHit(hhs[i], p.X, p.Y)) { hot = i; break; }
+            if ((hot >= 0) != _handleHover) { _handleHover = hot >= 0; Invalidate(); }
+            if (hot >= 0 && hot != _handleIdx) { _handleIdx = hot; Invalidate(); }
         }
         ActiveTool?.PointerMove(this, p);
     }
@@ -1413,7 +1513,8 @@ public sealed partial class CadSession : ObservableObject
             bool hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
             uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
             o.AddDot(grip, colour, _handleDrag ? 13 : 11);
-            o.AddLabel(grip, active && _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}  -  drag or type", true, 4);
+            if (active && (_handleDrag || _handleHover || _typed.Length > 0))
+                o.AddLabel(grip, _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}", true, 4);
             return;
         }
         if (h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max)))
@@ -1440,7 +1541,8 @@ public sealed partial class CadSession : ObservableObject
         }
         string unit = h.Param.Unit.Length > 0 ? " " + h.Param.Unit : "";
         bool atEnd = Assembly.JointVisuals.IsLimit(h.Param.Min) && h.Param.Value <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && h.Param.Value >= h.Param.Max - 1e-6;
-        o.AddLabel(apex + A * (ps * 12), active && _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}  -  drag or type", true, 4);
+        if (active && (_handleDrag || _handleHover || _typed.Length > 0))
+            o.AddLabel(apex + A * (ps * 12), _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}", true, 4);
     }
 
     /// <summary>Typing a number while a grab handle is showing sets its value (Tab switches handle, Enter applies, Esc cancels).</summary>
@@ -1476,6 +1578,16 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand?.HasPanelStep == true && key is "Enter" or "Escape")
         { if (key == "Enter") AcceptCommandPanel(); else CancelCommandPanel(); return true; }
         if (ActiveCommand == null && Sketch?.SpaceKey(this, key) == true) return true;
+        // One Esc leaves datum work entirely: the placement tool, the gizmo bound to the new datum and the datum selection together
+        // (the gizmo's own Esc steps — release the payload, then hide — are for the Move tool, where they mean something).
+        if (key == "Escape" && ActiveCommand == null && Sketch == null
+            && (FreeTool is DatumPickTool || DatumVisible && Datum is { MoveMode: false } && Selection is [{ Kind: SelKind.Datum }]))
+        {
+            HideDatumGizmo();
+            if (FreeTool != null) SetFreeTool(null);
+            if (Selection is [{ Kind: SelKind.Datum }]) ClearSelection();
+            return true;
+        }
         if (DatumVisible && Datum!.Key(this, key)) return true;
         if (ActiveTool?.Key(this, key) == true) return true;
         if (ActiveCommand == null && Sketch?.DrawingKey(this, key) == true) return true;
@@ -1503,7 +1615,7 @@ public sealed partial class CadSession : ObservableObject
 
     void BuildOriginOverlay(Overlay o)
     {
-        double size = OriginSize();
+        double size = OriginSize() * PlaneScale;
         uint[] tint = [0x4C94FF, 0x3FCF8E, 0xFF6B6F];
         string[] label = ["XY", "XZ", "YZ"];
         for (int i = 0; i < 3; i++)
@@ -1539,10 +1651,10 @@ public sealed partial class CadSession : ObservableObject
     {
         foreach (var obj in Objects)
         {
-            if (obj.Kind != ObjKind.Plane || !obj.Visible || HiddenIds.Contains(obj.Id) || obj.SketchPlane is not { } pl) continue;
+            if (obj.Kind != ObjKind.Plane || !PlaneShown(obj) || HiddenIds.Contains(obj.Id) || obj.SketchPlane is not { } pl) continue;
             var it = SelItem.Of(obj);
             bool sel = _selection.Contains(it), hov = Hover == it;
-            var (hu, hv) = PlaneHalfSize(obj);
+            var (hu, hv) = PlaneHalfSize(obj); hu *= PlaneScale; hv *= PlaneScale;
             uint tint = obj.Color & 0xFFFFFF;
             Vec3 P(double u, double v) => pl.PointAt(u * hu, v * hv);
             uint fill = ((sel ? 0x66u : hov ? 0x55u : 0x24u) << 24) | tint;
@@ -1553,20 +1665,22 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>The principal plane facing the camera when the view is (nearly) axis-aligned, else the ground plane (the same rule the grid uses).</summary>
-    Plane3 ViewPlane()
-    {
-        var e = Camera.EyeDirection; double ax = Math.Abs(e.X), ay = Math.Abs(e.Y), az = Math.Abs(e.Z);
-        const double near = 0.95;
-        if (ax >= near && ax >= ay && ax >= az) return Plane3.YZ;
-        if (ay >= near && ay >= ax && ay >= az) return Plane3.XZ;
-        return Plane3.XY;
-    }
+    Plane3 ViewPlane() => Camera.AxisFacingPlane() ?? Plane3.XY;
 
-    /// <summary>In orthographic mode, and while sketching, both axes of the plane being looked at are drawn: X red, Y green, Z blue.</summary>
+    /// <summary>
+    /// The plane the reference grid and the axis cross lie on. An orthographic view snapped squarely to a world axis shows the grid
+    /// of the plane being looked at (front view → the front plane) — drawing flat or in space, sketching or not. Perspective keeps the
+    /// one grid of the plane that was picked: the sketch's entry plane or a command's work plane, then the camera-facing principal plane.
+    /// </summary>
+    public Plane3 DisplayGridPlane() =>
+        (Ortho || Camera.Orthographic) && Camera.AxisFacingPlane() is { } facing ? facing
+        : Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+
+    /// <summary>In orthographic mode, and while sketching, both axes of the grid plane being looked at are drawn: X red, Y green, Z blue.</summary>
     void BuildPlaneAxesOverlay(Overlay o)
     {
         if (!Ortho && !Camera.Orthographic && Sketch == null) return;
-        var pl = Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+        var pl = DisplayGridPlane();
         double ext = Math.Max(Camera.Distance * 30, 400);
         uint ColorOf(Vec3 a) => Math.Abs(a.X) > 0.9 ? 0xFFE5484D : Math.Abs(a.Y) > 0.9 ? 0xFF3FCF8E : 0xFF4C94FF;
         o.AddLine(pl.Origin - pl.U * ext, pl.Origin + pl.U * ext, ColorOf(pl.U), 1.8f);
@@ -1586,9 +1700,10 @@ public sealed partial class CadSession : ObservableObject
         foreach (var obj in Objects.Where(x => x.Visible && x.Id != Sketch?.EditingId && x.SketchData != null))
         {
             if (obj.SketchPlane is not { } root || obj.SketchData is not { } document) continue;
-            SketchContext.DrawDatumReferences(this,o,document.Datums);
+            SketchContext.DrawDatumReferences(this,o,document.Datums,null,obj.Id);
             foreach (var (model, plane) in document.DrawingModels(root))
             {
+                SketchContext.DrawGrease(o, model, plane);
                 if (model.ShowConstruction)
                     foreach (var (entity, pts) in model.Polylines(plane).Where(x => x.ent.Construction))
                         SketchContext.AddDashed(o, pts, 0xFFB79CFF, 1.5f, Camera.PixelSizeAt(pts[0]));
@@ -1603,18 +1718,46 @@ public sealed partial class CadSession : ObservableObject
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
         BuildRegionOverlay(o);
+        int toolLines = o.Lines.Count;
         ActiveTool?.BuildOverlay(this, o);
+        // while construction mode is on, what is being drawn previews as a dashed reference line from the first moment, as it will look once placed
+        if (Sketch is { Construction: true } && ActiveTool is SketchTool and not (SketchMirrorTool or OffsetTool)) DashRubberBand(o, toolLines);
         if (DatumVisible) Datum!.BuildOverlay(this, o);
         (ActiveTool as ClickTool)?.BuildHud(this, o);
         if (ActiveStudy != null && (Result == null || Result.Kind == Simulation.ResultKind.MeshOnly)) Simulation.StudyOverlay.Draw(this, o);
         if (ShowBounds) BuildBoundsOverlay(o);
     }
 
+    /// <summary>Turn the solid rubber-band lines a sketch tool added since <paramref name="from"/> into dashes, keeping the rest as drawn.</summary>
+    void DashRubberBand(Overlay o, int from)
+    {
+        var added = o.Lines.GetRange(from, o.Lines.Count - from);
+        o.Lines.RemoveRange(from, added.Count);
+        var run = new List<Vec3>(); float width = 2; 
+        void Flush()
+        {
+            if (run.Count > 1) SketchContext.AddDashed(o, run, SketchTool.Rubber, width, Camera.PixelSizeAt(run[0]));
+            run = [];
+        }
+        foreach (var l in added)
+        {
+            if (l.Color != SketchTool.Rubber) { o.Lines.Add(l); continue; }
+            if (run.Count > 0 && (run[^1] - l.A).Length > 1e-9) Flush();
+            if (run.Count == 0) { run.Add(l.A); width = l.Width; }
+            run.Add(l.B);
+        }
+        Flush();
+    }
+
     // ------------------------------------------------------------ files
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null);
+    /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
+    public string? OpeningTab { get; set; }
+    /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
+    public string? OpeningCommand { get; set; }
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null, string? OpenCommand = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -1661,7 +1804,7 @@ public sealed partial class CadSession : ObservableObject
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         NativeDocumentFile.WriteAtomic(path, SerializeDocument());
-        FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
+        FilePath = path; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
 
     /// <summary>Write committed state without adopting a path or marking the user's work saved.</summary>
@@ -1677,7 +1820,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab, OpeningCommand);
         return JsonSerializer.Serialize(dto);
     }
 
@@ -1726,12 +1869,12 @@ public sealed partial class CadSession : ObservableObject
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
-        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke();
+        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
         PartInfo = dto.Info ?? new(); PartInfoChanged?.Invoke();
-        FilePath = path; Dirty = false;
+        FilePath = path; Dirty = false; _cleanNode = Current; _offHistoryEdit = false;
         RaiseScene(); ZoomExtents(); Say($"Opened {Path.GetFileName(path)}");
     }
 

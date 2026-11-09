@@ -10,10 +10,12 @@ namespace Prism.Commands;
 public static class SelectionChains
 {
     const double Tolerance = 1e-5;
+    const int MaxEdges = 2048;
     static bool Near(Vec3 a, Vec3 b) => (a - b).Length < Tolerance;
     public static IReadOnlyList<SelItem> Expand(CadSession session, SelItem seed, bool tangent)
     {
         var obj = session.Find(seed.Obj) ?? throw new KernelException("The selected object no longer exists.");
+        if (obj.Shape.Count(SubKind.Edge) > MaxEdges) throw new KernelException("This object is too large for chain selection. Use Single edges instead.");
         var edges = Enumerable.Range(0, obj.Shape.Count(SubKind.Edge)).Select(i => Occ.EdgeInfoOf(obj.Shape.Sub(SubKind.Edge, i))).ToArray();
         if (seed.Index < 0 || seed.Index >= edges.Length) throw new KernelException("The selected edge no longer exists.");
         var chosen = new HashSet<int> { seed.Index }; var pending = new Queue<int>(); pending.Enqueue(seed.Index);
@@ -64,29 +66,53 @@ public static class SelectionChains
             throw new KernelException($"This chain exceeds the selection limit of {slot.MaxCount}.");
         foreach (var edge in expanded) slot.TryAdd(edge);
     }
-    public static void UpdatePartial(CadSession s, SelectionSlot slot)
+    /// <summary>The edges a click on <paramref name="hover"/> would add for the slot's current rule — feeds the viewport hover preview. Never throws.</summary>
+    public static IReadOnlyList<SelItem> Preview(CadSession s, SelectionSlot slot, SelItem hover)
     {
-        if (slot.ChainStart is not { } start || slot.ChainEnd is not { } end) return;
+        try
+        {
+            if (!slot.HasSelectionRules || hover.Kind != SelKind.Edge) return [];
+            if (slot.IsPartialLoop)
+            {
+                if (slot.ChainStart is not { } start || start.Obj != hover.Obj) return [];
+                return PathItems(s, start, hover.Index, slot.OtherPath, slot.MaxCount).Where(p => p != hover).ToArray();
+            }
+            if (slot.EdgeRule is 1 or 2)
+                return Expand(s, hover, slot.EdgeRule == 2).Where(p => p != hover).ToArray();
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { }
+        return [];
+    }
+
+    /// <summary>The chain of edges between a start edge and an end edge index, taking the shorter way unless <paramref name="otherPath"/>.</summary>
+    static IReadOnlyList<SelItem> PathItems(CadSession s, SelItem start, int endIndex, bool otherPath, int maxCount)
+    {
         var obj = s.Find(start.Obj) ?? throw new KernelException("The profile no longer exists.");
-        if (obj.Shape.Count(SubKind.Edge) > 2048) throw new KernelException("This object is too large for partial-loop selection. Use Single edges or Connected chain.");
+        if (obj.Shape.Count(SubKind.Edge) > MaxEdges) throw new KernelException("This object is too large for partial-loop selection. Use Single edges or Connected chain.");
         var edges = Enumerable.Range(0, obj.Shape.Count(SubKind.Edge)).Select(i => Occ.EdgeInfoOf(obj.Shape.Sub(SubKind.Edge, i))).ToArray();
         var neighbors = Enumerable.Range(0, edges.Length).Select(i => Enumerable.Range(0, edges.Length).Where(j => i != j &&
             (Near(edges[i].Start, edges[j].Start) || Near(edges[i].Start, edges[j].End) || Near(edges[i].End, edges[j].Start) || Near(edges[i].End, edges[j].End))).ToArray()).ToArray();
-        if (start.Index < 0 || end.Index < 0 || start.Index >= edges.Length || end.Index >= edges.Length) throw new KernelException("A selected edge no longer exists.");
+        if (start.Index < 0 || endIndex < 0 || start.Index >= edges.Length || endIndex >= edges.Length) throw new KernelException("A selected edge no longer exists.");
         var paths = new List<List<int>>();
         void Walk(int i, List<int> path)
         {
-            if (paths.Count >= 2 || path.Count > 2048) return;
-            if (i == end.Index) { paths.Add([.. path]); return; }
+            if (paths.Count >= 2 || path.Count > MaxEdges) return;
+            if (i == endIndex) { paths.Add([.. path]); return; }
             if (neighbors[i].Length > 2) throw new KernelException("Partial loop needs a continuous loop without branch junctions. Use Single edges at an intersection.");
             foreach (int next in neighbors[i]) if (!path.Contains(next)) { path.Add(next); Walk(next, path); path.RemoveAt(path.Count - 1); }
         }
         Walk(start.Index, [start.Index]);
         if (paths.Count == 0) throw new KernelException("These edges are not connected.");
         var ordered = paths.OrderBy(p => p.Count).ToList();
-        var chosen = slot.OtherPath ? ordered[^1] : ordered[0];
-        if (chosen.Count > slot.MaxCount) throw new KernelException("The partial loop exceeds this selection limit.");
-        var picks = chosen.Select(i => new SelItem(start.Obj, SelKind.Edge, i)).ToList();
+        var chosen = otherPath ? ordered[^1] : ordered[0];
+        if (chosen.Count > maxCount) throw new KernelException("The partial loop exceeds this selection limit.");
+        return chosen.Select(i => new SelItem(start.Obj, SelKind.Edge, i)).ToArray();
+    }
+
+    public static void UpdatePartial(CadSession s, SelectionSlot slot)
+    {
+        if (slot.ChainStart is not { } start || slot.ChainEnd is not { } end) return;
+        var picks = PathItems(s, start, end.Index, slot.OtherPath, slot.MaxCount);
         if (slot.Items.SequenceEqual(picks)) return;
         slot.Items.Clear(); foreach (var pick in picks) slot.TryAdd(pick);
     }

@@ -82,6 +82,21 @@ public class SurfaceAppearanceTests
         Assert.Equal(red.Sample(.1f, .3f), red.Sample(1.1f, -1.7f));
     }
 
+    [Fact(DisplayName = "APP-U008 | Decal sampling keeps alpha, blends over the base and respects repeat clamping")]
+    [Trait("TestId", "APP-U008")]
+    public void DecalSampling()
+    {
+        var img = new SurfaceImage(2, 1, [255, 0, 0, 255, 0, 255, 0, 128]);
+        var s = new SurfaceStyle { TextureSize = 10, TextureRepeat = false };
+        var d = SurfaceLayers.SampleDecal(img, s, new Vector3(2.5f, 2.5f, 0));
+        Assert.Equal(1f, d.W, 2); Assert.True(d.X > 0 && d.Y == 0);           // on the red texel: premultiplied rgb = red * alpha
+        Assert.Equal(Vector4.Zero, SurfaceLayers.SampleDecal(img, s, new Vector3(15, 0, 0)));   // outside the image, repeat off: see-through
+        var rep = SurfaceLayers.SampleDecal(img, s with { TextureRepeat = true }, new Vector3(15, 0, 0));
+        Assert.True(rep.W > 0);                                              // repeat tiles the artwork again
+        var half = img.Sample4(.75f, .5f);
+        Assert.InRange(half.W, .5f, .8f);                                    // alpha interpolates between the opaque and half-alpha texels
+    }
+
     [Theory(DisplayName = "APP-U007 | Clear-coat reflection is reciprocal and does not create energy in representative white-furnace integrations")]
     [Trait("TestId", "APP-U007")]
     [InlineData(0f, 0f)][InlineData(1f, 0f)][InlineData(0f, 60f)][InlineData(1f, 60f)]

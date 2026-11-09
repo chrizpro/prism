@@ -13,3 +13,5 @@ Start with [the shared requirements and testing workflow](docs/engineering/requi
 - Native OCCT/CAE/Avalonia tests may require the configured Windows workstation. Don't claim cloud validation ran when it didn't.
 
 For stable requirement IDs, test links, issue/PR templates, and review gates, follow the shared workflow linked above.
+
+- To find bugs in tools and their options, follow the [visual feature scripts technique](docs/engineering/requirements-and-testing.md#visual-feature-scripts-testsvisual) (`tests/visual/`): scenarios with known answers, small pictures, pointer-driven mouse tools, filed bugs as `KNOWN ISSUE` lines, and `tests/visual/coverage.py` for command coverage.

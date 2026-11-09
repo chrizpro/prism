@@ -69,4 +69,86 @@ public class SelectionTests
         Assert.Equal(2, result.Count);
         Assert.Contains(result, item => item.Obj == back.Id);
     }
+
+    static PointerInfo Down(double x, double y) => new(x, y, true, false, false, false);
+    static PointerInfo Up(double x, double y) => new(x, y, false, false, false, false);
+
+    [AvaloniaFact(DisplayName = "SOL-H081 | A drag on empty space draws a selection rectangle without arming a method first")]
+    [Trait("TestId", "SOL-H081")]
+    public void EmptySpaceDragSelectsWithoutArming()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new Vec3(-10, -10, -5), 20, 20, 10);
+        session.Camera.SetView(0, 90);
+        session.Camera.Orthographic = true;
+        var pixel = session.Camera.Project(Vec3.Zero)!.Value;
+        Assert.Equal(SelectMethod.Click, session.Method);    // the default: nothing armed
+
+        session.PointerDown(Down(pixel.x + 140, pixel.y + 100));   // press on empty space
+        session.PointerMove(Down(pixel.x - 140, pixel.y - 100));
+        Assert.True(session.DrawingRegion);                        // the rectangle appears
+        session.PointerUp(Up(pixel.x - 140, pixel.y - 100));       // right to left: whatever it touches
+        Assert.Contains(session.Selection, item => item.Obj == body.Id);
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H082 | A drag on empty space keeps working when there is nothing to hit")]
+    [Trait("TestId", "SOL-H082")]
+    public void EmptyCanvasDragDrawsRectangle()
+    {
+        var session = new CadSession();                      // completely empty scene
+        session.Camera.SetView(0, 90);
+        session.Camera.Orthographic = true;
+        session.PointerDown(Down(50, 50));
+        session.PointerMove(Down(180, 140));
+        Assert.True(session.DrawingRegion);
+        session.PointerUp(Up(180, 140));
+        Assert.False(session.DrawingRegion);
+        Assert.Empty(session.Selection);
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H083 | Paint select takes whatever the stroke crosses and nothing else")]
+    [Trait("TestId", "SOL-H083")]
+    public void PaintSelectsOnlyCrossedBodies()
+    {
+        var session = new CadSession();
+        var hitBody = CreateBoxBody(session, new Vec3(-10, -10, -5), 20, 20, 10);
+        var missed = CreateBoxBody(session, new Vec3(60, 60, -5), 10, 10, 10);
+        session.Method = SelectMethod.Paint;
+        session.Camera.SetView(0, 90);
+        session.Camera.Orthographic = true;
+        var at = session.Camera.Project(Vec3.Zero)!.Value;
+        var off = session.Camera.Project(new Vec3(65, 65, 0))!.Value;
+
+        session.PointerDown(Down(at.x - 120, at.y));
+        session.PointerMove(Down(at.x - 40, at.y + 3));      // the stroke passes over the box
+        session.PointerMove(Down(at.x + 40, at.y - 2));
+        session.PointerMove(Down(off.x - 160, off.y + 160)); // and well away from the second body
+        Assert.True(session.DrawingRegion);
+        session.PointerUp(Up(off.x - 160, off.y + 160));
+        Assert.Contains(session.Selection, item => item.Obj == hitBody.Id);
+        Assert.DoesNotContain(session.Selection, item => item.Obj == missed.Id);
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H084 | The datum gizmo is global: it places and drags without a sketch or command")]
+    [Trait("TestId", "SOL-H084")]
+    public void DatumGizmoWorksOutsideSketch()
+    {
+        var session = new CadSession();
+        session.Camera.SetView(45, 45);                   // an angled view spreads the gizmo's axes
+        session.Camera.Orthographic = true;
+        Assert.Null(session.Sketch); Assert.Null(session.ActiveCommand);
+
+        session.ShowDatumGizmo(Vec3.Zero);
+        Assert.True(session.DatumVisible);                   // global: no sketch, no command
+        Assert.Equal(Vec3.Zero, session.Datum!.Frame.Origin);
+
+        var pixel = session.Camera.Project(Vec3.Zero)!.Value;
+        Assert.True(session.PointerDown(Down(pixel.x, pixel.y)));   // grabbing the gizmo centre claims the press
+        session.PointerMove(Down(pixel.x + 60, pixel.y + 20));
+        session.PointerUp(Up(pixel.x + 60, pixel.y + 20));
+        Assert.NotEqual(Vec3.Zero, session.Datum!.Frame.Origin);    // the frame actually moved
+
+        Assert.True(session.Datum.Key(session, "Escape"));
+        Assert.False(session.DatumVisible);
+    }
 }

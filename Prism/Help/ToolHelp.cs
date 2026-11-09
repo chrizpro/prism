@@ -6,7 +6,7 @@ using Prism.Rendering;
 
 namespace Prism.Help;
 
-public sealed record ToolHelpTopic(string Icon, string Title, string Purpose, string BeforeLabel, string AfterLabel, string Steps, string Tip);
+public sealed record ToolHelpTopic(string Icon, string Title, string Purpose, string BeforeLabel, string AfterLabel, string Steps, string Tip, bool NoPreview = false, string? Picture = null);
 public sealed record ToolHelpExample(StudioPreviewSource Before, StudioPreviewSource After);
 
 /// <summary>Small, isolated examples made with the same kernel operations as the modeling tools.</summary>
@@ -49,6 +49,9 @@ public static partial class ToolHelp
         Commands.TurnCommand => Find("cnc-turn"),
         Commands.DrillCommand => Find("cnc-drill"),
         Commands.FaceMillCommand => Find("cnc-face"),
+        Commands.ImageReliefCommand => Find("cnc-image"),
+        Commands.MoldCommand => Find("mold"),
+        Commands.MoldPartFromTabCommand => Find("mold-tab"),
         Commands.Rough3DCommand => Find("cnc-rough"),
         Commands.ParallelFinishCommand => Find("cnc-finish"),
         Commands.CncPostCommand => Find("cnc-post"),
@@ -74,7 +77,7 @@ public static partial class ToolHelp
         Commands.InterferenceCommand => Find("interference"),
         Commands.CheckCommand => Find("check-geometry"),
         Commands.CurvatureCommand => Find("curvature"),
-        Commands.CurveCurvatureCommand => Find("curvature"),
+        Commands.CurveCurvatureCommand => Find("curve-comb"),
         Commands.DraftCommand => Find("draft"),
         Commands.DrawingCommand => Find("drawing"),
         Commands.TransformCommand when command.Title is "Move" or "Rotate" or "Scale" => Find(command.Title.ToLowerInvariant()),
@@ -84,9 +87,37 @@ public static partial class ToolHelp
         Commands.TransformCommand when command.Title == "Mirror" => Find("mirror"),
         Commands.LinearPatternCommand => Find("pattern-linear"),
         Commands.CircularPatternCommand => Find("pattern-circular"),
+        Commands.TrimSurfaceCommand => Find("surface-trim"),
+        Commands.OffsetSurfaceCommand => Find("surface-offset"),
         Commands.ExtrudeCommand or Commands.LoftCommand or Commands.SweepCommand or Commands.RevolveCommand or Commands.FilletCommand or Commands.ChamferCommand => Find(command.Icon),
-        _ => null
+        // Unrelated commands share icons (Untrim and Box, Sweep and Sweep 2 rails), so an icon's topic
+        // only counts when it names the same tool.
+        _ => command != null && Find(command.Icon) is { } topic && SameTool(topic.Title, command.Title) ? topic : null
     };
+
+    /// <summary>
+    /// The help key for one ribbon button: a topic written for that exact button (by tab, icon and label),
+    /// then its command's topic, then the tab's own mapping, then the icon's topic when it names the same tool.
+    /// </summary>
+    public static string? ForRibbon(string tab, string icon, string label, Func<string?>? command)
+    {
+        label = label.Replace("\n", " ");
+        foreach (var key in new[] { tab + ":" + icon + "|" + label, icon + "|" + label })
+            if (FindButton(key) != null) return key;
+        return command?.Invoke() ?? ForButton(tab, icon) ?? (Find(icon) is { } topic && SameTool(topic.Title, label, qualified: true) ? icon : null);
+    }
+
+    /// <summary>
+    /// True when the topic title covers every word of the tool's name ("Select Object" for "Object"), but not for
+    /// unrelated tools that share an icon, nor "Sweep" for the "Sweep 2 Rails" command. A ribbon label may also
+    /// qualify its topic's title ("Save As", "Export STL", "Fillet / Chamfer").
+    /// </summary>
+    static bool SameTool(string title, string label, bool qualified = false)
+    {
+        static HashSet<string> Words(string text) => text.ToLowerInvariant().Split(new[] { ' ', '/', '-', '&', '(', ')', '.', '\n' }, StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        var a = Words(title); var b = Words(label);
+        return b.Count > 0 && (a.IsSupersetOf(b) || qualified && b.IsSupersetOf(a));
+    }
 
     public static ToolHelpTopic? Find(string? icon) => icon switch
     {
@@ -147,7 +178,7 @@ public static partial class ToolHelp
         "pattern-circular" => new(icon, "Circular Pattern", "Repeat objects around an axis at an even angle.", "Start: one object", "Result: copies around the axis",
             "1. Select the objects to repeat.\n2. Choose the axis to turn around.\n3. Set the count and angle, then accept.",
             "The copies are spread over the full 360° unless you set a smaller angle."),
-        _ => FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon)
+        _ => FindButton(icon) ?? FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon) ?? FindModel(icon)
     };
 
     /// <summary>Help for ribbon buttons that are not commands (toggles and actions), keyed by the tab they sit on and their icon.</summary>
@@ -160,6 +191,7 @@ public static partial class ToolHelp
 
     static string? ForTabButton(string tab, string icon) => (tab, icon) switch
     {
+        ("Mold", "mold-file") => Find("mold-file")?.Icon,
         ("View", "ortho" or "perspective" or "xray" or "isolate") => Find(icon)?.Icon,
         ("View", "zebra" or "clear-analysis") => Find(icon)?.Icon,
         ("Static", "sim-study") => Find("sim-study")?.Icon,
@@ -177,21 +209,24 @@ public static partial class ToolHelp
 
     public static ToolHelpExample Example(ToolHelpTopic topic)
     {
+        if (topic.NoPreview) throw new InvalidOperationException($"No preview for '{topic.Icon}'.");
         if (Cache.TryGetValue(topic.Icon, out var cached)) return cached;
-        bool solid = !topic.Icon.EndsWith("-surface", StringComparison.Ordinal);
+        // A topic can borrow another tool's picture; the cache stays per topic because the captions differ.
+        string id = topic.Picture ?? topic.Icon;
+        bool solid = !id.EndsWith("-surface", StringComparison.Ordinal);
         ToolHelpExample example;
-        if (topic.Icon is "sim-fixed" or "sim-force" or "sim-pressure")
+        if (id is "sim-fixed" or "sim-force" or "sim-pressure")
         {
             using var body = Occ.Box(32, 18, 12);
             var mesh = body.Tessellate();
             example = new(new(mesh, [], [], false, topic.BeforeLabel),
-                new(mesh, [], [0], false, topic.AfterLabel, topic.Icon == "sim-fixed" ? 0xFF2EA043u : 0xFFE5484Du));
+                new(mesh, [], [0], false, topic.AfterLabel, id == "sim-fixed" ? 0xFF2EA043u : 0xFFE5484Du));
         }
-        else if (topic.Icon is "cnc-profile" or "cnc-pocket")
+        else if (id is "cnc-profile" or "cnc-pocket")
         {
             var session = new Core.CadSession();
             var outline = session.AddObject(Occ.Polyline([new(0, 0, 0), new(40, 0, 0), new(40, 30, 0), new(0, 30, 0)], true), "Outline", Core.ObjKind.Curve);
-            Commands.Command command = topic.Icon == "cnc-profile" ? new Commands.ProfileCommand() : new Commands.PocketCommand();
+            Commands.Command command = id == "cnc-profile" ? new Commands.ProfileCommand() : new Commands.PocketCommand();
             session.StartCommand(command);
             command.Pick(Core.SelItem.Of(outline), false);
             var output = command.TryBuild() ?? throw new InvalidOperationException(command.Error ?? "Toolpath could not be generated.");
@@ -215,37 +250,37 @@ public static partial class ToolHelp
             }
             finally { foreach (var segment in segments) segment.Dispose(); foreach (var item in output.Add) item.Shape?.Dispose(); }
         }
-        else if (topic.Icon is "fillet" or "chamfer")
+        else if (id is "fillet" or "chamfer")
         {
             using var input = Occ.Box(30, 22, 18);
-            using var result = topic.Icon == "fillet" ? Occ.Fillet(input, [0], 4) : Occ.Chamfer(input, [0], 4);
+            using var result = id == "fillet" ? Occ.Fillet(input, [0], 4) : Occ.Chamfer(input, [0], 4);
             var mesh = input.Tessellate();
             example = new(new(mesh, [0], [], false, topic.BeforeLabel, 0xFF3988E8),
                 new(result.Tessellate(), [], [], false, topic.AfterLabel));
         }
-        else if (topic.Icon is "union" or "subtract" or "intersect")
+        else if (id is "union" or "subtract" or "intersect")
         {
             using var body = Occ.Box(24, 24, 14);
             using var cutter = Occ.Cylinder(8, 24);
             using var tool = Occ.Translate(cutter, new(0, 0, -5));
             using var input = Occ.Compound([body, tool]);
-            using var result = topic.Icon switch { "union" => Occ.Fuse(body, tool), "subtract" => Occ.Cut(body, tool), _ => Occ.Common(body, tool) };
+            using var result = id switch { "union" => Occ.Fuse(body, tool), "subtract" => Occ.Cut(body, tool), _ => Occ.Common(body, tool) };
             var mesh = input.Tessellate();
             // The cutter's faces follow the box's six, so they are highlighted to tell the two bodies apart.
             example = new(new(mesh, [], Enumerable.Range(6, Math.Max(0, mesh.FaceCount - 6)).ToArray(), false, topic.BeforeLabel, 0xFF3988E8),
                 new(result.Tessellate(), [], [], false, topic.AfterLabel));
         }
-        else if (topic.Icon is "shell" or "hole")
+        else if (id is "shell" or "hole")
         {
-            double height = topic.Icon == "shell" ? 18 : 14;
+            double height = id == "shell" ? 18 : 14;
             using var body = Occ.Box(30, 22, height);
             var mesh = body.Tessellate();
             int top = FaceAtHeight(mesh, height);
-            using var result = topic.Icon == "shell" ? Occ.Shell(body, [top], -3) : HoleResult(body);
+            using var result = id == "shell" ? Occ.Shell(body, [top], -3) : HoleResult(body);
             example = new(new(mesh, [], [top], false, topic.BeforeLabel, 0xFF3988E8),
                 new(result.Tessellate(), [], [], false, topic.AfterLabel));
         }
-        else if (topic.Icon == "mirror")
+        else if (id == "mirror")
         {
             using var baseBlock = Occ.Translate(Occ.Box(10, 10, 14), new(12, 0, 0));
             using var step = Occ.Translate(Occ.Box(5, 10, 10), new(14.5, 0, 14));
@@ -254,29 +289,67 @@ public static partial class ToolHelp
             using var both = Occ.Compound([part, reflected]);
             example = new(new(part.Tessellate(), [], [], false, topic.BeforeLabel), new(both.Tessellate(), [], [], false, topic.AfterLabel));
         }
-        else if (topic.Icon is "pattern-linear" or "pattern-circular")
+        else if (id is "pattern-linear" or "pattern-circular")
         {
-            bool linear = topic.Icon == "pattern-linear";
+            bool linear = id == "pattern-linear";
+            // Five instances at 72° read as a ring from any camera; four at 90° line up in pairs and look linear.
             using var seed = linear ? Occ.Translate(Occ.Box(8, 8, 8), new(-21, 0, 0)) : Occ.Translate(Occ.Cylinder(3.5, 8), new(14, 0, 0));
             var copies = new List<Shape>();
             try
             {
-                for (int i = 0; i < 4; i++)
-                    copies.Add(linear ? Occ.Translate(seed, new(i * 14, 0, 0)) : Occ.Rotate(seed, new(0, 0, 0), new(0, 0, 1), i * 90));
+                for (int i = 0; i < (linear ? 4 : 5); i++)
+                    copies.Add(linear ? Occ.Translate(seed, new(i * 14, 0, 0)) : Occ.Rotate(seed, new(0, 0, 0), new(0, 0, 1), i * 72));
                 using var all = Occ.Compound(copies);
                 example = new(new(seed.Tessellate(), [], [], false, topic.BeforeLabel), new(all.Tessellate(), [], [], false, topic.AfterLabel));
             }
             finally { foreach (var copy in copies) copy.Dispose(); }
         }
-        else if ((ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
-        else if (topic.Icon.StartsWith("revolve", StringComparison.Ordinal))
+        else if (id is "box" or "cylinder" or "cone" or "sphere" or "torus")
+        {
+            using var body = id switch
+            {
+                "box" => Occ.Translate(Occ.Box(26, 20, 16), new(-13, -10, 0)),
+                "cylinder" => Occ.Translate(Occ.Cylinder(9, 24), new(0, 0, -12)),
+                "cone" => Occ.Translate(Occ.Cone(10, 3, 22), new(0, 0, -11)),
+                "sphere" => Occ.Sphere(11),
+                _ => Occ.Torus(11, 4),
+            };
+            example = new(Spot(topic.BeforeLabel), new(body.Tessellate(), [], [], false, topic.AfterLabel));
+        }
+        else if (id is "line" or "rect" or "arc" or "ellipse" or "polygon" or "spline")
+        {
+            var markers = new List<Shape>();
+            var wires = new List<Shape>();
+            try
+            {
+                (Vec3[] pts, Shape wire) = id switch
+                {
+                    "line" => (new Vec3[] { new(-14, -8, 0), new(-4, 7, 0), new(14, -2, 0) }, Occ.Polyline([new Vec3(-14, -8, 0), new Vec3(-4, 7, 0), new Vec3(14, -2, 0)], false)),
+                    "rect" => (new Vec3[] { new(-12, -8, 0), new(12, 8, 0) }, Occ.Polyline([new Vec3(-12, -8, 0), new Vec3(12, -8, 0), new Vec3(12, 8, 0), new Vec3(-12, 8, 0)], true)),
+                    "arc" => (new Vec3[] { new(-12, 0, 0), new(12, 0, 0) }, Occ.Arc3(new Vec3(-12, 0, 0), new Vec3(0, 11, 0), new Vec3(12, 0, 0))),
+                    "polygon" => (new Vec3[] { new(0, 0, 0), new(11, 0, 0) }, Occ.Polyline(Enumerable.Range(0, 6).Select(i => new Vec3(Math.Cos(i * Math.PI / 3) * 11, Math.Sin(i * Math.PI / 3) * 11, 0)).ToArray(), true)),
+                    "spline" => (new Vec3[] { new(-14, -6, 0), new(-7, 8, 0), new(2, -4, 0), new(14, 6, 0) }, Occ.Spline([new Vec3(-14, -6, 0), new Vec3(-7, 8, 0), new Vec3(2, -4, 0), new Vec3(14, 6, 0)])),
+                    _ => (new Vec3[] { new(0, 0, 0), new(11, 0, 0) }, Occ.Circle(new Vec3(0, 0, 0), new Vec3(0, 0, 1), 11)),
+                };
+                wires.Add(wire);
+                foreach (var pt in pts) markers.Add(Occ.Translate(Occ.Sphere(1.1), pt));
+                using var before = Occ.Compound(markers);
+                using var after = Occ.Compound(wires);
+                var afterMesh = after.Tessellate();
+                example = new(new(before.Tessellate(), [], [], false, topic.BeforeLabel, 0xFF3988E8),
+                    new(afterMesh, afterMesh.SegEdge.Distinct().ToArray(), [], false, topic.AfterLabel, 0xFF3988E8));
+            }
+            finally { foreach (var m in markers) m.Dispose(); foreach (var w in wires) w.Dispose(); }
+        }
+        else if ((ExampleButtons(topic, id) ?? ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
+        else if (id.StartsWith("revolve", StringComparison.Ordinal))
         {
             using var outline = Occ.Polyline([new(4, 0, 0), new(12, 0, 0), new(10, 0, 20), new(4, 0, 20)], true);
             using var profile = Occ.Profile([outline], solid);
             using var result = Occ.Revolve(profile, new(0, 0, 0), new(0, 0, 1), 360);
             example = Pair(outline, result, topic);
         }
-        else if (topic.Icon.StartsWith("loft", StringComparison.Ordinal))
+        else if (id.StartsWith("loft", StringComparison.Ordinal))
         {
             using var a = Occ.Circle(new(0, 0, 0), new(0, 0, 1), 14);
             using var b = Occ.Circle(new(5, 0, 32), new(0, 0, 1), 7);
@@ -284,7 +357,7 @@ public static partial class ToolHelp
             using var result = Occ.Loft([a, b], solid, false);
             example = Pair(input, result, topic);
         }
-        else if (topic.Icon.StartsWith("sweep", StringComparison.Ordinal))
+        else if (id.StartsWith("sweep", StringComparison.Ordinal))
         {
             using var outline = Occ.Circle(new(0, 0, 0), new(0, 0, 1), 4);
             using var path = Occ.Arc3(new(0, 0, 0), new(5.858, 0, 14.142), new(20, 0, 20));
@@ -292,13 +365,17 @@ public static partial class ToolHelp
             using var result = Occ.Sweep(outline, path, solid);
             example = Pair(input, result, topic);
         }
-        else
+        // The generic outline-to-solid preview only belongs to the extrude family — everywhere else it
+        // shows geometry the tool does not make. Topics without a dedicated example get no image.
+        else if (id is "extrude" or "extrude-surface")
         {
             using var outline = Occ.Polyline([new(-12, -9, 0), new(12, -9, 0), new(12, 9, 0), new(-12, 9, 0)], true);
             using var profile = Occ.Profile([outline], solid);
             using var result = Occ.Extrude(profile, new(0, 0, 26));
             example = Pair(outline, result, topic);
         }
+        else throw new InvalidOperationException($"No preview for '{id}'.");
+        if (Flat.Contains(id) || id.StartsWith("c-", StringComparison.Ordinal)) example = Facing(example);
         Cache[topic.Icon] = example;
         return example;
     }

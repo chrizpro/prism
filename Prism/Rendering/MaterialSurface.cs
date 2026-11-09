@@ -11,9 +11,10 @@ public static class MaterialSurface
     {
         if(appearance.Pattern!=SurfacePattern.Automatic)return appearance.Pattern;
         string? id=appearance.MaterialId;
-        if(id is "oak" or "fir")return SurfacePattern.Wood;
-        if(id=="cfrp")return SurfacePattern.CarbonWeave;
-        if(id is "cast-iron" or "cast-al")return SurfacePattern.Cast;
+        var category=appearance.PhysicalSnapshot?.Category??Materials.Find(id)?.Category;
+        if(category=="Wood")return SurfacePattern.Wood;
+        if(id is "cfrp" or "cfrp-ud")return SurfacePattern.CarbonWeave;
+        if(category is "Cast Iron" || id is "cast-al" or "cast-steel")return SurfacePattern.Cast;
         return appearance.Metal>.5f&&appearance.Gloss<=.75f?SurfacePattern.Brushed:SurfacePattern.Plain;
     }
     public static float Variation(SurfacePattern pattern,Vector3 position,Vector3 origin,float scale,float angle)

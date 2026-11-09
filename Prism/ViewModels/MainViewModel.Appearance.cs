@@ -61,7 +61,7 @@ public sealed partial class MainViewModel
         RecentAppearanceColors.Remove(AppearanceColor); RecentAppearanceColors.Insert(0, AppearanceColor);
         if (RecentAppearanceColors.Count > 8) RecentAppearanceColors.RemoveAt(8);
     }
-    bool HasAdvancedSurface => SelectedSurface.Transmission > 0 || SelectedSurface.Anisotropy > 0 || SelectedSurface.Gradient != ColorGradient.None || SelectedSurface.Weathering != WeatheringKind.None || SelectedSurface.Coat > 0 || SelectedSurface.Bump > 0 || SelectedSurface.ColorMap != null || SelectedSurface.RoughnessMap != null || SelectedSurface.BumpMap != null;
+    bool HasAdvancedSurface => SelectedSurface.Transmission > 0 || SelectedSurface.Anisotropy > 0 || SelectedSurface.Gradient != ColorGradient.None || SelectedSurface.Weathering != WeatheringKind.None || SelectedSurface.Coat > 0 || SelectedSurface.Bump > 0 || SelectedSurface.ColorMap != null || SelectedSurface.RoughnessMap != null || SelectedSurface.BumpMap != null || SelectedSurface.DecalMap != null;
     public double ColorValue { get => ColorCode.Hsv(AppearanceColor).V; set { var hsv = ColorCode.Hsv(AppearanceColor); ApplyColor(ColorCode.FromHsv(hsv.H, hsv.S, value)); } }
     public static Func<Task<uint?>>? PickScreenColor { get; set; }
 
@@ -83,6 +83,8 @@ public sealed partial class MainViewModel
     public string RoughnessMapStatus => SelectedSurface.RoughnessMap == null ? "No roughness image" : "Roughness image embedded";
 
     public string BumpMapStatus => SelectedSurface.BumpMap == null ? "No bump image" : "Bump image embedded";
+
+    public string DecalMapStatus => SelectedSurface.DecalMap == null ? "No decal image" : "Decal image embedded";
 
     bool _editingAppearance, _appearanceGesture;
 
@@ -200,6 +202,8 @@ public sealed partial class MainViewModel
 
         OnPropertyChanged(nameof(BumpMapStatus));
 
+        OnPropertyChanged(nameof(DecalMapStatus));
+
     }
 
     public async Task ImportSurfaceMap(string kind)
@@ -218,7 +222,7 @@ public sealed partial class MainViewModel
 
             var data = Rendering.SurfaceImage.Import(path);
 
-            EditSurface(s => kind switch { "color" => s with { ColorMap = data }, "roughness" => s with { RoughnessMap = data }, _ => s with { BumpMap = data, Bump = Math.Max(s.Bump, .3f) } });
+            EditSurface(s => kind switch { "color" => s with { ColorMap = data }, "roughness" => s with { RoughnessMap = data }, "decal" => s with { DecalMap = data }, _ => s with { BumpMap = data, Bump = Math.Max(s.Bump, .3f) } });
 
         }
 
@@ -226,7 +230,7 @@ public sealed partial class MainViewModel
 
     }
 
-    public void ClearSurfaceMap(string kind) => EditSurface(s => kind switch { "color" => s with { ColorMap = null }, "roughness" => s with { RoughnessMap = null }, _ => s with { BumpMap = null } });
+    public void ClearSurfaceMap(string kind) => EditSurface(s => kind switch { "color" => s with { ColorMap = null }, "roughness" => s with { RoughnessMap = null }, "decal" => s with { DecalMap = null }, _ => s with { BumpMap = null } });
 
     public void ResetAppearance()
 

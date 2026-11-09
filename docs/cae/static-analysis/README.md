@@ -41,6 +41,10 @@ Reference equations: [COMSOL structural verification examples](https://doc.comso
 
 The pilot comparison allows 5% error in mean loaded-end displacement and mean interior von Mises stress to accommodate finite mesh/boundary effects; reaction balance allows 1 N. Load scaling on an identical mesh uses a tighter relative comparison. These are benchmark-test tolerances, not approved universal solver accuracy requirements. Stress peaks at clamps/point loads are not compared to uniform bar stress.
 
+## Saved studies
+
+A study saved with a document must still run when the file is reopened. Its stored shape signature is computed on the form a save and reopen produces (the body's B-rep read back from its own text), because a body built in the same session can differ from the reloaded one in unimportant B-rep details. Before this a filleted or cut body's saved study failed with *The body geometry changed* on reopening (STA-H020). Results are not saved; the user presses Run.
+
 ## Requirements and open decisions
 
 Proposed expectations include dimensionally consistent loads/materials, stable face references, meaningful failure without document corruption, finite results for supported well-posed cases, and sufficient diagnostics for equilibrium/mesh quality. Owner review must define supported assumptions and acceptance criteria.

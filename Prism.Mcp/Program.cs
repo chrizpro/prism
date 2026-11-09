@@ -11,10 +11,20 @@ await bridge.RunAsync();
 
 sealed class Bridge
 {
-    static readonly string Discovery = Environment.GetEnvironmentVariable("PRISM_AUTOMATION_DISCOVERY") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "automation.json");
+    /// <summary>The discovery file to read: --discovery overrides (the in-app assistant passes its restricted file), then PRISM_AUTOMATION_DISCOVERY.</summary>
+    static readonly string Discovery = DiscoverPath();
+    static string DiscoverPath()
+    {
+        var argv = Environment.GetCommandLineArgs();
+        var i = Array.IndexOf(argv, "--discovery");
+        if (i >= 0 && i + 1 < argv.Length) return argv[i + 1];
+        return Environment.GetEnvironmentVariable("PRISM_AUTOMATION_DISCOVERY") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "automation.json");
+    }
     static readonly string CachePath = Path.Combine(Path.GetDirectoryName(Discovery)!, "mcp-tools-cache.json");
     readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(6) };
     string? _baseUrl, _token;
+    /// <summary>True when the discovery file marks this endpoint as the assistant's restricted one (no run_script / file tools).</summary>
+    bool _restricted;
 
     const string Instructions =
         "Prism is a desktop CAD application. Prefer run_script (Python: `import cadkit as cad`) and batch many operations in one script, printing only what you need. " +
@@ -110,6 +120,7 @@ sealed class Bridge
 
     async Task<JsonArray> ListToolsAsync()
     {
+        _ = await TryDiscoverAsync();   // sets _restricted even when the ping fails
         var tools = new JsonArray
         {
             LocalTool("app_status", "Report whether the Prism app is running and reachable."),
@@ -123,6 +134,8 @@ sealed class Bridge
             }),
             new JsonObject { ["name"] = "call_api", ["description"] = "Call one application automation tool by name; use describe_api for names and arguments.", ["inputSchema"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["name"] = new JsonObject { ["type"] = "string" }, ["arguments"] = new JsonObject { ["type"] = "object" } }, ["required"] = new JsonArray("name") } },
         };
+        // a restricted (assistant) endpoint cannot run code or touch files: hide run_script so it is not even offered
+        if (_restricted) for (int i = tools.Count - 1; i >= 0; i--) if (tools[i]?["name"]?.ToString() == "run_script") tools.RemoveAt(i);
         // The full catalogue remains available on demand, and old direct calls remain supported.
         if (Environment.GetEnvironmentVariable("PRISM_MCP_FULL_TOOLS") != "1") return tools;
         JsonArray? remote = null;
@@ -161,6 +174,7 @@ sealed class Bridge
             if (name == "describe_api") return Text(Describe((await FetchToolsAsync())!, args));
             if (name == "run_script")
             {
+                if (_restricted) return Error("File access is off for the assistant (\"Let the assistant open, save and export files\" is unchecked): running scripts is unavailable.");
                 var scriptResult = await Post("/script", args);
                 if (scriptResult["ok"]?.GetValue<bool>() != true) return Error(scriptResult["error"]?.ToString() ?? "Script failed to start.");
                 var scriptOutput = scriptResult["result"]!;
@@ -274,6 +288,7 @@ sealed class Bridge
             if (!File.Exists(Discovery)) return false;
             var d = JsonNode.Parse(File.ReadAllText(Discovery))!.AsObject();
             _baseUrl = $"http://127.0.0.1:{d["port"]}"; _token = d["token"]!.ToString();
+            _restricted = d["restricted"]?.GetValue<bool>() == true;
             using var cts = new CancellationTokenSource(1500);
             using var rq = new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/ping");
             rq.Headers.Add("X-Prism-Token", _token);

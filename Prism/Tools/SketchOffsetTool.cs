@@ -88,6 +88,9 @@ public sealed class OffsetTool : SketchTool
     // ------------------------------------------------------------ chains
     static (int a, int b) Ends(SkEntity e) => e.Type == EntType.Line ? (e.A, e.B) : e.Type == EntType.Arc ? (e.B, e.C) : (-1, -1);
 
+    /// <summary>Where a point is, as a key: two curves that end at the same spot are joined there even when each has its own point (a line drawn to meet another is often tied to it only by a point-on-curve constraint).</summary>
+    static (long, long) Spot(SketchModel m, int pid) { var p = m.P(pid); return ((long)Math.Round(p.X * 1e5), (long)Math.Round(p.Y * 1e5)); }
+
     static Chain BuildChain(SketchModel m, SkEntity seed, bool connected)
     {
         var chain = new Chain();
@@ -96,21 +99,24 @@ public sealed class OffsetTool : SketchTool
         var items = chain.Items; items.Add(new Item(seed, true, sa, sb));
         if (!connected) return chain;
         var used = new HashSet<int> { seed.Id };
+        bool Meets(SkEntity o, (long, long) tip) { var (a, b) = Ends(o); return Spot(m, a) == tip || Spot(m, b) == tip; }
         bool Grow(bool forward)
         {
-            var tip = forward ? items[^1].EndPt : items[0].StartPt;
-            var cand = m.Entities.Where(o => !used.Contains(o.Id) && o.Type is EntType.Line or EntType.Arc && (Ends(o).a == tip || Ends(o).b == tip)).ToList();
-            var cnt = m.Entities.Count(o => o.Type is EntType.Line or EntType.Arc && (Ends(o).a == tip || Ends(o).b == tip));
+            var tip = Spot(m, forward ? items[^1].EndPt : items[0].StartPt);
+            var cand = m.Entities.Where(o => !used.Contains(o.Id) && o.Type is EntType.Line or EntType.Arc && Meets(o, tip)).ToList();
+            var cnt = m.Entities.Count(o => o.Type is EntType.Line or EntType.Arc && Meets(o, tip));
             if (cand.Count != 1 || cnt != 2) return false;
             var o = cand[0]; var (a, b) = Ends(o);
             used.Add(o.Id);
-            if (forward) items.Add(a == tip ? new Item(o, true, a, b) : new Item(o, false, b, a));
-            else items.Insert(0, b == tip ? new Item(o, true, a, b) : new Item(o, false, b, a));
+            bool startsHere = Spot(m, a) == tip;
+            if (forward) items.Add(startsHere ? new Item(o, true, a, b) : new Item(o, false, b, a));
+            else items.Insert(0, !startsHere ? new Item(o, true, a, b) : new Item(o, false, b, a));
             return true;
         }
-        while (Grow(true)) { if (items[^1].EndPt == items[0].StartPt) { chain.Closed = true; break; } }
+        bool Closes() => items.Count > 1 && Spot(m, items[^1].EndPt) == Spot(m, items[0].StartPt);
+        while (Grow(true)) { if (Closes()) { chain.Closed = true; break; } }
         if (!chain.Closed) while (Grow(false)) { }
-        if (items.Count > 1 && items[^1].EndPt == items[0].StartPt) chain.Closed = true;
+        if (Closes()) chain.Closed = true;
         return chain;
     }
 

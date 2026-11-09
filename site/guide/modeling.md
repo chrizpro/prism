@@ -1,5 +1,7 @@
 # Sketches, solids, and surfaces
 
+<GuideImage image="solid-extrude-preview" />
+
 ## Sketch on a plane
 
 Use **References → Create Sketch**. Choose a plane or face, draw your profile, and add dimensions and constraints. A closed profile can become a solid; open curves are useful as paths, rails, or surface boundaries.

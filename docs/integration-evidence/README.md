@@ -56,3 +56,27 @@ A three-edge profile on a straight path produces a valid 312 mm² sheet with 10 
 - Keep parallel: [inputs](SWP-I001/parallel/01-profile-and-path.png) · [preview](SWP-I001/parallel/02-preview.png) · [commit](SWP-I001/parallel/03-committed.png)
 
 The six new cases passed locally through the same Windows Desktop/MCP build and kernel recorded above. Constraint application used MCP entity references. Picking glyphs, curved Sweep orientation, and guide-rail Loft remain open.
+
+## Sketch rail visibility · LFT-I002
+
+2026-11-05, Windows workstation, source based on `f6fd49e` plus the Loft rail visibility correction in this change. Rebuilt Release Desktop/MCP with installed native binaries. The maintained LFT-I002 scenario captures an unselected front-facing sketch rail inside the Surface Loft preview. LFT-H007 checks overlay geometry, picking/removal and hidden-sketch exclusion. The screenshot fixture uses a magenta rail to distinguish it from the grid axes; production preserves the sketch's own color.
+
+The actual mouse check separately activated **Guide rails → Pick geometry**, clicked the rail, verified one slot item and an orange Rail 1 highlight, clicked again and verified an empty slot. These input steps were performed through computer use, not by the automated integration fact. This evidence establishes visibility/selection; it does not certify guided-loft shape accuracy or every rail layout.
+
+![Unselected sketch rail visible over the loft preview](LFT-I002/01-picking-visible-rail.png)
+
+[Picked orange rail](LFT-I002/02-picked-rail.png) · [Removed rail with hover highlight](LFT-I002/03-removed-rail.png) · [Canonical Loft guide](../modeling/loft/README.md#sketch-rails-obscured-by-the-preview)
+
+## Curved ellipse loft · LFT-I003
+
+2026-11-06, configured Windows workstation, source based on `4b7a96d` plus the geometry correction in this change. The owner approved this scope after reporting a surface pulling away from its rails and an apparent freeze. The test recreates the elliptical sketches at Z=0/120 and two three-point spline rails, captures the preview using the Front and Iso presets, commits a valid surface with no solids, and saves a native model. The original live session remains open with its input selections.
+
+Rebuilt the Release native kernel, Desktop and MCP. Kernel SHA-256: `7D2DF87887E695AB8C7ED1F313C156B5F6DA6887A00FD1C9313B251DF065D76C`. Final maintained runs passed **14 Loft Headless cases and 4 Loft Integration cases**, zero failures/skips. Commands: `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter Feature=Loft` and `dotnet test Prism.Tests/Integration/Prism.IntegrationTests.csproj -c Release --filter Feature=Loft`, after rebuilding Desktop/MCP into `artifacts/tests/integration/bin`.
+
+LFT-H008 checks both profile orders and both rail orders: maximum of 49 sampled gaps per rail 0.024618 mm; end-profile samples have zero measured gap. Builds took 0.646–0.748 s and display meshing 1.674–1.948 s with 6,770–9,692 triangles. The original exact-input diagnosis took 16.315 s to mesh 159,491 triangles and measured gaps up to 1.777 mm at 13 samples per rail. These sampling densities differ; neither result is a certified global maximum. Timing is local evidence, not a universal performance contract. LFT-H009 separately checks the analytic straight-rail square-frustum benchmark.
+
+![Corrected two-rail loft preview using the Front preset](LFT-I003/01-front-preview.png)
+
+[Iso preview](LFT-I003/02-iso-preview.png) · [Committed surface](LFT-I003/03-committed.png) · [Canonical geometry scope and limitations](../modeling/loft/README.md#curved-rails-and-slow-preview-diagnosis)
+
+The repeated-section approximation still has finite error between fitted planes. Arbitrary nonparallel sections, same-side or multiply crossing rails, continuity guarantees and general progress/cancellation are not certified by this fixture. No mouse picking was repeated for this geometry correction; LFT-I002 records the earlier separate mouse check.

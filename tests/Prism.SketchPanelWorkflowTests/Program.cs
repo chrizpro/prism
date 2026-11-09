@@ -60,13 +60,19 @@ foreach (var type in types)
         {
             if (tool.Options.Count > 0) { tool.SetOption(s, mode); Dispatcher.UIThread.RunJobs(); }
             string label = type.Name + "/" + seed + "/" + mode;
-            Check(vm.HasToolPanel && vm.ToolSections.Count > 0 && vm.ToolPanelTitle.Length > 0, label + " has a visible workflow");
-            Check(vm.ToolSections.Select(g => g.Number).SequenceEqual(Enumerable.Range(1, vm.ToolSections.Count).Select(n => n.ToString())), label + " has consecutive steps");
-            Check(vm.ToolSections.SelectMany(g => g.Controls).Count() == vm.ToolPanel.Count && vm.ToolSections.SelectMany(g => g.Controls).Distinct().Count() == vm.ToolPanel.Count, label + " places every control exactly once");
-            Check(vm.ToolSections.SelectMany(g => g.Options).Sum(o => Math.Max(1, o.Choices.Length)) == tool.Options.Count, label + " retains every method");   // methods that share a Group are one dropdown whose choices count individually
-            // Select's own Geometry step is the sketch panel's Geometry block (3D sketch, Edit Geometry, Gizmo); its instructions are that block's tooltip
-            if (tool is not (SelectTool or SketchGeometryEditTool { SplinePoints: false })) Check(vm.ToolSections.Single(g => g.Title == tool.PanelInputTitle).Guidance == tool.Prompt, label + " shows the current geometry instructions");
-            else Check(vm.ToolSections.Single().Title == "Sketch tool", label + " shows only its Sketch tool step; Geometry lives in the sketch panel");
+            // Select and Edit are the sketch panel itself: no docked tool panel — their Box/Lasso/Paint method lives on the ribbon's Select group.
+            if (tool is SelectTool or SketchGeometryEditTool { SplinePoints: false })
+            {
+                Check(vm.HasToolPanel && !vm.ToolPanelFocused && vm.ToolSections.Count == 0 && vm.ToolPanel.Count == 0, label + " keeps the sketch overview docked; its methods stay on the ribbon");
+            }
+            else
+            {
+                Check(vm.HasToolPanel && vm.ToolSections.Count > 0 && vm.ToolPanelTitle.Length > 0, label + " has a visible workflow");
+                Check(vm.ToolSections.Select(g => g.Number).SequenceEqual(Enumerable.Range(1, vm.ToolSections.Count).Select(n => n.ToString())), label + " has consecutive steps");
+                Check(vm.ToolSections.SelectMany(g => g.Controls).Count() == vm.ToolPanel.Count && vm.ToolSections.SelectMany(g => g.Controls).Distinct().Count() == vm.ToolPanel.Count, label + " places every control exactly once");
+                Check(vm.ToolSections.SelectMany(g => g.Options).Sum(o => Math.Max(1, o.Choices.Length)) == tool.Options.Count, label + " retains every method");   // methods that share a Group are one dropdown whose choices count individually
+                Check(vm.ToolSections.Single(g => g.Title == tool.PanelInputTitle).Guidance == tool.Prompt, label + " shows the current geometry instructions");
+            }
             string file = Regex.Replace(type.Name + "-" + seed + "-" + mode, "[^a-zA-Z0-9-]", "").ToLowerInvariant();
             Capture(file);
             inventory.Add(new { Tool = type.Name, tool.Name, tool.Mode, Seed = seed, Option = mode, Sections = vm.ToolSections.Select(g => g.Title).ToArray(), Controls = vm.ToolPanel.Select(r => r.Id).ToArray(), Screenshot = file });

@@ -94,6 +94,42 @@ public sealed class GalleryStoreTests : IDisposable
         Assert.False(File.Exists(store.ModelPath(Entry)));
     }
 
+    [Fact(DisplayName = "GAL-U007 | Sections follow the workspace-tab order; a model is listed under every workflow it names, in catalog order")]
+    [Trait("TestId", "GAL-U007")]
+    public void SectionsGroupByFirstWorkflowInTabOrder()
+    {
+        GalleryEntry E(string id, string workflow) => Entry with { Id = id, Workflow = workflow };
+        var groups = GallerySections.Group([E("a", "Sheet Metal"), E("b", "CAM / Solid"), E("c", "Freeform / Solid"), E("d", "solid / Assembly"), E("e", "Surface / NURBS"), E("f", "Sheet Metal"), E("g", "Robotics"), E("h", "Solid / CAE / solid")]);
+        Assert.Equal(["Solid", "Surface", "Freeform", "NURBS", "Sheet Metal", "Assembly", "CAM", "CAE", "Robotics"], groups.Select(g => g.Section));
+        Assert.Equal(["a", "f"], groups.Single(g => g.Section == "Sheet Metal").Items.Select(x => x.Id));
+        Assert.Equal(["b", "c", "d", "h"], groups.Single(g => g.Section == "Solid").Items.Select(x => x.Id));
+        Assert.Equal(["b"], groups.Single(g => g.Section == "CAM").Items.Select(x => x.Id));
+        Assert.Equal("NURBS", GallerySections.Of(" NURBS "));
+    }
+
+    [Fact(DisplayName = "GAL-U008 | Extra files (video, exploded view) are verified, saved under new names and validated in the catalog")]
+    [Trait("TestId", "GAL-U008")]
+    public async Task ExtraFilesAreVerifiedAndNeverOverwritten()
+    {
+        byte[] video = "mp4 bytes"u8.ToArray();
+        var extra = new GalleryExtra("animation video (MP4)", "table-animation.mp4", "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/table-animation.mp4",
+            video.Length, Convert.ToHexString(SHA256.HashData(video)));
+        var entry = Entry with { Extras = [extra] };
+        var parsed = GalleryCatalog.Parse(new GalleryCatalog(1, [entry]).ToJson());
+        Assert.Equal(entry, Assert.Single(parsed.Items));
+        Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [Entry with { Extras = [extra with { FileName = "../evil.mp4" }] }]).ToJson()));
+        Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [Entry with { Extras = [extra with { Url = "http://example.com/a.mp4" }] }]).ToJson()));
+        using var transport = new Transport(_ => Reply(video));
+        var store = Store(transport);
+        string folder = Path.Combine(root, "out");
+        string first = await store.SaveExtra(extra, folder), second = await store.SaveExtra(extra, folder);
+        Assert.NotEqual(first, second);
+        Assert.Equal(video, await File.ReadAllBytesAsync(first));
+        using var bad = new Transport(_ => Reply("changed!!"u8.ToArray()));
+        await Assert.ThrowsAsync<InvalidDataException>(() => Store(bad).SaveExtra(extra, Path.Combine(root, "bad")));
+        Assert.Empty(Directory.Exists(Path.Combine(root, "bad")) ? Directory.GetFiles(Path.Combine(root, "bad")) : []);
+    }
+
     [Fact(DisplayName = "GAL-U006 | Offline preview cache remains readable; tampered model cache is rejected")]
     [Trait("TestId", "GAL-U006")]
     public async Task OfflinePreviewsAndModelCacheIntegrity()

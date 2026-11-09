@@ -29,11 +29,17 @@ Imports support Radiance RGBE Y/X scanlines, modern RLE and flat/legacy runs, in
 
 **Denoise final image** is optional and off by default. Progressive passes remain raw; the completed image receives three geometry/variance-guided spatial passes before tone mapping and background compositing. Original accumulation and alpha are unchanged. Fractional silhouette coverage and pixels without reliable primary guides remain unfiltered. Geometry and color-difference weights protect material boundaries and reflection/refraction details, but a low-sample image can still lose fine detail or retain noise. Increase samples for difficult reflections, glass and caustic paths. This filter is not temporally stable animation denoising.
 
+### Backgrounds and AI generation
+
+The Background choice offers None, White, Transparent, HDR environment and Imported image. **Import background image…** loads a PNG, JPG, BMP or WEBP file (16 MB maximum, embedded base64 in the document) with a Fill/Fit/Stretch placement.
+
+**Generate with AI…** sits next to the import action and opens the assistant with a staged background prompt. The workflow needs file access (the prompt says so when it is off); with it on, the assistant — Codex is the default provider — writes a PNG into `%LOCALAPPDATA%\Prism\generated` via `run_script` and applies it with `render_setup action=set_background`, which goes through the same `SurfaceImage.Import` validation as a hand-picked image and switches Background to Imported image. No SVG output is used. For external agents, the `render_setup` tool covers the same ground: `set` changes background/environment/exposure/HDR/denoise/camera, `set_background` assigns an image file, `clear_background` returns to the environment. `render_control` continues to poll a running render and save the PNG.
+
 ### Texture placement
 
 In Appearance → Image textures choose **Blended box**, **Planar**, or **Cylindrical** and the projection axis. Set texture size in millimeters, rotation about world Z, XYZ offsets, and height/width aspect. **Center projection on selection** places the projection origin at each selected body's bounding-box center. Repeat image tiles the map; disabling it clamps to its border pixels. A cylinder wraps once around its chosen axis; texture size/aspect set its axial repeat height. Color, roughness and bump share placement so their features align.
 
-Placement remains relative to the body's bounding-box minimum. Translation preserves placement, but rotation and shape edits can require adjustment. No UV editor, automatic seam placement or topology-aware attachment is implied. Clamping repeats the edge pixel rather than adding transparent decal borders. Color-image alpha remains composited on white.
+Placement remains relative to the body's bounding-box minimum. Translation preserves placement, but rotation and shape edits can require adjustment. No UV editor, automatic seam placement or topology-aware attachment is implied. Clamping repeats the edge pixel rather than adding transparent borders. Color-image alpha remains composited on white; the decal layer keeps its alpha instead (see the Appearance studio guide).
 
 ### Glass and transparent surfaces
 
@@ -52,6 +58,7 @@ Appearance → Reflection and detail adds anisotropy (0–0.95) and brush direct
 - [HDR decoding/sampling](../../Prism/Rendering/HdrEnvironment.cs), [denoiser](../../Prism/Rendering/RenderDenoiser.cs), [surface scattering](../../Prism/Rendering/SurfaceScattering.cs), [path tracer](../../Prism/Rendering/PathTracer.cs).
 - [Surface data](../../Prism/Core/SurfaceStyle.cs), [map projection](../../Prism/Rendering/SurfaceLayers.cs), [viewport shader](../../Prism/Rendering/Shaders.Surface.cs), [render panel](../../Prism/Commands/RenderCommand.cs), [appearance controls](../../Prism/Views/MaterialsPanel.axaml).
 - [Unit math/decoder/filter checks](../../Prism.Tests/Unit/Rendering/RenderingQualityTests.cs), [Headless physical-render/persistence checks](../../Prism.Tests/Headless/Rendering/RenderingQualityTests.cs), [desktop HDR/material gallery](../../Prism.Tests/Integration/DesktopRenderingTests.cs). All link back here. Existing appearance and legacy executable tests remain intact.
+- [`render_setup` automation coverage](../../Prism.Tests/Headless/Assistant/AssistantToolTests.cs) (`AST-H006`, `AST-H007`) — state, `set`, image-path validation. A successful PNG decode runs through `SurfaceImage.Import`, which needs the desktop bitmap pipeline; it is exercised by the desktop render flow.
 
 Run each maintained project with `--filter Feature=Rendering`. The desktop scenario follows the [Integration runner](../../Prism.Tests/Integration/README.md) and saves both raw and denoised PNGs in its artifact folder. [Appearance tests](../../Prism.Tests/Headless/Solid/AppearanceStudioTests.cs) continue to cover engineering separation and grouped changes.
 

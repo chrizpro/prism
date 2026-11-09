@@ -2,6 +2,8 @@
 
 Most parts start as a sketch: a profile on a plane that features such as Extrude and Revolve give depth. See the [Sketch ribbon reference](/tools/sketch) for every sketch tool.
 
+<GuideImage src="/images/guides/sketch.png" alt="Prism Sketch ribbon and panel beside a rectangular profile with three circles" caption="The Sketch ribbon groups drawing and constraint tools. The panel on the right reports the remaining degrees of freedom." :width="1500" :height="920" />
+
 ## Start a sketch
 
 1. Choose **References › Create Sketch** on Home, Solid, Surface or another modeling ribbon.
@@ -32,6 +34,8 @@ Select geometry first, then click a constraint: Horizontal, Vertical, Coincident
 The **Sketch status** in the panel shows the remaining degrees of freedom. Blue geometry can still move; white geometry is fully constrained. Drag geometry with **Select** to see what is still free.
 
 Click a constraint symbol to select it and press <kbd>Delete</kbd> to remove it.
+
+<GuideImage image="sketch-dimensions" />
 
 ## Edit
 

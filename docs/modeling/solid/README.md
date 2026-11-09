@@ -20,6 +20,8 @@ The Solid tab groups primitives, features, modification, Direct Edit, Combine, T
 
 ## Review and verification
 
+The public [Solid modeling walkthrough](../../../site/guide/solid.md) illustrates Extrude, Fillet, a confirmed open Shell, Linear Pattern and an editable drawing with actual app captures. [Image provenance and documentation verification](../../../site/README.md#guide-images) record the capture limits; these illustrations do not replace the feature tests below.
+
 The tests characterize existing behavior. Open requirements and options remain in the feature guides and [tracking issue #31](https://github.com/chrizpro/prism/issues/31).
 
 - [Ribbon actions](../../../Prism.Tests/Headless/Solid/SolidRibbonTests.cs) cover the Pipe/Sweep/Loft boundary, Direct Edit entry and exit, selection modes, the Datum Gizmo and Materials entry.
