@@ -3196,7 +3196,7 @@ def component_move_matrix():
         made = second or made
         info = lambda n: cad.call("object_info", object=n)
         comp = made[0].name if made else None
-        rows.append(("Insert Component from another open tab", f"inserted twice; the second copy is {[o.name for o in made]} (the first one is grounded automatically, so the second is the free one to move)", len(made) == 1))
+        rows.append(("Insert Component from another open tab", f"inserted twice; {len(made)} new free copy (the first one is grounded automatically, so the second is the free one to move)", len(made) == 1))
         if comp:
             c0 = info(comp)["center"]
             cad.call("run_command", name="move_component", slots={"Component": comp}, params={"Move X": 30})
