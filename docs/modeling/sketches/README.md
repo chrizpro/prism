@@ -61,7 +61,7 @@ Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its 
 
 ## Drawing directly on a surface
 
-**Status: Approved by the owner 2026-11-09; implemented, not yet run on a workstation.** Replaces the former *Draw on the curved surface* option of Create Sketch (a sketch on a tangent plane, projected onto the face when finished), which is removed. Create Sketch still opens an ordinary planar sketch on a flat face or plane. Delivery issue: to be linked.
+**Status: Approved by the owner 2026-11-09; implemented. Automated tests pass on Linux; not yet tried by hand in the desktop app.** Replaces the former *Draw on the curved surface* option of Create Sketch (a sketch on a tangent plane, projected onto the face when finished), which is removed. Create Sketch still opens an ordinary planar sketch on a flat face or plane. Delivery issue: to be linked.
 
 **Draw on Surface** (Curves group, next to Project, on every ribbon that offers Project; scripting name `curve_on_surface`) draws a curve directly on a surface, as NX and Creo do, with curves only: no sketch constraints or dimensions.
 
@@ -76,7 +76,7 @@ Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its 
 
 **Acceptance criteria.** A point off the surface is moved onto the chosen part. A curve over the shared edge of two faces stays on both and passes the clicked points exactly. Two surfaces that do not touch are never joined. A curve on a curved face stays on it, passes the clicked points and has no sharp turns. Moving one point keeps the others exactly (all tested without the kernel). A curve drawn on a sphere, a cylinder-to-cap edge, a surface body, a SubD form and a NURBS patch lies on the surface within the display tolerance: **not yet verified**, it needs the native kernel.
 
-**Tests.** [Surface path tests](../../../Prism.Tests/Unit/Sketch/SurfaceGraphTests.cs) (SKT-SF001 to SKT-SF005). Not run here: this environment has no .NET SDK. The former SKT-H020 and SKT-H021 tests of the plane projection were removed with it.
+**Tests.** [Surface path tests](../../../Prism.Tests/Unit/Sketch/SurfaceGraphTests.cs) (SKT-SF001 to SKT-SF005) and [Esc behaviour](../../../Prism.Tests/Headless/Sketch/DrawOnSurfaceTests.cs) (SKT-H022): passed (Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). The former SKT-H020 and SKT-H021 tests of the plane projection were removed with it.
 
 ## Editing a saved sketch shows its curves once
 
@@ -84,11 +84,11 @@ Bug fix 2026-11-09 (owner report: editing a sketch of splines showed double the 
 
 ## Offset joins curves that only touch
 
-Bug fix 2026-11-09 (owner report with a screenshot: offsetting an L-shaped outline left gaps at its two inside corners). A chain of curves was followed only through shared points, but lines drawn to meet one another are often tied by a point-on-curve constraint and keep separate points. Offset split the outline there and left each piece's ends unjoined. Curves that end at the same position are now treated as joined, so the outline offsets as one ring. Test: [SKT-U010](../../../Prism.Tests/Unit/Sketch/OffsetTests.cs), unrun. Not covered: three or more curves meeting at one spot still stop the chain there.
+Bug fix 2026-11-09 (owner report with a screenshot: offsetting an L-shaped outline left gaps at its two inside corners). A chain of curves was followed only through shared points, but lines drawn to meet one another are often tied by a point-on-curve constraint and keep separate points. Offset split the outline there and left each piece's ends unjoined. Curves that end at the same position are now treated as joined, so the outline offsets as one ring. Test: [SKT-U010](../../../Prism.Tests/Unit/Sketch/OffsetTests.cs), passed (Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). Not covered: three or more curves meeting at one spot still stop the chain there.
 
 ## Slot from center, Mirror steps and dashed construction preview
 
-Owner requests 2026-11-09, implemented and not yet run on a workstation (no automated test).
+Owner requests 2026-11-09, implemented. They compile, but have no automated test and have not been tried by hand in the desktop app.
 
 - **Slot** has two modes in its options: **Center to center** (as before) and **From center**: click the middle of the slot, then one arc center (the other is its mirror through the middle), then the width. The middle click becomes a point held at the midpoint of a construction line between the two arc centers. The typed length in this mode is the half length.
 - **Mirror** has a two-step panel like Offset: **1. Select curves** (click, Shift adds more, or select them before choosing Mirror; **Done selecting** or Enter moves on) and **2. Mirror line**. Step 2 fills the **Mirror line** field with the line the tool thinks you mean: the line under the pointer (it stays filled when the pointer moves to the panel), or, before any hover, the only construction line in the sketch. **Mirror across this line** (or Enter) applies it, and clicking any line in the sketch still applies that line directly. Owner direction 2026-11-09; no automated test, not run.
