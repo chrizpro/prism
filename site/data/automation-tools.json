@@ -1260,7 +1260,7 @@
      "type": "number"
     },
     "path": {
-     "description": "Full path of the image file for set_background (≤16 MB; the generated folder C:\\Users\\chris\\AppData\\Local\\Prism\\generated is the right place for AI-made backdrops).",
+     "description": "Full path of the image file for set_background (≤16 MB; the generated folder Prism/generated is the right place for AI-made backdrops).",
      "type": "string"
     }
    },
@@ -1410,6 +1410,26 @@
    },
    "required": [
     "items"
+   ]
+  }
+ },
+ {
+  "name": "select_tab",
+  "description": "Switch the ribbon to a workspace tab by its title (for example Static, CAM, Solid). The document remembers it and reopens on that tab.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "description": "Tab title, matched case-insensitively.",
+     "type": "string"
+    },
+    "command": {
+     "description": "Optional command name (for example cam_playback or drive_joints) to leave open when the file is opened, so the user only presses its Play or Run button. Omit to clear.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "title"
    ]
   }
  },
