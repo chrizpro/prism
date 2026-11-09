@@ -483,34 +483,46 @@ public sealed partial class MainViewModel : ViewModelBase
         }.OfType<RibbonItem>().ToArray());
         // Curves and curve editing are one definition, so rails, paths and guides are made the same way wherever you model.
         // Solid and Freeform take the curves that feed their own tools (paths, profiles, rails); the ones that read from surfaces stay with Surface and NURBS.
+        RibbonButton LegacyCurveId(RibbonButton button, string id) { button.Id = id; return button; }
+        RibbonButton CurveMenu(string id, string label, string icon, string description, params RibbonButton[] tools) => new()
+        {
+            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools],
+        };
+        RibbonButton JoinMenu() => Split("split:curve-join", "Join touching curves, explode a curve into segments, or extract edges as independent curves. Click the name to choose.",
+            Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
+            Cmd("Explode", "unstitch", () => new ExplodeCurveCommand(), "Break a curve or sketch into its segments."),
+            LegacyCurveId(Cmd("Extract Edges", "curve-through", () => new DuplicateEdgeCommand(), "Copy selected edges as independent curves, joining touching edges and keeping the source body."), "curve-through|Duplicate Edge"));
+        RibbonButton MoreCurveTools() => CurveMenu("menu:curve-more", "More Curve Tools", "raise-degree",
+            "Rebuild a curve with fewer points, or create evenly spaced points along it.",
+            Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
+            LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"));
         RibbonGroup CurvesGrp(bool fromSurfaces = true) => G("Curves", new RibbonItem?[]
         {
-            Cmd("Curve", "curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."),
-            Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t (springs, spirals, cams, wave profiles) or from a table of x,y,z points typed, pasted or read from a file."),
+            Split("split:curve-create", "Create a curve by picking points, or from equations, tables and files. Click the name to choose.",
+                Cmd("Curve", "curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."),
+                Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.")),
             Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
             fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
             fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.") : null,
-            fromSurfaces ? Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface.") : null,
-            fromSurfaces ? Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.") : null,
-            fromSurfaces ? Cmd("Duplicate\nEdge", "curve-through", () => new DuplicateEdgeCommand(), "Copy the edges you click as curves.") : null,
+            fromSurfaces ? CurveMenu("menu:curve-extract", "Extract Curves", "section", "Extract surface grid lines or a stack of planar sections.",
+                Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface."),
+                Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.")) : null,
         }.OfType<RibbonItem>().ToArray());
         RibbonGroup EditCurvesGrp() => G("Edit curves",
             Cmd("Fillet /\nChamfer", "fillet", () => new CurveFilletCommand(false), "Round or cut the corners of a flat curve or sketch."),
             Cmd("Offset\nCurve", "offset", () => new OffsetCurveCommand(), "Copy a flat curve parallel to itself."),
             Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
-            Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
-            Cmd("Explode", "unstitch", () => new ExplodeCurveCommand(), "Break a curve or sketch into its segments."),
+            JoinMenu(),
             Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
             Cmd("Extend\nCurve", "extend-surface", () => new ExtendCurveCommand(), "Grow a curve past its end, keeping it smooth."),
-            Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
-            Cmd("Divide", "origin-point", () => new DivideCurveCommand(), "Points at equal distances along a curve; reports the length."));
+            MoreCurveTools());
         // Freeform only needs to clean up the profiles and rails it builds from.
         RibbonGroup FormCurvesEdit() => G("Edit curves",
-            Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
+            JoinMenu(),
             Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
             Cmd("Extend\nCurve", "extend-surface", () => new ExtendCurveCommand(), "Grow a curve past its end, keeping it smooth."),
-            Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
-            Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."));
+            Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
+            MoreCurveTools());
         RibbonButton SweepSplit(string id) => Split(id, "Build a surface by carrying a section along a path: sweep a profile, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
             Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Carry a profile along a path. Add a second rail to steer how it turns."),
             Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered tube along a path curve; set the radius, or make it a solid."));
@@ -586,8 +598,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Planes",
                     Cmd("Construction\nPlane", "origin-plane", () => new ConstructionPlaneCommand(), "Make planes: offset (one or a whole stack), angled, midway, square to a curve, or through three points. Sketch on them or use them as references."),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Turn the view to look straight at the selected plane, face or sketch (or the sketch you are drawing).", RibbonSize.Large, null, null, "N")),
-                // Home doesn't know what you will model next, so its one Curves dropdown has every curve tool.
-                G("Curves", CurvesGrp().Items.Concat(EditCurvesGrp().Items).ToArray()),
+                // Keep menus one level deep so search and customization can reach every curve tool.
+                CurvesGrp(), EditCurvesGrp(),
                 G("Create", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid."),

@@ -12,7 +12,7 @@ namespace Prism.ViewModels;
 public sealed class MaterialRow
 {
     public required Material Material { get; init; }
-    public string Name => Material.Name;
+    public string Name => Material.DisplayName;
     public string Category => Material.Category;
     public uint Color => Material.Color;
     public string Summary { get; init; } = "";
@@ -65,7 +65,7 @@ public sealed partial class MainViewModel
     public ObservableCollection<MatPropLine> MaterialProps { get; } = [];
     public ObservableCollection<CompareRow> CompareRows { get; } = [];
     public ObservableCollection<MaterialFamilyRow> MaterialFamilies { get; } = [];
-    public IReadOnlyList<string> MaterialCategories { get; } = ["All", .. Materials.Categories];
+    public IReadOnlyList<string> MaterialCategories { get; } = ["All", .. Materials.Categories, "Custom"];
     public IReadOnlyList<string> MaterialSorts => SortNames;
     readonly List<Material> _compare = [];
 
@@ -93,7 +93,7 @@ public sealed partial class MainViewModel
     // finish of the selected bodies
     [ObservableProperty] public partial double LookMetal { get; set; }
     [ObservableProperty] public partial double LookGloss { get; set; } = 0.35;
-    public IReadOnlyList<string> SurfacePatterns { get; } = ["From material","Plain","Wood grain","Brushed metal","Cast finish","Carbon weave"];
+    public IReadOnlyList<string> SurfacePatterns { get; } = ["From material","No pattern","Wood grain","Brushed metal","Cast finish","Carbon weave"];
     [ObservableProperty] public partial int LookPattern { get; set; }
     [ObservableProperty] public partial double LookPatternScale { get; set; } = 12;
     [ObservableProperty] public partial double LookPatternAngle { get; set; }
@@ -110,14 +110,16 @@ public sealed partial class MainViewModel
 
     public void SetFinish(double metal, double gloss, SurfacePattern? pattern = null) { LookMetal = metal; LookGloss = gloss; if(pattern.HasValue)LookPattern=(int)pattern.Value; }
 
-    void HookMaterials()
+    void HookMaterials() => RefreshMaterialFamilies();
+
+    void RefreshMaterialFamilies()
     {
         MaterialFamilies.Clear();
-        MaterialFamilies.Add(new MaterialFamilyRow { Index = 0, Name = "All", Count = Materials.All.Count, Color = 0xFF8A9099, IsActive = true });
+        MaterialFamilies.Add(new MaterialFamilyRow { Index = 0, Name = "All", Count = AvailableMaterials.Count(), Color = 0xFF8A9099, IsActive = MaterialCategoryIndex == 0 });
         for (int i = 1; i < MaterialCategories.Count; i++)
         {
             var cat = MaterialCategories[i];
-            MaterialFamilies.Add(new MaterialFamilyRow { Index = i, Name = cat, Count = Materials.All.Count(m => m.Category == cat), Color = Materials.All.First(m => m.Category == cat).Color });
+            MaterialFamilies.Add(new MaterialFamilyRow { Index = i, Name = cat, Count = AvailableMaterials.Count(m => m.Category == cat), Color = AvailableMaterials.FirstOrDefault(m => m.Category == cat)?.Color ?? 0xFF8A9099, IsActive = MaterialCategoryIndex == i });
         }
         RefreshMaterialList();
     }
@@ -139,12 +141,12 @@ public sealed partial class MainViewModel
     partial void OnLookMetalChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
     partial void OnLookGlossChanged(double value) { OnPropertyChanged(nameof(LookRoughness)); PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
 
-    static string Rating(int n) => new string('●', Math.Clamp(n, 0, 5)) + new string('○', 5 - Math.Clamp(n, 0, 5));
+    static string Rating(int n) => n == 0 ? "Not specified" : new string('●', Math.Clamp(n, 0, 5)) + new string('○', 5 - Math.Clamp(n, 0, 5));
     static string F(double v, string fmt = "#,0.##") => double.IsNaN(v) ? "-" : v.ToString(fmt, CultureInfo.InvariantCulture);
 
     void RefreshMaterialList()
     {
-        IEnumerable<Material> q = Materials.All;
+        IEnumerable<Material> q = AvailableMaterials;
         var cat = MaterialCategoryIndex > 0 && MaterialCategoryIndex < MaterialCategories.Count ? MaterialCategories[MaterialCategoryIndex] : null;
         if (cat != null) q = q.Where(m => m.Category == cat);
         var terms = MaterialSearch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -193,7 +195,7 @@ public sealed partial class MainViewModel
         HasMaterial = m != null;
         if (m == null) { MatMassNote = ""; CompareButtonText = "Add to compare"; return; }
         MatName = m.Name; MatCategory = m.Category; MatColor = m.Color; MatUses = m.Uses; MatWatch = m.Watch;
-        MatDataStatus = m.Id is "6061" or "304" or "bronze" ? "Partially source checked — see conditions below" : "Reference estimates — see conditions below";
+        MatDataStatus = m.IsCustom ? "User-defined — not verified by Prism" : m.Id is "6061" or "304" or "bronze" ? "Partially source checked — see conditions below" : "Reference estimates — see conditions below";
         MaterialProps.Add(Line("Density", m.Density, "g/cm³", x => x.Density, "Mass per volume"));
         MaterialProps.Add(Line("Young's modulus", m.Youngs, "GPa", x => x.Youngs, "Stiffness: how little it flexes under load", "#,0.###"));
         MaterialProps.Add(Line("Yield strength", m.Yield, "MPa", x => x.Yield, "Stress where permanent deformation starts"));
@@ -314,11 +316,11 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(AppearanceStatus));
         _syncingLook = false;
         MatTarget = objs.Count == 0 ? "Nothing selected. Click a body, then press Apply." : objs.Count == 1 ? $"Applies to: {objs[0].Name}" : $"Applies to {objs.Count} objects";
-        var names = objs.Select(o => o.Material?.Name).Distinct().ToList();
+        var names = objs.Select(o => o.Material?.DisplayName).Distinct().ToList();
         AssignedText = objs.Count == 0 ? "No selection" : names.Count == 1 && names[0] != null ? $"Assigned: {names[0]}" : names.Count > 1 ? "Assigned: mixed materials" : "No material assigned";
         var actual=objs.FirstOrDefault()?.Material;
         HasAssignedData=actual!=null;
-        AssignedData=actual==null?"":$"{(objs.Count>1?"First selected body: ":"")}{objs[0].Name}\n{actual.Name}\nDensity: {F(actual.Density)} g/cm³\nE: {F(actual.Youngs)} GPa; ν: {F(actual.Poisson)}\nYield: {F(actual.Yield)} MPa\n{actual.Evidence.StrengthBasis}: {F(actual.Ultimate)} MPa\nk: {F(actual.Conductivity)} W/(m·K)\nExpansion: {F(actual.Expansion)} µm/(m·K)\nHeat capacity: {F(actual.SpecificHeat)} J/(kg·K)\nRevision: {actual.Evidence.Revision}\n{actual.Evidence.Condition}\nChecked: {actual.Evidence.CheckedProperties}\nSource: {actual.Evidence.Source}";
+        AssignedData=actual==null?"":$"{(objs.Count>1?"First selected body: ":"")}{objs[0].Name}\n{actual.DisplayName}\n{(actual.IsCustom ? "User-defined — not verified by Prism\n" : "")}Density: {F(actual.Density)} g/cm³\nE: {F(actual.Youngs)} GPa; ν: {F(actual.Poisson)}\nYield: {F(actual.Yield)} MPa\n{actual.Evidence.StrengthBasis}: {F(actual.Ultimate)} MPa\nk: {F(actual.Conductivity)} W/(m·K)\nExpansion: {F(actual.Expansion)} µm/(m·K)\nHeat capacity: {F(actual.SpecificHeat)} J/(kg·K)\nRevision: {actual.Evidence.Revision}\n{actual.Evidence.Condition}\nChecked: {actual.Evidence.CheckedProperties}\nSource: {actual.Evidence.Source}";
         UpdateMassNote(SelectedMaterialRow?.Material);
     }
 

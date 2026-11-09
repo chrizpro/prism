@@ -15,6 +15,18 @@ Open **Materials** from the Appearance section. The **Materials** ribbon appears
 
 Library materials carry physical data too, so the same assignment is used by simulation and mass properties.
 
+### Make and save your own look
+
+Select a body, then choose **Generic appearance** in the Appearance tab. This starts with white, nonmetallic color and **No pattern**, ready for your bitmap. Under **Image textures**, import a color image; optionally add roughness and bump images. Adjust placement, roughness, metallic response and bump strength. Bump gives the shading depth without changing the geometry.
+
+Expand **My appearances**, enter a name and choose **Save as appearance…**. Your named looks show **· Custom** and are saved on this computer for reuse across documents and restarts. Select one and press **Apply** to apply it to selected bodies. The assigned engineering materials stay the same. Removing a saved entry leaves appearances already applied to documents intact.
+
+### Save a custom engineering material
+
+In the Materials library, expand **My custom materials**. Choose **Create custom material…** to start with blank fields for your own isotropic properties, or select a source material and choose **Duplicate selected material…** to copy its values. Enter a name, edit properties in the displayed units and optionally record a source. Save it, then use **Apply Material** to assign it. Copies retain the source strength basis and solver limitations. **Cancel** discards the draft and returns to the library without saving or assigning it.
+
+Custom materials show **· Custom**, with **User-defined — not verified by Prism** in their details. Their properties and provenance are saved with document assignments. The reusable library stays on this computer; deleting an entry does not change existing assignments. Built-in materials retain their individual evidence status, including reference estimates.
+
 <GuideImage image="materials-studio" />
 
 ## Lights
