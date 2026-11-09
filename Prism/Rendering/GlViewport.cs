@@ -540,7 +540,7 @@ public sealed unsafe class GlViewport : Decorator
                     break;
             }
         }
-        // Hovered edge: full strength and heavy. The rest of its chain: lighter blue, thinner and translucent, and it replaces the orange of edges already picked.
+        // Hovered edge: heavy blue. The rest of its chain: a thinner blue line that replaces the orange of edges already picked; the halo below marks the whole chain.
         foreach (var (dict, col, wd, alpha) in new[] { (sel, 0xFFFF8A1Fu, 3.2f, 1f), (preview, 0xFF35B6FFu, 2.4f, 1f), (hov, 0xFF35B6FFu, 3.0f, 1f) })
             foreach (var o in visible)
             {

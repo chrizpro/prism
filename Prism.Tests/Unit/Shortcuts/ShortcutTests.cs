@@ -44,4 +44,23 @@ public class ShortcutTests
         }
         finally { AppSettings.Current.ToolDocumentationBaseUrl = saved; }
     }
+
+    [Fact(DisplayName = "KEY-U004 | Search shows a key only beside the ribbon button that key really runs")]
+    [Trait("TestId", "KEY-U004")]
+    public void SearchShowsTheRightKeys()
+    {
+        bool Default(string id) => !Hotkeys.IsChanged(Hotkeys.Find(id)!);
+        if (Default("view.extents") && Default("view.extents.home")) Assert.Equal("F / Home", Hotkeys.ShortcutFor("View", "Zoom Extents"));
+        if (Default("model.extrude"))
+        {
+            Assert.Equal("Alt+X", Hotkeys.ShortcutFor("Solid", "Extrude"));
+            Assert.Equal("", Hotkeys.ShortcutFor("Surface", "Extrude"));        // the surface extrude: Alt+X starts the solid one
+        }
+        if (Default("sketch.start"))
+        {
+            Assert.Equal("K", Hotkeys.ShortcutFor("NURBS", "Create Sketch"));   // K starts the NURBS sketch
+            Assert.Equal("", Hotkeys.ShortcutFor("Home", "Create Sketch"));
+        }
+        Assert.Equal("", Hotkeys.ShortcutFor("Solid", "Fillet"));
+    }
 }

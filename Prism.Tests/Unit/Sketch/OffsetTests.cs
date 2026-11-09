@@ -1,5 +1,6 @@
 using Prism.Core;
 using Prism.Core.Sketching;
+using Prism.Kernel;
 using Xunit;
 
 namespace Prism.UnitTests.Sketch;

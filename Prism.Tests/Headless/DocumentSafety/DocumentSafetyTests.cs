@@ -128,6 +128,19 @@ public class DocumentSafetyTests : IDisposable
         finally { tab.Session.ExitSketch(false); }
     }
 
+    [AvaloniaFact(DisplayName = "SAV-H013 | A change outside the timeline keeps a document unsaved even after undo returns its geometry to the start")]
+    [Trait("TestId", "SAV-H013")]
+    public void OffTimelineChangesSurviveUndo()
+    {
+        var vm = new MainViewModel(); var tab = vm.ActiveDocument!;
+        AddBody(tab.Session);                 // already dirty
+        tab.Session.EditedLights();           // a lights change is not a history step
+        tab.Session.Undo();
+        Assert.Empty(tab.Session.Objects);
+        Assert.True(tab.Session.Dirty);
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
+    }
+
     [AvaloniaFact(DisplayName = "SAV-H002 | Canceled Save As and a failed destination keep unsaved work open")]
     [Trait("TestId", "SAV-H002")]
     public async Task SaveCancellationAndFailureCancelClose()

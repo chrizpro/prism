@@ -158,7 +158,21 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial bool SketchGridSnap { get; set; }
     [ObservableProperty] public partial bool Ortho { get; set; }
     [ObservableProperty] public partial string? FilePath { get; set; }
-    [ObservableProperty] public partial bool Dirty { get; set; }
+    /// <summary>
+    /// The document has changes that are not saved. Every assignment is seen, not only changes of value: an edit outside the timeline
+    /// made while the document is already dirty must still keep it dirty after undo returns the timeline to its saved state.
+    /// </summary>
+    public bool Dirty
+    {
+        get => _dirty;
+        set
+        {
+            if (!value) { _cleanNode = Current; _offHistoryEdit = false; }
+            else if (!_markingHistory && !_navigating) _offHistoryEdit = true;
+            SetProperty(ref _dirty, value);
+        }
+    }
+    bool _dirty;
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
     public Vec3? ViewportCursor { get; set; }
 
@@ -168,11 +182,6 @@ public sealed partial class CadSession : ObservableObject
     HistoryNode _cleanNode;
     /// <summary>A change outside the timeline (lights, data sheets, studies...) that undo cannot revert.</summary>
     bool _offHistoryEdit, _markingHistory;
-    partial void OnDirtyChanged(bool value)
-    {
-        if (!value) { _cleanNode = Current; _offHistoryEdit = false; }
-        else if (!_markingHistory && !_navigating) _offHistoryEdit = true;
-    }
 
     public bool CanUndo => Current.Parent != null;
     public bool CanRedo => Current.Preferred != null;

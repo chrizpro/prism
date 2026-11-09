@@ -154,14 +154,17 @@ public static class Hotkeys
         return scopes;
     }
 
-    /// <summary>Which ribbon button a built-in action runs, so the button, the search results and the tool's page can show its key. Tab is empty when the label is unique enough on its own.</summary>
-    static readonly Dictionary<string, (string Tab, string Label)> ButtonOf = new()
+    /// <summary>
+    /// Which ribbon button a built-in action runs, so the search results can show its key. No tabs means the label is the same tool on
+    /// every ribbon; otherwise only those ribbons have it (Extrude on Surface and NURBS is the surface extrude, which Alt+X does not start).
+    /// </summary>
+    static readonly Dictionary<string, (string[] Tabs, string Label)> ButtonOf = new()
     {
-        ["sketch.start"] = ("", "Create Sketch"), ["file.new"] = ("", "New"), ["file.open"] = ("", "Open"), ["file.save"] = ("", "Save"), ["file.saveas"] = ("", "Save As"),
-        ["edit.duplicate"] = ("", "Duplicate"), ["view.lookat"] = ("", "Look At"), ["view.extents"] = ("", "Zoom Extents"), ["view.extents.home"] = ("", "Zoom Extents"),
-        ["model.extrude"] = ("", "Extrude"), ["datum.gizmo"] = ("", "Gizmo"), ["form.edit"] = ("", "Edit Freeform"),
-        ["sketch.line"] = ("Sketch", "Line"), ["sketch.rect"] = ("Sketch", "Rectangle"), ["sketch.ellipse"] = ("Sketch", "Ellipse"),
-        ["sketch.spline"] = ("Sketch", "Spline"), ["sketch.arc"] = ("Sketch", "Arc"),
+        ["sketch.start"] = (["NURBS"], "Create Sketch"), ["file.new"] = ([], "New"), ["file.open"] = ([], "Open"), ["file.save"] = ([], "Save"), ["file.saveas"] = ([], "Save As"),
+        ["edit.duplicate"] = ([], "Duplicate"), ["view.lookat"] = ([], "Look At"), ["view.extents"] = ([], "Zoom Extents"), ["view.extents.home"] = ([], "Zoom Extents"),
+        ["model.extrude"] = (["Home", "Solid", "Sheet Metal"], "Extrude"), ["datum.gizmo"] = ([], "Gizmo"), ["form.edit"] = ([], "Edit Freeform"),
+        ["sketch.line"] = (["Sketch"], "Line"), ["sketch.rect"] = (["Sketch"], "Rectangle"), ["sketch.ellipse"] = (["Sketch"], "Ellipse"),
+        ["sketch.spline"] = (["Sketch"], "Spline"), ["sketch.arc"] = (["Sketch"], "Arc"),
     };
 
     /// <summary>The key(s) the user has for a ribbon button right now ("F / Home"), with their changes and custom shortcuts applied; empty when it has none.</summary>
@@ -173,7 +176,7 @@ public static class Hotkeys
             var (gesture, _) = Effective(a);
             if (gesture.Length == 0) continue;
             bool match = a.Custom ? a.Target == tab + "|" + label
-                : ButtonOf.TryGetValue(a.Id, out var b) && b.Label == label && (b.Tab.Length == 0 || b.Tab == tab);
+                : ButtonOf.TryGetValue(a.Id, out var b) && b.Label == label && (b.Tabs.Length == 0 || b.Tabs.Contains(tab));
             if (match) keys.Add(Display(gesture));
         }
         return string.Join(" / ", keys.Distinct());
