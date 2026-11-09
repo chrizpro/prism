@@ -3243,3 +3243,203 @@ def network_flatten_matrix():
     cad.cylinder(radius=10, height=30, operation="New body")
     strip = ["Network Surface and Flatten, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a can", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Motion: Kinematics with a table, collisions along the motion, and a Robot path
+@scenario("motion__kinematics-table-collision-and-robot-path", columns=1)
+def motion_kinematics_matrix():
+    import re
+    rows = []
+    cad.call("document_new")
+    cad.cylinder(radius=10, height=10, operation="New body").rename("Pin")
+    hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+    arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+    cad.union(hub, arm)
+    cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+    top = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]}
+    first, second = "On the first part (face, circle edge or round face)", "On the part that moves"
+    cad.call("run_command", name="joint_revolute", slots={first: {"object": "Pin", **cyl("Pin")}, second: {"object": "Hub", **cyl("Hub")}})
+    for o in ("Pin", "Hub"):
+        cad.call("material_apply", object=o, material="steel")
+
+    def study(command, params, seconds=2, slots=None, wait="Solved"):
+        cad.call("run_command", name=command, slots=slots or {}, commit=False)
+        cad.call("command_set", params={"Duration": seconds, **params})
+        cad.call("command_set", params={"Run study": True})
+        text = []
+        for _ in range(60):
+            text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            if any(wait in x or "Could not run" in x for x in text):
+                break
+            time.sleep(1)
+        cad.call("command_cancel")
+        return text
+
+    def joint_range(text):
+        line = next((x for x in text if x.startswith("Revolute 1")), "")
+        m = re.search(r"(-?[\d.]+) to (-?[\d.]+) °", line)
+        return (float(m.group(1)), float(m.group(2)), line) if m else (None, None, line or " | ".join(text)[:80])
+
+    try:
+        t = study("cae_kinematics", {"Revolute 1 — motion": "Follow a table", "Time (s), position (°)": "0, 0; 1, 60; 2, 0"}, 2)
+        a, b, line = joint_range(t)
+        rows.append(("Kinematics: follow a table 0 -> 60 -> 0 degrees", f"{line[:80]}", a is not None and abs(a) < .5 and abs(b - 60) < 1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Kinematics: follow a table 0 -> 60 -> 0 degrees", str(error)[:120], False))
+    def collisions(label, expect_hit):
+        try:
+            t = study("cae_kinematics", {"Revolute 1 — motion": "Constant speed", "Speed": 45, "Look for collisions along the motion": True}, 2)
+            joined = " | ".join(t)
+            hit = "pair(s) overlap" in joined
+            found = "none found" in joined
+            rows.append((f"Collision check: {label}", ("overlap found" if hit else "none found" if found else "no collision line") + f" ({joined[-80:]})", (hit == expect_hit) and (hit or found)))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((f"Collision check: {label}", str(error)[:120], False))
+    collisions("a lone pin and arm overlap nothing", False)
+    try:
+        cad.box(width=8, depth=8, height=20, operation="New body").rename("Post")
+        cad.call("material_apply", object="Post", material="steel")
+        cad.call("run_command", name="joint_rigid", slots={first: {"object": "Pin", **top("Pin")}, second: {"object": "Post", **top("Post")}})
+        collisions("a post fixed onto the pin sits in the arm's way", True)
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Collision check: a post fixed onto the pin", str(error)[:120], False))
+    # Robot path: the arm's tip follows a 60 degree arc of radius 20 mm at the height of the arm
+    try:
+        cad.call("document_new")
+        cad.cylinder(radius=10, height=10, operation="New body").rename("Pin")
+        hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+        arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+        cad.union(hub, arm)
+        cad.call("run_command", name="joint_revolute", slots={first: {"object": "Pin", **cyl("Pin")}, second: {"object": "Hub", **cyl("Hub")}})
+        for o in ("Pin", "Hub"):
+            cad.call("material_apply", object=o, material="steel")
+        tip = cad.call("solid_find", object="Hub", kind="faces", type="Plane", facing=[1, 0, 0])["hits"][0]["face"]
+        path = curve([[20 * math.cos(math.radians(a)), 20 * math.sin(math.radians(a)), 14.5] for a in range(0, 61, 10)])
+        t = study("cae_robot_path", {"Keep the tool pointing the same way (needs six joints)": False, "Tool speed": 30, "Acceleration along the path": 100}, 2,
+                  slots={"Tool point (a face, circle or edge on the part that follows the path)": {"object": "Hub", "face": tip}, "Path to follow (a curve, sketch or edges, in order)": [path]}, wait="Revolute")
+        a, b, line = joint_range(t)
+        rows.append(("Robot path: the arm tip follows a 60 degree arc", f"{line[:90]}", a is not None and abs(b - a - 60) < 3))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Robot path: the arm tip follows a 60 degree arc", str(error)[:140], False))
+    strip = ["Kinematics study with a table, collisions along the motion"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("pin, arm and the post that overlaps them", render(-30, 40)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Animation: keys on a joint, scrubbing between them, ease, removing a key
+@scenario("assembly__animation-keys-scrub-ease-and-remove", columns=1)
+def animation_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.cylinder(radius=10, height=10, operation="New body").rename("Pin")
+    hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+    arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+    cad.union(hub, arm)
+    cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+    cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Pin", **cyl("Pin")}, "On the part that moves": {"object": "Hub", **cyl("Hub")}})
+
+    def value_of(values):
+        key = next((k for k in values if k.startswith("Revolute 1")), None)
+        return float(values[key]) if key else None
+
+    try:
+        cad.call("run_command", name="animation", commit=False)
+        cad.call("command_set", params={"Length": 4, "Ease in and out": False})
+        cad.call("command_set", params={"Time": 0})
+        cad.call("command_set", params={"Revolute 1": 0})
+        cad.call("command_set", params={"Key the changed values at this time": True})
+        cad.call("command_set", params={"Time": 4})
+        cad.call("command_set", params={"Revolute 1": 120})
+        cad.call("command_set", params={"Key the changed values at this time": True})
+        samples = {}
+        for t in (0, 1, 2, 3, 4):
+            samples[t] = value_of(cad.call("command_set", params={"Time": t}).get("values", {}))
+        rows.append(("Linear keys 0 -> 120 degrees over 4 s", f"angle at 0, 1, 2, 3, 4 s: {[None if v is None else round(v, 1) for v in samples.values()]} (expect 0, 30, 60, 90, 120)", all(v is not None and abs(v - 30 * t) < 1 for t, v in samples.items())))
+        cad.call("command_set", params={"Ease in and out": True})
+        eased = {t: value_of(cad.call("command_set", params={"Time": t}).get("values", {})) for t in (1, 2, 3)}
+        rows.append(("Ease in and out slows the ends and keeps the middle", f"angle at 1, 2, 3 s: {[None if v is None else round(v, 1) for v in eased.values()]} (expect below 30, exactly 60, above 90)", all(v is not None for v in eased.values()) and eased[1] < 29 and abs(eased[2] - 60) < 1 and eased[3] > 91))
+        cad.call("command_set", params={"Time": 4})
+        cad.call("command_set", params={"Remove keys at this time": True})
+        after = value_of(cad.call("command_set", params={"Time": 4}).get("values", {}))
+        rows.append(("Removing the key at 4 s", f"angle at 4 s is {after} (the 120 degree key is gone)", after is None or abs(after - 120) > 1))
+        cad.call("command_commit")
+        saved = [o.name for o in cad.objects() if o.kind == "Animation" or "nimation" in o.name]
+        rows.append(("Save animation stores it in the document", f"objects: {saved}", len(saved) >= 1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Animation keys", str(error)[:140], False))
+    strip = ["Animation keys, scrubbing, ease and removal against known joint angles"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the arm", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Surfaces: Flatten a can wall, draw on the flat pattern, Refold the drawing back on the wall
+@scenario("surface__flatten-then-refold-a-line-onto-a-can", columns=1)
+def refold_matrix():
+    rows = []
+    cad.call("document_new")
+    info = lambda n: cad.call("object_info", object=n)
+    try:
+        cad.cylinder(radius=10, height=30, operation="New body").rename("Can")
+        wall = cad.call("solid_find", object="Can", kind="faces", type="Cylinder", limit=1)["hits"][0]["face"]
+        before = names()
+        cad.call("run_command", name="flatten", slots={"Faces or a surface to flatten": [{"object": "Can", "face": wall}]}, params={"Operation": "Flatten"})
+        flat = next(o for o in cad.objects() if o.name not in before and o.kind == "Surface")
+        fi = info(flat.name)
+        # a horizontal line across the middle of the flat pattern, 31 mm long (half a turn is 31.4)
+        cx, cy = (fi["min"][0] + fi["max"][0]) / 2, (fi["min"][1] + fi["max"][1]) / 2
+        zf = fi["center"][2]
+        vertical = (fi["max"][1] - fi["min"][1]) < (fi["max"][0] - fi["min"][0]) + 1e-9
+        line = curve([[cx - 15.5, cy, zf], [cx, cy, zf], [cx + 15.5, cy, zf]]) if vertical else curve([[cx, cy - 15.5, zf], [cx, cy, zf], [cx, cy + 15.5, zf]])
+        before = names()
+        cad.call("run_command", name="refold", slots={"Original flat pattern": [flat.name], "Sketches or curves to refold": [line]}, params={"Keep input geometry": True, "Create a copy of the curved face": False})
+        made = [o for o in cad.objects() if o.name not in before]
+        curves = [o for o in made if o.kind == "Curve"]
+        if not curves:
+            rows.append(("Refold a line from the flat pattern back onto the can", f"made {[(o.name, o.kind) for o in made]}", False))
+        else:
+            c = info(curves[0].name)
+            half_turn = math.degrees(31 / 10)
+            span = max(c["size"][0], c["size"][1])
+            rows.append(("Refold a line from the flat pattern back onto the can", f"curve spans {c['size'][0]:.1f} x {c['size'][1]:.1f} x {c['size'][2]:.1f} mm, inside the 20 mm can (a 31 mm line wraps about {half_turn:.0f} degrees, so it becomes a half circle: about 20 across by 10 deep, height about 0)", span <= 20.1 and span > 10 and c["size"][2] < 0.5))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Flatten and refold", str(error)[:140], False))
+    strip = ["Flatten a can, then Refold a line drawn on the flat pattern back onto the wall"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the can with the flat pattern and the refolded line", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Simulation: Probe reads the result where the pointer clicks
+@scenario("cae__probe-reads-stress-near-load-versus-near-support", columns=1)
+def probe_matrix():
+    import re
+    rows = []
+    cad.call("document_new")
+    cad.box(width=10, depth=10, height=100, operation="New body").rename("Bar")
+    cad.call("material_apply", object="Bar", material="steel")
+    bottom = cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=[0, 0, -1])["hits"][0]["face"]
+    top = cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+    try:
+        cad.call("study_new", object="Bar", element_size=4.0)
+        cad.call("run_command", name="sim_fixed", slots={"Faces to support": [{"object": "Bar", "face": bottom}]})
+        cad.call("run_command", name="sim_force", slots={"Faces to load": [{"object": "Bar", "face": top}]}, params={"Force": 500, "Direction": "+X"})
+        r = cad.call("study_run")["results"]
+        render(-30, 20)
+        cad.call("run_command", name="sim_probe", commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        for z in (95, 10):
+            cad.call("pointer", events=[{"type": "down", "x": 0, "y": 0, "z": z}, {"type": "up", "x": 0, "y": 0, "z": z}])
+        text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (cad.call("command_set", params={}).get("results") or [])]
+        cad.call("command_cancel")
+        values = [float(m.group(1)) for x in text if x.startswith("Probe") for m in [re.search(r": ([-\d.eE+]+)", x)] if m]
+        rows.append(("Two clicks give two probes", f"{text}", len(values) == 2))
+        if len(values) == 2:
+            root = 500 * 100 * 5 / (10 * 10 ** 3 / 12)
+            rows.append(("Probes read stress where the bar bends most", f"probe near the top {values[0]} MPa, probe at 10 mm above the support {values[1]} MPa (beam theory at the support: {root:.0f} MPa, falling linearly to 0 at the load)", values[0] < 0.15 * root and 0.7 * root < values[1] < 1.1 * root))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Probe", str(error)[:160], False))
+    strip = ["Probe clicks on the stress result of a cantilever: near the load versus near the support"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the loaded bar", render(-30, 20)), ("checks", text_panel(strip))]
