@@ -829,11 +829,29 @@ CK_API int ck_children(void* s, void** out, int max) {
 CK_API int ck_shape_type(void* s) { TRY return (int)get(s).ShapeType(); CATCH(-1) } // TopAbs_ShapeEnum: 0 compound,1 compsolid,2 solid,3 shell,4 face,5 wire,6 edge,7 vertex
 CK_API int ck_is_valid(void* s) { TRY return BRepCheck_Analyzer(get(s)).IsValid() ? 1 : 0; CATCH(0) }
 
+// Integrate spline knot spans separately to keep volume stable across trimmed faces.
+static void volumeProperties(const TopoDS_Shape& shape, GProp_GProps& props, bool moments = false) {
+    if (TopExp_Explorer(shape, TopAbs_SOLID).More()) {
+        for (TopExp_Explorer faces(shape, TopAbs_FACE); faces.More(); faces.Next()) {
+            auto type = BRepAdaptor_Surface(TopoDS::Face(faces.Current())).GetType();
+            if (type == GeomAbs_BSplineSurface || type == GeomAbs_BezierSurface) {
+                if (BRepGProp::VolumePropertiesGK(shape, props, 1e-8, /*OnlyClosed=*/false,
+                    /*IsUseSpan=*/true, /*CGFlag=*/moments, /*IFlag=*/moments) < 0) {
+                    props = GProp_GProps();
+                    BRepGProp::VolumeProperties(shape, props, 1e-9);
+                }
+                return;
+            }
+        }
+    }
+    BRepGProp::VolumeProperties(shape, props);
+}
+
 // props: [volume, area, minx,miny,minz, maxx,maxy,maxz]
 CK_API int ck_props(void* s, double* out) {
     TRY
         GProp_GProps v, a;
-        BRepGProp::VolumeProperties(get(s), v);
+        volumeProperties(get(s), v);
         BRepGProp::SurfaceProperties(get(s), a, 1e-9);
         // tight box (BRepBndLib::Add alone follows NURBS control polygons, which stick out far past the real surface)
         // Measurement bounds must come from the geometry. Display triangulations carry
@@ -1067,7 +1085,7 @@ CK_API void* ck_vertex(double x, double y, double z) {
 CK_API int ck_mass(void* s, double* out) {
     TRY
         GProp_GProps v, a;
-        BRepGProp::VolumeProperties(get(s), v);
+        volumeProperties(get(s), v, true);
         BRepGProp::SurfaceProperties(get(s), a, 1e-9);
         bool solid = std::abs(v.Mass()) > 1e-9;
         GProp_GProps& g = solid ? v : a;

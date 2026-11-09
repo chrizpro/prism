@@ -79,4 +79,34 @@ public class CombineTests
         Assert.Equal(second.Id, Assert.Single(output.Remove).Id);
     }
 
+    [AvaloniaFact(DisplayName = "SOL-H107 | Cutting a curved spline loft conserves volume")]
+    [Trait("TestId", "SOL-H107")]
+    public void SplineLoftSubtractConservesVolume()
+    {
+        (double X, double Y)[] outline =
+        [
+            (-28, -15), (-46, -21), (-68, -37), (-79, -42), (-85, -43),
+            (-88, -45), (-78, -52), (-64, -55), (-44, -46), (-27, -40)
+        ];
+        Shape Section(double z, double scale) => Occ.Spline(outline.Select(p =>
+            new Vec3(-52 + (p.X + 52) * scale, -38 + (p.Y + 38) * scale, z)).ToArray(), closed: true);
+        using var bottom = Section(19, .935);
+        using var middleLow = Section(21.4, 1);
+        using var middleHigh = Section(28.5, 1);
+        using var top = Section(31.5, .95);
+        using var loft = Occ.Loft([bottom, middleLow, middleHigh, top], solid: true, ruled: false);
+        using var cutter = CylinderAt(new Vec3(-108, -97, 15), 55.6, 20);
+        using var removed = Occ.Common(loft, cutter);
+        using var remaining = Occ.Cut(loft, cutter);
+        AssertValidSolid(remaining);
+
+        double originalVolume = loft.Props().Volume;
+        double remainingVolume = remaining.Props().Volume;
+        double removedVolume = removed.Props().Volume;
+        Assert.True(remainingVolume < originalVolume,
+            $"Volume increased from {originalVolume:F3} to {remainingVolume:F3} mm³ after Subtract.");
+        Assert.InRange(Math.Abs(originalVolume - remainingVolume - removedVolume), 0, originalVolume * 1e-5);
+        Assert.InRange(Math.Abs(Occ.Mass(remaining).Volume - remainingVolume), 0, 1e-5);
+    }
+
 }
