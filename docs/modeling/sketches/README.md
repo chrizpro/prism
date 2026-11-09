@@ -62,3 +62,32 @@ Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its 
 ## Drawing on a curved surface
 
 Pick a **curved** face in Create Sketch and the sketch opens on a plane touching the face; *Draw on the curved surface* (on by default) means that when you finish the sketch it is also projected onto the face, along the plane's normal (or the opposite way if the face curves toward the plane), as a **Curve on surface**. The sketch itself stays, hidden. The tool uses Project Curve (Surface tab), which can also be used on its own with other directions or a pull to the nearest point. Owner request 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)). Limits: the projection is made once, when the sketch is finished, and is not updated if the sketch or the body changes later; the curves must fall on the picked face. Tests: SKT-H020, SKT-H021.
+
+### Proposed — awaiting owner review: drawing directly on a face
+
+Owner request 2026-11-09: remove the plane-then-project behavior above, where a "surface" sketch is really a plane, and let curves be drawn on the surface itself. **Nothing below is approved or implemented.** The section above stays accurate until this is approved and delivered.
+
+**Scope.** Create Sketch on a picked face of any of: a solid's face (flat or curved), a surface body, a freeform (SubD) form, and a NURBS surface or patch. One behavior for all four.
+
+**Proposed behavior (owner chose "lines follow the surface" on 2026-11-09).**
+
+- Picking such a face in Create Sketch opens a surface sketch on that face. The view does not flatten to a plane; the cursor is picked on the real face under the pointer.
+- Curves are defined in the face's (u, v) parameter space and mapped onto the face, so they lie on the surface by construction. The finished result is a **Curve on surface** that follows the face, not a projection of a plane drawing.
+- Freeform forms are drawn on their smooth limit surface (the shape the form displays), not on the cage; the curve does not move with later cage edits unless the owner decides otherwise (open decision 2).
+- The "Draw on the curved surface" option and the tangent-plane projection are removed. Picking a flat face still opens an ordinary planar sketch, as today.
+
+**Open decisions for the owner.**
+
+1. Which sketch tools are in scope for the first delivery (for example line, polyline, spline, circle, offset), and whether dimensions and constraints apply in (u, v) or are left out.
+2. Whether the curve stays attached to its face and updates when the body, surface or cage changes, or is fixed once finished.
+3. Faces with a seam, pole or trimmed boundary: stop at the boundary, or continue across it.
+4. How the distance a user types is measured: along the surface (geodesic) or in parameter units.
+
+**Proposed acceptance criteria** (to become stable IDs only after approval).
+
+- A curve drawn on a sphere, cylinder, surface body, SubD form and NURBS patch lies on that face within model tolerance.
+- No plane object or hidden planar sketch is created as a stand-in.
+- A pick that misses the face draws nothing.
+- Old documents that used "Curve on surface" still open and show the same curve.
+
+Tests: none yet for the proposal; SKT-H020 and SKT-H021 characterize the current projection and will be replaced after approval.
