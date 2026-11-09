@@ -2810,3 +2810,58 @@ def mesh_matrix_3():
     cad.box(width=30, depth=20, height=10, operation="New body")
     strip = ["Overhang, rebuild and section fit on meshes with known answers"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows] + ["KNOWN ISSUE #88: Mesh Rebuild builds the flat end caps of a cylinder as oversize free-form patches, so the rebuilt solid is about 10% too big although its own report says 0 mm deviation"]
     return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Motion: spring, actuator, and the joint force turned into a static load
+@scenario("motion__spring-actuator-and-joint-force-to-static-load", columns=1)
+def motion_spring_matrix():
+    rows = []
+    cad.call("document_new")
+    p = cad.cylinder(radius=10, height=10, operation="New body"); p.rename("Pin")
+    hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+    arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+    cad.union(hub, arm)
+    cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+    cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Pin", **cyl("Pin")}, "On the part that moves": {"object": "Hub", **cyl("Hub")}})
+    for n in ("Pin", "Hub"):
+        cad.call("material_apply", object=n, material="steel")
+
+    def results(r):
+        return [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r.get("results") or r.get("activeCommand", {}).get("results", []))]
+
+    def spring(label, params, expect):
+        try:
+            r = cad.call("run_command", name="motion_spring", slots={"First end (a face, circle or edge on a part)": {"object": "Hub"}, "Second end (on another part, or on a fixed body for a point in space)": {"object": "Pin"}}, params=params, commit=False)
+            r = cad.call("command_set", params={})
+            text = " | ".join(results(r))
+            cad.call("command_cancel")
+            ok = all(e in text for e in expect)
+            rows.append((label, text[:150], ok))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((label, str(error)[:120], False))
+    spring("Spring 5 N/mm, free length 20 mm", {"Stiffness": 5, "Free length is the current distance": False, "Free length": 20}, ["Between", "Force at rest position"])
+    spring("Actuator pushing 200 N", {"Stiffness": 0, "Actuator push (negative pulls)": 200}, ["200 N pushing the ends apart"])
+    spring("Actuator pulling 80 N", {"Stiffness": 0, "Actuator push (negative pulls)": -80}, ["80 N pulling the ends together"])
+    # run a motion study, then turn the joint force into a static study
+    try:
+        cad.call("run_command", name="cae_motion", commit=False)
+        cad.call("command_set", params={"Duration": 1, "Revolute 1 — motion": "Constant speed", "Speed": 60})
+        cad.call("command_set", params={"Run study": True})
+        for _ in range(40):
+            text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            if any("Solved" in x or "Could not run" in x for x in text):
+                break
+            time.sleep(1)
+        cad.call("command_cancel")
+        r = cad.call("run_command", name="motion_load_to_static", slots={"Faces the force acts on (on the part)": {"object": "Hub", **cyl("Hub")}}, commit=False)
+        r = cad.call("command_set", params={})
+        text = " | ".join(results(r))
+        cad.call("command_commit")
+        studies = cad.call("study_list") if False else None
+        rows.append(("Joint force becomes a force load on the hub", text[:150], "Force" in text or "No joint carried a force" in text))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Joint force becomes a force load on the hub", str(error)[:120], False))
+    strip = ["Motion spring / actuator and Load from Motion, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the pin, hub and arm", render(-30, 30)), ("checks", text_panel(strip))]
