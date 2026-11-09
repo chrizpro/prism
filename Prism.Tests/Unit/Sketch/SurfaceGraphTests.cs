@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Prism.UnitTests.Sketch;
 
-/// <summary>Shortest paths over welded triangle surfaces, the engine behind Draw on Surface. Needs no kernel: the meshes are written by hand.</summary>
+/// <summary>Laying a smooth curve on welded triangle surfaces, the engine behind Draw on Surface. Needs no kernel: the meshes are written by hand.</summary>
 /// <seealso href="https://github.com/chrizpro/prism/blob/develop/docs/modeling/sketches/README.md#drawing-directly-on-a-surface">Drawing directly on a surface.</seealso>
 [Trait("Feature", "Sketch")]
 [Trait("Layer", "Unit")]
@@ -14,46 +14,6 @@ public class SurfaceGraphTests
     static (float[], int[]) Floor() => ([0, 0, 0, 10, 0, 0, 10, 10, 0, 0, 10, 0], [0, 1, 2, 0, 2, 3]);
     static (float[], int[]) Wall() => ([10, 0, 0, 10, 10, 0, 10, 10, 10, 10, 0, 10], [0, 1, 2, 0, 2, 3]);
     static (float[], int[]) Far() => ([100, 0, 0, 110, 0, 0, 110, 10, 0, 100, 10, 0], [0, 1, 2, 0, 2, 3]);
-
-    static List<Vec3>? Path(SurfaceGraph g, Vec3 a, int pa, Vec3 b, int pb)
-    {
-        int ta = g.FindTriangle(a, pa, out var sa), tb = g.FindTriangle(b, pb, out var sb);
-        return g.Geodesic(sa, ta, sb, tb);
-    }
-
-    [Fact(DisplayName = "SKT-SF001 | A path over the edge between two faces is the straight line of the unfolded faces")]
-    [Trait("TestId", "SKT-SF001")]
-    public void PathCrossesTheSharedEdgeOfTwoFaces()
-    {
-        var g = new SurfaceGraph([Floor(), Wall()]);
-        var path = Path(g, new Vec3(2, 5, 0), 0, new Vec3(10, 5, 6), 1);
-        Assert.NotNull(path);
-        // unfolded, the wall continues the floor: 8 along the floor plus 6 up the wall
-        double length = SurfaceGraph.Length(path!);
-        Assert.InRange(length, 13.999, 14.5);
-        foreach (var p in path!)
-            Assert.True(Math.Abs(p.Z) < 1e-6 && p.X <= 10 + 1e-6 || Math.Abs(p.X - 10) < 1e-6 && p.Z >= -1e-6, $"{p} left the surface");
-        Assert.Contains(path, p => Math.Abs(p.X - 10) < 1e-6 && Math.Abs(p.Z) < 1e-6);   // it really crossed the shared edge
-    }
-
-    [Fact(DisplayName = "SKT-SF002 | Surfaces that do not touch are not joined: a path never crosses empty space")]
-    [Trait("TestId", "SKT-SF002")]
-    public void SeparateSurfacesAreNotJoined()
-    {
-        var g = new SurfaceGraph([Floor(), Far()]);
-        Assert.Null(Path(g, new Vec3(2, 5, 0), 0, new Vec3(105, 5, 0), 1));
-    }
-
-    [Fact(DisplayName = "SKT-SF003 | Two points inside one triangle are joined by a straight line")]
-    [Trait("TestId", "SKT-SF003")]
-    public void SameTriangleIsStraight()
-    {
-        var g = new SurfaceGraph([Floor()]);
-        var path = Path(g, new Vec3(8, 1, 0), 0, new Vec3(9, 2, 0), 0);
-        Assert.NotNull(path);
-        Assert.Equal(2, path!.Count);
-        Assert.InRange(SurfaceGraph.Length(path), Math.Sqrt(2) - 1e-9, Math.Sqrt(2) + 1e-9);
-    }
 
     // A faceted cylinder (radius 10, 24 sides, z 0..20) standing for a curved face.
     static (float[], int[]) Cylinder()
@@ -70,40 +30,15 @@ public class SurfaceGraphTests
         return (pos.ToArray(), idx.ToArray());
     }
 
-    [Fact(DisplayName = "SKT-SF005 | A smoothed path keeps its end points exactly and stays on the surface")]
-    [Trait("TestId", "SKT-SF005")]
-    public void SmoothedPathStaysOnTheSurface()
+    static (List<Vec3> Points, List<bool> Pinned)? Lay(SurfaceGraph g, int[] parts, params Vec3[] picks)
     {
-        var g = new SurfaceGraph([Cylinder()]);
-        var a = new Vec3(10, 0, 3); var b = new Vec3(0, 10, 15);
-        int ta = g.FindTriangle(a, 0, out var sa), tb = g.FindTriangle(b, 0, out var sb);
-        var leg = g.Geodesic(sa, ta, sb, tb);
-        Assert.NotNull(leg);
-        var (points, pinned) = g.SmoothPath([leg!], [ta], SurfaceGraph.Length(leg!) / 40);
-        Assert.True(points.Count > leg!.Count, "the path is resampled finely");
-        Assert.Equal(points.Count, pinned.Count);
-        Assert.Equal(sa, points[0]); Assert.Equal(sb, points[^1]);
-        double lowest = 10 * Math.Cos(Math.PI / 24) - 1e-6;      // a facet of the 24-sided cylinder lies between this radius and 10
-        foreach (var p in points) Assert.InRange(Math.Sqrt(p.X * p.X + p.Y * p.Y), lowest, 10 + 1e-6);
+        var on = new Vec3[picks.Length]; var tris = new int[picks.Length];
+        for (int i = 0; i < picks.Length; i++) tris[i] = g.FindTriangle(picks[i], parts[i], out on[i]);
+        return g.Trace(on, tris);
     }
 
-    [Fact(DisplayName = "SKT-SF006 | Smoothing across several legs keeps every clicked point exactly")]
-    [Trait("TestId", "SKT-SF006")]
-    public void ClickedPointsAreKept()
-    {
-        var g = new SurfaceGraph([Cylinder()]);
-        var spots = new[] { new Vec3(10, 0, 3), new Vec3(0, 10, 9), new Vec3(-10, 0, 15) };
-        var tris = spots.Select(s => g.FindTriangle(s, 0, out _)).ToArray();
-        var on = spots.Select(s => { g.FindTriangle(s, 0, out var q); return q; }).ToArray();
-        var legs = new List<IReadOnlyList<Vec3>> { g.Geodesic(on[0], tris[0], on[1], tris[1])!, g.Geodesic(on[1], tris[1], on[2], tris[2])! };
-        var (points, pinned) = g.SmoothPath(legs, [tris[0], tris[1]], 1.0);
-        var fixedPoints = points.Where((_, i) => pinned[i]).ToList();
-        Assert.Equal(3, fixedPoints.Count);
-        for (int i = 0; i < 3; i++) Assert.Equal(on[i], fixedPoints[i]);
-    }
-
-    [Fact(DisplayName = "SKT-SF004 | A point off the surface is moved onto the nearest triangle of the chosen part")]
-    [Trait("TestId", "SKT-SF004")]
+    [Fact(DisplayName = "SKT-SF001 | A point off the surface is moved onto the nearest triangle of the chosen part")]
+    [Trait("TestId", "SKT-SF001")]
     public void PointsAreMovedOntoTheSurface()
     {
         var g = new SurfaceGraph([Floor(), Wall()]);
@@ -112,5 +47,62 @@ public class SurfaceGraphTests
         Assert.Equal(0, on.Z, 6);
         Assert.Equal(4, on.X, 6);
         Assert.Equal(3, on.Y, 6);
+    }
+
+    [Fact(DisplayName = "SKT-SF002 | A curve over the edge between two faces stays on both faces and keeps the clicked points")]
+    [Trait("TestId", "SKT-SF002")]
+    public void CurveCrossesTheSharedEdgeOfTwoFaces()
+    {
+        var g = new SurfaceGraph([Floor(), Wall()]);
+        var a = new Vec3(2, 5, 0); var b = new Vec3(10, 5, 6);
+        var curve = Lay(g, [0, 1], a, b);
+        Assert.NotNull(curve);
+        var (points, pinned) = curve!.Value;
+        Assert.Equal(a, points[0]); Assert.Equal(b, points[^1]);
+        Assert.Equal(2, pinned.Count(p => p));
+        foreach (var p in points)
+            Assert.True(Math.Abs(p.Z) < 1e-6 && p.X <= 10 + 1e-6 || Math.Abs(p.X - 10) < 1e-6 && p.Z >= -1e-6, $"{p} left the surface");
+        Assert.Contains(points, p => Math.Abs(p.X - 10) < 1e-6);        // it reached the wall
+        Assert.Contains(points, p => Math.Abs(p.Z) < 1e-6 && p.X < 9);  // and ran on the floor
+    }
+
+    [Fact(DisplayName = "SKT-SF003 | Surfaces that do not touch are not joined: a curve never crosses empty space")]
+    [Trait("TestId", "SKT-SF003")]
+    public void SeparateSurfacesAreNotJoined()
+    {
+        var g = new SurfaceGraph([Floor(), Far()]);
+        Assert.Null(Lay(g, [0, 1], new Vec3(2, 5, 0), new Vec3(105, 5, 0)));
+    }
+
+    [Fact(DisplayName = "SKT-SF004 | A curve on a curved face stays on it, passes the clicked points and has no sharp turns")]
+    [Trait("TestId", "SKT-SF004")]
+    public void CurveOnACurvedFaceIsSmooth()
+    {
+        var g = new SurfaceGraph([Cylinder()]);
+        var picks = new[] { new Vec3(10, 0, 3), new Vec3(0, 10, 9), new Vec3(-10, 0, 15) };
+        var curve = Lay(g, [0, 0, 0], picks);
+        Assert.NotNull(curve);
+        var (points, pinned) = curve!.Value;
+        Assert.Equal(3, pinned.Count(p => p));
+        Assert.True(points.Count > 40, "the curve is sampled finely");
+        double lowest = 10 * Math.Cos(Math.PI / 24) - 1e-6;      // a facet of the 24-sided cylinder lies between this radius and 10
+        foreach (var p in points) Assert.InRange(Math.Sqrt(p.X * p.X + p.Y * p.Y), lowest, 10 + 1e-6);
+        for (int i = 1; i + 1 < points.Count; i++)
+        {
+            var d1 = (points[i] - points[i - 1]).Normalized(); var d2 = (points[i + 1] - points[i]).Normalized();
+            Assert.True(Vec3.Dot(d1, d2) > Math.Cos(40 * Math.PI / 180), $"sharp turn at sample {i}");
+        }
+    }
+
+    [Fact(DisplayName = "SKT-SF005 | Moving a point changes the curve but keeps the other clicked points exactly")]
+    [Trait("TestId", "SKT-SF005")]
+    public void MovingAPointKeepsTheOthers()
+    {
+        var g = new SurfaceGraph([Cylinder()]);
+        var before = Lay(g, [0, 0, 0], new Vec3(10, 0, 3), new Vec3(0, 10, 9), new Vec3(-10, 0, 15))!.Value;
+        var after = Lay(g, [0, 0, 0], new Vec3(10, 0, 3), new Vec3(0, 10, 4), new Vec3(-10, 0, 15))!.Value;
+        Assert.Equal(before.Points[0], after.Points[0]);
+        Assert.Equal(before.Points[^1], after.Points[^1]);
+        Assert.NotEqual(before.Points[before.Points.Count / 2], after.Points[after.Points.Count / 2]);
     }
 }

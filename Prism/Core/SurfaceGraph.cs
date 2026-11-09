@@ -6,28 +6,20 @@ using Prism.Kernel;
 namespace Prism.Core;
 
 /// <summary>
-/// The triangle surfaces of one or more objects welded into a single graph, with shortest paths over it (geodesics).
-/// Triangles of different faces and objects join wherever their corners coincide, so a path can run over the edge
-/// between two faces, or from one body onto another that touches it, but never across empty space.
-/// A path is found over Steiner points on the triangle edges (A*), then every point is slid along its edge until the
-/// path cannot get shorter, which is the straight line you would get by unfolding the triangles it crosses.
+/// The triangle surfaces of one or more objects welded into one mesh, so a curve can be laid on them. Triangles of
+/// different faces and objects join wherever their corners coincide, which lets a curve run over the edge between two
+/// faces, or from one body onto another that touches it, but never across empty space.
 /// </summary>
 public sealed class SurfaceGraph
 {
-    /// <summary>Extra nodes on every triangle edge. More is more accurate before straightening and slower to search.</summary>
-    const int Steiner = 3;
-
     readonly Vec3[] _v;
     readonly int[] _tri;                 // 3 vertex ids per triangle
     readonly int[] _owner;               // part index per triangle
-    readonly int[] _triEdge;             // 3 edge ids per triangle
     readonly int[][] _vertTris;
-    readonly int[] _edgeA, _edgeB;
-    readonly int[][] _edgeTris;
 
     public int TriangleCount => _owner.Length;
 
-    /// <summary>Weld the parts (positions as x,y,z floats, indices three per triangle) into one graph.</summary>
+    /// <summary>Weld the parts (positions as x,y,z floats, indices three per triangle) into one mesh.</summary>
     public SurfaceGraph(IReadOnlyList<(float[] Positions, int[] Indices)> parts)
     {
         double lo = double.MaxValue, hi = double.MinValue;
@@ -58,24 +50,10 @@ public sealed class SurfaceGraph
             }
         }
         _v = verts.ToArray(); _tri = tris.ToArray(); _owner = owners.ToArray();
-
         var vt = new List<int>[_v.Length];
-        var edgeIds = new Dictionary<long, int>();
-        var ea = new List<int>(); var eb = new List<int>(); var et = new List<List<int>>();
-        _triEdge = new int[_tri.Length];
         for (int t = 0; t < _owner.Length; t++)
-        {
-            for (int k = 0; k < 3; k++)
-            {
-                int a = _tri[3 * t + k], b = _tri[3 * t + (k + 1) % 3];
-                (vt[a] ??= []).Add(t);
-                long key = (long)Math.Min(a, b) * _v.Length + Math.Max(a, b);
-                if (!edgeIds.TryGetValue(key, out int e)) { e = ea.Count; edgeIds[key] = e; ea.Add(Math.Min(a, b)); eb.Add(Math.Max(a, b)); et.Add([]); }
-                et[e].Add(t); _triEdge[3 * t + k] = e;
-            }
-        }
+            for (int k = 0; k < 3; k++) (vt[_tri[3 * t + k]] ??= []).Add(t);
         _vertTris = vt.Select(l => l?.ToArray() ?? []).ToArray();
-        _edgeA = ea.ToArray(); _edgeB = eb.ToArray(); _edgeTris = et.Select(l => l.ToArray()).ToArray();
     }
 
     /// <summary>The triangle of <paramref name="part"/> (or of any part when negative) nearest the point, and the point moved onto it.</summary>
@@ -90,114 +68,6 @@ public sealed class SurfaceGraph
             if (d < bestD) { bestD = d; best = t; onSurface = q; }
         }
         return best;
-    }
-
-    Vec3 Pos(int n)
-    {
-        if (n < _v.Length) return _v[n];
-        int s = n - _v.Length, e = s / Steiner, j = s % Steiner;
-        return Vec3.Lerp(_v[_edgeA[e]], _v[_edgeB[e]], (j + 1.0) / (Steiner + 1));
-    }
-    int[] NodeTris(int n) => n < _v.Length ? _vertTris[n] : _edgeTris[(n - _v.Length) / Steiner];
-    IEnumerable<int> TriNodes(int t)
-    {
-        for (int k = 0; k < 3; k++) yield return _tri[3 * t + k];
-        for (int k = 0; k < 3; k++)
-        {
-            int baseId = _v.Length + _triEdge[3 * t + k] * Steiner;
-            for (int j = 0; j < Steiner; j++) yield return baseId + j;
-        }
-    }
-
-    /// <summary>
-    /// The shortest path over the surface from one point to another, each given with the triangle it lies on.
-    /// Null when the two are not joined by surface, or the search ran past <paramref name="maxNodes"/>.
-    /// </summary>
-    public List<Vec3>? Geodesic(Vec3 from, int fromTri, Vec3 to, int toTri, int maxNodes = 400_000)
-    {
-        if (fromTri < 0 || toTri < 0) return null;
-        if (fromTri == toTri) return [from, to];
-
-        var g = new Dictionary<int, double>(); var parent = new Dictionary<int, int>();
-        var closed = new HashSet<int>(); var open = new PriorityQueue<int, double>();
-        const int Goal = -1;
-        foreach (int n in TriNodes(fromTri))
-        {
-            g[n] = (Pos(n) - from).Length; parent[n] = Goal;
-            open.Enqueue(n, g[n] + (Pos(n) - to).Length);
-        }
-        double goalCost = double.MaxValue; int goalFrom = Goal;
-        while (open.TryDequeue(out int cur, out double f))
-        {
-            if (f >= goalCost - 1e-12) break;               // nothing left can beat the best way found to the end point
-            if (!closed.Add(cur)) continue;
-            if (closed.Count > maxNodes) return null;
-            var pc = Pos(cur); double gc = g[cur];
-            var tris = NodeTris(cur);
-            if (Array.IndexOf(tris, toTri) >= 0)
-            {
-                double total = gc + (pc - to).Length;
-                if (total < goalCost) { goalCost = total; goalFrom = cur; }
-            }
-            foreach (int t in tris)
-                foreach (int m in TriNodes(t))
-                {
-                    if (m == cur || closed.Contains(m)) continue;
-                    var pm = Pos(m); double ng = gc + (pm - pc).Length;
-                    if (g.TryGetValue(m, out double old) && ng >= old - 1e-12) continue;
-                    g[m] = ng; parent[m] = cur;
-                    open.Enqueue(m, ng + (pm - to).Length);
-                }
-        }
-        if (goalFrom == Goal) return null;
-
-        var chain = new List<int>();
-        for (int n = goalFrom; n != Goal; n = parent[n]) chain.Add(n);
-        chain.Reverse();
-        return Straighten(from, to, chain);
-    }
-
-    /// <summary>Slide every point that sits on a triangle edge along it until the whole path is as short as it can be.</summary>
-    List<Vec3> Straighten(Vec3 from, Vec3 to, List<int> chain)
-    {
-        var pts = new List<Vec3> { from }; var ends = new List<(Vec3 a, Vec3 b)?> { null };
-        foreach (int n in chain)
-        {
-            pts.Add(Pos(n));
-            ends.Add(n >= _v.Length ? (_v[_edgeA[(n - _v.Length) / Steiner]], _v[_edgeB[(n - _v.Length) / Steiner]]) : null);
-        }
-        pts.Add(to); ends.Add(null);
-
-        for (int sweep = 0; sweep < 80; sweep++)
-        {
-            double moved = 0;
-            for (int i = 1; i + 1 < pts.Count; i++)
-            {
-                if (ends[i] is not { } e) continue;
-                Vec3 prev = pts[i - 1], next = pts[i + 1];
-                double t0 = 0, t1 = 1;
-                for (int k = 0; k < 40; k++)
-                {
-                    double m1 = t0 + (t1 - t0) / 3, m2 = t1 - (t1 - t0) / 3;
-                    if (Cost(prev, next, e, m1) < Cost(prev, next, e, m2)) t1 = m2; else t0 = m1;
-                }
-                var q = Vec3.Lerp(e.a, e.b, (t0 + t1) / 2);
-                moved = Math.Max(moved, (q - pts[i]).Length);
-                pts[i] = q;
-            }
-            if (moved < 1e-9) break;
-        }
-
-        var result = new List<Vec3>();
-        foreach (var p in pts) if (result.Count == 0 || (p - result[^1]).Length > 1e-9) result.Add(p);
-        if (result.Count == 1) result.Add(result[0]);
-        return result;
-    }
-
-    static double Cost(Vec3 prev, Vec3 next, (Vec3 a, Vec3 b) e, double t)
-    {
-        var p = Vec3.Lerp(e.a, e.b, t);
-        return (p - prev).Length + (next - p).Length;
     }
 
     /// <summary>
@@ -227,54 +97,50 @@ public sealed class SurfaceGraph
     }
 
     /// <summary>
-    /// A smooth curve over the surface through the ends of the given legs (each a path from <see cref="Geodesic"/>).
-    /// Every leg is resampled evenly, then the points between the leg ends are faired (Taubin smoothing, which evens out
-    /// the kinks without shrinking the curve) and put back on the surface after each pass. The leg ends stay exactly where they are.
-    /// <paramref name="startTris"/> is the triangle each leg starts on. Returns the points and which of them are leg ends.
+    /// Lay a smooth curve through the picked points on the surface. A smooth curve through the points (centripetal Catmull-Rom,
+    /// so it neither overshoots nor loops) is sampled <paramref name="perSegment"/> times between each pair, and every sample is moved
+    /// onto the surface. Null when the curve cannot be laid on connected surface, such as a segment that would cross empty space.
+    /// <paramref name="startTris"/> gives the triangle each pick lies on. Returns the points and which of them are the picks.
     /// </summary>
-    public (List<Vec3> Points, List<bool> Pinned) SmoothPath(IReadOnlyList<IReadOnlyList<Vec3>> legs, IReadOnlyList<int> startTris, double spacing, int sweeps = 40)
+    public (List<Vec3> Points, List<bool> Pinned)? Trace(IReadOnlyList<Vec3> picks, IReadOnlyList<int> startTris, int perSegment = 24)
     {
-        var pts = new List<Vec3>(); var pinned = new List<bool>(); var tris = new List<int>();
-        spacing = Math.Max(spacing, 1e-6);
-        for (int li = 0; li < legs.Count; li++)
+        if (picks.Count < 2) return null;
+        var pts = new List<Vec3> { picks[0] }; var pinned = new List<bool> { true };
+        for (int i = 0; i + 1 < picks.Count; i++)
         {
-            var leg = legs[li];
-            double total = Length(leg);
-            int n = Math.Max(2, (int)Math.Ceiling(total / spacing) + 1);
-            int seg = 0; double segStart = 0;
-            for (int k = 0; k < n; k++)
+            var p0 = i > 0 ? picks[i - 1] : picks[i] * 2 - picks[i + 1];
+            var p3 = i + 2 < picks.Count ? picks[i + 2] : picks[i + 1] * 2 - picks[i];
+            int tri = startTris[i];
+            double tol = Math.Max(0.01 * (picks[i + 1] - picks[i]).Length, 1e-4);
+            for (int k = 1; k <= perSegment; k++)
             {
-                double s = total * k / (n - 1);
-                while (seg + 2 < leg.Count && segStart + (leg[seg + 1] - leg[seg]).Length < s - 1e-12) { segStart += (leg[seg + 1] - leg[seg]).Length; seg++; }
-                double segLen = (leg[seg + 1] - leg[seg]).Length;
-                var p = segLen < 1e-12 ? leg[seg] : Vec3.Lerp(leg[seg], leg[seg + 1], Math.Clamp((s - segStart) / segLen, 0, 1));
-                if (k == 0 && li > 0) continue;                                  // the previous leg already ended here
-                bool end = k == 0 || k == n - 1;
-                int tri = k == 0 ? startTris[li] : NearestTriangle(p, tris[^1], out _);
-                if (end && k == n - 1) p = leg[^1];
-                pts.Add(p); pinned.Add(end); tris.Add(tri);
+                if (k == perSegment)
+                {
+                    // the segment must really arrive at the next pick over the surface, or something is in the way
+                    NearestTriangle(picks[i + 1], tri, out var arrived);
+                    if ((arrived - picks[i + 1]).Length > tol) return null;
+                    pts.Add(picks[i + 1]); pinned.Add(true);
+                    break;
+                }
+                var q = CatmullRom(p0, picks[i], picks[i + 1], p3, (double)k / perSegment);
+                tri = NearestTriangle(q, tri, out var on);
+                pts.Add(on); pinned.Add(false);
             }
         }
-        const double Lambda = 0.5, Mu = -0.53;
-        for (int sweep = 0; sweep < sweeps; sweep++)
-            foreach (double factor in new[] { Lambda, Mu })
-            {
-                var next = pts.ToArray();
-                for (int i = 1; i + 1 < pts.Count; i++)
-                {
-                    if (pinned[i]) continue;
-                    var laplacian = (pts[i - 1] + pts[i + 1]) * 0.5 - pts[i];
-                    next[i] = pts[i] + laplacian * factor;
-                }
-                for (int i = 0; i < next.Length; i++)
-                {
-                    if (pinned[i]) continue;
-                    tris[i] = NearestTriangle(next[i], tris[i], out var on);
-                    next[i] = on;
-                }
-                for (int i = 0; i < next.Length; i++) pts[i] = next[i];
-            }
         return (pts, pinned);
+    }
+
+    static Vec3 CatmullRom(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, double u)
+    {
+        static double Knot(Vec3 a, Vec3 b) => Math.Max(Math.Sqrt((b - a).Length), 1e-6);
+        double t0 = 0, t1 = t0 + Knot(p0, p1), t2 = t1 + Knot(p1, p2), t3 = t2 + Knot(p2, p3);
+        double t = t1 + (t2 - t1) * u;
+        var a1 = p0 * ((t1 - t) / (t1 - t0)) + p1 * ((t - t0) / (t1 - t0));
+        var a2 = p1 * ((t2 - t) / (t2 - t1)) + p2 * ((t - t1) / (t2 - t1));
+        var a3 = p2 * ((t3 - t) / (t3 - t2)) + p3 * ((t - t2) / (t3 - t2));
+        var b1 = a1 * ((t2 - t) / (t2 - t0)) + a2 * ((t - t0) / (t2 - t0));
+        var b2 = a2 * ((t3 - t) / (t3 - t1)) + a3 * ((t - t1) / (t3 - t1));
+        return b1 * ((t2 - t) / (t2 - t1)) + b2 * ((t - t1) / (t2 - t1));
     }
 
     public static double Length(IReadOnlyList<Vec3> path)

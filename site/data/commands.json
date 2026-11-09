@@ -3542,18 +3542,9 @@
  {
   "name": "curve_on_surface",
   "title": "Draw on Surface",
-  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. The curve follows the surface between clicks, even over the edge onto the next face. Enter or double-click to finish, Backspace removes the last point.",
+  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Enter or double-click to finish.",
   "slots": [],
   "params": [
-   {
-    "label": "Curve",
-    "type": "choice",
-    "default": "Smooth through the points",
-    "options": [
-     "Smooth through the points",
-     "Sharp corners at the points"
-    ]
-   },
    {
     "label": "Clear points",
     "type": "action"
