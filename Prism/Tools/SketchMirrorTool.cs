@@ -22,19 +22,55 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _copyOnly ? 1 : 0;
     protected override void ApplyOption(int index) => _copyOnly = index == 1;
-    protected override void ResetState(CadSession s) { _picked = Sk(s).SelEntities.Count > 0; }
+    protected override void ResetState(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; }
 
     public override string Prompt => _picked
         ? "Mirror: click the line to mirror across (a normal or construction line)."
         : "Mirror: click the curves to mirror (Shift adds more), then press Enter. Or select them first.";
 
-    public override void Activate(CadSession s) { _picked = Sk(s).SelEntities.Count > 0; s.Say(Prompt); }
+    public override void Activate(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; s.Say(Prompt); }
+
+    // ------------------------------------------------------------ the panel: the same two steps as Offset (curves, then the line)
+    public override string PanelInputTitle => "1. Select curves";
+    public override string PanelSettingsTitle => "2. Mirror line";
+    public override IReadOnlyList<ToolControl>? Panel
+    {
+        get
+        {
+            int n = _sel;
+            string info = n == 0 ? "Nothing selected yet. Click curves (Shift adds more), or select them before choosing Mirror." : $"{n} curve{(n == 1 ? "" : "s")} selected";
+            return
+            [
+                new(ToolControlKind.Info, "sel", info, Section: PanelInputTitle),
+                new(ToolControlKind.Button, "selection", _picked ? "Change selection" : "Done selecting (Enter)", Primary: !_picked, Enabled: n > 0, Section: PanelInputTitle),
+                new(ToolControlKind.Button, "clear", "Clear selection", Enabled: n > 0, Section: PanelInputTitle),
+                new(ToolControlKind.Info, "line", _picked ? "Click the line to mirror across. A normal or construction line works; move over one to preview." : "Finish selecting first, then click the mirror line.", Section: PanelSettingsTitle),
+            ];
+        }
+    }
+    int _sel;                                    // how many curves are selected, kept for the panel
+
+    public override void PanelSet(CadSession s, string id, object? value)
+    {
+        var sk = Sk(s);
+        switch (id)
+        {
+            case "selection":
+                if (_picked) { _picked = false; _hoverLine = -1; }
+                else if (sk.SelEntities.Count > 0) _picked = true;
+                break;
+            case "clear": sk.SelEntities.Clear(); _picked = false; _hoverLine = -1; s.NotifySketchChanged(); break;
+        }
+        _sel = sk.SelEntities.Count;
+        s.Say(Prompt); s.RaiseState(); s.Invalidate();
+    }
     public override void Deactivate(CadSession s) { _hoverLine = -1; base.Deactivate(s); }
 
     public override bool Key(CadSession s, string key)
     {
         var sk = Sk(s);
-        if (key == "Enter" && !_picked && sk.SelEntities.Count > 0) { _picked = true; s.Say(Prompt); s.Invalidate(); return true; }
+        _sel = sk.SelEntities.Count;
+        if (key == "Enter" && !_picked && sk.SelEntities.Count > 0) { _picked = true; s.Say(Prompt); s.RaiseState(); s.Invalidate(); return true; }
         if (key == "Escape")
         {
             if (_picked) { _picked = false; sk.SelEntities.Clear(); s.NotifySketchChanged(); s.Say(Prompt); s.Invalidate(); return true; }
@@ -48,9 +84,10 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
         if (!p.Left) return false;
         var sk = Sk(s);
         int eid = sk.PickEntity(s, p.X, p.Y, 9);
+        _sel = sk.SelEntities.Count;
         if (!_picked)
         {
-            if (eid >= 0) { if (!sk.SelEntities.Remove(eid)) sk.SelEntities.Add(eid); s.NotifySketchChanged(); s.Invalidate(); }
+            if (eid >= 0) { if (!sk.SelEntities.Remove(eid)) sk.SelEntities.Add(eid); _sel = sk.SelEntities.Count; s.NotifySketchChanged(); s.RaiseState(); s.Invalidate(); }
             return true;
         }
         // choosing the mirror line
@@ -59,7 +96,7 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
         var ids = sk.SelEntities.Where(i => i != eid).ToList();
         if (ids.Count == 0) { s.Say("Select some curves to mirror first.", true); return true; }
         bool ok = sk.Edit(s, "That mirror", () => Mirror(sk.Model, ids, line, !_copyOnly));
-        if (ok) { s.Say($"Mirrored {ids.Count} curve(s)."); sk.SelEntities.Clear(); _picked = false; s.NotifySketchChanged(); }
+        if (ok) { s.Say($"Mirrored {ids.Count} curve(s)."); sk.SelEntities.Clear(); _picked = false; _sel = 0; s.NotifySketchChanged(); s.RaiseState(); }
         s.Invalidate();
         return true;
     }

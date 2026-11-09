@@ -117,7 +117,12 @@ public partial class RibbonView : UserControl
             }
             try
             {
-                if (TopLevel.GetTopLevel(anchor) is { } top && await top.Launcher.LaunchUriAsync(uri)) CloseHoverHelp();
+                if (TopLevel.GetTopLevel(anchor) is { } top && await top.Launcher.LaunchUriAsync(uri))
+                {
+                    CloseHoverHelp();
+                    // the command search list is a popup of its own and would otherwise stay on top of the browser that just opened
+                    if (Vm is { } vm) { vm.SearchText = ""; vm.SearchOpen = false; }
+                }
                 else { notice.Text = "The guide could not be opened."; notice.IsVisible = true; }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

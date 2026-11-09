@@ -8,7 +8,12 @@ namespace Prism.Views;
 
 public partial class MainWindow : Window
 {
-    public MainWindow() { InitializeComponent(); InitializeDocumentSafety(); InitializeFileDrop(); }
+    public MainWindow()
+    {
+        InitializeComponent(); InitializeDocumentSafety(); InitializeFileDrop();
+        // the command search list is a popup of its own: when another application (a browser opened from Learn More, for example) takes over, it must not stay on top of it
+        Deactivated += (_, _) => { if (DataContext is MainViewModel { SearchOpen: true } vm) { vm.SearchText = ""; vm.SearchOpen = false; } };
+    }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {

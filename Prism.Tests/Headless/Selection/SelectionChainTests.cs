@@ -152,7 +152,7 @@ public class SelectionChainTests
         Assert.Contains("no longer exists", gone.Message);
     }
 
-    [AvaloniaFact(DisplayName = "SEL-H011 | In Face mode a slot with edge rules offers no edges or curves; Edge and Object modes keep them")]
+    [AvaloniaFact(DisplayName = "SEL-H011 | In Face mode a slot with edge rules offers no body edges but still whole curves; Edge and Object modes keep edges")]
     [Trait("TestId", "SEL-H011")]
     public void FaceModeTurnsOffEdgePicksInRuleSlots()
     {
@@ -167,7 +167,7 @@ public class SelectionChainTests
         }
         s.Mode = SelMode.Face;
         Assert.False(s.ActiveFilter.HasFlag(SelFilter.Edge));
-        Assert.Equal(SelFilter.None, s.ActiveFilter & (SelFilter.Edge | SelFilter.AnyCurve));
+        Assert.True(s.ActiveFilter.HasFlag(SelFilter.CurveObj), "a whole curve is an object, so it stays pickable");
         Assert.True(s.ActiveFilter.HasFlag(SelFilter.Face), "faces stay pickable for sections");
         s.CancelCommand();
     }

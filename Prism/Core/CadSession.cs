@@ -588,9 +588,10 @@ public sealed partial class CadSession : ObservableObject
         {
             if (ActiveCommand?.ActiveSlot is { } slot)
             {
-                // a slot that takes edges or curves by rule (single edge, chain, partial loop) has nothing to offer while picking faces
+                // a slot that takes edges by rule (single edge, chain, partial loop) offers no edges while picking faces. Whole curves and
+                // sketches (text, an outline) are objects, not edges of a body, so they stay pickable in every mode.
                 var f = slot.PickFilter;
-                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~(SelFilter.Edge | SelFilter.AnyCurve) : f;
+                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
             }
             return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
@@ -1708,11 +1709,35 @@ public sealed partial class CadSession : ObservableObject
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
         BuildRegionOverlay(o);
+        int toolLines = o.Lines.Count;
         ActiveTool?.BuildOverlay(this, o);
+        // while construction mode is on, what is being drawn previews as a dashed reference line from the first moment, as it will look once placed
+        if (Sketch is { Construction: true } && ActiveTool is SketchTool and not (SketchMirrorTool or OffsetTool)) DashRubberBand(o, toolLines);
         if (DatumVisible) Datum!.BuildOverlay(this, o);
         (ActiveTool as ClickTool)?.BuildHud(this, o);
         if (ActiveStudy != null && (Result == null || Result.Kind == Simulation.ResultKind.MeshOnly)) Simulation.StudyOverlay.Draw(this, o);
         if (ShowBounds) BuildBoundsOverlay(o);
+    }
+
+    /// <summary>Turn the solid rubber-band lines a sketch tool added since <paramref name="from"/> into dashes, keeping the rest as drawn.</summary>
+    void DashRubberBand(Overlay o, int from)
+    {
+        var added = o.Lines.GetRange(from, o.Lines.Count - from);
+        o.Lines.RemoveRange(from, added.Count);
+        var run = new List<Vec3>(); float width = 2; 
+        void Flush()
+        {
+            if (run.Count > 1) SketchContext.AddDashed(o, run, SketchTool.Rubber, width, Camera.PixelSizeAt(run[0]));
+            run = [];
+        }
+        foreach (var l in added)
+        {
+            if (l.Color != SketchTool.Rubber) { o.Lines.Add(l); continue; }
+            if (run.Count > 0 && (run[^1] - l.A).Length > 1e-9) Flush();
+            if (run.Count == 0) { run.Add(l.A); width = l.Width; }
+            run.Add(l.B);
+        }
+        Flush();
     }
 
     // ------------------------------------------------------------ files
