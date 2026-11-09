@@ -2527,3 +2527,92 @@ def rib_blend_fill_matrix():
     cad.box(width=60, depth=40, height=4, operation="New body")
     strip = ["Rib, blend surface and fill opening, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a plate", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Exports, pictures and the pipe network
+@scenario("output__print-export-images-and-pipe-network", columns=1)
+def export_images_network():
+    import re
+    import struct
+    from PIL import Image as PilImage
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def export(command, fmt, one_per_body=False, bodies=1):
+        folder = Path(tempfile.gettempdir()) / f"prism-visual-{command}-{fmt}"
+        folder.mkdir(exist_ok=True)
+        for f in folder.iterdir():
+            f.unlink()
+        for i in range(bodies):
+            b = cad.box(width=20, depth=20, height=10, operation="New body"); b.rename(f"Part{i}"); cad.move(b, x=i * 40)
+        cad.call("run_command", name=command, params={"Folder": str(folder), "File name": "part", "Format": fmt, "Selection only (all visible if none)": False, "One file per body": one_per_body}, commit=False)
+        cad.call("command_set", params={"Export": True})
+        cad.call("wait_idle", timeout_ms=60000)
+        time.sleep(1)
+        cad.call("command_cancel")
+        return sorted(folder.iterdir())
+
+    def stl():
+        files = export("print_export", "STL")
+        f = files[0] if files else None
+        if f is None:
+            return False, "no file written"
+        data = f.read_bytes()
+        triangles = struct.unpack("<I", data[80:84])[0] if not data[:5] == b"solid" else data.count(b"facet normal")
+        return triangles == 12 and f.suffix.lower() == ".stl", f"{f.name}: {len(data)} bytes, {triangles} triangles (a box has 12)"
+    case("Print export: a block as STL has 12 triangles", stl)
+
+    def threemf():
+        files = export("print_export", "3MF")
+        import zipfile
+        ok = bool(files) and zipfile.is_zipfile(files[0])
+        return ok, f"{[f.name for f in files]} ({'a valid 3MF archive' if ok else 'not a zip archive'})"
+    case("Print export: 3MF is a zip archive", threemf)
+
+    def per_body():
+        files = export("print_export", "STL", one_per_body=True, bodies=2)
+        return len(files) == 2, f"{len(files)} files {[f.name for f in files]} for two bodies"
+    case("Print export: one file per body", per_body)
+
+    def resin():
+        files = export("resin_export", "STL")
+        return bool(files), f"{[f.name for f in files]}"
+    case("Resin export writes a file", resin)
+
+    def images():
+        png = Path(tempfile.gettempdir()) / "prism-visual-image.png"
+        PilImage.new("RGB", (40, 20), (200, 40, 40)).save(png)
+        before = names()
+        cad.call("run_command", name="place_image", params={"Image file": str(png), "Place it on": "Top plane (XY)", "Width": 50})
+        made = [o for o in cad.objects() if o.name not in before]
+        w = cad.call("object_info", object=made[0].name)["size"][0] if made else 0
+        cad.call("run_command", name="edit_image", slots={"Picture": [made[0].name]}, params={"Width": 80})
+        w2 = cad.call("object_info", object=made[0].name)["size"][0]
+        return len(made) == 1 and abs(w - 50) < .6 and abs(w2 - 80) < .6, f"picture {w:.1f} wide, then {w2:.1f} after Edit Image set it to 80 (aspect kept: 40 x 20 -> 80 x 40)"
+    case("Place a picture 50 wide, then edit it to 80", images)
+
+    def network():
+        r = cad.call("run_command", name="cae_pipe_network", commit=False)
+        text = [x["label"] + ": " + str(x["value"]) for x in r["activeCommand"].get("results", [])]
+        cad.call("command_cancel")
+        flows = {}
+        for line in text:
+            m = re.match(r"([A-Z]) → ([A-Z]): ([\d.]+) L/min", line)
+            if m:
+                flows[(m.group(1), m.group(2))] = float(m.group(3))
+        pressures = {l[12]: float(l.split(": ")[1].split()[0]) for l in text if l.startswith("Pressure at")}
+        a_b, b_c, b_d = flows[("A", "B")], flows[("B", "C")], flows[("B", "D")]
+        ok = abs(a_b - (b_c + b_d)) < .01 * a_b and abs(b_c - b_d) < .01 * b_c and pressures["A"] == 200
+        return ok, f"A to B {a_b:.1f} L/min splits into {b_c:.1f} + {b_d:.1f} (mass is conserved and the equal branches share it equally); pressures {pressures}"
+    case("Pipe network: flow splits equally and is conserved", network)
+    cad.call("document_new")
+    cad.box(width=30, depth=30, height=20, operation="New body")
+    strip = ["Exports, pictures and the pipe network, each against what it should produce"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
