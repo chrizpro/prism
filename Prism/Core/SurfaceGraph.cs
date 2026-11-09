@@ -200,6 +200,83 @@ public sealed class SurfaceGraph
         return (p - prev).Length + (next - p).Length;
     }
 
+    /// <summary>
+    /// The triangle nearest a point, found by stepping from <paramref name="start"/> to whichever neighbouring triangle is closer
+    /// until none is. Meant for points that move a little at a time, so it does not walk the whole mesh.
+    /// </summary>
+    public int NearestTriangle(Vec3 p, int start, out Vec3 onSurface)
+    {
+        int cur = start;
+        onSurface = ClosestOnTriangle(p, _v[_tri[3 * cur]], _v[_tri[3 * cur + 1]], _v[_tri[3 * cur + 2]]);
+        double best = (onSurface - p).Length;
+        for (int step = 0; step < 256; step++)
+        {
+            int next = -1; var nextPoint = onSurface;
+            for (int k = 0; k < 3; k++)
+                foreach (int t in _vertTris[_tri[3 * cur + k]])
+                {
+                    if (t == cur) continue;
+                    var q = ClosestOnTriangle(p, _v[_tri[3 * t]], _v[_tri[3 * t + 1]], _v[_tri[3 * t + 2]]);
+                    double d = (q - p).Length;
+                    if (d < best - 1e-12) { best = d; next = t; nextPoint = q; }
+                }
+            if (next < 0) break;
+            cur = next; onSurface = nextPoint;
+        }
+        return cur;
+    }
+
+    /// <summary>
+    /// A smooth curve over the surface through the ends of the given legs (each a path from <see cref="Geodesic"/>).
+    /// Every leg is resampled evenly, then the points between the leg ends are faired (Taubin smoothing, which evens out
+    /// the kinks without shrinking the curve) and put back on the surface after each pass. The leg ends stay exactly where they are.
+    /// <paramref name="startTris"/> is the triangle each leg starts on. Returns the points and which of them are leg ends.
+    /// </summary>
+    public (List<Vec3> Points, List<bool> Pinned) SmoothPath(IReadOnlyList<IReadOnlyList<Vec3>> legs, IReadOnlyList<int> startTris, double spacing, int sweeps = 40)
+    {
+        var pts = new List<Vec3>(); var pinned = new List<bool>(); var tris = new List<int>();
+        spacing = Math.Max(spacing, 1e-6);
+        for (int li = 0; li < legs.Count; li++)
+        {
+            var leg = legs[li];
+            double total = Length(leg);
+            int n = Math.Max(2, (int)Math.Ceiling(total / spacing) + 1);
+            int seg = 0; double segStart = 0;
+            for (int k = 0; k < n; k++)
+            {
+                double s = total * k / (n - 1);
+                while (seg + 2 < leg.Count && segStart + (leg[seg + 1] - leg[seg]).Length < s - 1e-12) { segStart += (leg[seg + 1] - leg[seg]).Length; seg++; }
+                double segLen = (leg[seg + 1] - leg[seg]).Length;
+                var p = segLen < 1e-12 ? leg[seg] : Vec3.Lerp(leg[seg], leg[seg + 1], Math.Clamp((s - segStart) / segLen, 0, 1));
+                if (k == 0 && li > 0) continue;                                  // the previous leg already ended here
+                bool end = k == 0 || k == n - 1;
+                int tri = k == 0 ? startTris[li] : NearestTriangle(p, tris[^1], out _);
+                if (end && k == n - 1) p = leg[^1];
+                pts.Add(p); pinned.Add(end); tris.Add(tri);
+            }
+        }
+        const double Lambda = 0.5, Mu = -0.53;
+        for (int sweep = 0; sweep < sweeps; sweep++)
+            foreach (double factor in new[] { Lambda, Mu })
+            {
+                var next = pts.ToArray();
+                for (int i = 1; i + 1 < pts.Count; i++)
+                {
+                    if (pinned[i]) continue;
+                    var laplacian = (pts[i - 1] + pts[i + 1]) * 0.5 - pts[i];
+                    next[i] = pts[i] + laplacian * factor;
+                }
+                for (int i = 0; i < next.Length; i++)
+                {
+                    if (pinned[i]) continue;
+                    tris[i] = NearestTriangle(next[i], tris[i], out var on);
+                    next[i] = on;
+                }
+                for (int i = 0; i < next.Length; i++) pts[i] = next[i];
+            }
+        return (pts, pinned);
+    }
+
     public static double Length(IReadOnlyList<Vec3> path)
     {
         double len = 0;

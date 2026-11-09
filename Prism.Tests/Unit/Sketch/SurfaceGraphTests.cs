@@ -55,6 +55,53 @@ public class SurfaceGraphTests
         Assert.InRange(SurfaceGraph.Length(path), Math.Sqrt(2) - 1e-9, Math.Sqrt(2) + 1e-9);
     }
 
+    // A faceted cylinder (radius 10, 24 sides, z 0..20) standing for a curved face.
+    static (float[], int[]) Cylinder()
+    {
+        const int sides = 24, rings = 10; var pos = new List<float>(); var idx = new List<int>();
+        for (int r = 0; r <= rings; r++)
+            for (int s = 0; s < sides; s++) { double a = 2 * Math.PI * s / sides; pos.AddRange([(float)(10 * Math.Cos(a)), (float)(10 * Math.Sin(a)), 20f * r / rings]); }
+        for (int r = 0; r < rings; r++)
+            for (int s = 0; s < sides; s++)
+            {
+                int a = r * sides + s, b = r * sides + (s + 1) % sides, c = a + sides, d = b + sides;
+                idx.AddRange([a, b, d, a, d, c]);
+            }
+        return (pos.ToArray(), idx.ToArray());
+    }
+
+    [Fact(DisplayName = "SKT-SF005 | A smoothed path keeps its end points exactly and stays on the surface")]
+    [Trait("TestId", "SKT-SF005")]
+    public void SmoothedPathStaysOnTheSurface()
+    {
+        var g = new SurfaceGraph([Cylinder()]);
+        var a = new Vec3(10, 0, 3); var b = new Vec3(0, 10, 15);
+        int ta = g.FindTriangle(a, 0, out var sa), tb = g.FindTriangle(b, 0, out var sb);
+        var leg = g.Geodesic(sa, ta, sb, tb);
+        Assert.NotNull(leg);
+        var (points, pinned) = g.SmoothPath([leg!], [ta], SurfaceGraph.Length(leg!) / 40);
+        Assert.True(points.Count > leg!.Count, "the path is resampled finely");
+        Assert.Equal(points.Count, pinned.Count);
+        Assert.Equal(sa, points[0]); Assert.Equal(sb, points[^1]);
+        double lowest = 10 * Math.Cos(Math.PI / 24) - 1e-6;      // a facet of the 24-sided cylinder lies between this radius and 10
+        foreach (var p in points) Assert.InRange(Math.Sqrt(p.X * p.X + p.Y * p.Y), lowest, 10 + 1e-6);
+    }
+
+    [Fact(DisplayName = "SKT-SF006 | Smoothing across several legs keeps every clicked point exactly")]
+    [Trait("TestId", "SKT-SF006")]
+    public void ClickedPointsAreKept()
+    {
+        var g = new SurfaceGraph([Cylinder()]);
+        var spots = new[] { new Vec3(10, 0, 3), new Vec3(0, 10, 9), new Vec3(-10, 0, 15) };
+        var tris = spots.Select(s => g.FindTriangle(s, 0, out _)).ToArray();
+        var on = spots.Select(s => { g.FindTriangle(s, 0, out var q); return q; }).ToArray();
+        var legs = new List<IReadOnlyList<Vec3>> { g.Geodesic(on[0], tris[0], on[1], tris[1])!, g.Geodesic(on[1], tris[1], on[2], tris[2])! };
+        var (points, pinned) = g.SmoothPath(legs, [tris[0], tris[1]], 1.0);
+        var fixedPoints = points.Where((_, i) => pinned[i]).ToList();
+        Assert.Equal(3, fixedPoints.Count);
+        for (int i = 0; i < 3; i++) Assert.Equal(on[i], fixedPoints[i]);
+    }
+
     [Fact(DisplayName = "SKT-SF004 | A point off the surface is moved onto the nearest triangle of the chosen part")]
     [Trait("TestId", "SKT-SF004")]
     public void PointsAreMovedOntoTheSurface()
