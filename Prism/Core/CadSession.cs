@@ -162,7 +162,17 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
     public Vec3? ViewportCursor { get; set; }
 
-    public CadSession() { Current = Root; }
+    public CadSession() { Current = Root; _cleanNode = Root; }
+
+    /// <summary>History state matching the last save/open/new. Returning to it by undo or an abandoned edit leaves nothing unsaved.</summary>
+    HistoryNode _cleanNode;
+    /// <summary>A change outside the timeline (lights, data sheets, studies...) that undo cannot revert.</summary>
+    bool _offHistoryEdit, _markingHistory;
+    partial void OnDirtyChanged(bool value)
+    {
+        if (!value) { _cleanNode = Current; _offHistoryEdit = false; }
+        else if (!_markingHistory && !_navigating) _offHistoryEdit = true;
+    }
 
     public bool CanUndo => Current.Parent != null;
     public bool CanRedo => Current.Preferred != null;
@@ -229,7 +239,7 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Announce that the next scene change is a history step with this label.</summary>
-    void Checkpoint(string label = "Edit", string icon = "box") { _pendingLabel = label; _pendingIcon = icon; Dirty = true; }
+    void Checkpoint(string label = "Edit", string icon = "box") { _pendingLabel = label; _pendingIcon = icon; _markingHistory = true; try { Dirty = true; } finally { _markingHistory = false; } }
 
     /// <summary>Make <paramref name="node"/> the current state. Redo will follow this path afterwards.</summary>
     public void GoTo(HistoryNode node)
@@ -243,7 +253,7 @@ public sealed partial class CadSession : ObservableObject
         Objects = node.After;
         DocumentParameters = node.Parameters;
         RestoreDrawings(node);
-        Dirty = true;
+        Dirty = _offHistoryEdit || node != _cleanNode;
         PruneSelection();
         RaiseScene();
         _navigating = false;
@@ -335,7 +345,7 @@ public sealed partial class CadSession : ObservableObject
         _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
         DataSheets.Clear(); DataChanged?.Invoke(); LoadHome(null);
         Drawings = new(); _drawingRevisions.Clear(); DrawingsChanged?.Invoke();
-        FilePath = null; Dirty = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
+        FilePath = null; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
     }
     // ------------------------------------------------------------ mutation
     public SceneObject AddObject(Shape? shape, string namePrefix, ObjKind? kind = null, uint? color = null, Plane3? plane = null, bool checkpoint = true, Form.SubdMesh? form = null, Sketching.SketchModel? sketch = null)
@@ -1777,7 +1787,7 @@ public sealed partial class CadSession : ObservableObject
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         NativeDocumentFile.WriteAtomic(path, SerializeDocument());
-        FilePath = path; Dirty = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
+        FilePath = path; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; Current.Pin ??= $"Saved {DateTime.Now:HH:mm}"; TimelineChanged?.Invoke(); Say($"Saved {Path.GetFileName(path)}");
     }
 
     /// <summary>Write committed state without adopting a path or marking the user's work saved.</summary>
@@ -1847,7 +1857,7 @@ public sealed partial class CadSession : ObservableObject
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
         PartInfo = dto.Info ?? new(); PartInfoChanged?.Invoke();
-        FilePath = path; Dirty = false;
+        FilePath = path; Dirty = false; _cleanNode = Current; _offHistoryEdit = false;
         RaiseScene(); ZoomExtents(); Say($"Opened {Path.GetFileName(path)}");
     }
 

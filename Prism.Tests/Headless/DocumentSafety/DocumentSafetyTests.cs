@@ -106,6 +106,28 @@ public class DocumentSafetyTests : IDisposable
         Assert.False(MainViewModel.NeedsCloseDecision(pristine));
     }
 
+    [AvaloniaFact(DisplayName = "SAV-H012 | Nothing created means no close prompt: undo to the start, empty sketch or unused tool")]
+    [Trait("TestId", "SAV-H012")]
+    public void EmptyDocumentsDoNotPromptOnExit()
+    {
+        var vm = new MainViewModel(); var tab = vm.ActiveDocument!;
+        Assert.False(MainViewModel.NeedsCloseDecision(tab));
+        AddBody(tab.Session);
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Undo();
+        Assert.Empty(tab.Session.Objects); Assert.False(tab.Session.Dirty);
+        Assert.False(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Redo();
+        Assert.True(MainViewModel.NeedsCloseDecision(tab));
+        tab.Session.Undo();
+        tab.Session.StartCommand(() => new BoxCommand());
+        try { Assert.False(MainViewModel.NeedsCloseDecision(tab)); }
+        finally { tab.Session.CancelCommand(); }
+        tab.Session.EnterSketch(Plane3.XY);
+        try { Assert.False(MainViewModel.NeedsCloseDecision(tab)); }
+        finally { tab.Session.ExitSketch(false); }
+    }
+
     [AvaloniaFact(DisplayName = "SAV-H002 | Canceled Save As and a failed destination keep unsaved work open")]
     [Trait("TestId", "SAV-H002")]
     public async Task SaveCancellationAndFailureCancelClose()
