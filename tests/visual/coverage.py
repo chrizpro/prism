@@ -20,6 +20,8 @@ sweep_source = scripts.split("def every_command_opens")[0] + "@scenario".join(sc
 used = {n for n in names if re.search(rf'["\']{n}["\']', sweep_source)}   # a command named as a string literal in a scenario other than the start-and-cancel sweep
 helpers = {"box": "box", "cylinder": "cylinder", "sphere": "sphere", "union": "union", "fillet": "fillet", "shell": "shell", "extrude": "extrude", "revolve": "revolve",
            "move": "move", "holes": "hole", "fold": "fold", "chamfer": "chamfer"}
+if '"joint_" +' in scripts:
+    used |= {n for n in names if n.startswith("joint_")}      # the joint scenarios build the command name from the joint kind
 used |= {command for helper, command in helpers.items() if re.search(rf"cad\.{helper}\(|cad\.run\(\"{helper}\"", scripts)}
 families = defaultdict(lambda: [0, 0, []])
 for n in sorted(names):
