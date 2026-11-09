@@ -583,7 +583,10 @@ public sealed partial class AutomationApi
         foreach (var (key, val) in ps)
         {
             if (val == null) continue;
-            var p = c.Params.FirstOrDefault(x => x.Label.Equals(key, StringComparison.OrdinalIgnoreCase))
+            // two parameters can share a label (Curve from Data has a "Points" count and a "Points" table): the value's type says which one is meant
+            bool Fits(Param x) => val is JsonValue jv && (jv.TryGetValue<bool>(out _) ? x is BoolParam : jv.TryGetValue<double>(out _) ? x is NumberParam or IntParam or ChoiceParam : x is TextParam or ChoiceParam);
+            var p = c.Params.FirstOrDefault(x => x.Label.Equals(key, StringComparison.OrdinalIgnoreCase) && Fits(x))
+                 ?? c.Params.FirstOrDefault(x => x.Label.Equals(key, StringComparison.OrdinalIgnoreCase))
                  ?? c.Params.FirstOrDefault(x => x.Label.Contains(key, StringComparison.OrdinalIgnoreCase))
                  ?? c.Params.FirstOrDefault(x => Compact(x.Label).Contains(Compact(key)))
                  ?? throw new ArgumentException($"Command '{c.Title}' has no parameter '{key}'. Parameters: {string.Join(", ", c.Params.Select(x => x.Label))}");
