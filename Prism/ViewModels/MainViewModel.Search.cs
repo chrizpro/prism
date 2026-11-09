@@ -59,6 +59,7 @@ public sealed partial class MainViewModel
     {
         int cut = target.IndexOf('|'); if (cut < 0) return false;
         string tab = target[..cut], label = target[(cut + 1)..];
+        label = label switch { "Divide" => "Points Along Curve", "Duplicate Edge" => "Extract Edges", _ => label };
         var hit = AllCommandHits().FirstOrDefault(h => h.Tab == tab && h.Label == label);
         if (hit == null) { Session.Say($"The shortcut's command '{label}' is no longer in the ribbon.", true); return true; }
         hit.Button.Refresh();

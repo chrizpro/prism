@@ -3529,7 +3529,7 @@
  },
  {
   "name": "curve_divide",
-  "title": "Divide Curve",
+  "title": "Points Along Curve",
   "hint": "Place points at equal distances along a curve. The length of the curve is reported.",
   "slots": [
    {
@@ -3552,7 +3552,7 @@
  },
  {
   "name": "curve_duplicate_edge",
-  "title": "Duplicate Edge",
+  "title": "Extract Edges",
   "hint": "Copy the edges you click as curves. Edges that touch end to end become one curve.",
   "slots": [
    {
