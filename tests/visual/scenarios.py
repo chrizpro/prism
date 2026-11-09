@@ -2616,3 +2616,139 @@ def export_images_network():
     cad.box(width=30, depth=30, height=20, operation="New body")
     strip = ["Exports, pictures and the pipe network, each against what it should produce"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Rack and pinion, and a free joint under a torque load
+@scenario("assembly__rack-and-pinion-and-torque-loaded-free-joint", columns=1)
+def rack_and_torque():
+    import re
+    rows = []
+
+    def case(label, fn):
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+    face = lambda n, facing: {"face": cad.call("solid_find", object=n, kind="faces", type="Plane", facing=facing)["hits"][0]["face"]}
+
+    def drive(values):
+        r = cad.call("run_command", name="drive_joints", commit=False)
+        labels = [p["label"] for p in r["activeCommand"]["params"]]
+        cad.call("command_set", params={label: v for label, v in zip(labels, values)})
+        cad.call("command_commit")
+        cad.call("wait_idle")
+
+    def rack():
+        cad.call("document_new")
+        post = cad.cylinder(radius=10, height=10, operation="New body"); post.rename("Post")
+        wheel = cad.cylinder(radius=10, height=5, operation="New body"); wheel.rename("Wheel"); cad.move(wheel, z=12)
+        base = cad.box(width=60, depth=20, height=10, operation="New body"); base.rename("Base"); cad.move(base, x=100)
+        bar = cad.box(width=40, depth=10, height=10, operation="New body"); bar.rename("Bar"); cad.move(bar, x=100, z=12)
+        rj = cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Post", **cyl("Post")}, "On the part that moves": {"object": "Wheel", **cyl("Wheel")}})
+        sj = cad.call("run_command", name="joint_slider", slots={"On the first part (face, circle edge or round face)": {"object": "Base", **face("Base", [0, 0, 1])}, "On the part that moves": {"object": "Bar", **face("Bar", [0, 0, -1])}})
+        j1 = next(o["name"] for o in rj["created"] if o.get("kind") == "Joint")
+        j2 = next(o["name"] for o in sj["created"] if o.get("kind") == "Joint")
+        cad.call("run_command", name="rack_pinion", commit=False)
+        cad.call("command_set", params={"Leading joint": j1, "Following joint": j2, "Leading size (teeth, or pulley or pitch diameter)": 20, "Following size (same unit)": 40, "Travel set by": "Pitch diameter (rack, pulley, winch)"})
+        cad.call("command_commit")
+        before = cad.call("object_info", object="Bar")["min"]
+        drive([90])
+        after = cad.call("object_info", object="Bar")["min"]
+        moved = math.dist(before, after)
+        return abs(moved - math.pi * 20 / 4) < 1.0, f"rack moved {moved:.2f} mm for a 90 degree turn of a 20 mm pitch pinion (expect pi x 20 / 4 = {math.pi * 5:.2f})"
+    case("Rack and pinion: 90 degrees moves the rack a quarter of the pitch circle", rack)
+
+    def torque(newtons):
+        cad.call("document_new")
+        post = cad.cylinder(radius=10, height=10, operation="New body"); post.rename("Post")
+        arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+        hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+        cad.union(hub, arm)
+        for n in ("Post", "Hub"):
+            cad.call("material_apply", object=n, material="steel")
+        cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Post", **cyl("Post")}, "On the part that moves": {"object": "Hub", **cyl("Hub")}})
+        cad.call("run_command", name="motion_torque", slots={"Where it acts (a face, circle or edge of a part)": {"object": "Hub", **cyl("Hub")}}, params={"Torque": newtons, "Direction or axis": "+Z", "Starts at": 0, "Lasts": 2})
+        cad.call("run_command", name="cae_motion", commit=False)
+        cad.call("command_set", params={"Duration": 1, "Revolute 1 — motion": "Free (moves under load and gravity)"})
+        cad.call("command_set", params={"Run study": True})
+        text = []
+        for _ in range(40):
+            text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            if any("Solved" in x or "Could not run" in x for x in text):
+                break
+            time.sleep(1)
+        cad.call("command_cancel")
+        line = next(x for x in text if x.startswith("Revolute 1"))
+        return float(re.search(r"peak speed ([\d.eE+-]+)", line).group(1)), line
+
+    def doubling():
+        s1, l1 = torque(0.05)
+        s2, l2 = torque(0.10)
+        return s1 > 0 and abs(s2 / s1 - 2) < .06, f"peak speed {s1:.1f} deg/s at 0.05 N-m and {s2:.1f} at 0.10 N-m (ratio {s2 / s1:.3f}; a constant torque on a fixed inertia doubles the speed)"
+    case("Free joint: doubling the torque doubles the speed", doubling)
+    strip = ["Rack and pinion, and a torque-loaded joint, checked against kinematics and linearity"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the hub, arm and post", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Trim and untrim a surface, sweep between two rails, warp a solid
+@scenario("surface__trim-untrim-two-rail-sweep-and-warp", columns=1)
+def trim_sweep_warp():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def sheet():
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        return new_object(before, ("Surface",))
+
+    def trim_and_untrim():
+        # a NURBS patch: analytic surfaces (planes, cylinders) have no natural edge to restore, and Untrim says so
+        before = names()
+        cad.call("run_command", name="nurbs_patch", params={"Width": 80, "Height": 60})
+        s = new_object(before, ("Surface",))
+        cutter = cad.box(width=2, depth=100, height=40, operation="New body"); cutter.rename("Cutter"); cad.move(cutter, z=-10)
+        face = {"object": "Cutter", "face": cad.call("solid_find", object="Cutter", kind="faces", type="Plane", facing=[-1, 0, 0])["hits"][0]["face"]}
+        a0 = info(s)["area"]
+        cad.call("run_command", name="trim_surface", slots={"Surface to trim": [s], "Cutting tool (plane, surface, face or solid)": [face]})
+        kept = [o for o in cad.objects() if o.kind == "Surface"]
+        a1 = max(info(o.name)["area"] for o in kept)
+        cad.call("run_command", name="untrim", slots={"Surface or face": [kept[0].name]})
+        a2 = max(info(o.name)["area"] for o in cad.objects() if o.kind == "Surface")
+        return a1 < .6 * a0 and a2 > .95 * a0, f"patch area {a0:.0f} -> {a1:.0f} after trimming through the middle -> {a2:.0f} after untrimming (the whole natural surface comes back)"
+    case("Trim a NURBS patch through the middle, then untrim", trim_and_untrim)
+
+    def two_rails():
+        profile = line_curve((0, 0, 0), (0, 20, 0))
+        r1, r2 = line_curve((0, 0, 0), (0, 0, 30)), line_curve((0, 20, 0), (0, 20, 30))
+        before = names()
+        cad.call("run_command", name="sweep_2_rails", slots={"Profile": [profile], "First rail": [r1], "Second rail": [r2]})
+        made = new_object(before, ("Surface", "Solid"))
+        i = info(made)
+        return made is not None and abs(i["area"] - 600) < 30, f"{i['area']:.0f} mm2 ({'surface' if not i.get('volume') else 'solid'}; a 20 mm profile carried 30 mm along two straight rails is 600)"
+    case("Sweep a 20 mm profile along two rails 30 long", two_rails)
+
+    def warp():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        v0 = info("Blk")["volume"]
+        cad.call("run_command", name="warp", slots={"What to warp": ["Blk"]}, params={"Warp": "Bend", "Along the axis": "X", "Bend toward": "+Z", "Angle": 45})
+        solids = [o for o in cad.objects() if o.kind in ("Solid", "Surface")]
+        i = info(solids[0].name)
+        return i["valid"] and abs(i["volume"] - v0) < .1 * v0 and i["size"][2] > 20.5, f"valid {i['valid']}, volume {v0:.0f} -> {i['volume']:.0f} (a bend keeps the volume about the same), height {i['size'][2]:.1f} (the block now curls up from 20)"
+    case("Warp: bend a block 45 degrees", warp)
+    cad.call("document_new")
+    cad.box(width=40, depth=30, height=20, operation="New body")
+    strip = ["Trim, untrim, a two-rail sweep and a warp, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
