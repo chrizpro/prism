@@ -63,8 +63,12 @@ def render(yaw=-35, pitch=28, distance=None, samples=None, background="White", g
     cad.call("command_set", params={"Picture size": "Draft  960 × 540", "Quality (samples per pixel)": samples or (8 if FAST else 16), "Light bounces": 4,
                                     "Background": background, "Denoise final image": True, "Ground plane with shadows": ground, "Start render": True})
     deadline = time.monotonic() + 300
+    started = time.monotonic()
     while time.monotonic() < deadline:
         status = cad.call("render_control", action="status")
+        if not status and time.monotonic() - started > 45:
+            cad.call("command_cancel")
+            raise RuntimeError("the render never started (a document with nothing to render gives no status, see issue #90)")
         if status.get("error"):
             raise RuntimeError(status)
         if status.get("finished"):
