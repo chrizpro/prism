@@ -3540,6 +3540,28 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "curve_on_surface",
+  "title": "Draw on Surface",
+  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. The curve follows the surface between clicks, even over the edge onto the next face. Enter or double-click to finish, Backspace removes the last point.",
+  "slots": [],
+  "params": [
+   {
+    "label": "Curve",
+    "type": "choice",
+    "default": "Smooth through the points",
+    "options": [
+     "Smooth through the points",
+     "Sharp corners at the points"
+    ]
+   },
+   {
+    "label": "Clear points",
+    "type": "action"
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "curve_project",
   "title": "Project Curve",
   "hint": "Project curves onto a surface or face: straight along a direction, or by pulling each point to the nearest spot on the surface.",

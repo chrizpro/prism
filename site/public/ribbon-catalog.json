@@ -1,5 +1,5 @@
 {
-  "sourceHash": "D8D8DD3244F67E63DF726B7746F03136891ED2D2AA2D14030B1E8B5390E71503",
+  "sourceHash": "B7679212CC053AE4318B58414F62B012E645B5E7C6CCCD341C8CBEBE32E2063E",
   "workspaces": [
     {
       "Id": "design",
@@ -383,6 +383,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {
@@ -1215,6 +1221,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {
@@ -2189,6 +2201,12 @@
               "id": "section|Project",
               "label": "Project",
               "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Draw on Surface",
+              "label": "Draw on Surface",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
               "shortcut": ""
             },
             {

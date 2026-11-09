@@ -59,37 +59,20 @@ Desktop build investigation (2026-11-08): `dotnet build Prism.Desktop/Prism.Desk
 
 Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its reference-catalog check because the generated catalog omitted the new ribbon group. Regenerated `site/public/ribbon-catalog.json` from the shipped ribbon. The .NET catalog check, `site` documentation build and `web` website build all passed locally (Astro telemetry disabled in this sandbox). No merge conflict with the current `develop` branch was found.
 
-## Drawing on a curved surface
+## Drawing directly on a surface
 
-Pick a **curved** face in Create Sketch and the sketch opens on a plane touching the face; *Draw on the curved surface* (on by default) means that when you finish the sketch it is also projected onto the face, along the plane's normal (or the opposite way if the face curves toward the plane), as a **Curve on surface**. The sketch itself stays, hidden. The tool uses Project Curve (Surface tab), which can also be used on its own with other directions or a pull to the nearest point. Owner request 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)). Limits: the projection is made once, when the sketch is finished, and is not updated if the sketch or the body changes later; the curves must fall on the picked face. Tests: SKT-H020, SKT-H021.
+**Status: Approved by the owner 2026-11-09; implemented, not yet run on a workstation.** Replaces the former *Draw on the curved surface* option of Create Sketch (a sketch on a tangent plane, projected onto the face when finished), which is removed. Create Sketch still opens an ordinary planar sketch on a flat face or plane. Delivery issue: to be linked.
 
-### Proposed — awaiting owner review: drawing directly on a face
+**Draw on Surface** (Curves group, next to Project, on every ribbon that offers Project; scripting name `curve_on_surface`) draws a curve directly on a surface, as NX and Creo do, with curves only: no sketch constraints or dimensions.
 
-Owner request 2026-11-09: remove the plane-then-project behavior above, where a "surface" sketch is really a plane, and let curves be drawn on the surface itself. **Nothing below is approved or implemented.** The section above stays accurate until this is approved and delivered.
+- **What it draws on.** Any visible object that has a surface: solid faces, surface bodies, freeform (SubD) forms, NURBS surfaces and meshes. Nothing is limited to solids.
+- **How.** Click points on the surface. Between two clicks the curve takes the shortest path over the surface (a geodesic), so distances are measured along the surface. A preview follows the pointer. Enter or double-click finishes; Backspace or Undo removes the last point; Esc cancels. *Curve* chooses one smooth curve through the points or sharp corners at them.
+- **Across faces and bodies.** A curve that runs past the edge of a face continues onto the neighbouring face, over the shared edge, as one curve. It can also continue onto another body that touches the first. It never crosses empty space: a click that cannot be joined to the previous point over surface is refused with a message. An open edge with no neighbour ends the path there.
+- **Result.** One ordinary **Curve on surface** object. It is fixed: it does not follow later changes to the body, surface or cage (the owner may improve on this in a later version). On an exact solid or surface body the curve is then pulled onto the true surface, and left on the displayed surface if that step fails or changes its length by more than 3%.
+- **Freeform forms** are drawn on the smooth surface they display, not the cage.
 
-**Scope.** Create Sketch on a picked face of any of: a solid's face (flat or curved), a surface body, a freeform (SubD) form, and a NURBS surface or patch. One behavior for all four.
+**Limits.** Paths follow the displayed triangle mesh, so between the exact-surface step and the mesh the curve is only as close to a curved face as the display tessellation. Two bodies are joined only where their meshes share corner points; bodies that merely touch with different tessellation are not joined. Faces are not trimmed or split by the curve. Finding the triangle under the pointer walks the whole mesh, so very large scenes may preview slowly. Open decisions: whether the curve should stay attached to its body (the owner said not for now); sharp versus tangent edges and seam, pole and trim behaviour inside a single face are not specially handled.
 
-**Proposed behavior (owner chose "lines follow the surface" on 2026-11-09).**
+**Acceptance criteria.** A path over the shared edge of two faces is the straight line of the unfolded faces (tested without the kernel). Two surfaces that do not touch are never joined. Two points in one triangle are joined by a straight line. A point off the surface is moved onto the chosen part. A curve drawn on a sphere, a cylinder-to-cap edge, a surface body, a SubD form and a NURBS patch lies on the surface within the display tolerance: **not yet verified**, it needs the native kernel.
 
-- Picking such a face in Create Sketch opens a surface sketch on that face. The view does not flatten to a plane; the cursor is picked on the real face under the pointer.
-- Curves are defined in the face's (u, v) parameter space and mapped onto the face, so they lie on the surface by construction. The finished result is a **Curve on surface** that follows the face, not a projection of a plane drawing.
-- Freeform forms are drawn on their smooth limit surface (the shape the form displays), not on the cage; the curve does not move with later cage edits unless the owner decides otherwise (open decision 2).
-- **Crossing onto adjacent faces (owner requirement, 2026-11-09):** a curve that runs past the edge of the face it started on continues onto the neighboring face instead of stopping. The face picked in Create Sketch is only where drawing starts. The finished curve follows each face it crosses, passes over the shared edge without a gap, and is one curve (a **Curve on surface**) rather than one piece per face. This applies within a solid, a surface body, a freeform form or a NURBS surface, and across faces that share an edge.
-- The "Draw on the curved surface" option and the tangent-plane projection are removed. Picking a flat face still opens an ordinary planar sketch, as today.
-
-**Open decisions for the owner.**
-
-1. Which sketch tools are in scope for the first delivery (for example line, polyline, spline, circle, offset), and whether dimensions and constraints apply in (u, v) or are left out.
-2. Whether the curve stays attached to its face and updates when the body, surface or cage changes, or is fixed once finished.
-3. Crossing is required where faces share an edge. Still open: where the neighbor is a different body or object, an open edge with no neighbor (the curve stops there), and sharp versus tangent-continuous edges. Also open: seams, poles and trimmed boundaries inside one face.
-4. How the distance a user types is measured: along the surface (geodesic) or in parameter units.
-
-**Proposed acceptance criteria** (to become stable IDs only after approval).
-
-- A curve drawn on a sphere, cylinder, surface body, SubD form and NURBS patch lies on that face within model tolerance.
-- No plane object or hidden planar sketch is created as a stand-in.
-- A curve drawn across the shared edge of two faces (for example a box edge, a cylinder-to-cap edge, or two joined surface patches) continues onto the second face and lies on both within model tolerance, with no gap at the edge.
-- A pick that misses the face draws nothing.
-- Old documents that used "Curve on surface" still open and show the same curve.
-
-Tests: none yet for the proposal; SKT-H020 and SKT-H021 characterize the current projection and will be replaced after approval.
+**Tests.** [Surface path tests](../../../Prism.Tests/Unit/Sketch/SurfaceGraphTests.cs) (SKT-SF001 to SKT-SF004). Not run here: this environment has no .NET SDK. The former SKT-H020 and SKT-H021 tests of the plane projection were removed with it.

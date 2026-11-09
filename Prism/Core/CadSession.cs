@@ -1271,26 +1271,9 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
-    public (Guid Obj, int Face, Vec3 Direction)? SketchSurface { get; set; }
-
-    /// <summary>Project curves onto one face of a body: straight along the direction, or the opposite way when the face curves toward the sketch plane.</summary>
-    public Shape ProjectOntoFace(Shape curves, Guid obj, int face, Vec3 direction)
-    {
-        var body = Find(obj) ?? throw new InvalidOperationException("The surface is gone.");
-        using var target = body.Shape.Sub(SubKind.Face, face);
-        foreach (var d in new[] { direction, direction * -1 })
-        {
-            Shape? result = null;
-            try { result = Occ.ProjectCurve(curves, target, d, false); } catch (KernelException) { }
-            if (result != null && result.Count(SubKind.Edge) > 0) return result;
-        }
-        throw new InvalidOperationException("The sketch does not fall on the surface.");
-    }
-
     public void ExitSketch(bool keep)
     {
         var sk = Sketch; if (sk == null) return;
-        if (!keep) SketchSurface = null;
         var source = _sketchEditSource; var back = _sketchReturnNode; var end = _sketchRebuildEnd;
         _sketchEditSource = _sketchReturnNode = _sketchRebuildEnd = null;
         bool committed = false;
@@ -1326,19 +1309,6 @@ public sealed partial class CadSession : ObservableObject
                     var obj = AddObject(compound, sk.SuggestedName ?? "Sketch", ObjKind.Sketch, plane: sk.RootPlane, sketch: model);
                     _selection.Clear(); _selection.Add(SelItem.Of(obj)); SelectionChanged?.Invoke();
                     Say($"{obj.Name} created");
-                    if (SketchSurface is { } onSurface)
-                    {
-                        SketchSurface = null;
-                        try
-                        {
-                            var projected = ProjectOntoFace(compound, onSurface.Obj, onSurface.Face, onSurface.Direction);
-                            var curve = AddObject(projected, "Curve on surface", ObjKind.Curve);
-                            Update(obj.Id, x => x.WithVisible(false), checkpoint: false);
-                            _selection.Clear(); _selection.Add(SelItem.Of(curve)); SelectionChanged?.Invoke();
-                            Say($"{obj.Name} drawn on the surface as {curve.Name}");
-                        }
-                        catch (Exception e) { Say("The sketch was kept, but it could not be projected onto the surface: " + e.Message, true); }
-                    }
                 }
             }
             catch (KernelException e) { Say("Could not build the sketch curves: " + e.Message, true); }

@@ -561,7 +561,7 @@ public sealed partial class AutomationApi
         ["curve_fillet"] = () => new CurveFilletCommand(false), ["curve_chamfer"] = () => new CurveFilletCommand(true), ["curve_offset"] = () => new OffsetCurveCommand(),
         ["curve_blend"] = () => new BlendCurveCommand(), ["curve_join"] = () => new JoinCurvesCommand(), ["curve_explode"] = () => new ExplodeCurveCommand(),
         ["curve_trim"] = () => new TrimCurveCommand(), ["curve_split"] = () => new SplitCurveCommand(), ["curve_extend"] = () => new ExtendCurveCommand(),
-        ["curve_divide"] = () => new DivideCurveCommand(), ["curve_rebuild"] = () => new RebuildCurveCommand(), ["curve_project"] = () => new ProjectCurveCommand(),
+        ["curve_divide"] = () => new DivideCurveCommand(), ["curve_rebuild"] = () => new RebuildCurveCommand(), ["curve_on_surface"] = () => new DrawOnSurfaceCommand(), ["curve_project"] = () => new ProjectCurveCommand(),
         ["curve_isocurve"] = () => new IsoCurveCommand(), ["curve_intersect_surfaces"] = () => new IntersectSurfacesCommand(), ["curve_contour"] = () => new ContourCommand(),
         ["curve_duplicate_edge"] = () => new DuplicateEdgeCommand(), ["curve_curvature"] = () => new CurveCurvatureCommand(),
         ["edge_surface"] = () => new EdgeSurfaceCommand(), ["blend_surface"] = () => new BlendSurfaceCommand(), ["pipe"] = () => new PipeCommand(),

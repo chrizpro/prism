@@ -17,6 +17,7 @@ All of these are on the **NURBS** tab and can be driven through the MCP with `ru
 | Tool | What it does | MCP name |
 |---|---|---|
 | Project | Onto a surface along a direction (hits every surface in the way) or pulled to the nearest point | `curve_project` |
+| Draw on Surface | Click points on any surface; the curve follows the surface, over edges onto neighbouring faces ([guide](modeling/sketches/README.md#drawing-directly-on-a-surface)) | `curve_on_surface` |
 | Isocurves | Constant U or V curves, one at a position or several spread evenly | `curve_isocurve` |
 | Intersect | Curves where two surfaces or bodies cross | `curve_intersect_surfaces` |
 | Contour | Evenly spaced section curves through a body | `curve_contour` |

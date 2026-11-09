@@ -10,7 +10,7 @@ public class CreateSketchCommand : Command
     readonly ChoiceParam _plane;
     readonly NumberParam _offset;
     readonly SelectionSlot _face;
-    readonly BoolParam _lookNormal, _onSurface;
+    readonly BoolParam _lookNormal;
     readonly bool _spatial;
     public CreateSketchCommand(bool spatial = false)
     {
@@ -20,7 +20,6 @@ public class CreateSketchCommand : Command
         _offset = Num("Offset", 0);
         Add(new ActionParam { Label = "New construction plane…", Run = () => S.SuspendFor(() => new ConstructionPlaneCommand()), HelpText = "Open the construction plane options. When you finish or cancel there, you come back here with the new plane already picked." });
         _lookNormal = Check("Look normal when starting", true);
-        _onSurface = Check("Draw on the curved surface (the finished sketch is also projected onto it)", true);
     }
     public override string Title => "Create Sketch";
     public override string Hint => "Choose a plane or flat face to start. Draw with constraints on any plane; G moves and rotates the drawing gizmo, E edits curves, and N looks normal. Add drawing planes in the sketch panel to continue in 3D.";
@@ -52,21 +51,8 @@ public class CreateSketchCommand : Command
         return new Plane3(p.Origin + p.Normal * _offset.Value, p.U, p.V);
     }
 
-    /// <summary>The picked face when it is curved (its triangles do not all face the same way), otherwise null.</summary>
-    SelItem? CurvedFace()
-    {
-        if (_face.Items.Count == 0 || _face.Items[0].Kind != SelKind.Face || S.Find(_face.Items[0].Obj) is not { } body || !body.HasBrep) return null;
-        var m = body.Mesh; int f = _face.Items[0].Index;
-        if (f + 1 >= m.FaceTriStart.Length) return null;
-        Vec3 N(int t) { int a = m.Indices[3 * t] * 3; return new Vec3(m.Normals[a], m.Normals[a + 1], m.Normals[a + 2]).Normalized(); }
-        var n0 = N(m.FaceTriStart[f]);
-        for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++) if (Vec3.Dot(N(t), n0) < 0.999) return _face.Items[0];
-        return null;
-    }
-
     protected override void UpdateVisibility()
     {
-        _onSurface.IsVisible = CurvedFace() != null;
         bool onFace = _face.Items.Count > 0 && _face.Items[0].Kind == SelKind.Face;
         bool onOrigin = _face.Items.Count > 0 && _face.Items[0].Kind != SelKind.Face;
         _plane.IsVisible = !onFace && !onOrigin;
@@ -77,8 +63,7 @@ public class CreateSketchCommand : Command
     protected override CommandOutput? Build()
     {
         var plane = ResolvePlane();
-        var curved = _onSurface.Value ? CurvedFace() : null;
-        var o = new CommandOutput { NoOp = true, After = s => { s.EnterSketch(plane, alignView: _lookNormal.Value); if (curved is { } cf) s.SketchSurface = (cf.Obj, cf.Index, plane.Normal * -1); if (_spatial) s.Sketch?.SetDrawingMode(s, flat: true, adjustView: false); } };   // plain Create Sketch starts as a 2D sketch
+        var o = new CommandOutput { NoOp = true, After = s => { s.EnterSketch(plane, alignView: _lookNormal.Value); if (_spatial) s.Sketch?.SetDrawingMode(s, flat: true, adjustView: false); } };   // plain Create Sketch starts as a 2D sketch
         return o;
     }
 }
