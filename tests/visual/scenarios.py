@@ -2281,3 +2281,96 @@ def output_matrix():
     b = cad.box(width=30, depth=30, height=20, operation="New body")
     strip = ["Outputs and the remaining mesh and freeform tools"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Curve tools, part 2: control-point and table curves, blend, intersections, curvature, edge copy, 3D sketch
+@scenario("curve__control-table-blend-intersect-curvature-edge-copy-and-3d-sketch", columns=1)
+def curve_matrix_2():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def new(before, kinds=("Curve",)):
+        return [o.name for o in cad.objects() if o.kind in kinds and o.name not in before]
+
+    def size(n):
+        return cad.call("object_info", object=n)["size"]
+
+    def control():
+        before = names()
+        cad.call("run_command", name="curve_control", points=[[0, 0, 0], [10, 20, 0], [30, 20, 0], [40, 0, 0]], params={"Curve type": "Control points"})
+        made = new(before)
+        s = size(made[0])
+        return len(made) == 1 and abs(s[0] - 40) < 1 and 0 < s[1] < 20, f"width {s[0]:.1f}, height {s[1]:.1f} (a control-point curve stays inside its hull, so under 20 high)"
+    case("Curve from control points", control)
+
+    def table():
+        before = names()
+        cad.call("run_command", name="curve_table", params={"Points from": "Table or file", "Points": "0,0,0; 20,10,5; 40,0,10; 60,-10,15"})
+        made = new(before)
+        s = size(made[0])
+        return abs(s[0] - 60) < 1 and abs(s[2] - 15) < 1, f"size {[round(v, 1) for v in s]} (expect 60 long and 15 high)"
+    case("Curve through a table of points", table)
+
+    def blend():
+        a, b = line_curve((0, 0, 0), (20, 0, 0)), line_curve((40, 20, 0), (60, 20, 0))
+        before = names()
+        cad.call("run_command", name="curve_blend", slots={"First curve": [a], "Second curve": [b]}, params={"Continuity": "Tangent (G1)"})
+        made = new(before)
+        s = size(made[0])
+        return abs(s[0] - 20) < 2 and abs(s[1] - 20) < 2, f"blend spans {[round(v, 1) for v in s[:2]]} (it bridges the 20 x 20 gap between the two lines)"
+    case("Tangent blend between two lines", blend)
+
+    def curve_cross():
+        a = sketch([{"type": "line", "points": [[0, 0], [40, 40]]}]).name
+        b = sketch([{"type": "line", "points": [[0, 40], [40, 0]]}], plane="XZ").name      # the tool wants curves on planes that cross
+        r = cad.call("run_command", name="curve_intersect", slots={"First planar curve or sketch": [a], "Second planar curve or sketch": [b]}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        return not r["activeCommand"].get("error"), (r["activeCommand"].get("error") or text)[:110] or "no error"
+    case("Intersect two crossing sketches", curve_cross)
+
+    def surfaces():
+        cad.cylinder(radius=10, height=40, operation="New body").rename("Rod")
+        c = cad.box(width=40, depth=40, height=10, operation="New body"); c.rename("Slab"); cad.move(c, z=15)
+        before = names()
+        cad.call("run_command", name="curve_intersect_surfaces", slots={"First surface or body": ["Rod"], "Second surface or body": ["Slab"]})
+        made = new(before)
+        return len(made) >= 1, f"{len(made)} intersection curve(s) where a rod passes through a slab"
+    case("Where a rod crosses a slab", surfaces)
+
+    def curvature():
+        c = curve([[0, 0, 0], [10, 20, 0], [30, 20, 0], [40, 0, 0]])
+        r = cad.call("run_command", name="curve_curvature", slots={"Curves": [c]}, commit=False)
+        text = " | ".join(f"{x['label']}: {x['value']}" for x in r["activeCommand"].get("results", []))
+        cad.call("command_cancel")
+        return not r["activeCommand"].get("error"), text[:110] or "a curvature comb is drawn"
+    case("Curvature comb of a curve", curvature)
+
+    def edge_copy():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        edge = cad.call("solid_find", object="Blk", kind="edges", limit=1)["hits"][0]["edge"]
+        before = names()
+        cad.call("run_command", name="curve_duplicate_edge", slots={"Edges": [{"object": "Blk", "edge": edge}]})
+        made = new(before)
+        return len(made) == 1 and max(size(made[0])) in (20, 30, 40) or abs(max(size(made[0])) - 40) < 1 or abs(max(size(made[0])) - 30) < 1 or abs(max(size(made[0])) - 20) < 1, f"{len(made)} curve copied from an edge, length {max(size(made[0])) if made else 0:.0f}"
+    case("Copy an edge of a block as a curve", edge_copy)
+
+    def sketch3d():
+        cad.call("run_command", name="sketch_3d")
+        cad.call("sketch_add", entities=[{"type": "line", "points": [[0, 0], [30, 20]]}])
+        cad.call("sketch_finish")
+        made = [o for o in cad.objects() if o.kind == "Sketch"]
+        return len(made) == 1, f"{len(made)} sketch made through the 3D Sketch command"
+    case("3D sketch with a line", sketch3d)
+    cad.call("document_new")
+    cad.box(width=40, depth=4, height=4, operation="New body")      # a render needs a body in the scene; curves alone give nothing to draw
+    curve([[0, 0, 0], [10, 20, 0], [30, 20, 0], [40, 0, 0]])
+    strip = ["More curve tools, each against what it should make"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a curve", render(-30, 30)), ("checks", text_panel(strip))]

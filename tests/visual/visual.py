@@ -51,6 +51,10 @@ def render(yaw=-35, pitch=28, distance=None, samples=None, background="White", g
     """A path-traced render of what is on screen. Returns a PIL image."""
     import io
     import tempfile
+    try:
+        cad.call("command_cancel")        # a scenario can leave a command open; a render cannot start next to one
+    except Exception:
+        pass
     cad.call("view", yaw=yaw, pitch=pitch, fit=True, grid=False, display="shaded")
     if distance:
         cad.call("view", distance=distance)
