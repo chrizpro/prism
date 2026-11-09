@@ -30,7 +30,11 @@ public class DocumentSafetyTests : IDisposable
         Environment.SetEnvironmentVariable("PRISM_SETTINGS_FILE", Path.Combine(folder, "settings.json"));
     }
     static void AddBody(CadSession session) => session.AddObject(Occ.Box(10, 20, 30), "Test part", ObjKind.Solid);
-    static Task Drain() => Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background).GetTask();
+    // The window-close handlers are async and continue on later dispatcher turns, so one Background pass is sometimes not enough (SAV-H006 failed about one full run in five). Pass several times.
+    static async Task Drain()
+    {
+        for (int i = 0; i < 6; i++) { await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background).GetTask(); await Task.Yield(); }
+    }
     static DragEventArgs Drop(MainWindow window, string[] paths, bool over = false)
     {
         var data = new DataObject(); data.Set(DataFormats.FileNames, paths);
