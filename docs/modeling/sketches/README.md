@@ -74,19 +74,21 @@ Owner request 2026-11-09: remove the plane-then-project behavior above, where a 
 - Picking such a face in Create Sketch opens a surface sketch on that face. The view does not flatten to a plane; the cursor is picked on the real face under the pointer.
 - Curves are defined in the face's (u, v) parameter space and mapped onto the face, so they lie on the surface by construction. The finished result is a **Curve on surface** that follows the face, not a projection of a plane drawing.
 - Freeform forms are drawn on their smooth limit surface (the shape the form displays), not on the cage; the curve does not move with later cage edits unless the owner decides otherwise (open decision 2).
+- **Crossing onto adjacent faces (owner requirement, 2026-11-09):** a curve that runs past the edge of the face it started on continues onto the neighboring face instead of stopping. The face picked in Create Sketch is only where drawing starts. The finished curve follows each face it crosses, passes over the shared edge without a gap, and is one curve (a **Curve on surface**) rather than one piece per face. This applies within a solid, a surface body, a freeform form or a NURBS surface, and across faces that share an edge.
 - The "Draw on the curved surface" option and the tangent-plane projection are removed. Picking a flat face still opens an ordinary planar sketch, as today.
 
 **Open decisions for the owner.**
 
 1. Which sketch tools are in scope for the first delivery (for example line, polyline, spline, circle, offset), and whether dimensions and constraints apply in (u, v) or are left out.
 2. Whether the curve stays attached to its face and updates when the body, surface or cage changes, or is fixed once finished.
-3. Faces with a seam, pole or trimmed boundary: stop at the boundary, or continue across it.
+3. Crossing is required where faces share an edge. Still open: where the neighbor is a different body or object, an open edge with no neighbor (the curve stops there), and sharp versus tangent-continuous edges. Also open: seams, poles and trimmed boundaries inside one face.
 4. How the distance a user types is measured: along the surface (geodesic) or in parameter units.
 
 **Proposed acceptance criteria** (to become stable IDs only after approval).
 
 - A curve drawn on a sphere, cylinder, surface body, SubD form and NURBS patch lies on that face within model tolerance.
 - No plane object or hidden planar sketch is created as a stand-in.
+- A curve drawn across the shared edge of two faces (for example a box edge, a cylinder-to-cap edge, or two joined surface patches) continues onto the second face and lies on both within model tolerance, with no gap at the edge.
 - A pick that misses the face draws nothing.
 - Old documents that used "Curve on surface" still open and show the same curve.
 
