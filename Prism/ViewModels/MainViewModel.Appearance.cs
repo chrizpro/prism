@@ -11,6 +11,7 @@ public sealed partial class MainViewModel
 {
     public IReadOnlyList<FinishPreset> FinishPresets { get; } =
     [
+        new("Generic", 0xFFFFFFFF, 0, .35, SurfacePattern.Plain),
         new("Brushed aluminum", 0xFFB9C6D6, 1, .35, SurfacePattern.Brushed),
         new("Satin aluminum", 0xFFC0C7CF, 1, .2, SurfacePattern.Plain),
         new("Polished steel", 0xFFBBC3CC, 1, .92, SurfacePattern.Plain),

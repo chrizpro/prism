@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="using:Prism.Core"
              xmlns:vm="using:Prism.ViewModels"
              xmlns:c="using:Prism.Controls"
              x:Class="Prism.Views.MaterialsPanel" Foreground="{DynamicResource Ink}">
@@ -34,6 +35,23 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
+                            <Button Name="GenericAppearance" Content="Generic appearance" Click="OnGenericAppearance" Classes="studioAction" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" ToolTip.Tip="Start with white, nonmetallic appearance and no pattern; then import images or adjust the surface."/>
+                            <Expander Header="My appearances" HorizontalAlignment="Stretch">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Reusable looks only · engineering properties stay assigned." Classes="meta" TextWrapping="Wrap"/>
+                                    <ComboBox Name="SavedAppearanceLibrary" ItemsSource="{Binding SavedAppearances}" SelectedItem="{Binding SelectedSavedAppearance}" HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate><DataTemplate DataType="core:SavedAppearance"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Content="Apply" Classes="studioAction" Click="OnApplySavedAppearance" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch"/>
+                                        <Button Grid.Column="1" Content="Remove saved" Classes="studioAction" Click="OnRemoveSavedAppearance" HorizontalAlignment="Stretch"/>
+                                    </Grid>
+                                    <TextBlock Text="Appearance name" Classes="meta"/>
+                                    <TextBox Text="{Binding SavedAppearanceName}" Watermark="Appearance name" MaxLength="80"/>
+                                    <Button Content="Save as appearance…" Classes="studioAction" Click="OnSaveAppearance" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch"/>
+                                    <TextBlock Text="{Binding AppearanceLibraryStatus}" Classes="meta" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Expander>
                             <Expander Name="FinishOptions" Header="Finish presets" HorizontalAlignment="Stretch">
 
                             <ListBox Name="FinishLibrary" Classes="studioList finishes" ItemsSource="{Binding FinishPresets}" SelectedItem="{Binding ActiveFinishPreset, Mode=OneWay}" SelectionChanged="OnFinishPicked" Background="Transparent" Padding="0" IsEnabled="{Binding CanApplyAppearance}">
@@ -366,6 +384,36 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
+                <Expander Name="CustomMaterialsOptions" Header="My custom materials" HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="User-defined — not verified by Prism" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        <StackPanel IsVisible="{Binding !EditingCustomMaterial}" Spacing="6">
+                            <Button Name="CreateCustomMaterial" Content="Create custom material…" Classes="studioAction primary" Click="OnCreateCustomMaterial" HorizontalAlignment="Stretch"/>
+                            <Button Content="Duplicate selected material…" Classes="studioAction" Click="OnBeginCustomMaterial" HorizontalAlignment="Stretch"/>
+                            <Button Content="Remove selected custom material" Classes="studioLink" Click="OnRemoveCustomMaterial" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <StackPanel IsVisible="{Binding EditingCustomMaterial}" Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                <TextBlock Text="Custom material" Classes="section" VerticalAlignment="Center"/>
+                                <Button Name="CancelCustomMaterialTop" Grid.Column="1" Content="Cancel" Classes="studioLink" Click="OnCancelCustomMaterial"/>
+                            </Grid>
+                            <TextBlock Text="Material name" Classes="meta"/>
+                            <TextBox Text="{Binding CustomMaterialName}" Watermark="Custom material name" MaxLength="80"/>
+                            <ItemsControl ItemsSource="{Binding CustomMaterialInputs}">
+                                <ItemsControl.ItemTemplate><DataTemplate DataType="vm:MaterialPropertyInput">
+                                    <StackPanel Spacing="3" Margin="0,3"><TextBlock Text="{Binding Label}" Classes="meta" TextWrapping="Wrap"/><TextBox Text="{Binding Text}"/></StackPanel>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Source / notes (optional)" Classes="meta"/>
+                            <TextBox Text="{Binding CustomMaterialSource}" Watermark="Optional source / notes" MaxLength="2000"/>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                <Button Name="SaveCustomMaterial" Content="Save material" Classes="studioAction primary" Click="OnSaveCustomMaterial" HorizontalAlignment="Stretch"/>
+                                <Button Name="CancelCustomMaterial" Grid.Column="1" Content="Cancel" Classes="studioAction" Click="OnCancelCustomMaterial" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </StackPanel>
+                        <TextBlock Text="{Binding CustomMaterialStatus}" Classes="meta" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Expander>
                 <!-- detail card -->
                 <StackPanel IsVisible="{Binding HasMaterial}" Spacing="6" Margin="0,10,0,0">
                     <Grid ColumnDefinitions="Auto,*">

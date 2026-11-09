@@ -44,6 +44,8 @@ public sealed class AppSettings
     public string? PartsLibraryPath { get; set; }
     public List<string> RecentFiles { get; set; } = [];
     public List<uint> SavedAppearanceColors { get; set; } = [];
+    public List<SavedAppearance> SavedAppearances { get; set; } = [];
+    public List<Material> CustomMaterials { get; set; } = [];
     public bool ShowHomeOnStart { get; set; } = true;
     public bool AutoRecoveryEnabled { get; set; }
     int autoRecoveryIntervalMinutes = 5;
@@ -85,14 +87,20 @@ public sealed class AppSettings
         return new();
     }
 
-    public static void Save(bool notify = true)
+    public static void Save(bool notify = true) => TrySave(notify);
+
+    public static bool TrySave(bool notify = true)
     {
+        string path = FilePath, temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true }));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(temporary, JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true }));
+            File.Move(temporary, path, overwrite: true);
         }
-        catch (Exception) { }
+        catch (Exception) { return false; }
+        finally { try { if (File.Exists(temporary)) File.Delete(temporary); } catch (Exception) { } }
         if (notify) Changed?.Invoke();
+        return true;
     }
 }
