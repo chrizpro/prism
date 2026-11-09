@@ -2051,3 +2051,85 @@ def curve_plane_matrix():
     ball = cad.sphere(radius=20, operation="New body")
     strip = ["Curve projection, isocurves and construction planes"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a sphere", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Fill and curve patterns, pipe flow, slicing and print checks
+@scenario("solid__fill-curve-patterns-pipe-flow-and-print-checks", columns=1)
+def pattern_print_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def solids():
+        return [o for o in cad.objects() if o.kind == "Solid"]
+
+    def pin(x=0, y=0, z=0):
+        p = cad.cylinder(radius=1.5, height=4, operation="New body"); p.rename("Pin"); cad.move(p, x=x, y=y, z=z)
+        return p.name
+
+    def fill():
+        plate = cad.box(width=60, depth=40, height=4, operation="New body"); plate.rename("Plate")
+        top = cad.call("solid_find", object="Plate", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+        p = pin(z=4)
+        cad.call("run_command", name="pattern_fill", slots={"Objects to pattern": [p], "Region to fill": [{"object": "Plate", "face": top}]}, params={"Layout": "Square grid", "Spacing": 10, "Margin from the boundary": 3, "Result": "New bodies"})
+        count = len([o for o in solids() if o.name.startswith("Pin")])
+        # each instance owns a 10 mm cell and the margin is kept clear around the cells, so centres sit 5 + 3 = 8 mm in: 5 columns x 3 rows fit a 60 x 40 plate
+        return count == 15, f"{count} pins (cells of 10 mm inset 3 mm: centres 8 mm in from each edge, 5 x 3 = 15)"
+    case("Fill pattern: square grid on a plate", fill)
+
+    def along():
+        p = pin()
+        path = line_curve((0, 0, 0), (100, 0, 0))
+        cad.call("run_command", name="pattern_curve", slots={"Objects to pattern": [p], "Path (edges or curves)": [path]}, params={"Distribution": "Equal count along the path", "Count": 5, "Result": "New bodies"})
+        count = len([o for o in solids() if o.name.startswith("Pin")])
+        xs = sorted(round((cad.call("object_info", object=o.name)["min"][0] + cad.call("object_info", object=o.name)["max"][0]) / 2) for o in solids() if o.name.startswith("Pin"))
+        return count in (5, 6), f"{count} pins at x = {xs} (5 along a 100 mm path)"
+    case("Curve pattern: 5 along a line", along)
+
+    def pipe_flow():
+        r = cad.call("run_command", name="cae_pipe_flow", commit=False)
+        rows_ = {x["label"]: x["value"] for x in r["activeCommand"].get("results", [])}
+        cad.call("command_cancel")
+        re = float(rows_["Reynolds number"])
+        v = float(rows_["Mean velocity"].split()[0])
+        want_re, want_v = 998.2 * v * 0.010 / 0.001002, 0.5 / 1000 / 60 / (math.pi * 0.005 ** 2)
+        return abs(re - want_re) < 1 and abs(v - want_v) < .001 and rows_["Regime"] == "Laminar", f"Re {re:.1f} (expect {want_re:.1f}), velocity {v:.4f} m/s (expect {want_v:.4f}), {rows_['Regime']}"
+    case("Pipe flow: 0.5 L/min in a 10 mm pipe", pipe_flow)
+
+    def slice_layers():
+        b = cad.box(width=30, depth=30, height=20, operation="New body"); b.rename("B")
+        cad.call("run_command", name="slice", slots={"Bodies to print": [b.name]}, commit=False)
+        cad.call("command_set", params={"Slice": True})
+        deadline = time.monotonic() + 120
+        text = ""
+        while time.monotonic() < deadline:
+            text = " | ".join(str(x) for x in cad.call("command_set", params={}).get("results", []))
+            if "Layers" in text:
+                break
+            time.sleep(2)
+        cad.call("command_cancel")
+        return "Layers" in text, text[:130]
+    case("Slice a 20 mm block", slice_layers)
+
+    def checks():
+        b = cad.box(width=30, depth=30, height=20, operation="New body"); b.rename("B")
+        out = []
+        for command in ("fdm_check", "resin_check"):
+            cad.call("run_command", name=command, slots={"Model": [b.name]}, commit=False)
+            cad.call("command_set", params={"Run checks": True})
+            cad.call("wait_idle", timeout_ms=60000)
+            time.sleep(1)
+            out.append(" | ".join(str(x) for x in cad.call("command_set", params={}).get("results", [])))
+            cad.call("command_cancel")
+        return all(o and "Choose the model" not in o for o in out), f"FDM: {out[0][:60]} // resin: {out[1][:50]}"
+    case("FDM and resin checks run on a block", checks)
+    cad.call("document_new")
+    plate = cad.box(width=60, depth=40, height=4, operation="New body")
+    strip = ["Patterns, pipe flow and print checks, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a plate", render(-30, 35)), ("checks", text_panel(strip))]
