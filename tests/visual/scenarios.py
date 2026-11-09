@@ -2017,7 +2017,7 @@ def curve_plane_matrix():
         made = [o for o in cad.objects() if o.kind == "Curve" and o.name not in before]
         i = info(made[0].name)
         z = math.sqrt(400 - 36)
-        return bool(made) and abs(i["max"][2] - z) < .2 and abs(i["size"][0] - 12) < .4 and i["size"][2] < 1.0, f"{len(made)} curve(s): width {i['size'][0]:.1f}, height z {i['max'][2]:.2f} (a ring of radius 6 dropped onto a 20 mm sphere lies at z = {z:.2f} and stays 12 wide)"
+        return bool(made) and abs(i["max"][2] - z) < .2 and abs(i["size"][0] - 12) < .4 and abs(i["min"][2] + z) < .2, f"{len(made)} curve(s): width {i['size'][0]:.1f}, z from {i['min'][2]:.2f} to {i['max'][2]:.2f} (a straight-down projection onto a closed sphere lands on both the near and far side, at z = +/-{z:.2f}, and stays 12 wide)"
     case("Project a ring onto a sphere, straight down", project)
 
     def isocurve():
