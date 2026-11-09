@@ -3189,3 +3189,57 @@ def component_move_matrix():
         rows.append(("Insert and move a component", str(error)[:140], False))
     strip = ["Insert Component, Move Component and Turn Component, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the base with the inserted part", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Surfaces: Network Surface over an outline and an inner curve, Flatten of a cylinder wall
+@scenario("surface__network-surface-and-flatten-a-cylinder", columns=1)
+def network_flatten_matrix():
+    rows = []
+    info = lambda n: cad.call("object_info", object=n)
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((label, str(error)[:140], False))
+
+    def network():
+        outline = ring(0, 20, 16)
+        across = curve([[-20, 0, 0], [0, 0, 8], [20, 0, 0]])
+        before = names()
+        cad.call("run_command", name="network_surface", slots={"Outline curves (a closed loop)": [outline], "Curves across the surface": [across]})
+        n = new_object(before, ("Surface",))
+        i = info(n)
+        return i["valid"] and 1 < i["max"][2] <= 8.5 and abs(i["size"][0] - 40) < 1.5, f"surface {[round(v, 1) for v in i['size']]}, rises to {i['max'][2]:.1f} mm (the inner curve peaks at 8 over a flat outline; expect it to rise above 1 and stay within 8.5), area {i['area']:.0f}"
+    case("Network surface over a 40 mm outline pulled up by one inner curve", network)
+
+    def network_outline_only():
+        outline = ring(0, 20, 16)
+        before = names()
+        cad.call("run_command", name="network_surface", slots={"Outline curves (a closed loop)": [outline]})
+        n = new_object(before, ("Surface",))
+        i = info(n)
+        return abs(i["area"] - math.pi * 400) < 0.06 * math.pi * 400 and i["max"][2] < 1, f"area {i['area']:.0f} (a flat disc of radius 20 is {math.pi * 400:.0f}), height {i['max'][2]:.2f}"
+    case("Network surface from the outline alone stays flat", network_outline_only)
+
+    def flatten():
+        c = cad.cylinder(radius=10, height=30, operation="New body"); c.rename("Can")
+        wall = cad.call("solid_find", object="Can", kind="faces", type="Cylinder", limit=1)["hits"][0]["face"]
+        before = names()
+        cad.call("run_command", name="flatten", slots={"Faces or a surface to flatten": [{"object": "Can", "face": wall}]}, params={"Operation": "Flatten"})
+        made = [o for o in cad.objects() if o.name not in before]
+        surf = next((o for o in made if o.kind == "Surface"), None)
+        if surf is None:
+            return False, f"made {[(o.name, o.kind) for o in made]} (expected a flat surface)"
+        i = info(surf.name)
+        expect = 2 * math.pi * 10 * 30
+        sx, sy = sorted(i["size"][:2], reverse=True)
+        return abs(i["area"] - expect) < 0.01 * expect and abs(sx - 2 * math.pi * 10) < 0.5 and abs(sy - 30) < 0.5 and i["size"][2] < 0.01, f"flat pattern {sx:.1f} x {sy:.1f} mm, area {i['area']:.0f} (expect {2 * math.pi * 10:.1f} x 30 = {expect:.0f}, the unrolled wall)"
+    case("Flatten the wall of a 20 mm can unrolls it to 2 pi r x height", flatten)
+    cad.call("document_new")
+    cad.cylinder(radius=10, height=30, operation="New body")
+    strip = ["Network Surface and Flatten, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a can", render(-30, 30)), ("checks", text_panel(strip))]
