@@ -85,3 +85,11 @@ Bug fix 2026-11-09 (owner report: editing a sketch of splines showed double the 
 ## Offset joins curves that only touch
 
 Bug fix 2026-11-09 (owner report with a screenshot: offsetting an L-shaped outline left gaps at its two inside corners). A chain of curves was followed only through shared points, but lines drawn to meet one another are often tied by a point-on-curve constraint and keep separate points. Offset split the outline there and left each piece's ends unjoined. Curves that end at the same position are now treated as joined, so the outline offsets as one ring. Test: [SKT-U010](../../../Prism.Tests/Unit/Sketch/OffsetTests.cs), unrun. Not covered: three or more curves meeting at one spot still stop the chain there.
+
+## Slot from center, Mirror steps and dashed construction preview
+
+Owner requests 2026-11-09, implemented and not yet run on a workstation (no automated test).
+
+- **Slot** has two modes in its options: **Center to center** (as before) and **From center**: click the middle of the slot, then one arc center (the other is its mirror through the middle), then the width. The middle click becomes a point held at the midpoint of a construction line between the two arc centers. The typed length in this mode is the half length.
+- **Mirror** has a two-step panel like Offset: **1. Select curves** (click, Shift adds more, or select them before choosing Mirror; **Done selecting** or Enter moves on) and **2. Mirror line**. Moving over a line while choosing it still previews the mirror, as before.
+- **Construction mode (X)** previews the curve being drawn as a dashed line from the first moment, not only after it is placed. It applies to the rubber-band line of every drawing tool, not to Mirror or Offset previews.
