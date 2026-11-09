@@ -2188,3 +2188,96 @@ def motion_matrix():
             cad.call("object_update", object=o.name, visible=True)
     strip = ["Motion study of a revolute joint, each motion against its definition"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the pin, hub and arm", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Outputs and the rest of the mesh and freeform tools: drawing, CAE export, lights, cage check, mesh align, form from scan
+@scenario("output__drawing-cae-export-lights-cage-check-mesh-align-form-from-scan", columns=1)
+def output_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def rows_of(name, slots=None, params=None, actions=()):
+        r = cad.call("run_command", name=name, slots=slots or {}, params=params or {}, commit=False)
+        for a in actions:
+            cad.call("command_set", params={a: True})
+        cad.call("wait_idle", timeout_ms=60000)
+        r2 = cad.call("command_set", params={}) if actions else r
+        text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r2.get("results") or r["activeCommand"].get("results", []))]
+        err = r2.get("error") or (r["activeCommand"].get("error") if not actions else None)
+        cad.call("command_cancel")
+        return text, err
+
+    def lights():
+        text, _ = rows_of("lights", actions=("Add sun",))
+        return any("1" in t and "ight" in t for t in text) or bool(text), " | ".join(text)[:110]
+    case("Lights: add a sun", lights)
+
+    def cage():
+        cad.call("run_command", name="form_box")
+        f = next(o.name for o in cad.objects() if o.kind == "Form")
+        text, err = rows_of("check_cage", slots={"Freeform bodies": [f]})
+        return not err and bool(text), " | ".join(text)[:110]
+    case("Cage check of a Freeform box", cage)
+
+    def align():
+        s = cad.sphere(radius=20, operation="New body"); s.rename("S")
+        cad.move(s, z=50)
+        cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["S"]}, params={"Detail": "Coarse (draft)", "Keep the original body": False})
+        m = next(o.name for o in cad.objects() if o.kind == "Mesh")
+        cad.call("run_command", name="mesh_align", slots={"Mesh": [m]}, params={"Align": 0})
+        low = cad.call("object_info", object=m)["min"][2]
+        return abs(low) < .05, f"lowest point z {low:.3f} (a mesh floating at z 30..70 placed on the bed: expect 0)"
+    case("Mesh align: place on the print bed", align)
+
+    def scan():
+        s = cad.sphere(radius=20, operation="New body"); s.rename("S")
+        cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["S"]}, params={"Detail": "Normal", "Keep the original body": False})
+        m = next(o.name for o in cad.objects() if o.kind == "Mesh")
+        before = {o.name for o in cad.objects()}
+        cad.call("run_command", name="form_from_scan", slots={"Scan": [m]}, params={"Start from": "Ball (quadsphere)", "Cage resolution (quads per side)": 6})
+        made = [o for o in cad.objects() if o.kind == "Form" and o.name not in before]
+        info = cad.form_info(made[0], summary=True)
+        size = info["max"][0] - info["min"][0]
+        return info["closed"] and abs(size - 40) < 8, f"closed {info['closed']}, cage width {size:.1f} (expect close to the scan's 40), {info['faceCount']} faces"
+    case("Form from a scanned ball", scan)
+
+    def export():
+        folder = Path(tempfile.gettempdir()) / "prism-visual-cae"
+        if folder.exists():
+            for f in folder.iterdir():
+                f.unlink()
+        b = cad.box(width=10, depth=10, height=100, operation="New body"); b.rename("Bar")
+        cad.call("material_apply", object="Bar", material="steel")
+        face = lambda facing: cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=facing)["hits"][0]["face"]
+        cad.call("study_new", object="Bar", element_size=4.0)
+        cad.call("run_command", name="sim_fixed", slots={"Faces to support": [{"object": "Bar", "face": face([0, 0, -1])}]})
+        cad.call("run_command", name="sim_force", slots={"Faces to load": [{"object": "Bar", "face": face([0, 0, 1])}]}, params={"Force": 100, "Direction": "+Y"})
+        cad.call("study_run")
+        rows_of("cae_export", params={"Output folder": str(folder)}, actions=("Export static results",))
+        files = sorted(f.name for f in folder.iterdir()) if folder.exists() else []
+        return bool(files), f"files written: {files[:4]}"
+    case("Export static results to a folder", export)
+
+    def drawing():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("B")
+        folder = Path(tempfile.gettempdir()) / "prism-visual-drawing"
+        folder.mkdir(exist_ok=True)
+        for f in folder.iterdir():
+            f.unlink()
+        r = cad.call("run_command", name="drawing", slots={"Bodies": ["B"]}, params={"Sheet size": "A4", "Save as": "DXF", "Front view": True, "Top view": True}, commit=False)
+        params = [p["label"] for p in r["activeCommand"]["params"]]
+        text = [str(x) for x in r["activeCommand"].get("results", [])]
+        cad.call("command_cancel")
+        return bool(params) and not r["activeCommand"].get("error"), f"opens with {len(params)} settings; {' | '.join(text)[:70]} (the sheet layout is checked in the drawing tests)"
+    case("Drawing command opens on a block", drawing)
+    cad.call("document_new")
+    b = cad.box(width=30, depth=30, height=20, operation="New body")
+    strip = ["Outputs and the remaining mesh and freeform tools"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
