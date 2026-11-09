@@ -506,6 +506,8 @@ public abstract partial class Command : ObservableObject
     }
 
     protected virtual void OnBegin() { }
+    /// <summary>True for tools whose picks need a good look at the model: starting one from an orthographic or straight-on standard view moves to the home view in perspective. Not applied when a feature is replayed from history.</summary>
+    public virtual bool WantsHomeView => false;
     public virtual void OnEnd() { }
     /// <summary>Called instead of nothing extra when the user cancels (OnEnd runs for both).</summary>
     public virtual void OnCancel() { }

@@ -120,4 +120,27 @@ public class HomeOrientationTests
         }
         finally { Directory.Delete(folder, true); }
     }
+
+    [AvaloniaFact(DisplayName = "HOME-H005 | Starting Loft from an orthographic or straight-on view moves to perspective; a chosen perspective view is left alone")]
+    [Trait("TestId", "HOME-H005")]
+    public void LoftStartsInPerspectiveFromTheHomeView()
+    {
+        var s = new MainViewModel().Session;
+        s.Ortho = true;
+        s.StartCommand(() => new Prism.Commands.LoftCommand());
+        Assert.False(s.Ortho); Assert.False(s.Camera.Orthographic);
+        s.CancelCommand();
+
+        s.Ortho = false;
+        s.Camera.SetView(0, 0);                 // straight-on front view, even in perspective
+        s.StartCommand(() => new Prism.Commands.LoftCommand());
+        Assert.False(s.Ortho);
+        s.CancelCommand();
+
+        s.Camera.SetView(-50, 20);              // an angle the user chose
+        double yaw = s.Camera.Yaw, pitch = s.Camera.Pitch;
+        s.StartCommand(() => new Prism.Commands.LoftCommand());
+        Assert.Equal(yaw, s.Camera.Yaw); Assert.Equal(pitch, s.Camera.Pitch);
+        s.CancelCommand();
+    }
 }

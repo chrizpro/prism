@@ -926,8 +926,16 @@ public sealed partial class CadSession : ObservableObject
         SetFreeTool(null);
         ActiveCommand = cmd;
         cmd.Begin(this);
+        if (cmd.WantsHomeView && (Ortho || Camera.Orthographic || IsStraightOn(Camera))) { Ortho = false; Camera.Orthographic = false; GoHome(); }
         Say(cmd.Hint.Length > 0 ? cmd.Hint : cmd.Title);
         RaiseState();
+    }
+
+    /// <summary>Looking almost exactly along a world axis, as in the standard Front, Top and Side views.</summary>
+    static bool IsStraightOn(Camera c)
+    {
+        double q = Math.PI / 2;
+        return Math.Abs(Math.Round(c.Yaw / q) * q - c.Yaw) < 0.09 && (Math.Abs(c.Pitch) < 0.09 || Math.Abs(Math.Round(c.Pitch / q) * q - c.Pitch) < 0.09);
     }
 
     void ClearPendingNotice() { _deferred = null; _pendingStepOnly=false; PendingNotice = null; }

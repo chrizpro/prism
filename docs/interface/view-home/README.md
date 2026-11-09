@@ -41,6 +41,8 @@ In scope: the View tab button, the matching button beside the view cube, how the
 
 The view cube button (draw, hover text, click) has no automated test and has not been checked in the desktop app. Bug fix 2026-11-09 (owner report): clicking the projection button beside the cube did nothing, and neither did the two roll buttons, because the click handler had lost their cases in an earlier rework. They are restored: the projection button toggles orthographic and perspective, and the roll buttons turn a face view 90 degrees. Not covered by an automated test.
 
+**Loft opens in the home view (owner direction 2026-11-09).** Extrude and Revolve already looked right because the user arrived in perspective; Loft did not, and stayed orthographic after a cube click, which makes sections and rails hard to pick. Starting Loft or Loft Surface from an orthographic view, or from a straight-on standard view, now switches to perspective and moves to the home view (isometric until the user sets another). A perspective view at any other angle is left alone, and replaying Loft from history never moves the camera. The owner is "pretty sure" home is the right view; other tools can opt in the same way (`WantsHomeView`). Test: [HOME-H005](../../../Prism.Tests/Headless/Viewport/HomeOrientationTests.cs), unrun.
+
 ## Related resources
 
 - Implementation: `Prism/Core/CadSession.Home.cs`, `Prism/Controls/ViewCube.cs`, View tab in `Prism/ViewModels/MainViewModel.cs`.

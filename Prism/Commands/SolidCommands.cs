@@ -823,6 +823,7 @@ public sealed class LoftCommand : BodyCommand
     readonly List<string> _pointNames = ["None"];
     readonly List<Vec3> _pointPositions = [];
     readonly ChoiceParam _endPoint;
+    public override bool WantsHomeView => true;
     protected override void OnBegin()
     {
         base.OnBegin();
