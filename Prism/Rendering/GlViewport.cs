@@ -540,12 +540,14 @@ public sealed unsafe class GlViewport : Decorator
                     break;
             }
         }
-        // the edges a click would also take (connected or tangent chain, partial loop) light up exactly like the hovered edge, so the whole chain reads as one selection
-        foreach (var (dict, col, wd) in new[] { (sel, 0xFFFF8A1Fu, 3.2f), (preview, 0xFF35B6FFu, 3.0f), (hov, 0xFF35B6FFu, 3.0f) })
+        // Hovered edge: full strength and heavy. The rest of its chain: lighter blue, thinner and translucent, and it replaces the orange of edges already picked.
+        foreach (var (dict, col, wd, alpha) in new[] { (sel, 0xFFFF8A1Fu, 3.2f, 1f), (preview, 0xFF8FD3FFu, 2.4f, 0.6f), (hov, 0xFF35B6FFu, 3.0f, 1f) })
             foreach (var o in visible)
             {
                 if (!dict.TryGetValue(o.Id, out var hl)) continue;
                 var g = Upload(o.Mesh); var m = o.Mesh;
+                var chain = ReferenceEquals(dict, sel) && preview.TryGetValue(o.Id, out var pv) ? pv : null;
+                var hovered = chain != null && hov.TryGetValue(o.Id, out var hv) ? hv : null;
                 if (hl.Object)
                 {
                     if (mode == DisplayMode.Wireframe && o.Kind is (ObjKind.Form or ObjKind.Mesh))
@@ -556,7 +558,10 @@ public sealed unsafe class GlViewport : Decorator
                     else DrawEdges(gl, g, 0, g.SegCount, C2(col), wd * scale, 0.0012f);
                 }
                 foreach (var e in hl.Edges)
-                    if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], C2(col), (wd + 0.8f) * scale, 0.0012f);
+                {
+                    if (chain != null && (chain.Edges.Contains(e) || hovered?.Edges.Contains(e) == true)) continue;
+                    if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], Faded(col, alpha), (wd + 0.8f * alpha) * scale, 0.0012f);
+                }
             }
 
         // ---- simulation result: the deformed, colored surface stands in for the body
@@ -637,6 +642,7 @@ public sealed unsafe class GlViewport : Decorator
 
     static Vector3 V(Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
     static (float, float, float, float) C2(uint c) => C(c);
+    static (float, float, float, float) Faded(uint c, float alpha) { var (r, g, b, _) = C(c); return (r, g, b, alpha); }
 
     (float metal, float gloss) _look = (0f, 0.35f);
 

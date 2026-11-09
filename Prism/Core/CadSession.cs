@@ -586,7 +586,12 @@ public sealed partial class CadSession : ObservableObject
     {
         get
         {
-            if (ActiveCommand?.ActiveSlot is { } slot) return slot.PickFilter;
+            if (ActiveCommand?.ActiveSlot is { } slot)
+            {
+                // a slot that takes edges or curves by rule (single edge, chain, partial loop) has nothing to offer while picking faces
+                var f = slot.PickFilter;
+                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~(SelFilter.Edge | SelFilter.AnyCurve) : f;
+            }
             return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
