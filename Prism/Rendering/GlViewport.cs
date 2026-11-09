@@ -452,7 +452,7 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh, "uDraftSin", (float)Math.Sin(s.DraftMin * Math.PI / 180));
         U1(_mesh, "uCurvRange", (float)s.CurvRange);
 
-        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true).ToList();
+        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true && o.Id != s.Sketch?.EditingId).ToList();   // a sketch being edited is drawn by the editor, not twice
         var usedMaps=visible.SelectMany(o=>new[]{o.Look.Surface?.ColorMap,o.Look.Surface?.RoughnessMap,o.Look.Surface?.BumpMap,o.Look.Surface?.DecalMap}).Where(d=>d!=null).SelectMany(d=>new[]{d!,d+"!a"}).ToHashSet();
         foreach(var key in _surfaceTex.Keys.Where(k=>!usedMaps.Contains(k)).ToArray()){gl.DeleteTexture(_surfaceTex[key]);_surfaceTex.Remove(key);}
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
@@ -541,7 +541,7 @@ public sealed unsafe class GlViewport : Decorator
             }
         }
         // Hovered edge: full strength and heavy. The rest of its chain: lighter blue, thinner and translucent, and it replaces the orange of edges already picked.
-        foreach (var (dict, col, wd, alpha) in new[] { (sel, 0xFFFF8A1Fu, 3.2f, 1f), (preview, 0xFF8FD3FFu, 2.4f, 0.6f), (hov, 0xFF35B6FFu, 3.0f, 1f) })
+        foreach (var (dict, col, wd, alpha) in new[] { (sel, 0xFFFF8A1Fu, 3.2f, 1f), (preview, 0xFF35B6FFu, 2.4f, 1f), (hov, 0xFF35B6FFu, 3.0f, 1f) })
             foreach (var o in visible)
             {
                 if (!dict.TryGetValue(o.Id, out var hl)) continue;
@@ -563,6 +563,17 @@ public sealed unsafe class GlViewport : Decorator
                     if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], Faded(col, alpha), (wd + 0.8f * alpha) * scale, 0.0012f);
                 }
             }
+
+        // A translucent halo over every edge the rule would take, the hovered one included: on top of the blue lines it turns them purple, so the chain reads as one group at a glance.
+        foreach (var o in visible)
+        {
+            if (!preview.TryGetValue(o.Id, out var chainHighlight) || chainHighlight.Edges.Count == 0) continue;
+            var m = o.Mesh; var g = Upload(m);
+            var haloEdges = new HashSet<int>(chainHighlight.Edges);
+            if (hov.TryGetValue(o.Id, out var hoveredHighlight)) haloEdges.UnionWith(hoveredHighlight.Edges);
+            foreach (var e in haloEdges)
+                if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], (0.96f, 0.22f, 0.72f, 0.42f), 11f * scale, 0.0016f);
+        }
 
         // ---- simulation result: the deformed, colored surface stands in for the body
         gl.UseProgram(_mesh);U1(_mesh,"uPattern",(int)SurfacePattern.Plain);ClearSurface();
