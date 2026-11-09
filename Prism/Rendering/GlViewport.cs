@@ -540,7 +540,8 @@ public sealed unsafe class GlViewport : Decorator
                     break;
             }
         }
-        foreach (var (dict, col, wd) in new[] { (sel, 0xFFFF8A1Fu, 3.2f), (hov, 0xFF35B6FFu, 3.0f) })
+        // the edges a click would also take (connected or tangent chain, partial loop) light up exactly like the hovered edge, so the whole chain reads as one selection
+        foreach (var (dict, col, wd) in new[] { (sel, 0xFFFF8A1Fu, 3.2f), (preview, 0xFF35B6FFu, 3.0f), (hov, 0xFF35B6FFu, 3.0f) })
             foreach (var o in visible)
             {
                 if (!dict.TryGetValue(o.Id, out var hl)) continue;

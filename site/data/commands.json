@@ -3542,9 +3542,13 @@
  {
   "name": "curve_on_surface",
   "title": "Draw on Surface",
-  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Enter or double-click to finish.",
+  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes.",
   "slots": [],
   "params": [
+   {
+    "label": "Add more points",
+    "type": "action"
+   },
    {
     "label": "Clear points",
     "type": "action"

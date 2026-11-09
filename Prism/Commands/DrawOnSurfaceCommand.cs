@@ -23,19 +23,36 @@ public sealed class DrawOnSurfaceCommand : Command
     bool _curveValid;
     List<Vec3>? _preview;
     long _lastPreview;
+    bool _placing = true;
 
     public DrawOnSurfaceCommand()
     {
+        Add(new ActionParam { Label = "Add more points", Run = () => StartPlacing(S) });
         Add(new ActionParam { Label = "Clear points", Run = () => { _picks.Clear(); _selected = -1; Reset(); OnChanged(); } });
         Tool = new DrawOnSurfaceTool(this);
     }
 
     public override string Title => "Draw on Surface";
     public override string Icon => "curve-through";
-    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Enter or double-click to finish.";
+    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes.";
     public override string OkText => "Make curve";
 
     public int PickCount => _picks.Count;
+
+    /// <summary>True while clicks add points. After Esc the points can still be dragged and deleted, but clicks no longer add any.</summary>
+    public bool Placing => _placing;
+
+    public void StopPlacing(CadSession s)
+    {
+        _placing = false; _preview = null; s.Invalidate();
+        s.Say("Adding points stopped. Drag a point to adjust it, then press Enter or Make curve. Esc again cancels.");
+    }
+
+    public void StartPlacing(CadSession s)
+    {
+        _placing = true; s.Invalidate();
+        s.Say("Click to add points. Esc stops adding points.");
+    }
     void Reset() { _curve = null; _curveValid = false; _preview = null; }
 
     /// <summary>The surface under the pointer, from any visible object that has a surface.</summary>
@@ -221,7 +238,7 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
 {
     int _drag = -1;
 
-    public string Prompt => "Draw on Surface: click points on a surface. Drag a point to move it, Delete removes the selected point, Enter or double-click finishes, Esc cancels.";
+    public string Prompt => cmd.Placing ? "Draw on Surface: click points on a surface. Drag a point to move it, Delete removes the selected point. Esc stops adding points; Enter finishes." : "Draw on Surface: drag a point to adjust it, Delete removes it. Enter or Make curve finishes, Esc cancels.";
 
     public bool PointerDown(CadSession s, PointerInfo p)
     {
@@ -229,7 +246,7 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
         if (p.Clicks >= 2 && cmd.PickCount >= 2) { s.CommitCommand(); return true; }
         int at = cmd.PointAt(s, p.X, p.Y);
         if (at >= 0) { _drag = at; cmd.Select(s, at); return true; }
-        if (cmd.Hit(s, p.X, p.Y) is { } hit) cmd.AddPoint(s, hit.obj, hit.point);
+        if (cmd.Placing && cmd.Hit(s, p.X, p.Y) is { } hit) cmd.AddPoint(s, hit.obj, hit.point);
         return true;
     }
 
@@ -240,7 +257,7 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
             if (cmd.Hit(s, p.X, p.Y) is { } over) cmd.MovePoint(s, _drag, over.obj, over.point);
             return;
         }
-        if (cmd.PickCount == 0) return;
+        if (cmd.PickCount == 0 || !cmd.Placing) return;
         if (cmd.PointAt(s, p.X, p.Y) >= 0) { cmd.ClearPreview(s); return; }
         if (cmd.Hit(s, p.X, p.Y) is { } hit) cmd.Preview(s, hit.obj, hit.point); else cmd.ClearPreview(s);
     }
@@ -252,6 +269,10 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
         switch (key)
         {
             case "Enter": if (cmd.PickCount >= 2) s.CommitCommand(); else s.Say("Click at least two points on the surface first.", true); return true;
+            case "Escape":
+                // the first Esc leaves the point-placing tool but keeps the curve, so it can be adjusted and finished; with nothing to keep it cancels as usual
+                if (cmd.Placing && cmd.PickCount >= 2) { cmd.StopPlacing(s); return true; }
+                return false;
             case "Back": case "Delete": cmd.RemoveSelected(s); return true;
             default: return false;
         }
