@@ -1991,3 +1991,63 @@ def face_edit_matrix():
     block()
     strip = ["Split, merge, replace, extend and trim, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Curve projection and isocurves, construction planes, capping an opening
+@scenario("curve__project-isocurve-construction-plane-and-fill-cap", columns=1)
+def curve_plane_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def project():
+        ball = cad.sphere(radius=20, operation="New body"); ball.rename("Ball")
+        ringc = ring(30, 6)
+        before = names()
+        cad.call("run_command", name="curve_project", slots={"Curves to project": [ringc], "Surface to project onto": [{"object": "Ball", "face": 1}]}, params={"Method": "Along a direction", "Direction": "Down (-Z)"})
+        made = [o for o in cad.objects() if o.kind == "Curve" and o.name not in before]
+        i = info(made[0].name)
+        z = math.sqrt(400 - 36)
+        return bool(made) and abs(i["max"][2] - z) < .2 and abs(i["size"][0] - 12) < .4 and i["size"][2] < .3, f"{len(made)} curve(s): width {i['size'][0]:.1f}, height z {i['max'][2]:.2f} (a ring of radius 6 dropped onto a 20 mm sphere lies at z = {z:.2f} and stays 12 wide)"
+    case("Project a ring onto a sphere, straight down", project)
+
+    def isocurve():
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        sheet = new_object(before, ("Surface",))
+        b2 = names()
+        cad.call("run_command", name="curve_isocurve", slots={"Surface or face": [sheet]}, params={"Direction": 0, "Position (%)": 50, "How many": 1})
+        made = [o for o in cad.objects() if o.kind == "Curve" and o.name not in b2]
+        sizes = [[round(v, 1) for v in info(o.name)["size"]] for o in made]
+        return bool(made) and any(abs(s[0] - 30) < .5 or abs(s[2] - 20) < .5 for s in sizes), f"{len(made)} isocurve(s) of size {sizes} (a line 30 across or 20 up the middle of the sheet)"
+    case("Isocurve through the middle of a surface", isocurve)
+
+    def plane():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        top = cad.call("solid_find", object="Blk", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+        before = names()
+        cad.call("run_command", name="construction_plane", slots={"Plane or flat face": [{"object": "Blk", "face": top}]}, params={"Method": "Offset from a plane", "Distance": 10})
+        made = [o for o in cad.objects() if o.kind == "Plane" and o.name not in before]
+        return len(made) == 1, f"{len(made)} construction plane(s) made, {[o.name for o in made]} (an offset 10 mm above the top face)"
+    case("Construction plane offset 10 mm from a face", plane)
+
+    def cap():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        top = cad.call("solid_find", object="Blk", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+        cad.call("run_command", name="delete_face", slots={"Faces to remove (a hole, fillet, pocket...)": [{"object": "Blk", "face": top}]})
+        i = info("Blk")
+        return i["valid"], f"after deleting the top face: kind {i.get('kind')}, faces {i['faces']}, valid {i['valid']}"
+    case("Delete the top face of a block, leaving an opening", cap)
+    cad.call("document_new")
+    ball = cad.sphere(radius=20, operation="New body")
+    strip = ["Curve projection, isocurves and construction planes"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a sphere", render(-30, 25)), ("checks", text_panel(strip))]
