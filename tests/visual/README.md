@@ -45,8 +45,12 @@ Look at a sheet; when it is right, copy it into `tests/visual/approved/`. `--com
 
 ## How much is covered
 
-`python tests/visual/coverage.py` counts which registered commands the scripts touch (`--list` names the rest). Touching is weaker than testing every option: only the feature-matrix scenarios vary options.
+`python tests/visual/coverage.py` counts which registered commands the scripts touch (`--list` names the rest). Touching is weaker than testing every option: only the feature-matrix scenarios vary options. Every registered command except `ar` (it needs an AR headset) is touched with real inputs.
+
+Mouse tools are driven with the `pointer` call at world positions (Measure, Create Face, Probe, Set Image Scale, Select Region, Edit Form, Edit Control Points). A picture only on screen (curvature colours, the CAM layer view) is checked by reading its settings back.
 
 ## Limits
+
+A document with nothing the renderer can draw (empty, or only a picture) never starts a render and gives no status (issue #90); give such scenarios a small solid before `render()`.
 
 Prism's renderer does not draw toolpaths, reference pictures, curves or analysis colours, and the window screenshot works only on Windows. So CAM scenarios plot the toolpath from the posted G-code, CAE scenarios print their numbers into the strip, and curves are checked numerically.
