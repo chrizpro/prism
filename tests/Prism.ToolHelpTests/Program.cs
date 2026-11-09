@@ -151,8 +151,9 @@ foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
 var learnMore = popup.Child!.GetVisualDescendants().OfType<Button>().Single();
 string? savedDocsRoot = Prism.Core.AppSettings.Current.ToolDocumentationBaseUrl;
 Prism.Core.AppSettings.Current.ToolDocumentationBaseUrl = null;
-learnMore.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-Check(popup.Child!.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Online tool guides are coming soon." && t.IsVisible), "Learn More handles the unpublished guide");
+// Learn More opens the published tool reference at the tool's own row; a button with no ribbon cannot be placed there.
+Check(ToolDocumentation.LinkFor("x|Fillet", "Solid", "Fillet")?.AbsoluteUri == Prism.Core.AppInfo.DocsUrl + "tools/solid#tool-fillet", "Learn More links to the tool's row on its ribbon page");
+Check(ToolDocumentation.LinkFor("x|Fillet") == null, "no ribbon, no link");
 window.MouseMove(new Point(300, 690)); Pump(800);
 Check(!popup.IsOpen, "tooltip dismisses on leaving");
 window.MouseMove(Center(ToolButton("to-nurbs"))); Pump(650);

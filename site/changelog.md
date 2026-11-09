@@ -2,6 +2,7 @@
 
 ## 0.1.0 alpha
 
+- **F** fits the view (Zoom Extents), alongside Home. Command search shows each command's current key, including changed and custom shortcuts, and a new [Keyboard shortcuts](/reference/hotkeys) page lists them all. **Learn More** on a tool's hover help opens that tool's row on its ribbon's page of this site.
 - Prism is in alpha: an Alpha badge next to the wordmark opens the known issues. **Help (?) → Report a bug** opens the GitHub form; **Give feedback** is also in Help. Optional exit-feedback reminders appear on closures 1, 5, 15, 25, … . Crash diagnostics are reviewed locally before opening a GitHub draft.
 - The AI assistant offers Claude with an API key; Codex can still use your login.
 - MIT license, full third-party notices in installers, and the LGPL library sources attached to each release.

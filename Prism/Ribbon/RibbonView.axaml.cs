@@ -108,7 +108,7 @@ public partial class RibbonView : UserControl
         link.Click += async (_, e) =>
         {
             e.Handled = true;
-            var uri = ToolDocumentation.LinkFor(tool.DocumentationId);
+            var uri = ToolDocumentation.LinkFor(tool.DocumentationId, tool.DocumentationTab, tool.DocumentationLabel);
             if (uri == null)
             {
                 notice.Text = "Online tool guides are coming soon.";

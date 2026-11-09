@@ -1,5 +1,5 @@
 {
-  "sourceHash": "B7679212CC053AE4318B58414F62B012E645B5E7C6CCCD341C8CBEBE32E2063E",
+  "sourceHash": "1A7932D36284D634405CA8A85FBEF753C20C184C696F12CB2659ABE0E582157C",
   "workspaces": [
     {
       "Id": "design",
@@ -5919,7 +5919,7 @@
               "id": "zoom-extents|Zoom Extents",
               "label": "Zoom Extents",
               "description": "Fit everything in the window.",
-              "shortcut": "Home"
+              "shortcut": "F"
             },
             {
               "id": "home-set|Set Home",

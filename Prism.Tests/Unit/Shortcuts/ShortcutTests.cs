@@ -1,0 +1,47 @@
+using Prism.Core;
+using Prism.Help;
+using Xunit;
+
+namespace Prism.UnitTests.Shortcuts;
+
+/// <seealso href="https://github.com/chrizpro/prism/blob/develop/site/reference/hotkeys.md">Keyboard shortcuts.</seealso>
+[Trait("Feature", "Shortcuts")]
+[Trait("Layer", "Unit")]
+public class ShortcutTests
+{
+    [Fact(DisplayName = "KEY-U001 | Fit (F) is used by Zoom Extents only: no other built-in shortcut in any context has it")]
+    [Trait("TestId", "KEY-U001")]
+    public void FitKeyIsUnique()
+    {
+        var fit = Hotkeys.Actions.Single(a => a.Id == "view.extents");
+        Assert.Equal("F", fit.Default);
+        Assert.Equal(Hotkeys.Global, fit.Scope);
+        Assert.DoesNotContain(Hotkeys.Actions, a => a.Id != fit.Id && string.Equals(a.Default, "F", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact(DisplayName = "KEY-U002 | The Home key still fits the view, outside the animation timeline where it goes to the start")]
+    [Trait("TestId", "KEY-U002")]
+    public void HomeStillFits()
+    {
+        var home = Hotkeys.Actions.Single(a => a.Id == "view.extents.home");
+        Assert.Equal(("Home", Hotkeys.Global), (home.Default, home.Scope));
+        var start = Hotkeys.Actions.Single(a => a.Id == "animation.start");
+        Assert.Equal(("Home", Hotkeys.Command), (start.Default, start.Scope));   // the more specific scope wins while the timeline is open
+    }
+
+    [Fact(DisplayName = "KEY-U003 | Learn More links to a tool's row on its ribbon page of the website")]
+    [Trait("TestId", "KEY-U003")]
+    public void LearnMoreLinksToTheToolRow()
+    {
+        Assert.Equal("fillet-chamfer", ToolDocumentation.Slug("Fillet / Chamfer"));
+        Assert.Equal("direct-modeling", ToolDocumentation.Slug("Direct Modeling"));
+        var saved = AppSettings.Current.ToolDocumentationBaseUrl;
+        AppSettings.Current.ToolDocumentationBaseUrl = null;
+        try
+        {
+            Assert.Equal(AppInfo.DocsUrl + "tools/solid#tool-fillet", ToolDocumentation.LinkFor("x|Fillet", "Solid", "Fillet")!.AbsoluteUri);
+            Assert.Null(ToolDocumentation.LinkFor("x|Fillet"));
+        }
+        finally { AppSettings.Current.ToolDocumentationBaseUrl = saved; }
+    }
+}

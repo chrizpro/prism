@@ -15,7 +15,8 @@ function toolTable(tabTitle, group) {
   const rows = group.tools.map(tool => {
     const page = pageFor(tabTitle, group.title, tool.label)
     const shortcut = tool.shortcut ? ` <kbd>${text(tool.shortcut)}</kbd>` : ''
-    return `| [${cell(tool.label)}](/tool/${page.slug})${shortcut} | ${cell(tool.description)} |`
+    // The span is the anchor the app's Learn More link jumps to: #tool-<label>.
+    return `| <span id="tool-${slug(tool.label)}"></span>[${cell(tool.label)}](/tool/${page.slug})${shortcut} | ${cell(tool.description)} |`
   })
   return ['| Tool | What it does |', '| --- | --- |', ...rows, '']
 }
@@ -36,7 +37,7 @@ function tabPage(tab) {
   for (const group of own) lines.push(`## ${text(group.title)} {#${slug(group.title)}}`, '', ...groupTip(tab.title, group), ...toolTable(tab.title, group))
   if (shared.length) {
     lines.push('## Shared sections {#shared}', '', 'These work the same on every ribbon that has them.', '')
-    for (const group of shared) lines.push(`- [${text(group.title)}](/tools/shared#${slug(group.title)}): ${group.tools.map(t => `[${text(t.label)}](/tool/${pageFor(tab.title, group.title, t.label).slug})`).join(', ')}`)
+    for (const group of shared) lines.push(`- [${text(group.title)}](/tools/shared#${slug(group.title)}): ${group.tools.map(t => `<span id="tool-${slug(t.label)}"></span>[${text(t.label)}](/tool/${pageFor(tab.title, group.title, t.label).slug})`).join(', ')}`)
     lines.push('')
   }
   return lines.join('\n')

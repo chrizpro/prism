@@ -1077,7 +1077,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Btn("Isometric", "view-iso", () => ShowStandardView(-35, 28), "A three-quarter view.", RibbonSize.Large),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch.", RibbonSize.Large, null, null, "N")),
                 G("Navigate",
-                    Btn("Zoom\nExtents", "zoom-extents", () => Session.ZoomExtents(), "Fit everything in the window.", RibbonSize.Large, null, null, "Home"),
+                    Btn("Zoom\nExtents", "zoom-extents", () => Session.ZoomExtents(), "Fit everything in the window.", RibbonSize.Large, null, null, "F"),
                     HomeButton(),
                     Btn("Orthographic", "ortho", () => Session.Ortho = true, "No perspective: parallel projection.", small, null, () => Session.Ortho),
                     Btn("Perspective", "perspective", () => Session.Ortho = false, "Natural perspective projection.", small, null, () => !Session.Ortho)),
@@ -1326,7 +1326,10 @@ public sealed partial class MainViewModel : ViewModelBase
         // Buttons shared between tabs (selection, materials) resolve on the last tab they appear on.
         foreach (var t in Tabs)
             foreach (var b in t.Buttons)
-            { var owner = t.Title; var button = b; var command = b.ExampleResolver; b.ExampleResolver = () => Help.ToolHelp.ForRibbon(owner, button.Icon, button.Label, command); }
+            {
+                var owner = t.Title; var button = b; var command = b.ExampleResolver; b.ExampleResolver = () => Help.ToolHelp.ForRibbon(owner, button.Icon, button.Label, command);
+                b.TabTitle = owner; foreach (var item in b.Menu ?? []) item.TabTitle = owner;       // Learn More opens this tool's row on this ribbon's page of the website
+            }
         FinishRibbon();
     }
 }

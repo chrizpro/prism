@@ -45,7 +45,8 @@ public static class Hotkeys
         new("edit.accept", "Accept / finish", "Edit", Global, "Enter"),
 
         new("view.lookat", "Look at the selected plane, face or sketch", "View", Global, "N"),
-        new("view.extents", "Zoom to fit everything", "View", Global, "Home"),
+        new("view.extents", "Zoom to fit everything (Zoom Extents)", "View", Global, "F", "F for Fit; the same key fits the view in the drawing editor"),
+        new("view.extents.home", "Zoom to fit everything (Home key)", "View", Global, "Home", "A second key for Zoom Extents; while the animation timeline is open Home goes to the start instead"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
         new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
         new("datum.gizmo", "Edit Gizmo", "Modeling", Global, "G", "At the viewport cursor (origin if the pointer is outside it)"),
@@ -151,6 +152,31 @@ public static class Hotkeys
         scopes.Add(Workspace(workspaceId));
         scopes.Add(Global);
         return scopes;
+    }
+
+    /// <summary>Which ribbon button a built-in action runs, so the button, the search results and the tool's page can show its key. Tab is empty when the label is unique enough on its own.</summary>
+    static readonly Dictionary<string, (string Tab, string Label)> ButtonOf = new()
+    {
+        ["sketch.start"] = ("", "Create Sketch"), ["file.new"] = ("", "New"), ["file.open"] = ("", "Open"), ["file.save"] = ("", "Save"), ["file.saveas"] = ("", "Save As"),
+        ["edit.duplicate"] = ("", "Duplicate"), ["view.lookat"] = ("", "Look At"), ["view.extents"] = ("", "Zoom Extents"), ["view.extents.home"] = ("", "Zoom Extents"),
+        ["model.extrude"] = ("", "Extrude"), ["datum.gizmo"] = ("", "Gizmo"), ["form.edit"] = ("", "Edit Freeform"),
+        ["sketch.line"] = ("Sketch", "Line"), ["sketch.rect"] = ("Sketch", "Rectangle"), ["sketch.ellipse"] = ("Sketch", "Ellipse"),
+        ["sketch.spline"] = ("Sketch", "Spline"), ["sketch.arc"] = ("Sketch", "Arc"),
+    };
+
+    /// <summary>The key(s) the user has for a ribbon button right now ("F / Home"), with their changes and custom shortcuts applied; empty when it has none.</summary>
+    public static string ShortcutFor(string tab, string label)
+    {
+        var keys = new List<string>();
+        foreach (var a in All)
+        {
+            var (gesture, _) = Effective(a);
+            if (gesture.Length == 0) continue;
+            bool match = a.Custom ? a.Target == tab + "|" + label
+                : ButtonOf.TryGetValue(a.Id, out var b) && b.Label == label && (b.Tab.Length == 0 || b.Tab == tab);
+            if (match) keys.Add(Display(gesture));
+        }
+        return string.Join(" / ", keys.Distinct());
     }
 
     /// <summary>Another action that already uses this key in exactly this scope, if any.</summary>
