@@ -2919,3 +2919,83 @@ def surface_match_matrix():
             rows.append((f"Match to {name}", str(error)[:120], False))
     strip = ["Match Surface then Surface Continuity: the seam gap and normal angle before and after"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the two patches after the last match", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Face editing: Fill / Cap, Match Face, Intersection Curve
+@scenario("solid__fill-cap-match-face-and-intersection-curve", columns=1)
+def face_edit_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((label, str(error)[:140], False))
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def find(obj, kind, typ, **kw):
+        return cad.call("solid_find", object=obj, kind=kind, type=typ, **kw)["hits"][0]
+
+    def fill_cap():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        cad.call("run_command", name="unstitch", slots={"Faces, or whole surfaces and bodies": ["Blk"]})
+        pieces = [o.name for o in cad.objects() if o.kind == "Surface"]
+        lid = next(n for n in pieces if abs(info(n)["min"][2] - 20) < .01)
+        cad.call("object_update", object=lid, visible=False)
+        rest = [n for n in pieces if n != lid]
+        cad.call("run_command", name="knit", slots={"Surfaces": rest}, params={"Make solid if closed": False})
+        shell = next(o.name for o in cad.objects() if o.kind == "Surface" and o.name not in pieces)
+        top = [h["edge"] for h in cad.call("solid_find", object=shell, kind="edges", limit=60)["hits"] if abs(h.get("center", [0, 0, 0])[2] - 20) < .01]
+        cad.call("run_command", name="fill_cap", slots={"An open edge (the whole open loop is found)": [{"object": shell, "edge": top[0]}]}, params={"Cap": "Flat"})
+        i = info(shell)
+        return i["faces"] == 6 and i.get("valid"), f"open shell of 5 faces capped: faces {i['faces']}, valid {i.get('valid')}, kind {i.get('kind')} (expect 6 faces once the lid is back)"
+    case("Fill / Cap puts a flat lid on the opened block", fill_cap)
+
+    def match_plane():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Step")
+        s = cad.box(width=10, depth=10, height=35, operation="New body"); s.rename("Ref"); cad.move("Ref", x=60)
+        top = find("Step", "faces", "Plane", facing=[0, 0, 1])["face"]
+        ref_top = find("Ref", "faces", "Plane", facing=[0, 0, 1])["face"]
+        z0 = info("Step")["size"][2]
+        cad.call("run_command", name="match_face", slots={"Faces to change": [{"object": "Step", "face": top}], "Face to match (flat, round or conical)": {"object": "Ref", "face": ref_top}})
+        z1 = info("Step")["size"][2]
+        return abs(z0 - 20) < .1 and abs(z1 - 35) < .1, f"height {z0:.1f} -> {z1:.1f} mm (expect 20 -> 35, the top moves onto the other block's top plane)"
+    case("Match Face moves a flat top onto another face's plane", match_plane)
+
+    def match_radius():
+        b = cad.box(width=40, depth=40, height=10, operation="New body"); b.rename("Plate")
+        cad.call("run_command", name="hole_at", slots={}, params={}) if False else None
+        c = cad.cylinder(radius=5, height=10, operation="Cut", target="Plate") if False else None
+        cad.holes("Plate", [(0, 0)], diameter=8, depth=10)
+        ref = cad.cylinder(radius=7, height=10, operation="New body"); ref.rename("Ref"); cad.move("Ref", x=60)
+        bore = find("Plate", "faces", "Cylinder")["face"]
+        rface = find("Ref", "faces", "Cylinder")["face"]
+        v0 = info("Plate")["volume"]
+        cad.call("run_command", name="match_face", slots={"Faces to change": [{"object": "Plate", "face": bore}], "Face to match (flat, round or conical)": {"object": "Ref", "face": rface}})
+        v1 = info("Plate")["volume"]
+        import math
+        expect = 40 * 40 * 10 - math.pi * 49 * 10
+        return abs(v1 - expect) < 30 and v1 < v0, f"volume {v0:.0f} -> {v1:.0f} (expect {expect:.0f}: the 8 mm hole becomes a 14 mm hole)"
+    case("Match Face gives a hole the radius of another cylinder", match_radius)
+
+    def intersect():
+        import math
+        s = cad.sphere(radius=20, operation="New body"); s.rename("Ball")
+        b = cad.box(width=60, depth=60, height=10, operation="New body"); b.rename("Slab"); cad.move("Slab", z=10)
+        bottom = find("Slab", "faces", "Plane", facing=[0, 0, -1])["face"]
+        before = names()
+        cad.call("run_command", name="intersect_curves", slots={"First": {"object": "Slab", "face": bottom}, "Second": "Ball"})
+        made = [o for o in cad.objects() if o.name not in before]
+        size = info(made[0].name)["size"] if made else [0, 0, 0]
+        expect = 2 * math.sqrt(400 - 100)
+        return len(made) == 1 and abs(size[0] - expect) < .1 and abs(size[1] - expect) < .1 and abs(size[2]) < .01, f"{len(made)} curve(s), {size[0]:.2f} x {size[1]:.2f} flat (expect a circle {expect:.2f} across, where the plane z = 10 cuts the 20 mm sphere)"
+    case("Intersection Curve between a flat face and a sphere", intersect)
+    cad.call("document_new")
+    cad.box(width=40, depth=30, height=20, operation="New body")
+    strip = ["Fill / Cap, Match Face and Intersection Curve, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a block", render(-30, 25)), ("checks", text_panel(strip))]
