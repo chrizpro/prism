@@ -143,4 +143,32 @@ public class HomeOrientationTests
         Assert.Equal(yaw, s.Camera.Yaw); Assert.Equal(pitch, s.Camera.Pitch);
         s.CancelCommand();
     }
+
+    [AvaloniaFact(DisplayName = "HOME-H006 | Only tools that pick edges, curves or faces around the model open in the home view; Extrude, Revolve and the rest stay as they are")]
+    [Trait("TestId", "HOME-H006")]
+    public void OnlyPickHeavyToolsOpenInTheHomeView()
+    {
+        var s = new MainViewModel().Session;
+        var opted = new Func<Prism.Commands.Command>[]
+        {
+            () => new Prism.Commands.LoftCommand(), () => new Prism.Commands.LoftCommand(true), () => new Prism.Commands.SweepCommand(),
+            () => new Prism.Commands.BoundarySurfaceCommand(), () => new Prism.Commands.RuledSurfaceCommand(), () => new Prism.Commands.PatchCommand(),
+            () => new Prism.Commands.BlendSurfaceCommand(), () => new Prism.Commands.ShellCommand(),
+        };
+        foreach (var make in opted)
+        {
+            s.Ortho = true;
+            s.StartCommand(make);
+            Assert.False(s.Ortho, make().Title);
+            s.CancelCommand();
+        }
+        var untouched = new Func<Prism.Commands.Command>[] { () => new Prism.Commands.ExtrudeCommand(), () => new Prism.Commands.RevolveCommand(), () => new Prism.Commands.MeasureCommand() };
+        foreach (var make in untouched)
+        {
+            s.Ortho = true;
+            s.StartCommand(make);
+            Assert.True(s.Ortho, make().Title);
+            s.CancelCommand();
+        }
+    }
 }

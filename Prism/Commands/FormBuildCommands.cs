@@ -99,6 +99,8 @@ static class FormCurves
 /// <summary>Blend a form through several curves (sections): a smooth cage you can keep sculpting.</summary>
 public sealed class FormLoftCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly SelectionSlot _src;
     readonly IntParam _pts, _level;
     readonly BoolParam _cap;
@@ -140,6 +142,8 @@ public sealed class FormLoftCommand : Command
 /// <summary>Carry a profile along a path to build a form cage.</summary>
 public sealed class FormSweepCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly SelectionSlot _profile, _path;
     readonly IntParam _pts, _steps, _level;
     readonly BoolParam _cap;

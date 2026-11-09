@@ -738,6 +738,8 @@ public sealed class RevolveCommand : BodyCommand
 
 public sealed class SweepCommand : BodyCommand
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly bool _surface;
     readonly SelectionSlot _profile, _path, _rail;
     readonly ChoiceParam _orient;
@@ -1183,6 +1185,8 @@ static class GuidedLoft
 // ---------------------------------------------------------------- dress-up
 public abstract class EdgeDressCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     protected readonly SelectionSlot Edges;
     protected readonly NumberParam Size;
     protected EdgeDressCommand(double size)
@@ -1249,6 +1253,8 @@ public sealed class ChamferCommand : EdgeDressCommand
 
 public sealed class ShellCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly SelectionSlot _faces;
     readonly NumberParam _t;
     readonly ChoiceParam _dir;

@@ -586,6 +586,8 @@ public sealed class EdgeSurfaceCommand : Command
 /// <summary>A surface joining an edge of one surface to an edge of another with controlled continuity.</summary>
 public sealed class BlendSurfaceCommand : Command
 {
+    /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
+    public override bool WantsHomeView => true;
     readonly SelectionSlot _a, _b;
     readonly ChoiceParam _cont;
     readonly NumberParam _full;
