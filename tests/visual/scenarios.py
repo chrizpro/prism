@@ -2374,3 +2374,89 @@ def curve_matrix_2():
     curve([[0, 0, 0], [10, 20, 0], [30, 20, 0], [40, 0, 0]])
     strip = ["More curve tools, each against what it should make"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a curve", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Flat pattern K-factor, and mesh hole filling, rebuilding, fitting and thickness
+@scenario("sheetmetal__flat-pattern-k-factor-and-mesh-fill-rebuild-fit-thickness", columns=1)
+def flat_and_mesh_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def bent():
+        prof = sketch([{"type": "polyline", "points": [[0, 20], [0, 0], [60, 0]]}], plane="XZ").name
+        before = names()
+        cad.call("run_command", name="contour_flange", slots={"Profile sketch (straight lines)": [prof]}, params={"Thickness": 2, "Bend radius (inside)": 2, "Width": 30})
+        return made_since(before)
+
+    def flat_area(k):
+        n = bent()
+        before = names()
+        cad.call("run_command", name="flat_pattern", slots={"Sheet metal body": [n]}, params={"K-factor": k})
+        surf = new_object(before, ("Surface",))
+        return cad.call("object_info", object=n)["volume"], cad.call("object_info", object=surf)["area"]
+
+    def flat():
+        v, a = flat_area(0.44)
+        return abs(a * 2 - v) < .03 * v, f"flat area {a:.0f} x 2 mm = {a * 2:.0f} against the bent solid's volume {v:.0f} (a sheet's volume is its flat area times its thickness)"
+    case("Flat pattern of an L bracket matches its volume", flat)
+
+    def kfactor():
+        _, a1 = flat_area(0.33)
+        cad.call("document_new")
+        _, a2 = flat_area(0.5)
+        return a2 > a1 and abs((a2 - a1) - 30 * math.pi / 2 * 2 * (0.5 - 0.33)) < 3, f"area {a1:.1f} at K 0.33 -> {a2:.1f} at K 0.5 (+{a2 - a1:.1f}; theory +{30 * math.pi / 2 * 2 * 0.17:.1f}: bend allowance grows by pi/2 x t x dK per mm of width)"
+    case("A larger K-factor lengthens the flat pattern", kfactor)
+
+    def mesh_of_sphere(detail="Normal"):
+        s = cad.sphere(radius=20, operation="New body"); s.rename("S")
+        cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["S"]}, params={"Detail": detail, "Keep the original body": False})
+        return next(o.name for o in cad.objects() if o.kind == "Mesh")
+
+    def capped():
+        m = mesh_of_sphere()
+        cad.call("run_command", name="mesh_split", slots={"Mesh": [m]}, params={"Cut plane": 0, "Position along the normal": 0, "Normal X": 0, "Normal Y": 0, "Normal Z": 1})
+        halves = [cad.call("object_info", object=o.name) for o in cad.objects() if o.kind == "Mesh"]
+        cad.call("run_command", name="mesh_fill_holes", slots={"Meshes": [o.name for o in cad.objects() if o.kind == "Mesh"]})
+        after = [cad.call("object_info", object=o.name) for o in cad.objects() if o.kind == "Mesh"]
+        return len(halves) == 2 and all(h["watertight"] and h["holes"] == 0 for h in halves + after), f"split gives {len(halves)} meshes, watertight {[h['watertight'] for h in halves]}, holes {[h['holes'] for h in halves]}; filling holes afterwards keeps them closed (the split caps its halves itself)"
+    case("Mesh split caps both halves; fill holes leaves them closed", capped)
+
+    def text_of(name, slots, params=None, actions=()):
+        r = cad.call("run_command", name=name, slots=slots, params=params or {}, commit=False)
+        for a in actions:
+            cad.call("command_set", params={a: True})
+        if actions:
+            cad.call("wait_idle", timeout_ms=60000)
+            time.sleep(1)
+            r = {"activeCommand": cad.call("command_set", params={})}
+        text = " | ".join(f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r["activeCommand"].get("results") or r["activeCommand"].get("results", [])))
+        cad.call("command_cancel")
+        return text
+
+    def box_mesh():
+        b = cad.box(width=30, depth=20, height=10, operation="New body"); b.rename("Bx")
+        cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["Bx"]}, params={"Detail": "Normal", "Keep the original body": False})
+        return next(o.name for o in cad.objects() if o.kind == "Mesh")
+
+    def rebuild():
+        m = box_mesh()
+        text = text_of("mesh_fit", {"Mesh": [m]}, {"Planes": True, "Cylinders": False}, ("Preview result",))
+        return bool(text) and "6" in text, text[:120] or "no text"
+    case("Mesh fit finds the six planes of a block", rebuild)
+
+    def thickness():
+        m = mesh_of_sphere()
+        text = text_of("mesh_thickness", {"Mesh": [m]}, {"Minimum wall for your printer": 0.8}, ("Preview result",))
+        return bool(text) and "Not computed" not in text, text[:120] or "no text"
+    case("Mesh thickness check on a solid sphere", thickness)
+    cad.call("document_new")
+    cad.box(width=30, depth=20, height=10, operation="New body")
+    strip = ["Flat pattern against the bent solid, and the remaining mesh tools"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
