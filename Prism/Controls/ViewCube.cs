@@ -388,6 +388,9 @@ public sealed class ViewCube : Control
                 destination.SetOrientation(target, targetUp);
                 s.AnimateView(destination.Yaw, destination.Pitch, destination.Roll);
                 break;
+            case Hit.Projection: s.Ortho = !s.Ortho; break;
+            case Hit.RollCcw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q + q); break;
+            case Hit.RollCw: s.AnimateView(cam.Yaw, cam.Pitch, Math.Round(cam.Roll / q) * q - q); break;
             case Hit.Region:
                 var d = Regions[r].Dir.Normalized();
                 double pitch = Math.Asin(Math.Clamp(d.Z, -1, 1));

@@ -39,7 +39,7 @@ In scope: the View tab button, the matching button beside the view cube, how the
 | HOME-3 | [HOME-H003](../../../Prism.Tests/Headless/Viewport/HomeOrientationTests.cs) | Passed, headless, 2026-11-07 |
 | HOME-4 | [HOME-H004](../../../Prism.Tests/Headless/Viewport/HomeOrientationTests.cs) | Passed, headless, 2026-11-07 |
 
-The view cube button (draw, hover text, click) has no automated test and has not been checked in the desktop app.
+The view cube button (draw, hover text, click) has no automated test and has not been checked in the desktop app. Bug fix 2026-11-09 (owner report): clicking the projection button beside the cube did nothing, and neither did the two roll buttons, because the click handler had lost their cases in an earlier rework. They are restored: the projection button toggles orthographic and perspective, and the roll buttons turn a face view 90 degrees. Not covered by an automated test.
 
 ## Related resources
 
