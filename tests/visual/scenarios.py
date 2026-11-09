@@ -1905,3 +1905,89 @@ def surface_edit_matrix():
     cad.call("run_command", name="nurbs_patch", params={"Width": 80, "Height": 60})
     strip = ["Surface building and editing tools, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a NURBS patch", render(-30, 35)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Direct modeling, part 2: split body and face, merge faces, replace face, extend or trim face
+@scenario("solid__split-merge-replace-extend-trim-faces", columns=1)
+def face_edit_matrix():
+    rows = []
+    cube = 40 * 30 * 20
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def block():
+        b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+        return b
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def cutting_sheet():
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((-50, 0, 0), (50, 0, 0))}, params={"Extent": "Distance", "Distance": 100})
+        return new_object(before, ("Surface",))
+
+    def face(n, facing):
+        return {"object": n, "face": cad.call("solid_find", object=n, kind="faces", type="Plane", facing=facing)["hits"][0]["face"]}
+
+    def stop_box(x):
+        t = cad.box(width=2, depth=60, height=60, operation="New body"); t.rename("Stop"); cad.move(t, x=x, z=-20)
+        return face("Stop", [-1, 0, 0])
+
+    def split_body():
+        block()
+        sheet = cutting_sheet()
+        cad.call("run_command", name="split_body", slots={"Body to split": ["Blk"], "Splitting tool (plane, face, surface or solid)": [sheet]})
+        solids = [o for o in cad.objects() if o.kind == "Solid"]
+        vols = sorted(round(info(o.name)["volume"]) for o in solids)
+        return len(solids) == 2 and all(abs(v - cube / 2) < 20 for v in vols), f"{len(solids)} bodies of {vols} (expect two of {cube // 2})"
+    case("Split a block with a plane sheet through its middle", split_body)
+
+    def split_and_merge():
+        block()
+        cad.call("sketch_begin", plane={"object": "Blk", "face": face("Blk", [0, 0, 1])["face"]})
+        cad.call("sketch_add", entities=[{"type": "line", "points": [[0, -25], [0, 25]]}])
+        line = cad.call("sketch_finish")["sketch"]
+        n0 = info("Blk")["faces"]
+        cad.call("run_command", name="split_face", slots={"Face to split": [face("Blk", [0, 0, 1])], "Splitting plane, edge or sketch": [line]})
+        n1 = info("Blk")["faces"]
+        tops = cad.call("solid_find", object="Blk", kind="faces", type="Plane", facing=[0, 0, 1])["hits"]
+        cad.call("run_command", name="merge_faces", slots={"Faces to merge (neighbours on one surface)": [{"object": "Blk", "face": t["face"]} for t in tops]})
+        n2 = info("Blk")["faces"]
+        return (n0, n1, n2) == (6, 7, 6) and len(tops) == 2, f"faces {n0} -> {n1} after splitting the top -> {n2} after merging the two halves back (expect 6, 7, 6)"
+    case("Split the top face, then merge it back", split_and_merge)
+
+    def replace():
+        block()
+        target = stop_box(25)
+        cad.call("run_command", name="replace_face", slots={"Flat faces to replace": [face("Blk", [1, 0, 0])], "Target plane or flat face": [target]})
+        v = info("Blk")["volume"]
+        return abs(v - (cube + 4 * 30 * 20)) < 30, f"volume {v:.0f} (expect {cube + 2400}: the +X face replaced by the plane 4 mm further out, at x = 24)"
+    case("Replace the +X face with a plane 5 mm out", replace)
+
+    def to_height(height):
+        # Extend / Trim moves a wall's neighbours until the wall reaches a target plane square to it: here the +X wall is taken up or down to a plane at z = height
+        block()
+        ref = cad.box(width=4, depth=4, height=1, operation="New body"); ref.rename("Ref"); cad.move(ref, x=30, z=height)
+        cad.call("run_command", name="extend_trim_face", slots={"Flat faces to extend or trim": [face("Blk", [1, 0, 0])], "Target plane or flat face": [face("Ref", [0, 0, -1])]})
+        return info("Blk")
+
+    def extend():
+        i = to_height(26)
+        return abs(i["volume"] - 40 * 30 * 26) < 30 and abs(i["max"][2] - 26) < .05 and i["valid"], f"volume {i['volume']:.0f} (expect {40 * 30 * 26}), top at z {i['max'][2]:.2f} (expect 26)"
+    case("Extend a wall up to a plane at z = 26", extend)
+
+    def trim():
+        i = to_height(14)
+        return abs(i["volume"] - 40 * 30 * 14) < 30 and abs(i["max"][2] - 14) < .05 and i["valid"], f"volume {i['volume']:.0f} (expect {40 * 30 * 14}), top at z {i['max'][2]:.2f} (expect 14)"
+    case("Trim a wall back to a plane at z = 14", trim)
+    cad.call("document_new")
+    block()
+    strip = ["Split, merge, replace, extend and trim, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the block", render(-30, 30)), ("checks", text_panel(strip))]
