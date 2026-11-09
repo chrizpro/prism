@@ -3443,3 +3443,114 @@ def probe_matrix():
         rows.append(("Probe", str(error)[:160], False))
     strip = ["Probe clicks on the stress result of a cantilever: near the load versus near the support"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the loaded bar", render(-30, 20)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Measure: pointer clicks on faces, points and whole bodies
+@scenario("analysis__measure-clicks-points-faces-and-bodies", columns=1)
+def measure_matrix():
+    import re
+    rows = []
+    cad.call("document_new")
+    cad.box(width=40, depth=30, height=20, operation="New body").rename("Block")
+    render(-30, 25)
+
+    def measure(pick, clicks):
+        cad.call("run_command", name="measure", params={"Pick": pick}, commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        for (x, y, z) in clicks:
+            cad.call("pointer", events=[{"type": "down", "x": x, "y": y, "z": z}, {"type": "up", "x": x, "y": y, "z": z}])
+        text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (cad.call("command_set", params={}).get("results") or [])]
+        cad.call("command_cancel")
+        return " | ".join(text)
+
+    def number(text, label):
+        m = re.search(label + r"[^|]*?: ([-\d.,]+)", text)
+        return float(m.group(1).replace(",", "")) if m else None
+    try:
+        t = measure("Points on surfaces", [(-10, 0, 20), (10, 0, 20)])
+        d = number(t, "Distance")
+        rows.append(("Two points on the top face, 20 mm apart", f"distance {d} (expect 20) {t[:140] if d is None else ''}", d is not None and abs(d - 20) < .3))
+        t = measure("Points on surfaces", [(-20, -15, 20), (20, 15, 20)])
+        d = number(t, "Distance")
+        rows.append(("Opposite top corners", f"distance {d} (expect {math.hypot(40, 30):.1f})", d is not None and abs(d - 50) < .8))
+        t = measure("Faces and edges", [(0, 0, 20)])
+        a = number(t, "Area")
+        rows.append(("Click the top face", f"area {a}, {'normal 0, 0, 1' if '0, 0, 1' in t else t[:80]} (expect 1200 and a vertical normal)", a is not None and abs(a - 1200) < 1 and "0, 0, 1" in t))
+        t = measure("Whole bodies", [(0, 0, 20)])
+        v = number(t, "Volume")
+        rows.append(("Click the whole block", f"{t[:120]} (expect volume 24000)", "24,000" in t or "24000" in t or (v is not None and abs(v - 24000) < 1)))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Measure", str(error)[:160], False))
+    strip = ["Measure by clicking: points, a face and a body against known sizes"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the block", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Freeform: Create Face by clicking corners
+@scenario("freeform__create-face-by-clicking-corners", columns=1)
+def create_face_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.call("view", yaw=-30, pitch=45, distance=120)
+    cad.call("wait_idle")
+    info = lambda n: cad.call("object_info", object=n)
+
+    def click(points):
+        for (x, y, z) in points:
+            cad.call("pointer", events=[{"type": "move", "x": x, "y": y, "z": z}, {"type": "down", "x": x, "y": y, "z": z}, {"type": "up", "x": x, "y": y, "z": z}])
+    try:
+        before = names()
+        cad.call("run_command", name="create_face", commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        click([(0, 0, 0), (30, 0, 0), (30, 20, 0), (0, 20, 0)])
+        cad.call("pointer", events=[{"type": "key", "key": "Enter"}])
+        cad.call("command_commit")
+        made = [o for o in cad.objects() if o.name not in before]
+        if not made:
+            rows.append(("Four clicks and Enter make a form face", "nothing was created", False))
+        else:
+            i = info(made[0].name)
+            rows.append(("Four clicks and Enter make a form face", f"{made[0].kind} {made[0].name}: {[round(v, 1) for v in i['size']]} (expect a 30 x 20 flat face), area {i.get('area', 0):.0f} (expect 600)", made[0].kind == "Form" and abs(i["size"][0] - 30) < 1 and abs(i["size"][1] - 20) < 1 and i["size"][2] < .1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Create Face", str(error)[:160], False))
+    strip = ["Create Face: four clicks on the ground plane and Enter"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    if not cad.objects():
+        return [("checks", text_panel(strip))]
+    return [("the new face", render(-30, 45)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Pictures: Set Image Scale from two clicked points
+@scenario("freeform__set-image-scale-from-two-clicks", columns=1)
+def image_scale_matrix():
+    import tempfile
+    from PIL import Image as PilImage
+    rows = []
+    cad.call("document_new")
+    png = Path(tempfile.gettempdir()) / "prism-visual-scale.png"
+    img = PilImage.new("RGB", (200, 100), (230, 230, 230))
+    for x in range(0, 200, 20):
+        for y in range(100):
+            img.putpixel((x, y), (30, 30, 200))
+    img.save(png)
+    try:
+        before = names()
+        cad.call("run_command", name="place_image", params={"Image file": str(png), "Place it on": "Top plane (XY)", "Width": 100})
+        pic = next(o for o in cad.objects() if o.name not in before)
+        cad.call("view", yaw=0, pitch=89, fit=True, grid=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        w0 = cad.call("object_info", object=pic.name)["size"][0]
+        cad.call("run_command", name="set_image_scale", slots={"Picture": [pic.name]}, params={"Real distance between the two points": 30, "In": "mm"}, commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        for x in (-30, 30):
+            cad.call("pointer", events=[{"type": "move", "x": x, "y": 0, "z": 0}, {"type": "down", "x": x, "y": 0, "z": 0}, {"type": "up", "x": x, "y": 0, "z": 0}])
+        text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (cad.call("command_set", params={}).get("results") or [])]
+        cad.call("command_commit")
+        w1 = cad.call("object_info", object=pic.name)["size"][0]
+        rows.append(("Two clicks 60 mm apart, told they are 30 mm", f"picture width {w0:.1f} -> {w1:.1f} (expect 100 -> 50); {' | '.join(text)[:90]}", abs(w0 - 100) < .6 and abs(w1 - 50) < 1.0))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Set Image Scale", str(error)[:160], False))
+    strip = ["Set Image Scale: two clicks on a picture and a real distance"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    cad.box(width=4, depth=4, height=1, operation="New body")      # a picture alone gives the renderer nothing to draw (issue #90)
+    return [("the rescaled picture", render(0, 89)), ("checks", text_panel(strip))]
