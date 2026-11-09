@@ -3185,20 +3185,15 @@ def component_move_matrix():
     cad.box(width=60, depth=60, height=5, operation="New body").rename("Base")
     try:
         before = {o.name for o in cad.objects()}
-        made = []
-        for tab in range(8):
-            try:
-                cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
-            except Exception as error:
-                cad.call("command_cancel")
-                if "no solid bodies" in str(error):
-                    continue
-                raise
-            made = [o for o in cad.objects() if o.name not in before]
-            cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
-            second = [o for o in cad.objects() if o.name not in before and o.name not in {m.name for m in made}]
-            made = second or made
-            break
+        docs = cad.call("document_list")
+        docs = docs if isinstance(docs, list) else docs.get("documents", [])
+        mine = next(d["index"] for d in docs if d.get("active"))
+        tab = [d["index"] for d in docs if d["index"] != mine].index(mine - 1)      # the part's tab was opened just before this one
+        cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
+        made = [o for o in cad.objects() if o.name not in before]
+        cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
+        second = [o for o in cad.objects() if o.name not in before and o.name not in {m.name for m in made}]
+        made = second or made
         info = lambda n: cad.call("object_info", object=n)
         comp = made[0].name if made else None
         rows.append(("Insert Component from another open tab", f"inserted twice; the second copy is {[o.name for o in made]} (the first one is grounded automatically, so the second is the free one to move)", len(made) == 1))
@@ -3617,3 +3612,151 @@ def mesh_region_matrix():
         rows.append(("Select Region and Fit Surface", str(error)[:160], False))
     strip = ["Select Region by clicking, then Fit Surface (plane) to the picked patch. Note: a flat region of fewer than 6 triangles (a plain box face) is not fitted by design"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the mesh block and the fitted plane", render(-30, 45)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Curvature display settings and the CAM layer view (their effect is drawn on screen, so the checks read back the settings)
+@scenario("analysis__curvature-legend-range-and-layer-view-memory", columns=1)
+def curvature_layer_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.sphere(radius=20, operation="New body").rename("Ball")
+    text_of = lambda r: [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r.get("results") or r.get("activeCommand", {}).get("results", []))]
+    try:
+        cad.call("run_command", name="curvature", commit=False)
+        auto = " | ".join(text_of(cad.call("command_set", params={})))
+        manual = " | ".join(text_of(cad.call("command_set", params={"Automatic range": False, "Saturate at radius": 10})))
+        cad.call("command_cancel")
+        rows.append(("Curvature legend and range", f"{auto[:70]} ... {manual[-30:]}", "red = convex" in auto and "automatic" in auto and "1/10" in manual))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Curvature legend and range", str(error)[:140], False))
+    try:
+        cad.call("run_command", name="toolpath_view", commit=False)
+        cad.call("command_set", params={"Show up to layer / pass": 3})
+        cad.call("command_commit")
+        again = cad.call("run_command", name="toolpath_view", commit=False)
+        value = (again.get("activeCommand") or again).get("params", [])
+        shown = next((p.get("value") for p in value if p.get("label") == "Show up to layer / pass"), None)
+        cad.call("command_cancel")
+        rows.append(("Layer View remembers the layer", f"reopened at layer {shown} (expect 3)", shown == 3))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Layer View remembers the layer", str(error)[:140], False))
+    strip = ["Curvature display settings and the CAM Layer View, read back (the colors and toolpath lines are drawn on screen only)"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a sphere", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Editing by clicking: a freeform face and a surface control point, moved by typed position
+@scenario("freeform__edit-form-face-and-edit-surface-control-point-by-click", columns=1)
+def edit_by_click_matrix():
+    rows = []
+    cad.call("document_new")
+    info = lambda n: cad.call("object_info", object=n)
+
+    def click(x, y, z):
+        cad.call("pointer", events=[{"type": "move", "x": x, "y": y, "z": z}, {"type": "down", "x": x, "y": y, "z": z}, {"type": "up", "x": x, "y": y, "z": z}])
+    try:
+        cad.call("run_command", name="form_box")
+        form = next(o for o in cad.objects() if o.kind == "Form")
+        i0 = info(form.name)
+        cad.call("view", yaw=-30, pitch=45, fit=True, grid=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        top = i0["max"][2]
+        cad.call("run_command", name="edit_form", slots={"Freeform": [form.name]}, params={"Select": "Faces"}, commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        click((i0["min"][0] + i0["max"][0]) / 2, (i0["min"][1] + i0["max"][1]) / 2, top)
+        picked = cad.call("command_set", params={}).get("values", {})
+        cad.call("command_set", params={"Selection Z": top + 15})
+        cad.call("command_commit")
+        i1 = info(form.name)
+        rows.append(("Click a cage face on top, type its height 15 mm higher", f"selection centre z {picked.get('Selection Z')}; the form's top {i0['max'][2]:.0f} -> {i1['max'][2]:.0f} (expect +15), base unchanged {i1['min'][2]:.0f}", abs(i1["max"][2] - top - 15) < .1 and abs(i1["min"][2] - i0["min"][2]) < .1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Edit Form by clicking", str(error)[:140], False))
+    cad.call("document_new")
+    try:
+        cad.call("run_command", name="nurbs_patch", params={"Width": 80, "Height": 60})
+        surf = next(o for o in cad.objects() if o.kind == "Surface")
+        i0 = info(surf.name)
+        cad.call("view", yaw=-30, pitch=45, fit=True, grid=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        cad.call("run_command", name="edit_points", slots={"Curve or surface": [surf.name]}, commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        click(i0["min"][0], i0["min"][1], 0)
+        picked = cad.call("command_set", params={}).get("values", {})
+        cad.call("command_set", params={"Point Z": 25})
+        cad.call("command_commit")
+        i1 = info(surf.name)
+        rows.append(("Click a corner control point and set its height to 25", f"picked ({picked.get('Point X')}, {picked.get('Point Y')}, {picked.get('Point Z')}) -> surface height {i0['max'][2]:.1f} -> {i1['max'][2]:.1f} (expect the corner at 25, so the top is 25)", picked.get("Point X") == i0["min"][0] and abs(i1["max"][2] - 25) < .2 and abs(i1["size"][0] - 80) < 1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Edit Control Points by clicking", str(error)[:140], False))
+    strip = ["Edit Form and Edit Control Points: click a handle, type its new position"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the edited surface", render(-30, 45)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Render Animation: a one second turntable at 12 frames per second, frames counted on disk
+@scenario("output__render-animation-turntable-frame-count", columns=1)
+def render_animation_matrix():
+    import shutil
+    import tempfile
+    rows = []
+    cad.call("document_new")
+    cad.box(width=30, depth=20, height=10, operation="New body")
+    folder = Path(tempfile.gettempdir()) / "prism-visual-turntable"
+    shutil.rmtree(folder, ignore_errors=True)
+    try:
+        cad.call("view", yaw=-30, pitch=30, fit=True, grid=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        cad.call("run_command", name="render_animation", commit=False)
+        cad.call("command_set", params={"Camera": "Turntable (turns around the model)", "Length (when there is no animation)": 1, "Frames per second": "12", "Picture size": 0,
+                                        "Quality (samples per pixel)": 1, "Also make a GIF": False, "Also make an MP4 (needs ffmpeg)": False, "Save to folder": str(folder)})
+        cad.call("command_set", params={"Render animation": True})
+        frames, last, still = [], -1, 0
+        for _ in range(180):
+            time.sleep(1)
+            frames = sorted(folder.glob("*.png")) if folder.exists() else []
+            if len(frames) == last and frames:
+                still += 1
+                if still >= 4:
+                    break
+            else:
+                still = 0
+            last = len(frames)
+        cad.call("command_cancel")
+        sizes = {f.stat().st_size for f in frames}
+        rows.append(("A 1 s turntable at 12 fps writes 12 frames", f"{len(frames)} picture files in {folder.name}", len(frames) == 12))
+        rows.append(("The frames differ (the camera really turns)", f"{len(sizes)} distinct file sizes among {len(frames)} frames", len(sizes) > 6))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Render Animation", str(error)[:140], False))
+    shutil.rmtree(folder, ignore_errors=True)
+    strip = ["Render Animation: a one second turntable of a block at 12 frames per second"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Mold: Part from Open Tab copies a part in as a reference body
+@scenario("mold__part-from-open-tab-becomes-a-reference-body", columns=1)
+def mold_tab_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.sphere(radius=12, operation="New body").rename("Knob")
+    cad.call("document_new")
+    cad.box(width=60, depth=60, height=5, operation="New body").rename("Plate")
+    try:
+        before = {o.name for o in cad.objects()}
+        docs = cad.call("document_list")
+        docs = docs if isinstance(docs, list) else docs.get("documents", [])
+        mine = next(d["index"] for d in docs if d.get("active"))
+        # the choice lists the other open tabs; the sphere's tab is the one opened just before this one
+        others = [d["index"] for d in docs if d["index"] != mine]
+        tab = others.index(mine - 1)
+        cad.call("run_command", name="mold_part_from_tab", params={"Open tab": tab})
+        made = [o for o in cad.objects() if o.name not in before]
+        i = cad.call("object_info", object=made[0].name) if made else {}
+        rows.append(("Part from Open Tab brings in the other tab's sphere", f"{[(o.name, o.kind) for o in made]}, size {[round(v) for v in i.get('size', [])]} (expect one solid 24 mm across)", len(made) == 1 and made[0].kind == "Solid" and abs(i["size"][0] - 24) < .5))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Part from Open Tab", str(error)[:140], False))
+    strip = ["Mold: Part from Open Tab (the reference flag, saved-file and drawing exclusions are checked by the headless tests MOLD-H005)"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the plate with the part brought in", render(-30, 30)), ("checks", text_panel(strip))]
