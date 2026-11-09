@@ -23,4 +23,22 @@ public class CurveApiTests
         Assert.InRange(curve.Mesh.Max.X - curve.Mesh.Min.X, 59, 61);
         Assert.InRange(curve.Mesh.Max.Z - curve.Mesh.Min.Z, 14, 16);
     }
+
+    [AvaloniaFact(DisplayName = "CRV-H031 | Fill Opening closes the circular end of a tube with its default continuity")]
+    [Trait("TestId", "CRV-H031")]
+    public async Task FillOpeningClosesACircularEnd()
+    {
+        var vm = new MainViewModel();
+        var api = new AutomationApi(vm, null);
+        async Task<JsonNode> Call(string tool, string json) => (await api.CallAsync(tool, (JsonObject)JsonNode.Parse(json)!))!;
+        await Call("sketch_begin", "{\"plane\":\"XY\"}");
+        await Call("sketch_add", "{\"entities\":[{\"type\":\"circle\",\"center\":[0,0],\"radius\":10}]}");
+        string circle = (string)(await Call("sketch_finish", "{}"))["sketch"]!;
+        await Call("run_command", "{\"name\":\"extrude_surface\",\"slots\":{\"Profile\":\"" + circle + "\"},\"params\":{\"Extent\":\"Distance\",\"Distance\":20.0}}");
+        var tube = vm.Session.Objects.Single(o => o.Kind == Prism.Core.ObjKind.Surface);
+        double before = Prism.Kernel.Occ.Mass(tube.Shape).Area;
+        await Call("run_command", "{\"name\":\"fill_opening\",\"slots\":{\"An open edge\":{\"object\":\"" + tube.Name + "\",\"edge\":2}}}");
+        double after = vm.Session.Objects.Where(o => o.Kind == Prism.Core.ObjKind.Surface || o.Kind == Prism.Core.ObjKind.Solid).Max(o => Prism.Kernel.Occ.Mass(o.Shape).Area);
+        Assert.True(after > before + 250, $"area {before:0} -> {after:0}: the cap (about 314 mm2) should have been added");
+    }
 }

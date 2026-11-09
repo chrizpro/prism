@@ -2460,3 +2460,70 @@ def flat_and_mesh_matrix():
     cad.box(width=30, depth=20, height=10, operation="New body")
     strip = ["Flat pattern against the bent solid, and the remaining mesh tools"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a block", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Rib, blend surface, fill opening
+@scenario("solid__rib-blend-surface-and-fill-opening", columns=1)
+def rib_blend_fill_matrix():
+    rows = []
+
+    def case(label, fn):
+        cad.call("document_new")
+        try:
+            ok, detail = fn()
+            rows.append((label, detail, ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def rib():
+        p = cad.box(width=60, depth=40, height=4, operation="New body"); p.rename("Plate")
+        s = sketch([{"type": "line", "points": [[-20, 4], [20, 4]]}], plane="XZ").name
+        before = info("Plate")["volume"]
+        cad.call("run_command", name="rib", slots={"Rib sketch": [s], "Target body": ["Plate"]}, params={"Thickness": 2, "Height": 10})
+        after = info("Plate")["volume"]
+        return abs((after - before) - 2 * 40 * 10) < 40, f"volume {before:.0f} -> {after:.0f} (+{after - before:.0f}; expect +800: a 2 mm rib 40 long and 10 high)"
+    case("Rib 2 mm thick, 10 high, 40 long on a plate", rib)
+
+    def sheet(z0, y=0):
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, y, z0), (30, y, z0))}, params={"Extent": "Distance", "Distance": 10})
+        return new_object(before, ("Surface",))
+
+    def top_edge(n):
+        edges = cad.call("solid_find", object=n, kind="edges", limit=8)["hits"]
+        return max(edges, key=lambda e: e.get("center", [0, 0, 0])[2])["edge"]
+
+    def bottom_edge(n):
+        edges = cad.call("solid_find", object=n, kind="edges", limit=8)["hits"]
+        return min(edges, key=lambda e: e.get("center", [0, 0, 0])[2])["edge"]
+
+    def blend():
+        a = sheet(0, 0)          # a vertical sheet 30 wide, from z 0 to 10 at y = 0 (extruded along +Z)
+        b = sheet(30, 0)         # another from z 30 to 40: a 20 mm gap between them
+        before = names()
+        cad.call("run_command", name="blend_surface", slots={"First edge": [{"object": a, "edge": top_edge(a)}], "Second edge": [{"object": b, "edge": bottom_edge(b)}]}, params={"Continuity": "Tangent (G1)"})
+        made = new_object(before, ("Surface",))
+        area = info(made)["area"]
+        return made is not None and 560 < area < 800, f"blend area {area:.0f} (a 30 wide strip across the 20 mm gap is about 600)"
+    case("Blend surface across a 20 mm gap", blend)
+
+    def fill():
+        before = names()
+        circle = sketch([{"type": "circle", "center": [0, 0], "radius": 10}]).name
+        cad.call("run_command", name="extrude_surface", slots={"Profile": circle}, params={"Extent": "Distance", "Distance": 20})
+        tube = new_object(before, ("Surface",))
+        edge = bottom_edge(tube)
+        a0 = info(tube)["area"]
+        b2 = names()
+        cad.call("run_command", name="fill_opening", slots={"An open edge": [{"object": tube, "edge": edge}]})
+        made = [o.name for o in cad.objects() if o.kind in ("Surface", "Solid") and (o.name not in b2 or o.name == tube)]
+        areas = [info(n)["area"] for n in made]
+        return any(abs(a - (a0 + math.pi * 100)) < 25 for a in areas) or any(abs(a - a0) > 250 for a in areas), f"tube area {a0:.0f}; after filling one end {[round(a) for a in areas]} (a flat cap adds pi r2 = {math.pi * 100:.0f})"
+    case("Fill the open end of a tube", fill)
+    cad.call("document_new")
+    cad.box(width=60, depth=40, height=4, operation="New body")
+    strip = ["Rib, blend surface and fill opening, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("a plate", render(-30, 30)), ("checks", text_panel(strip))]
