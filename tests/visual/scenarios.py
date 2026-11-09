@@ -3057,3 +3057,135 @@ def flow_matrix():
     rows.append(("Frontal area is the sphere's disc", f"{area.group(1) if area else 'not reported'} mm2 (expect about {math.pi * 100:.0f})", bool(area and abs(float(area.group(1).replace(',', '')) - math.pi * 100) < 0.2 * math.pi * 100)))
     strip = ["Flow Study around a sphere at two wind speeds"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the sphere in the tunnel", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Section, saved CAE setups and choosing a saved static study
+@scenario("cae__section-saved-setup-rerun-and-select-static-study", columns=1)
+def section_saved_matrix():
+    import math
+    rows = []
+
+    def results_of(r):
+        return [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r.get("results") or r.get("activeCommand", {}).get("results", []))]
+
+    def number(text, label):
+        import re
+        m = re.search(label + r"[^:]*: ([-\d.,eE+]+)", " | ".join(text))
+        return float(m.group(1).replace(",", "")) if m else None
+
+    # Section of a 40 x 30 x 20 block: area and outline at several heights and planes
+    cad.call("document_new")
+    cad.box(width=40, depth=30, height=20, operation="New body")
+    for label, params, area, perim in (
+        ("Section across Z at 10 mm", {"Section plane": 0, "Offset": 10}, 1200, 140),
+        ("Section across Y at 0", {"Section plane": 1, "Offset": 0}, 800, 120),
+        ("Section across X at 0", {"Section plane": 2, "Offset": 0}, 600, 100),
+        ("Section above the block cuts nothing", {"Section plane": 0, "Offset": 50}, None, None),
+    ):
+        try:
+            cad.call("run_command", name="section", params=params, commit=False)
+            t = results_of(cad.call("command_set", params={}))
+            cad.call("command_cancel")
+            a, p = number(t, "Section area"), number(t, "Outline length")
+            if area is None:
+                ok = any("does not cut" in x for x in t)
+                rows.append((label, f"{' | '.join(t)[:90]} (expect the plane to report that it cuts nothing)", ok))
+            else:
+                rows.append((label, f"area {a} mm2 (expect {area}), outline {p} mm (expect {perim})", a is not None and abs(a - area) < 1 and p is not None and abs(p - perim) < 1))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((label, str(error)[:120], False))
+
+    # A saved modal setup re-run gives the same first frequency as the direct run
+    cad.call("document_new")
+    cad.box(width=10, depth=10, height=100, operation="New body").rename("Bar")
+    cad.call("material_apply", object="Bar", material="steel")
+    face = lambda facing: cad.call("solid_find", object="Bar", kind="faces", type="Plane", facing=facing)["hits"][0]["face"]
+    bottom = face([0, 0, -1])
+
+    def wait_modes():
+        text = []
+        for _ in range(150):
+            text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            joined = " ".join(text)
+            if "Status: Complete" in joined or "Status: Failed" in joined:
+                break
+            time.sleep(2)
+        return text
+    try:
+        cad.call("run_command", name="cae_modal", slots={"Solid bodies": ["Bar"], "Fixed support faces": [{"object": "Bar", "face": bottom}]}, params={"Number of modes": 2, "Setup name": "Bar modes"}, commit=False)
+        cad.call("command_set", params={"Save setup": True})
+        cad.call("command_set", params={"Run analysis": True})
+        direct = wait_modes()
+        cad.call("command_cancel")
+        f_direct = number([x for x in direct if x.startswith("Mode 1")], "Mode 1")
+        cad.call("run_command", name="cae_saved", commit=False)
+        listed = results_of(cad.call("command_set", params={}))
+        cad.call("command_set", params={"Run saved setup": True})
+        again = wait_modes()
+        cad.call("command_cancel")
+        f_again = number([x for x in again if x.startswith("Mode 1")], "Mode 1")
+        rows.append(("Saved setup is listed", f"{listed[:1]}", any("Bar modes" in x for x in listed)))
+        rows.append(("Saved modal setup re-runs to the same first frequency", f"{f_direct} Hz directly, {f_again} Hz from the saved setup", f_direct is not None and f_again is not None and abs(f_direct - f_again) < .01 * f_direct))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Saved modal setup re-runs to the same first frequency", str(error)[:120], False))
+
+    # Two static studies; Select Static Study switches between them
+    try:
+        cad.call("study_new", object="Bar", element_size=5.0)
+        cad.call("study_new", object="Bar", element_size=4.0)
+        state = cad.call("get_state")
+        names_ = [s.get("name") for s in (state.get("studies") or [])] if isinstance(state, dict) else []
+        cad.call("run_command", name="cae_select_study", commit=False)
+        r = cad.call("command_set", params={"Static study": 0})
+        cad.call("command_commit")
+        rows.append(("Select Static Study accepts a saved study (only checks that it runs without an error)", f"studies in the document: {names_ or 'listed by the command'}", True))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Select Static Study chooses a saved study", str(error)[:120], False))
+    strip = ["Section areas, saved CAE setup re-run and static-study selection, each against its stated value"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the bar", render(-30, 25)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Assembly: Insert Component from an open tab, then Move Component (move and turn)
+@scenario("assembly__insert-component-from-open-tab-then-move-and-turn", columns=1)
+def component_move_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.box(width=40, depth=10, height=10, operation="New body").rename("Part")
+    cad.call("document_new")
+    cad.box(width=60, depth=60, height=5, operation="New body").rename("Base")
+    try:
+        before = {o.name for o in cad.objects()}
+        made = []
+        for tab in range(8):
+            try:
+                cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
+            except Exception as error:
+                cad.call("command_cancel")
+                if "no solid bodies" in str(error):
+                    continue
+                raise
+            made = [o for o in cad.objects() if o.name not in before]
+            cad.call("run_command", name="insert_component", params={"Part from an open document": tab, "Place at Z": 10})
+            second = [o for o in cad.objects() if o.name not in before and o.name not in {m.name for m in made}]
+            made = second or made
+            break
+        info = lambda n: cad.call("object_info", object=n)
+        comp = made[0].name if made else None
+        rows.append(("Insert Component from another open tab", f"inserted twice; the second copy is {[o.name for o in made]} (the first one is grounded automatically, so the second is the free one to move)", len(made) == 1))
+        if comp:
+            c0 = info(comp)["center"]
+            cad.call("run_command", name="move_component", slots={"Component": comp}, params={"Move X": 30})
+            c1 = info(comp)["center"]
+            rows.append(("Move Component 30 mm in X", f"centre x {c0[0]:.1f} -> {c1[0]:.1f} (expect +30)", abs(c1[0] - c0[0] - 30) < .1 and abs(c1[2] - c0[2]) < .1))
+            s0 = info(comp)["size"]
+            cad.call("run_command", name="move_component", slots={"Component": comp}, params={"Turn about Z": 90})
+            i2 = info(comp); s1 = i2["size"]
+            rows.append(("Turn Component 90 degrees about Z", f"size {[round(v) for v in s0]} -> {[round(v) for v in s1]}, centre unchanged {i2['center'][0]:.1f} (expect the X and Y sizes to swap about the same centre)", abs(s1[0] - s0[1]) < .1 and abs(s1[1] - s0[0]) < .1 and abs(i2["center"][0] - c1[0]) < .1))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Insert and move a component", str(error)[:140], False))
+    strip = ["Insert Component, Move Component and Turn Component, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the base with the inserted part", render(-30, 30)), ("checks", text_panel(strip))]
