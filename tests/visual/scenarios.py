@@ -2865,3 +2865,57 @@ def motion_spring_matrix():
         rows.append(("Joint force becomes a force load on the hub", str(error)[:120], False))
     strip = ["Motion spring / actuator and Load from Motion, each against its stated result"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the pin, hub and arm", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Surfaces: Match Surface and Surface Continuity (position, tangent, curvature)
+@scenario("surface__match-surface-and-continuity-position-tangent-curvature", columns=1)
+def surface_match_matrix():
+    import re
+    rows = []
+
+    def rows_text(r):
+        return [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r.get("results") or r.get("activeCommand", {}).get("results", []))]
+
+    def number(text, label):
+        m = re.search(label + r"[^:]*: ([-\d.eE+]+)", " | ".join(text))
+        return float(m.group(1)) if m else None
+
+    def continuity(a, b, sa=1, sb=0):
+        r = cad.call("run_command", name="surface_continuity", slots={"First surface or face": {"object": a}, "Second surface or face": {"object": b}}, params={"First boundary": sa, "Second boundary": sb}, commit=False)
+        r = cad.call("command_set", params={})
+        t = rows_text(r)
+        cad.call("command_cancel")
+        return number(t, "Maximum gap"), number(t, "Maximum normal angle"), t
+
+    def setup():
+        cad.call("document_new")
+        before = names()
+        cad.call("run_command", name="nurbs_patch", params={"Width": 40, "Height": 40, "Initial relief": 6})
+        a = new_object(before, ("Surface",)); cad.call("object_update", object=a, name="Left")
+        before = names()
+        cad.call("run_command", name="nurbs_patch", params={"Width": 40, "Height": 40, "Initial relief": -6, "Plane offset": 0})
+        b = new_object(before, ("Surface",)); cad.call("object_update", object=b, name="Right")
+        cad.move("Right", x=47, z=3)
+        return "Left", "Right"
+
+    def match(level):
+        a, b = setup()
+        g0, n0, _ = continuity(a, b)
+        r = cad.call("run_command", name="match_surface", slots={"Surface to change": {"object": b}, "Reference surface or face": {"object": a}}, params={"Source boundary": 0, "Reference boundary": 1, "Continuity": level}, commit=False)
+        r = cad.call("command_set", params={})
+        t = rows_text(r); err = r.get("error")
+        cad.call("command_commit")
+        g1, n1, _ = continuity(a, b)
+        return g0, n0, g1, n1, t, err
+    for level, name in ((0, "Position (G0)"), (1, "Tangent (G1)"), (2, "Curvature (G2)")):
+        try:
+            g0, n0, g1, n1, t, err = match(level)
+            ok = err is None and g1 is not None and g0 is not None and g1 < max(0.01, g0 * 0.05)
+            if level >= 1:
+                ok = ok and n1 is not None and n0 is not None and n1 < 1.0 and n1 <= n0 + 1e-6
+            rows.append((f"Match to {name}", f"gap {g0} -> {g1} mm, normal angle {n0} -> {n1} deg {err or ''}", ok))
+        except Exception as error:
+            cad.call("command_cancel")
+            rows.append((f"Match to {name}", str(error)[:120], False))
+    strip = ["Match Surface then Surface Continuity: the seam gap and normal angle before and after"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the two patches after the last match", render(-30, 30)), ("checks", text_panel(strip))]
