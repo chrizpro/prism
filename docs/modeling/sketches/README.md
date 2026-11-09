@@ -81,3 +81,7 @@ Documentation merge-gate repair (2026-11-08): GitHub run 42439535027 failed its 
 ## Editing a saved sketch shows its curves once
 
 Bug fix 2026-11-09 (owner report: editing a sketch of splines showed double the curves, not on top of each other). While a sketch is open for editing, the saved sketch object is no longer drawn, because the sketch editor draws the same curves itself. The editor previews a spline with a fast Catmull-Rom curve and the saved object uses the kernel's interpolating spline, which differ between the fit points, so both being visible looked like two curves. Known gap: that difference remains, so a spline can change slightly in shape when the sketch is finished; the two should be brought to one definition. The change is in the viewport drawing and is not covered by an automated test.
+
+## Offset joins curves that only touch
+
+Bug fix 2026-11-09 (owner report with a screenshot: offsetting an L-shaped outline left gaps at its two inside corners). A chain of curves was followed only through shared points, but lines drawn to meet one another are often tied by a point-on-curve constraint and keep separate points. Offset split the outline there and left each piece's ends unjoined. Curves that end at the same position are now treated as joined, so the outline offsets as one ring. Test: [SKT-U010](../../../Prism.Tests/Unit/Sketch/OffsetTests.cs), unrun. Not covered: three or more curves meeting at one spot still stop the chain there.
