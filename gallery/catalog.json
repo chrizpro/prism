@@ -238,7 +238,7 @@
       "Id": "injection-mold",
       "Name": "Injection mold",
       "Description": "A block and a cap-shaped part made into a two-part mold with Create Mold, split at the cap's widest point and shown exploded.",
-      "Workflow": "Mold / Solid",
+      "Workflow": "CAM / Solid",
       "Author": "Prism / Claude",
       "License": "MIT",
       "MinimumVersion": "0.1.0",

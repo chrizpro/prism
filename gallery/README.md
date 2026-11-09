@@ -11,8 +11,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | Workflow | Models (catalog ID) |
 | --- | --- |
 | CAE / Solid | Combination wrench (`wrench`) |
-| CAM / Solid | Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`) |
-| Mold / Solid | Injection mold (`injection-mold`) |
+| CAM / Solid | Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
 | Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
 | Solid / Assembly | Meridian orrery (`meridian-orrery`) |
 | Solid | Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |

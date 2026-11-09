@@ -109,6 +109,24 @@ public class GalleryViewTests
         finally { if (File.Exists(path)) File.Delete(path); }
     }
 
+    [AvaloniaFact(DisplayName = "GAL-H007 | The bundled injection mold is visible in the CAM section")]
+    [Trait("TestId", "GAL-H007")]
+    public async Task BundledInjectionMoldAppearsInCam()
+    {
+        var vm = new MainViewModel();
+        string root = Path.Combine(Path.GetTempPath(), "prism-gallery-bundled-" + Guid.NewGuid());
+        using var http = new HttpClient(new CatalogTransport("{}"));
+        vm.GallerySource = new GalleryStore(http, root);
+        try
+        {
+            await vm.LoadGallery();
+            var cam = Assert.Single(vm.GalleryGroups, section => section.Title == "CAM");
+            Assert.Contains(cam.Visible, card => card.Entry.Id == "injection-mold");
+            Assert.DoesNotContain(vm.GalleryGroups, section => section.Title == "Mold");
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H005 | The select_tab tool switches the ribbon tab and the document remembers it")]
     [Trait("TestId", "GAL-H005")]
     public async Task SelectTabToolSetsTheOpeningTab()
