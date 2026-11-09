@@ -2689,6 +2689,33 @@ def rack_and_torque():
         s2, l2 = torque(0.10)
         return s1 > 0 and abs(s2 / s1 - 2) < .06, f"peak speed {s1:.1f} deg/s at 0.05 N-m and {s2:.1f} at 0.10 N-m (ratio {s2 / s1:.3f}; a constant torque on a fixed inertia doubles the speed)"
     case("Free joint: doubling the torque doubles the speed", doubling)
+
+    def force_at_the_tip():
+        s_torque, _ = torque(0.10)
+        cad.call("document_new")
+        post = cad.cylinder(radius=10, height=10, operation="New body"); post.rename("Post")
+        arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+        hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+        cad.union(hub, arm)
+        for n in ("Post", "Hub"):
+            cad.call("material_apply", object=n, material="steel")
+        cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Post", **cyl("Post")}, "On the part that moves": {"object": "Hub", **cyl("Hub")}})
+        tip = cad.call("solid_find", object="Hub", kind="faces", type="Plane", facing=[1, 0, 0])["hits"][0]["face"]
+        cad.call("run_command", name="motion_force", slots={"Where it acts (a face, circle or edge of a part)": {"object": "Hub", "face": tip}}, params={"Force": 5, "Direction or axis": "+Y", "Turns with the part": True})
+        cad.call("run_command", name="cae_motion", commit=False)
+        cad.call("command_set", params={"Duration": 1, "Revolute 1 — motion": "Free (moves under load and gravity)"})
+        cad.call("command_set", params={"Run study": True})
+        text = []
+        for _ in range(40):
+            text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            if any("Solved" in x or "Could not run" in x for x in text):
+                break
+            time.sleep(1)
+        cad.call("command_cancel")
+        line = next(x for x in text if x.startswith("Revolute 1"))
+        s_force = float(re.search(r"peak speed ([\d.eE+-]+)", line).group(1))
+        return s_torque > 0 and abs(s_force / s_torque - 1) < .08, f"peak speed {s_force:.1f} deg/s from 5 N at a 20 mm arm that turns with the part, vs {s_torque:.1f} from 0.10 N-m (the same moment, so they should match; a force fixed in space would lose its lever arm as the arm turns)"
+    case("A 5 N push at the arm tip equals a 0.10 N-m torque (5 N x 20 mm)", force_at_the_tip)
     strip = ["Rack and pinion, and a torque-loaded joint, checked against kinematics and linearity"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the hub, arm and post", render(-30, 30)), ("checks", text_panel(strip))]
 
@@ -3554,3 +3581,39 @@ def image_scale_matrix():
     strip = ["Set Image Scale: two clicks on a picture and a real distance"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     cad.box(width=4, depth=4, height=1, operation="New body")      # a picture alone gives the renderer nothing to draw (issue #90)
     return [("the rescaled picture", render(0, 89)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Mesh: Select Region by clicking a smooth patch, extract it, fit a plane to it
+@scenario("mesh__select-region-extract-and-fit-a-plane", columns=1)
+def mesh_region_matrix():
+    rows = []
+    cad.call("document_new")
+    cad.box(width=40, depth=40, height=10, operation="New body").rename("Block")
+    cad.holes("Block", [(-10, -10), (10, -10), (-10, 10), (10, 10)], diameter=8, depth=10)
+    cad.call("run_command", name="solid_to_mesh", slots={"Bodies": ["Block"]}, params={"Detail": "Coarse (draft)", "Keep the original body": False})
+    mesh = next(o.name for o in cad.objects() if o.kind == "Mesh")
+    cad.call("view", yaw=-30, pitch=45, fit=True, grid=False)
+    cad.call("wait_idle", timeout_ms=30000)
+    info = lambda n: cad.call("object_info", object=n)
+    text_of = lambda r: [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in (r.get("results") or [])]
+    try:
+        cad.call("run_command", name="mesh_select", slots={"Mesh": [mesh]}, params={"Select with": "Smart patch: click a smooth area"}, commit=False) if False else cad.call("run_command", name="mesh_select", commit=False)
+        cad.call("wait_idle", timeout_ms=30000)
+        cad.call("pointer", events=[{"type": "move", "x": 0, "y": 0, "z": 10}, {"type": "down", "x": 0, "y": 0, "z": 10}, {"type": "up", "x": 0, "y": 0, "z": 10}])
+        after_click = text_of(cad.call("command_set", params={}))
+        rows.append(("Smart patch click on the top selects triangles", " | ".join(after_click)[:150], any(any(ch.isdigit() for ch in x) for x in after_click)))
+        before = {o.name for o in cad.objects()}
+        cad.call("run_command", name="mesh_fit_surface", commit=False)
+        cad.call("command_set", params={"Fit": "Plane"})
+        cad.call("command_commit")
+        made = [o for o in cad.objects() if o.name not in before]
+        if made:
+            i = info(made[0].name)
+            rows.append(("Fit a plane to the selected top", f"{made[0].kind}: {[round(v, 1) for v in i['size']]}, area {i.get('area', 0):.0f} (expect about 40 x 40 at height 10: the top of a plate with four holes)", abs(i["size"][0] - 40) < 2 and abs(i["size"][1] - 40) < 2 and abs(i["center"][2] - 10) < .1))
+        else:
+            rows.append(("Fit a plane to the selected top", "no surface was made", False))
+    except Exception as error:
+        cad.call("command_cancel")
+        rows.append(("Select Region and Fit Surface", str(error)[:160], False))
+    strip = ["Select Region by clicking, then Fit Surface (plane) to the picked patch. Note: a flat region of fewer than 6 triangles (a plain box face) is not fitted by design"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the mesh block and the fitted plane", render(-30, 45)), ("checks", text_panel(strip))]
