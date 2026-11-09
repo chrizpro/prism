@@ -22,13 +22,13 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _copyOnly ? 1 : 0;
     protected override void ApplyOption(int index) => _copyOnly = index == 1;
-    protected override void ResetState(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; }
+    protected override void ResetState(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; _suggest = -1; _suggestName = ""; }
 
     public override string Prompt => _picked
         ? "Mirror: click the line to mirror across (a normal or construction line)."
         : "Mirror: click the curves to mirror (Shift adds more), then press Enter. Or select them first.";
 
-    public override void Activate(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; s.Say(Prompt); }
+    public override void Activate(CadSession s) { _sel = Sk(s).SelEntities.Count; _picked = _sel > 0; if (_picked) SuggestDefault(s); s.Say(Prompt); }
 
     // ------------------------------------------------------------ the panel: the same two steps as Offset (curves, then the line)
     public override string PanelInputTitle => "1. Select curves";
@@ -44,11 +44,46 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
                 new(ToolControlKind.Info, "sel", info, Section: PanelInputTitle),
                 new(ToolControlKind.Button, "selection", _picked ? "Change selection" : "Done selecting (Enter)", Primary: !_picked, Enabled: n > 0, Section: PanelInputTitle),
                 new(ToolControlKind.Button, "clear", "Clear selection", Enabled: n > 0, Section: PanelInputTitle),
-                new(ToolControlKind.Info, "line", _picked ? "Click the line to mirror across. A normal or construction line works; move over one to preview." : "Finish selecting first, then click the mirror line.", Section: PanelSettingsTitle),
+                new(ToolControlKind.Info, "line", !_picked ? "Finish selecting first, then choose the mirror line." : _suggest >= 0 ? SuggestionText() : "Move over a line, or click one, to choose the mirror line.", Section: PanelSettingsTitle),
+                new(ToolControlKind.Button, "mirror", "Mirror across this line", Primary: _picked && _suggest >= 0, Enabled: _picked && _suggest >= 0, Section: PanelSettingsTitle),
             ];
         }
     }
     int _sel;                                    // how many curves are selected, kept for the panel
+    int _suggest = -1;                           // the line the tool guesses you mean: the one under the pointer (it stays until another is hovered), or the only construction line
+
+    string SuggestionText() => $"Mirror line: {_suggestName}. Click Mirror across this line, or click a line in the sketch.";
+    string _suggestName = "";
+
+    /// <summary>Fill in the mirror line the user most likely means. A line under the pointer wins; with none yet, a single construction line (the usual axis) is offered.</summary>
+    void Suggest(CadSession s, int lineId)
+    {
+        var sk = Sk(s);
+        if (lineId < 0 || sk.Model.EntityOrNull(lineId) is not { Type: EntType.Line } line || sk.SelEntities.Contains(lineId)) return;
+        var a = sk.Model.P(line.A); var b = sk.Model.P(line.B);
+        string name = $"{(line.Construction ? "construction line" : "line")} {lineId}, {Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y)):0.##} mm";
+        if (_suggest == lineId && _suggestName == name) return;
+        _suggest = lineId; _suggestName = name; s.RaiseState();
+    }
+
+    void SuggestDefault(CadSession s)
+    {
+        var sk = Sk(s);
+        var axes = sk.Model.Entities.Where(e => e.Type == EntType.Line && e.Construction && !sk.SelEntities.Contains(e.Id)).ToList();
+        _suggest = -1; _suggestName = "";
+        if (axes.Count == 1) Suggest(s, axes[0].Id);
+    }
+
+    void ApplyMirror(CadSession s, SketchContext sk, int lineId)
+    {
+        if (sk.Model.EntityOrNull(lineId) is not { Type: EntType.Line } line) { s.Say("Click a line to mirror across.", true); return; }
+        if (sk.SelEntities.Contains(lineId) && sk.SelEntities.Count == 1) { s.Say("Pick a different line from the one being mirrored.", true); return; }
+        var ids = sk.SelEntities.Where(i => i != lineId).ToList();
+        if (ids.Count == 0) { s.Say("Select some curves to mirror first.", true); return; }
+        bool ok = sk.Edit(s, "That mirror", () => Mirror(sk.Model, ids, line, !_copyOnly));
+        if (ok) { s.Say($"Mirrored {ids.Count} curve(s)."); sk.SelEntities.Clear(); _picked = false; _sel = 0; _suggest = -1; _suggestName = ""; s.NotifySketchChanged(); s.RaiseState(); }
+        s.Invalidate();
+    }
 
     public override void PanelSet(CadSession s, string id, object? value)
     {
@@ -56,10 +91,11 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
         switch (id)
         {
             case "selection":
-                if (_picked) { _picked = false; _hoverLine = -1; }
-                else if (sk.SelEntities.Count > 0) _picked = true;
+                if (_picked) { _picked = false; _hoverLine = -1; _suggest = -1; _suggestName = ""; }
+                else if (sk.SelEntities.Count > 0) { _picked = true; SuggestDefault(s); }
                 break;
-            case "clear": sk.SelEntities.Clear(); _picked = false; _hoverLine = -1; s.NotifySketchChanged(); break;
+            case "clear": sk.SelEntities.Clear(); _picked = false; _hoverLine = -1; _suggest = -1; _suggestName = ""; s.NotifySketchChanged(); break;
+            case "mirror": if (_picked && _suggest >= 0) ApplyMirror(s, sk, _suggest); return;
         }
         _sel = sk.SelEntities.Count;
         s.Say(Prompt); s.RaiseState(); s.Invalidate();
@@ -70,10 +106,11 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
     {
         var sk = Sk(s);
         _sel = sk.SelEntities.Count;
-        if (key == "Enter" && !_picked && sk.SelEntities.Count > 0) { _picked = true; s.Say(Prompt); s.RaiseState(); s.Invalidate(); return true; }
+        if (key == "Enter" && !_picked && sk.SelEntities.Count > 0) { _picked = true; SuggestDefault(s); s.Say(Prompt); s.RaiseState(); s.Invalidate(); return true; }
+        if (key == "Enter" && _picked && _suggest >= 0) { ApplyMirror(s, sk, _suggest); return true; }
         if (key == "Escape")
         {
-            if (_picked) { _picked = false; sk.SelEntities.Clear(); s.NotifySketchChanged(); s.Say(Prompt); s.Invalidate(); return true; }
+            if (_picked) { _picked = false; _suggest = -1; _suggestName = ""; sk.SelEntities.Clear(); s.NotifySketchChanged(); s.Say(Prompt); s.Invalidate(); return true; }
             return false;
         }
         return false;
@@ -90,14 +127,9 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
             if (eid >= 0) { if (!sk.SelEntities.Remove(eid)) sk.SelEntities.Add(eid); _sel = sk.SelEntities.Count; s.NotifySketchChanged(); s.RaiseState(); s.Invalidate(); }
             return true;
         }
-        // choosing the mirror line
-        if (eid < 0 || sk.Model.EntityOrNull(eid) is not { Type: EntType.Line } line) { s.Say("Click a line to mirror across.", true); return true; }
-        if (sk.SelEntities.Contains(eid) && sk.SelEntities.Count == 1) { s.Say("Pick a different line from the one being mirrored.", true); return true; }
-        var ids = sk.SelEntities.Where(i => i != eid).ToList();
-        if (ids.Count == 0) { s.Say("Select some curves to mirror first.", true); return true; }
-        bool ok = sk.Edit(s, "That mirror", () => Mirror(sk.Model, ids, line, !_copyOnly));
-        if (ok) { s.Say($"Mirrored {ids.Count} curve(s)."); sk.SelEntities.Clear(); _picked = false; _sel = 0; s.NotifySketchChanged(); s.RaiseState(); }
-        s.Invalidate();
+        // choosing the mirror line: clicking one applies it outright
+        if (eid < 0) { s.Say("Click a line to mirror across.", true); return true; }
+        ApplyMirror(s, sk, eid);
         return true;
     }
 
@@ -106,7 +138,7 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
         var sk = Sk(s);
         sk.Cursor = null;
         int e = sk.PickEntity(s, p.X, p.Y, 9);
-        if (_picked) _hoverLine = e >= 0 && sk.Model.EntityOrNull(e)?.Type == EntType.Line ? e : -1;
+        if (_picked) { _hoverLine = e >= 0 && sk.Model.EntityOrNull(e)?.Type == EntType.Line ? e : -1; if (_hoverLine >= 0) Suggest(s, _hoverLine); }
         else { if (e != sk.HoverEntity) sk.HoverEntity = e; }
         if (sk.PlanePoint(s, p.X, p.Y) is { } w) s.Cursor3 = sk.Plane.PointAt(w.u, w.v);
         s.Invalidate();
@@ -161,7 +193,8 @@ public sealed class SketchMirrorTool(int variant = 0) : SketchTool
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         var sk = Sk(s);
-        if (!_picked || _hoverLine < 0 || sk.Model.EntityOrNull(_hoverLine) is not { Type: EntType.Line } line) return;
+        int shown = _hoverLine >= 0 ? _hoverLine : _suggest;       // the line under the pointer, else the one filled into the panel
+        if (!_picked || shown < 0 || sk.Model.EntityOrNull(shown) is not { Type: EntType.Line } line) return;
         var m = sk.Model; var a = m.P(line.A); var b = m.P(line.B);
         o.AddLine(sk.Plane.PointAt(a.X, a.Y), sk.Plane.PointAt(b.X, b.Y), 0xFFFFC53D, 3.5f);
         double dx = b.X - a.X, dy = b.Y - a.Y, l = Math.Max(Math.Sqrt(dx * dx + dy * dy), 1e-12), ux = dx / l, uy = dy / l;

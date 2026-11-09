@@ -1,5 +1,5 @@
 name: Build Prism installers
-# Push a tag like v0.1.0-alpha.1 to build every platform and publish a GitHub release (marked pre-release).
+# Push a tag like v0.2.0-alpha.1 to build every platform and publish a GitHub release (marked pre-release).
 # Run it by hand to build one platform; tick "publish" to release that run as well.
 on:
   push:
@@ -8,7 +8,7 @@ on:
     inputs:
       version:
         description: Release version (major.minor.patch, optionally -alpha.N)
-        default: '0.1.0-alpha.1'
+        default: '0.2.0-alpha.1'
         required: true
       platform:
         type: choice
@@ -155,7 +155,7 @@ jobs:
         run: |
           ls -l release
           [ -n "$(ls release)" ] || { echo "No installers were built"; exit 1; }
-          # v0.1.0-alpha.1 -> "Prism 0.1.0 Alpha 1"
+          # v0.2.0-alpha.1 -> "Prism 0.2.0 Alpha 1"
           title="Prism $(echo "${VERSION#v}" | sed -E 's/-([a-z]+)\.?([0-9]*)$/ \u\1 \2/; s/ +$//')"
           gh release create "$VERSION" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title" --prerelease --notes-file .github/release-notes.md --generate-notes

@@ -12,7 +12,7 @@
 
 ```powershell
 ./native/build.ps1
-./packaging/Build-Installer.ps1 -Version 0.1.0 -Compiler 'C:/tools/nsis/makensis.exe'
+./packaging/Build-Installer.ps1 -Version 0.2.0 -Compiler 'C:/tools/nsis/makensis.exe'
 ```
 
 The installer creates a Start menu shortcut and optional desktop shortcut. Uninstall removes only files listed at build time and never recursively deletes the chosen installation directory. Documents and settings are outside that directory. There is no automatic updater or code-signing configuration yet.

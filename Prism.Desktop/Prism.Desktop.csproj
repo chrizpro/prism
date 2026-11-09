@@ -12,7 +12,7 @@
         <ApplicationIcon>..\Prism\Assets\prism.ico</ApplicationIcon>
         <Product>Prism</Product>
         <!-- Packaging passes -p:Version; local builds report this one. -->
-        <Version>0.1.0</Version>
+        <Version>0.2.0</Version>
         <Title>Prism</Title>
         <ApplicationManifest>app.manifest</ApplicationManifest>
     </PropertyGroup>

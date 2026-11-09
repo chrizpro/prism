@@ -138,6 +138,8 @@ After that, these are the directions we plan to take:
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
 | **Drawings** | Improve engineering drawings: more views, annotations and dimensioning control, and editing after a drawing is made |
 | **Python API and MCP** | Grow today's `cadkit` library and MCP bridge into a stable, versioned API for scripts, integrations and AI assistants |
+| **Improve workflow and iron out bugs** | Keep tightening how the tools fit together (the same steps, selection cues and views in every tool) and fix what real use turns up. This runs alongside everything else on this list |
+| **Make NURBS shine** | Make NURBS curves and surfaces frictionless and fast to create. If we cannot make them worthwhile, we will discontinue them rather than keep maintaining a weak feature |
 
 The roadmap shows direction, not dates. The order can change as the polish work teaches us more.
 
@@ -182,8 +184,8 @@ Preview locally with `npm ci` then `npm run dev` in `site` or `web`. See the [si
 Push a version tag to build installers for Windows, macOS (Apple silicon and Intel) and Linux, publish them as a GitHub pre-release and refresh the download page:
 
 ```bash
-git tag v0.1.0-alpha.1
-git push origin v0.1.0-alpha.1
+git tag v0.2.0-alpha.1
+git push origin v0.2.0-alpha.1
 ```
 
 A release is published only if every platform builds. Run **Build Prism installers** by hand from the Actions tab to build one platform without releasing. See [packaging](packaging/README.md) for local installer builds. Windows is the most tested platform; macOS and Linux packages are built and runtime-checked in CI. Code signing and notarization are not set up yet.

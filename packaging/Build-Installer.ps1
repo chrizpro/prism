@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('win-x64','linux-x64','osx-x64','osx-arm64')][string]$Runtime = 'win-x64',
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.0',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.0',
     [string]$OutputDirectory,
     [string]$NativeDirectory,
     [string]$PublishDirectory,
