@@ -2,6 +2,58 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "kestrel-r07",
+      "Name": "Kestrel R-07",
+      "Description": "A sci-fi sensor pod with layered armor, recessed vents, and a detailed optical head.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 8575975,
+      "Sha256": "b32e3e28312fe7c677bb63a7285e2bdbb7c14125d6a701a1d0133fbcabab31b3",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/kestrel-r07.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/kestrel-r07.png?v=7aba0bbb2318de33"
+    },
+    {
+      "Id": "peregrine-s4",
+      "Name": "Peregrine S4",
+      "Description": "A quadcopter concept with a smooth spline-lofted fuselage, rounded arms, and four detailed rotor assemblies.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 11244640,
+      "Sha256": "1eddba4745f6f81d69efc5335c3686338cfc3810d368d65c2cc325df732c60b1",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/peregrine-s4.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/peregrine-s4.png?v=acfb6cf416832ecf"
+    },
+    {
+      "Id": "apex-r07",
+      "Name": "Apex R07",
+      "Description": "A racing helmet concept with editable Freeform shell and visor cages, trim, and solid hinge details.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 388361,
+      "Sha256": "9ebc358256f222d7fb3bc1fa57ae09c9c5dfc4683a8b0df662ed927cd4c68896",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/apex-r07.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/apex-r07.png?v=8cdbe3bed4476e42"
+    },
+    {
+      "Id": "relay-s1",
+      "Name": "Relay S1",
+      "Description": "A game controller with a mirrored Freeform shell and swept grips, a slim graphite insert, and orange-accented controls.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 436568,
+      "Sha256": "ef89d5aa3004c2cf9b58e3091ae8330c91017a332f07b2bedac867fd04d51d33",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/relay-s1.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/relay-s1.png?v=3aa36647c18acc50"
+    },
+    {
       "Id": "meridian-orrery",
       "Name": "Meridian orrery",
       "Description": "A geared brass orrery: turn the knob and six planets and the Moon orbit at their gear ratios around a glowing sun.",

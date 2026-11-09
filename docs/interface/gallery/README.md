@@ -21,6 +21,10 @@ Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal:
 
 Startup stays responsive without a network connection. Models do not enter the installer. Verified cache opens without network; repeated opens create independent copies. Downloads with changed/truncated bytes fail clearly. The collection represents multiple workflows and can replace weaker examples by updating the catalog independently of application releases.
 
+## November 9 showcase additions
+
+The owner requested four native models for the gallery on 2026-11-09. [Kestrel R-07](../../../gallery/previews/kestrel-r07.png) is a hard-surface survey optic, and [Peregrine S4](../../../gallery/previews/peregrine-s4.png) uses spline-lofted solids for its smooth fuselage and arms. Both appear under Solid. [Apex R07](../../../gallery/previews/apex-r07.png) is a racing helmet with editable Freeform cages and solid hinges. [Relay S1](../../../gallery/previews/relay-s1.png) has a mirrored Freeform shell, a narrowed center insert with 1.8 mm clearance per side at the stick collars, and aligned controls. Both appear under Freeform and Solid. The downloadable files are concept models.
+
 ## Implementation and verification
 
 - [Catalog and cache](../../../Prism/Core/Gallery.cs), [view model](../../../Prism/ViewModels/MainViewModel.Gallery.cs), [startup view](../../../Prism/Views/HomeView.axaml).

@@ -14,8 +14,8 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | CAM / Solid | Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
 | Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
 | Solid / Assembly | Meridian orrery (`meridian-orrery`) |
-| Solid | Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
-| Freeform / Solid | Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
+| Solid | Kestrel R-07 (`kestrel-r07`), Peregrine S4 (`peregrine-s4`), Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
+| Freeform / Solid | Apex R07 (`apex-r07`), Relay S1 (`relay-s1`), Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
 | Freeform | Azure handled bottle (`azure-bottle`) |
 | Surface / NURBS | Halo pendant (`halo-pendant`), Transition duct (`transition-duct`), Arc mouse (`arc-mouse`) |
 
