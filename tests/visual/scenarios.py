@@ -2133,3 +2133,58 @@ def pattern_print_matrix():
     plate = cad.box(width=60, depth=40, height=4, operation="New body")
     strip = ["Patterns, pipe flow and print checks, each against a hand calculation"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("a plate", render(-30, 35)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- Motion study: a driven revolute joint with constant speed, a smooth move, an oscillation and a free swing
+@scenario("motion__constant-speed-smooth-move-oscillation-and-free-swing", columns=1)
+def motion_matrix():
+    import re
+    rows = []
+    cad.call("document_new")
+    p = cad.cylinder(radius=10, height=10, operation="New body"); p.rename("Pin")
+    arm = cad.box(width=30, depth=6, height=5, operation="New body"); arm.rename("Arm"); cad.move(arm, x=5, z=12)
+    hub = cad.cylinder(radius=10, height=5, operation="New body"); hub.rename("Hub"); cad.move(hub, z=12)
+    cad.union(hub, arm)
+    cyl = lambda n: {"face": cad.call("solid_find", object=n, kind="faces", type="Cylinder", limit=2)["hits"][0]["face"]}
+    cad.call("run_command", name="joint_revolute", slots={"On the first part (face, circle edge or round face)": {"object": "Pin", **cyl("Pin")}, "On the part that moves": {"object": "Hub", **cyl("Hub")}})
+    for n in ("Pin", "Hub"):
+        cad.call("material_apply", object=n, material="steel")
+
+    def study(motion, params, seconds=2):
+        cad.call("run_command", name="cae_motion", commit=False)
+        cad.call("command_set", params={"Duration": seconds, "Revolute 1 — motion": motion, **params})
+        cad.call("command_set", params={"Run study": True})
+        text = []
+        for _ in range(40):
+            text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
+            if any("Solved" in x or "Could not run" in x for x in text):
+                break
+            time.sleep(1)
+        cad.call("command_cancel")
+        return text
+
+    def joint_range(text):
+        line = next((x for x in text if x.startswith("Revolute 1")), None)
+        if line is None:
+            return 0.0, 0.0, 0.0, "no motion reported"
+        a, b = map(float, re.search(r"(-?[\d.]+) to (-?[\d.]+) °", line).groups())
+        peak = float(re.search(r"peak speed ([\d.]+)", line).group(1))
+        return a, b, peak, line
+
+    def case(label, motion, params, check, seconds=2):
+        try:
+            text = study(motion, params, seconds)
+            a, b, peak, line = joint_range(text)
+            ok, detail = check(a, b, peak)
+            rows.append((label, f"{detail}  [{line[:70]}]", ok))
+        except Exception as error:
+            rows.append((label, str(error)[:120], False))
+    case("Constant speed 90 deg/s for 2 s", "Constant speed", {"Speed": 90}, lambda a, b, pk: (abs(b - a - 180) < 1 and abs(pk - 90) < 1, f"moves {b - a:.1f} degrees (expect 180), peak speed {pk:.1f} (expect 90)"))
+    case("Smooth move to 90 degrees in 1 s", "Move to a position (smooth)", {"Move to": 90, "Move starts at": 0, "Move takes": 1}, lambda a, b, pk: (abs(b - 90) < 1 and 90 < pk < 200, f"ends at {b:.1f} degrees (expect 90), peak speed {pk:.0f} deg/s (a smooth move peaks above its 90 deg/s average)"))
+    case("Oscillate, amplitude 45 at 0.5 Hz", "Oscillate", {"Amplitude": 45, "Frequency": 0.5}, lambda a, b, pk: (abs(max(abs(a), abs(b)) - 45) < 3 or abs(b - a) > 40, f"range {a:.1f} to {b:.1f} degrees (a swing of about 45 either side)"))
+    case("Hold stays put", "Hold", {}, lambda a, b, pk: (abs(b - a) < .01, f"moves {b - a:.2f} degrees (expect none)"))
+    for o in cad.objects():
+        if o.kind == "Joint":
+            cad.call("object_update", object=o.name, visible=True)
+    strip = ["Motion study of a revolute joint, each motion against its definition"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("the pin, hub and arm", render(-30, 30)), ("checks", text_panel(strip))]
