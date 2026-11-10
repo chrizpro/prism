@@ -18,6 +18,8 @@ Document values support names, pinning, arithmetic, functions from the existing 
 
 Edit document formulas in the draft, evaluate them, then apply. Removing a parameter used by a current-branch feature is blocked. Feature tab lists current-branch recipes and their dimensional numeric inputs. Enter a literal or a formula using saved document values, then update the feature. The full feature editor remains available for selections, integer counts, switches and other settings. A bound formula is shown in the standard numeric editor; typing a different literal detaches it.
 
+Select an applied numeric parameter and choose **Animate parameter** to open it in the [animation timeline](../modeling/assembly/README.md#animation-timeline). Parameters defined by formulas follow their inputs. Animate the numeric input to drive those dependencies. [ASM-H009 and ASM-H010](../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs) check table access and animation persistence.
+
 Applying document changes validates all bound values against feature limits before touching the history. It rebuilds from the first affected feature, re-evaluating downstream bindings. Existing branches remain available. If native geometry rebuilding fails later, the session stops at the last successful result, reports the failed feature and preserves the complete original branch.
 
 ### Parametric sketches

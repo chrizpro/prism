@@ -20,6 +20,7 @@ public partial class StudiosPanel : UserControl
     void OnAddParameter(object? s, RoutedEventArgs e) => Vm?.AddStudioParameter();
     void OnRemoveParameter(object? s, RoutedEventArgs e) { if ((s as Control)?.DataContext is ParameterDraft p) { Vm?.DocumentParameterRows.Remove(p); Vm?.PreviewDocumentParameters(); } }
     void OnPreviewParameters(object? s, RoutedEventArgs e) => Vm?.PreviewDocumentParameters();
+    void OnAnimateParameter(object? s, RoutedEventArgs e) => Vm?.AnimateSelectedParameter();
     void OnApplyParameters(object? s, RoutedEventArgs e) => Vm?.ApplyStudioParameters();
     void OnRevertParameters(object? s, RoutedEventArgs e) => Vm?.RevertStudioParameters();
     void OnApplyFeature(object? s, RoutedEventArgs e) => Vm?.ApplyStudioFeatureValues();

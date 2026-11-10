@@ -34,6 +34,14 @@ Owner approved precise timeline and panel editing. **Animate → New Animation**
 - Drag a key to retime it. The key stays selected and an occupied time is rejected. Dragging snaps to 0.05 s. Hold Alt for finer movement.
 - In **Document parameter**, choose an existing numeric document parameter to see its value and ramp controls. Set a start value, end value, start time and duration to create its ramp. The panel uses the parameter's model units.
 
+Owner approved table access, multiple turns and segment timing. In the [Parameters panel](../../studios/README.md#parameters), apply the table edits, select a numeric parameter and choose **Animate parameter** to open its track. Formula parameters follow their numeric inputs, so animate an input such as Height when Width is defined as Height × 2.
+
+Select the starting key of a segment and set **Timing to next key** to Constant speed, Ease in, Ease out, Ease both ends, or Hold. **Clip default** preserves the clip's existing easing setting. Hold keeps the starting value until the next key. Timing is saved on the starting key.
+
+Unrestricted rotation tracks accept multiple turns. For five turns in five seconds, key 0° at zero seconds and 1800° at five seconds, then set the first key to Constant speed. Limited joints continue to respect their configured limits.
+
+Windows verification passed 32 targeted Assembly and ribbon Headless checks and 14 Assembly Unit checks. ASM-H009 covers parameter-table access and formula preservation. ASM-H010 saves and reopens a five-turn shaft clip and its segment timing. ASM-U004 checks the five timing presets and the original clip easing behavior. Desktop playback of these presets remains on the [manual checklist](../../tabs/checklists/animate-manual-test-checklist.md).
+
 [Animation timeline tests](../../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs) exercise pointer-driven key moves and track collapse, occupied times, exact edits and saving, opening a new draft, and switching parameter settings. The 30 targeted Assembly and ribbon Headless checks passed on Windows on 2026-11-10.
 
 Desktop scenario ASM-I003 opened a new clip on the gallery orrery, keyed a joint at 2.125 s and 5 s, and scrubbed back to verify 65° at 2.125 s. [Desktop capture](evidence/ASM-I003-animation-timeline.png).

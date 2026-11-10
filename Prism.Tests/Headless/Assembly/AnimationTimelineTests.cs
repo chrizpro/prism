@@ -9,6 +9,7 @@ using Prism.Controls;
 using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.ViewModels;
+using Prism.Kernel;
 using Xunit;
 
 namespace Prism.HeadlessTests.Assembly;
@@ -91,5 +92,62 @@ public class AnimationTimelineTests
         Assert.DoesNotContain(panel.Items.OfType<NumberParam>(), p => p.Label == "Length  (parameter)");
         session.CancelCommand();
         Assert.Equal(7, Assert.IsType<AnimInfo>(Assert.Single(session.Objects).Asm).Duration);
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H009 | The parameter table opens a track and dependent parameters retain their formulas")]
+    [Trait("TestId", "ASM-H009")]
+    public void ParameterTableOpensNumericAnimationTrack()
+    {
+        var vm = new MainViewModel();
+        Assert.True(vm.Session.ApplyDocumentParameters([new("Height", "20 mm"), new("Width", "Height * 2")]));
+        vm.OpenStudio("parameters");
+        vm.SelectedParameterDraft = vm.DocumentParameterRows.Single(p => p.Name == "Width");
+        vm.AnimateSelectedParameter();
+        Assert.Null(vm.Session.ActiveCommand);
+        Assert.Contains("formula", vm.StudioMessage);
+        vm.SelectedParameterDraft = vm.DocumentParameterRows.Single(p => p.Name == "Height");
+        vm.AnimateSelectedParameter();
+        var editor = Assert.IsType<AnimationCommand>(vm.Session.ActiveCommand);
+        Assert.Equal(CadSession.ParamKey("Height"), editor.SelectedTrack!.JointKey);
+        Assert.Equal(20, editor.SelectedKey!.V);
+        Assert.Equal("Height * 2", vm.Session.DocumentParameters.Single(p => p.Name == "Width").Formula);
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H010 | Animation retains five shaft turns and per-segment timing through save and reopen")]
+    [Trait("TestId", "ASM-H010")]
+    public void MultipleTurnsAndTimingRoundtrip()
+    {
+        var session = new CadSession();
+        var first = session.MakePart(session.AddObject(Occ.Box(2, 3, 4), "Base", ObjKind.Solid).Id);
+        var second = session.MakePart(session.AddObject(Occ.Cylinder(1, 4), "Shaft", ObjKind.Solid).Id);
+        var frame = JointInfo.Pack(Xform.Identity);
+        var joint = new JointInfo("shaft", "Shaft", JointType.Revolute, first.Component!.Key, second.Component!.Key,
+            frame, frame, false, 0, 0, 0, false, 0, 0, 0, 0);
+        var marker = session.AddObject(Occ.Line(Vec3.Zero, Vec3.UnitZ), "Hinge", ObjKind.Joint);
+        session.Update(marker.Id, o => o.WithAsm(joint), false);
+        session.StartCommand(() => new AnimationCommand(true));
+        var editor = Assert.IsType<AnimationCommand>(session.ActiveCommand);
+        editor.Time = 5;
+        editor.Params.OfType<NumberParam>().Single(p => p.Label == "Shaft  (angle)").Value = 1800;
+        editor.KeyChangedValues();
+        var track = editor.Rows().Single(r => r.JointKey == "shaft").Track!;
+        Assert.Equal(1800, track.Keys.Last().V);
+        editor.SelectKey(track, track.Keys[0]);
+        editor.Params.OfType<ChoiceParam>().Single(p => p.Label == "Timing to next key").Index = (int)AnimTiming.Linear;
+        editor.Params.OfType<ActionParam>().Single(p => p.Label == "Apply key").Run();
+        editor.Time = 1.25;
+        Assert.Equal(450, editor.Params.OfType<NumberParam>().Single(p => p.Label == "Shaft  (angle)").Value);
+        session.CommitCommand();
+        var file = Path.Combine(Path.GetTempPath(), $"prism-animation-{Guid.NewGuid():N}.prism_asm");
+        try
+        {
+            session.Save(file);
+            var reopened = new CadSession();
+            reopened.Open(file);
+            var animation = Assert.Single(reopened.Objects.Select(o => o.Asm).OfType<AnimInfo>());
+            Assert.Equal(1800, Assert.Single(animation.Tracks).Keys.Last().V);
+            Assert.Equal(AnimTiming.Linear, animation.Tracks[0].Keys[0].Timing);
+        }
+        finally { File.Delete(file); }
     }
 }

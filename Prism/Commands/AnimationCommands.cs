@@ -33,6 +33,7 @@ public sealed class AnimationCommand : Command
     readonly bool _startNew;
     NumberParam _keyTime = null!, _keyValue = null!;
     ActionParam _applyKey = null!;
+    ChoiceParam _keyTiming = null!;
     public AnimTrack? SelectedTrack { get; private set; }
     public AnimKey? SelectedKey { get; private set; }
 
@@ -58,7 +59,9 @@ public sealed class AnimationCommand : Command
 
         _keyTime = Add(new NumberParam { Section = "Selected key", Label = "Key time", Min = 0, Max = 600, Step = .001, Unit = "s", IsVisible = false });
         _keyValue = Add(new NumberParam { Section = "Selected key", Label = "Key value", Step = .001, Unit = "", IsVisible = false });
+        _keyTiming = Add(new ChoiceParam { Section = "Selected key", Label = "Timing to next key", Options = ["Clip default", "Constant speed", "Ease in", "Ease out", "Ease both ends", "Hold"], IsVisible = false });
         _keyTime.Changed = _keyValue.Changed = null;
+        _keyTiming.Changed = null;
         _applyKey = Add(new ActionParam { Section = "Selected key", Label = "Apply key", IsVisible = false, Run = ApplyKey });
         _duration = Add(new NumberParam { Section = "Clip", Label = "Length", Value = _anim.Duration, Min = 0.5, Max = 600, Step = 0.001, Unit = "s" });
         _time = Add(new NumberParam { Section = "Clip", Label = "Time", Value = 0, Min = 0, Max = 600, Step = 0.001, Unit = "s" });
@@ -70,12 +73,12 @@ public sealed class AnimationCommand : Command
         foreach (var (obj, j) in S.JointObjects)
         {
             if (j.Type == JointType.Rigid) continue;
-            double lo = j.HasLimits ? j.Min : (j.UsesAngle ? -360 : -500), hi = j.HasLimits ? j.Max : (j.UsesAngle ? 360 : 500);
+            double lo = j.HasLimits ? j.Min : (j.UsesAngle ? -1e9 : -500), hi = j.HasLimits ? j.Max : (j.UsesAngle ? 1e9 : 500);
             var p1 = Add(new NumberParam { Section = "Joint values", Label = $"{j.Name}  ({j.FirstLabel})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
             NumberParam? p2 = null;
             if (j.HasSecond)
             {
-                double lo2 = j.HasLimits ? j.Min2 : (j.SecondIsAngle ? -180 : -500), hi2 = j.HasLimits ? j.Max2 : (j.SecondIsAngle ? 180 : 500);
+                double lo2 = j.HasLimits ? j.Min2 : (j.SecondIsAngle ? -1e9 : -500), hi2 = j.HasLimits ? j.Max2 : (j.SecondIsAngle ? 1e9 : 500);
                 p2 = Add(new NumberParam { Section = "Joint values", Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
             }
             _rows.Add((j, p1, p2));
@@ -84,7 +87,7 @@ public sealed class AnimationCommand : Command
         foreach (var comp in S.FreeComponents)
         {
             string ck = comp.Component!.Key;
-            foreach (var (channel, what, unit, step, lim) in new[] { ("x", "move X", "mm", 5.0, 2000.0), ("y", "move Y", "mm", 5.0, 2000.0), ("z", "move Z", "mm", 5.0, 2000.0), ("rz", "turn", "°", 5.0, 360.0) })
+            foreach (var (channel, what, unit, step, lim) in new[] { ("x", "move X", "mm", 5.0, 2000.0), ("y", "move Y", "mm", 5.0, 2000.0), ("z", "move Z", "mm", 5.0, 2000.0), ("rz", "turn", "°", 5.0, 1e9) })
             {
                 string key = CadSession.PartKey(ck, channel); _rest[key] = (0, 0);
                 _partRows.Add((key, $"{comp.Name}  ({what})", Add(new NumberParam { Section = "Component offsets", Label = $"{comp.Name}  ({what})", Value = 0, Min = -lim, Max = lim, Step = step, Unit = unit })));
@@ -162,8 +165,9 @@ public sealed class AnimationCommand : Command
                 tr.Keys.Add(new AnimKey(0, second ? _rest[joint].v2 : _rest[joint].v1));
                 _anim.Tracks.Add(tr);
             }
+            var timing = tr.Keys.FirstOrDefault(k => Math.Abs(k.T - t) < 1e-6)?.Timing ?? AnimTiming.ClipDefault;
             tr.Keys.RemoveAll(k => Math.Abs(k.T - t) < 1e-6);
-            tr.Keys.Add(new AnimKey(t, value)); keyed++;
+            tr.Keys.Add(new AnimKey(t, value, timing)); keyed++;
         }
         foreach (var r in _rows)
         {
@@ -276,11 +280,13 @@ public sealed class AnimationCommand : Command
         SelectedTrack = track;
         SelectedKey = key;
         _keyValue.IsVisible = _applyKey.IsVisible = key != null;
+        _keyTiming.IsVisible = key != null && track!.Keys.Any(k => k.T > key.T);
         _keyTime.IsVisible = key is { T: > 0 };
         if (key != null && Rows().FirstOrDefault(r => ReferenceEquals(r.Track, track)) is { } row)
         {
             _keyTime.Value = key.T;
             _keyValue.Value = key.V;
+            _keyTiming.SetSilently((int)key.Timing);
             _keyValue.Caption = row.Value.Unit.Length == 0 ? $"{row.Label} value" : $"{row.Label} ({row.Value.Unit})";
         }
         RefreshWorkflow();
@@ -291,7 +297,7 @@ public sealed class AnimationCommand : Command
     {
         if (SelectedTrack is { } track && SelectedKey is { } key)
         {
-            EditKey(track, key, _keyTime.Value, _keyValue.Value);
+            EditKey(track, key, _keyTime.Value, _keyValue.Value, (AnimTiming)_keyTiming.Index);
             if (SelectedKey is { } applied) Time = applied.T;
         }
     }
@@ -299,7 +305,7 @@ public sealed class AnimationCommand : Command
     public void MoveKey(AnimTrack track, AnimKey key, double newTime)
         => EditKey(track, key, newTime, key.V);
 
-    void EditKey(AnimTrack track, AnimKey key, double newTime, double value)
+    void EditKey(AnimTrack track, AnimKey key, double newTime, double value, AnimTiming? timing = null)
     {
         int i = track.Keys.IndexOf(key);
         if (i < 0 || Rows().FirstOrDefault(r => ReferenceEquals(r.Track, track)) is not { } row) return;
@@ -314,7 +320,7 @@ public sealed class AnimationCommand : Command
             S.Say($"Use a key value from {row.Value.Min:G} to {row.Value.Max:G} {row.Value.Unit}.", true);
             return;
         }
-        var replacement = key with { T = newTime, V = value };
+        var replacement = key with { T = newTime, V = value, Timing = timing ?? key.Timing };
         if (replacement == key) return;
         track.Keys[i] = replacement;
         track.Keys.Sort((a, b) => a.T.CompareTo(b.T));
@@ -322,6 +328,16 @@ public sealed class AnimationCommand : Command
         PullPose(); OnChanged(); TimelineChanged?.Invoke();
     }
 
+    public void FocusParameter(string name)
+    {
+        int index = _paramRows.FindIndex(r => r.name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || _rampParam == null) return;
+        _rampParam.Index = index;
+        var row = Rows().Single(r => r.JointKey == _paramRows[index].key);
+        if (row.Track == null) AddKey(row, 0);
+        var track = Rows().Single(r => r.JointKey == row.JointKey).Track!;
+        SelectKey(track, track.Keys[0]);
+    }
     public void DeleteKey(AnimTrack track, AnimKey key)
     {
         if (key.T < 1e-6) { S.Say("The key at 0 s is the starting position and cannot be removed.", true); return; }

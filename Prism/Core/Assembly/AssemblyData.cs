@@ -107,9 +107,19 @@ public sealed record AnimTrack(string JointKey, bool SecondValue, List<AnimKey> 
         if (t >= k[^1].T) return k[^1].V;
         int i = k.FindLastIndex(x => x.T <= t);
         double u = (t - k[i].T) / Math.Max(k[i + 1].T - k[i].T, 1e-9);
-        if (ease) u = u * u * (3 - 2 * u);
+        u = k[i].Timing switch
+        {
+            AnimTiming.Linear => u,
+            AnimTiming.EaseIn => u * u,
+            AnimTiming.EaseOut => 1 - (1 - u) * (1 - u),
+            AnimTiming.EaseBoth => u * u * (3 - 2 * u),
+            AnimTiming.Hold => 0,
+            _ => ease ? u * u * (3 - 2 * u) : u,
+        };
         return k[i].V + (k[i + 1].V - k[i].V) * u;
     }
 }
 
-public sealed record AnimKey(double T, double V);
+public enum AnimTiming { ClipDefault, Linear, EaseIn, EaseOut, EaseBoth, Hold }
+
+public sealed record AnimKey(double T, double V, AnimTiming Timing = AnimTiming.ClipDefault);

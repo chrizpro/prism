@@ -67,4 +67,21 @@ public class KinematicsTests
     }
 
     static void Near(Vec3 expected, Vec3 actual) => Assert.InRange(actual.DistanceTo(expected), 0, 1e-10);
+
+    [Theory(DisplayName = "ASM-U004 | Segment timing changes the speed between keys and preserves full turns")]
+    [InlineData(AnimTiming.Linear, 450)]
+    [InlineData(AnimTiming.EaseIn, 112.5)]
+    [InlineData(AnimTiming.EaseOut, 787.5)]
+    [InlineData(AnimTiming.EaseBoth, 281.25)]
+    [InlineData(AnimTiming.Hold, 0)]
+    [Trait("TestId", "ASM-U004")]
+    public void SegmentTimingUsesTheOutgoingKey(AnimTiming timing, double expected)
+    {
+        var track = new AnimTrack("shaft", false, [new(0, 0, timing), new(4, 1800)]);
+        Assert.Equal(expected, track.ValueAt(1, true), 8);
+        Assert.Equal(1800, track.ValueAt(4, true));
+        var legacy = new AnimTrack("shaft", false, [new(0, 0), new(4, 1800)]);
+        Assert.Equal(450, legacy.ValueAt(1, false));
+        Assert.Equal(281.25, legacy.ValueAt(1, true));
+    }
 }
