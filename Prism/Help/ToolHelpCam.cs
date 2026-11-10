@@ -66,7 +66,7 @@ public static partial class ToolHelp
             "1. Choose FDM check.\n2. Select the body and enter the build dimensions.\n3. Run checks and review the findings.",
             "Overhangs steeper than about 45° usually need supports. Try rotating the part first."),
         "print-export" => Topic(icon, "Export for Printing", "Write a print file for your slicer.", "Start: the part", "Result: the part ready for the slicer",
-            "1. Choose Export for printing.\n2. Choose a format and folder. In FDM, review the listed bodies.\n3. Export, then open it in your slicer.",
+            "1. Choose Export for printing.\n2. Choose a format and folder. Review the listed bodies.\n3. Export, then open it in your slicer.",
             "3MF keeps units and multiple bodies; STL is the widest supported."),
         "check-geometry" => Topic(icon, "Check Geometry", "Test the model for invalid geometry and open edges.", "Start: the model", "Result: problem edges highlighted",
             "1. Choose Check Geometry.\n2. Select the bodies.\n3. Review the highlighted problems.",

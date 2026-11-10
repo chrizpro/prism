@@ -38,7 +38,7 @@ public sealed class PrintExportCommand : AnalysisCommand
         _perBody = Check("One file per body", false);
         _slicer_ = Choice("Open in", 0, PrintExport.SlicerNames);
         _path = Text("Program path (optional override)", "");
-        if (!resin) Add(new ActionParam { Label = "Review export", Run = () => Review() });
+        Add(new ActionParam { Label = "Review export", Run = () => Review() });
         Add(new ActionParam { Label = "Export", Run = () => Run(false) });
         Add(new ActionParam { Label = "Export and open in slicer", Run = () => Run(true) });
     }
@@ -107,14 +107,14 @@ public sealed class PrintExportCommand : AnalysisCommand
         try
         {
             var options = Options();
-            if (!_resin && (_review == null || _reviewOptions != options ||
-                !_reviewSelection.SequenceEqual(CurrentSelection()) || !_reviewObjects.SequenceEqual(S.Objects)))
+            if (_review == null || _reviewOptions != options ||
+                !_reviewSelection.SequenceEqual(CurrentSelection()) || !_reviewObjects.SequenceEqual(S.Objects))
             {
                 Review();
                 if (_review?.Parts.Count > 0) Row("Next step", "Review these bodies, then choose an export action to save.");
                 return;
             }
-            var files = _resin ? PrintExport.Export(S, options) : PrintExport.WriteFiles(options, _review!.Parts);
+            var files = PrintExport.WriteFiles(options, _review.Parts);
             Results.Clear();
             foreach (var f in files) Row("Saved", f);
             Settings[SettingsKey]=new(_folderParam.Value,_path.Value,_formatParam.Index,_quality_.Index,_slicer_.Index,_perBody.Value);
