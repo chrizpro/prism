@@ -2,6 +2,7 @@
 import { withBase } from 'vitepress'
 import { computed } from 'vue'
 import images from '../data/guide-images.json'
+import diagrams from '../data/guide-diagrams.json'
 
 const props = defineProps({
   image: String,
@@ -13,7 +14,7 @@ const props = defineProps({
 })
 
 const picture = computed(() => {
-  const registered = props.image ? images[props.image] : {}
+  const registered = props.image ? images[props.image] ?? diagrams[props.image] : {}
   if (!registered) throw new Error(`Unknown guide image: ${props.image}`)
   const overrides = Object.fromEntries(Object.entries(props).filter(([key, value]) => key !== 'image' && value !== undefined))
   return { ...registered, ...overrides }
@@ -25,7 +26,7 @@ const picture = computed(() => {
     <a :href="withBase(picture.src)" :aria-label="`${picture.alt}. Open full-size image`">
       <img :src="withBase(picture.src)" :alt="picture.alt" :width="picture.width" :height="picture.height" loading="lazy" decoding="async" />
     </a>
-    <figcaption>{{ picture.caption }} <a :href="withBase(picture.src)">View full size</a></figcaption>
+    <figcaption><strong v-if="image && diagrams[image]">Concept diagram. </strong>{{ picture.caption }} <a :href="withBase(picture.src)">View full size</a></figcaption>
   </figure>
 </template>
 

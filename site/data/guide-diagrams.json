@@ -1,0 +1,149 @@
+{
+  "diagram-cnc-work-zero": {
+    "src": "/images/diagrams/cnc-work-zero.svg",
+    "alt": "Top and side views show the same work zero at the lower-left corner of the stock top.",
+    "caption": "G54 is the coordinate origin used by the posted program. Clearance is a travel height above the stock.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-stock-review": {
+    "src": "/images/diagrams/cnc-stock-review.svg",
+    "alt": "Three side views compare remaining material, a reached floor, and a possible gouge against the target depth.",
+    "caption": "Stock Review compares the simulated cut with the target. Orange marks remaining material, blue cut stock, and red a possible gouge.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-pocket": {
+    "src": "/images/diagrams/cnc-pocket.svg",
+    "alt": "Top view of a circular pocket with nested cutter paths, and a side view of three cuts ending at Z minus 3.",
+    "caption": "Pocket clears inside a boundary. Each ring shown is the route of the cutter center. A 3 mm pocket with 1 mm per pass reaches Z −1, −2 and −3 relative to stock zero.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-profile": {
+    "src": "/images/diagrams/cnc-profile.svg",
+    "alt": "Top view of a part outline with a toolpath offset outside it, and a side view with a holding tab.",
+    "caption": "Profile follows the boundary. An outside pass keeps the part on the inside of the cutter path. A tab leaves a small bridge to the surrounding stock.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-drill": {
+    "src": "/images/diagrams/cnc-drill.svg",
+    "alt": "Side view of a drill descending in three short pecks with small retracts.",
+    "caption": "Drill makes a hole at a selected position. Pecking breaks one deep plunge into smaller advances with retracts.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-face": {
+    "src": "/images/diagrams/cnc-face.svg",
+    "alt": "A top-view stock rectangle crossed by zigzag cutter passes.",
+    "caption": "Face mills the top flat. Adjacent passes overlap so the cutter reaches the stock between the lines.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-adaptive": {
+    "src": "/images/diagrams/cnc-adaptive.svg",
+    "alt": "An outline pocket with an island and a series of curved cutter movements around it.",
+    "caption": "Adaptive Clearing keeps the sideways cut small as it removes stock in an outline. The curved path is schematic; check the actual preview and where it plunges.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-rough": {
+    "src": "/images/diagrams/cnc-rough.svg",
+    "alt": "Cross-section of stock with stepped roughing passes above a curved target surface.",
+    "caption": "3D Rough removes most of the material in layers. It leaves a small allowance for finishing.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-finish": {
+    "src": "/images/diagrams/cnc-finish.svg",
+    "alt": "A curved section with a cutter trace following the surface and a top view of evenly spaced parallel passes.",
+    "caption": "Parallel Finish runs neighboring passes and changes Z to follow the surface. It works well across shallow curves.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-cnc-turn": {
+    "src": "/images/diagrams/cnc-turn.svg",
+    "alt": "A rotating cylindrical blank with a stepped side profile and a cutter moving along its length.",
+    "caption": "Turning spins the stock and moves a cutter along the side to shape a round part. It uses a separate lathe program.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-extrude-extent": {
+    "src": "/images/diagrams/solid-extrude-extent.svg",
+    "alt": "Matched side views compare one-direction and symmetric extrusion about a dashed sketch plane.",
+    "caption": "Extrude moves a profile in a straight direction. Symmetric splits the total extent equally on both sides of the sketch plane.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-revolve-extent": {
+    "src": "/images/diagrams/solid-revolve-extent.svg",
+    "alt": "Matched top-down arc diagrams compare a one-direction revolve and a symmetric revolve around an axis point.",
+    "caption": "Revolve swings a profile about an axis. In Symmetric, the total angle is split equally on either side of the starting profile.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-loft": {
+    "src": "/images/diagrams/solid-loft.svg",
+    "alt": "Three differently sized section profiles connected by a smooth outer shape.",
+    "caption": "Loft connects a series of profiles. The order of the sections determines how the result grows and changes shape.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-sweep": {
+    "src": "/images/diagrams/solid-sweep.svg",
+    "alt": "A small profile and a tube following a bent centerline.",
+    "caption": "Sweep carries a profile along a path. The path controls where the result bends.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-fillet": {
+    "src": "/images/diagrams/solid-fillet.svg",
+    "alt": "Side profiles show a square corner and the same corner rounded with a fillet.",
+    "caption": "Fillet replaces a sharp edge with a round transition.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-chamfer": {
+    "src": "/images/diagrams/solid-chamfer.svg",
+    "alt": "Side profiles show a square corner and the same corner cut into a flat bevel.",
+    "caption": "Chamfer replaces a sharp edge with a flat bevel.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-shell": {
+    "src": "/images/diagrams/solid-shell.svg",
+    "alt": "Side section shows a solid block and an open thin-walled version after shelling.",
+    "caption": "Shell hollows a body to a wall thickness. A selected face becomes an opening.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-split": {
+    "src": "/images/diagrams/solid-split.svg",
+    "alt": "A block intersects a dashed plane, with two separate solids shown as the result.",
+    "caption": "Split Body separates a solid along a selected cutting tool such as a plane.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-solid-pattern": {
+    "src": "/images/diagrams/solid-pattern.svg",
+    "alt": "One blue feature followed by three equally spaced copies on a plate.",
+    "caption": "Linear Pattern repeats a feature or body in a straight direction at a specified spacing.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-sheet-fold": {
+    "src": "/images/diagrams/sheet-fold.svg",
+    "alt": "A flat blank marked with two bend lines and a U-shaped side profile after folding.",
+    "caption": "Fold uses construction lines as bend locations. The flat blank and folded result describe the same sheet.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-mold-halves": {
+    "src": "/images/diagrams/mold-halves.svg",
+    "alt": "Two tooling halves separated to reveal opposing recessed cavities in cross-section.",
+    "caption": "Create Mold cuts a cavity around the part and separates the tooling halves to expose it.",
+    "width": 720,
+    "height": 300
+  }
+}

@@ -31,6 +31,33 @@ export const commandImages = {
   form_quality: 'freeform-quality-review',
 }
 
+// Concept drawings explain the geometry. A matching capture, when available, follows them.
+export const commandDiagrams = {
+  cam_setup: 'diagram-cnc-work-zero',
+  cnc_stock_review: 'diagram-cnc-stock-review',
+  cnc_pocket: 'diagram-cnc-pocket',
+  cnc_profile: 'diagram-cnc-profile',
+  cnc_drill: 'diagram-cnc-drill',
+  cnc_face: 'diagram-cnc-face',
+  cnc_adaptive: 'diagram-cnc-adaptive',
+  cnc_rough: 'diagram-cnc-rough',
+  cnc_finish: 'diagram-cnc-finish',
+  cnc_turn: 'diagram-cnc-turn',
+  extrude: 'diagram-solid-extrude-extent',
+  revolve: 'diagram-solid-revolve-extent',
+  loft_surface: 'diagram-solid-loft',
+  loft: 'diagram-solid-loft',
+  sweep_surface: 'diagram-solid-sweep',
+  sweep: 'diagram-solid-sweep',
+  fillet: 'diagram-solid-fillet',
+  chamfer: 'diagram-solid-chamfer',
+  shell: 'diagram-solid-shell',
+  split_body: 'diagram-solid-split',
+  pattern_linear: 'diagram-solid-pattern',
+  fold: 'diagram-sheet-fold',
+  mold: 'diagram-mold-halves',
+}
+
 export const tabImages = {
   Home: 'modeling-workspace-overview',
   Solid: 'solid-extrude-preview',

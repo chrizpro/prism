@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Matched top-down arc diagrams compare a one-direction revolve and a symmetric revolve around an axis point.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<path d="M170 185 L170 63 A122 122 0 0 1 292 185 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M170 195 V45" stroke="#698298" stroke-dasharray="6 5"/><circle cx="170" cy="185" r="6" fill="#132f43"/><path d="M187 83 A103 103 0 0 1 270 166" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="192" y="264" text-anchor="middle">One direction</text><path d="M540 185 L454 99 A122 122 0 0 1 626 99 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M540 196 V45" stroke="#698298" stroke-dasharray="6 5"/><circle cx="540" cy="185" r="6" fill="#132f43"/><path d="M530 81 A105 105 0 0 0 473 105" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M550 81 A105 105 0 0 1 607 105" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="540" y="264" text-anchor="middle">Symmetric</text>
+</g>
+</svg>

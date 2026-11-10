@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>One blue feature followed by three equally spaced copies on a plate.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="65" y="77" width="590" height="137" rx="12" fill="#d8e8ef"/><circle cx="146" cy="145" r="24" fill="#1684ab"/><circle cx="289" cy="145" r="24" fill="#fff"/><circle cx="432" cy="145" r="24" fill="#fff"/><circle cx="575" cy="145" r="24" fill="#fff"/><path d="M172 196 H266" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="266" text-anchor="middle">Equal spacing between copies</text>
+</g>
+</svg>
