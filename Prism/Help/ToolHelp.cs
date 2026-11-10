@@ -54,6 +54,7 @@ public static partial class ToolHelp
         Commands.MoldPartFromTabCommand => Find("mold-tab"),
         Commands.Rough3DCommand => Find("cnc-rough"),
         Commands.ParallelFinishCommand => Find("cnc-finish"),
+        Commands.ConstantZFinishCommand => Find("cnc-constant-z"),
         Commands.CncPostCommand => Find("cnc-post"),
         Commands.CamPlaybackCommand => Find("cam-playback"),
         Commands.CamProgramOrderCommand => Find("cam-order"),

@@ -44,6 +44,8 @@ public static partial class ToolHelp
         "cnc-finish" => Topic(icon, "3D Finish", "Follow the surface with parallel passes for a smooth finish.", "Start: the roughed shape", "Generated cutting moves",
             "1. Select the model.\n2. Choose ball nose or flat end mill, and the stepover.\n3. Review the toolpath before creating it.",
             "A smaller stepover leaves a smoother surface but takes longer."),
+        "cnc-constant-z" => new(icon, "Constant-Z Finish", "Finish steep walls with a separate horizontal outline at each height.", "Start: the roughed model", "Result: horizontal finish contours",
+            "1. Create a CAM setup and rough the part.\n2. Choose a flat end mill, finish heights and depth per pass.\n3. Review the contours, skipped areas and entry moves.", "Use parallel 3D Finish for shallow surfaces.", NoPreview: true),
         "cnc-post" => Topic(icon, "Post G-code", "Turn finished toolpaths into a G-code file for your machine.", "Start: toolpaths", "Result: a G-code file",
             "1. Create your toolpaths.\n2. Choose Post G-code and your controller.\n3. Choose a file name.",
             "Pick the post for GRBL, Mach3 or LinuxCNC to match your controller. Always dry-run before cutting."),
