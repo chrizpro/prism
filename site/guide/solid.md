@@ -26,6 +26,12 @@ Hover a ribbon button to see what it does. Extrude, Revolve, Loft, Sweep, Fillet
 
 Extrude and Revolve offer **Selection intent** in the profile picker: the whole profile, single edges, connected or tangent chains, or a partial loop. A solid extrusion needs a closed profile; open chains can be extruded as surfaces with **Surface › Extrude**.
 
+<GuideImage image="diagram-solid-extrude-extent" />
+
+<GuideImage image="diagram-solid-revolve-extent" />
+
+To try the difference, sketch a closed rectangle and preview **Extrude → Symmetric** with a total length of 20 mm. The result should extend 10 mm each way from the sketch plane. For **Revolve**, sketch a closed profile to one side of a straight axis and use **Symmetric** with a total angle of 90°. Look for 45° on either side of the starting profile.
+
 ## Modify
 
 - **Fillet** rounds edges; give an end radius to vary it along each edge. **Chamfer** bevels them.
@@ -35,6 +41,8 @@ Extrude and Revolve offer **Selection intent** in the profile picker: the whole 
 <GuideImage image="solid-fillet-edges" />
 
 <GuideImage image="solid-shell-result" />
+
+<GuideImage image="diagram-solid-chamfer" />
 
 ## Combine, pattern and transform
 
@@ -56,6 +64,8 @@ For parts without history, such as imported STEP files, use **Solid › Direct E
 4. **Flat Pattern** unfolds bodies whose bends are parallel (slots and rounded corners are fine), with a bend line per bend. Save it as DXF for laser or waterjet cutting.
 
 For a part that bends in more than one direction, such as a tray or a box, start from the flat sheet instead:
+
+<GuideImage image="diagram-sheet-fold" />
 
 1. Sketch the flat outline with normal lines. Holes, slots and corner notches go in the sketch too.
 2. Draw each bend as a **construction line** across the sheet.

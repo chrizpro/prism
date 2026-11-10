@@ -27,3 +27,5 @@ Use **Ctrl+Z** to undo. Press **Home** to fit the model in the viewport, and **N
 **Design** contains the main modeling ribbons. **Scan** concentrates on meshes and reverse engineering. **Assemble**, **Render**, **CAM**, **CAE**, **ECAD**, and **Script** expose their own task-specific tools. Home and View remain available in each workspace.
 
 The [tool catalog](/reference/ribbons) is generated from Prism's ribbon definitions. It includes contextual Sketch and Materials tools as well as regular ribbons.
+
+To learn CAM, [plan your first CNC pocket](/guide/manufacturing#try-your-first-pocket). The exercise takes you from a simple model to an inspectable G-code file in Prism.

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Three side views compare remaining material, a reached floor, and a possible gouge against the target depth.</title>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="#d8e8ef" stroke="#132f43" stroke-width="2.5">
+<path d="M42 75H83V137H170V75H211V228H42Z"/>
+<path d="M275 75H316V173H403V75H444V228H275Z"/>
+<path d="M508 75H549V198H636V75H677V228H508Z"/>
+</g>
+<rect x="84" y="138" width="85" height="35" fill="#e7a262"/>
+<path d="M317 173H402" stroke="#1684ab" stroke-width="6"/>
+<rect x="550" y="173" width="85" height="24" fill="#d66a66"/>
+<path d="M67 173H187 M300 173H420 M533 173H653" stroke="#456278" stroke-width="2" stroke-dasharray="6 4"/>
+<g fill="#132f43" font-family="system-ui, sans-serif" font-size="20" text-anchor="middle">
+<text x="360" y="37">Dashed line · intended pocket floor</text>
+<text x="126" y="266">Material remains</text>
+<text x="360" y="266">Floor reached</text>
+<text x="592" y="266">Possible gouge</text>
+</g>
+</svg>

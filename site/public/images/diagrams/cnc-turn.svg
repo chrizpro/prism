@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>A rotating cylindrical blank with a stepped side profile and a cutter moving along its length.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<path d="M119 76 H426 V107 H562 V193 H426 V224 H119 Z" fill="#d8e8ef" stroke="#132f43"/><ellipse cx="119" cy="150" rx="42" ry="74" fill="#d8e8ef"/><path d="M68 150 H641" stroke="#698298" stroke-dasharray="6 5"/><path d="M175 76 H426 V107 H552" stroke="#1684ab" stroke-width="4"/><path d="M84 101 Q44 144 83 190" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M364 55 H254" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="266" text-anchor="middle">Side · cut along a spinning blank</text>
+</g>
+</svg>

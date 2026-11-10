@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>A small profile and a tube following a bent centerline.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<path d="M112 190 H322 Q382 190 382 130 Q382 79 433 79 H596" stroke="#132f43" stroke-width="48"/><path d="M112 190 H322 Q382 190 382 130 Q382 79 433 79 H596" stroke="#d8e8ef" stroke-width="44"/><path d="M112 190 H322 Q382 190 382 130 Q382 79 433 79 H596" stroke="#698298" stroke-dasharray="6 5"/><ellipse cx="112" cy="190" rx="10" ry="23" fill="#f2f7fa" stroke="#1684ab" stroke-width="3"/><path d="M474 79 H565" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="263" text-anchor="middle">Profile follows the centerline</text>
+</g>
+</svg>

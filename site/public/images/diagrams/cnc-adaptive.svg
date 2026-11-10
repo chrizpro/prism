@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>An outline pocket with an island and a series of curved cutter movements around it.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="99" y="46" width="522" height="193" rx="29" fill="#d8e8ef"/><ellipse cx="360" cy="143" rx="75" ry="39" fill="#fff"/><path d="M148 175 C100 82 251 56 348 65 C462 66 593 77 582 158 C575 213 474 221 374 218 C272 217 170 212 166 152 C164 112 213 95 273 101 C313 105 256 121 257 150 C258 194 474 201 479 139 C484 103 449 100 420 96" stroke="#1684ab" stroke-width="4"/><path d="M470 71 Q521 77 544 94" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="151" text-anchor="middle">Island</text><text fill="#132f43" stroke="none" x="360" y="268" text-anchor="middle">Top · shallow sideways engagement</text>
+</g>
+</svg>

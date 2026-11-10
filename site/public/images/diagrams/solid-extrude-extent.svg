@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Matched side views compare one-direction and symmetric extrusion about a dashed sketch plane.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="125" y="93" width="177" height="95" rx="0" fill="#d8e8ef"/><path d="M125 61 V224" stroke="#698298" stroke-dasharray="6 5"/><path d="M137 140 H282" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="191" y="264" text-anchor="middle">One direction</text><rect x="421" y="93" width="225" height="95" rx="0" fill="#d8e8ef"/><path d="M533 61 V224" stroke="#698298" stroke-dasharray="6 5"/><path d="M527 140 H441" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M539 140 H627" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="533" y="264" text-anchor="middle">Symmetric</text>
+</g>
+</svg>
