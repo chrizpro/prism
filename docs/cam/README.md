@@ -57,12 +57,7 @@ Owner-approved ribbon layout (2026-11-10, [#111](https://github.com/chrizpro/pri
 
 Windows verification on 2026-11-10: 83 maintained CAM and solid body-edit cases passed, along with 11 standalone print-export checks. In desktop smoke test CAM-I002, whole-body Shell produced a 2 mm wall on a 20 mm box. Resin Check reported one sealed cavity. A 6 mm diameter, 4 mm deep blind hole reduced the sealed-cavity count to zero. Section displayed the cutaway and the reviewed 3MF saved at 20 × 20 × 20 mm. The [desktop capture](evidence/CAM-I002-resin-section.png) shows the ribbon and section. Resin slicer launch, import and printer-specific validation remain manual checks.
 
-#### Resin manual test checklist
-
-- [ ] Open a hollow part you know well. Tilt it and use **Troubleshoot geometry → Section** to sweep through each drain or vent. Confirm each opening reaches its cavity and exits where you intended.
-- [ ] Run **Resin check** at the intended print angle. With a shallow or narrow opening, compare the result at a finer sampling size against the section and slicer preview.
-- [ ] Export to your usual resin slicer with **Export and open in slicer**. Try once with the slicer closed and once while it is open. Check that the expected bodies, dimensions, orientation and holes arrive. If your slicer requires STL, repeat with STL and millimetre scale.
-- [ ] With your real printer profile, add supports and a raft if needed. Check build fit and inspect the layers around the cavities, drain openings and unsupported starts. A physical print, if you choose to run one, is a separate check.
+The [Resin manual test checklist](resin-manual-test-checklist.md) covers the remaining hands-on checks.
 
 ### Shared export options
 
