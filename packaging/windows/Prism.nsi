@@ -1,6 +1,7 @@
 Unicode true
 !include "MUI2.nsh"
 !include "x64.nsh"
+!include "WordFunc.nsh"
 !define PRISM_DOCUMENT "Prism.Document.1"
 !define PRISM_DOCUMENT_KEY "Software\Classes\${PRISM_DOCUMENT}"
 !ifndef VERSION
@@ -43,6 +44,7 @@ FunctionEnd
 
 Section "Prism application" Main
   SectionIn RO
+  Call OfferPreviousUninstall
   SetOutPath "$INSTDIR"
   File /r "${PUBLISH_DIR}\*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
@@ -65,6 +67,34 @@ Section "Prism application" Main
   ${EndIf}
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
+
+Function OfferPreviousUninstall
+  IfSilent done
+  ReadRegStr $0 HKCU "Software\Prism" "InstallDirectory"
+  StrCmp $0 "" done
+  ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Prism" "UninstallString"
+  StrCmp $1 '$\"$0\Uninstall.exe$\"' 0 done
+  IfFileExists "$0\Prism.Desktop.exe" 0 done
+  IfFileExists "$0\Uninstall.exe" 0 done
+  ReadRegStr $2 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Prism" "DisplayVersion"
+  StrCmp $2 "" done
+  ${VersionCompare} $2 "${VERSION}" $3
+  StrCmp $3 "1" done
+  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Prism $2 is installed at:$\r$\n$0$\r$\n$\r$\nRemove that installation before continuing? Close Prism first. Your documents and preferences will be kept." IDNO done
+  ClearErrors
+  ExecWait '$\"$0\Uninstall.exe$\" /S _?=$0' $1
+  IfErrors failed
+  StrCmp $1 "0" 0 failed
+  IfFileExists "$0\Prism.Desktop.exe" failed
+  Delete "$0\Uninstall.exe"
+  RMDir "$0"
+  Goto done
+failed:
+  MessageBox MB_OK|MB_ICONSTOP "Setup could not remove the previous installation. Close Prism and retry setup."
+  SetErrorLevel 1
+  Abort
+done:
+FunctionEnd
 
 Section /o "Desktop shortcut" DesktopShortcut
   CreateShortcut "$DESKTOP\Prism.lnk" "$INSTDIR\Prism.Desktop.exe"

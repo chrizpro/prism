@@ -47,6 +47,7 @@ public sealed class AppSettings
     public List<SavedAppearance> SavedAppearances { get; set; } = [];
     public List<Material> CustomMaterials { get; set; } = [];
     public bool ShowHomeOnStart { get; set; } = true;
+    public bool CheckForUpdatesOnStartup { get; set; } = true;
     public bool AutoRecoveryEnabled { get; set; }
     int autoRecoveryIntervalMinutes = 5;
     public int AutoRecoveryIntervalMinutes { get => autoRecoveryIntervalMinutes; set => autoRecoveryIntervalMinutes = Math.Clamp(value, 1, 120); }

@@ -17,6 +17,7 @@ namespace Prism.Views;
 public partial class MainView : UserControl
 {
     bool _syncing, _syncQueued;
+    bool _manualUpdateRequested;
     MainViewModel? _vm;
     HistoryItem? _pinTarget;
     Flyout? _pinFlyout;
@@ -714,12 +715,44 @@ public partial class MainView : UserControl
             item.Click += (_, _) => OpenLink(url(), header);
             return item;
         }
+        var items = new List<object> { version };
+        if (TopLevel.GetTopLevel(this) is Window owner && ReleaseUpdates.DesktopInstaller is { } installer)
+        {
+            var updates = new MenuItem { Header = "Check for updates…" };
+            updates.Click += async (_, _) =>
+            {
+                _manualUpdateRequested = true;
+                await ShowUpdateWindow(owner, installer);
+            };
+            items.Add(updates);
+        }
+        items.AddRange([new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl), Link("Give feedback", AppInfo.FeedbackUrl)]);
         new MenuFlyout
         {
-            ItemsSource = new object[] { version, new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl), Link("Give feedback", AppInfo.FeedbackUrl) },
+            ItemsSource = items,
             Placement = PlacementMode.BottomEdgeAlignedRight,
         }.ShowAt(anchor);
     }
+
+    internal async System.Threading.Tasks.Task CheckForStartupUpdateAsync(Window owner)
+    {
+        if (!AppSettings.Current.CheckForUpdatesOnStartup || ReleaseUpdates.DesktopInstaller is not { } installer) return;
+        using var cancellation = new System.Threading.CancellationTokenSource();
+        EventHandler cancel = (_, _) => cancellation.Cancel();
+        owner.Closed += cancel;
+        try
+        {
+            ReleaseUpdates.Update? update;
+            try { update = await ReleaseUpdates.Official.FindAsync(AppInfo.Version, installer, cancellation.Token); }
+            catch (Exception) { return; } // Startup checks should never interrupt offline work.
+            if (update != null && !cancellation.IsCancellationRequested && !_manualUpdateRequested && AppSettings.Current.CheckForUpdatesOnStartup)
+                await ShowUpdateWindow(owner, installer, update);
+        }
+        finally { owner.Closed -= cancel; }
+    }
+
+    System.Threading.Tasks.Task ShowUpdateWindow(Window owner, string installer, ReleaseUpdates.Update? update = null) =>
+        new ReleaseUpdateWindow(installer, url => OpenLink(url, "the Prism update"), update).ShowDialog(owner);
 
     void OnStage(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.KnownIssuesUrl, "known issues");
 

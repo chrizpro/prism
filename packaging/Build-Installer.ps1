@@ -2,6 +2,7 @@
 param(
     [ValidateSet('win-x64','linux-x64','osx-x64','osx-arm64')][string]$Runtime = 'win-x64',
     [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.0',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')][string]$ReleaseVersion,
     [string]$OutputDirectory,
     [string]$NativeDirectory,
     [string]$PublishDirectory,
@@ -10,6 +11,8 @@ param(
     [switch]$FrameworkDependent
 )
 $ErrorActionPreference = 'Stop'
+if (!$ReleaseVersion) { $ReleaseVersion = $Version }
+if ($ReleaseVersion.Split('-')[0] -ne $Version) { throw 'ReleaseVersion must match the numeric installer Version.' }
 $root = Split-Path $PSScriptRoot -Parent
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $root 'artifacts/installers' }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
@@ -33,7 +36,7 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 if (!$SkipPublish) {
     $selfContained = if ($FrameworkDependent) { 'false' } else { 'true' }
     $publishArgs = @('publish',(Join-Path $root 'Prism.Desktop/Prism.Desktop.csproj'),'-c','Release','-r',$Runtime,'--self-contained',$selfContained,
-        '--artifacts-path',(Join-Path $OutputDirectory 'build'),'-o',$PublishDirectory,"-p:Version=$Version","-p:NativeLibraryDirectory=$NativeDirectory",'-p:PublishTrimmed=false','-p:UseSharedCompilation=false','-m:1')
+        '--artifacts-path',(Join-Path $OutputDirectory 'build'),'-o',$PublishDirectory,"-p:Version=$Version","-p:InformationalVersion=$ReleaseVersion","-p:NativeLibraryDirectory=$NativeDirectory",'-p:PublishTrimmed=false','-p:UseSharedCompilation=false','-m:1')
     & dotnet @publishArgs
     if ($LASTEXITCODE -ne 0) { throw 'Desktop publish failed.' }
     & dotnet publish (Join-Path $root 'Prism.Mcp/Prism.Mcp.csproj') -c Release -r $Runtime --self-contained $selfContained --artifacts-path (Join-Path $OutputDirectory 'build') -o (Join-Path $PublishDirectory 'mcp') "-p:Version=$Version" -p:UseSharedCompilation=false -m:1
@@ -128,7 +131,10 @@ switch ($platform) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'linux/prism.desktop') -Destination "$deb/usr/share/applications/prism.desktop"
         Copy-Item -LiteralPath (Join-Path $root 'Prism/Assets/prism-icon.png') -Destination "$deb/usr/share/icons/hicolor/256x256/apps/prism.png"
         $control = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'linux/control') -Raw
-        [IO.File]::WriteAllText("$deb/DEBIAN/control", $control.Replace('@VERSION@',$Version))
+        # Debian sorts the tilde before a final release with the same numeric version.
+        $debVersion = if ($ReleaseVersion -eq $Version) { $Version }
+            else { $Version + '~' + $ReleaseVersion.Substring($Version.Length + 1).Replace('-','+') }
+        [IO.File]::WriteAllText("$deb/DEBIAN/control", $control.Replace('@VERSION@',$debVersion))
         & chmod 755 "$deb/usr/bin/prism" "$deb/opt/prism/Prism.Desktop"
         $package = Join-Path $OutputDirectory "prism_${Version}_amd64.deb"
         & dpkg-deb --build --root-owner-group $deb $package
