@@ -24,6 +24,20 @@ Owner approved easier axis picking and closed-loop motion. In **Revolute** and *
 
 For a four-bar linkage, ground the base, create the four hinge joints, and use **Drive Joints** to move the crank. Prism adjusts the dependent joint values so the pins stay connected. If a joint or requested move cannot close the linkage within its limits, Prism explains the problem. Drive Joints keeps the last valid pose and resets the rejected value. For animation, key the crank and let the other joints follow. Keying more joints than the linkage can move independently can overconstrain it. Near a toggle position or when changing branches, use smaller steps.
 
+### Animation timeline
+
+Owner approved precise timeline and panel editing. **Animate → New Animation** opens a five-second draft immediately. **Save animation** adds it to the document. **Edit / Play** opens the selected or first saved clip. The animation timeline takes the place of Design History while editing so the viewport and right panel stay usable.
+
+- Scrub the ruler or type the playhead time in **Clip**. Change a value and use **Add Key** to record it. **Play / Pause** previews the result.
+- Click a track group heading to collapse or expand it. The zoom buttons enlarge or shrink the time ruler. Scroll horizontally to reach later times when zoomed in.
+- Select a key to open **Selected key** in the right panel. Enter time to the millisecond and the value in the channel's units, then click **Apply key**. The starting key's value is editable and its time stays at zero.
+- Drag a key to retime it. The key stays selected and an occupied time is rejected. Dragging snaps to 0.05 s. Hold Alt for finer movement.
+- In **Document parameter**, choose an existing numeric document parameter to see its value and ramp controls. Set a start value, end value, start time and duration to create its ramp. The panel uses the parameter's model units.
+
+[Animation timeline tests](../../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs) exercise pointer-driven key moves and track collapse, occupied times, exact edits and saving, opening a new draft, and switching parameter settings. The 30 targeted Assembly and ribbon Headless checks passed on Windows on 2026-11-10.
+
+Desktop scenario ASM-I003 opened a new clip on the gallery orrery, keyed a joint at 2.125 s and 5 s, and scrubbed back to verify 65° at 2.125 s. [Desktop capture](evidence/ASM-I003-animation-timeline.png).
+
 ## Verification
 
 In the model browser, collapse the **Joints** folder to shorten the tree. Its eye hides or shows every joint's viewport frame, label and drive handle, including joints omitted by the browser search. If any row in the folder is visible, the next click hides all. Use an individual joint's eye to control it separately. Joint and coupling definitions, limits and motion remain active. [ASM-H122](../../../Prism.Tests/Headless/Assembly/AssemblyToolTests.cs) exercises the gallery orrery. [Bug #99](https://github.com/chrizpro/prism/issues/99).

@@ -24,8 +24,8 @@ public sealed partial class MainViewModel
         {
             _timelineHook = () =>
             {
-                TimelineTimeText = $"{editor.Time.ToString("0.00", CultureInfo.InvariantCulture)} / {editor.Duration.ToString("0.##", CultureInfo.InvariantCulture)} s";
-                TimelinePlayText = editor.IsPlaying ? "■  Stop" : "▶  Play";
+                TimelineTimeText = $"{editor.Time.ToString("0.000", CultureInfo.InvariantCulture)} / {editor.Duration.ToString("0.###", CultureInfo.InvariantCulture)} s";
+                TimelinePlayText = editor.IsPlaying ? "Ⅱ  Pause" : "▶  Play";
             };
             editor.TimelineChanged += _timelineHook;
             _timelineHook();

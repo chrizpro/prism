@@ -1259,7 +1259,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 G("Animation",
-                    Btn("New\nAnimation", "animation", () => { Session.AddAnimation(new AnimInfo(5, [], false), true); Session.Say("New animation created. Open the editor to key joint values."); }, "Create an empty animation (5 seconds).", RibbonSize.Large, () => !IsSketching),
+                    AsmCmd("New\nAnimation", "animation", () => new AnimationCommand(true), "Open a new five-second animation in the timeline."),
                     AsmCmd("Edit /\nPlay", "animation", () => new AnimationCommand(), "Open the animation timeline: scrub, key joint values or the exploded view, and play the motion.", RibbonSize.Large),
                     AsmCmd("Exploded\nView", "explode", () => new ExplodeCommand(), "Pull the parts apart.", RibbonSize.Large, HasComponents)),
                 G("Output",

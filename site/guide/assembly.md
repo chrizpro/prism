@@ -61,7 +61,7 @@ For forces, motor effort and joint reactions, continue with a [motion study](/gu
 
 ## Animate
 
-1. **New Animation** creates an empty five-second animation.
-2. **Edit / Play** opens the timeline. Scrub to a time, change joint values or the exploded view, and press **Key the changed values**.
-3. Play to see it move, and **Save animation** to store the keys with the document.
+1. **New Animation** opens a five-second draft. Use **Edit / Play** to reopen a saved animation.
+2. Scrub to a time, change joint values or the exploded view, and press **Add Key**. Use **Play / Pause** to check the movement.
+3. Drag a key to retime it, or click it and enter an exact time and value under **Selected key** in the right panel. Use the timeline zoom buttons and collapse track groups to focus on the keys you need. For a parameter ramp, choose an existing numeric document parameter in the right panel. Click **Save animation** to store the clip.
 4. **Render Animation** turns it into pictures or a movie; MP4 output needs ffmpeg.

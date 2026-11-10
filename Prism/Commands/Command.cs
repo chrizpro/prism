@@ -440,7 +440,7 @@ public abstract partial class Command : ObservableObject
         return s;
     }
 
-    void RefreshWorkflow()
+    protected void RefreshWorkflow()
     {
         var groups = new List<(string title, List<object> items)>();
         void Place(string title, object item)

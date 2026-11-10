@@ -1,5 +1,5 @@
 {
-  "sourceHash": "6825757B200F84A2F7E9DEBD7618FBD0405FFAFA16F5DDAC8148F0B0E7562AF7",
+  "sourceHash": "5D606E72580AD13DCC9CD7E81313A31D7897B2C1829E8B9C287718A4F8136632",
   "workspaces": [
     {
       "Id": "design",
@@ -5329,7 +5329,7 @@
             {
               "id": "animation|New Animation",
               "label": "New Animation",
-              "description": "Create an empty animation (5 seconds).",
+              "description": "Open a new five-second animation in the timeline.",
               "shortcut": ""
             },
             {

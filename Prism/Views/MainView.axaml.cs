@@ -179,6 +179,8 @@ public partial class MainView : UserControl
     void OnTimelinePlay(object? s, RoutedEventArgs e) => Vm?.TimelineTogglePlay();
     void OnTimelineKey(object? s, RoutedEventArgs e) => Vm?.TimelineKeyChanged();
     void OnTimelineRemoveKeys(object? s, RoutedEventArgs e) => Vm?.TimelineRemoveKeys();
+    void OnTimelineZoomIn(object? s, RoutedEventArgs e) => AnimationTracks.ZoomBy(2, AnimationTimelineScroll.Viewport.Width);
+    void OnTimelineZoomOut(object? s, RoutedEventArgs e) => AnimationTracks.ZoomBy(.5, AnimationTimelineScroll.Viewport.Width);
 
     void OnDocTabPressed(object? s, Avalonia.Input.PointerPressedEventArgs e)
     {

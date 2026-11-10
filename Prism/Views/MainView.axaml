@@ -227,7 +227,13 @@
 
         <!-- ============ branching design history ============ -->
 
-        <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+            <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                    <Binding Path="!IsDrawingWorkspace"/>
+                    <Binding Path="!ShowAnimationTimeline"/>
+                </MultiBinding>
+            </Border.IsVisible>
 
             <StackPanel>
 
@@ -275,25 +281,27 @@
 
             <DockPanel>
 
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Height="38" Margin="12,0">
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" Height="38" Margin="12,0">
 
                     <TextBlock Text="Animation timeline" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0"/>
 
                     <Button Grid.Column="1" Classes="ghost" Content="⏮" Click="OnTimelineStart" Padding="9,4" ToolTip.Tip="Back to the start (Home)"/>
 
-                    <Button Grid.Column="2" Classes="ghost" Content="{Binding TimelinePlayText}" Click="OnTimelinePlay" Padding="12,4" Margin="6,0" MinWidth="86" ToolTip.Tip="Play or stop (Space)"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="{Binding TimelinePlayText}" Click="OnTimelinePlay" Padding="12,4" Margin="6,0" MinWidth="86" ToolTip.Tip="Play or pause (Space)"/>
 
                     <TextBlock Grid.Column="3" Text="{Binding TimelineTimeText}" Classes="faint" VerticalAlignment="Center" Margin="8,0"/>
 
-                    <Button Grid.Column="4" Classes="ghost" Content="Key changed values" Click="OnTimelineKey" Padding="10,4" Margin="0,0,6,0" ToolTip.Tip="Change joint values in the panel, then key them at the playhead. Double-click a row to add one key."/>
+                    <Button Grid.Column="4" Classes="ghost" Content="Add Key" Click="OnTimelineKey" Padding="10,4" Margin="0,0,6,0" ToolTip.Tip="Record changed values at the playhead. Double-click a track to add a key for just that track."/>
 
                     <Button Grid.Column="5" Classes="ghost" Content="Remove keys here" Click="OnTimelineRemoveKeys" Padding="10,4" ToolTip.Tip="Remove the keys at the playhead (or select a diamond and press Delete)"/>
+                    <Button Grid.Column="6" Classes="ghost" Content="−" Click="OnTimelineZoomOut" Padding="10,4" ToolTip.Tip="Zoom out" AutomationProperties.Name="Zoom timeline out"/>
+                    <Button Grid.Column="7" Classes="ghost" Content="+" Click="OnTimelineZoomIn" Padding="10,4" ToolTip.Tip="Zoom in" AutomationProperties.Name="Zoom timeline in"/>
 
                 </Grid>
 
-                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Name="AnimationTimelineScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
 
-                    <c:AnimationTimelineView Command="{Binding AnimationEditor}"/>
+                    <c:AnimationTimelineView Name="AnimationTracks" Command="{Binding AnimationEditor}" MinWidth="{Binding #AnimationTimelineScroll.Viewport.Width}"/>
 
                 </ScrollViewer>
 

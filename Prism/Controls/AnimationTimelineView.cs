@@ -21,8 +21,9 @@ public sealed class AnimationTimelineView : Control
     const double LabelWidth = 168, RulerHeight = 26, RowHeight = 24, Pad = 14, KeyRadius = 6;
 
     AnimationCommand? _command;
-    IReadOnlyList<AnimationCommand.TimelineRow> _rows = [];
-    AnimTrack? _selTrack; AnimKey? _selKey;
+    readonly List<(string group, AnimationCommand.TimelineRow? row)> _rows = [];
+    readonly HashSet<string> _collapsed = [];
+    double _zoom = 1;
     enum Drag { None, Playhead, Key }
     Drag _drag;
 
@@ -43,16 +44,38 @@ public sealed class AnimationTimelineView : Control
     void Attach(AnimationCommand? command)
     {
         if (_command != null) _command.TimelineChanged -= OnTimelineChanged;
-        _command = command; _selTrack = null; _selKey = null;
+        _command = command;
+        _collapsed.Clear();
+        _zoom = 1;
+        Width = double.NaN;
+        _drag = Drag.None;
         if (_command != null) _command.TimelineChanged += OnTimelineChanged;
         OnTimelineChanged();
     }
 
     void OnTimelineChanged()
     {
-        _rows = _command?.Rows() ?? [];
-        if (_selTrack != null && (_command == null || !_rows.Any(r => ReferenceEquals(r.Track, _selTrack)) || !_selTrack.Keys.Contains(_selKey!))) { _selTrack = null; _selKey = null; }
-        InvalidateMeasure(); InvalidateVisual();
+        var rows = _command?.Rows() ?? [];
+        int previousCount = _rows.Count;
+        _rows.Clear();
+        foreach (var group in rows.GroupBy(row => row.Group))
+        {
+            _rows.Add((group.Key, null));
+            if (!_collapsed.Contains(group.Key)) _rows.AddRange(group.Select(row => (group.Key, (AnimationCommand.TimelineRow?)row)));
+        }
+        if (_command?.SelectedTrack is { } track && (!rows.Any(r => ReferenceEquals(r.Track, track)) || !track.Keys.Contains(_command.SelectedKey!)))
+        {
+            _command.SelectKey(null, null);
+            return;
+        }
+        if (previousCount != _rows.Count) InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    public void ZoomBy(double factor, double viewportWidth)
+    {
+        _zoom = Math.Clamp(_zoom * factor, 1, 16);
+        Width = _zoom == 1 ? double.NaN : Math.Max(viewportWidth, 1) * _zoom;
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -81,20 +104,25 @@ public sealed class AnimationTimelineView : Control
         {
             double y = RowTop(i);
             if (i % 2 == 1) dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(14, 255, 255, 255)), null, new Rect(0, y, w, RowHeight));
-            var label = Text(_rows[i].Label, 12, _rows[i].Track == null ? soft : ink);
-            dc.DrawText(label, new Point(10, y + (RowHeight - label.Height) / 2));
+            var entry = _rows[i];
+            bool header = entry.row == null;
+            var label = header
+                ? Text((_collapsed.Contains(entry.group) ? "▸ " : "▾ ") + entry.group, 12, ink, FontWeight.SemiBold)
+                : Text(entry.row!.Label, 12, entry.row.Track == null ? soft : ink);
+            using (dc.PushClip(new Rect(0, y, LabelWidth, RowHeight)))
+                dc.DrawText(label, new Point(header ? 10 : 25, y + (RowHeight - label.Height) / 2));
             dc.DrawLine(linePen, new Point(0, y + RowHeight), new Point(w, y + RowHeight));
         }
         if (_rows.Count == 0) dc.DrawText(Text("Create a joint to animate it.", 12, soft), new Point(LabelWidth + Pad, RulerHeight + 4));
         // ruler: nice tick spacing
-        double[] steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60];
+        double[] steps = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60];
         double step = steps.FirstOrDefault(s => s / Duration * TrackWidth >= 58, steps[^1]);
         dc.DrawLine(linePen, new Point(0, RulerHeight), new Point(w, RulerHeight));
         for (double t = 0; t <= Duration + 1e-9; t += step)
         {
             double x = X(t);
             dc.DrawLine(linePen, new Point(x, RulerHeight - 8), new Point(x, RulerHeight));
-            var tick = Text(t.ToString(step < 1 ? "0.0#" : "0", CultureInfo.InvariantCulture) + " s", 10.5, soft);
+            var tick = Text(t.ToString(step < 1 ? "0.0##" : "0", CultureInfo.InvariantCulture) + " s", 10.5, soft);
             dc.DrawText(tick, new Point(Math.Min(x + 3, w - tick.Width - 2), 3));
         }
         // the span of the animation
@@ -102,13 +130,13 @@ public sealed class AnimationTimelineView : Control
         // key spans (a bar between a row's first and last key) and keys
         for (int i = 0; i < _rows.Count; i++)
         {
-            var track = _rows[i].Track; if (track == null || track.Keys.Count == 0) continue;
+            var track = _rows[i].row?.Track; if (track == null || track.Keys.Count == 0) continue;
             double cy = RowTop(i) + RowHeight / 2;
             double first = track.Keys.Min(k => k.T), last = track.Keys.Max(k => k.T);
             dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(60, 113, 189, 241)), null, new Rect(X(first), cy - 2.5, Math.Max(X(last) - X(first), 1), 5), 2, 2);
             foreach (var k in track.Keys)
             {
-                bool selected = ReferenceEquals(track, _selTrack) && ReferenceEquals(k, _selKey);
+                bool selected = ReferenceEquals(track, _command.SelectedTrack) && ReferenceEquals(k, _command.SelectedKey);
                 double x = X(k.T);
                 var diamond = new StreamGeometry();
                 using (var g = diamond.Open())
@@ -137,10 +165,11 @@ public sealed class AnimationTimelineView : Control
     {
         for (int i = 0; i < _rows.Count; i++)
         {
-            var track = _rows[i].Track; if (track == null) continue;
+            var track = _rows[i].row?.Track; if (track == null) continue;
             double cy = RowTop(i) + RowHeight / 2;
-            foreach (var k in track.Keys)
-                if (Math.Abs(p.X - X(k.T)) <= KeyRadius + 2 && Math.Abs(p.Y - cy) <= KeyRadius + 3) return (i, track, k);
+            if (Math.Abs(p.Y - cy) > KeyRadius + 3) continue;
+            var key = track.Keys.MinBy(k => Math.Abs(p.X - X(k.T)));
+            if (key != null && Math.Abs(p.X - X(key.T)) <= KeyRadius + 2) return (i, track, key);
         }
         return null;
     }
@@ -151,20 +180,27 @@ public sealed class AnimationTimelineView : Control
         if (_command == null || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         Focus();
         var p = e.GetPosition(this);
+        int row = (int)Math.Floor((p.Y - RulerHeight) / RowHeight);
+        if (row >= 0 && row < _rows.Count && _rows[row] is { row: null } group && p.X < LabelWidth)
+        {
+            if (!_collapsed.Add(group.group)) _collapsed.Remove(group.group);
+            OnTimelineChanged();
+            e.Handled = true;
+            return;
+        }
         if (KeyAt(p) is { } hit)
         {
-            _selTrack = hit.track; _selKey = hit.key;
-            if (e.ClickCount >= 2) { _command.Time = hit.key.T; }
-            else _drag = hit.key.T < 1e-6 ? Drag.None : Drag.Key;
+            _command.SelectKey(hit.track, hit.key);
+            _command.Time = hit.key.T;
+            _drag = e.ClickCount >= 2 || hit.key.T < 1e-6 ? Drag.None : Drag.Key;
             if (_drag == Drag.Key) e.Pointer.Capture(this);
             InvalidateVisual(); e.Handled = true; return;
         }
         if (p.Y >= RulerHeight && e.ClickCount >= 2 && p.X > LabelWidth)
         {
-            int row = (int)((p.Y - RulerHeight) / RowHeight);
-            if (row >= 0 && row < _rows.Count) { _command.AddKey(_rows[row], T(p.X)); e.Handled = true; return; }
+            if (row >= 0 && row < _rows.Count && _rows[row].row is { } trackRow) { _command.AddKey(trackRow, T(p.X)); e.Handled = true; return; }
         }
-        _selTrack = null; _selKey = null;
+        _command.SelectKey(null, null);
         if (p.X >= LabelWidth - 4 || p.Y < RulerHeight)
         {
             _drag = Drag.Playhead; e.Pointer.Capture(this);
@@ -178,13 +214,11 @@ public sealed class AnimationTimelineView : Control
         base.OnPointerMoved(e);
         if (_command == null) return;
         var p = e.GetPosition(this);
-        if (_drag == Drag.Playhead) _command.Time = Math.Round(T(p.X), 2);
-        else if (_drag == Drag.Key && _selTrack != null && _selKey != null)
+        if (_drag == Drag.Playhead) _command.Time = Math.Round(T(p.X), 3);
+        else if (_drag == Drag.Key && _command.SelectedTrack is { } track && _command.SelectedKey is { } key)
         {
             double t = T(p.X); if (!e.KeyModifiers.HasFlag(KeyModifiers.Alt)) t = Math.Round(t * 20) / 20;
-            var before = _selKey;
-            _command.MoveKey(_selTrack, before, t);
-            _selKey = _selTrack.Keys.FirstOrDefault(k => Math.Abs(k.T - Math.Round(Math.Clamp(t, 0.01, _command.Duration), 2)) < 1e-6) ?? _selKey;
+            _command.MoveKey(track, key, t);
         }
         else Cursor = new Cursor(KeyAt(p) != null ? StandardCursorType.Hand : StandardCursorType.Arrow);
     }
@@ -192,6 +226,7 @@ public sealed class AnimationTimelineView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (_drag == Drag.Key && _command?.SelectedKey is { } key) _command.Time = key.T;
         _drag = Drag.None; e.Pointer.Capture(null);
     }
 
@@ -199,7 +234,7 @@ public sealed class AnimationTimelineView : Control
     {
         base.OnKeyDown(e);
         if (_command == null) return;
-        if (e.Key is Key.Delete or Key.Back && _selTrack != null && _selKey != null) { var t = _selTrack; var k = _selKey; _selTrack = null; _selKey = null; _command.DeleteKey(t, k); e.Handled = true; }
+        if (e.Key is Key.Delete or Key.Back && _command.SelectedTrack is { } track && _command.SelectedKey is { } key) { _command.DeleteKey(track, key); e.Handled = true; }
         else if (e.Key == Key.Space) { _command.TogglePlayback(); e.Handled = true; }
         else if (e.Key == Key.Home) { _command.Time = 0; e.Handled = true; }
         else if (e.Key == Key.End) { _command.Time = _command.Duration; e.Handled = true; }

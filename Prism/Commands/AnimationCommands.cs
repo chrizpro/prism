@@ -30,27 +30,40 @@ public sealed class AnimationCommand : Command
     bool _syncing, _playing;
     Dictionary<string, (double v1, double v2)> _rest = [];
     bool _createNew;
+    readonly bool _startNew;
+    NumberParam _keyTime = null!, _keyValue = null!;
+    ActionParam _applyKey = null!;
+    public AnimTrack? SelectedTrack { get; private set; }
+    public AnimKey? SelectedKey { get; private set; }
+
+    public AnimationCommand() { }
+    public AnimationCommand(bool startNew) => _startNew = startNew;
 
     /// <summary>The joints can be dragged in the viewport to set the pose at this time.</summary>
     public override IReadOnlyList<HandleSpec> Handles => JointHandles.Build(S, _rows);
 
-    public override string Title => "Animation";
+    public override string Title => _startNew ? "New Animation" : "Animation";
     public override string Icon => "animation";
     public override string OkText => "Save animation";
-    public override string Hint => "Scrub to a time, change the joint values or the exploded view, and press 'Key the changed values'. Play to see it move. Save animation stores the keys with the document. Render Animation (Render tab) turns it into pictures or a movie.";
+    public override string Hint => "Set a pose and press Add Key. Select a key to edit its time and value in the right panel. Save animation stores the clip with the document.";
 
     protected override void OnBegin()
     {
-        _animObj = S.SelectedObjects.FirstOrDefault(o => o.Asm is AnimInfo) ?? S.Objects.FirstOrDefault(o => o.Asm is AnimInfo);
+        if (!_startNew)
+            _animObj = S.SelectedObjects.FirstOrDefault(o => o.Asm is AnimInfo) ?? S.Objects.FirstOrDefault(o => o.Asm is AnimInfo);
         _createNew = _animObj == null;
         if (_animObj?.Asm is AnimInfo a) _anim = a with { Tracks = a.Tracks.Select(t => t with { Keys = [.. t.Keys] }).ToList() };
         _rest = S.JointObjects.ToDictionary(j => j.joint.Key, j => (j.joint.Value, j.joint.Value2));
         _rest[ExplodeKey] = (S.ExplodeFactor, 0);
 
-        _duration = Add(new NumberParam { Label = "Length", Value = _anim.Duration, Min = 0.5, Max = 600, Step = 0.5, Unit = "s" });
-        _time = Add(new NumberParam { Label = "Time", Value = 0, Min = 0, Max = 600, Step = 0.1, Unit = "s" });
-        _loop = Add(new BoolParam { Label = "Loop", Value = _anim.Loop });
-        _ease = Add(new BoolParam { Label = "Ease in and out", Value = _anim.Ease });
+        _keyTime = Add(new NumberParam { Section = "Selected key", Label = "Key time", Min = 0, Max = 600, Step = .001, Unit = "s", IsVisible = false });
+        _keyValue = Add(new NumberParam { Section = "Selected key", Label = "Key value", Step = .001, Unit = "", IsVisible = false });
+        _keyTime.Changed = _keyValue.Changed = null;
+        _applyKey = Add(new ActionParam { Section = "Selected key", Label = "Apply key", IsVisible = false, Run = ApplyKey });
+        _duration = Add(new NumberParam { Section = "Clip", Label = "Length", Value = _anim.Duration, Min = 0.5, Max = 600, Step = 0.001, Unit = "s" });
+        _time = Add(new NumberParam { Section = "Clip", Label = "Time", Value = 0, Min = 0, Max = 600, Step = 0.001, Unit = "s" });
+        _loop = Add(new BoolParam { Section = "Clip", Label = "Loop", Value = _anim.Loop });
+        _ease = Add(new BoolParam { Section = "Clip", Label = "Ease in and out", Value = _anim.Ease });
         _duration.Changed = () => { _time.Value = Math.Min(_time.Value, _duration.Value); OnChanged(); TimelineChanged?.Invoke(); };
         _time.Changed = () => { if (!_syncing) { if (_time.Value > _duration.Value) { _time.Value = _duration.Value; return; } PullPose(); } OnChanged(); TimelineChanged?.Invoke(); };
 
@@ -58,12 +71,12 @@ public sealed class AnimationCommand : Command
         {
             if (j.Type == JointType.Rigid) continue;
             double lo = j.HasLimits ? j.Min : (j.UsesAngle ? -360 : -500), hi = j.HasLimits ? j.Max : (j.UsesAngle ? 360 : 500);
-            var p1 = Add(new NumberParam { Label = $"{j.Name}  ({j.FirstLabel})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
+            var p1 = Add(new NumberParam { Section = "Joint values", Label = $"{j.Name}  ({j.FirstLabel})", Value = Math.Clamp(j.Value, lo, hi), Min = lo, Max = hi, Step = j.UsesAngle ? 5 : 1, Unit = j.UsesAngle ? "°" : "mm" });
             NumberParam? p2 = null;
             if (j.HasSecond)
             {
                 double lo2 = j.HasLimits ? j.Min2 : (j.SecondIsAngle ? -180 : -500), hi2 = j.HasLimits ? j.Max2 : (j.SecondIsAngle ? 180 : 500);
-                p2 = Add(new NumberParam { Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
+                p2 = Add(new NumberParam { Section = "Joint values", Label = $"{j.Name}  ({j.SecondLabel})", Value = Math.Clamp(j.Value2, lo2, hi2), Min = lo2, Max = hi2, Step = j.SecondIsAngle ? 5 : 1, Unit = j.SecondIsAngle ? "°" : "mm" });
             }
             _rows.Add((j, p1, p2));
         }
@@ -74,36 +87,42 @@ public sealed class AnimationCommand : Command
             foreach (var (channel, what, unit, step, lim) in new[] { ("x", "move X", "mm", 5.0, 2000.0), ("y", "move Y", "mm", 5.0, 2000.0), ("z", "move Z", "mm", 5.0, 2000.0), ("rz", "turn", "°", 5.0, 360.0) })
             {
                 string key = CadSession.PartKey(ck, channel); _rest[key] = (0, 0);
-                _partRows.Add((key, $"{comp.Name}  ({what})", Add(new NumberParam { Label = $"{comp.Name}  ({what})", Value = 0, Min = -lim, Max = lim, Step = step, Unit = unit })));
+                _partRows.Add((key, $"{comp.Name}  ({what})", Add(new NumberParam { Section = "Component offsets", Label = $"{comp.Name}  ({what})", Value = 0, Min = -lim, Max = lim, Step = step, Unit = unit })));
             }
         }
         // document parameters that are plain numbers can be animated too: the model is rebuilt with the value of each moment
         var animatable = S.AnimatableParameters();
+        if (animatable.Count > 0)
+            _rampParam = Add(new ChoiceParam { Section = "Document parameter", Label = "Parameter to animate", Options = [.. animatable.Select(a => a.Name)] });
         foreach (var (name, value, unit) in animatable)
         {
             string key = CadSession.ParamKey(name); _rest[key] = (value, 0);
-            _paramRows.Add((key, name, unit, Add(new NumberParam { Label = $"{name}  (parameter)", Value = value, Min = -1e5, Max = 1e5, Step = unit == "°" ? 5 : 1, Unit = unit })));
+            _paramRows.Add((key, name, unit, Add(new NumberParam { Section = "Document parameter", Label = $"{name}  (parameter)", Value = value, Min = -1e5, Max = 1e5, Step = .001, Unit = unit, IsVisible = _paramRows.Count == 0 })));
         }
-        if (animatable.Count > 0)
+        if (_rampParam != null)
         {
-            _rampParam = Choice("Parameter to animate", 0, [.. animatable.Select(a => a.Name)]);
-            _rampFrom = Add(new NumberParam { Label = "From", Value = animatable[0].Value, Min = -1e5, Max = 1e5, Step = 1, Unit = "" });
-            _rampTo = Add(new NumberParam { Label = "To", Value = animatable[0].Value == 0 ? 10 : animatable[0].Value * 2, Min = -1e5, Max = 1e5, Step = 1, Unit = "" });
-            _rampStart = Add(new NumberParam { Label = "Starts at", Value = 0, Min = 0, Max = 600, Step = 0.5, Unit = "s" });
-            _rampLength = Add(new NumberParam { Label = "Takes", Value = 2, Min = 0.1, Max = 600, Step = 0.5, Unit = "s" });
+            _rampFrom = Add(new NumberParam { Section = "Document parameter", Label = "From", Value = animatable[0].Value, Min = -1e5, Max = 1e5, Step = .001, Unit = "" });
+            _rampTo = Add(new NumberParam { Section = "Document parameter", Label = "To", Value = animatable[0].Value == 0 ? 10 : animatable[0].Value * 2, Min = -1e5, Max = 1e5, Step = .001, Unit = "" });
+            _rampStart = Add(new NumberParam { Section = "Document parameter", Label = "Starts at", Value = 0, Min = 0, Max = 600, Step = .001, Unit = "s" });
+            _rampLength = Add(new NumberParam { Section = "Document parameter", Label = "Takes", Value = 2, Min = .001, Max = 600, Step = .001, Unit = "s" });
             var changed = _rampParam.Changed;
             _rampParam.Changed = () =>
             {
                 var a = animatable[Math.Clamp(_rampParam.Index, 0, animatable.Count - 1)];
+                foreach (var row in _paramRows) row.p.IsVisible = row.name == a.Name;
+                _rampFrom!.Caption = a.Unit.Length == 0 ? "From" : $"From ({a.Unit})";
+                _rampTo!.Caption = a.Unit.Length == 0 ? "To" : $"To ({a.Unit})";
                 _rampFrom!.Value = a.Value; _rampTo!.Value = a.Value == 0 ? 10 : a.Value * 2;
                 changed?.Invoke();
             };
-            Add(new ActionParam { Label = "Animate the parameter from → to", Run = AddRamp });
+            _rampFrom.Caption = animatable[0].Unit.Length == 0 ? "From" : $"From ({animatable[0].Unit})";
+            _rampTo.Caption = animatable[0].Unit.Length == 0 ? "To" : $"To ({animatable[0].Unit})";
+            Add(new ActionParam { Section = "Document parameter", Label = "Create parameter ramp", Run = AddRamp });
         }
-        _explode = Add(new NumberParam { Label = "Exploded view", Value = S.ExplodeFactor, Min = 0, Max = 1, Step = 0.05, Unit = "" });
+        _explode = Add(new NumberParam { Section = "Assembly", Label = "Exploded view", Value = S.ExplodeFactor, Min = 0, Max = 1, Step = 0.05, Unit = "" });
         Add(new ActionParam { Label = "Key the changed values at this time", Run = KeyChanged });
         Add(new ActionParam { Label = "Remove keys at this time", Run = RemoveKeys });
-        _play = Add(new ActionParam { Label = "Play  /  Stop", Run = TogglePlay });
+        _play = Add(new ActionParam { Label = "Play / Pause", Run = TogglePlay });
         PullPose();
     }
 
@@ -111,7 +130,7 @@ public sealed class AnimationCommand : Command
     Dictionary<string, (double v1, double v2)> Pose(double t) => (_anim with { Ease = _ease.Value }).Sample(t, _rest);
 
     /// <summary>Fill the value boxes with the animated values at the current time.</summary>
-    void PullPose()
+    void PullPose() => ConfigureInputs(() =>
     {
         _syncing = true;
         var pose = Pose(_time.Value);
@@ -125,7 +144,7 @@ public sealed class AnimationCommand : Command
         foreach (var pr in _paramRows) pr.p.Value = Math.Clamp((pose.TryGetValue(pr.key, out var qv) ? qv : _rest[pr.key]).v1, pr.p.Min, pr.p.Max);
         _explode.Value = Math.Clamp((pose.TryGetValue(ExplodeKey, out var e) ? e : _rest[ExplodeKey]).v1, 0, 1);
         _syncing = false;
-    }
+    });
 
     void KeyChanged()
     {
@@ -156,7 +175,7 @@ public sealed class AnimationCommand : Command
         foreach (var pr in _paramRows) Key(pr.key, false, pr.p.Value, (pose.TryGetValue(pr.key, out var qv) ? qv : _rest[pr.key]).v1);
         var ex = pose.TryGetValue(ExplodeKey, out var ev) ? ev : _rest[ExplodeKey];
         Key(ExplodeKey, false, _explode.Value, ex.v1);
-        S.Say(keyed == 0 ? "Nothing changed at this time, so nothing was keyed." : $"Keyed {keyed} value(s) at {t:0.##} s.");
+        S.Say(keyed == 0 ? "Nothing changed at this time, so nothing was keyed." : $"Keyed {keyed} value(s) at {t:0.###} s.");
         OnChanged(); TimelineChanged?.Invoke();
     }
 
@@ -166,6 +185,11 @@ public sealed class AnimationCommand : Command
         if (_rampParam == null || _paramRows.Count == 0) return;
         var row = _paramRows.First(r => r.name == _rampParam.Selected);
         double start = Math.Round(_rampStart!.Value, 3), end = Math.Round(start + _rampLength!.Value, 3);
+        if (end > _duration.Max)
+        {
+            S.Say($"The ramp must end at or before {_duration.Max:G} s.", true);
+            return;
+        }
         _anim.Tracks.RemoveAll(t => t.JointKey == row.key);
         var keys = new List<AnimKey>();
         if (start > 1e-6) keys.Add(new AnimKey(0, _rampFrom!.Value));          // hold the first value until the ramp begins
@@ -180,7 +204,7 @@ public sealed class AnimationCommand : Command
     void RemoveKeys()
     {
         double t = Math.Round(_time.Value, 3); int n = 0;
-        foreach (var tr in _anim.Tracks) n += tr.Keys.RemoveAll(k => Math.Abs(k.T - t) < 1e-3 && k.T > 1e-6);
+        foreach (var tr in _anim.Tracks) n += tr.Keys.RemoveAll(k => Math.Abs(k.T - t) < 1e-6 && k.T > 1e-6);
         _anim.Tracks.RemoveAll(tr => tr.Keys.Count < 2);
         S.Say(n == 0 ? "There are no keys at this time (the keys at 0 s are the starting position)." : $"Removed {n} key(s).");
         PullPose(); OnChanged(); TimelineChanged?.Invoke();
@@ -188,7 +212,7 @@ public sealed class AnimationCommand : Command
 
     // ------------------------------------------------------------ timeline view
     /// <summary>One row of the timeline: a joint value (or the exploded view) and its keys, if it has any.</summary>
-    public sealed record TimelineRow(string Label, string JointKey, bool Second, AnimTrack? Track);
+    public sealed record TimelineRow(string Group, string Label, string JointKey, bool Second, AnimTrack? Track, NumberParam Value);
 
     /// <summary>Raised whenever the time, length, keys or playback change, so the timeline can redraw.</summary>
     public event Action? TimelineChanged;
@@ -206,19 +230,19 @@ public sealed class AnimationCommand : Command
         foreach (var r in _rows)
         {
             string name = r.joint.Name;
-            rows.Add(new(r.v2 == null ? name : $"{name} ({r.joint.FirstLabel})", r.joint.Key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && !t.SecondValue)));
-            if (r.v2 != null) rows.Add(new($"{name} ({r.joint.SecondLabel})", r.joint.Key, true, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && t.SecondValue)));
+            rows.Add(new("Joints", r.v2 == null ? name : $"{name} ({r.joint.FirstLabel})", r.joint.Key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && !t.SecondValue), r.v1));
+            if (r.v2 != null) rows.Add(new("Joints", $"{name} ({r.joint.SecondLabel})", r.joint.Key, true, _anim.Tracks.FirstOrDefault(t => t.JointKey == r.joint.Key && t.SecondValue), r.v2));
         }
-        foreach (var pr in _partRows) rows.Add(new(pr.label, pr.key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == pr.key && !t.SecondValue)));
-        foreach (var pr in _paramRows) rows.Add(new($"{pr.name}  (parameter)", pr.key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == pr.key && !t.SecondValue)));
-        rows.Add(new("Exploded view", ExplodeKey, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == ExplodeKey && !t.SecondValue)));
+        foreach (var pr in _partRows) rows.Add(new("Free components", pr.label, pr.key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == pr.key && !t.SecondValue), pr.p));
+        foreach (var pr in _paramRows) rows.Add(new("Parameters", pr.name, pr.key, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == pr.key && !t.SecondValue), pr.p));
+        rows.Add(new("Assembly", "Exploded view", ExplodeKey, false, _anim.Tracks.FirstOrDefault(t => t.JointKey == ExplodeKey && !t.SecondValue), _explode));
         return rows;
     }
 
     /// <summary>Put a key on a row at time t, holding whatever value the animation has there now (or the current box value if the row has no keys yet).</summary>
     public void AddKey(TimelineRow row, double t)
     {
-        t = Math.Round(Math.Clamp(t, 0, _duration.Value), 2);
+        t = Math.Round(Math.Clamp(t, 0, _duration.Value), 3);
         var pose = Pose(t);
         double Current()
         {
@@ -247,16 +271,54 @@ public sealed class AnimationCommand : Command
         PullPose(); OnChanged(); TimelineChanged?.Invoke();
     }
 
-    /// <summary>Slide a key to another time. The starting key at 0 s stays put.</summary>
-    public void MoveKey(AnimTrack track, AnimKey key, double newTime)
+    public void SelectKey(AnimTrack? track, AnimKey? key)
     {
-        int i = track.Keys.IndexOf(key); if (i < 0 || key.T < 1e-6) return;
-        newTime = Math.Round(Math.Clamp(newTime, 0.01, _duration.Value), 2);
-        if (Math.Abs(newTime - key.T) < 1e-9) return;
-        track.Keys.RemoveAll(k => !ReferenceEquals(k, key) && Math.Abs(k.T - newTime) < 1e-6);
-        i = track.Keys.IndexOf(key);
-        track.Keys[i] = key with { T = newTime };
+        SelectedTrack = track;
+        SelectedKey = key;
+        _keyValue.IsVisible = _applyKey.IsVisible = key != null;
+        _keyTime.IsVisible = key is { T: > 0 };
+        if (key != null && Rows().FirstOrDefault(r => ReferenceEquals(r.Track, track)) is { } row)
+        {
+            _keyTime.Value = key.T;
+            _keyValue.Value = key.V;
+            _keyValue.Caption = row.Value.Unit.Length == 0 ? $"{row.Label} value" : $"{row.Label} ({row.Value.Unit})";
+        }
+        RefreshWorkflow();
+        TimelineChanged?.Invoke();
+    }
+
+    void ApplyKey()
+    {
+        if (SelectedTrack is { } track && SelectedKey is { } key)
+        {
+            EditKey(track, key, _keyTime.Value, _keyValue.Value);
+            if (SelectedKey is { } applied) Time = applied.T;
+        }
+    }
+
+    public void MoveKey(AnimTrack track, AnimKey key, double newTime)
+        => EditKey(track, key, newTime, key.V);
+
+    void EditKey(AnimTrack track, AnimKey key, double newTime, double value)
+    {
+        int i = track.Keys.IndexOf(key);
+        if (i < 0 || Rows().FirstOrDefault(r => ReferenceEquals(r.Track, track)) is not { } row) return;
+        newTime = key.T < 1e-6 ? 0 : Math.Round(Math.Clamp(newTime, .001, _duration.Value), 3);
+        if (track.Keys.Any(k => !ReferenceEquals(k, key) && Math.Abs(k.T - newTime) < 1e-6))
+        {
+            S.Say("This track already has a key at that time. Choose a different time.", true);
+            return;
+        }
+        if (value != key.V && (value < row.Value.Min || value > row.Value.Max))
+        {
+            S.Say($"Use a key value from {row.Value.Min:G} to {row.Value.Max:G} {row.Value.Unit}.", true);
+            return;
+        }
+        var replacement = key with { T = newTime, V = value };
+        if (replacement == key) return;
+        track.Keys[i] = replacement;
         track.Keys.Sort((a, b) => a.T.CompareTo(b.T));
+        SelectKey(track, replacement);
         PullPose(); OnChanged(); TimelineChanged?.Invoke();
     }
 
@@ -294,7 +356,7 @@ public sealed class AnimationCommand : Command
     protected override CommandOutput? Build()
     {
         Results.Clear();
-        if (_rows.Count == 0 && !S.Components.Any() && _paramRows.Count == 0) { Results.Add(new ResultLine("Joints", "none yet. Create revolute, slider or cylindrical joints first (Joints tab).")); return null; }
+        if (!_startNew && _animObj == null && _rows.Count == 0 && !S.Components.Any() && _paramRows.Count == 0) { Results.Add(new ResultLine("Joints", "none yet. Create revolute, slider or cylindrical joints first (Joints tab).")); return null; }
         var sampled = Pose(_time.Value);
         var edited = _rows.Where(r =>
         {
