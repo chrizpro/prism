@@ -4,6 +4,12 @@ Use this index to find guides by ribbon tab or workspace. The [documentation ind
 
 Use [the requirements and testing workflow](../engineering/requirements-and-testing.md) for owner approval, issue links, and verification rules. When adding a new guide, copy [the guide template](../engineering/_guide-template.md) and adapt it; do not overwrite an established guide to match the template.
 
+## Ribbon section names
+
+Each ribbon tab shows its section captions below the tools in both themes. **3D FDM** and **3D Resin** use **Prepare**, **Troubleshoot**, and **Export**. **Mold** uses **Part** and **Mold**. The Drawing workspace uses its own toolbar with named menus.
+
+Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issues/113). On 2026-11-10, RIB-H001 checked names for all shipped tabs and rendered the two print tabs and Mold in both themes. RIB-I001 captured those tabs on the Windows desktop in both themes. See the [ribbon section tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
+
 ## Find a guide
 
 | Area | Guide | Coverage |

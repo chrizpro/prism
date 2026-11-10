@@ -173,7 +173,7 @@
     <Style Selector="Button.rb:disabled /template/ Border#Bd"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
     <Style Selector="Button.rb:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/></Style>
 
-    <Style Selector="TextBlock.glabel"><Setter Property="FontSize" Value="10.5"/><Setter Property="Foreground" Value="White"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="LetterSpacing" Value="0.4"/></Style>
+    <Style Selector="TextBlock.glabel"><Setter Property="FontSize" Value="10.5"/><Setter Property="Foreground" Value="{DynamicResource InkSoft}"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="LetterSpacing" Value="0.4"/></Style>
 
     <!-- ============ generic buttons ============ -->
     <Style Selector="Button.primary">

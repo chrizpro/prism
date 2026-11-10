@@ -2,7 +2,7 @@
 
 **Review state:** Owner-requested 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)); implemented as the owner described, details open to review.
 
-The **Mold** tab has one button, **Create Mold**. Pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
+The **Mold** tab has two named sections. **Part** contains **Import from file** and **From open tab**. **Mold** contains **Create Mold**. To create a mold, pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
 
 ## Where the block splits
 
