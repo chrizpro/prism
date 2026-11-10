@@ -17,6 +17,8 @@ Separate print tabs are justified by distinct checks and workflows, rather than 
 
 ## Implemented CNC workflow
 
+The owner approved the **Setup → Toolpaths → Review → Export** ribbon order on 2026-11-10. The Toolpaths menu retains the existing operations. **Post G-code** is under **Export**, after the review tools. Use the [Subtractive manual test checklist](../tabs/checklists/subtractive-manual-test-checklist.md) for controller and machine verification. [CAM tracking issue #52](https://github.com/chrizpro/prism/issues/52).
+
 1. Create or edit a named setup: rectangular stock, G54 work zero and shared cutting settings. Named setups persist in the project; Select setup changes the active one. All use the global +Z tool axis.
 2. Choose or save a tool/material preset in the local tool library. Existing generated paths retain their original settings.
 3. Generate profiling (including tabs), pocketing/islands, adaptive clearing, drilling/pecking, facing, layered 3D raster roughing with stock allowance, parallel 3D finishing or turning.
@@ -26,6 +28,8 @@ Separate print tabs are justified by distinct checks and workflows, rather than 
 7. Run Stock review on the active setup. A swept flat/ball cutter heightfield estimates material removed/remaining and possible gouges, rapid contacts and holder contacts. Program position can be set before rerunning to inspect intermediate stock.
 7a. **Image Carve** (Subtractive tab, Toolpaths) carves a picture into the top of the material: type the picture's path and the width, choose whether dark or light areas are deepest, the bit (ball nose or flat) and the depth. Raster passes follow each pixel's brightness, so the toolpath shows the pattern the bit will cut; the picture keeps its proportions and is placed with its lower-left corner at *X from / Y from*. PNG files are read directly, other formats through the interface toolkit. Owner request 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)); placing the picture through the Appearance tab was considered and left as a later option. Test: CAM-H005.
 8. Export a setup sheet and post one setup per program to GRBL, Mach3 or LinuxCNC. Turning and milling are separate programs. LinuxCNC gets G7 diameter mode; Mach3 Turn must be configured for diameter mode. Post's **Save to** takes a program file (missing folders are created) or a folder, which gets a timestamped `program_*.nc`; blank uses Documents\Prism\GCode. A drill or cut that goes below the stock bottom into the spoilboard is not counted as a rapid contact when the tool retracts.
+
+Windows verification on 2026-11-10: 77 targeted CAM and ribbon cases passed. CAM-H004 checks section order, Toolpaths menu membership and posting through the ribbon to a folder and a file. CAM-I003 opened Post G-code from Export in the desktop build and wrote a 33-line GRBL facing program containing G21, G54 and feed moves. [Desktop capture](evidence/CAM-I003-subtractive-export.png). Controller interpretation and machining remain manual checks.
 
 ## Print preparation and handoff
 
@@ -40,7 +44,7 @@ Owner-approved ribbon layout (2026-11-10, [#109](https://github.com/chrizpro/pri
 3. **Troubleshoot geometry** groups Repair, Mesh Quality, Overhang & Orientation, Wall Thickness and Check geometry. Mesh splitting stays in the Mesh workspace. Nozzle-path import and playback are outside the FDM ribbon.
 4. **Export for printing** reviews the body names, dimensions, grouping, scale and mesh topology before writing. When selection falls back to visible bodies, the review states this explicitly. Geometry findings are advisory. A change to the selection, model or export settings requires a fresh review. 3MF is the default.
 
-[FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure.
+[FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure. The [FDM manual test checklist](../tabs/checklists/3d-fdm-manual-test-checklist.md) covers the desktop and slicer handoff.
 
 Windows verification on 2026-11-10: 71 maintained CAM cases and 11 standalone print-export checks passed. Desktop smoke test CAM-I001 picked a planar face through the viewport, committed placement, flagged a 40 mm part against a 35 mm build width, then reviewed and saved the 3MF. Bambu Studio CLI imported and re-exported one- and two-body samples with the same millimetre dimensions and object counts. The legacy ribbon suite passed the 3D FDM section and stopped at its Home Curves single-button assumption.
 
