@@ -22,13 +22,11 @@ This is a focused three-axis workflow. Stock review samples a heightfield; it ca
 
 ## FDM printing
 
-1. **FDM check** screens bed fit, nozzle walls, overhangs and orientation, with filament estimates.
-2. **Orient part**, **Split mesh** and **Repair** prepare the geometry. **Wall Thickness** and **Overhang & Orientation** color problem areas.
-3. **Export for printing** writes 3MF (named bodies in millimetres), STL, OBJ or PLY and can open your slicer.
+1. **Place on bed** lets you pick the flat face of a CAD solid that should sit on the build plate.
+2. **FDM check** uses the build width, depth and height you enter and flags thin walls, overhangs and limited bed contact. Open **Troubleshoot geometry** for detailed checks and imported mesh repair.
+3. **Export for printing** shows the bodies and dimensions before saving. Choose 3MF to preserve named bodies in millimetres, then open it in your slicer.
 
 <GuideImage image="cam-fdm-check" />
-
-**Import nozzle path** plays back linear G-code from your slicer layer by layer.
 
 ## Resin printing
 

@@ -12,7 +12,7 @@ The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, *
 
 Separate print tabs are justified by distinct checks and workflows, rather than different export formats:
 
-- FDM: nozzle/perimeter wall targets, overhangs, bed contact, build fit, orientation guidance and filament estimates. Imported linear nozzle G-code can be played back.
+- FDM: see the [3D FDM workflow](#3d-fdm).
 - Resin: closed cavities, sampled trapped volume, potential unvented cups during build progression, unsupported layer starts, minimum features, peak layer area and resin estimates. Hollowing and drain/vent holes reuse exact CAD tools. Resin slicing/supports/exposure stay external.
 
 ## Implemented CNC workflow
@@ -31,9 +31,22 @@ Separate print tabs are justified by distinct checks and workflows, rather than 
 
 Both print workflows accept exact CAD bodies, forms and imported meshes. Run checks explicitly after choosing the model/settings. Results and overlays are invalidated when those inputs change.
 
+### 3D FDM
+
+Owner-approved ribbon layout (2026-11-10, [#109](https://github.com/chrizpro/prism/issues/109)).
+
+1. **Place on bed** previews rotating one CAD solid so the chosen flat face points down, then translating it to Z = 0. Confirm to apply an undoable change to the solid. A face that would put other geometry below the bed cannot be used.
+2. **FDM check** uses the build width, depth and height entered here. It screens walls, overhangs and bed contact for the checked body. Filament estimate inputs are under Advanced.
+3. **Troubleshoot geometry** groups Repair, Mesh Quality, Overhang & Orientation, Wall Thickness and Check geometry. Mesh splitting stays in the Mesh workspace. Nozzle-path import and playback are outside the FDM ribbon.
+4. **Export for printing** reviews the body names, dimensions, grouping, scale and mesh topology before writing. When selection falls back to visible bodies, the review states this explicitly. Geometry findings are advisory. A change to the selection, model or export settings requires a fresh review. 3MF is the default.
+
+[FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure.
+
+Windows verification on 2026-11-10: 71 maintained CAM cases and 11 standalone print-export checks passed. Desktop smoke test CAM-I001 picked a planar face through the viewport, committed placement, flagged a 40 mm part against a 35 mm build width, then reviewed and saved the 3MF. Bambu Studio CLI imported and re-exported one- and two-body samples with the same millimetre dimensions and object counts. The legacy ribbon suite passed the 3D FDM section and stopped at its Home Curves single-button assumption.
+
 Export supports 3MF (default, named separate bodies in millimetres), STL, OBJ and PLY; selection/visible bodies; combined or one file per body; and tessellation quality. Exports replace a stable path through a temporary file. Export folder, format, quality, slicer and per-body choice are remembered per project and process in local preferences.
 
-Slicer choices include Bambu Studio, OrcaSlicer, PrusaSlicer, CHITUBOX, Lychee Slicer, PreForm, or a custom executable. Install-path discovery is best effort; the program-path override works for any selection. Real application launch/import compatibility is not yet verified. Re-export and use the external application's reload/import workflow to update an existing model.
+Slicer choices include Bambu Studio, OrcaSlicer, PrusaSlicer, CHITUBOX, Lychee Slicer, PreForm, or a custom executable. Install-path discovery is best effort; the program-path override works for any selection. Bambu Studio CLI import was verified for the 3MF fixtures below. Desktop launch behavior and the other slicers remain to be checked. Re-export and use the external application's reload/import workflow to update an existing model.
 
 ## Important limits and remaining work
 
@@ -52,7 +65,7 @@ This is a focused three-axis CAM/preparation workflow, not complete industrial C
 
 `tests/Prism.CamTests` covers analytical resin cavity/cup/vent/island cases, stock removal and contact regressions, direct CAD/mesh checks, named-setup freshness and roundtrip, operation ordering, post validation and generated 3D roughing. It renders process ribbons and print panels in dark/light themes to `docs/cam-workflows`.
 
-Also run `Prism.PrintExportTests`, `Prism.RibbonTests`, `Prism.ApiCoverageTests` and `Prism.WorkflowTests` after CAM changes. Real slicer and CNC machine testing remain outstanding.
+Also run `Prism.PrintExportTests`, `Prism.RibbonTests`, `Prism.ApiCoverageTests` and `Prism.WorkflowTests` after CAM changes. CNC machine testing remains outstanding.
 
 Resin design references: [Formlabs cups](https://formlabs.com/support/Preventing-suction-cups-in-PreForm/), [Formlabs orientation](https://formlabs.com/support/Model-Orientation/), [Prusa hollowing](https://help.prusa3d.com/article/hollowing_117285?product=sl1s-speed). Controller reference: [LinuxCNC G7/G8](https://www.linuxcnc.org/docs/2.8/html/gcode/g-code.html), [Mach3 Turn manual](https://www.machsupport.com/ftp/Docs/Mach3Turn_1.84.pdf).
 
@@ -67,6 +80,6 @@ Fixed on 2026-11-05:
 - CNC Design Check counted the vertical walls of a plain block as "top-down inaccessible", because its upward probe started on the wall's own plane. The probe now starts just outside the face, and faces pointing down count as hidden directly. Tests cover a pocketed block (underside only) and an overhanging shelf.
 - Turning set "Top of the material" while building, which started a nested preview and listed the result rows twice. It is now set without notifying.
 
-The 3D-print Slice tool, Export for printing and slicer hand-off remain without maintained cases; the standalone suites cover them.
+The standalone suites cover the legacy 3D-print Slice tool and additional print formats. The maintained FDM tests cover review and the 3MF file boundary.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
