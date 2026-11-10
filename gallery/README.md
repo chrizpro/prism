@@ -10,6 +10,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
+| Drawing | Combination wrench drawing (`wrench-drawing`), Maple serving board drawing (`serving-board-drawing`), Fold tablet stand drawing (`fold-stand-drawing`) |
 | CAE / Solid | Combination wrench (`wrench`) |
 | CAM / Solid | Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
 | Sheet Metal | Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
@@ -35,6 +36,8 @@ A catalog entry can list `Extras` (an animation video, an exploded view image): 
 The cache is content-addressed. A changed model never replaces an already opened working copy. Delete or replace an entry to curate the next collection; existing user copies remain intact.
 
 ## Reproduce the new studies
+
+`python gallery/build_drawings.py --discovery <discovery.json> --svg-output <folder>` builds the three editable A3 drawings from the existing models ([#96](https://github.com/chrizpro/prism/issues/96)). Open a copy and choose **Drawing** to edit the sheet. Each sheet contains top, front and isometric views and three measured overall dimensions. The script saves and reopens each document, checks the complete sheet state and exports the SVG used for its preview.
 
 `python gallery/build_relief_plaque.py --discovery <discovery.json>` builds the carved lotus plaque ([#86](https://github.com/chrizpro/prism/issues/86)): a 150 × 150 × 18 mm maple block, a CAM setup and one **Image Carve** operation (3 mm ball nose, 3 mm deep, 130 mm square) from `extras/relief-lotus.png`, which is also offered as a download. The file reopens on the CAM tab with Playback open. A real Prism render does not show toolpaths or reference pictures, so the preview is the plain block: **known gap**, as the carving is only visible in the app. `python gallery/build_mold.py --discovery <discovery.json>` builds the injection mold: a steel block around a cap-shaped part, made into two exploded halves with **Create Mold**; it asserts the halves' positions and that their volumes add up to the block minus the cap. Both reopen ready for the user to press the command's button. Illustrations only.
 

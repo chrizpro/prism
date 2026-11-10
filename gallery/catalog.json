@@ -298,6 +298,45 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/injection-mold.png?v=3f871a82fcab939b",
       "Bytes": 29540,
       "Sha256": "9e22d640f1c254683c5968d5c4dd20a9daf0d41877924091fa13217e6e7a79e6"
+    },
+    {
+      "Id": "wrench-drawing",
+      "Name": "Combination wrench drawing",
+      "Description": "Top, front and isometric views with overall dimensions and plate thickness. Open a copy, then choose Drawing.",
+      "Workflow": "Drawing",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.2.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/wrench-drawing.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/wrench-drawing.png?v=1e111284b7c35f1b",
+      "Bytes": 813894,
+      "Sha256": "083124f04144771defd6d217217ea009ae589c0b3d01f6b81b416620a127f8b9"
+    },
+    {
+      "Id": "serving-board-drawing",
+      "Name": "Maple serving board drawing",
+      "Description": "Dimensioned 300 x 160 mm board with a recess and handle slot. Open a copy, then choose Drawing.",
+      "Workflow": "Drawing",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.2.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serving-board-drawing.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serving-board-drawing.png?v=24d0d79b07eeddec",
+      "Bytes": 979661,
+      "Sha256": "6a5213ccdaeaddf5a18fe1222fe8560b3ca9003672d59d88fc02f36dfb35ae3b"
+    },
+    {
+      "Id": "fold-stand-drawing",
+      "Name": "Fold tablet stand drawing",
+      "Description": "A3 sheet of the folded aluminium stand, including the vent pattern and side profile. Open a copy, then choose Drawing.",
+      "Workflow": "Drawing",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.2.0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/fold-stand-drawing.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/fold-stand-drawing.png?v=91c6b0e866fc2e48",
+      "Bytes": 5150226,
+      "Sha256": "27c15b2cd601d612929fa9cbfdf5abc48292f33838591789e2076007d6801f55"
     }
   ]
 }

@@ -23,6 +23,10 @@ Startup stays responsive without a network connection. Models do not enter the i
 
 ## November 9 showcase additions
 
+The **Drawing** section contains editable A3 sheets for the Combination wrench, Maple serving board and Fold tablet stand. Open a copy, then switch to **Drawing**. Each document retains its source geometry, three views and measured dimensions. The gallery thumbnails come from the actual sheet exports. [Drawing gallery issue #96](https://github.com/chrizpro/prism/issues/96) · [Gallery drawing test](../../../Prism.Tests/Headless/Gallery/GalleryDrawingTests.cs).
+
+Windows verification on 2026-11-09 with the drawings added to `aa741b4`. The build script saved and reopened all three files in the desktop automation host, compared the full sheet state, and exported the reviewed previews. `dotnet test Prism.Tests/Headless -c Release --filter "Feature=Gallery|Feature=Drawing"` passed 19 tests, including all three GAL-H009 cases. `python gallery/update_catalog.py --check` verified catalog hashes and preview revisions.
+
 The owner requested four native models for the gallery on 2026-11-09. [Kestrel R-07](../../../gallery/previews/kestrel-r07.png) is a hard-surface survey optic, and [Peregrine S4](../../../gallery/previews/peregrine-s4.png) uses spline-lofted solids for its smooth fuselage and arms. Both appear under Solid. [Apex R07](../../../gallery/previews/apex-r07.png) is a racing helmet with editable Freeform cages and solid hinges. [Relay S1](../../../gallery/previews/relay-s1.png) has a mirrored Freeform shell, a narrowed center insert with 1.8 mm clearance per side at the stick collars, and aligned controls. Both appear under Freeform and Solid. The downloadable files are concept models.
 
 ## Implementation and verification
