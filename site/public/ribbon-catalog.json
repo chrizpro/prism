@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5F9EDF0D58DA579AA90C26C04FBCCD414C1248238C828B12480761B511B0869B",
+  "sourceHash": "00C1B9C50C1E4DE12B92924E77E22C57978E60D851E7363432D349DB2DEF968D",
   "workspaces": [
     {
       "Id": "design",
@@ -3479,35 +3479,29 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Preparation",
+          "title": "Prepare",
           "tools": [
+            {
+              "id": "rotate|Place on bed",
+              "label": "Place on bed",
+              "description": "Pick the flat face of a CAD solid to set it down at Z = 0.",
+              "shortcut": ""
+            },
             {
               "id": "print3d|FDM check",
               "label": "FDM check",
-              "description": "Check nozzle-based walls, overhangs, bed contact, build fit and filament weight on CAD bodies or meshes.",
-              "shortcut": ""
-            },
-            {
-              "id": "rotate|Orient part",
-              "label": "Orient part",
-              "description": "Rotate the model for bed contact, supports and layer strength.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh|Split mesh",
-              "label": "Split mesh",
-              "description": "Split an imported mesh to fit the build volume.",
+              "description": "Check walls, overhangs, bed contact and fit against your build dimensions.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Mesh preparation",
+          "title": "Troubleshoot",
           "tools": [
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
-              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "description": "Merge vertices, fix normals and fill holes in imported meshes.",
               "shortcut": ""
             },
             {
@@ -3519,7 +3513,7 @@
             {
               "id": "mesh-overhang|Overhang \u0026 Orientation",
               "label": "Overhang \u0026 Orientation",
-              "description": "Find what needs supports and the best way to lay the part down.",
+              "description": "Find overhangs and compare orientations.",
               "shortcut": ""
             },
             {
@@ -3527,28 +3521,11 @@
               "label": "Wall Thickness",
               "description": "Color the part by wall thickness.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Nozzle review",
-          "tools": [
-            {
-              "id": "gcode|Import nozzle path",
-              "label": "Import nozzle path",
-              "description": "Read linear G0/G1 output from an external slicer.",
-              "shortcut": ""
             },
             {
-              "id": "animation|Playback",
-              "label": "Playback",
-              "description": "Animate nozzle travel and extrusion paths.",
-              "shortcut": ""
-            },
-            {
-              "id": "toolpath|Layer view",
-              "label": "Layer view",
-              "description": "Inspect imported print layers.",
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Inspect model geometry.",
               "shortcut": ""
             }
           ]
@@ -3559,13 +3536,7 @@
             {
               "id": "print3d|Export for printing",
               "label": "Export for printing",
-              "description": "Write 3MF, STL, OBJ or PLY and open in your slicer.",
-              "shortcut": ""
-            },
-            {
-              "id": "check|Check geometry",
-              "label": "Check geometry",
-              "description": "Inspect model geometry.",
+              "description": "Review the bodies and write a model for your slicer.",
               "shortcut": ""
             }
           ]

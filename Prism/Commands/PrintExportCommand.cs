@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Prism.Core;
 using Prism.Core.Export;
+using Prism.Meshing;
 
 namespace Prism.Commands;
 
@@ -21,6 +22,10 @@ public sealed class PrintExportCommand : AnalysisCommand
     readonly TextParam _folderParam, _name, _path;
     readonly ChoiceParam _formatParam, _quality_, _slicer_;
     readonly BoolParam _selection, _perBody;
+    PrintExport.Review? _review;
+    Guid[] _reviewSelection = [];
+    SceneObject[] _reviewObjects = [];
+    PrintExportOptions? _reviewOptions;
 
     public PrintExportCommand(bool resin=false)
     {
@@ -33,6 +38,7 @@ public sealed class PrintExportCommand : AnalysisCommand
         _perBody = Check("One file per body", false);
         _slicer_ = Choice("Open in", 0, PrintExport.SlicerNames);
         _path = Text("Program path (optional override)", "");
+        if (!resin) Add(new ActionParam { Label = "Review export", Run = () => Review() });
         Add(new ActionParam { Label = "Export", Run = () => Run(false) });
         Add(new ActionParam { Label = "Export and open in slicer", Run = () => Run(true) });
     }
@@ -53,11 +59,62 @@ public sealed class PrintExportCommand : AnalysisCommand
         }
     }
 
+    PrintExportOptions Options() =>
+        new(_folderParam.Value, _name.Value, (PrintFormat)_formatParam.Index, _selection.Value,
+            _perBody.Value, PrintExport.QualityScale[_quality_.Index]);
+
+    Guid[] CurrentSelection() => S.SelectedObjects.Select(body => body.Id).Order().ToArray();
+
+    void Review()
+    {
+        _review = null;
+        Results.Clear();
+        var options = Options();
+        try
+        {
+            var review = PrintExport.Prepare(S, options);
+            if (review.UsedVisibleFallback)
+                Row("Selection", "No exportable bodies selected. Reviewing visible bodies instead.", 2);
+            if (review.Parts.Count == 0) Row("Export", "No exportable bodies found.", 3);
+            else
+            {
+                var grouping = options.PerBody ? "one file per body"
+                    : options.Format == PrintFormat.ThreeMf ? "separate objects in one file" : "meshes combined in one file";
+                string count = review.Parts.Count == 1 ? "1 body" : $"{review.Parts.Count} bodies";
+                Row("Export", $"{count} · {grouping}");
+                Row("Scale", options.Format == PrintFormat.ThreeMf ? "Millimetres" : "Geometry in millimetres. Import at millimetre scale.");
+            }
+            foreach (var part in review.Parts)
+            {
+                var size = part.Mesh.Size;
+                Row(part.Name, $"{size.X:0.###} × {size.Y:0.###} × {size.Z:0.###} mm");
+                var report = MeshAnalysis.Report(part.Mesh);
+                if (!report.Closed) Row(part.Name, $"Open mesh ({report.BoundaryEdges} boundary edges).", 2);
+                if (report.NonManifoldEdges > 0 || report.InconsistentEdges > 0)
+                    Row(part.Name, "Mesh has non-manifold edges or inconsistent face directions.", 2);
+            }
+            foreach (var name in review.Skipped) Row(name, "No mesh triangles. This body will be skipped.", 2);
+            _reviewOptions = options;
+            _reviewSelection = CurrentSelection();
+            _reviewObjects = S.Objects.ToArray();
+            _review = review;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { Row("Review failed", e.Message, 3); }
+    }
+
     void Run(bool open)
     {
         try
         {
-            var files = PrintExport.Export(S, new PrintExportOptions(_folderParam.Value, _name.Value, (PrintFormat)_formatParam.Index, _selection.Value, _perBody.Value, PrintExport.QualityScale[_quality_.Index]));
+            var options = Options();
+            if (!_resin && (_review == null || _reviewOptions != options ||
+                !_reviewSelection.SequenceEqual(CurrentSelection()) || !_reviewObjects.SequenceEqual(S.Objects)))
+            {
+                Review();
+                if (_review?.Parts.Count > 0) Row("Next step", "Review these bodies, then choose an export action to save.");
+                return;
+            }
+            var files = _resin ? PrintExport.Export(S, options) : PrintExport.WriteFiles(options, _review!.Parts);
             Results.Clear();
             foreach (var f in files) Row("Saved", f);
             Settings[SettingsKey]=new(_folderParam.Value,_path.Value,_formatParam.Index,_quality_.Index,_slicer_.Index,_perBody.Value);

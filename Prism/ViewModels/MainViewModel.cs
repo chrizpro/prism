@@ -1239,15 +1239,21 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
         form.Groups.Insert(3, G("Validate", Cmd("Check\nCage", "check", () => new CheckCageCommand(), "Check manifold topology, winding, degenerate faces and extraordinary points.")));
         var additive = new RibbonTab {Title="3D FDM",Groups=[
-            G("Preparation",Cmd("FDM check","print3d",()=>new FdmCheckCommand(),"Check nozzle-based walls, overhangs, bed contact, build fit and filament weight on CAD bodies or meshes."),
-                Cmd("Orient part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Rotate the model for bed contact, supports and layer strength."),
-                Cmd("Split mesh","mesh",()=>new MeshCutCommand(),"Split an imported mesh to fit the build volume.")),
-            G("Mesh preparation",Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
-                Cmd("Mesh\nQuality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
-                Cmd("Overhang &\nOrientation","mesh-overhang",()=>new MeshOverhangCommand(),"Find what needs supports and the best way to lay the part down."),
-                Cmd("Wall\nThickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness.")),
-            G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY and open in your slicer."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
-            G("Nozzle review",Cmd("Import nozzle path","gcode",()=>new ImportGcodeCommand(),"Read linear G0/G1 output from an external slicer."),Cmd("Playback","animation",()=>new CamPlaybackCommand(),"Animate nozzle travel and extrusion paths."),Cmd("Layer view","toolpath",()=>new ToolpathViewCommand(),"Inspect imported print layers."))]};
+            G("Prepare",Cmd("Place on bed","rotate",()=>new PlaceOnBedCommand(),"Pick the flat face of a CAD solid to set it down at Z = 0."),
+                Cmd("FDM check","print3d",()=>new FdmCheckCommand(),"Check walls, overhangs, bed contact and fit against your build dimensions.")),
+            G("Troubleshoot",new RibbonButton
+            {
+                Id="menu:fdm-troubleshoot",Label="Troubleshoot geometry",Icon="mesh-quality",
+                Description="Repair imported meshes and investigate geometry warnings.",
+                Menu=[
+                    Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, fix normals and fill holes in imported meshes."),
+                    Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Overhang & Orientation","mesh-overhang",()=>new MeshOverhangCommand(),"Find overhangs and compare orientations."),
+                    Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
+                    Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")
+                ]
+            }),
+            G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Review the bodies and write a model for your slicer."))]};
         var resin = new RibbonTab {Title="3D Resin",Groups=[
             G("Resin preparation",Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
                 Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck."),
