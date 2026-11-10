@@ -129,9 +129,8 @@ public sealed partial class CadSession
         }
         EditDrawing("Update drawing", d => d.Sheets[d.Sheets.FindIndex(s => s.Id == sheetId)] = updated);
     }
-    DrawingDocument DrawingDocumentFromFile(string? json)
+    DrawingDocument DrawingDocumentFromFile(DrawingDocument drawing)
     {
-        var drawing = DrawingDocument.Deserialize(json);
         // Files without drawing history establish their loaded drawing as the history root baseline.
         if (!AllNodes().Any(n => n.DrawingState != null)) Root.DrawingState = drawing.Serialize();
         return drawing;

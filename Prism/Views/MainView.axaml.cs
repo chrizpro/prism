@@ -288,6 +288,18 @@ public partial class MainView : UserControl
             });
             return f?.TryGetLocalPath();
         };
+        vm.PickNativeSaveFile = async (title, suggested, extensions) =>
+        {
+            var top = TopLevel.GetTopLevel(this); if (top == null) return null;
+            var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title, SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(suggested), DefaultExtension = extensions[0][1..],
+                SuggestedStartLocation = await StartFolder(top),
+                FileTypeChoices = extensions.Select(ext => new FilePickerFileType(NativeDocumentFile.Label(ext)) { Patterns = ["*" + ext] }).ToArray(),
+                ShowOverwritePrompt = true,
+            });
+            return file?.TryGetLocalPath();
+        };
     }
 
     /// <summary>File dialogs open in the workspace folder (when one is set and still there).</summary>

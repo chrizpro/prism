@@ -44,5 +44,8 @@ public partial class HomeView : UserControl
         }
         button.Flyout = flyout;
     }
-    async void OnGalleryOpen(object? s, RoutedEventArgs e) { if (s is Button { Tag: GalleryCard card } && Vm is { } vm) await vm.OpenGalleryCard(card); }
+    async void OnGalleryOpen(object? s, RoutedEventArgs e)
+    {
+        if (s is Control { Tag: GalleryCard card } && Vm is { } vm) await vm.OpenGalleryCard(card);
+    }
 }

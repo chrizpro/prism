@@ -74,6 +74,8 @@ The initial delivery follows the essential scope above, using a Fusion-style dra
 
 Drawing data is embedded in `.prism`, with explicit model updates and unresolved-reference reporting as described above. Standalone linked drawing files and automatic model-update policy remain future decisions. Owner decision (2026-11-05): one parts-list row per selected source body, quantity 1; bodies with equal names remain separate. Grouping assembly instances is deferred. The existing exporter groups by name and retains its legacy behavior.
 
+**Owner approved on 2026-11-09.** `.prism_dwg` uses the existing native format and requires at least one editable sheet. The file retains its source geometry and opens in Drawing. General `.prism` documents can also retain drawings. AutoCAD DWG and Creo formats have their own encodings. [Native file type rules and tests](../interface/document-safety/README.md#expected-behavior) · [Issue #97](https://github.com/chrizpro/prism/issues/97) · [Autodesk DWG documentation](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Customization/files/GUID-D029509F-A2A0-4A7E-BDD5-FE95E7235C5C.htm) · [PTC file types](https://support.ptc.com/help/creo/view/r12.0/en/creo_view/visualization/shared/Opening_Pro_ENGINEER_Files_in_ProductView.html).
+
 ## Implementation and references
 
 - [Workspace proposal and delivery issue #58](https://github.com/chrizpro/prism/issues/58).

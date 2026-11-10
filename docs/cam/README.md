@@ -10,6 +10,8 @@ The public [Manufacturing walkthrough](../../site/guide/manufacturing.md) includ
 
 The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, **3D FDM** and **3D Resin**, alongside Home, Analyze and View. Mold tooling is not part of this workspace.
 
+**Import mold** in **Subtractive** and **3D Resin** adds the exact tooling solids from a `.prism_mld` copy to the current document. This gives the CNC and resin tools editable bodies. [Mold-only file rules and verification](../modeling/mold/README.md#saving-for-manufacturing).
+
 Separate print tabs are justified by distinct checks and workflows, rather than different export formats:
 
 - FDM: see the [3D FDM workflow](#3d-fdm).
@@ -63,7 +65,7 @@ Windows verification on 2026-11-10: 71 maintained CAM cases and 11 standalone pr
 
 Owner-approved ribbon layout (2026-11-10, [#111](https://github.com/chrizpro/prism/issues/111)).
 
-1. **Prepare** contains **Tilt part**, **Hollow & Drain** and **Resin check**. Use **Tilt part** to set the intended build angle. Hollowing is optional. In **Hollow body**, select the whole CAD body for a closed hollow with the specified wall thickness. Select faces when you want to leave those faces open.
+1. **Prepare** contains **Import mold**, **Tilt part**, **Hollow & Drain** and **Resin check**. Use **Tilt part** to set the intended build angle. Hollowing is optional. In **Hollow body**, select the whole CAD body for a closed hollow with the specified wall thickness. Select faces when you want to leave those faces open.
 2. **Drain / vent hole** makes a real cut in the CAD body. Choose a plain **Blind** hole and a depth that reaches the cavity when only one wall should be pierced. **Through all** can open the opposite wall as well. Use **Section** under **Troubleshoot geometry** to inspect the cavity and opening.
 3. **Resin check** screens the selected build dimensions, sealed cavities, trapped volume, potential cups, unsupported layer starts and thin features. Rerun it after changing the model or orientation. Findings depend on sampling resolution and the current +Z build direction.
 4. **Export for resin** uses the same body and mesh review as FDM. Support placement, raft clearance, exposure settings and the final layer preview belong to the resin slicer.

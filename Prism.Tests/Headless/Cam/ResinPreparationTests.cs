@@ -22,12 +22,12 @@ public sealed class ResinPreparationTests
         var tab = vm.Tabs.Single(tab => tab.Title == "3D Resin");
         Assert.Equal(new[] { "Prepare", "Troubleshoot", "Export" }, tab.Groups.Select(group => group.Title));
         var buttons = tab.Groups.SelectMany(group => group.Items).OfType<RibbonButton>().ToArray();
-        Assert.Equal(new[] { "Tilt part", "Hollow & Drain", "Resin check", "Troubleshoot geometry", "Export for resin" },
+        Assert.Equal(new[] { "Import mold", "Tilt part", "Hollow & Drain", "Resin check", "Troubleshoot geometry", "Export for resin" },
             buttons.Select(button => button.Label));
-        Assert.Equal(new[] { "Hollow body", "Drain / vent hole" }, buttons[1].Menu!.Select(button => button.Label));
+        Assert.Equal(new[] { "Hollow body", "Drain / vent hole" }, buttons[2].Menu!.Select(button => button.Label));
         Assert.Equal(new[] { "Section", "Repair", "Mesh Quality", "Wall Thickness", "Check geometry" },
-            buttons[3].Menu!.Select(button => button.Label));
-        buttons[4].Invoke();
+            buttons[4].Menu!.Select(button => button.Label));
+        buttons[5].Invoke();
         var export = Assert.IsType<PrintExportCommand>(vm.Session.ActiveCommand);
         Assert.Equal("Export for resin", export.Title);
         Assert.Contains(export.Params, param => param is ActionParam { Label: "Review export" });

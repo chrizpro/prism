@@ -52,6 +52,14 @@ The browser shows a collapsible document tree with source sketches nested below 
 
 Each ribbon keeps specialized tools while sharing the same Transform and Inspect sections. A converted form may require geometry checks before subsequent exact modeling operations.
 
+## Section View
+
+In **Section View**, choose **Movable plane** to start at the center of the selected bodies or, with no selection, the visible bodies. Drag the travel arrow along the plane normal. Drag the grips on the two rings to tilt the plane around its starting center. The size handle changes the displayed rectangle while the cut continues across the whole model. Numeric controls offer the same adjustments. The world planes and a selected planar face or construction plane are also available. Section View changes the viewport and reports the slice area and outline without modifying geometry.
+
+The owner requested the movable plane on 2026-11-09. [Issue #101](https://github.com/chrizpro/prism/issues/101) · [SEC-H001](https://github.com/chrizpro/prism/blob/develop/Prism.Tests/Headless/Section/SectionPlaneTests.cs).
+
+SEC-H001 passed in the Windows Headless runner. It checked a 600 mm² cut through an off-origin box, pointer-driven travel, the oblique overlay, and the unchanged cut when resizing the displayed plane.
+
 ## Position and inspect
 
 **Transform** is one dropdown with Move, Rotate, Scale, Mirror, and Duplicate. It shows the tool you used last. **Inspect** keeps Measure visible, with Properties and Section Analysis under **More inspection**.

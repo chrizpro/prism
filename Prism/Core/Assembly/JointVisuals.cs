@@ -96,8 +96,10 @@ public static class JointHandles
         foreach (var r in rows) over[r.joint.Key] = r.joint with { Value = r.v1.Value, Value2 = r.v2?.Value ?? r.joint.Value2 };
         var placements = s.SolvePlacements(over, out _);
         var picked = new HashSet<string>(s.SelectedObjects.Where(o => o.Asm is JointInfo).Select(o => ((JointInfo)o.Asm!).Key));
+        var visible = s.JointObjects.Where(j => j.obj.Visible).Select(j => j.joint.Key).ToHashSet();
         foreach (var (joint, v1, v2) in rows)
         {
+            if (!visible.Contains(joint.Key)) continue;
             if (picked.Count > 0 && !picked.Contains(joint.Key)) continue;
             if (!placements.TryGetValue(joint.ParentKey, out var parent)) continue;
             var frame = parent * joint.A;

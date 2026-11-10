@@ -100,7 +100,7 @@ public sealed partial class MainViewModel
                     foreach (var datumNode in DatumNodes(o.Id, saved.Datums)) n.Children.Add(datumNode);
                 f.Children.Add(n);
             }
-            f.SetVisibleSilently(f.Children.All(c => c.IsVisible));
+            f.SetVisibleSilently(kind == ObjKind.Joint ? f.Children.Any(c => c.IsVisible) : f.Children.All(c => c.IsVisible));
             roots.Add(f);
         }
         Group("Components", "component", ObjKind.Solid, o => o.Component != null);
@@ -178,6 +178,11 @@ public sealed partial class MainViewModel
     void OnNodeVisibility(BrowserNode node)
     {
         var s = Session;
+        if (node.IsFolder && node.ExpansionKey == "Joints")
+        {
+            s.SetJointVisibility(node.IsVisible);
+            return;
+        }
         void Apply(BrowserNode n, bool v)
         {
             if (n.Kind == NodeKind.Origin) s.SetOriginVisible(n.OriginIndex, v);

@@ -100,6 +100,7 @@
                                                     <TextBlock Text="{Binding Credit}" FontSize="11" Classes="faint"/>
                                                     <Button Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsVisible="{Binding NoExtras}"/>
                                                     <SplitButton Content="{Binding ActionLabel}" Tag="{Binding}" Click="OnGalleryOpen" IsEnabled="{Binding CanOpen}" IsVisible="{Binding HasExtras}" Loaded="OnExtrasLoaded" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                                    <SelectableTextBlock Text="{Binding DownloadStatus}" IsVisible="{Binding HasDownloadStatus}" FontSize="11" TextWrapping="Wrap"/>
                                                     <TextBlock Text="{Binding VersionHint}" IsVisible="{Binding !Compatible}" FontSize="11" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </StackPanel>

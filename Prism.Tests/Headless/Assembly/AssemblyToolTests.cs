@@ -3,6 +3,7 @@ using Prism.Commands;
 using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.Kernel;
+using Prism.ViewModels;
 using Xunit;
 using static Prism.HeadlessTests.Support.ModelingScenario;
 
@@ -17,6 +18,38 @@ namespace Prism.HeadlessTests.Assembly;
 [Trait("Layer", "Headless")]
 public class AssemblyToolTests
 {
+    [AvaloniaFact(DisplayName = "ASM-H122 | The gallery orrery's Joints eye hides and shows every joint without changing the mechanism")]
+    [Trait("TestId", "ASM-H122")]
+    public void OrreryJointFolderToggleControlsMarkersAndDriveHandles()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        var vm = new MainViewModel();
+        var session = vm.Session;
+        session.Open(Path.Combine(root.FullName, "gallery", "models", "meridian-orrery.prism"));
+        var joints = session.JointObjects.Select(j => j.joint).ToArray();
+        Assert.Equal(18, joints.Length);
+        var drive = Begin(session, () => new DriveJointsCommand());
+        Assert.NotEmpty(drive.Handles);
+        vm.BrowserFilter = "revolute";
+        BrowserNode Folder() => Assert.Single(vm.AllBrowserNodes(), row => row.IsFolder && row.Title == "Joints");
+        Assert.True(Folder().IsVisible);
+        int rebuilds = 0;
+        vm.BrowserRebuilt += () => rebuilds++;
+
+        Folder().IsVisible = false;
+        Assert.Equal(1, rebuilds);
+        Assert.All(session.Objects.Where(obj => obj.Kind == ObjKind.Joint), joint => Assert.False(joint.Visible));
+        Assert.False(Folder().IsVisible);
+        Assert.Empty(drive.Handles);
+        Assert.Equal(joints, session.JointObjects.Select(j => j.joint));
+        Folder().IsVisible = true;
+        Assert.Equal(2, rebuilds);
+        Assert.All(session.Objects.Where(obj => obj.Kind == ObjKind.Joint), joint => Assert.True(joint.Visible));
+        Assert.NotEmpty(drive.Handles);
+    }
+
     /// <summary>Two parts: the first is grounded, the second is free and starts 10 mm along X.</summary>
     static (CadSession Session, SceneObject Fixed, SceneObject Free) TwoParts()
     {

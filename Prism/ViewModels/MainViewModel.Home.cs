@@ -32,7 +32,8 @@ public sealed partial class MainViewModel
 
     public static string DefaultWorkspacePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism");
 
-    static readonly string[] OpenPatterns = ["*.prism", "*.ourcad", "*.step", "*.stp", "*.iges", "*.igs", "*.brep", "*.dxf", "*.stl", "*.obj", "*.ply", "*.3mf"];
+    static readonly string[] NativePatterns = NativeDocumentFile.Extensions.Select(ext => "*" + ext).ToArray();
+    static readonly string[] OpenPatterns = [.. NativePatterns, "*.step", "*.stp", "*.iges", "*.igs", "*.brep", "*.dxf", "*.stl", "*.obj", "*.ply", "*.3mf"];
 
     void InitHome()
     {
@@ -56,7 +57,8 @@ public sealed partial class MainViewModel
 
     static string KindOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
-        ".prism" or ".ourcad" => "Part", ".step" or ".stp" => "STEP", ".stl" or ".obj" or ".ply" or ".3mf" => "Mesh", _ => "File",
+        NativeDocumentFile.Part => "Part", NativeDocumentFile.Assembly => "Assembly", NativeDocumentFile.Drawing => "Drawing", NativeDocumentFile.Mold => "Mold",
+        ".prism" or ".ourcad" => "Prism", ".step" or ".stp" => "STEP", ".stl" or ".obj" or ".ply" or ".3mf" => "Mesh", _ => "File",
     };
 
     static HomeFile? Describe(string path)
@@ -76,7 +78,7 @@ public sealed partial class MainViewModel
         {
             try
             {
-                foreach (var f in new DirectoryInfo(ws).EnumerateFiles("*", SearchOption.AllDirectories).Where(f => f.Extension.Equals(".prism", StringComparison.OrdinalIgnoreCase) || f.Extension.Equals(".ourcad", StringComparison.OrdinalIgnoreCase)).OrderByDescending(f => f.LastWriteTime).Take(40))
+                foreach (var f in new DirectoryInfo(ws).EnumerateFiles("*", SearchOption.AllDirectories).Where(f => NativeDocumentFile.IsNative(f.Name)).OrderByDescending(f => f.LastWriteTime).Take(40))
                     if (Describe(f.FullName) is { } h) WorkspaceFiles.Add(h);
             }
             catch (Exception) { /* unreadable folder: show it empty */ }
@@ -141,11 +143,11 @@ public sealed partial class MainViewModel
         Guard(() =>
         {
             var doc = OpenTarget();
-            if ((path.EndsWith(".prism", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".ourcad", StringComparison.OrdinalIgnoreCase))) doc.Open(path);
+            if (NativeDocumentFile.IsNative(path)) doc.Open(path);
             else doc.ImportFile(path);
+            AddRecent(path);
+            CloseHome();
+            ShowOpeningTab();
         });
-        AddRecent(path);
-        CloseHome();
-        ShowOpeningTab();
     }
 }

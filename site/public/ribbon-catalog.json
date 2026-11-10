@@ -1,5 +1,5 @@
 {
-  "sourceHash": "947FBDD75ED00988D06B615D53E1F071EA2A2461CCA61015A8215C0A1C264A84",
+  "sourceHash": "5DB5CEB6996F9FC26B42B88F23F00D045EF542FD65439190A286B0CB48944AA8",
   "workspaces": [
     {
       "Id": "design",
@@ -3347,6 +3347,12 @@
           "title": "Setup",
           "tools": [
             {
+              "id": "mold-import|Import mold",
+              "label": "Import mold",
+              "description": "Import exact mold solids from a .prism_mld file.",
+              "shortcut": ""
+            },
+            {
               "id": "cnc|CAM setup",
               "label": "CAM setup",
               "description": "Stock, G54 work zero and shared tool settings.",
@@ -3561,6 +3567,12 @@
         {
           "title": "Prepare",
           "tools": [
+            {
+              "id": "mold-import|Import mold",
+              "label": "Import mold",
+              "description": "Import exact mold solids from a .prism_mld file.",
+              "shortcut": ""
+            },
             {
               "id": "rotate|Tilt part",
               "label": "Tilt part",
@@ -5383,7 +5395,7 @@
             {
               "id": "mold-file|Import from file",
               "label": "Import from file",
-              "description": "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold.",
+              "description": "Bring a part in from a Prism, STEP, IGES or BREP file as a reference part, ready for a mold.",
               "shortcut": ""
             },
             {

@@ -13,6 +13,95 @@ namespace Prism.HeadlessTests.Mold;
 [Trait("Layer", "Headless")]
 public class MoldTests
 {
+    [AvaloniaFact(DisplayName = "MOLD-H007 | Mold-only Save As keeps two cavity solids and CNC/Resin import them as exact bodies")]
+    [Trait("TestId", "MOLD-H007")]
+    public async Task MoldOnlyFileRoundTripsAndImports()
+    {
+        var vm = new MainViewModel();
+        var source = vm.Session;
+        source.AddObject(Occ.Box(20, 20, 20), "Block", ObjKind.Solid);
+        source.AddObject(Occ.Translate(Occ.Box(4, 4, 4), new Vec3(0, 0, 8)), "Part", ObjKind.Solid);
+        source.AddObject(Occ.Box(2, 2, 2), "Unrelated", ObjKind.Solid);
+        await Call(new AutomationApi(vm, null), "run_command",
+            """{"name":"mold","slots":{"Mold block":"Block 1","Part to cast":"Part 1"}}""");
+        string stem = Path.Combine(Path.GetTempPath(), "prism-mold-" + Guid.NewGuid());
+        string mold = stem + NativeDocumentFile.Mold;
+        string full = stem + NativeDocumentFile.Assembly;
+        try
+        {
+            source.Save(full);
+            var reopened = new CadSession();
+            reopened.Open(full);
+            Assert.Equal(4, reopened.Objects.Count);
+            Assert.True(reopened.CanExportMold);
+            source.AddObject(Occ.Box(1, 1, 1), "Unsaved", ObjKind.Solid);
+            vm.PickNativeSaveFile = (_, _, extensions) =>
+            {
+                Assert.Equal(new[] { NativeDocumentFile.Assembly, ".prism", NativeDocumentFile.Mold }, extensions);
+                return Task.FromResult<string?>(mold);
+            };
+            Assert.False(await vm.SaveDocumentAsync(vm.ActiveDocument!, saveAs: true));
+            Assert.True(source.Dirty);
+            Assert.Equal(full, source.FilePath);
+
+            reopened.Open(mold);
+            Assert.Equal(2, reopened.Objects.Count);
+            Assert.All(reopened.Objects, o => Assert.True(o.IsMoldHalf));
+            Assert.Equal(7936, reopened.Objects.Sum(o => Occ.Mass(o.Shape).Volume), 5);
+            Assert.False(reopened.CanUndo);
+
+            var target = new MainViewModel { PickOpenFile = (_, patterns) =>
+            {
+                Assert.Equal(new[] { "*.prism_mld" }, patterns);
+                return Task.FromResult<string?>(mold);
+            } };
+            foreach (var title in new[] { "Subtractive", "3D Resin", "3D FDM" })
+                Assert.Equal(title != "3D FDM", target.Tabs.Single(t => t.Title == title).Buttons.Any(b => b.Label == "Import mold"));
+            var existing = target.Session.AddObject(Occ.Box(1, 1, 1), "Existing", ObjKind.Solid);
+            await target.ImportManufacturingMold();
+            Assert.Equal(3, target.Session.Objects.Count);
+            Assert.Same(existing, target.Session.Find(existing.Id));
+            Assert.All(target.Session.Objects.Where(o => o.IsMoldHalf), imported =>
+                Assert.DoesNotContain(reopened.Objects, original => original.Id == imported.Id));
+        }
+        finally
+        {
+            File.Delete(mold);
+            File.Delete(full);
+        }
+    }
+
+    [AvaloniaFact(DisplayName = "MOLD-H006 | Import from file offers native Prism files and copies visible bodies as references")]
+    [Trait("TestId", "MOLD-H006")]
+    public async Task MoldImportsNativePartAsReference()
+    {
+        var source = new CadSession();
+        var visible = source.AddObject(Occ.Box(8, 8, 8), "Cast part", ObjKind.Solid);
+        var hidden = source.AddObject(Occ.Box(2, 2, 2), "Hidden part", ObjKind.Solid);
+        source.Update(hidden.Id, obj => obj.WithVisible(false), checkpoint: false);
+        string path = Path.Combine(Path.GetTempPath(), "prism-mold-" + Guid.NewGuid() + NativeDocumentFile.Part);
+        try
+        {
+            source.Save(path);
+            var vm = new MainViewModel
+            {
+                PickOpenFile = (_, patterns) =>
+                {
+                    Assert.Contains("*.prism", patterns);
+                    Assert.Contains("*.prism_prt", patterns);
+                    return Task.FromResult<string?>(path);
+                },
+            };
+            await vm.ImportMoldPart();
+            var imported = Assert.Single(vm.Session.Objects);
+            Assert.True(imported.IsReference);
+            Assert.NotEqual(visible.Id, imported.Id);
+            Assert.Equal(512, Occ.Mass(imported.Shape).Volume, 6);
+            Assert.Null(vm.Session.FilePath);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     static async Task<JsonNode> Call(AutomationApi api, string tool, string json) => (await api.CallAsync(tool, (JsonObject)JsonNode.Parse(json)!))!;
 
     [AvaloniaTheory(DisplayName = "MOLD-H001 | Create Mold cuts the part out of the block, splits it where chosen and pulls the halves apart")]

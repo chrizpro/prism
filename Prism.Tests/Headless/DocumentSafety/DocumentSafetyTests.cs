@@ -30,6 +30,48 @@ public class DocumentSafetyTests : IDisposable
         Environment.SetEnvironmentVariable("PRISM_SETTINGS_FILE", Path.Combine(folder, "settings.json"));
     }
     static void AddBody(CadSession session) => session.AddObject(Occ.Box(10, 20, 30), "Test part", ObjKind.Solid);
+
+    [AvaloniaFact(DisplayName = "SAV-H014 | Native suffixes validate part, assembly and drawing contents before saving or opening")]
+    [Trait("TestId", "SAV-H014")]
+    public async Task TypedNativeFilesRoundTripAndRejectWrongContents()
+    {
+        var vm = new MainViewModel();
+        var source = vm.Session;
+        var part = Path.Combine(folder, "part.PRISM_PRT");
+        AddBody(source);
+        vm.PickNativeSaveFile = (_, _, extensions) =>
+        {
+            Assert.Equal(new[] { ".prism", NativeDocumentFile.Part }, extensions);
+            return Task.FromResult<string?>(part);
+        };
+        Assert.True(await vm.SaveDocumentAsync(vm.ActiveDocument!));
+
+        var assembly = Path.Combine(folder, "mechanism" + NativeDocumentFile.Assembly);
+        source.MakePart(Assert.Single(source.Objects).Id);
+        Assert.Throws<InvalidDataException>(() => source.Save(part));
+        source.Save(assembly);
+
+        var drawing = Path.Combine(folder, "sheet" + NativeDocumentFile.Drawing);
+        source.NewDrawingSheet();
+        source.Save(drawing);
+
+        var reopened = new CadSession();
+        reopened.Open(part);
+        Assert.Equal(NativeDocumentFile.Part, reopened.TypedDocumentExtension);
+        reopened.Open(assembly);
+        Assert.Single(reopened.Components);
+        var fake = Path.Combine(folder, "renamed" + NativeDocumentFile.Drawing);
+        File.Copy(part, fake);
+        Assert.Throws<InvalidDataException>(() => reopened.Open(fake));
+        Assert.Equal(assembly, reopened.FilePath);
+        Assert.Single(reopened.Components);
+
+        vm.SetWorkspace("design");
+        Assert.Equal(1, vm.OpenDroppedFiles([drawing]));
+        Assert.Equal("drawing", vm.WorkspaceId);
+        Assert.Single(vm.Session.Drawings.Sheets);
+        Assert.Single(vm.Session.Components);
+    }
     // The window-close handlers are async and continue on later dispatcher turns, so one Background pass is sometimes not enough (SAV-H006 failed about one full run in five). Pass several times.
     static async Task Drain()
     {
