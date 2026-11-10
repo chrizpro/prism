@@ -149,7 +149,7 @@ Prism is released under the [MIT License](LICENSE). It is built on open-source c
 
 ## Documents and preferences
 
-New documents use `.prism`. Older `.ourcad` documents still open and appear in file dialogs, the workspace and the parts library.
+New documents default to `.prism`. **Save As** also offers the matching native suffix for a part (`.prism_prt`), assembly (`.prism_asm`) or editable drawing (`.prism_dwg`). Prism checks the contents when opening or saving a typed file. Older `.ourcad` documents still open and appear in file dialogs, the workspace and the parts library. [Native document rules](docs/interface/document-safety/README.md#expected-behavior).
 
 Preferences and support files live in `%LOCALAPPDATA%\Prism` on Windows. On first launch, Prism imports files from a previous `%LOCALAPPDATA%\OurCAD` folder without overwriting existing Prism files or removing the originals. New workspaces default to `Documents\Prism`.
 

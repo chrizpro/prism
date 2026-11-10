@@ -26,6 +26,14 @@ public sealed partial class CadSession
     public bool HasAssembly => Objects.Any(o => o.Asm != null);
     public static string NewKey() => Guid.NewGuid().ToString("N")[..10];
 
+    public void SetJointVisibility(bool visible)
+    {
+        var joints = Objects.Where(o => o.Kind == ObjKind.Joint && o.Visible != visible).ToArray();
+        if (joints.Length == 0) return;
+        foreach (var joint in joints) Objects = Objects.Replace(joint, joint.WithVisible(visible));
+        RaiseScene();
+    }
+
     // ------------------------------------------------------------ parts
     /// <summary>The geometry of a part: all the visible bodies of a document, as one compound (or the single body itself).</summary>
     public static (Shape shape, uint color, Appearance look)? PartGeometry(CadSession doc)

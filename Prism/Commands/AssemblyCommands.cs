@@ -57,7 +57,7 @@ public sealed class InsertComponentCommand : Command
         if (_library != null)
         {
             var (libShape, libColor, libLook) = PartsLibrary.Load(_library);
-            string? linked = _library.Path != null && _link.Value && Path.GetExtension(_library.Path).ToLowerInvariant() is ".prism" or ".ourcad" ? _library.Path : null;
+            string? linked = _library.Path != null && _link.Value && NativeDocumentFile.IsNative(_library.Path) ? _library.Path : null;
             var libPlace = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
             var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value, _library.Info?.WithoutThumbnail());
             Results.Add(new ResultLine("Part", _library.Name));

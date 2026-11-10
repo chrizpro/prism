@@ -27,7 +27,7 @@ public sealed class LibraryPart
 /// </summary>
 public static class PartsLibrary
 {
-    public static readonly string[] Extensions = [".step", ".stp", ".prism", ".ourcad"];
+    public static readonly string[] Extensions = [".step", ".stp", .. NativeDocumentFile.Extensions.Where(ext => ext != NativeDocumentFile.Mold)];
     public const int MaxFiles = 600;
 
     public static string? Folder => AppSettings.Current.PartsLibraryPath;
@@ -42,8 +42,7 @@ public static class PartsLibrary
             if (!Extensions.Contains(System.IO.Path.GetExtension(file).ToLowerInvariant())) continue;
             var dir = System.IO.Path.GetDirectoryName(file) ?? folder;
             string category = System.IO.Path.GetRelativePath(folder, dir) is { } rel && rel != "." ? rel.Replace('\\', '/') : "Library";
-            string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
-            list.Add(new LibraryPart { Name = System.IO.Path.GetFileNameWithoutExtension(file), Category = category, Path = file, Info = ext is ".prism" or ".ourcad" ? PartInfo.ReadFile(file) : null });
+            list.Add(new LibraryPart { Name = System.IO.Path.GetFileNameWithoutExtension(file), Category = category, Path = file, Info = NativeDocumentFile.IsNative(file) ? PartInfo.ReadFile(file) : null });
             if (list.Count >= MaxFiles) break;
         }
         return [.. list.OrderBy(p => p.Category, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)];
@@ -114,8 +113,7 @@ public static class PartsLibrary
     {
         if (part.Builder != null) return (part.Builder(), 0xFFB4BCC8, null);
         string path = part.Path ?? throw new InvalidOperationException("That library entry has no file.");
-        string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
-        if (ext is ".prism" or ".ourcad")
+        if (NativeDocumentFile.IsNative(path))
         {
             var doc = new CadSession(); doc.Open(path);
             return CadSession.PartGeometry(doc) is { } g ? (g.shape, g.color, g.look) : throw new InvalidOperationException($"{part.Name} has no solid bodies.");

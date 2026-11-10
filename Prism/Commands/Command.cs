@@ -166,7 +166,7 @@ public sealed record ResultLine(string Label, string Value, int Level = 0)
 }
 
 // ---------------------------------------------------------------- command result
-public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null);
+public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null, bool IsReference = false, bool IsMoldHalf = false);
 
 public sealed class CommandOutput
 {

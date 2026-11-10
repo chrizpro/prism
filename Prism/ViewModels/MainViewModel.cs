@@ -50,8 +50,18 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>After a file opens, go to the tab it was saved on, so a ready-made study, CAM plan or animation is in front of the user.</summary>
     public void ShowOpeningTab()
     {
+        if (string.Equals(Path.GetExtension(Session.FilePath), NativeDocumentFile.Drawing, StringComparison.OrdinalIgnoreCase))
+        {
+            SetWorkspace("drawing");
+            return;
+        }
         var title = Session.OpeningTab;
-        if (title != null && Tabs.FirstOrDefault(t => t.Title == title && !t.IsFile && !t.IsContextual) is { } tab) { SelectTab(tab); Session.OpeningTab = title; }
+        if (title != null && Tabs.FirstOrDefault(t => t.Title == title && !t.IsFile && !t.IsContextual) is { } tab)
+        {
+            EnsureTabVisible(tab);
+            SelectTab(tab);
+            Session.OpeningTab = title;
+        }
         if (Session.OpeningCommand is { } name && Session.ActiveCommand == null && Prism.Automation.AutomationApi.CreateCommand(name) is { } command) { var keep = Session.OpeningCommand; Session.StartCommand(command); Session.OpeningCommand = keep; }
     }
 
@@ -292,15 +302,41 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>Import a part from disk for a mold. It becomes a reference part: shown here, not saved with the file, left out of drawings.</summary>
-    public async void ImportMoldPart()
+    public async Task ImportMoldPart()
     {
         if (PickOpenFile == null) return;
-        var path = await PickOpenFile("Import the part for a mold", ["*.step", "*.stp", "*.iges", "*.igs", "*.brep"]);
-        if (path == null) return;
-        var before = Session.Objects.Select(o => o.Id).ToHashSet();
-        await ImportPath(path);
-        foreach (var o in Session.Objects.Where(o => !before.Contains(o.Id) && o.Kind is ObjKind.Solid or ObjKind.Surface)) Session.Update(o.Id, x => x.WithReference(true), checkpoint: false);
-        Session.Say("The part is a reference: it is not saved with this file. Use Create Mold with it.");
+        var session = Session;
+        try
+        {
+            var path = await PickOpenFile("Import the part for a mold", [.. NativePatterns, "*.step", "*.stp", "*.iges", "*.igs", "*.brep"]);
+            if (path == null) return;
+            if (NativeDocumentFile.IsNative(path))
+            {
+                var source = new CadSession();
+                source.Open(path);
+                session.Apply(MoldSources.CopyReferenceBodies(source, "Part from file"));
+                session.ZoomExtents();
+                session.Say("Imported reference bodies. Choose Create Mold to use them.");
+            }
+            else
+            {
+                var prepared = await Task.Run(() => CadSession.PrepareImport(path));
+                session.AddPrepared(prepared, path, asMoldReference: true);
+            }
+        }
+        catch (Exception e) { session.Say(e.Message, true); }
+    }
+
+    public async Task ImportManufacturingMold()
+    {
+        if (PickOpenFile == null) return;
+        var session = Session;
+        try
+        {
+            var path = await PickOpenFile("Import mold solids", ["*" + NativeDocumentFile.Mold]);
+            if (path != null) session.ImportMold(path);
+        }
+        catch (Exception e) { session.Say(e.Message, true); }
     }
 
     public async void ImportStep()
@@ -1212,7 +1248,8 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Subtractive",
             Groups =
             [
-                G("Setup", Cmd("CAM setup", "cnc", () => new CamSetupCommand(), "Stock, G54 work zero and shared tool settings."),
+                G("Setup", Btn("Import mold", "mold-import", () => _ = ImportManufacturingMold(), "Import exact mold solids from a .prism_mld file."),
+                    Cmd("CAM setup", "cnc", () => new CamSetupCommand(), "Stock, G54 work zero and shared tool settings."),
                     Cmd("Select setup", "cnc", () => new SelectCamSetupCommand(), "Switch named stock and work-zero setups."),
                     Cmd("Tool library", "cnc", () => new CamToolLibraryCommand(), "Save named tools with material-specific cutting feeds and speeds."),
                     Cmd("Design check", "check", () => new CncDesignCheckCommand(), "Screen top-down access, reach and thin walls on CAD bodies or meshes.")),
@@ -1249,7 +1286,8 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Write 3MF, STL, OBJ or PLY and open in your slicer."),Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")),
             G("Nozzle review",Cmd("Import nozzle path","gcode",()=>new ImportGcodeCommand(),"Read linear G0/G1 output from an external slicer."),Cmd("Playback","animation",()=>new CamPlaybackCommand(),"Animate nozzle travel and extrusion paths."),Cmd("Layer view","toolpath",()=>new ToolpathViewCommand(),"Inspect imported print layers."))]};
         var resin = new RibbonTab {Title="3D Resin",Groups=[
-            G("Resin preparation",Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
+            G("Resin preparation",Btn("Import mold","mold-import",() => _ = ImportManufacturingMold(),"Import exact mold solids from a .prism_mld file."),
+                Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
                 Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck."),
                 Cmd("Drain / vent hole","pcb-hole",()=>new HoleCommand(),"Cut a plain drainage or vent hole through a selected face or exact body.")),
             G("Mesh preparation",Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
@@ -1258,7 +1296,7 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
                 Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
-        var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", ImportMoldPart, "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
+        var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", () => _ = ImportMoldPart(), "Bring a part in from a Prism, STEP, IGES or BREP file as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",
             Cmd("Select static study","sim-new",()=>new SelectStudyCommand(),"Select a saved static study."),

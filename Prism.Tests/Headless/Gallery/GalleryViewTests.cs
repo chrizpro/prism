@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Prism.Core;
 using Prism.ViewModels;
 using Prism.Views;
@@ -15,6 +17,56 @@ namespace Prism.HeadlessTests.Gallery;
 [Trait("Layer", "Headless")]
 public class GalleryViewTests
 {
+    [AvaloniaFact(DisplayName = "GAL-H008 | The gallery split button opens a cached copy in its saved CAE tab")]
+    [Trait("TestId", "GAL-H008")]
+    public async Task SplitButtonOpensCachedCopyInCae()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "prism-gallery-cached-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var window = new Window();
+        window.Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
+        try
+        {
+            var vm = new MainViewModel { HasWorkspace = true, WorkspaceFolder = root };
+            vm.SetWorkspace("design");
+            string model = Path.Combine(root, "original.prism");
+            vm.Session.AddObject(Occ.Box(10, 20, 30), "Wrench blank", ObjKind.Solid);
+            vm.Session.OpeningTab = "Static";
+            vm.Session.Save(model);
+            byte[] data = await File.ReadAllBytesAsync(model);
+            string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data));
+            var entry = new GalleryEntry("cached-wrench", "Cached wrench", "A static study example", "CAE",
+                "Prism", "MIT", "0.1.0", "https://github.com/a/model", "https://github.com/a/image", data.Length, hash,
+                [new GalleryExtra("exploded view (PNG)", "exploded.png", "https://github.com/a/extra", 1, new string('a', 64))]);
+            using var http = new HttpClient(new CatalogTransport(new GalleryCatalog(1, [entry]).ToJson()));
+            vm.GallerySource = new GalleryStore(http, root);
+            await File.WriteAllBytesAsync(vm.GallerySource.ModelPath(entry), data);
+            await vm.LoadGallery();
+            vm.HomeOpen = true;
+            window.Content = new HomeView { DataContext = vm };
+            window.Show();
+            window.UpdateLayout();
+            var button = Assert.Single(window.GetVisualDescendants().OfType<SplitButton>());
+            Assert.Equal("Open a copy", button.Content);
+            var finished = new TaskCompletionSource();
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(vm.GalleryBusy) && !vm.GalleryBusy) finished.TrySetResult();
+            };
+
+            button.RaiseEvent(new RoutedEventArgs(SplitButton.ClickEvent));
+            Assert.True(vm.GalleryBusy || finished.Task.IsCompleted);
+            await finished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(vm.HomeOpen);
+            Assert.Equal("simulate", vm.WorkspaceId);
+            Assert.Equal("Static", vm.SelectedTab?.Title);
+            Assert.True(vm.SelectedTab!.IsVisible);
+            Assert.True(File.Exists(Path.Combine(root, "Gallery", "cached-wrench.prism")));
+        }
+        finally { window.Close(); Directory.Delete(root, true); }
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H001 | Startup view loads gallery bindings alongside workspace and file actions")]
     [Trait("TestId", "GAL-H001")]
     public async Task HomeViewLoadsAndWorkflowSearchFiltersCards()

@@ -24,11 +24,12 @@ public sealed partial class MainViewModel
             try
             {
                 var session = new CadSession();
-                if (Path.GetExtension(path).Equals(".prism", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(path).Equals(".ourcad", StringComparison.OrdinalIgnoreCase)) session.Open(path);
+                if (NativeDocumentFile.IsNative(path)) session.Open(path);
                 else session.ImportFile(path);
                 var tab = new DocumentTab(session, ++_docCounter) { DisplayName = Path.GetFileNameWithoutExtension(path) };
                 tab.Refresh(); Documents.Add(tab); ActiveDocument = tab;
                 AddRecent(path); CloseHome(); opened++;
+                if (NativeDocumentFile.IsTyped(Path.GetExtension(path))) ShowOpeningTab();
             }
             catch (Exception e) { failed++; Session.Say("Could not open " + Path.GetFileName(path) + ": " + e.Message, true); }
         }

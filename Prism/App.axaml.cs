@@ -62,7 +62,7 @@ public partial class App : Application
             desktop.MainWindow = window;
             foreach (var path in desktop.Args ?? Array.Empty<string>())
             {
-                if (string.Equals(Path.GetExtension(path), ".prism", StringComparison.OrdinalIgnoreCase))
+                if (Core.NativeDocumentFile.IsNative(path))
                     vm.OpenPath(path);
             }
             var api = new Automation.AutomationApi(vm, window);

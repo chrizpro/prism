@@ -10,6 +10,8 @@ The public [Manufacturing walkthrough](../../site/guide/manufacturing.md) includ
 
 The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, **3D FDM** and **3D Resin**, alongside Home, Analyze and View. Mold tooling is not part of this workspace.
 
+**Import mold** in **Subtractive** and **3D Resin** adds the exact tooling solids from a `.prism_mld` copy to the current document. This gives the CNC and resin tools editable bodies. [Mold-only file rules and verification](../modeling/mold/README.md#saving-for-manufacturing).
+
 Separate print tabs are justified by distinct checks and workflows, rather than different export formats:
 
 - FDM: nozzle/perimeter wall targets, overhangs, bed contact, build fit, orientation guidance and filament estimates. Imported linear nozzle G-code can be played back.

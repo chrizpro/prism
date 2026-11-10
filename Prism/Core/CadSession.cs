@@ -397,6 +397,8 @@ public sealed partial class CadSession : ObservableObject
             var k = n.Tri != null ? ObjKind.Mesh : n.Kind ?? (n.Form != null ? ObjKind.Form : SceneObject.Classify(n.Shape!));
             uint c = n.Color ?? Palette.DefaultFor(k, list.Count(o => o.Kind == ObjKind.Solid));
             var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, null, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
+            if (n.IsReference) obj = obj.WithReference(true);
+            if (n.IsMoldHalf) obj = obj.WithMoldHalf();
             list = list.Add(obj); created.Add(obj);
         }
         Objects = list;
@@ -1752,7 +1754,8 @@ public sealed partial class CadSession : ObservableObject
     // ------------------------------------------------------------ files
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
-        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
+        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool IsMoldHalf = false);
     /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
     public string? OpeningTab { get; set; }
     /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
@@ -1797,10 +1800,40 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf);
+
+    static bool IsPartGeometry(ObjKind kind) => kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form or ObjKind.Mesh or ObjKind.Sketch or ObjKind.Curve;
+
+    IEnumerable<SceneObject> MoldHalves => Objects.Where(o => o.IsMoldHalf && o.Kind == ObjKind.Solid && Persisted(o));
+    public bool CanExportMold => MoldHalves.Any();
+    public string? TypedDocumentExtension => NativeDocumentFile.Classify(Drawings.Sheets.Count > 0,
+        Components.Any(Persisted) || MoldHalves.Skip(1).Any(), Objects.Any(o => Persisted(o) && IsPartGeometry(o.Kind)));
+
+    public void ImportMold(string path)
+    {
+        if (ActiveCommand != null || Sketch != null) throw new InvalidOperationException("Finish the current edit before importing a mold.");
+        if (!NativeDocumentFile.IsMold(path)) throw new InvalidDataException("Choose a .prism_mld file.");
+        var source = new CadSession();
+        source.Open(path);
+        var output = new CommandOutput { Label = "Import mold", Icon = "mold" };
+        foreach (var half in source.MoldHalves)
+            output.Add.Add(new NewObject(half.Shape, half.Name, ObjKind.Solid, half.Color, Look: half.Look, IsMoldHalf: true));
+        Apply(output);
+        ZoomExtents();
+        Say($"Imported {output.Add.Count} mold solid(s).");
+    }
 
     public void Save(string path)
     {
+        if (NativeDocumentFile.IsMold(path))
+        {
+            var halves = MoldHalves.Select(o => ToDto(o) with { Visible = true, Asm = null, FlatMap = null }).ToList();
+            if (halves.Count == 0) throw new InvalidDataException("Create a mold before saving a mold-only file.");
+            NativeDocumentFile.WriteAtomic(path, JsonSerializer.Serialize(new FileDto(2, halves)));
+            Say($"Saved mold-only copy {Path.GetFileName(path)}");
+            return;
+        }
+        NativeDocumentFile.ValidateType(path, TypedDocumentExtension);
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         NativeDocumentFile.WriteAtomic(path, SerializeDocument());
@@ -1845,7 +1878,7 @@ public sealed partial class CadSession : ObservableObject
         {
             try { var shapes = d.Sketch.ToShapes(root); shape = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(root.Origin); } catch (KernelException) { }
         }
-        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap };
+        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf };
     }
 
     public void Open(string path)
@@ -1855,21 +1888,31 @@ public sealed partial class CadSession : ObservableObject
         var ids=dto.Objects.Where(o=>o.Id.HasValue).Select(o=>o.Id!.Value).ToList();
         if(ids.Any(i=>i==Guid.Empty)||ids.Distinct().Count()!=ids.Count)throw new InvalidDataException("Duplicate or empty object identities in document.");
         if (dto.Parameters != null) ParameterValues.Evaluate(dto.Parameters);
+        var drawing = Drawing.DrawingDocument.Deserialize(dto.Drawing);
+        if (NativeDocumentFile.IsTyped(Path.GetExtension(path)) && !NativeDocumentFile.IsMold(path))
+        {
+            var kind = NativeDocumentFile.Classify(drawing.Sheets.Count > 0,
+                dto.Objects.Any(o => o.Asm is Assembly.ComponentInfo) || dto.Objects.Count(o => o.IsMoldHalf && o.Kind == nameof(ObjKind.Solid)) >= 2,
+                dto.Objects.Any(o => Enum.TryParse<ObjKind>(o.Kind, out var objectKind) && IsPartGeometry(objectKind)));
+            NativeDocumentFile.ValidateType(path, kind);
+        }
+        var list = dto.Objects.Select(FromDto).ToImmutableList();
+        if (NativeDocumentFile.IsMold(path) && (dto != new FileDto(dto.Version, dto.Objects) || list.Count == 0
+            || list.Any(o => !o.IsMoldHalf || o.Kind != ObjKind.Solid || !o.HasBrep || !o.Shape.HasSolids || o.Asm != null)))
+            throw new InvalidDataException("A .prism_mld file must contain only mold solids.");
         NewDocument();
         DocumentParameters = dto.Parameters?.ToImmutableList() ?? [];
-        var list = ImmutableList.CreateBuilder<SceneObject>();
         foreach (var d in dto.Objects)
         {
-            list.Add(FromDto(d));
             _counters[StripNumber(d.Name)] = Math.Max(_counters.GetValueOrDefault(StripNumber(d.Name)), int.TryParse(d.Name[(d.Name.LastIndexOf(' ') + 1)..], out var n) ? n : 0);
         }
-        Objects = list.ToImmutable();
+        Objects = list;
         if (dto.History is { Steps.Count: > 0 } saved) { try { LoadHistory(saved); } catch (Exception) { Root.After = []; Current = Root; } }
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
-        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;
+        Drawings = DrawingDocumentFromFile(drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
@@ -1915,10 +1958,10 @@ public sealed partial class CadSession : ObservableObject
         return new PreparedImport(root, parts) { Invalid = invalid };
     }
 
-    public void AddPrepared(PreparedImport prepared, string path) => AddImported(prepared.Root, path, prepared);
+    public void AddPrepared(PreparedImport prepared, string path, bool asMoldReference = false) => AddImported(prepared.Root, path, prepared, asMoldReference);
 
     /// <summary>Add every solid, surface and curve of an imported shape as its own object.</summary>
-    void AddImported(Shape root, string path, PreparedImport? prepared = null)
+    void AddImported(Shape root, string path, PreparedImport? prepared = null, bool asMoldReference = false)
     {
         Checkpoint();
         int count = 0;
@@ -1927,6 +1970,7 @@ public sealed partial class CadSession : ObservableObject
             var name = NextName(k == ObjKind.Solid ? "Body" : k == ObjKind.Surface ? "Surface" : "Curve");
             uint col = k == ObjKind.Solid ? Palette.ForIndex(count) : k == ObjKind.Surface ? Palette.Surface : Palette.Curve;
             var o = new SceneObject(Guid.NewGuid(), name, s, k, col);
+            if (asMoldReference && k is ObjKind.Solid or ObjKind.Surface) o = o.WithReference(true);
             if (mesh != null) o.PrimeMesh(mesh);
             Objects = Objects.Add(o);
             count++;
