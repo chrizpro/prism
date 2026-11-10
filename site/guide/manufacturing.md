@@ -8,7 +8,7 @@ The **CAM** workspace prepares parts for CNC machining, FDM printing and resin p
 
 1. **CAM setup**: rectangular stock, G54 work zero and shared cutting settings. Named setups are saved with the project; **Select setup** changes the active one.
 2. **Tool library**: choose or save a tool and material preset.
-3. Generate operations: **Profile** (with tabs), **Pocket** (with islands), **Adaptive** clearing, **Drill** (with pecking), **Face**, **3D Rough**, **3D Finish** or **Turning**.
+3. Generate operations: **Profile** (with tabs), **Pocket** (with islands), **Adaptive** clearing, **Drill** (with pecking), **Face**, **3D Rough**, **3D Finish**, **Constant-Z Finish** or **Turning**. Use Constant-Z Finish for steep walls after roughing. It follows a new horizontal outline at each height with a flat end mill.
 4. **Operation order** sets the program order; hidden operations are left out of posting.
 5. Review with **Playback** and **Pass view**. Changing the setup or the model marks paths as out of date.
 6. **Design check** screens top-down access, reach and thin walls. **Stock review** estimates removed and remaining material and possible gouges and holder contacts.

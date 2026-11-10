@@ -106,7 +106,7 @@ public class CamWorkflowTests
         var tab = vm.Tabs.Single(tab => tab.Title == "Subtractive");
         Assert.Equal(new[] { "Setup", "Toolpaths", "Review", "Export" }, tab.Groups.Select(group => group.Title));
         var menu = Assert.IsType<Prism.Ribbon.RibbonButton>(Assert.Single(tab.Groups[1].Items));
-        Assert.Equal(new[] { "Profile", "Pocket", "Adaptive", "Turning", "Drill", "Face", "Image Carve", "3D Rough", "3D Finish" },
+        Assert.Equal(new[] { "Profile", "Pocket", "Adaptive", "Turning", "Drill", "Face", "Image Carve", "3D Rough", "3D Finish", "Constant-Z Finish" },
             menu.Menu!.Select(tool => tool.Label.Replace('\n', ' ')));
         Assert.Equal("Post G-code", Assert.IsType<Prism.Ribbon.RibbonButton>(Assert.Single(tab.Groups[3].Items)).Label.Replace('\n', ' '));
         var api = new AutomationApi(vm, null);
@@ -139,6 +139,7 @@ public class CamWorkflowTests
     [InlineData("cnc_adaptive")]
     [InlineData("cnc_rough")]
     [InlineData("cnc_finish")]
+    [InlineData("cnc_constant_z")]
     [InlineData("cnc_turn")]
     [InlineData("cnc_image_relief")]
     [InlineData("cnc_post")]
