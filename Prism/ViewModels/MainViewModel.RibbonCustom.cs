@@ -81,10 +81,34 @@ public sealed partial class MainViewModel
             if (tab.Title == "Sketch")
             {
                 var draw = tab.Groups.Single(g => g.Title == "Draw");
-                var drawTools = draw.Items.OfType<RibbonButton>().ToArray();
+                var drawing = draw.Items.OfType<RibbonButton>().ToArray();
+                var spline = drawing.Single(button => button.Label == "Spline");
                 draw.Items.Clear();
-                draw.Items.AddRange(drawTools.Take(4));
-                draw.Items.Add(ToolMenu("More drawing tools", "polygon", "Draw polygons, slots and splines.", drawTools.Skip(4).ToArray()));
+                draw.Items.AddRange(drawing.Take(4));
+                draw.Items.Add(spline);
+                draw.Items.Add(new RibbonButton
+                {
+                    Id = "menu:More drawing tools:polygon|Polygon,slot|Slot,text|Text,spline|Spline",
+                    Label = "More drawing tools",
+                    Icon = "polygon",
+                    Description = "Draw a polygon, slot or text.",
+                    Menu = [.. drawing.Skip(4).Where(button => button != spline)]
+                });
+
+                var modify = tab.Groups.Single(g => g.Title == "Modify");
+                var edits = modify.Items.OfType<RibbonButton>().ToArray();
+                var promoted = new[] { "Trim", "Offset", "Transform" }.Select(label => edits.Single(button => button.Label == label)).ToArray();
+                modify.Items.Clear();
+                modify.Items.AddRange(promoted);
+                modify.Items.Add(new RibbonButton
+                {
+                    Id = "menu:Sketch:Modify",
+                    Label = "More edits",
+                    Icon = "extend",
+                    Description = "Insert points, extend curves, edit corners, mirror or pattern.",
+                    Menu = [.. edits.Except(promoted)]
+                });
+
                 var reference = tab.Groups.Single(g => g.Title == "Reference");
                 tab.Groups.Single(g => g.Title == "References").Items.AddRange(reference.Items);
                 tab.Groups.Remove(reference);

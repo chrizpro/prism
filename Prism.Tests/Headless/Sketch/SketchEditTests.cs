@@ -127,6 +127,37 @@ public class SketchEditTests
         Assert.DoesNotContain(vm.ToolSections, s => s.Title == "Sketch tool");
     }
 
+    [AvaloniaFact(DisplayName = "SKT-H047 | Sketch exposes Spline, Trim and Offset without opening a dropdown")]
+    [Trait("TestId", "SKT-H047")]
+    public void FrequentlyUsedSketchToolsAreDirectButtons()
+    {
+        var vm = new MainViewModel();
+        var tab = vm.Tabs.Single(tab => tab.Title == "Sketch");
+        RibbonButton[] Buttons(string group) => tab.Groups.Single(item => item.Title == group).Items.OfType<RibbonButton>().ToArray();
+        static IEnumerable<string> Labels(IEnumerable<RibbonButton> buttons) => buttons.Select(button => button.Label.Replace('\n', ' '));
+        var draw = Buttons("Draw");
+        var modify = Buttons("Modify");
+        Assert.Equal(new[] { "Line", "Rectangle", "Ellipse", "Arc", "Spline", "More drawing tools" }, Labels(draw));
+        Assert.Equal(new[] { "Polygon", "Slot", "Text" }, Labels(draw[^1].Menu!));
+        Assert.Equal(new[] { "Trim", "Offset", "Transform", "More edits" }, Labels(modify));
+        Assert.Equal(new[] { "Insert Point", "Extend", "Fillet", "Chamfer", "Mirror", "Pattern" }, Labels(modify[^1].Menu!));
+        Assert.False(draw[^1].IsSplit);
+        Assert.False(modify[^1].IsSplit);
+        Assert.All(Buttons("Constrain"), button => Assert.False(button.HasMenu));
+
+        vm.Session.EnterSketch(Plane3.XY);
+        var sketch = vm.Session.Sketch!;
+        modify[0].Invoke();
+        Assert.IsType<TrimTool>(sketch.Tool);
+        modify[1].Invoke();
+        Assert.IsType<OffsetTool>(sketch.Tool);
+        sketch.Set3DEnabled(vm.Session, true);
+        draw[4].Invoke();
+        Assert.IsType<SplineTool>(sketch.Tool);
+        draw[4].Refresh();
+        Assert.True(draw[4].IsChecked);
+    }
+
     [AvaloniaFact(DisplayName = "SKT-H016 | Sketch grid: perspective keeps the entry plane, ortho shows the plane it faces")]
     [Trait("TestId", "SKT-H016")]
     public void SketchGridFollowsView()
