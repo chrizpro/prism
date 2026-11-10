@@ -30,6 +30,42 @@ Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issu
 
 This table lists **existing** guides, not a claim that every ribbon tab has a page. Add missing tab guides incrementally when there is a feature change or an owner-approved documentation task.
 
+## Manual test checklists
+
+Each file covers a short hands-on pass for one shipped tab. Drawing has its own toolbar and checklist. Record what you actually tested and link any failures to the feature guide. [Tracking issue #114](https://github.com/chrizpro/prism/issues/114).
+
+- [File](checklists/file-manual-test-checklist.md)
+- [Home](checklists/home-manual-test-checklist.md)
+- [Solid](checklists/solid-manual-test-checklist.md)
+- [Surface](checklists/surface-manual-test-checklist.md)
+- [Freeform](checklists/freeform-manual-test-checklist.md)
+- [NURBS](checklists/nurbs-manual-test-checklist.md)
+- [Direct Modeling](checklists/direct-modeling-manual-test-checklist.md)
+- [Sheet Metal](checklists/sheet-metal-manual-test-checklist.md)
+- [ECAD](checklists/ecad-manual-test-checklist.md)
+- [Script](checklists/script-manual-test-checklist.md)
+- [Subtractive](checklists/subtractive-manual-test-checklist.md)
+- [3D FDM](checklists/3d-fdm-manual-test-checklist.md)
+- [3D Resin](../cam/resin-manual-test-checklist.md)
+- [Analyze](checklists/analyze-manual-test-checklist.md)
+- [Mesh](checklists/mesh-manual-test-checklist.md)
+- [Reverse Engineer](checklists/reverse-engineer-manual-test-checklist.md)
+- [Static](checklists/static-manual-test-checklist.md)
+- [Thermal](checklists/thermal-manual-test-checklist.md)
+- [Dynamics](checklists/dynamics-manual-test-checklist.md)
+- [Motion](checklists/motion-manual-test-checklist.md)
+- [Fluids](checklists/fluids-manual-test-checklist.md)
+- [Assemble](checklists/assemble-manual-test-checklist.md)
+- [Joints](checklists/joints-manual-test-checklist.md)
+- [Animate](checklists/animate-manual-test-checklist.md)
+- [Render](checklists/render-manual-test-checklist.md)
+- [Tooling](checklists/tooling-manual-test-checklist.md)
+- [Mold](checklists/mold-manual-test-checklist.md)
+- [Materials](checklists/materials-manual-test-checklist.md)
+- [Sketch](checklists/sketch-manual-test-checklist.md)
+- [View](checklists/view-manual-test-checklist.md)
+- [Drawing](checklists/drawing-manual-test-checklist.md)
+
 ## Related cross-feature documentation
 
 - [Motion analysis](../motion-analysis.md) — detailed mechanics and study workflows
