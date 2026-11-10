@@ -251,6 +251,16 @@ public static partial class ToolHelp
             "1. Choose Component Envelope.\n2. Set the size, side and rotation.\n3. Place it on the board, then accept.",
             "Envelopes let you check enclosure clearances before the real parts exist.", "component-envelope"),
 
+        "component|Place on Board" => Words(key, "Place on Board", "Place an upright component or envelope on a board face.",
+            "1. Pick the component solid.\n2. Click the board face at the mounting location.\n3. Set the angle and confirm.",
+            "The bottom center of the component lands on the clicked point."),
+        "measure|Check Clearance" => Words(key, "Check Clearance", "Compare the closest gap between two solids with your required clearance.",
+            "1. Pick the board or component.\n2. Pick the enclosure or obstacle.\n3. Enter the required gap.",
+            "A zero gap can indicate touching or overlap. Use Interference to show overlapping material."),
+        "import|Import board STEP" => Words(key, "Import Board STEP", "Bring a board or component model into Prism.",
+            "1. Choose a STEP file.\n2. Check the scale, orientation and imported bodies.",
+            "Export the board and component models from your electronics tool."),
+
         // ---- assemble, motion, animate ----
         "component|Make Part" => Words(key, "Make Part", "Turn solid bodies in this file into parts, so joints can connect them.",
             "1. Select the bodies.\n2. Choose Make Part.",

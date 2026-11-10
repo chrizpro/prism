@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5DB5CEB6996F9FC26B42B88F23F00D045EF542FD65439190A286B0CB48944AA8",
+  "sourceHash": "663A968E5301C0662FC213E97A5B250C7B9336D8B8809780F1DC98C7BDBCCE56",
   "workspaces": [
     {
       "Id": "design",
@@ -3158,6 +3158,12 @@
           "title": "Board",
           "tools": [
             {
+              "id": "import|Import STEP",
+              "label": "Import board STEP",
+              "description": "Import a board and component geometry from a STEP file.",
+              "shortcut": ""
+            },
+            {
               "id": "pcb|Rectangular board",
               "label": "Rectangular board",
               "description": "Board thickness, elevation and four optional mounting holes.",
@@ -3172,7 +3178,7 @@
             {
               "id": "pcb-hole|Mounting Hole",
               "label": "Mounting Hole",
-              "description": "Cut a mechanical mounting hole along world Z.",
+              "description": "Click a board face to cut a mounting hole.",
               "shortcut": ""
             }
           ]
@@ -3183,42 +3189,15 @@
             {
               "id": "component|Component Envelope",
               "label": "Component Envelope",
-              "description": "Place a package envelope or mechanical keepout, with top/bottom side and rotation.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Mechanical checks",
-          "tools": [
-            {
-              "id": "interference|Interference",
-              "label": "Interference",
-              "description": "Find overlapping components or enclosure bodies. This is a mechanical check, not an electrical design rule.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Exchange",
-          "tools": [
-            {
-              "id": "import|Import STEP",
-              "label": "Import STEP",
-              "description": "Import board/component models exported by an ECAD application.",
+              "description": "Create a package envelope or mechanical keepout.",
               "shortcut": ""
             },
             {
-              "id": "export|Export STEP",
-              "label": "Export STEP",
-              "description": "Export visible board and component geometry for mechanical exchange.",
+              "id": "component|Place on Board",
+              "label": "Place on Board",
+              "description": "Click a flat board face to position a component solid.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Transform",
-          "tools": [
+            },
             {
               "id": "move|Move",
               "label": "Move",
@@ -3228,25 +3207,47 @@
             {
               "id": "rotate|Rotate",
               "label": "Rotate",
-              "description": "Rotate objects around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "scale|Scale",
-              "label": "Scale",
-              "description": "Resize objects uniformly.",
-              "shortcut": ""
-            },
-            {
-              "id": "mirror|Mirror",
-              "label": "Mirror",
-              "description": "Reflect objects across a plane.",
+              "description": "Orient a component.",
               "shortcut": ""
             },
             {
               "id": "duplicate|Duplicate",
               "label": "Duplicate",
-              "description": "Copy the selected objects.",
+              "description": "Copy a selected component.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Fit check",
+          "tools": [
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find overlapping solids.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Check Clearance",
+              "label": "Check Clearance",
+              "description": "Compare the gap between two solids with a required clearance.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section View",
+              "label": "Section View",
+              "description": "Look inside the board and enclosure.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Export",
+          "tools": [
+            {
+              "id": "export|Export STEP",
+              "label": "Export STEP",
+              "description": "Review which bodies will be included, then export STEP.",
               "shortcut": ""
             }
           ]

@@ -2,6 +2,7 @@
 
 See the [feature guide](../../ecad/README.md). Record the Prism build and any result that differs from the expected behavior.
 
-- [ ] Create a rectangular board of known width, length, and thickness. Add a mounting hole and verify its diameter and position.
-- [ ] Place a component envelope on the board. Run Interference with it overlapping another body, then repeat after moving it clear.
-- [ ] Export the board as STEP and reopen it in a blank document. Check scale and hole position.
+- [ ] Import a populated board STEP from your electronics tool. Confirm scale, board orientation, mounting holes and the expected component solids.
+- [ ] Place a connector or envelope on the board by clicking the mounting location and setting the angle. Check that it lines up with the enclosure opening. Try the same workflow with a tilted board.
+- [ ] Use **Check Clearance** between the connector and lid. Enter the minimum gap you need and compare it with a known dimension. Use **Section View** to inspect the inside.
+- [ ] Review and export just the board and desired components. Reopen the STEP file in the receiving app and verify the body count, scale and fit.

@@ -21,7 +21,7 @@ public static class RibbonLayoutPolicy
         // setting up and running analysis
         "Constrain", "Dimension", "Supports", "Loads", "Springs and loads", "Solve", "Simulate", "Generative", "Study workflow",
         // reading the results
-        "Saved workflow", "Results", "Review", "Motion", "Nozzle review", "Mechanical checks",
+        "Saved workflow", "Results", "Review", "Motion", "Nozzle review", "Mechanical checks", "Fit check",
         "Mold inspection", "Print analysis", "Orientation & inspection", "Select & trace", "Reverse engineering",
         "Bounds", "Check", "Surface quality", "Analyze",
         "Image", "Apply", "Library", "Orientation", "Navigate", "Layout", "Display",

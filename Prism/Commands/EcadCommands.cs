@@ -1,5 +1,8 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Prism.Core;
+using Prism.Core.Assembly;
 using Prism.Kernel;
 
 namespace Prism.Commands;
@@ -111,28 +114,203 @@ public sealed class PcbOutlineCommand : Command
     }
 }
 
+static class BoardFace
+{
+    public static Xform Frame(CadSession session, SelItem item)
+    {
+        if (item.Kind != SelKind.Face || session.Find(item.Obj) is not { Kind: ObjKind.Solid } ||
+            session.FaceFrame(item) is not { } frame)
+            throw new FormatException("Pick a flat face of the board solid.");
+        using var face = session.ShapeOf(item);
+        if (face == null || Occ.FaceInfoOf(face).Type != "Plane")
+            throw new FormatException("Pick a flat face of the board solid.");
+        var center = face.Props().Center;
+        center -= frame.normal * Vec3.Dot(center - frame.point, frame.normal);
+        var x = Math.Abs(frame.normal.X) < .9 ? Vec3.UnitX : Vec3.UnitY;
+        return Xform.FromFrame(center, x, frame.normal);
+    }
+}
+
+public sealed class PlaceOnBoardCommand : Command
+{
+    readonly SelectionSlot _component, _board;
+    readonly NumberParam _u, _v, _rotation;
+
+    public PlaceOnBoardCommand()
+    {
+        _component = Slot(new SelectionSlot { Label = "Component body", Filter = SelFilter.Solid });
+        _board = Slot(new SelectionSlot { Label = "Board face", Filter = SelFilter.Face });
+        _u = Num("Board offset U", 0);
+        _v = Num("Board offset V", 0);
+        _rotation = Num("Rotation on board", 0, -360, 360, 5, "°");
+    }
+
+    public override string Title => "Place on Board";
+    public override string Icon => "component";
+    public override string Hint => "Pick an upright component solid, then click its location on a flat board face. The bottom center of the component lands there. Use Rotation on board to aim the connector.";
+
+    public override bool PickPoint(PickResult hit, bool additive)
+    {
+        if (ActiveSlot != _board || hit.Item.Kind != SelKind.Face) return false;
+        try
+        {
+            var point = BoardFace.Frame(S, hit.Item).Inverse().Apply(hit.Point);
+            ConfigureInputs(() => { _u.Value = point.X; _v.Value = point.Y; Pick(hit.Item, additive); });
+            OnChanged();
+        }
+        catch (Exception e) when (e is FormatException or KernelException) { S.Say(e.Message, true); }
+        return true;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        var component = S.Find(_component.Items[0].Obj) ?? throw new FormatException("Pick a component solid.");
+        var board = _board.Items[0];
+        if (board.Obj == component.Id) throw new FormatException("Pick a different solid for the board.");
+        var frame = BoardFace.Frame(S, board);
+        var bounds = component.Shape.Props();
+        var baseCenter = new Vec3(bounds.Center.X, bounds.Center.Y, bounds.Min.Z);
+        var placement = frame * Xform.Translation(new Vec3(_u.Value, _v.Value, 0))
+            * Xform.RotZ(_rotation.Value * Math.PI / 180) * Xform.Translation(-baseCenter);
+        var output = new CommandOutput();
+        output.Replace.Add((component, placement.Apply(component.Shape)));
+        return output;
+    }
+}
+
 public sealed class PcbHoleCommand : Command
 {
     readonly SelectionSlot _board;
     readonly NumberParam _x, _y, _diameter;
     public PcbHoleCommand()
     {
-        _board = Slot(new SelectionSlot { Label = "Board body", Filter = SelFilter.Solid });
+        _board = Slot(new SelectionSlot { Label = "Board body", Filter = SelFilter.Solid | SelFilter.Face });
         _x = Num("Hole center X", 0); _y = Num("Hole center Y", 0);
         _diameter = Num("Hole diameter", 3.2, .1, 100, .1);
     }
     public override string Title => "PCB Mounting Hole";
     public override string Icon => "pcb-hole";
-    public override string Hint => "Cut a mechanical through-hole along world Z at the specified XY position. Use on a board lying in XY; rotate the completed assembly afterward.";
+    public override string Hint => "Click a flat board face where the hole should go. For a board in XY, you can also select its whole body and enter world X and Y.";
+
+    protected override void UpdateVisibility()
+    {
+        bool face = _board.Items.Count > 0 && _board.Items[0].Kind == SelKind.Face;
+        _x.Caption = face ? "Board offset U" : _x.Label;
+        _y.Caption = face ? "Board offset V" : _y.Label;
+    }
+
+    public override bool PickPoint(PickResult hit, bool additive)
+    {
+        if (ActiveSlot != _board || hit.Item.Kind != SelKind.Face) return false;
+        try
+        {
+            var point = BoardFace.Frame(S, hit.Item).Inverse().Apply(hit.Point);
+            ConfigureInputs(() => { _x.Value = point.X; _y.Value = point.Y; Pick(hit.Item, additive); });
+            OnChanged();
+        }
+        catch (Exception e) when (e is FormatException or KernelException) { S.Say(e.Message, true); }
+        return true;
+    }
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var board = S.Find(_board.Items[0].Obj)!; var bounds = board.Shape.Props();
-        using var hole = Occ.Cylinder(_diameter.Value / 2, bounds.Size.Z + 2);
-        using var cutter = Occ.Translate(hole, new(_x.Value, _y.Value, bounds.Min.Z - 1));
+        var item = _board.Items[0];
+        var position = Xform.Translation(new Vec3(_x.Value, _y.Value, bounds.Min.Z - 1));
+        double length = bounds.Size.Z + 2;
+        if (item.Kind == SelKind.Face)
+        {
+            var face = BoardFace.Frame(S, item);
+            position = Xform.FromFrame(face.Apply(new Vec3(_x.Value, _y.Value, 1)), face.AxisX, -face.AxisZ);
+            length = bounds.Size.Length + 2;
+        }
+        using var hole = Occ.Cylinder(_diameter.Value / 2, length);
+        using var cutter = position.Apply(hole);
         var result = Occ.Cut(board.Shape, cutter);
         if (!result.IsValid || bounds.Volume - result.Props().Volume < 1e-6)
-        { result.Dispose(); throw new FormatException("The hole does not remove material from this board. Check the XY position and diameter."); }
+        { result.Dispose(); throw new FormatException("The hole does not remove material from this board. Check the position and diameter."); }
         var output = new CommandOutput(); output.Replace.Add((board, result)); return output;
+    }
+}
+
+
+public sealed class BoardClearanceCommand : AnalysisCommand
+{
+    readonly SelectionSlot _component, _obstacle;
+    readonly NumberParam _minimum;
+
+    public BoardClearanceCommand()
+    {
+        _component = Slot(new SelectionSlot { Label = "Component or board", Filter = SelFilter.Solid });
+        _obstacle = Slot(new SelectionSlot { Label = "Enclosure or obstacle", Filter = SelFilter.Solid });
+        _minimum = Num("Required clearance", 1, .01, 1000, .1);
+    }
+
+    public override string Title => "Check Clearance";
+    public override string Icon => "measure";
+    public override string Hint => "Pick two solids and enter the minimum gap they need. Use Interference to identify actual overlap.";
+
+    protected override void Analyze()
+    {
+        if (!Complete) return;
+        var first = ObjectsOf(_component).Single();
+        var second = ObjectsOf(_obstacle).Single();
+        if (first.Id == second.Id) throw new FormatException("Pick two different bodies.");
+        if (!first.Shape.IsValid || !second.Shape.IsValid) throw new FormatException("Check and repair the geometry before measuring clearance.");
+        using var overlap = Occ.Common(first.Shape, second.Shape);
+        double gap = overlap.HasSolids && overlap.Props().Volume > 1e-6 ? 0 : Occ.Distance(first.Shape, second.Shape).Distance;
+        Row("Minimum gap", N(gap, "mm"));
+        Row("Required gap", N(_minimum.Value, "mm"));
+        bool passes = gap >= _minimum.Value - 1e-6;
+        Row("Result", passes ? "Meets required clearance" : "Below required clearance", passes ? 1 : 3);
+    }
+}
+
+public sealed class BoardStepExportCommand : AnalysisCommand
+{
+    readonly SelectionSlot _bodies;
+    readonly Func<Task<string?>> _pickPath;
+    SceneObject[] _reviewed = [];
+
+    public BoardStepExportCommand(Func<Task<string?>> pickPath)
+    {
+        _pickPath = pickPath;
+        _bodies = Slot(new SelectionSlot { Label = "Bodies to export (empty = visible bodies)", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.Form,
+            Multi = true, Optional = true });
+        Add(new ActionParam { Label = "Save STEP", Run = async () => await Save() });
+    }
+
+    public override string Title => "Export STEP";
+    public override string Icon => "export";
+    public override string Hint => "Review the exact bodies in the STEP file. Pick specific bodies, or leave the list empty to export visible bodies.";
+
+    SceneObject[] Bodies() => (_bodies.Items.Count == 0 ? S.Objects.Where(body => body.Visible) : ObjectsOf(_bodies))
+        .Where(body => IsBody(body) && body.HasBrep).Distinct().ToArray();
+
+    protected override void Analyze()
+    {
+        _reviewed = Bodies();
+        Row("Scope", _bodies.Items.Count == 0 ? "Visible bodies" : "Picked bodies");
+        foreach (var body in _reviewed) Row("Export body", body.Name);
+        if (_reviewed.Length == 0) Row("Export", "No exact bodies to export.", 2);
+    }
+
+    async Task Save()
+    {
+        try
+        {
+            if (!_reviewed.SequenceEqual(Bodies())) { OnChanged(); return; }
+            if (_reviewed.Length == 0) return;
+            var session = S;
+            var reviewed = _reviewed;
+            string? path = await _pickPath();
+            if (path == null || session.ActiveCommand != this) return;
+            if (!reviewed.SequenceEqual(Bodies())) { OnChanged(); return; }
+            Occ.ExportStep(reviewed.Select(body => body.Shape).ToList(), path);
+            session.Say($"Exported {System.IO.Path.GetFileName(path)}");
+            Row("Saved", path);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { S.Say(e.Message, true); }
     }
 }

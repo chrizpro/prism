@@ -1363,18 +1363,37 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 SketchGrp(), PlanesGrp(false),
-                G("Board", ToolMenu("Create board", "pcb", "Create physical board geometry for mechanical integration.",
-                    Cmd("Rectangular board", "pcb", () => new PcbBoardCommand(), "Board thickness, elevation and four optional mounting holes."),
-                    Cmd("Board from outline", "pcb", () => new PcbOutlineCommand(), "Extrude a closed planar sketch, curve or face into a board.")),
-                    Cmd("Mounting\nHole", "pcb-hole", () => new PcbHoleCommand(), "Cut a mechanical mounting hole along world Z.")),
-                G("Components", Cmd("Component\nEnvelope", "component", () => new ComponentEnvelopeCommand(), "Place a package envelope or mechanical keepout, with top/bottom side and rotation."),
-                    ToolMenu("Place & align", "move", "Position imported component models or envelope bodies.",
-                        MoveBtn(RibbonSize.Large),
-                        Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Orient a component or the completed assembly."),
-                        Btn("Duplicate", "duplicate", Session.Duplicate, "Copy a selected component envelope.", can: hasSel))),
-                G("Mechanical checks", Cmd("Interference", "interference", () => new InterferenceCommand(), "Find overlapping components or enclosure bodies. This is a mechanical check, not an electrical design rule.")),
-                G("Exchange", Btn("Import\nSTEP", "import", ImportStep, "Import board/component models exported by an ECAD application."),
-                    Btn("Export\nSTEP", "export", () => Export("step"), "Export visible board and component geometry for mechanical exchange.")),
+                G("Board",
+                    Btn("Import\nboard STEP", "import", ImportStep, "Import a board and component geometry from a STEP file.", id: "import|Import STEP"),
+                    new RibbonButton
+                    {
+                        Id = "menu:Create board:pcb|Rectangular board,pcb|Board from outline",
+                        Label = "Create board", Icon = "pcb", Description = "Create physical board geometry for mechanical integration.",
+                        Menu = [
+                            Cmd("Rectangular board", "pcb", () => new PcbBoardCommand(), "Board thickness, elevation and four optional mounting holes."),
+                            Cmd("Board from outline", "pcb", () => new PcbOutlineCommand(), "Extrude a closed planar sketch, curve or face into a board.")
+                        ]
+                    },
+                    Cmd("Mounting\nHole", "pcb-hole", () => new PcbHoleCommand(), "Click a board face to cut a mounting hole.")),
+                G("Components", Cmd("Component\nEnvelope", "component", () => new ComponentEnvelopeCommand(), "Create a package envelope or mechanical keepout."),
+                    Cmd("Place on\nBoard", "component", () => new PlaceOnBoardCommand(), "Click a flat board face to position a component solid."),
+                    new RibbonButton
+                    {
+                        Id = "menu:ECAD:Transform", Label = "Transform", Icon = "move",
+                        Description = "Position component geometry manually.",
+                        Menu = [
+                            MoveBtn(RibbonSize.Large),
+                            Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Orient a component."),
+                            Btn("Duplicate", "duplicate", Session.Duplicate, "Copy a selected component.", can: hasSel)
+                        ]
+                    }),
+                G("Fit check",
+                    Cmd("Interference", "interference", () => new InterferenceCommand(), "Find overlapping solids."),
+                    Cmd("Check\nClearance", "measure", () => new BoardClearanceCommand(), "Compare the gap between two solids with a required clearance."),
+                    Cmd("Section\nView", "section", () => new SectionCommand(), "Look inside the board and enclosure.")),
+                G("Export", Cmd("Export\nSTEP", "export", () => new BoardStepExportCommand(
+                    () => PickSaveFile?.Invoke("Export STEP", "Board.step", "step") ?? System.Threading.Tasks.Task.FromResult<string?>(null)),
+                    "Review which bodies will be included, then export STEP.")),
                 AppearanceGrp(),
             ],
         };

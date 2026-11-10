@@ -113,12 +113,6 @@ public sealed partial class MainViewModel
                 tab.Groups.Single(g => g.Title == "References").Items.AddRange(reference.Items);
                 tab.Groups.Remove(reference);
             }
-            if (tab.Title == "ECAD")
-            {
-                // Geometry placement uses the same transform commands as the modeling ribbons.
-                tab.Groups.Single(g => g.Title == "Components").Items.RemoveAll(i => i is RibbonButton { HasMenu: true });
-                tab.Groups.Add(transform());
-            }
             if (tab.Title == "Analyze")
             {
                 var section = tab.Groups.Single(g => g.Title == "Section");
@@ -167,7 +161,7 @@ public sealed partial class MainViewModel
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
-                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "ECAD" && group.Title == "Fit check") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
                 if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = tab.Title == "Mesh" && group.Title == "Reshape" ? 3 : tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));

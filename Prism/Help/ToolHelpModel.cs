@@ -177,8 +177,8 @@ public static partial class ToolHelp
         "flat-pattern" => new(icon, "Flat Pattern", "Unfold a bent body into its flat pattern with bend lines.", "A bent part", "The flat blank with bend lines",
             "1. Choose Flat Pattern.\n2. Pick the sheet-metal body.\n3. Accept; save it as DXF for laser or waterjet cutting.",
             ""),
-        "pcb-hole" => new(icon, "Mounting Hole", "Cut a mechanical mounting hole along world Z.", "A board", "A hole through it",
-            "1. Choose Mounting Hole.\n2. Set the position and diameter.\n3. Accept.",
+        "pcb-hole" => new(icon, "Mounting Hole", "Cut a mechanical mounting hole through a flat board face.", "A board", "A hole through it",
+            "1. Choose Mounting Hole.\n2. Click the board face where the hole belongs and set the diameter.\n3. Accept.",
             ""),
 
         // ---- joints and assembly ----

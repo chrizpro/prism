@@ -495,11 +495,18 @@ public sealed class InterferenceCommand : AnalysisCommand
         var objs = Targets(_bodies, o => o.Kind is ObjKind.Solid or ObjKind.Form);
         var o2 = new CommandOutput { NoOp = !_create.Value, Label = "Interference bodies", Icon = "intersect" };
         if (objs.Count < 2) { Row("Need two bodies", "Pick at least two solids", 2); return o2; }
-        int pairs = 0, hits = 0;
+        int pairs = 0, hits = 0, failed = 0;
+        var valid = objs.Select(body => body.Shape.HasSolids && body.Shape.IsValid).ToArray();
         for (int i = 0; i < objs.Count; i++)
             for (int j = i + 1; j < objs.Count; j++)
             {
                 pairs++;
+                if (!valid[i] || !valid[j])
+                {
+                    failed++;
+                    Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked: invalid solid geometry", 2);
+                    continue;
+                }
                 try
                 {
                     var common = Occ.Common(objs[i].Shape, objs[j].Shape);
@@ -511,10 +518,11 @@ public sealed class InterferenceCommand : AnalysisCommand
                         o2.Add.Add(new(common, "Interference", ObjKind.Solid));
                     }
                 }
-                catch (KernelException) { Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked", 2); }
+                catch (KernelException) { failed++; Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked", 2); }
             }
-        if (hits == 0) Row("Result", $"No interference between {objs.Count} bodies ({pairs} pair{(pairs == 1 ? "" : "s")} checked)", 1);
-        else Row("Overlapping pairs", $"{hits} of {pairs}", 3);
+        if (failed > 0) Row("Check incomplete", $"{failed} of {pairs} pairs could not be checked.", 2);
+        if (hits == 0 && failed == 0) Row("Result", $"No interference between {objs.Count} bodies ({pairs} pair{(pairs == 1 ? "" : "s")} checked)", 1);
+        else if (hits > 0) Row("Overlapping pairs", $"{hits} of {pairs}", 3);
         return o2;
     }
 
