@@ -17,7 +17,7 @@ Separate print tabs are justified by distinct checks and workflows, rather than 
 
 ## Implemented CNC workflow
 
-Use the [Subtractive manual test checklist](../tabs/checklists/subtractive-manual-test-checklist.md) to exercise setup, toolpaths, review and controller simulation.
+The owner approved the **Setup → Toolpaths → Review → Export** ribbon order on 2026-11-10. The Toolpaths menu retains the existing operations. **Post G-code** is under **Export**, after the review tools. Use the [Subtractive manual test checklist](../tabs/checklists/subtractive-manual-test-checklist.md) for controller and machine verification. [CAM tracking issue #52](https://github.com/chrizpro/prism/issues/52).
 
 1. Create or edit a named setup: rectangular stock, G54 work zero and shared cutting settings. Named setups persist in the project; Select setup changes the active one. All use the global +Z tool axis.
 2. Choose or save a tool/material preset in the local tool library. Existing generated paths retain their original settings.
@@ -28,6 +28,8 @@ Use the [Subtractive manual test checklist](../tabs/checklists/subtractive-manua
 7. Run Stock review on the active setup. A swept flat/ball cutter heightfield estimates material removed/remaining and possible gouges, rapid contacts and holder contacts. Program position can be set before rerunning to inspect intermediate stock.
 7a. **Image Carve** (Subtractive tab, Toolpaths) carves a picture into the top of the material: type the picture's path and the width, choose whether dark or light areas are deepest, the bit (ball nose or flat) and the depth. Raster passes follow each pixel's brightness, so the toolpath shows the pattern the bit will cut; the picture keeps its proportions and is placed with its lower-left corner at *X from / Y from*. PNG files are read directly, other formats through the interface toolkit. Owner request 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)); placing the picture through the Appearance tab was considered and left as a later option. Test: CAM-H005.
 8. Export a setup sheet and post one setup per program to GRBL, Mach3 or LinuxCNC. Turning and milling are separate programs. LinuxCNC gets G7 diameter mode; Mach3 Turn must be configured for diameter mode. Post's **Save to** takes a program file (missing folders are created) or a folder, which gets a timestamped `program_*.nc`; blank uses Documents\Prism\GCode. A drill or cut that goes below the stock bottom into the spoilboard is not counted as a rapid contact when the tool retracts.
+
+Windows verification on 2026-11-10: 77 targeted CAM and ribbon cases passed. CAM-H004 checks section order, Toolpaths menu membership and posting through the ribbon to a folder and a file. CAM-I003 opened Post G-code from Export in the desktop build and wrote a 33-line GRBL facing program containing G21, G54 and feed moves. [Desktop capture](evidence/CAM-I003-subtractive-export.png). Controller interpretation and machining remain manual checks.
 
 ## Print preparation and handoff
 

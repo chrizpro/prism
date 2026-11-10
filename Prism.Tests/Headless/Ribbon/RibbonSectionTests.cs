@@ -39,6 +39,7 @@ public sealed class RibbonSectionTests
         styles.Add(prism);
         try
         {
+            AssertCaptions("Subtractive", "Setup", "Toolpaths", "Review", "Export");
             AssertCaptions("3D FDM", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("3D Resin", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("Mold", "Part", "Mold");
