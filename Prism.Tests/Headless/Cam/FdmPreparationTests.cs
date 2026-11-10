@@ -56,14 +56,16 @@ public sealed class FdmPreparationTests
         Assert.Equal(320, bounds.Volume, 5);
     }
 
-    [AvaloniaFact(DisplayName = "CAM-H010 | FDM review follows selection and the 3MF preserves separate named bodies")]
+    [AvaloniaTheory(DisplayName = "CAM-H010 | Print export review follows selection and the 3MF preserves separate named bodies")]
+    [InlineData(false)]
+    [InlineData(true)]
     [Trait("TestId", "CAM-H010")]
-    public void ExportReviewAndThreeMfUseTheSameBodyScope()
+    public void ExportReviewAndThreeMfUseTheSameBodyScope(bool resin)
     {
         var session = new CadSession();
         var box = CreateBoxBody(session, Vec3.Zero, 10, 8, 4);
         var cylinder = session.AddObject(CylinderAt(new(30, 0, 0), 6, 7), "Curved body", ObjKind.Solid);
-        var command = StartCommand(session, box, () => new PrintExportCommand());
+        var command = StartCommand(session, box, () => new PrintExportCommand(resin));
         var folder = Path.Combine(Path.GetTempPath(), "prism-fdm-test-" + Guid.NewGuid());
         SetText(command, "Folder", folder);
         command.Params.OfType<ActionParam>().Single(p => p.Label == "Export").Run();

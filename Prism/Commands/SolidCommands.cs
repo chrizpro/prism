@@ -1285,7 +1285,16 @@ public sealed class ShellCommand : Command
         {
             var obj = S.Find(g.Key)!;
             var faces = g.Where(i => i.Kind == SelKind.Face).Select(i => i.Index).ToArray();
-            o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+            if (faces.Length > 0)
+            {
+                o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+                continue;
+            }
+
+            // With no open faces the kernel returns the offset solid. The wall is the difference between the two solids.
+            using var offset = Occ.Shell(obj.Shape, faces, t);
+            var wall = t < 0 ? Occ.Cut(obj.Shape, offset) : Occ.Cut(offset, obj.Shape);
+            o.Replace.Add((obj, wall));
         }
         return o;
     }

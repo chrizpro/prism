@@ -1,5 +1,5 @@
 {
-  "sourceHash": "00C1B9C50C1E4DE12B92924E77E22C57978E60D851E7363432D349DB2DEF968D",
+  "sourceHash": "95655662F4EA563B77D445A9A7FF00A4FA59A530DF24762FE727DC4A948957D7",
   "workspaces": [
     {
       "Id": "design",
@@ -3548,31 +3548,43 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Resin preparation",
+          "title": "Prepare",
           "tools": [
             {
-              "id": "print3d|Resin check",
-              "label": "Resin check",
-              "description": "Screen cavities, drainage, potential cups, islands, thin features and build fit.",
+              "id": "rotate|Tilt part",
+              "label": "Tilt part",
+              "description": "Tilt the model, then rerun resin checks to compare cups, islands and peak layer area.",
               "shortcut": ""
             },
             {
               "id": "shell|Hollow body",
               "label": "Hollow body",
-              "description": "Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck.",
+              "description": "Hollow a CAD body with a chosen wall thickness.",
               "shortcut": ""
             },
             {
               "id": "pcb-hole|Drain / vent hole",
               "label": "Drain / vent hole",
-              "description": "Cut a plain drainage or vent hole through a selected face or exact body.",
+              "description": "Cut a plain drain or vent hole from an entry face into the cavity.",
+              "shortcut": ""
+            },
+            {
+              "id": "print3d|Resin check",
+              "label": "Resin check",
+              "description": "Screen cavities, drainage, potential cups, islands, thin features and build fit.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Mesh preparation",
+          "title": "Troubleshoot",
           "tools": [
+            {
+              "id": "section|Section",
+              "label": "Section",
+              "description": "Inspect hollow walls and drainage paths.",
+              "shortcut": ""
+            },
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
@@ -3590,23 +3602,6 @@
               "label": "Wall Thickness",
               "description": "Color the part by wall thickness.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Orientation \u0026 inspection",
-          "tools": [
-            {
-              "id": "rotate|Tilt part",
-              "label": "Tilt part",
-              "description": "Tilt the model, then rerun resin checks to compare cups, islands and peak layer area.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section",
-              "label": "Section",
-              "description": "Inspect hollow walls and drainage paths.",
-              "shortcut": ""
             },
             {
               "id": "check|Check geometry",
@@ -3622,7 +3617,7 @@
             {
               "id": "print3d|Export for resin",
               "label": "Export for resin",
-              "description": "Export 3MF/STL to your resin slicer for supports and exposure settings.",
+              "description": "Review the bodies and write a model for your resin slicer.",
               "shortcut": ""
             }
           ]

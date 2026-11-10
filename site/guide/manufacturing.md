@@ -30,9 +30,10 @@ This is a focused three-axis workflow. Stock review samples a heightfield; it ca
 
 ## Resin printing
 
-1. **Resin check** finds closed cavities, trapped volume, unvented cups, unsupported layer starts, minimum features and peak layer area.
-2. **Hollow body** with a wall thickness, then add a **Drain / vent hole** and recheck.
-3. **Tilt part**, inspect with **Section**, then **Export for resin**.
+1. **Tilt part** to the angle you plan to print at.
+2. If you want a hollow part, use **Hollow & Drain** to hollow the whole CAD body and cut drain or vent holes. Use **Troubleshoot geometry → Section** to confirm the openings reach the cavity.
+3. Run **Resin check** for build fit, sealed cavities, possible suction cups and unsupported layer starts. Rerun after changing the angle or geometry.
+4. **Export for resin** shows the bodies and dimensions before saving. Open the file in your resin slicer.
 
 <GuideImage image="cam-resin-check" />
 

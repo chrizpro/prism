@@ -1255,15 +1255,30 @@ public sealed partial class MainViewModel : ViewModelBase
             }),
             G("Export",Cmd("Export for printing","print3d",()=>new PrintExportCommand(),"Review the bodies and write a model for your slicer."))]};
         var resin = new RibbonTab {Title="3D Resin",Groups=[
-            G("Resin preparation",Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit."),
-                Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck."),
-                Cmd("Drain / vent hole","pcb-hole",()=>new HoleCommand(),"Cut a plain drainage or vent hole through a selected face or exact body.")),
-            G("Mesh preparation",Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
-                Cmd("Mesh\nQuality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
-                Cmd("Wall\nThickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness.")),
-            G("Orientation & inspection",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
-                Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")),
-            G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Export 3MF/STL to your resin slicer for supports and exposure settings."))]};
+            G("Prepare",Cmd("Tilt part","rotate",()=>new TransformCommand(TransformCommand.Kind.Rotate),"Tilt the model, then rerun resin checks to compare cups, islands and peak layer area."),
+                new RibbonButton
+                {
+                    Id="menu:resin-hollow-drain",Label="Hollow & Drain",Icon="shell",
+                    Description="Optionally hollow the CAD body and add drain or vent openings.",
+                    Menu=[
+                        Cmd("Hollow body","shell",()=>new ShellCommand(),"Hollow a CAD body with a chosen wall thickness."),
+                        Cmd("Drain / vent hole","pcb-hole",()=>new HoleCommand(),"Cut a plain drain or vent hole from an entry face into the cavity.")
+                    ]
+                },
+                Cmd("Resin check","print3d",()=>new ResinCheckCommand(),"Screen cavities, drainage, potential cups, islands, thin features and build fit.")),
+            G("Troubleshoot",new RibbonButton
+            {
+                Id="menu:resin-troubleshoot",Label="Troubleshoot geometry",Icon="mesh-quality",
+                Description="Inspect hollow walls, repair imported meshes and investigate geometry warnings.",
+                Menu=[
+                    Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),
+                    Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
+                    Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
+                    Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")
+                ]
+            }),
+            G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Review the bodies and write a model for your resin slicer."))]};
         var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", ImportMoldPart, "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
         simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",

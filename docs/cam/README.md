@@ -13,7 +13,7 @@ The saved workspace ID remains `make` (CAM). Process tabs are **Subtractive**, *
 Separate print tabs are justified by distinct checks and workflows, rather than different export formats:
 
 - FDM: see the [3D FDM workflow](#3d-fdm).
-- Resin: closed cavities, sampled trapped volume, potential unvented cups during build progression, unsupported layer starts, minimum features, peak layer area and resin estimates. Hollowing and drain/vent holes reuse exact CAD tools. Resin slicing/supports/exposure stay external.
+- Resin: see the [3D Resin workflow](#3d-resin).
 
 ## Implemented CNC workflow
 
@@ -43,6 +43,28 @@ Owner-approved ribbon layout (2026-11-10, [#109](https://github.com/chrizpro/pri
 [FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure.
 
 Windows verification on 2026-11-10: 71 maintained CAM cases and 11 standalone print-export checks passed. Desktop smoke test CAM-I001 picked a planar face through the viewport, committed placement, flagged a 40 mm part against a 35 mm build width, then reviewed and saved the 3MF. Bambu Studio CLI imported and re-exported one- and two-body samples with the same millimetre dimensions and object counts. The legacy ribbon suite passed the 3D FDM section and stopped at its Home Curves single-button assumption.
+
+### 3D Resin
+
+Owner-approved ribbon layout (2026-11-10, [#111](https://github.com/chrizpro/prism/issues/111)).
+
+1. **Prepare** contains **Tilt part**, **Hollow & Drain** and **Resin check**. Use **Tilt part** to set the intended build angle. Hollowing is optional. In **Hollow body**, select the whole CAD body for a closed hollow with the specified wall thickness. Select faces when you want to leave those faces open.
+2. **Drain / vent hole** makes a real cut in the CAD body. Choose a plain **Blind** hole and a depth that reaches the cavity when only one wall should be pierced. **Through all** can open the opposite wall as well. Use **Section** under **Troubleshoot geometry** to inspect the cavity and opening.
+3. **Resin check** screens the selected build dimensions, sealed cavities, trapped volume, potential cups, unsupported layer starts and thin features. Rerun it after changing the model or orientation. Findings depend on sampling resolution and the current +Z build direction.
+4. **Export for resin** uses the same body and mesh review as FDM. Support placement, raft clearance, exposure settings and the final layer preview belong to the resin slicer.
+
+[Resin preparation tests](../../Prism.Tests/Headless/Cam/ResinPreparationTests.cs) cover the ribbon and the closed-hollow-to-drained workflow. The [shared export review case](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) runs for both print processes.
+
+Windows verification on 2026-11-10: 83 maintained CAM and solid body-edit cases passed, along with 11 standalone print-export checks. In desktop smoke test CAM-I002, whole-body Shell produced a 2 mm wall on a 20 mm box. Resin Check reported one sealed cavity. A 6 mm diameter, 4 mm deep blind hole reduced the sealed-cavity count to zero. Section displayed the cutaway and the reviewed 3MF saved at 20 × 20 × 20 mm. The [desktop capture](evidence/CAM-I002-resin-section.png) shows the ribbon and section. Resin slicer launch, import and printer-specific validation remain manual checks.
+
+#### Resin manual test checklist
+
+- [ ] Open a hollow part you know well. Tilt it and use **Troubleshoot geometry → Section** to sweep through each drain or vent. Confirm each opening reaches its cavity and exits where you intended.
+- [ ] Run **Resin check** at the intended print angle. With a shallow or narrow opening, compare the result at a finer sampling size against the section and slicer preview.
+- [ ] Export to your usual resin slicer with **Export and open in slicer**. Try once with the slicer closed and once while it is open. Check that the expected bodies, dimensions, orientation and holes arrive. If your slicer requires STL, repeat with STL and millimetre scale.
+- [ ] With your real printer profile, add supports and a raft if needed. Check build fit and inspect the layers around the cavities, drain openings and unsupported starts. A physical print, if you choose to run one, is a separate check.
+
+### Shared export options
 
 Export supports 3MF (default, named separate bodies in millimetres), STL, OBJ and PLY; selection/visible bodies; combined or one file per body; and tessellation quality. Exports replace a stable path through a temporary file. Export folder, format, quality, slicer and per-body choice are remembered per project and process in local preferences.
 
