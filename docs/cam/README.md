@@ -21,7 +21,7 @@ The owner approved the **Setup → Toolpaths → Review → Export** ribbon orde
 
 1. Create or edit a named setup: rectangular stock, G54 work zero and shared cutting settings. Named setups persist in the project; Select setup changes the active one. All use the global +Z tool axis.
 2. Choose or save a tool/material preset in the local tool library. Existing generated paths retain their original settings.
-3. Generate profiling (including tabs), pocketing/islands, adaptive clearing, drilling/pecking, facing, layered 3D raster roughing with stock allowance, parallel 3D finishing or turning.
+3. Generate profiling (including tabs), pocketing/islands, adaptive clearing, drilling/pecking, facing, layered 3D raster roughing with stock allowance, parallel 3D finishing, Constant-Z Finish or turning.
 4. Set Operation order. Hide operations to omit them. Program order persists with each path and is respected by posting, setup sheets and stock review.
 5. Review source freshness and playback. Setup or source changes invalidate generated paths. Switching saved setups does not invalidate another setup's paths.
 6. Run CNC Design Check for sampled top-down access, reach and thin walls; inspect inside corner and hole requirements.
@@ -30,6 +30,17 @@ The owner approved the **Setup → Toolpaths → Review → Export** ribbon orde
 8. Export a setup sheet and post one setup per program to GRBL, Mach3 or LinuxCNC. Turning and milling are separate programs. LinuxCNC gets G7 diameter mode; Mach3 Turn must be configured for diameter mode. Post's **Save to** takes a program file (missing folders are created) or a folder, which gets a timestamped `program_*.nc`; blank uses Documents\Prism\GCode. A drill or cut that goes below the stock bottom into the spoilboard is not counted as a rapid contact when the tool retracts.
 
 Windows verification on 2026-11-10: 77 targeted CAM and ribbon cases passed. CAM-H004 checks section order, Toolpaths menu membership and posting through the ribbon to a folder and a file. CAM-I003 opened Post G-code from Export in the desktop build and wrote a 33-line GRBL facing program containing G21, G54 and feed moves. [Desktop capture](evidence/CAM-I003-subtractive-export.png). Controller interpretation and machining remain manual checks.
+
+### Constant-Z Finish
+
+Owner approved 2026-11-10 ([#116](https://github.com/chrizpro/prism/issues/116)). In **Subtractive → Toolpaths**, **Constant-Z Finish** traces a fresh horizontal contour at each depth. Use it after roughing for steep walls. **3D Finish** still runs parallel passes over shallow surfaces.
+
+- Create a saved +Z CAM setup for one exact solid. Use a flat end mill and enter the finish top, finish bottom and depth per pass. The first pass is one step below the finish top, or at the finish bottom when the range is smaller than one step. A final pass reaches the finish bottom, which must be above the model's lowest face.
+- The operation offsets the section by the cutter radius plus a 0.05 mm margin for linearization. It screens each loop against the model above that height and skips contours that lack clearance. The result reports skipped contours or levels. Cutting stays at one height per loop, with a vertical entry and a retract to clearance between loops.
+- The clearance screen uses the selected model and flat cutter envelope. It does not model the tool holder, fixtures, remaining stock, or machine limits. Use Pass View, Playback and Stock Review, then inspect the posted program in the controller simulator. See the [manual checklist](../tabs/checklists/subtractive-manual-test-checklist.md#constant-z-finish).
+- Initial scope is closed contours, a flat cutter and up to 200 height levels. Ball-nose compensation, slope filtering, ramps and custom user-drawn paths are outside this operation.
+
+[Maintained Constant-Z tests](../../Prism.Tests/Headless/Cam/ConstantZFinishTests.cs) cover a tapered cavity, an undercut, flat-height moves, retractions, setup validation and the GRBL post. Windows verification on 2026-11-10 passed 10 Unit and 79 Headless CAM cases. CAM-I004 created four contour levels on a tapered desktop model, committed the operation and saved the GRBL program. [Desktop capture](evidence/CAM-I004-constant-z-finish.png). The controller simulator and physical surface finish remain manual checks.
 
 ## Print preparation and handoff
 
@@ -77,7 +88,7 @@ This is a focused three-axis CAM/preparation workflow, not complete industrial C
 - Resin geometry is sampled on a bounded grid (at most about 82 cells per dimension). Thin walls, small drains, fine islands and narrow connections can be missed. A coarse clean report does not establish printability. Rerun finer checks and use final slicer validation.
 - Resin layer sampling is geometric screening, not actual exposure-layer slicing or support generation. Printed-material overlap identifies unsupported starts; peel physics and support strength are not calculated.
 - Named setups currently vary stock/body/origin, not tool-axis orientation. Rotated workplanes, indexed/multi-axis machining and a full setup manager remain future work.
-- 3D roughing uses raster layers, a flat cutter, sampled clearance and vertical entries. It does not include rest machining, constant-engagement 3D roughing, helical entry or scallop/constant-Z finishing.
+- 3D roughing uses raster layers, a flat cutter, sampled clearance and vertical entries. It does not include rest machining, constant-engagement 3D roughing, helical entry or scallop finishing.
 - CNC corner and hole guidance is not automatic recognition or certification of every radius, hole and tool-access constraint.
 - Posts beyond GRBL/Mach3/LinuxCNC, exact tool assemblies, automatic fixture checks and machine-specific prove-out remain future work. Do not add nominal controller support without checking its dialect.
 - Mesh hollowing, lattices, automatic support-contact placement and material-specific resin process profiles are deferred to dedicated tools.

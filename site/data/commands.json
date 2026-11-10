@@ -1614,6 +1614,118 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "cnc_constant_z",
+  "title": "CNC Constant-Z Finish",
+  "hint": "Finish steep walls with a flat end mill after roughing. Set the Z range and depth per pass. The tool follows a new horizontal contour at each height and retracts between contours. Review stock, entry moves and fixture clearance before posting.",
+  "slots": [
+   {
+    "label": "Model to finish",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 12000,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 800,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 300,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 0.5,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Finish top Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Finish bottom Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "cnc_drill",
   "title": "CNC Drill",
   "hint": "Pick holes by their round faces or circular edges. Each is drilled at its centre. With a peck depth the drill backs out between pecks to clear the chips.",

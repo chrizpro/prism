@@ -1,5 +1,5 @@
 {
-  "sourceHash": "189FB4527D123AF70CCAB10E12A1E09F3BBC508A70A98C1FABDCF89E8B534250",
+  "sourceHash": "BEC8FC0A5083A67525F688724F3F56FBDC5A7D9C4C34C04C1268F35CB499D7B5",
   "workspaces": [
     {
       "Id": "design",
@@ -3427,6 +3427,12 @@
               "id": "cnc|3D Finish",
               "label": "3D Finish",
               "description": "Finish a 3D shape with parallel passes that follow its surface (ball nose or flat end mill).",
+              "shortcut": ""
+            },
+            {
+              "id": "cnc|Constant-Z Finish",
+              "label": "Constant-Z Finish",
+              "description": "Finish steep walls with horizontal contours at successive heights.",
               "shortcut": ""
             }
           ]
