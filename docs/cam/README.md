@@ -17,6 +17,8 @@ Separate print tabs are justified by distinct checks and workflows, rather than 
 
 ## Implemented CNC workflow
 
+Use the [Subtractive manual test checklist](../tabs/checklists/subtractive-manual-test-checklist.md) to exercise setup, toolpaths, review and controller simulation.
+
 1. Create or edit a named setup: rectangular stock, G54 work zero and shared cutting settings. Named setups persist in the project; Select setup changes the active one. All use the global +Z tool axis.
 2. Choose or save a tool/material preset in the local tool library. Existing generated paths retain their original settings.
 3. Generate profiling (including tabs), pocketing/islands, adaptive clearing, drilling/pecking, facing, layered 3D raster roughing with stock allowance, parallel 3D finishing or turning.
@@ -40,7 +42,7 @@ Owner-approved ribbon layout (2026-11-10, [#109](https://github.com/chrizpro/pri
 3. **Troubleshoot geometry** groups Repair, Mesh Quality, Overhang & Orientation, Wall Thickness and Check geometry. Mesh splitting stays in the Mesh workspace. Nozzle-path import and playback are outside the FDM ribbon.
 4. **Export for printing** reviews the body names, dimensions, grouping, scale and mesh topology before writing. When selection falls back to visible bodies, the review states this explicitly. Geometry findings are advisory. A change to the selection, model or export settings requires a fresh review. 3MF is the default.
 
-[FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure.
+[FDM preparation tests](../../Prism.Tests/Headless/Cam/FdmPreparationTests.cs) cover the ribbon, face placement and export review and 3MF structure. The [FDM manual test checklist](../tabs/checklists/3d-fdm-manual-test-checklist.md) covers the desktop and slicer handoff.
 
 Windows verification on 2026-11-10: 71 maintained CAM cases and 11 standalone print-export checks passed. Desktop smoke test CAM-I001 picked a planar face through the viewport, committed placement, flagged a 40 mm part against a 35 mm build width, then reviewed and saved the 3MF. Bambu Studio CLI imported and re-exported one- and two-body samples with the same millimetre dimensions and object counts. The legacy ribbon suite passed the 3D FDM section and stopped at its Home Curves single-button assumption.
 
