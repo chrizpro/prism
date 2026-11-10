@@ -2,13 +2,13 @@
 
 ## Native documents
 
-Save editable work as `.prism`. Existing `.ourcad` documents remain readable and appear in file dialogs, workspace listings, and the parts library. You can open one and save a new `.prism` copy.
+Use **Save As** to save editable work with the extension that matches the document. Prism suggests `.prism_prt` for a part, `.prism_asm` for an assembly and `.prism_dwg` for a drawing. Existing `.prism` and `.ourcad` documents still open. To make a general editable `.prism` copy while keeping your current document open, choose **Home → Export As → Prism document (.prism)**.
 
 <GuideImage image="modeling-workspace-overview" />
 
 ## Exchange formats
 
-Use **File → Exchange → Import** or **Export**. Supported geometry and mesh paths include STEP, IGES, BREP, DXF, STL, OBJ, PLY, and 3MF, with capabilities depending on the format. GLB export is also available.
+Use **File → Exchange** to import geometry or meshes. To write a file, use **Home → Export As** and choose STEP, IGES, BREP, Sketch DXF, GLB, 3MF, STL, OBJ or PLY. Unavailable formats are grayed out. Hover over one to see what it requires.
 
 Exchange formats carry different kinds of data. A mesh does not preserve an editable solid feature history, and imported CAD geometry does not recreate the original application's modeling history.
 

@@ -1,5 +1,5 @@
 {
-  "sourceHash": "663A968E5301C0662FC213E97A5B250C7B9336D8B8809780F1DC98C7BDBCCE56",
+  "sourceHash": "5C1644A88B828683655FE8385FC9A04459F1C94A4E2C286990BC6E3870897D27",
   "workspaces": [
     {
       "Id": "design",
@@ -253,6 +253,77 @@
       "title": "Home",
       "contextual": false,
       "groups": [
+        {
+          "title": "Document",
+          "tools": [
+            {
+              "id": "saveas|Save As",
+              "label": "Save As",
+              "description": "Save the editable Prism document with the matching native file type.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:prism",
+              "label": "Prism document (.prism)",
+              "description": "Write a general editable Prism copy. Finish any open edit and close the exploded view first.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:step",
+              "label": "STEP (.step)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:iges",
+              "label": "IGES (.iges)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:brep",
+              "label": "BREP (.brep)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:dxf",
+              "label": "Sketch DXF (.dxf)",
+              "description": "Requires a selected or visible sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:glb",
+              "label": "glTF (.glb)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:3mf",
+              "label": "3MF (.3mf)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:stl",
+              "label": "STL (.stl)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:obj",
+              "label": "OBJ (.obj)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:ply",
+              "label": "PLY (.ply)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            }
+          ]
+        },
         {
           "title": "Select",
           "tools": [

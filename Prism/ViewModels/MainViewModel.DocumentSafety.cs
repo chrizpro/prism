@@ -29,14 +29,12 @@ public sealed partial class MainViewModel
             {
                 string suggested = path == null ? NextPartName() : System.IO.Path.GetFileName(path);
                 string? typed = session.TypedDocumentExtension;
-                string[] extensions = typed == null ? [".prism"] :
-                    System.IO.Path.GetExtension(suggested).Equals(typed, StringComparison.OrdinalIgnoreCase)
-                        ? [typed, ".prism"] : [".prism", typed];
+                string[] extensions = typed == null ? [".prism"] : [typed, ".prism"];
                 if (session.CanExportMold) extensions = [.. extensions, NativeDocumentFile.Mold];
                 if (PickNativeSaveFile != null)
                     path = await PickNativeSaveFile("Save " + tab.Title, System.IO.Path.ChangeExtension(suggested, extensions[0]), extensions);
                 else if (PickSaveFile != null)
-                    path = await PickSaveFile("Save " + tab.Title, suggested, extensions[0][1..]);
+                    path = await PickSaveFile("Save " + tab.Title, System.IO.Path.ChangeExtension(suggested, extensions[0]), extensions[0][1..]);
                 else return false;
                 if (string.IsNullOrWhiteSpace(path)) return false;
             }

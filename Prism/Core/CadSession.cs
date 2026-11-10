@@ -1848,6 +1848,19 @@ public sealed partial class CadSession : ObservableObject
         return true;
     }
 
+    public void ExportPrismCopy(string path)
+    {
+        if (!CanExportPrismCopy) throw new InvalidOperationException("Finish the current edit and close the exploded view before exporting a Prism copy.");
+        if (!Path.GetExtension(path).Equals(".prism", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Use the .prism extension for a general Prism copy.");
+        if (FilePath is { } current && Path.GetFullPath(path).Equals(Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Choose a different file for the Prism copy.");
+        NativeDocumentFile.WriteAtomic(path, SerializeDocument());
+        Say($"Exported Prism copy {Path.GetFileName(path)}");
+    }
+
+    public bool CanExportPrismCopy => Sketch == null && ActiveCommand == null && ExplodeFactor <= 1e-9;
+
     string SerializeDocument()
     {
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
@@ -1986,7 +1999,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void ExportStep(string path)
     {
-        var shapes = Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind != ObjKind.Sketch).Select(o => o.Shape).ToList();
+        var shapes = ExactExportObjects.Select(o => o.Shape).ToList();
         if (shapes.Count == 0) throw new InvalidOperationException("Nothing to export (meshes can be exported as STL / 3MF).");
         Occ.ExportStep(shapes, path); Say($"Exported {Path.GetFileName(path)}");
     }
@@ -2002,8 +2015,7 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>Export to STL, 3MF, OBJ or PLY. Selected objects if any are selected, otherwise everything visible. 3MF keeps bodies separate and named.</summary>
     public void ExportMesh(string path)
     {
-        var src = SelectedObjects.Any() ? SelectedObjects.ToList() : Objects.Where(o => o.Visible).ToList();
-        var parts = src.Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
+        var parts = MeshExportObjects.Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
         if (parts.Count == 0) throw new InvalidOperationException("Nothing to export.");
         if (Path.GetExtension(path).Equals(".3mf", StringComparison.OrdinalIgnoreCase)) Meshing.MeshIO.Save3mf(parts.Select(p => p.m!).ToList(), path, parts.Select(p => p.o.Name).ToList());
         else Meshing.MeshIO.Save(Meshing.TriMesh.Merge(parts.Select(p => p.m!)), path);

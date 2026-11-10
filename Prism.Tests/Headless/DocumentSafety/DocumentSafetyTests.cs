@@ -39,9 +39,10 @@ public class DocumentSafetyTests : IDisposable
         var source = vm.Session;
         var part = Path.Combine(folder, "part.PRISM_PRT");
         AddBody(source);
-        vm.PickNativeSaveFile = (_, _, extensions) =>
+        vm.PickNativeSaveFile = (_, suggested, extensions) =>
         {
-            Assert.Equal(new[] { ".prism", NativeDocumentFile.Part }, extensions);
+            Assert.EndsWith(NativeDocumentFile.Part, suggested);
+            Assert.Equal(new[] { NativeDocumentFile.Part, ".prism" }, extensions);
             return Task.FromResult<string?>(part);
         };
         Assert.True(await vm.SaveDocumentAsync(vm.ActiveDocument!));
@@ -71,6 +72,59 @@ public class DocumentSafetyTests : IDisposable
         Assert.Equal("drawing", vm.WorkspaceId);
         Assert.Single(vm.Session.Drawings.Sheets);
         Assert.Single(vm.Session.Components);
+    }
+
+    [AvaloniaFact(DisplayName = "SAV-H015 | Save As upgrades the suggested suffix and Home Export As writes a separate Prism copy")]
+    [Trait("TestId", "SAV-H015")]
+    public async Task SaveAsAndExportCopyKeepDistinctFilePaths()
+    {
+        var vm = new MainViewModel();
+        var session = vm.Session;
+        var home = vm.Tabs.Single(tab => tab.Title == "Home");
+        var menu = home.Buttons.Single(button => button.Id == "menu:export-as").Menu!;
+        var prism = menu.Single(button => button.Id == "export-as:prism");
+        var step = menu.Single(button => button.Id == "export-as:step");
+        var dxf = menu.Single(button => button.Id == "export-as:dxf");
+        var stl = menu.Single(button => button.Id == "export-as:stl");
+        vm.RefreshRibbon();
+        Assert.True(prism.IsEnabled);
+        Assert.False(step.IsEnabled);
+        Assert.False(dxf.IsEnabled);
+        Assert.False(stl.IsEnabled);
+
+        AddBody(session);
+        var legacy = Path.Combine(folder, "legacy.prism");
+        session.Save(legacy);
+        vm.RefreshRibbon();
+        Assert.True(step.IsEnabled);
+        Assert.True(stl.IsEnabled);
+        Assert.False(dxf.IsEnabled);
+
+        var typed = Path.Combine(folder, "legacy" + NativeDocumentFile.Part);
+        vm.PickNativeSaveFile = (_, suggested, extensions) =>
+        {
+            Assert.Equal(Path.GetFileName(typed), suggested);
+            Assert.Equal(NativeDocumentFile.Part, extensions[0]);
+            return Task.FromResult<string?>(typed);
+        };
+        Assert.True(await vm.SaveDocumentAsync(vm.ActiveDocument!, saveAs: true));
+        AddBody(session);
+        var copy = Path.Combine(folder, "copy.prism");
+        vm.PickSaveFile = (_, _, extension) =>
+        {
+            Assert.Equal("prism", extension);
+            return Task.FromResult<string?>(copy);
+        };
+        prism.Invoke();
+        Assert.Equal(typed, session.FilePath);
+        Assert.True(session.Dirty);
+        var reopened = new CadSession();
+        reopened.Open(copy);
+        Assert.Equal(2, reopened.Objects.Count);
+        reopened.Open(typed);
+        Assert.Single(reopened.Objects);
+        reopened.Open(legacy);
+        Assert.Single(reopened.Objects);
     }
     // The window-close handlers are async and continue on later dispatcher turns, so one Background pass is sometimes not enough (SAV-H006 failed about one full run in five). Pass several times.
     static async Task Drain()

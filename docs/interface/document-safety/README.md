@@ -6,7 +6,7 @@ Owner authorized save prompts on application close and opt-in timed autosave on 
 
 ## Expected behavior
 
-**Owner approved native typed extensions on 2026-11-09.** They use the same editable document contents as `.prism`, including source geometry and history. Save As offers the general format and the one typed suffix that matches the current content. New saves default to the general format, and Save As on a typed file defaults to that type while it still matches. Open and save validate the suffix against the contents before replacing an existing file or loading into the current session. [Typed document issue #97](https://github.com/chrizpro/prism/issues/97).
+**Owner approved native typed extensions on 2026-11-09 and typed defaults on 2026-11-10.** They use the same editable document contents as `.prism`, including source geometry and history. A first save and Save As default to the typed suffix matching the current contents, including when the working file was opened as `.prism` or `.ourcad`. The general format remains available in the picker and is the default when there is no matching typed suffix. Save continues updating the existing file. Open and save validate the suffix against the contents before replacing an existing file or loading into the current session. [Typed document issue #97](https://github.com/chrizpro/prism/issues/97).
 
 | Suffix | What the file contains |
 | --- | --- |
@@ -18,6 +18,10 @@ Owner authorized save prompts on application close and opt-in timed autosave on 
 If the document changes kind, use Save As with the matching suffix or the general format. Recovery copies continue to use `.prism`. The Windows installer registers the three typed extensions for opening in Prism. [SAV-H014](../../../Prism.Tests/Headless/DocumentSafety/DocumentSafetyTests.cs) exercises the matching Save As choices, round trips, mismatch refusal, and drawing drag-and-drop.
 
 A mold project with two or more identified halves and no drawing sheets also qualifies for `.prism_asm`. **Save As → Prism mold (`.prism_mld`)** writes a mold-only copy and leaves the working document unsaved if it has changes. The Windows installer registers the mold suffix. [Mold file scope and tests](../../modeling/mold/README.md#saving-for-manufacturing).
+
+**Home → Document → Export As** offers the general editable Prism format (`.prism`) and the existing STEP, IGES, BREP, sketch DXF, GLB, 3MF, STL, OBJ and PLY exporters. Formats without eligible geometry stay visible and grayed out. Hover over an option to see what it needs. Exporting a general Prism copy keeps the working document's path and save state. Finish any edit and close the exploded view before exporting that copy. [SAV-H015](../../../Prism.Tests/Headless/DocumentSafety/DocumentSafetyTests.cs) covers the legacy Save As default, format availability, and reopening the exported copy.
+
+On 2026-11-10, 34 targeted Document Safety, ECAD and ribbon checks passed on Windows. The [File manual checklist](../../tabs/checklists/file-manual-test-checklist.md) covers the native save dialog and the disabled menu appearance.
 
 - Owner added file drag-and-drop to this delivery on 2026-11-05 ([#67](https://github.com/chrizpro/prism/issues/67)). Drop one or multiple supported local files anywhere on the desktop Home/workspace window. Native `.prism`/`.ourcad` documents open; STEP/STP, IGES/IGS, BREP, DXF, STL, OBJ, PLY and 3MF use the existing importers. Each successful file gets its own tab. Unsaved work is retained. Unsupported files, folders and text are rejected; invalid files are loaded privately and cannot replace an existing document. Unfinished edits or close reviews block drops. Imported files remain unsaved native documents; the dropped source is not moved or overwritten. In-app importing of dropped images, remote URLs, archive folders and arbitrary point-cloud tables is outside this initial scope.
 

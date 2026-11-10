@@ -349,20 +349,56 @@ public sealed partial class MainViewModel : ViewModelBase
     public async void Export(string kind)
     {
         if (PickSaveFile == null) return;
-        var path = await PickSaveFile($"Export {kind.ToUpper()}", "Export." + kind, kind);
+        var session = Session;
+        string name = kind == "prism"
+            ? System.IO.Path.GetFileNameWithoutExtension(session.FilePath ?? NextPartName()) + " copy.prism"
+            : "Export." + kind;
+        var path = await PickSaveFile($"Export {kind.ToUpperInvariant()}", name, kind);
         if (path == null) return;
-        Guard(() =>
+        try
         {
             switch (kind)
             {
-                case "step": Session.ExportStep(path); break;
-                case "iges": Session.ExportIges(path); break;
-                case "brep": Session.ExportBrep(path); break;
-                case "glb": Session.ExportGlb(path); break;
-                case "dxf": Session.ExportDxf(path); break;
-                default: Session.ExportMesh(path); break;
+                case "prism": session.ExportPrismCopy(path); break;
+                case "step": session.ExportStep(path); break;
+                case "iges": session.ExportIges(path); break;
+                case "brep": session.ExportBrep(path); break;
+                case "glb": session.ExportGlb(path); break;
+                case "dxf": session.ExportDxf(path); break;
+                default: session.ExportMesh(path); break;
             }
-        });
+        }
+        catch (Exception e) { session.Say(e.Message, true); }
+    }
+
+    RibbonButton ExportAsMenu()
+    {
+        bool HasExactGeometry() => Session.ExactExportObjects.Any();
+        bool HasMeshGeometry(bool excludeAnnotations = false) => Session.MeshExportObjects.Any(o =>
+            (!excludeAnnotations || !o.IsAnnotation) &&
+            (o.Tri is { TriCount: > 0 } || o.Tri == null && (o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form) && o.Mesh.TriangleCount > 0));
+        RibbonButton Format(string label, string extension, string icon, string description, Func<bool> available) =>
+            Btn(label, icon, () => Export(extension), description, can: available, id: "export-as:" + extension);
+        const string exact = "Requires visible exact geometry, such as a solid or surface.";
+        const string mesh = "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.";
+        return new RibbonButton
+        {
+            Label = "Export As", Icon = "step", Id = "menu:export-as",
+            Description = "Write a copy in a supported file format.",
+            Menu =
+            [
+                Format("Prism document (.prism)", "prism", "saveas", "Write a general editable Prism copy. Finish any open edit and close the exploded view first.", () => Session.CanExportPrismCopy),
+                Format("STEP (.step)", "step", "step", exact, HasExactGeometry),
+                Format("IGES (.iges)", "iges", "step", exact, HasExactGeometry),
+                Format("BREP (.brep)", "brep", "step", exact, HasExactGeometry),
+                Format("Sketch DXF (.dxf)", "dxf", "step", "Requires a selected or visible sketch.", () => Session.SketchExportObjects.Any()),
+                Format("glTF (.glb)", "glb", "stl", mesh, () => HasMeshGeometry(excludeAnnotations: true)),
+                Format("3MF (.3mf)", "3mf", "stl", mesh, () => HasMeshGeometry()),
+                Format("STL (.stl)", "stl", "stl", mesh, () => HasMeshGeometry()),
+                Format("OBJ (.obj)", "obj", "stl", mesh, () => HasMeshGeometry()),
+                Format("PLY (.ply)", "ply", "stl", mesh, () => HasMeshGeometry()),
+            ],
+        };
     }
 
     void Guard(Action a)
@@ -629,6 +665,9 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Home",
             Groups =
             [
+                G("Document",
+                    Btn("Save As", "saveas", () => SaveFile(true), "Save the editable Prism document with the matching native file type."),
+                    ExportAsMenu()),
                 G("Sketch",
                     Cmd("Create\nSketch", "sketch", () => new CreateSketchCommand(), "Draw constrained curves on one or more planes in space. G positions the drawing gizmo; E edits curves; N looks normal.")),
                 G("Planes",
