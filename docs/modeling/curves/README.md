@@ -18,6 +18,8 @@ The shipped Home, Surface and NURBS ribbons expose six core editing actions: Fil
 
 Menus stay one level deep so every leaf remains available to command search and custom shortcuts. More Curve Tools and Extract Curves have fixed names; Curve and Join use the app's existing split-button behavior, showing the last chosen action. Click their label or right-click to choose another action.
 
+Curve tools share the primary icon color of the visible modeling ribbon. See the [modeling ribbon palette](../../tabs/README.md#modeling-ribbon-palette).
+
 ### Existing documents and customization
 
 Old Split history and the `curve_split` scripting name use a compatibility adapter that delegates cutting to Trim, retaining the old parameter schema. Old Divide Curve and Duplicate Edge saved identities resolve to the renamed commands. Existing scripting names (`curve_divide`, `curve_duplicate_edge`) remain valid. Old configurable button IDs and shortcut targets are retained, as are former Curves/Edit curves dropdown IDs in customized layouts. Reset a tab in Settings to adopt the shipped grouping.

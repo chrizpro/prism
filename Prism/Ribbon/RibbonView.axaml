@@ -11,11 +11,11 @@
             <Button Classes="rb" Classes.checked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Click="OnRibbonButtonClick">
                 <Panel>
                     <StackPanel IsVisible="{Binding IsLarge}" Orientation="Vertical" Spacing="2" Margin="8,5,8,3" MinWidth="40">
-                        <c:IconView Icon="{Binding Icon}" Width="34" Height="34" HorizontalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
+                        <c:IconView Icon="{Binding Icon}" RibbonTab="{Binding DataContext.SelectedTab.Title, RelativeSource={RelativeSource AncestorType={x:Type rb:RibbonView}}}" Width="34" Height="34" HorizontalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
                         <TextBlock Text="{Binding Caption}" TextAlignment="Center" HorizontalAlignment="Center" FontSize="11.5" LineHeight="13"/>
                     </StackPanel>
                     <StackPanel IsVisible="{Binding IsSmall}" Orientation="Horizontal" Spacing="7" Margin="7,0,9,0" VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <c:IconView Icon="{Binding Icon}" Width="18" Height="18" VerticalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
+                        <c:IconView Icon="{Binding Icon}" RibbonTab="{Binding DataContext.SelectedTab.Title, RelativeSource={RelativeSource AncestorType={x:Type rb:RibbonView}}}" Width="18" Height="18" VerticalAlignment="Center" Dimmed="{Binding !IsEnabled}"/>
                         <TextBlock Text="{Binding Caption}" FontSize="11.5" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Panel>
