@@ -11,12 +11,14 @@ public sealed class IconView : Control
 {
     public static readonly StyledProperty<string?> IconProperty = AvaloniaProperty.Register<IconView, string?>(nameof(Icon));
     public static readonly StyledProperty<bool> DimmedProperty = AvaloniaProperty.Register<IconView, bool>(nameof(Dimmed));
+    public static readonly StyledProperty<string?> RibbonTabProperty = AvaloniaProperty.Register<IconView, string?>(nameof(RibbonTab));
+    public string? RibbonTab { get => GetValue(RibbonTabProperty); set => SetValue(RibbonTabProperty, value); }
     public string? Icon { get => GetValue(IconProperty); set => SetValue(IconProperty, value); }
     public bool Dimmed { get => GetValue(DimmedProperty); set => SetValue(DimmedProperty, value); }
 
     static IconView()
     {
-        AffectsRender<IconView>(IconProperty, DimmedProperty);
+        AffectsRender<IconView>(IconProperty, DimmedProperty, RibbonTabProperty);
         AffectsMeasure<IconView>(IconProperty);
     }
 
@@ -30,7 +32,7 @@ public sealed class IconView : Control
 
     public override void Render(DrawingContext ctx)
     {
-        var shapes = Icons.Get(Icon);
+        var shapes = Icons.Get(Icon, RibbonTab);
         if (shapes == null) return;
         double s = Math.Min(Bounds.Width, Bounds.Height) / 32.0;
         using var _ = ctx.PushTransform(Matrix.CreateScale(s, s) * Matrix.CreateTranslation((Bounds.Width - 32 * s) / 2, (Bounds.Height - 32 * s) / 2));

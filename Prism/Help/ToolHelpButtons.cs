@@ -10,7 +10,7 @@ public static partial class ToolHelp
     static ToolHelpTopic? FindButton(string? key) => key switch
     {
         // ---- datum ----
-        "move|Gizmo" => Words(key, "Gizmo", "Show the gizmo and place it: it is the frame that sketches, datums and moves work from.",
+        "move|Gizmo" or "gizmo|Gizmo" => Words(key, "Gizmo", "Show the gizmo and place it: it is the frame that sketches, datums and moves work from.",
             "1. Choose Gizmo.\n2. Drag its arrows, rings or center to position it.\n3. Set binding, handles and snapping in the panel.",
             "Placing the gizmo changes no geometry; Move uses the same handles to move objects."),
         "origin-plane|Construction Plane" => T(key, "Construction Plane", "Make reference planes: offset (one or a whole stack), angled, midway, square to a curve or through three points.",

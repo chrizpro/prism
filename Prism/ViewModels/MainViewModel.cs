@@ -337,10 +337,10 @@ public sealed partial class MainViewModel : ViewModelBase
 
     // ------------------------------------------------------------ ribbon
     RibbonButton Btn(string label, string icon, Action exec, string desc = "", RibbonSize size = RibbonSize.Large,
-        Func<bool>? can = null, Func<bool>? chk = null, string shortcut = "") => new()
+        Func<bool>? can = null, Func<bool>? chk = null, string shortcut = "", string id = "") => new()
     {
         Label = label, Icon = icon, Execute = exec, Description = desc, Size = size, CanExecute = can, GetChecked = chk,
-        IsToggle = chk != null, Shortcut = shortcut,
+        IsToggle = chk != null, Shortcut = shortcut, Id = id,
     };
 
     RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
@@ -462,7 +462,7 @@ public sealed partial class MainViewModel : ViewModelBase
     static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items] };
 
     RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or place datum points, axes and planes.",
-        Btn("Gizmo", "move", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Gizmo }),
+        Btn("Gizmo", "gizmo", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Gizmo }, id: "move|Gizmo"),
         Btn("Point", "sketch-point", () => StartDatumTool(SketchDatumKind.Point), "Place datum points: click a face, edge or empty space, and keep clicking to add more.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Point }),
         Btn("Axis", "origin-axis", () => StartDatumTool(SketchDatumKind.Axis), "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.", RibbonSize.Small, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Axis }),
         Btn("Plane", "origin-plane", () => StartDatumTool(SketchDatumKind.Plane), "Place a datum plane on a face, plane or the work plane.", RibbonSize.Small, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Plane })));
