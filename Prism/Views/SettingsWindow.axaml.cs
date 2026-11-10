@@ -45,6 +45,7 @@ public partial class SettingsWindow : Window
         ShowGridOnStart.IsChecked = s.ShowGridOnStart;
         BuildGridSwatches();
         ShowWorkspace(); WsHome.IsChecked = s.ShowHomeOnStart;
+        StartupUpdates.IsChecked = s.CheckForUpdatesOnStartup;
         RecoveryEnabled.IsChecked = s.AutoRecoveryEnabled;
         RecoveryInterval.Value = s.AutoRecoveryIntervalMinutes;
         RecoveryInterval.IsEnabled = s.AutoRecoveryEnabled;
@@ -327,6 +328,17 @@ public partial class SettingsWindow : Window
     void OnWsDefault(object? s, RoutedEventArgs e) => _vm.UseDefaultWorkspace();
     void OnWsShow(object? s, RoutedEventArgs e) => _vm.ShowWorkspaceInExplorer();
     void OnWsHome(object? s, RoutedEventArgs e) { if (!_loading) _vm.ShowHomeOnStart = WsHome.IsChecked == true; }
+    void OnStartupUpdates(object? sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var settings = AppSettings.Current;
+        bool previous = settings.CheckForUpdatesOnStartup;
+        settings.CheckForUpdatesOnStartup = StartupUpdates.IsChecked == true;
+        if (AppSettings.TrySave(false)) return;
+        settings.CheckForUpdatesOnStartup = previous;
+        StartupUpdates.IsChecked = previous;
+        _vm.Session.Say("Could not save the startup update preference.", true);
+    }
     void OnRecoveryEnabled(object? sender, RoutedEventArgs e)
     {
         if (_loading) return;
@@ -452,6 +464,7 @@ public partial class SettingsWindow : Window
         new("Hold time for the right-click menu", 1, "hold time marking menu delay milliseconds", "HoldMs"),
         new("Reference plane size", 1, "reference origin construction plane size scale sketch pick clutter small", "PlaneScale"),
         new("Workspace folder", 2, "workspace folder parts files documents directory location", "WsPath"),
+        new("Check for updates at startup", 2, "update check launch startup notification", "StartupUpdates"),
         new("Show the home screen when Prism starts", 2, "home screen start startup open recent", "WsHome"),
         new("Autosave and recovery copies", 2, "autosave recovery backup crash restore unfinished", "RecoveryEnabled"),
         new("Recovery copy interval", 2, "recovery minutes interval autosave every frequency", "RecoveryInterval"),

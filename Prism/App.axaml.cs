@@ -60,6 +60,15 @@ public partial class App : Application
             Core.AppSettings.Changed += () => vm.Session.Invalidate();      // grid style      // the 3D view paints its own background
             var window = new MainWindow { DataContext = vm };
             desktop.MainWindow = window;
+            if (Environment.GetEnvironmentVariable("PRISM_CHECK_UPDATES") != "0" && window.Content is MainView view)
+            {
+                async void CheckOnce(object? sender, EventArgs args)
+                {
+                    window.Opened -= CheckOnce;
+                    await view.CheckForStartupUpdateAsync(window);
+                }
+                window.Opened += CheckOnce;
+            }
             foreach (var path in desktop.Args ?? Array.Empty<string>())
             {
                 if (string.Equals(Path.GetExtension(path), ".prism", StringComparison.OrdinalIgnoreCase))

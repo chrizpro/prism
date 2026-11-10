@@ -42,6 +42,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
         start.Environment["PRISM_EXE"] = desktop;
         start.Environment["PRISM_AUTOMATION_DISCOVERY"] = discovery;
         start.Environment["PRISM_AUTOMATION"] = "1";
+        start.Environment["PRISM_CHECK_UPDATES"] = "0";
         start.Environment["PRISM_RECOVERY_DIR"] = Path.Combine(output, "recovery");
         if (drawingTheme != null || recoveryIntervalMinutes != null)
         {

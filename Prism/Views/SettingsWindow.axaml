@@ -87,6 +87,7 @@
                         <Button Content="Show in Explorer" Click="OnWsShow" Margin="0,0,8,6"/>
                     </WrapPanel>
                     <CheckBox Name="WsHome" Content="Show the home screen when Prism starts" Click="OnWsHome" Margin="0,8,0,0"/>
+                    <CheckBox Name="StartupUpdates" Content="Check for updates at startup" Click="OnStartupUpdates"/>
                     <TextBlock Text="Autosave and recovery" FontSize="17" FontWeight="SemiBold" Margin="0,16,0,0"/>
                     <CheckBox Name="RecoveryEnabled" Content="Autosave separate recovery copies" Click="OnRecoveryEnabled"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
