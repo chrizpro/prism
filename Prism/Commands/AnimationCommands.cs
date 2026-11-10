@@ -295,7 +295,14 @@ public sealed class AnimationCommand : Command
     {
         Results.Clear();
         if (_rows.Count == 0 && !S.Components.Any() && _paramRows.Count == 0) { Results.Add(new ResultLine("Joints", "none yet. Create revolute, slider or cylindrical joints first (Joints tab).")); return null; }
-        var over = _rows.ToDictionary(r => r.joint.Key, r => r.joint with { Value = r.v1.Value, Value2 = r.v2?.Value ?? r.joint.Value2 });
+        var sampled = Pose(_time.Value);
+        var edited = _rows.Where(r =>
+        {
+            var baseline = sampled.GetValueOrDefault(r.joint.Key, _rest[r.joint.Key]);
+            return Math.Abs(r.v1.Value - Math.Clamp(baseline.v1, r.v1.Min, r.v1.Max)) > 1e-9 ||
+                r.v2 != null && Math.Abs(r.v2.Value - Math.Clamp(baseline.v2, r.v2.Min, r.v2.Max)) > 1e-9;
+        }).Select(r => r.joint.Key);
+        var over = S.ResolveAnimationJoints(_rows.ToDictionary(r => r.joint.Key, r => r.joint with { Value = r.v1.Value, Value2 = r.v2?.Value ?? r.joint.Value2 }), _anim, edited);
         var partPose = CadSession.PartPoseFrom(_partRows.ToDictionary(r => r.key, r => (r.p.Value, 0.0)));
         var shapes = S.PoseShapes(over, _explode.Value, out var notes, partPose);
         var o = new CommandOutput { Label = "Animation", Icon = "animation", ReplaceIsMove = true };
@@ -313,7 +320,7 @@ public sealed class AnimationCommand : Command
                 double span = to.T > from.T ? to.T - from.T : Math.Max(last.T - first.T, 1e-9), speed = Math.Abs(last.V - first.V) / span;
                 Results.Add(new ResultLine(r.name, $"{first.V:0.##} → {last.V:0.##} {r.unit} over {span:0.##} s  ({speed:0.##} {r.unit}/s)", 1));
             }
-        var values = _rows.ToDictionary(r => r.joint.Key, r => (r.v1.Value, r.v2?.Value ?? r.joint.Value2));
+        var values = over.ToDictionary(pair => pair.Key, pair => (pair.Value.Value, pair.Value.Value2));
         double explode = _explode.Value;
         var final = _anim with { Duration = _duration.Value, Loop = _loop.Value, Ease = _ease.Value };
         bool create = _createNew; var existing = _animObj;

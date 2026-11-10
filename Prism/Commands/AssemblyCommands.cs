@@ -201,7 +201,12 @@ public sealed class JointCommand : Command
         Results.Clear(); _frameA = _frameB = _axisFrame = null; _labelA = _labelB = null;
         var j = Plan(out var parent, out var child);
         if (j == null) return null;
-        var placements = S.SolvePlacements(null, out var notes, [j]);
+        var values = S.CloseLoops(new Dictionary<string, JointInfo>(), null, default, out var problem, added: j);
+        if (problem != null) throw new InvalidOperationException(problem);
+        var over = values == null ? null : S.JointObjects.Where(p => values.ContainsKey(p.joint.Key))
+            .ToDictionary(p => p.joint.Key, p => p.joint with { Value = values[p.joint.Key].v1, Value2 = values[p.joint.Key].v2 });
+        if (values != null && values.TryGetValue(j.Key, out var v)) j = j with { Value = v.v1, Value2 = v.v2 };
+        var placements = S.SolvePlacements(over, out var notes, [j]);
         var o = new CommandOutput { Label = j.Name, Icon = Icon, ReplaceIsMove = true };
         var moved = new List<Guid>();
         // preview the snap, then let the real solver set the final positions
@@ -214,7 +219,7 @@ public sealed class JointCommand : Command
         }
         var marker = Occ.Line(_frameA!.Value.T, _frameA.Value.T + _frameA.Value.AxisZ * 0.01);
         o.Add.Add(new(marker, j.Type.ToString(), ObjKind.Joint, Asm: j));
-        o.After = s => s.SolveAssembly();
+        o.After = s => { if (values == null) s.SolveAssembly(); else s.SetJointValues(values); };
         (Vec3 at, string label) ShowRole(SceneObject part, int number, string role)
         {
             string action = moved.Contains(part.Id) ? "moves" : "stays in place";
@@ -237,6 +242,15 @@ public sealed class JointCommand : Command
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
+        if (_type is JointType.Revolute or JointType.Cylindrical && s.Hover is { } pick &&
+            ActiveSlot is { } slot && s.Matches(pick, slot.PickFilter) &&
+            s.Find(pick.Obj)?.Kind == ObjKind.Solid && s.FrameOf(pick) is { } candidate)
+        {
+            double extent = s.Camera.PixelSizeAt(candidate.origin) * 55;
+            var end = candidate.origin + candidate.z * extent;
+            o.AddLine(candidate.origin - candidate.z * extent, end, 0xFF35B6FF, 3f);
+            o.AddLabel(end, "Pick axis");
+        }
         if (!AsPositioned && _frameA is { } a) Triad(o, a, 12, 0xFFFFC53D);
         if (!AsPositioned && _frameB is { } b) Triad(o, b, 9, 0xFF35B6FF);
         if (_labelA is { } first) o.AddLabel(first.at, first.label);
@@ -332,7 +346,13 @@ public sealed class DriveJointsCommand : Command
         var closed = S.CloseLoops(over, moved, moved == null ? default : _last[moved], out var problem);
         if (problem != null)
         {
-            foreach (var r in _rows) over[r.joint.Key] = r.joint with { Value = _last[r.joint.Key].v1, Value2 = _last[r.joint.Key].v2 };
+            foreach (var r in _rows)
+            {
+                var last = _last[r.joint.Key];
+                over[r.joint.Key] = r.joint with { Value = last.v1, Value2 = last.v2 };
+                SetQuietly(r.v1, last.v1);
+                if (r.v2 != null) SetQuietly(r.v2, last.v2);
+            }
             Results.Add(new ResultLine("Cannot go there", problem, 2));
         }
         else if (closed != null)
@@ -344,7 +364,6 @@ public sealed class DriveJointsCommand : Command
                 }
         foreach (var r in _rows) _last[r.joint.Key] = (over[r.joint.Key].Value, over[r.joint.Key].Value2);
         var placements = S.SolvePlacements(over, out var notes);
-        if (closed != null) notes.RemoveAll(n => n.Contains("closed loop"));
         var o = new CommandOutput { Label = "Drive joints", Icon = "joint-revolute", ReplaceIsMove = true };
         foreach (var comp in S.Components)
         {
@@ -587,7 +606,7 @@ public sealed class CreatePartCommand : Command
     public override string Title => "Create Part";
     public override string Icon => "component";
     public override string OkText => "Create and model it";
-    public override string Hint => "Make a new part for this assembly. It opens in the Design workspace on the right tab (Solid, Sheet Metal, Surface, Freeform, NURBS or Scan) with the rest of the assembly left behind. Press Back to assembly when you are done and the part is placed here. You can switch tabs later: all the modeling tabs stay available.";
+    public override string Hint => "Model a new part in its own tab. Visible assembly components appear dimmed for reference. Press Back to assembly to insert the finished part.";
 
     protected override void OnBegin() { if (_name.Value.Length == 0) _name.Value = $"Part {S.Components.Count() + 1}"; }
 

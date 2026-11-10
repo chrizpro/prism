@@ -144,6 +144,100 @@ public class ComponentTests
         Assert.True(Math.Abs(Vec3.Dot((axis.B - axis.A).Normalized(), Vec3.UnitX)) > 0.999);
     }
 
+    [AvaloniaFact(DisplayName = "ASM-H005 | Driving a four-bar crank keeps all four pins joined through a turn")]
+    [Trait("TestId", "ASM-H005")]
+    public void DriveFourBarThroughAFullTurn()
+    {
+        var session = new CadSession();
+        var pivot = new Vec3(100, 0, 0);
+        double alpha = Math.Acos(2100 / 9600.0);
+        var tip = pivot + new Vec3(80 * Math.Cos(alpha), 80 * Math.Sin(alpha), 0);
+        var crankPin = new Vec3(40, 0, 0);
+        string Part(Vec3 at) => session.MakePart(CreateBoxBody(session, at, 2, 3, 4).Id).Component!.Key;
+        string ground = Part(Vec3.Zero), crank = Part(crankPin), coupler = Part(tip), rocker = Part(pivot);
+        JointInfo Pin(string name, string parent, string child, Vec3 at)
+        {
+            var frame = JointInfo.Pack(Xform.Translation(at));
+            return new JointInfo(name, name, JointType.Revolute, parent, child, frame, frame, false, 0, 0, 0, false, 0, 0, 0, 0);
+        }
+        void Add(JointInfo joint)
+        {
+            var marker = session.AddObject(Occ.Line(Vec3.Zero, Vec3.UnitZ), joint.Name, ObjKind.Joint);
+            session.Update(marker.Id, o => o.WithAsm(joint), false);
+        }
+        Add(Pin("Crank", ground, crank, Vec3.Zero));
+        Add(Pin("Crank pin", crank, coupler, crankPin));
+        Add(Pin("Rocker", ground, rocker, pivot));
+        var closure = Pin("Closing pin", coupler, rocker, tip);
+        Assert.NotNull(session.CloseLoops(new Dictionary<string, JointInfo>(), null, default, out var problem, added: closure));
+        Assert.Null(problem);
+        Add(closure);
+        session.StartCommand(() => new DriveJointsCommand());
+        var drive = Assert.IsType<DriveJointsCommand>(session.ActiveCommand);
+        var input = drive.Params.OfType<NumberParam>().Single(p => p.Label == "Crank  (angle)");
+        for (int angle = 15; angle <= 360; angle += 15)
+        {
+            input.Value = angle;
+            Assert.Equal(angle, input.Value);
+            Assert.DoesNotContain(drive.Results, r => r.Label is "Cannot go there" or "Note");
+        }
+        input.Value = 120;
+        session.CommitCommand();
+        var placements = session.SolvePlacements(null, out var notes);
+        Assert.Empty(notes);
+        Assert.All(session.JointObjects, p => Assert.All(AssemblyKinematics.ClosureError(placements, p.joint),
+            residual => Assert.InRange(residual, -1e-6, 1e-6)));
+        Assert.Equal(120, session.JointObjects.Single(p => p.joint.Key == "Crank").joint.Value);
+
+        session.AddAnimation(new AnimInfo(2, [new AnimTrack("Crank", false, [new AnimKey(0, 120), new AnimKey(2, 180)])], false, false));
+        session.StartCommand(() => new AnimationCommand());
+        var animation = Assert.IsType<AnimationCommand>(session.ActiveCommand);
+        animation.Params.OfType<NumberParam>().Single(p => p.Label == "Time").Value = 1;
+        Assert.Null(animation.Error);
+        session.CommitCommand();
+        Assert.Equal(150, session.JointObjects.Single(p => p.joint.Key == "Crank").joint.Value);
+        placements = session.SolvePlacements(null, out notes);
+        Assert.Empty(notes);
+        Assert.All(AssemblyKinematics.ClosureError(placements, session.JointObjects.Single(p => p.joint.Key == closure.Key).joint),
+            residual => Assert.InRange(residual, -1e-6, 1e-6));
+
+        var (rockerObject, rockerJoint) = session.JointObjects.Single(p => p.joint.Key == "Rocker");
+        session.Update(rockerObject.Id, o => o.WithAsm(rockerJoint with
+        {
+            HasLimits = true, Min = rockerJoint.Value - .1, Max = rockerJoint.Value + .1,
+        }), false);
+        session.StartCommand(() => new DriveJointsCommand());
+        drive = Assert.IsType<DriveJointsCommand>(session.ActiveCommand);
+        input = drive.Params.OfType<NumberParam>().Single(p => p.Label == "Crank  (angle)");
+        input.Value = 180;
+        Assert.Contains(drive.Results, r => r.Label == "Cannot go there");
+        Assert.Equal(150, input.Value);
+        session.CommitCommand();
+        Assert.Equal(150, session.JointObjects.Single(p => p.joint.Key == "Crank").joint.Value);
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H006 | Hovering a round pin previews its hinge axis before selecting it")]
+    [Trait("TestId", "ASM-H006")]
+    public void RoundPinShowsCandidateAxis()
+    {
+        var session = new CadSession();
+        var pin = session.AddObject(Occ.Cylinder(5, 20), "Pin", ObjKind.Solid);
+        int index = Enumerable.Range(0, pin.Shape.Count(SubKind.Face)).Single(i =>
+        {
+            using var face = pin.Shape.Sub(SubKind.Face, i);
+            return Occ.FaceInfoOf(face).Type == "Cylinder";
+        });
+        session.StartCommand(() => new JointCommand(JointType.Revolute));
+        var command = Assert.IsType<JointCommand>(session.ActiveCommand);
+        session.Hover = new SelItem(pin.Id, SelKind.Face, index);
+        var overlay = new Overlay();
+        command.BuildOverlay(session, overlay);
+        var label = Assert.Single(overlay.Labels, label => label.Text == "Pick axis");
+        var line = Assert.Single(overlay.Lines, line => line.B == label.P);
+        Assert.True(Math.Abs(Vec3.Dot((line.B - line.A).Normalized(), Vec3.UnitZ)) > .999);
+        Assert.Empty(command.Slots[0].Items);
+    }
+
     static SelItem Face(SceneObject body, Vec3 normal)
     {
         int index = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).Single(i =>

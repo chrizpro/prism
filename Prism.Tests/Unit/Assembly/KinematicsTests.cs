@@ -1,5 +1,6 @@
 using Prism.Core.Assembly;
 using Prism.Kernel;
+using Prism.Simulation;
 using Xunit;
 
 namespace Prism.UnitTests.Assembly;
@@ -51,6 +52,19 @@ public class KinematicsTests
     static JointInfo Joint(JointType type, double first, double second) =>
         new("joint", "Fixture joint", type, "parent", "child", JointInfo.Pack(Xform.Identity),
             JointInfo.Pack(Xform.Identity), false, 0, first, second, false, 0, 0, 0, 0);
+
+    [Fact(DisplayName = "ASM-U003 | A rigid loop rejects a half-turn mismatch even when the pin origins coincide")]
+    [Trait("TestId", "ASM-U003")]
+    public void RigidLoopChecksOrientationWithoutMovableJoints()
+    {
+        var poses = new Dictionary<string, Xform> { ["parent"] = Xform.Identity, ["child"] = Xform.Identity };
+        var first = Joint(JointType.Rigid, 0, 0);
+        var closing = first with { Key = "closure" };
+        _ = new MotionEngine(poses, new HashSet<string> { "parent" }, [first, closing], [], [], []);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            new MotionEngine(poses, new HashSet<string> { "parent" }, [first, closing with { ZeroAngle = 180 }], [], [], []));
+        Assert.Contains("cannot close", error.Message);
+    }
 
     static void Near(Vec3 expected, Vec3 actual) => Assert.InRange(actual.DistanceTo(expected), 0, 1e-10);
 }

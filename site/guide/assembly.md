@@ -45,6 +45,8 @@ The joint axis comes from the local joint frames you place on the two components
 4. Use **Drive Joints** to check the arm's rotation. If it should slide instead, use **Slider**; if it should both slide and turn, use **Cylindrical**.
 5. Set joint limits where the mechanism has stops, then check the motion again.
 
+Hover over the pin or hole before clicking to see the axis Prism will use. For a four-bar linkage, add all four hinges, then drive the crank and watch the other joints follow. If the linkage cannot reach the requested position, Drive Joints keeps the last valid pose. When animating the linkage, key the crank and let Prism position the other joints.
+
 <GuideImage image="assembly-revolute-setup" />
 
 <GuideImage image="assembly-drive-joint" />

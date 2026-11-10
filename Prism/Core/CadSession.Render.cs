@@ -110,10 +110,9 @@ public sealed partial class CadSession
                     foreach (var (k, v) in original) rest[k] = (v.Item1, v.Item2);
                     rest["@explode"] = (originalExplode, 0);
                     var pose = anim.Sample(t, rest);
-                    var values = new Dictionary<string, (double v1, double v2)>();
-                    foreach (var (k, v) in original) values[k] = (v.Item1, v.Item2);
-                    foreach (var (k, v) in pose) if (k != "@explode") values[k] = v;
-                    SetJointValues(values);
+                    var joints = ResolveAnimationJoints(JointObjects.Select(p => p.joint).ToDictionary(j => j.Key, j =>
+                        pose.TryGetValue(j.Key, out var v) ? j with { Value = v.v1, Value2 = v.v2 } : j), anim);
+                    SetJointValues(joints.ToDictionary(p => p.Key, p => (p.Value.Value, p.Value.Value2)));
                     SetExplode(pose.TryGetValue("@explode", out var ex) ? ex.v1 : originalExplode);
                     SetPartPose(PartPoseFrom(pose));
                     ApplyParameterShapes(pose);
