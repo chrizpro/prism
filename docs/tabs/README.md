@@ -10,6 +10,12 @@ Each ribbon tab shows its section captions below the tools in both themes. **3D 
 
 Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issues/113). On 2026-11-10, RIB-H001 checked names for all shipped tabs and rendered the two print tabs and Mold in both themes. RIB-I001 captured those tabs on the Windows desktop in both themes. See the [ribbon section tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
 
+## Modeling ribbon palette
+
+Solid-first review (2026-11-10, [#118](https://github.com/chrizpro/prism/issues/118)). Solid uses blue for modeled geometry and pattern instances. Smaller accents distinguish a direction arrow, cut line or modified edge. The shared Gizmo control uses the viewport's red, green and blue axes, a center handle and a rotation arc. Move uses its separate icon. RIB-H002 verified the viewport axis colors in both themes and the saved Gizmo ribbon ID. RIB-I002 captured the Solid preview on Windows in [Light](evidence/RIB-I002-solid-light.png) and [Dark](evidence/RIB-I002-solid-dark.png). [Ribbon tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
+
+Proposed after Solid review: green Surface geometry, red NURBS geometry and purple Freeform geometry. Secondary colors can identify the action or selection. Yellow is excluded as a primary modeling color.
+
 ## Find a guide
 
 | Area | Guide | Coverage |

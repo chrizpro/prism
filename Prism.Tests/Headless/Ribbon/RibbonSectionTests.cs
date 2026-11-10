@@ -5,6 +5,8 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Prism.Controls;
+using Prism.Core;
 using Prism.Ribbon;
 using Prism.ViewModels;
 using Xunit;
@@ -16,6 +18,32 @@ namespace Prism.HeadlessTests.Ribbon;
 [Trait("Layer", "Headless")]
 public sealed class RibbonSectionTests
 {
+    [AvaloniaFact(DisplayName = "RIB-H002 | Gizmo has its own axis-colored glyph and retains its saved ribbon ID")]
+    [Trait("TestId", "RIB-H002")]
+    public void GizmoGlyphMatchesViewportAxes()
+    {
+        var vm = new MainViewModel();
+        var solid = vm.Tabs.Single(tab => tab.Title == "Solid");
+        var gizmo = Assert.Single(solid.Buttons, button => button.Label == "Gizmo" && button.Menu == null);
+        Assert.Equal("move|Gizmo", gizmo.Id);
+        Assert.Equal("gizmo", gizmo.Icon);
+        Assert.Equal("move", Assert.Single(solid.Buttons, button => button.Label == "Move" && button.Menu == null).Icon);
+
+        var app = Application.Current!;
+        var original = app.RequestedThemeVariant;
+        try
+        {
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                app.RequestedThemeVariant = theme;
+                var colors = Icons.Get(gizmo.Icon)!.SelectMany(shape => new[] { shape.Fill, shape.Stroke?.Brush })
+                    .OfType<ISolidColorBrush>().Select(brush => brush.Color.ToUInt32()).ToArray();
+                Assert.All(GizmoVisual.AxisColors, axis => Assert.Contains(axis, colors));
+            }
+        }
+        finally { app.RequestedThemeVariant = original; }
+    }
+
     [AvaloniaTheory(DisplayName = "RIB-H001 | Every ribbon group has a name and captions use a readable theme brush")]
     [InlineData(false)]
     [InlineData(true)]

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Media;
+using Prism.Core;
 
 namespace Prism.Controls;
 
@@ -38,7 +39,13 @@ public static class Icons
         return cache[name] = def.Select(s => Parse(s, light)).ToArray();
     }
 
-    static IBrush? Brush(string s, bool light = false) => s == "-" ? null : new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var li) ? li : Pal[s[0]]) : s));
+    static IBrush? Brush(string s, bool light)
+    {
+        if (s == "-") return null;
+        if (s is "x" or "y" or "z")
+            return new SolidColorBrush(Color.FromUInt32(GizmoVisual.AxisColors[s[0] - 'x']));
+        return new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var ink) ? ink : Pal[s[0]]) : s));
+    }
 
     static IconShape Parse(string spec, bool light)
     {
@@ -83,6 +90,12 @@ public static class Icons
         ["sel-vertex"] = [.. Cube(), "o|k|1.4|M20 16.5 A4 4 0 1 1 12 16.5 A4 4 0 1 1 20 16.5Z"],
 
         // ------------------------------------------------ transforms
+        ["gizmo"] = [
+            "-|s|1.3|M5 20 C6 15 25 15 27 20 C29 25 12 29 6 25",
+            "-|z|2.4|M16 19 V5", Head("M16 2 L19.5 8 H12.5Z", 'z'),
+            "-|x|2.4|M16 19 L26 24", Head("M29.5 25.5 L22.5 26 L25.5 20Z", 'x'),
+            "-|y|2.4|M16 19 L7 24", Head("M3.5 26 L7 20 L10.5 25Z", 'y'),
+            "w|k|1|M16 16.5 L18.5 19 L16 21.5 L13.5 19Z"],
         ["move"] = ["-|k|2.2|M16 4 V28 M4 16 H28", Head("M16 2 L20.5 7.5 H11.5Z", 'b'), Head("M16 30 L20.5 24.5 H11.5Z", 'b'), Head("M2 16 L7.5 11.5 V20.5Z", 'b'), Head("M30 16 L24.5 11.5 V20.5Z", 'b')],
         ["rotate"] = ["-|b|2.8|M25 12 A10 10 0 1 0 25.5 19", Head("M28.5 5 L28 15 L19 11Z", 'b'), "o|k|1.2|M13 13 H19 V19 H13Z"],
         ["scale"] = ["B|k|1.4|M4 14 H18 V28 H4Z", "-|o|2.6|M14 18 L26 6", Head("M28 4 L28 13 L19 4Z", 'o'), "-|s|1.4|M18 28 H28 V18"],
@@ -182,11 +195,11 @@ public static class Icons
         ["finish-polished"] = ["m|k|1.2|M4 16 a12 12 0 1 0 24 0 a12 12 0 1 0 -24 0", "-|w|2.4|M9 11 C11 8 15 7 20 8 M22 20 C21 23 18 25 15 25"],
 
         // ------------------------------------------------ patterns
-        ["pattern-linear"] = ["B|b|1.3|M3 10 H11 V22 H3Z", "w|k|1.3|M13 10 H21 V22 H13Z", "w|k|1.3|M23 10 H30 V22 H23Z", "-|o|2|M5 27 H28 M25 24 L28 27 L25 30"],
-        ["pattern-circular"] = ["B|b|1.3|M13 3 H19 V10 H13Z", "w|k|1.3|M23.5 9.5 L28 14 L23 19 L18.5 14.5Z", "w|k|1.3|M13 22 H19 V29 H13Z", "w|k|1.3|M4 14 L9 9.5 L13.5 14 L9 19Z", "-|o|1.6|M16 16 m-4 0 a4 4 0 1 1 8 0"],
-        ["pattern-curve"] = ["-|k|1.4|M3 26 C8 8 22 28 29 8", "B|b|1.2|M3 22 H9 V28 H3Z", "w|o|1.2|M12 14 H17 V19 H12Z", "w|o|1.2|M22 15 H27 V20 H22Z"],
+        ["pattern-linear"] = ["B|b|1.3|M3 10 H11 V22 H3Z", "d|b|1.3|M13 10 H21 V22 H13Z", "d|b|1.3|M23 10 H30 V22 H23Z", "-|o|2|M5 27 H28 M25 24 L28 27 L25 30"],
+        ["pattern-circular"] = ["B|b|1.3|M13 3 H19 V10 H13Z", "d|b|1.3|M23.5 9.5 L28 14 L23 19 L18.5 14.5Z", "d|b|1.3|M13 22 H19 V29 H13Z", "d|b|1.3|M4 14 L9 9.5 L13.5 14 L9 19Z", "-|o|1.6|M16 16 m-4 0 a4 4 0 1 1 8 0"],
+        ["pattern-curve"] = ["-|k|1.4|M3 26 C8 8 22 28 29 8", "B|b|1.2|M3 22 H9 V28 H3Z", "d|b|1.2|M12 14 H17 V19 H12Z", "d|b|1.2|M22 15 H27 V20 H22Z"],
         ["pattern-fill"] = ["w|k|1.4|M3 4 H29 V28 H3Z", "B|b|1.2|M7 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M15 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M22 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M10 15 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M18 15 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M7 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M15 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M22 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0"],
-        ["pattern-table"] = ["w|k|1.3|M3 5 H29 V27 H3Z", "-|k|1.2|M3 12 H29 M3 19 H29 M12 5 V27 M21 5 V27", "w|o|1.6|M14 14 H19 V19 H14Z"],
+        ["pattern-table"] = ["w|k|1.3|M3 5 H29 V27 H3Z", "-|k|1.2|M3 12 H29 M3 19 H29 M12 5 V27 M21 5 V27", "B|b|1.6|M14 14 H19 V19 H14Z"],
 
         // ------------------------------------------------ mesh tools
         ["mesh"] = ["-|k|1.2|M3 25 L11 7 L21 25Z M11 7 L28 11 L21 25 M28 11 L30 25 L21 25"],
