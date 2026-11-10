@@ -30,13 +30,28 @@ public static class Icons
     static readonly Dictionary<string, IconShape[]> Cache = [];
     static readonly Dictionary<string, IconShape[]> CacheLight = [];
 
-    public static IconShape[]? Get(string? name)
+    public static IconShape[]? Get(string? name, string? ribbonTab = null)
     {
         if (name == null) return null;
-        bool light = Light; var cache = light ? CacheLight : Cache;
-        if (cache.TryGetValue(name, out var c)) return c;
+        bool light = Light;
+        var cache = light ? CacheLight : Cache;
+        string? curveInk = null;
+        if (name is "ribbon-curve-through" or "ribbon-curve-equation")
+        {
+            name = name["ribbon-".Length..];
+            curveInk = ribbonTab switch
+            {
+                "Solid" => light ? "#2F66C9" : "#79A8F2",
+                "Surface" => light ? "#16824A" : "#3FCF8E",
+                "NURBS" => light ? "#D13438" : "#FF6B6F",
+                "Freeform" => light ? "#6846B4" : "#B79CFF",
+                _ => null,
+            };
+        }
+        string key = curveInk == null ? name : name + curveInk;
+        if (cache.TryGetValue(key, out var shapes)) return shapes;
         if (!Defs.TryGetValue(name, out var def)) return null;
-        return cache[name] = def.Select(s => Parse(s, light)).ToArray();
+        return cache[key] = def.Select(s => Parse(s, light, curveInk)).ToArray();
     }
 
     static IBrush? Brush(string s, bool light)
@@ -47,11 +62,12 @@ public static class Icons
         return new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var ink) ? ink : Pal[s[0]]) : s));
     }
 
-    static IconShape Parse(string spec, bool light)
+    static IconShape Parse(string spec, bool light, string? curveInk)
     {
         var p = spec.Split('|');
         var fill = Brush(p[0], light);
-        var stroke = p[1] == "-" ? null : new Pen(Brush(p[1], light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        var ink = curveInk != null && p[1] is "b" or "t" ? curveInk : p[1];
+        var stroke = ink == "-" ? null : new Pen(Brush(ink, light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         return new IconShape(Geometry.Parse(p[3]), fill, stroke);
     }
 

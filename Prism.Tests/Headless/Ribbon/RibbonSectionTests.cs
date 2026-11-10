@@ -71,6 +71,10 @@ public sealed class RibbonSectionTests
             AssertCaptions("3D FDM", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("3D Resin", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("Mold", "Part", "Mold");
+            AssertCurvePalette("Solid", dark ? "#79A8F2" : "#2F66C9");
+            AssertCurvePalette("Surface", dark ? "#3FCF8E" : "#16824A");
+            AssertCurvePalette("NURBS", dark ? "#FF6B6F" : "#D13438");
+            AssertCurvePalette("Freeform", dark ? "#B79CFF" : "#6846B4");
         }
         finally
         {
@@ -78,7 +82,41 @@ public sealed class RibbonSectionTests
             styles.Remove(fluent);
         }
 
-        void AssertCaptions(string tabTitle, params string[] expected)
+        void AssertCaptions(string tabTitle, params string[] expected) => WithRibbon(tabTitle, ribbon =>
+        {
+            var labels = ribbon.GetVisualDescendants().OfType<TextBlock>().Where(label => label.Classes.Contains("glabel")).ToArray();
+            Assert.Equal(expected, labels.Select(label => label.Text));
+            Assert.All(labels, label =>
+            {
+                var color = Assert.IsAssignableFrom<ISolidColorBrush>(label.Foreground).Color;
+                Assert.True(label.IsVisible && label.Bounds.Height > 0);
+                Assert.True(dark ? color.R > 120 : color.R < 120, $"Unexpected {tabTitle} caption color {color}");
+            });
+        });
+
+        void AssertCurvePalette(string tabTitle, string expected) => WithRibbon(tabTitle, ribbon =>
+        {
+            var icon = Assert.Single(ribbon.GetVisualDescendants().OfType<IconView>(),
+                view => view.IsEffectivelyVisible && view.DataContext is RibbonButton { Id: "split:curve-create" });
+            Assert.Equal(tabTitle, icon.RibbonTab);
+            var button = (RibbonButton)icon.DataContext!;
+            Assert.Equal(new[] { "curve-through|Curve", "curve-equation|Curve from Data" }, button.Menu!.Select(item => item.Id));
+
+            var app = Application.Current!;
+            var previous = app.RequestedThemeVariant;
+            try
+            {
+                app.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+                foreach (var item in button.Menu!)
+                {
+                    var shape = Icons.Get(item.Icon, icon.RibbonTab)![0];
+                    Assert.Equal(Color.Parse(expected), Assert.IsAssignableFrom<ISolidColorBrush>(shape.Stroke!.Brush).Color);
+                }
+            }
+            finally { app.RequestedThemeVariant = previous; }
+        });
+
+        void WithRibbon(string tabTitle, Action<RibbonView> verify)
         {
             var tab = vm.Tabs.Single(tab => tab.Title == tabTitle);
             vm.EnsureTabVisible(tab);
@@ -90,14 +128,7 @@ public sealed class RibbonSectionTests
             try
             {
                 Dispatcher.UIThread.RunJobs();
-                var labels = ribbon.GetVisualDescendants().OfType<TextBlock>().Where(label => label.Classes.Contains("glabel")).ToArray();
-                Assert.Equal(expected, labels.Select(label => label.Text));
-                Assert.All(labels, label =>
-                {
-                    var color = Assert.IsAssignableFrom<ISolidColorBrush>(label.Foreground).Color;
-                    Assert.True(label.IsVisible && label.Bounds.Height > 0);
-                    Assert.True(dark ? color.R > 120 : color.R < 120, $"Unexpected {tabTitle} caption color {color}");
-                });
+                verify(ribbon);
             }
             finally { window.Close(); }
         }
