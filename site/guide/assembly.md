@@ -13,12 +13,12 @@ Your workspace folder is your parts library. **Parts Library** lists every part 
 ## Position
 
 - **Move Component** drags a component freely.
-- **Mate** snaps a free component onto another by two faces: touching, flush or a set distance apart.
+- **Mate** snaps a free component onto another by two faces: touching, flush or a set distance apart. Use **Assemble → Joint → Rigid → As Positioned** to lock two parts together after lining them up. Select the parts in the viewport to keep their current relative position and angle.
 - **Component Pattern** repeats a component in a line or around an axis. Each copy is a free component that can be jointed or animated on its own.
 
 ## Joints
 
-Joints position components from the grounded parts. Pick a face, edge or point on each of two components and choose the type:
+Choose a joint from **Assemble → Joint** or the dedicated **Joints** tab. For a snapping joint, pick a face or edge on each component. The preview shows which part will move and labels the joint axis or slide directions.
 
 | Joint | Allows |
 | --- | --- |

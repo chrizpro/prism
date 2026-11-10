@@ -12,7 +12,7 @@ public static class RibbonLayoutPolicy
         // what you pick and draw with
         "Document", "Select", "Datum", "References", "Curves", "Edit curves", "Setup", "Study", "Board", "Get a mesh", "Region", "Set up", "Sketch from scan", "Fit", "Write",
         // making things
-        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Mechanism", "Joint", "Couple",
+        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Add Parts", "Assemble", "Manage Parts", "Mechanism", "Joint", "Couple",
         "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "3D flow", "Toolpaths", "Prepare", "Troubleshoot", "Preparation", "Resin preparation", "Mesh preparation",
         // changing things
         "Modify", "Direct Edit", "Add", "Edit faces", "Edit features", "Direct", "Faces", "Edit", "Repair", "Reshape", "Cut-outs",

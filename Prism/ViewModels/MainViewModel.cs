@@ -1203,29 +1203,41 @@ public sealed partial class MainViewModel : ViewModelBase
         bool CanCouple() => Session.JointObjects.Count(j => j.joint.Type is JointType.Revolute or JointType.Cylindrical or JointType.Slider) >= 2;
         RibbonButton MakePartBtn() => AsmCmd("Make\nPart", "component", () => new MakePartCommand(), "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.", RibbonSize.Large, HasBodies);
         RibbonButton CoupleBtn() => AsmCmd("Couple", "joint-gear", () => new CouplingCommand(), "Make one joint follow another at a ratio: gears, belts and chains, a rack, pulley or screw, or a lever or cable.", RibbonSize.Large, CanCouple);
+        RibbonButton[] JointTools() =>
+        [
+            AsmCmd("Rigid", "joint-rigid", () => new JointCommand(JointType.Rigid), "Lock one component to another: no motion.", RibbonSize.Large, HasBodies),
+            AsmCmd("Revolute", "joint-revolute", () => new JointCommand(JointType.Revolute), "A hinge or pin: the second component turns about the axis.", RibbonSize.Large, HasBodies),
+            AsmCmd("Slider", "joint-slider", () => new JointCommand(JointType.Slider), "The second component slides along one direction.", RibbonSize.Large, HasBodies),
+            AsmCmd("Cylindrical", "joint-cyl", () => new JointCommand(JointType.Cylindrical), "Turns about an axis and slides along it (a bolt in a hole).", RibbonSize.Large, HasBodies),
+            AsmCmd("Ball", "joint-ball", () => new JointCommand(JointType.Ball), "Pivots about a point: spin and tilt (a ball and socket).", RibbonSize.Large, HasBodies),
+            AsmCmd("Planar", "joint-planar", () => new JointCommand(JointType.Planar), "Slides over a flat face in two directions.", RibbonSize.Large, HasBodies),
+        ];
         var assemble = new RibbonTab
         {
             Title = "Assemble",
             Groups =
             [
                 SelectGrp(),
-                G("Components",
-                    Btn("Parts\nLibrary", "component", OpenLibrary, "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.", RibbonSize.Large, () => !IsSketching),
+                G("Add Parts",
                     AsmCmd("Insert\nComponent", "component", () => new InsertComponentCommand(), "Place a part from another open document or a part file. Model each part on its own first (bottom-up)."),
-                    AsmCmd("Move\nComponent", "move", () => new MoveComponentCommand(), "Position a free component: move it or turn it about its centre.", RibbonSize.Large, HasComponents),
+                    Btn("Parts\nLibrary", "component", OpenLibrary, "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.", RibbonSize.Large, () => !IsSketching),
                     AsmCmd("Create\nPart", "component", () => new CreatePartCommand(), "Start a new part inside this assembly. It opens in the Design workspace; press Back to assembly when it is done.", RibbonSize.Large),
-                    MakePartBtn(),
-                    Btn("Edit\nPart", "component", () => EditComponentPart(), "Open the selected component's part for editing in the Design workspace. Back to assembly brings the changes in.", RibbonSize.Large, () => !IsSketching && SelectedComponent != null),
-                    AsmCmd("Mate", "joint-rigid", () => new MateCommand(), "Snap a free component onto another by two faces: touching, flush or a set distance apart.", RibbonSize.Large, HasComponents),
-                    AsmCmd("Component\nPattern", "pattern-linear", () => new ComponentPatternCommand(), "Repeat a component in a line or around an axis.", RibbonSize.Large, HasComponents),
-                    AsmCmd("Parts\nList", "component", () => new PartsListCommand(), "Count every part, with material, mass and cost from each part's info. Save it as a CSV.", RibbonSize.Large, HasComponents),
+                    MakePartBtn()),
+                G("Assemble",
                     Btn("Ground", "ground", ToggleGround, "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.", RibbonSize.Large, () => HasComponents() && !IsSketching, () => SelectedComponent?.Component?.Grounded == true),
+                    AsmCmd("Move\nComponent", "move", () => new MoveComponentCommand(), "Position a free component: move it or turn it about its centre.", RibbonSize.Large, HasComponents),
+                    AsmCmd("Mate", "joint-rigid", () => new MateCommand(), "Snap a free component onto another by two faces: touching, flush or a set distance apart.", RibbonSize.Large, HasComponents),
+                    new RibbonButton { Label = "Joint", Icon = "joint-rigid", Id = "menu:assemble-joint", Description = "Connect two components.", Menu = [.. JointTools()] }),
+                G("Manage Parts",
+                    Btn("Edit\nPart", "component", () => EditComponentPart(), "Open the selected component's part for editing in the Design workspace. Back to assembly brings the changes in.", RibbonSize.Large, () => !IsSketching && SelectedComponent != null),
+                    AsmCmd("Component\nPattern", "pattern-linear", () => new ComponentPatternCommand(), "Repeat a component in a line or around an axis.", RibbonSize.Large, HasComponents),
                     Btn("Refresh", "refresh", () => { int n = Session.RefreshComponentsFromSource(); Session.Say(n == 0 ? "Nothing to refresh: no linked part files changed." : $"Refreshed {n} component(s) from their files."); }, "Reload components from the part files they were inserted from, keeping their positions.", RibbonSize.Large, () => HasComponents() && !IsSketching)),
                 G("Review",
-                    AsmCmd("Exploded\nView", "explode", () => new ExplodeCommand(), "Pull the parts apart to see how they fit. The real positions are untouched.", RibbonSize.Large, HasComponents),
                     AsmCmd("Interference", "interference", () => new InterferenceCommand(), "Find where components overlap.", RibbonSize.Large, HasComponents),
+                    AsmCmd("Measure", "measure", () => new MeasureCommand(), "Measure distances and angles between components.", RibbonSize.Large, HasComponents),
                     AsmCmd("Properties", "properties", () => new PropertiesCommand(), "Volume, mass, center of mass and moments of inertia of the selection.", RibbonSize.Large, HasComponents),
-                    AsmCmd("Measure", "measure", () => new MeasureCommand(), "Measure distances and angles between components.", RibbonSize.Large, HasComponents)),
+                    AsmCmd("Parts\nList", "component", () => new PartsListCommand(), "Count every part, with material, mass and cost from each part's info. Save it as a CSV.", RibbonSize.Large, HasComponents),
+                    AsmCmd("Exploded\nView", "explode", () => new ExplodeCommand(), "Pull the parts apart to see how they fit. The real positions are untouched.", RibbonSize.Large, HasComponents)),
             ],
         };
         var joints = new RibbonTab
@@ -1234,13 +1246,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 SelectGrp(),
-                G("Joint",
-                    AsmCmd("Rigid", "joint-rigid", () => new JointCommand(JointType.Rigid), "Lock one component to another: no motion.", RibbonSize.Large, HasBodies),
-                    AsmCmd("Revolute", "joint-revolute", () => new JointCommand(JointType.Revolute), "A hinge or pin: the second component turns about the axis.", RibbonSize.Large, HasBodies),
-                    AsmCmd("Slider", "joint-slider", () => new JointCommand(JointType.Slider), "The second component slides along one direction.", RibbonSize.Large, HasBodies),
-                    AsmCmd("Cylindrical", "joint-cyl", () => new JointCommand(JointType.Cylindrical), "Turns about an axis and slides along it (a bolt in a hole).", RibbonSize.Large, HasBodies),
-                    AsmCmd("Ball", "joint-ball", () => new JointCommand(JointType.Ball), "Pivots about a point: spin and tilt (a ball and socket).", RibbonSize.Large, HasBodies),
-                    AsmCmd("Planar", "joint-planar", () => new JointCommand(JointType.Planar), "Slides over a flat face in two directions.", RibbonSize.Large, HasBodies)),
+                G("Joint", JointTools()),
                 G("Couple", CoupleBtn()),
                 G("Motion",
                     AsmCmd("Drive\nJoints", "joint-revolute", () => new DriveJointsCommand(), "Move joints and watch the assembly follow, within their limits.", RibbonSize.Large, HasJoints),

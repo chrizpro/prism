@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5C1644A88B828683655FE8385FC9A04459F1C94A4E2C286990BC6E3870897D27",
+  "sourceHash": "6825757B200F84A2F7E9DEBD7618FBD0405FFAFA16F5DDAC8148F0B0E7562AF7",
   "workspaces": [
     {
       "Id": "design",
@@ -5021,14 +5021,8 @@
           ]
         },
         {
-          "title": "Components",
+          "title": "Add Parts",
           "tools": [
-            {
-              "id": "component|Parts Library",
-              "label": "Parts Library",
-              "description": "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.",
-              "shortcut": ""
-            },
             {
               "id": "component|Insert Component",
               "label": "Insert Component",
@@ -5036,9 +5030,9 @@
               "shortcut": ""
             },
             {
-              "id": "move|Move Component",
-              "label": "Move Component",
-              "description": "Position a free component: move it or turn it about its centre.",
+              "id": "component|Parts Library",
+              "label": "Parts Library",
+              "description": "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.",
               "shortcut": ""
             },
             {
@@ -5052,11 +5046,22 @@
               "label": "Make Part",
               "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Assemble",
+          "tools": [
+            {
+              "id": "ground|Ground",
+              "label": "Ground",
+              "description": "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.",
+              "shortcut": ""
             },
             {
-              "id": "component|Edit Part",
-              "label": "Edit Part",
-              "description": "Open the selected component\u0027s part for editing in the Design workspace. Back to assembly brings the changes in.",
+              "id": "move|Move Component",
+              "label": "Move Component",
+              "description": "Position a free component: move it or turn it about its centre.",
               "shortcut": ""
             },
             {
@@ -5066,21 +5071,56 @@
               "shortcut": ""
             },
             {
+              "id": "joint-rigid|Rigid",
+              "label": "Rigid",
+              "description": "Lock one component to another: no motion.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-revolute|Revolute",
+              "label": "Revolute",
+              "description": "A hinge or pin: the second component turns about the axis.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-slider|Slider",
+              "label": "Slider",
+              "description": "The second component slides along one direction.",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-cyl|Cylindrical",
+              "label": "Cylindrical",
+              "description": "Turns about an axis and slides along it (a bolt in a hole).",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-ball|Ball",
+              "label": "Ball",
+              "description": "Pivots about a point: spin and tilt (a ball and socket).",
+              "shortcut": ""
+            },
+            {
+              "id": "joint-planar|Planar",
+              "label": "Planar",
+              "description": "Slides over a flat face in two directions.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Manage Parts",
+          "tools": [
+            {
+              "id": "component|Edit Part",
+              "label": "Edit Part",
+              "description": "Open the selected component\u0027s part for editing in the Design workspace. Back to assembly brings the changes in.",
+              "shortcut": ""
+            },
+            {
               "id": "pattern-linear|Component Pattern",
               "label": "Component Pattern",
               "description": "Repeat a component in a line or around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "component|Parts List",
-              "label": "Parts List",
-              "description": "Count every part, with material, mass and cost from each part\u0027s info. Save it as a CSV.",
-              "shortcut": ""
-            },
-            {
-              "id": "ground|Ground",
-              "label": "Ground",
-              "description": "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.",
               "shortcut": ""
             },
             {
@@ -5095,15 +5135,15 @@
           "title": "Review",
           "tools": [
             {
-              "id": "explode|Exploded View",
-              "label": "Exploded View",
-              "description": "Pull the parts apart to see how they fit. The real positions are untouched.",
-              "shortcut": ""
-            },
-            {
               "id": "interference|Interference",
               "label": "Interference",
               "description": "Find where components overlap.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure distances and angles between components.",
               "shortcut": ""
             },
             {
@@ -5113,9 +5153,15 @@
               "shortcut": ""
             },
             {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure distances and angles between components.",
+              "id": "component|Parts List",
+              "label": "Parts List",
+              "description": "Count every part, with material, mass and cost from each part\u0027s info. Save it as a CSV.",
+              "shortcut": ""
+            },
+            {
+              "id": "explode|Exploded View",
+              "label": "Exploded View",
+              "description": "Pull the parts apart to see how they fit. The real positions are untouched.",
               "shortcut": ""
             }
           ]
