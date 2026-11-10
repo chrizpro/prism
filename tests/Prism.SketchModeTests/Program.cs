@@ -447,17 +447,17 @@ var cueNow = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc); SketchContex
     }
     Check(locked, "clicking a plane square while drawing selects that plane");
 }
-// A dropdown that holds the running sketch tool looks pressed (Spline sits inside "More drawing tools").
+// Spline is a direct Draw button and shows when its tool is active.
 {
     var rvm = new MainViewModel(); rvm.Session.EnterSketch(Plane3.XY, alignView: false);
     rvm.Session.Sketch!.SetTool(rvm.Session, new SplineTool(false));
     foreach (var t in rvm.Tabs) foreach (var b in t.Buttons) b.Refresh();
     var sketchTab = rvm.Tabs.Single(t => t.Title == "Sketch");
-    var more = sketchTab.Groups.Single(g => g.Title == "Draw").Items.OfType<Prism.Ribbon.RibbonButton>().Single(b => b.HasMenu);
-    Check(more.IsChecked && more.Label == "Spline", "the drawing-tools dropdown shows Spline as pressed while the spline tool runs");
+    var spline = sketchTab.Groups.Single(g => g.Title == "Draw").Items.OfType<Prism.Ribbon.RibbonButton>().Single(b => b.Label == "Spline" && !b.HasMenu);
+    Check(spline.IsChecked, "the Spline button is pressed while the spline tool runs");
     rvm.Session.Sketch!.SetTool(rvm.Session, new SelectTool());
     foreach (var t in rvm.Tabs) foreach (var b in t.Buttons) b.Refresh();
-    Check(!more.IsChecked, "and it releases when another tool takes over");
+    Check(!spline.IsChecked, "and it releases when another tool takes over");
 }
 // Holding Ctrl over an indicated plane keeps drawing on it however far the pointer wanders; releasing ends the lock.
 {

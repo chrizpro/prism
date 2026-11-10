@@ -14,16 +14,18 @@ Sketch tool families within the contextual Sketch tab have separate workflows. D
 
 ## Sketch contextual tab
 
-Sketch has 49 shipped ribbon entries. Several tools expose more modes and controls in the sketch panel than the ribbon catalog lists.
+The owner approved promoting Spline, Trim and Offset on 2026-11-10. [Tracking issue #38](https://github.com/chrizpro/prism/issues/38). [SKT-H047](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs) verifies the group layout and launches the promoted tools, including Spline in a 3D sketch. All 67 maintained Sketch cases passed on Windows. SKT-I002 opened a 3D sketch and launched Spline from the [desktop ribbon](evidence/SKT-I002-sketch-ribbon.png) after opening Trim and Offset from Modify. The legacy SketchMode runner has a stale SelectTool API reference and an outdated panel lookup. Sketch has 49 shipped ribbon entries. Several tools expose more modes and controls in the sketch panel than the ribbon catalog lists.
 
 | Area | Tool families |
 | --- | --- |
-| Select and Datum | The same Select group as every other tab (Object, Face ▾, Paint ▾, Invert, Through): Object arms the sketch Select tool, the drag methods set its rectangle, lasso or paint selection, and the body-only controls are unavailable in a sketch ([SKT-H015](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs)); the sketch tab has no Datum group |
+| Select | The same Select group as every other tab (Object, Face ▾, Paint ▾, Invert, Through): Object arms the sketch Select tool, the drag methods set its rectangle, lasso or paint selection, and the body-only controls are unavailable in a sketch ([SKT-H015](../../../Prism.Tests/Headless/Sketch/SketchEditTests.cs)); the sketch tab has no Datum group |
 | References | Project / Include, To construction, Construction |
-| Draw | Line, [Rectangle](rectangle/README.md), Ellipse, Arc, Polygon, Slot, Text, Spline |
-| Modify | Edit, Trim, Extend, Offset, Fillet, Chamfer, Mirror, Pattern |
+| Draw | Line, [Rectangle](rectangle/README.md), Ellipse, Arc, Spline, and **More drawing tools** (Polygon, Slot, Text) |
+| Modify | Trim, Offset, Transform, and **More edits** (Insert Point, Extend, Fillet, Chamfer, Mirror, Pattern) |
 | Constrain | Horizontal, Vertical, Coincident, Parallel, Perpendicular, Tangent, Equal, Midpoint, Concentric, Collinear, Symmetric, Fix |
-| Dimension and display | Smart, Horizontal and Vertical dimensions, Curvature |
+| Dimension | Dimension, with Smart, Horizontal and Vertical modes in its tool panel |
+| Display | Curvature |
+| Brainstorm | Grease Pencil and Eraser in a split button |
 | Exit | Finish Sketch, Cancel |
 
 The [maintained Sketch suite](../../../Prism.Tests/Headless/Sketch/) covers Rectangle, Line, Ellipse, Arc, Polygon and Spline modes. Existing standalone [Sketch 2D](../../../tests/Prism.Sketch2DTests/Program.cs), [Sketch Space](../../../tests/Prism.SketchSpaceTests/Program.cs), [sketch panel](../../../tests/Prism.SketchPanelWorkflowTests/Program.cs) and [solver](../../../tests/Prism.SketchConstraintTests/) checks provide additional evidence. [Contextual coverage issue #38](https://github.com/chrizpro/prism/issues/38).

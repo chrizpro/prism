@@ -1,5 +1,5 @@
 {
-  "sourceHash": "671BA118FBD3392425A1954DA3C3B19A8E730CB6F61A1BE178C25C3968C500F2",
+  "sourceHash": "947FBDD75ED00988D06B615D53E1F071EA2A2461CCA61015A8215C0A1C264A84",
   "workspaces": [
     {
       "Id": "design",
@@ -5613,6 +5613,12 @@
               "shortcut": ""
             },
             {
+              "id": "spline|Spline",
+              "label": "Spline",
+              "description": "Draw splines through fit points or shaped by control points.",
+              "shortcut": ""
+            },
+            {
               "id": "polygon|Polygon",
               "label": "Polygon",
               "description": "Draw regular polygons. Choose inscribed or circumscribed and the number of sides in the options bar.",
@@ -5629,18 +5635,24 @@
               "label": "Text",
               "description": "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss.",
               "shortcut": ""
-            },
-            {
-              "id": "spline|Spline",
-              "label": "Spline",
-              "description": "Draw splines through fit points or shaped by control points.",
-              "shortcut": ""
             }
           ]
         },
         {
           "title": "Modify",
           "tools": [
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a line, arc or circle back to the curves that cross it. Click the part to remove.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset",
+              "label": "Offset",
+              "description": "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter.",
+              "shortcut": ""
+            },
             {
               "id": "move|Transform",
               "label": "Transform",
@@ -5654,21 +5666,9 @@
               "shortcut": ""
             },
             {
-              "id": "trim|Trim",
-              "label": "Trim",
-              "description": "Cut a line, arc or circle back to the curves that cross it. Click the part to remove.",
-              "shortcut": ""
-            },
-            {
               "id": "extend|Extend",
               "label": "Extend",
               "description": "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset",
-              "label": "Offset",
-              "description": "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter.",
               "shortcut": ""
             },
             {
