@@ -17,6 +17,10 @@
 
 The installer creates a Start menu shortcut and optional desktop shortcut. Uninstall removes only files listed at build time and never recursively deletes the chosen installation directory. Documents and settings are outside that directory. There is no automatic updater or code-signing configuration yet.
 
+The Windows setup completion page has **Launch Prism** checked by default. Click **Finish** to open Prism, or clear the box to finish setup without opening it. [Installer issue #104](https://github.com/chrizpro/prism/issues/104).
+
+On 2026-11-10, NSIS 3.11 compiled a fixture installer and its expanded finish page set the checkbox to checked and gated the installed executable on that state. Interactive install and launch were outside this check.
+
 The Windows installer registers `.prism` as a **Prism Document** for the current user and uses the application's embedded icon in Explorer. Prism appears in **Open with** and becomes the fallback when the extension has no registered handler. An existing default app choice takes priority. Double-clicking a document associated with Prism launches it and opens the model. Uninstall removes Prism's registration.
 
 To verify, install the setup EXE and check that a `.prism` file with spaces in its path shows the Prism icon and opens the model on double-click. Uninstall and check that the Prism handler is gone. A development build can also be checked by launching `Prism.Desktop.exe "C:\path with spaces\model.prism"`.
