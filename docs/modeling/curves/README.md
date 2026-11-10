@@ -18,7 +18,7 @@ The shipped Home, Surface and NURBS ribbons expose six core editing actions: Fil
 
 Menus stay one level deep so every leaf remains available to command search and custom shortcuts. More Curve Tools and Extract Curves have fixed names; Curve and Join use the app's existing split-button behavior, showing the last chosen action. Click their label or right-click to choose another action.
 
-The Curve dropdown and its two actions use the color of the visible modeling ribbon. See the [modeling ribbon palette](../../tabs/README.md#modeling-ribbon-palette).
+Curve tools share the primary icon color of the visible modeling ribbon. See the [modeling ribbon palette](../../tabs/README.md#modeling-ribbon-palette).
 
 ### Existing documents and customization
 

@@ -44,7 +44,7 @@ public sealed class RibbonSectionTests
         finally { app.RequestedThemeVariant = original; }
     }
 
-    [AvaloniaTheory(DisplayName = "RIB-H001 | Every ribbon group has a name and captions use a readable theme brush")]
+    [AvaloniaTheory(DisplayName = "RIB-H001 | Ribbon captions and modeling icon palettes render in both themes")]
     [InlineData(false)]
     [InlineData(true)]
     [Trait("TestId", "RIB-H001")]
@@ -71,10 +71,10 @@ public sealed class RibbonSectionTests
             AssertCaptions("3D FDM", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("3D Resin", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("Mold", "Part", "Mold");
-            AssertCurvePalette("Solid", dark ? "#79A8F2" : "#2F66C9");
-            AssertCurvePalette("Surface", dark ? "#3FCF8E" : "#16824A");
-            AssertCurvePalette("NURBS", dark ? "#FF6B6F" : "#D13438");
-            AssertCurvePalette("Freeform", dark ? "#B79CFF" : "#6846B4");
+            AssertModelingPalette("Solid", dark ? "#79A8F2" : "#2F66C9", dark ? "#2F66C9" : "#2656AD", "#4C86E0", "#9CC4FF");
+            AssertModelingPalette("Surface", dark ? "#53D491" : "#16824A", dark ? "#26764D" : "#15603A", "#39A669", "#9AD9B2");
+            AssertModelingPalette("NURBS", dark ? "#FF8186" : "#D13438", dark ? "#A83B47" : "#A5323C", "#DA5359", "#F7A8A8");
+            AssertModelingPalette("Freeform", dark ? "#B79CFF" : "#6846B4", dark ? "#6548A9" : "#52368F", dark ? "#9674DF" : "#8B68D2", "#C9B3F5");
         }
         finally
         {
@@ -94,24 +94,31 @@ public sealed class RibbonSectionTests
             });
         });
 
-        void AssertCurvePalette(string tabTitle, string expected) => WithRibbon(tabTitle, ribbon =>
+        void AssertModelingPalette(string tabTitle, params string[] palette) => WithRibbon(tabTitle, ribbon =>
         {
-            var icon = Assert.Single(ribbon.GetVisualDescendants().OfType<IconView>(),
-                view => view.IsEffectivelyVisible && view.DataContext is RibbonButton { Id: "split:curve-create" });
-            Assert.Equal(tabTitle, icon.RibbonTab);
-            var button = (RibbonButton)icon.DataContext!;
-            Assert.Equal(new[] { "curve-through|Curve", "curve-equation|Curve from Data" }, button.Menu!.Select(item => item.Id));
+            var visible = ribbon.GetVisualDescendants().OfType<IconView>().Where(view => view.IsEffectivelyVisible).ToArray();
+            Assert.NotEmpty(visible);
+            Assert.All(visible, icon => Assert.Equal(tabTitle, icon.RibbonTab));
+            var tab = vm.SelectedTab!;
+            var curve = Assert.Single(tab.Buttons, button => button.Id == "split:curve-create");
+            Assert.Equal(new[] { "curve-through|Curve", "curve-equation|Curve from Data" }, curve.Menu!.Select(item => item.Id));
 
             var app = Application.Current!;
             var previous = app.RequestedThemeVariant;
             try
             {
                 app.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
-                foreach (var item in button.Menu!)
+                var expected = palette.Select(Color.Parse).ToHashSet();
+                foreach (var button in tab.Buttons)
                 {
-                    var shape = Icons.Get(item.Icon, icon.RibbonTab)![0];
-                    Assert.Equal(Color.Parse(expected), Assert.IsAssignableFrom<ISolidColorBrush>(shape.Stroke!.Brush).Color);
+                    var shapes = Icons.Get(button.Icon, tabTitle);
+                    Assert.NotNull(shapes);
+                    var colors = shapes.SelectMany(shape => new[] { shape.Fill, shape.Stroke?.Brush })
+                        .OfType<ISolidColorBrush>().Select(brush => brush.Color);
+                    Assert.True(colors.Any(expected.Contains), $"{tabTitle}: {button.Label} ({button.Icon}) lacks a ribbon color");
                 }
+                foreach (var item in curve.Menu!)
+                    Assert.Equal(Color.Parse(palette[0]), Assert.IsAssignableFrom<ISolidColorBrush>(Icons.Get(item.Icon, tabTitle)![0].Stroke!.Brush).Color);
             }
             finally { app.RequestedThemeVariant = previous; }
         });

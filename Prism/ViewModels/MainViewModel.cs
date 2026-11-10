@@ -499,8 +499,8 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonGroup CurvesGrp(bool fromSurfaces = true) => G("Curves", new RibbonItem?[]
         {
             Split("split:curve-create", "Create a curve by picking points, or from equations, tables and files. Click the name to choose.",
-                LegacyCurveId(Cmd("Curve", "ribbon-curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."), "curve-through|Curve"),
-                LegacyCurveId(Cmd("Curve from\nData", "ribbon-curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file."), "curve-equation|Curve from Data")),
+                Cmd("Curve", "curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."),
+                Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.")),
             Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
             fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
             fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.") : null,

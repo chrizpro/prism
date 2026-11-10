@@ -27,32 +27,46 @@ public static class Icons
         ['p'] = "#B79CFF", ['P'] = "#5A4AA0",
     };
 
-    static readonly Dictionary<string, IconShape[]> Cache = [];
-    static readonly Dictionary<string, IconShape[]> CacheLight = [];
+    static readonly Dictionary<(string Name, string? Tab), IconShape[]> Cache = [];
+    static readonly Dictionary<(string Name, string? Tab), IconShape[]> CacheLight = [];
+
+    sealed record RibbonPalette(string Ink, string Shade, string Fill, string Soft);
+
+    static readonly Dictionary<string, (RibbonPalette Light, RibbonPalette Dark)> ModelingPalettes = new()
+    {
+        ["Solid"] = (new("#2F66C9", "#2656AD", "#4C86E0", "#9CC4FF"), new("#79A8F2", "#2F66C9", "#4C86E0", "#9CC4FF")),
+        ["Surface"] = (new("#16824A", "#15603A", "#39A669", "#9AD9B2"), new("#53D491", "#26764D", "#39A669", "#9AD9B2")),
+        ["NURBS"] = (new("#D13438", "#A5323C", "#DA5359", "#F7A8A8"), new("#FF8186", "#A83B47", "#DA5359", "#F7A8A8")),
+        ["Freeform"] = (new("#6846B4", "#52368F", "#8B68D2", "#C9B3F5"), new("#B79CFF", "#6548A9", "#9674DF", "#C9B3F5")),
+    };
 
     public static IconShape[]? Get(string? name, string? ribbonTab = null)
     {
-        if (name == null) return null;
+        if (name == null || !Defs.TryGetValue(name, out var def)) return null;
         bool light = Light;
         var cache = light ? CacheLight : Cache;
-        string? curveInk = null;
-        if (name is "ribbon-curve-through" or "ribbon-curve-equation")
-        {
-            name = name["ribbon-".Length..];
-            curveInk = ribbonTab switch
-            {
-                "Solid" => light ? "#2F66C9" : "#79A8F2",
-                "Surface" => light ? "#16824A" : "#3FCF8E",
-                "NURBS" => light ? "#D13438" : "#FF6B6F",
-                "Freeform" => light ? "#6846B4" : "#B79CFF",
-                _ => null,
-            };
-        }
-        string key = curveInk == null ? name : name + curveInk;
+        var palette = ribbonTab != null && ModelingPalettes.TryGetValue(ribbonTab, out var colors)
+            ? light ? colors.Light : colors.Dark : null;
+        var key = (name, palette == null ? null : ribbonTab);
         if (cache.TryGetValue(key, out var shapes)) return shapes;
-        if (!Defs.TryGetValue(name, out var def)) return null;
-        return cache[key] = def.Select(s => Parse(s, light, curveInk)).ToArray();
+
+        // Neutral-only glyphs still need a ribbon color. Keep dedicated axis colors and
+        // orange action marks independent of the base geometry palette.
+        bool hasGeometry = palette != null && def.Any(spec => IsGeometryInk(spec[0]) || IsGeometryInk(spec[spec.IndexOf('|') + 1]));
+        return cache[key] = def.Select(spec => Parse(spec, light, palette, hasGeometry)).ToArray();
     }
+
+    static bool IsGeometryInk(char ink) => ink is 'b' or 'B' or 'm' or 'd' or 'g' or 'G' or 't' or 'T' or 'p' or 'P';
+
+    static string RibbonInk(string ink, RibbonPalette palette, bool stroke, bool hasGeometry) => ink switch
+    {
+        "b" or "G" or "T" or "P" => stroke ? palette.Ink : palette.Shade,
+        "B" or "m" or "g" or "t" or "p" => stroke ? palette.Ink : palette.Fill,
+        "d" => palette.Soft,
+        "k" or "s" when !hasGeometry => palette.Ink,
+        "w" or "S" when !hasGeometry && !stroke => palette.Soft,
+        _ => ink,
+    };
 
     static IBrush? Brush(string s, bool light)
     {
@@ -62,12 +76,13 @@ public static class Icons
         return new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var ink) ? ink : Pal[s[0]]) : s));
     }
 
-    static IconShape Parse(string spec, bool light, string? curveInk)
+    static IconShape Parse(string spec, bool light, RibbonPalette? palette, bool hasGeometry)
     {
         var p = spec.Split('|');
-        var fill = Brush(p[0], light);
-        var ink = curveInk != null && p[1] is "b" or "t" ? curveInk : p[1];
-        var stroke = ink == "-" ? null : new Pen(Brush(ink, light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        string fillInk = palette == null ? p[0] : RibbonInk(p[0], palette, false, hasGeometry);
+        string strokeInk = palette == null ? p[1] : RibbonInk(p[1], palette, true, hasGeometry);
+        var fill = Brush(fillInk, light);
+        var stroke = strokeInk == "-" ? null : new Pen(Brush(strokeInk, light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         return new IconShape(Geometry.Parse(p[3]), fill, stroke);
     }
 
