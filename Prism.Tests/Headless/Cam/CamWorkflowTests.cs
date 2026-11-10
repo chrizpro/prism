@@ -98,11 +98,18 @@ public class CamWorkflowTests
         await Call("command_cancel", "{}");
     }
 
-    [AvaloniaFact(DisplayName = "CAM-H004 | Post G-code accepts a folder or a new file path and reports the outcome")]
+    [AvaloniaFact(DisplayName = "CAM-H004 | Subtractive ends with Export and Post G-code writes to the chosen path")]
     [Trait("TestId", "CAM-H004")]
     public async Task PostWritesToFolderOrNewFile()
     {
-        var api = new AutomationApi(new MainViewModel(), null);
+        var vm = new MainViewModel();
+        var tab = vm.Tabs.Single(tab => tab.Title == "Subtractive");
+        Assert.Equal(new[] { "Setup", "Toolpaths", "Review", "Export" }, tab.Groups.Select(group => group.Title));
+        var menu = Assert.IsType<Prism.Ribbon.RibbonButton>(Assert.Single(tab.Groups[1].Items));
+        Assert.Equal(new[] { "Profile", "Pocket", "Adaptive", "Turning", "Drill", "Face", "Image Carve", "3D Rough", "3D Finish" },
+            menu.Menu!.Select(tool => tool.Label.Replace('\n', ' ')));
+        Assert.Equal("Post G-code", Assert.IsType<Prism.Ribbon.RibbonButton>(Assert.Single(tab.Groups[3].Items)).Label.Replace('\n', ' '));
+        var api = new AutomationApi(vm, null);
         async Task<JsonNode> Call(string tool, string json) => (await api.CallAsync(tool, (JsonObject)JsonNode.Parse(json)!))!;
         await Call("run_command", """{"name":"box","params":{"Width":40,"Depth":30,"Height":10}}""");
         string body = (string)(await Call("get_state", "{}"))["objects"]![0]!["name"]!;
@@ -112,7 +119,8 @@ public class CamWorkflowTests
         try
         {
             Directory.CreateDirectory(root);
-            await Call("run_command", "{\"name\":\"cnc_post\",\"commit\":false}");
+            await Call("ribbon_click", """{"tab":"Subtractive","label":"Post G-code"}""");
+            Assert.IsType<CncPostCommand>(vm.Session.ActiveCommand);
             await Call("command_set", "{\"params\":{\"Save to\":\"" + root.Replace("\\", "/") + "\",\"Save G-code\":true}}");
             Assert.Single(Directory.GetFiles(root, "program_*.nc"));
             var file = Path.Combine(root, "new", "deep", "part.nc");

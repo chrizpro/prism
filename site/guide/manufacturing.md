@@ -12,7 +12,7 @@ The **CAM** workspace prepares parts for CNC machining, FDM printing and resin p
 4. **Operation order** sets the program order; hidden operations are left out of posting.
 5. Review with **Playback** and **Pass view**. Changing the setup or the model marks paths as out of date.
 6. **Design check** screens top-down access, reach and thin walls. **Stock review** estimates removed and remaining material and possible gouges and holder contacts.
-7. Export a **Setup sheet** and **Post G-code** for GRBL, Mach3 or LinuxCNC. Milling and turning are separate programs.
+7. Save a **Setup sheet** from **Review**. Then choose **Export → Post G-code** for GRBL, Mach3 or LinuxCNC. Milling and turning are separate programs.
 
 <GuideImage image="cam-profile-preview" />
 
