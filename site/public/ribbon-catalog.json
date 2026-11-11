@@ -1,5 +1,5 @@
 {
-  "sourceHash": "3B0A1852879247D09D175CCE56196432B2B6946B600D9C30C85E6298B2D20D71",
+  "sourceHash": "F0FF9E0CA112F6D60E79E3696E850CC3A02B746DA1C8C4B94E81832CEE18E367",
   "workspaces": [
     {
       "Id": "design",
@@ -4571,15 +4571,15 @@
               "shortcut": ""
             },
             {
-              "id": "sim-run|Run Study",
-              "label": "Run Study",
-              "description": "Mesh (if needed) and solve.",
+              "id": "sim-mesh|Mesh refinement",
+              "label": "Refinement",
+              "description": "Compare three meshes using displacement.",
               "shortcut": ""
             },
             {
-              "id": "sim-mesh|Mesh Refinement",
-              "label": "Mesh Refinement",
-              "description": "Compare three meshes using displacement.",
+              "id": "sim-run|Run Study",
+              "label": "Run Study",
+              "description": "Mesh (if needed) and solve.",
               "shortcut": ""
             }
           ]
@@ -4595,13 +4595,13 @@
             },
             {
               "id": "sim-displacement|Displace- ment",
-              "label": "Displace- ment",
+              "label": "Displacement",
               "description": "Color by how far each point moves.",
               "shortcut": ""
             },
             {
               "id": "sim-safety|Factor of Safety",
-              "label": "Factor of Safety",
+              "label": "Safety Factor",
               "description": "Yield strength divided by stress: below 1 means yielding.",
               "shortcut": ""
             },
@@ -4919,24 +4919,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Pipe flow",
+          "title": "Pipe Calculations",
           "tools": [
-            {
-              "id": "cae-network|Pipe Network",
-              "label": "Pipe Network",
-              "description": "Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.",
-              "shortcut": ""
-            },
             {
               "id": "cae-fluid|Pipe Flow",
               "label": "Pipe Flow",
               "description": "Incompressible circular-pipe pressure drop and Reynolds number for one pipe.",
               "shortcut": ""
+            },
+            {
+              "id": "cae-network|Pipe Network",
+              "label": "Pipe Network",
+              "description": "Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.",
+              "shortcut": ""
             }
           ]
         },
         {
-          "title": "3D flow",
+          "title": "3D Flow",
           "tools": [
             {
               "id": "cae-flow|Flow Study",

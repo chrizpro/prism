@@ -4,8 +4,10 @@ Three levels of flow, from a quick calculation to a 3D picture. Cooling lives on
 
 ## Ribbon
 
-- **Pipe flow:** Pipe Network, Pipe Flow
-- **3D flow:** Flow Study
+- **Pipe Calculations:** Pipe Flow, Pipe Network
+- **3D Flow:** Flow Study
+
+Owner approved this organization. Pipe calculations keep their live Setup inputs and result readouts. Flow Study groups geometry, fluid and boundaries under Setup, detail and run/stop under Solve, and display, slicing and streamlines under Results. [Maintained ribbon/panel checks](../../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs).
 
 ## Pipe Network
 

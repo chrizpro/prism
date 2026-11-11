@@ -164,6 +164,7 @@ public sealed class PipeFlowCommand : AnalysisCommand
         _flow=Num("Volume flow",.5,.000001,1e9,.1,"L/min");_density=Num("Fluid density",998.2,.001,100000,10,"kg/m³");
         _viscosity=Num("Dynamic viscosity",.001002,1e-9,10000,.0001,"Pa·s");
         _roughness=Num("Absolute roughness",.0015,0,1000,.001);_minor=Num("Total minor-loss coefficient",0,0,100000,.1,"");
+        foreach (var parameter in Params) parameter.Section = "Setup";
     }
     public override string Title=>"Pipe Flow";
     public override string Icon=>"cae-fluid";

@@ -1422,8 +1422,8 @@ public sealed partial class MainViewModel : ViewModelBase
             Cmd("Force /\nTorque","motion-force",()=>new MotionLoadCommand(),"A force or torque on a part, constant, a pulse or alternating.",RibbonSize.Large)),
          G("Review",Cmd("Load from\nMotion","motion-force",()=>new MotionLoadToStaticCommand(),"Turn the force a joint held in the last Motion Study into a load in a new Static study.",RibbonSize.Large),Btn("Clear\nResults","clear-analysis",ClearResults,"Remove the motion paths from the model."))]};
         var fluids = new RibbonTab {Title="Fluids",Groups=
-        [G("Pipe flow",Cmd("Pipe\nNetwork","cae-network",()=>new PipeNetworkCommand(),"Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles."),Cmd("Pipe\nFlow","cae-fluid",()=>new PipeFlowCommand(),"Incompressible circular-pipe pressure drop and Reynolds number for one pipe.")),
-         G("3D flow",Cmd("Flow\nStudy","cae-flow",()=>new FlowStudyCommand(),"Basic 3D flow around a body or through a duct: colors, streamlines, drag and pressure drop. Dependable for slow, smooth flow; a picture for fast, turbulent flow."))]};
+        [G("Pipe Calculations",Cmd("Pipe\nFlow","cae-fluid",()=>new PipeFlowCommand(),"Incompressible circular-pipe pressure drop and Reynolds number for one pipe."),Cmd("Pipe\nNetwork","cae-network",()=>new PipeNetworkCommand(),"Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.")),
+         G("3D Flow",Cmd("Flow\nStudy","cae-flow",()=>new FlowStudyCommand(),"Basic 3D flow around a body or through a duct: colors, streamlines, drag and pressure drop. Dependable for slow, smooth flow; a picture for fast, turbulent flow."))]};
         var ecad = new RibbonTab
         {
             Title = "ECAD",

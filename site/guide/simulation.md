@@ -2,6 +2,8 @@
 
 The **CAE** workspace analyzes the model you designed, without exporting it. Reference: [Static](/tools/static), [Thermal](/tools/thermal), [Dynamics](/tools/dynamics), [Motion](/tools/motion), [Fluids](/tools/fluids).
 
+Static follows Setup, Supports, Loads, Solve and Results, with secondary tools under Advanced and Reuse & Export. Thermal and Dynamics keep their analysis tool and Materials together under Setup, followed by Reuse and Results. Their panels group setup inputs and solve actions. Fluids distinguishes Pipe Calculations from 3D Flow. Its Flow Study panel follows Setup, Solve and Results.
+
 ## A static study
 
 <GuideImage image="simulation-static-loads" />

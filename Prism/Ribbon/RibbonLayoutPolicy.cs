@@ -40,7 +40,8 @@ public static class RibbonLayoutPolicy
     {
         string[]? workflow = tab.Title == "Static"
             ? ["Select", "Setup", "Supports", "Loads", "Solve", "Results", "Advanced", "Reuse & Export"]
-            : tab.Title is "Thermal" or "Dynamics" ? ["Setup", "Reuse", "Results"] : null;
+            : tab.Title is "Thermal" or "Dynamics" ? ["Setup", "Reuse", "Results"]
+            : tab.Title == "Fluids" ? ["Pipe Calculations", "3D Flow"] : null;
         var groups = tab.Groups.OrderBy(g => workflow == null ? Rank(g.Title) :
             Array.IndexOf(workflow, g.Title) is var index && index >= 0 ? index : workflow.Length).ToArray();
         tab.Groups.Clear();
