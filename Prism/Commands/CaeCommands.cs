@@ -53,6 +53,17 @@ public sealed class CaeSolveCommand : AnalysisCommand
             _name.Section = "Reuse";
             foreach (var action in Params.OfType<ActionParam>()) action.Section = action.Label == "Save setup" ? "Reuse" : "Solve";
         }
+        else
+        {
+            _body.Section = "Setup";
+            _first.Section = "Supports";
+            _size.Section = "Mesh";
+            _modes.Section = "Solve";
+            _showMode.Section = "Results";
+            _name.Section = "Reuse";
+            foreach (var action in Params.OfType<ActionParam>())
+                action.Section = action.Label switch { "Save setup" => "Reuse", "Show mode" => "Results", _ => "Solve" };
+        }
     }
     public override string Title=>_thermal?"Thermal Analysis":"Natural Frequencies";
     public override string Icon=>_thermal?"cae-thermal":"cae-modal";

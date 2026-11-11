@@ -8,6 +8,8 @@ The former Simulate workspace is now **CAE**, with **Static**, **Thermal**, **Dy
 
 Owner approved the Thermal ribbon organization. **Setup** contains Thermal Analysis and Materials, **Reuse** contains Saved setups and Recall faces, and **Results** contains Clear Results. The Thermal Analysis panel groups the existing inputs under Setup, Heating & Cooling, Mesh, Solve and Reuse. Result summaries remain below the inputs. Thermal includes fixed temperatures, heat input, convection and radiation. [Maintained workflow checks](../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs).
 
+Dynamics follows **Setup**, **Reuse**, **Results**. Natural Frequencies and Materials start the study. Show Mode opens the existing mode controls when a modal result exists. The analysis panel groups body selection, supports, mesh, solving, saved setup and mode controls. Frequencies are in Hz and displayed deformation amplitude is arbitrary.
+
 **Static:** the existing native structural study, fixtures, loads, stress/displacement/safety results and generative tools remain available. An axial-displacement regression passed after the shared meshing refactor.
 
 **Thermal:** CalculiX solves steady or transient conduction in one homogeneous isotropic solid using 10-node tetrahedra from the existing mesher. Assign a material; select the solid and two separated face groups; set their temperatures. Other surfaces are insulated. Transient mode adds a uniform initial temperature and duration; boundary temperatures are held immediately, rather than ramped. The final temperature field appears in the viewport, with a legend and min/max readouts. All increments remain in the solver output; the UI currently displays only the final time.

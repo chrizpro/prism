@@ -125,7 +125,7 @@ public sealed partial class MainViewModel
                 tab.Groups.Remove(look);
                 tab.Groups.Add(appearance());
             }
-            if (tab.Title is "Dynamics" or "Motion")
+            if (tab.Title == "Motion")
             {
                 foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
                 tab.Groups.Add(appearance());
@@ -175,7 +175,7 @@ public sealed partial class MainViewModel
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
                 bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "ECAD" && group.Title == "Fit check") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
-                if (tab.Title is "Assemble" or "Animate" or "Static" or "Thermal" || (tab.Title == "Joints" && group.Title == "Joint") ||
+                if (tab.Title is "Assemble" or "Animate" or "Static" or "Thermal" or "Dynamics" || (tab.Title == "Joints" && group.Title == "Joint") ||
                     !compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = tab.Title == "Mesh" && group.Title == "Reshape" ? 3 : tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));

@@ -1389,9 +1389,16 @@ public sealed partial class MainViewModel : ViewModelBase
             Btn("Materials","materials",OpenMaterials,"Assign conductivity, density and heat capacity.")),
          G("Results",Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
         var dynamics = new RibbonTab {Title="Dynamics",Groups=
-        [G("Vibration",Cmd("Natural\nFrequencies","cae-modal",()=>new CaeSolveCommand(false),"Linear modal frequencies and arbitrary-amplitude mode shapes; fixed faces on one homogeneous solid."),
+        [G("Setup",Cmd("Natural\nFrequencies","cae-modal",()=>new CaeSolveCommand(false),"Set up natural frequencies and vibration modes."),
             Btn("Materials","materials",OpenMaterials,"Assign elastic modulus, Poisson ratio and density.")),
-         G("Review",Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
+         G("Results",
+            Btn("Show\nMode", "cae-modal", () =>
+            {
+                Session.StartCommand(() => new CaeSolveCommand(false));
+                if (Session.ActiveCommand is CaeSolveCommand command)
+                    foreach (var section in command.WorkflowSections) section.IsExpanded = section.Title == "Results";
+            }, "Open the returned mode controls.", can: () => Session.Cae?.Outcome?.Kind == CaeKind.Modal),
+            Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
         var motion = new RibbonTab {Title="Motion",Groups=
         [G("Mechanism",
             ToolMenu("Parts","component","Get parts for the mechanism: make them from bodies in this file, or bring them in.",
@@ -1457,7 +1464,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 AppearanceGrp(),
             ],
         };
-        foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G(tab == thermal ? "Reuse" : "Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
+        foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Reuse",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
         foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.

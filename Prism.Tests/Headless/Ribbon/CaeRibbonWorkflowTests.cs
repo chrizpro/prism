@@ -13,6 +13,7 @@ public class CaeRibbonWorkflowTests
     [AvaloniaTheory(DisplayName = "CAE-H001 | CAE ribbons keep setup, solving and results in workflow order")]
     [InlineData("Static", "Select|Setup|Supports|Loads|Solve|Results|Advanced|Reuse & Export")]
     [InlineData("Thermal", "Setup|Reuse|Results")]
+    [InlineData("Dynamics", "Setup|Reuse|Results")]
     [Trait("TestId", "CAE-H001")]
     public void WorkflowOrderAndCommandsRemainAvailable(string title, string sections)
     {
