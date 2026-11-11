@@ -135,6 +135,7 @@ After that, these are the directions we plan to take:
 | --- | --- |
 | **Add-on support** | A way to extend Prism with add-ons, which could eventually let users expand CAE, modeling and other areas themselves |
 | **Large assemblies** | Work comfortably with assemblies of many parts: loading, display and editing that stay responsive as projects grow |
+| **Integrated engineering worksheets** | Bring equations, units, dependent parameters, plots and comparisons between study scenarios into Prism, connected to model parameters and CAE. This is a future direction after current-tool polish, with detailed scope still to be reviewed. [Roadmap discussion #121](https://github.com/chrizpro/prism/issues/121) |
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
 | **Drawings** | Improve engineering drawings: more views, annotations and dimensioning control, and editing after a drawing is made |
 | **Python API and MCP** | Grow today's `cadkit` library and MCP bridge into a stable, versioned API for scripts, integrations and AI assistants |
