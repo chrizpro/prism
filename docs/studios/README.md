@@ -12,6 +12,10 @@ These checks do not certify surface continuity, manufacturing readiness, or gene
 
 The panel reuses actual origin planes/axes/point, sketches, curves, construction planes and image-plane objects. It provides name search, visible-only filtering, visibility switches, selection/framing, reference origins/normals, and captured feature usage on the current branch. Editable sketches and construction features open their existing editors. Imported references without a recipe cannot be reconstructed into an editable feature. Origin references are fixed. Create construction plane opens the existing plane command.
 
+## Curve Editor
+
+**Panels → Curve Editor** opens the shared curve host. Features provide a curve, its editing context and an apply action. Animation uses the compact component for custom timing between keys. The component provides a two-handle graph and exact coordinate fields. See the [animation guide](../modeling/assembly/README.md#animation-timeline) and [panel lifecycle test ASM-H012](../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs).
+
 ## Parameters
 
 Document values support names, pinning, arithmetic, functions from the existing expression parser, and references such as `rib = wall * 0.75`. Length literals accept `mm`, `cm`, and `inch`; `deg` is accepted for angle literals. Names are case-insensitive. Cycles, missing names, non-finite results and duplicate/reserved names are rejected. Units are scalar conversions, not a full dimensional-analysis system.

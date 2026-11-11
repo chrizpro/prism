@@ -67,3 +67,5 @@ For forces, motor effort and joint reactions, continue with a [motion study](/gu
 4. **Render Animation** turns it into pictures or a movie; MP4 output needs ffmpeg.
 
 To animate a numeric value from the parameter table, apply the table changes, select the value and click **Animate parameter**. Values defined by formulas follow their inputs. For a rotating shaft, 0° to 1800° gives five complete turns. Select the first key and choose **Timing to next key** to control the speed between it and the following key. Choose Constant speed, Ease in, Ease out, Ease both ends, or Hold.
+
+For finer control, choose **Custom curve**. Click **Open Curve Editor**, drag the two handles or enter their Time and Progress coordinates, then click **Apply curve**. You can also open the panel from **Panels → Curve Editor**. The graph runs from the start of the segment at the bottom left to its end at the top right. A flatter section changes the value more slowly, and a steeper section changes it faster.

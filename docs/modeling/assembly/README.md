@@ -38,6 +38,13 @@ Owner approved table access, multiple turns and segment timing. In the [Paramete
 
 Select the starting key of a segment and set **Timing to next key** to Constant speed, Ease in, Ease out, Ease both ends, or Hold. **Clip default** preserves the clip's existing easing setting. Hold keeps the starting value until the next key. Timing is saved on the starting key.
 
+Owner approved **Custom curve** for segment timing. Select the starting key, choose Custom curve, and click **Open Curve Editor**. The compact component has two draggable handles and exact Time and Progress fields, with coordinates from 0 to 1. Click **Apply curve** to store it. The horizontal coordinate controls elapsed time and the vertical coordinate controls progress toward the next key. Scrubbing, playback and rendering use the saved curve.
+
+The component is hosted in its own dock tab, also available from **Panels → Curve Editor**. Other features can provide a curve and an apply action to the same host. Animation is the current integrated use. Kinematic drive profiles are a possible future use. [ASM-U005](../../../Prism.Tests/Unit/Assembly/KinematicsTests.cs) verifies evaluation. [ASM-H010 through ASM-H012](../../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs) verify persistence, pointer editing and the panel lifecycle.
+
+Windows verification passed 34 Assembly and ribbon Headless checks and 15 Assembly Unit checks. The tests dragged a handle, applied a curve through the separate panel, saved and reopened its timing, and checked that ending the animation clears the editing target. Rendered playback remains a manual checklist item.
+
+
 Unrestricted rotation tracks accept multiple turns. For five turns in five seconds, key 0° at zero seconds and 1800° at five seconds, then set the first key to Constant speed. Limited joints continue to respect their configured limits.
 
 Windows verification passed 32 targeted Assembly and ribbon Headless checks and 14 Assembly Unit checks. ASM-H009 covers parameter-table access and formula preservation. ASM-H010 saves and reopens a five-turn shaft clip and its segment timing. ASM-U004 checks the five timing presets and the original clip easing behavior. Desktop playback of these presets remains on the [manual checklist](../../tabs/checklists/animate-manual-test-checklist.md).
@@ -62,6 +69,7 @@ The public [Assembly and animation guide](../../../site/guide/assembly.md#see-wh
 Add maintained cases for Insert Component, linked parts and source refresh, alternate joint picks and direction options, remaining joint types through the UI, coupled joints and desktop closed-loop dragging and animation rendering.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
 
 Windows verification on 2026-11-09 with the fix applied to `fb99758`. ASM-H122 passed in the 61-test Headless selection. It reopened the gallery orrery, filtered the browser, and verified that each parent toggle caused one rebuild, changed visibility for all 26 joint and coupling rows, and hid or restored drive handles while preserving the 18 joint definitions.
 

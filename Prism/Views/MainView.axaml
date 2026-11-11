@@ -835,6 +835,7 @@
                 <Panel>
 
                     <v:CommandPanel IsVisible="{Binding ShowCommandPanel}"/>
+                    <v:CurveEditorPanel IsVisible="{Binding ShowCurveEditor}"/>
                     <v:GizmoOptionsPanel IsVisible="{Binding ShowGizmoPanel}"/>
                     <v:DatumOptionsPanel IsVisible="{Binding ShowDatumPanel}"/>
 

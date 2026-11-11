@@ -4,11 +4,13 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Prism.Commands;
 using Prism.Controls;
 using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.ViewModels;
+using Prism.Views;
 using Prism.Kernel;
 using Xunit;
 
@@ -137,6 +139,14 @@ public class AnimationTimelineTests
         editor.Params.OfType<ActionParam>().Single(p => p.Label == "Apply key").Run();
         editor.Time = 1.25;
         Assert.Equal(450, editor.Params.OfType<NumberParam>().Single(p => p.Label == "Shaft  (angle)").Value);
+        editor.SelectKey(track, track.Keys[0]);
+        editor.Params.OfType<ChoiceParam>().Single(p => p.Label == "Timing to next key").Index = (int)AnimTiming.Custom;
+        var curve = Assert.Single(editor.Params.OfType<TimingCurveParam>());
+        Assert.True(editor.Params.OfType<ActionParam>().Single(p => p.Label == "Open Curve Editor").IsVisible);
+        curve.Load(new AnimCurve(1.0 / 3, 0, 2.0 / 3, 0));
+        editor.Params.OfType<ActionParam>().Single(p => p.Label == "Apply key").Run();
+        editor.Time = 1.25;
+        Assert.Equal(28.125, editor.Params.OfType<NumberParam>().Single(p => p.Label == "Shaft  (angle)").Value, 6);
         session.CommitCommand();
         var file = Path.Combine(Path.GetTempPath(), $"prism-animation-{Guid.NewGuid():N}.prism_asm");
         try
@@ -146,8 +156,64 @@ public class AnimationTimelineTests
             reopened.Open(file);
             var animation = Assert.Single(reopened.Objects.Select(o => o.Asm).OfType<AnimInfo>());
             Assert.Equal(1800, Assert.Single(animation.Tracks).Keys.Last().V);
-            Assert.Equal(AnimTiming.Linear, animation.Tracks[0].Keys[0].Timing);
+            Assert.Equal(AnimTiming.Custom, animation.Tracks[0].Keys[0].Timing);
+            Assert.Equal(curve.Curve, animation.Tracks[0].Keys[0].Curve);
         }
         finally { File.Delete(file); }
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H011 | Custom curve handles can be dragged with the pointer")]
+    [Trait("TestId", "ASM-H011")]
+    public void CustomCurveHandleUsesPointerInput()
+    {
+        var curve = new TimingCurveParam();
+        var view = new TimingCurveView { DataContext = curve, Width = 280 };
+        var window = new Window { Width = 280, Height = 150, Content = view };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Point At(double x, double y) => view.TranslatePoint(new Point(16 + x * 248, 134 - y * 118), window)!.Value;
+            window.MouseDown(At(.25, .1), MouseButton.Left, RawInputModifiers.None);
+            window.MouseMove(At(.75, .25), RawInputModifiers.LeftMouseButton);
+            window.MouseUp(At(.75, .25), MouseButton.Left, RawInputModifiers.None);
+            Assert.Equal(.75, curve.X1, 5);
+            Assert.Equal(.25, curve.Y1, 5);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H012 | The curve editor opens as a separate reusable panel and releases its target when editing ends")]
+    [Trait("TestId", "ASM-H012")]
+    public void CurveEditorPanelFollowsTheSelectedAnimation()
+    {
+        var vm = new MainViewModel();
+        Assert.True(vm.Session.ApplyDocumentParameters([new("Height", "20 mm")]));
+        vm.Session.StartCommand(() => new AnimationCommand(true));
+        var editor = Assert.IsType<AnimationCommand>(vm.Session.ActiveCommand);
+        editor.FocusParameter("Height");
+        var row = editor.Rows().Single(r => r.JointKey == CadSession.ParamKey("Height"));
+        editor.AddKey(row, 2);
+        var track = editor.Rows().Single(r => r.JointKey == row.JointKey).Track!;
+        editor.SelectKey(track, track.Keys[0]);
+        editor.Params.OfType<ChoiceParam>().Single(p => p.Label == "Timing to next key").Index = (int)AnimTiming.Custom;
+        editor.Params.OfType<ActionParam>().Single(p => p.Label == "Open Curve Editor").Run();
+        Assert.True(vm.ShowCurveEditor);
+        Assert.Same(editor.CustomCurve, vm.CurveEditor!.Curve);
+        var panel = new CurveEditorPanel { DataContext = vm };
+        var window = new Window { Width = 380, Height = 500, Content = panel };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(Assert.Single(panel.GetVisualDescendants().OfType<TimingCurveEditor>()).IsEffectivelyVisible);
+        }
+        finally { window.Close(); }
+        vm.CurveEditor.Curve.Load(new AnimCurve(.3, .1, .8, .9));
+        vm.ApplyCurveEditor();
+        Assert.Equal(new AnimCurve(.3, .1, .8, .9), track.Keys[0].Curve);
+        vm.Session.CancelCommand();
+        Assert.Null(vm.CurveEditor);
+        Assert.False(vm.ShowCurveEditor);
     }
 }

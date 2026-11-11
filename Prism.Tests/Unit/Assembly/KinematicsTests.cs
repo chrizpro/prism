@@ -84,4 +84,20 @@ public class KinematicsTests
         Assert.Equal(450, legacy.ValueAt(1, false));
         Assert.Equal(281.25, legacy.ValueAt(1, true));
     }
+
+    [Fact(DisplayName = "ASM-U005 | A custom timing curve inverts time before evaluating progress")]
+    [Trait("TestId", "ASM-U005")]
+    public void CustomTimingUsesBothHandleCoordinates()
+    {
+        var curve = new AnimCurve(1.0 / 3, 0, 2.0 / 3, 0);
+        Assert.Equal(.125, curve.ValueAt(.5), 8);
+        var track = new AnimTrack("shaft", false, [new(0, 0, AnimTiming.Custom, curve), new(4, 1800)]);
+        Assert.Equal(225, track.ValueAt(2, false), 6);
+        Assert.Equal(0, track.ValueAt(0, false));
+        Assert.Equal(1800, track.ValueAt(4, false));
+        var delayed = new AnimCurve(.8, 0, .9, 1);
+        Assert.True(delayed.ValueAt(.5) < .25);
+        Assert.Equal(AnimTiming.ClipDefault,
+            System.Text.Json.JsonSerializer.Deserialize<AnimKey>("{\"T\":0,\"V\":0}")!.Timing);
+    }
 }

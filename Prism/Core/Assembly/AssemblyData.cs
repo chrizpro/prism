@@ -114,12 +114,32 @@ public sealed record AnimTrack(string JointKey, bool SecondValue, List<AnimKey> 
             AnimTiming.EaseOut => 1 - (1 - u) * (1 - u),
             AnimTiming.EaseBoth => u * u * (3 - 2 * u),
             AnimTiming.Hold => 0,
+            AnimTiming.Custom => (k[i].Curve ?? new AnimCurve()).ValueAt(u),
             _ => ease ? u * u * (3 - 2 * u) : u,
         };
         return k[i].V + (k[i + 1].V - k[i].V) * u;
     }
 }
 
-public enum AnimTiming { ClipDefault, Linear, EaseIn, EaseOut, EaseBoth, Hold }
+public enum AnimTiming { ClipDefault, Linear, EaseIn, EaseOut, EaseBoth, Hold, Custom }
 
-public sealed record AnimKey(double T, double V, AnimTiming Timing = AnimTiming.ClipDefault);
+public sealed record AnimKey(double T, double V, AnimTiming Timing = AnimTiming.ClipDefault, AnimCurve? Curve = null);
+
+/// <summary>A cubic timing curve from (0,0) to (1,1). X is elapsed time and Y is progress.</summary>
+public sealed record AnimCurve(double X1 = .25, double Y1 = .1, double X2 = .25, double Y2 = 1)
+{
+    public double ValueAt(double time)
+    {
+        if (!double.IsFinite(X1) || !double.IsFinite(Y1) || !double.IsFinite(X2) || !double.IsFinite(Y2)) return time;
+        static double Bezier(double t, double a, double b)
+            => 3 * (1 - t) * (1 - t) * t * Math.Clamp(a, 0, 1) + 3 * (1 - t) * t * t * Math.Clamp(b, 0, 1) + t * t * t;
+        double low = 0, high = 1;
+        for (int i = 0; i < 40; i++)
+        {
+            double mid = (low + high) * .5;
+            if (Bezier(mid, X1, X2) < time) low = mid;
+            else high = mid;
+        }
+        return Bezier((low + high) * .5, Y1, Y2);
+    }
+}

@@ -93,7 +93,7 @@ public partial class MainView : UserControl
     {
         if (sender is not Control anchor || Vm is not { } vm) return;
         var choices = new List<object>();
-        foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script" })
+        foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "curve", "script" })
         {
             var choice = new MenuItem { Header = (vm.IsRightPanelOpen(id) ? "✓  " : "     ") + MainViewModel.PanelTitle(id), IsEnabled = id != "properties" && vm.ContextPanelId != id };
             choice.Click += (_, _) => vm.SetRightPanelEnabled(id, !vm.IsRightPanelOpen(id));

@@ -34,6 +34,11 @@ public sealed class AnimationCommand : Command
     NumberParam _keyTime = null!, _keyValue = null!;
     ActionParam _applyKey = null!;
     ChoiceParam _keyTiming = null!;
+    TimingCurveParam _keyCurve = null!;
+    ActionParam _openCurve = null!;
+    public Action<TimingCurveParam, Action>? EditCurveRequested { get; set; }
+    public TimingCurveParam CustomCurve => _keyCurve;
+    public bool CanEditCurve => SelectedKey != null && _keyTiming.IsVisible && _keyTiming.Index == (int)AnimTiming.Custom;
     public AnimTrack? SelectedTrack { get; private set; }
     public AnimKey? SelectedKey { get; private set; }
 
@@ -59,9 +64,12 @@ public sealed class AnimationCommand : Command
 
         _keyTime = Add(new NumberParam { Section = "Selected key", Label = "Key time", Min = 0, Max = 600, Step = .001, Unit = "s", IsVisible = false });
         _keyValue = Add(new NumberParam { Section = "Selected key", Label = "Key value", Step = .001, Unit = "", IsVisible = false });
-        _keyTiming = Add(new ChoiceParam { Section = "Selected key", Label = "Timing to next key", Options = ["Clip default", "Constant speed", "Ease in", "Ease out", "Ease both ends", "Hold"], IsVisible = false });
+        _keyTiming = Add(new ChoiceParam { Section = "Selected key", Label = "Timing to next key", Options = ["Clip default", "Constant speed", "Ease in", "Ease out", "Ease both ends", "Hold", "Custom curve"], IsVisible = false });
+        _keyCurve = Add(new TimingCurveParam { Section = "Selected key", Label = "Custom timing curve", IsVisible = false });
+        _openCurve = Add(new ActionParam { Section = "Selected key", Label = "Open Curve Editor", IsVisible = false,
+            Run = () => EditCurveRequested?.Invoke(_keyCurve, ApplyKey) });
         _keyTime.Changed = _keyValue.Changed = null;
-        _keyTiming.Changed = null;
+        _keyTiming.Changed = () => { _openCurve.IsVisible = CanEditCurve; RefreshWorkflow(); TimelineChanged?.Invoke(); };
         _applyKey = Add(new ActionParam { Section = "Selected key", Label = "Apply key", IsVisible = false, Run = ApplyKey });
         _duration = Add(new NumberParam { Section = "Clip", Label = "Length", Value = _anim.Duration, Min = 0.5, Max = 600, Step = 0.001, Unit = "s" });
         _time = Add(new NumberParam { Section = "Clip", Label = "Time", Value = 0, Min = 0, Max = 600, Step = 0.001, Unit = "s" });
@@ -165,9 +173,10 @@ public sealed class AnimationCommand : Command
                 tr.Keys.Add(new AnimKey(0, second ? _rest[joint].v2 : _rest[joint].v1));
                 _anim.Tracks.Add(tr);
             }
-            var timing = tr.Keys.FirstOrDefault(k => Math.Abs(k.T - t) < 1e-6)?.Timing ?? AnimTiming.ClipDefault;
+            var prior = tr.Keys.FirstOrDefault(k => Math.Abs(k.T - t) < 1e-6);
+            var timing = prior?.Timing ?? AnimTiming.ClipDefault;
             tr.Keys.RemoveAll(k => Math.Abs(k.T - t) < 1e-6);
-            tr.Keys.Add(new AnimKey(t, value, timing)); keyed++;
+            tr.Keys.Add(new AnimKey(t, value, timing, prior?.Curve)); keyed++;
         }
         foreach (var r in _rows)
         {
@@ -287,8 +296,10 @@ public sealed class AnimationCommand : Command
             _keyTime.Value = key.T;
             _keyValue.Value = key.V;
             _keyTiming.SetSilently((int)key.Timing);
+            _keyCurve.Load(key.Curve ?? new AnimCurve());
             _keyValue.Caption = row.Value.Unit.Length == 0 ? $"{row.Label} value" : $"{row.Label} ({row.Value.Unit})";
         }
+        _openCurve.IsVisible = _keyTiming.IsVisible && _keyTiming.Index == (int)AnimTiming.Custom;
         RefreshWorkflow();
         TimelineChanged?.Invoke();
     }
@@ -297,7 +308,8 @@ public sealed class AnimationCommand : Command
     {
         if (SelectedTrack is { } track && SelectedKey is { } key)
         {
-            EditKey(track, key, _keyTime.Value, _keyValue.Value, (AnimTiming)_keyTiming.Index);
+            EditKey(track, key, _keyTime.Value, _keyValue.Value, (AnimTiming)_keyTiming.Index,
+                _keyTiming.Index == (int)AnimTiming.Custom ? _keyCurve.Curve : key.Curve);
             if (SelectedKey is { } applied) Time = applied.T;
         }
     }
@@ -305,7 +317,7 @@ public sealed class AnimationCommand : Command
     public void MoveKey(AnimTrack track, AnimKey key, double newTime)
         => EditKey(track, key, newTime, key.V);
 
-    void EditKey(AnimTrack track, AnimKey key, double newTime, double value, AnimTiming? timing = null)
+    void EditKey(AnimTrack track, AnimKey key, double newTime, double value, AnimTiming? timing = null, AnimCurve? curve = null)
     {
         int i = track.Keys.IndexOf(key);
         if (i < 0 || Rows().FirstOrDefault(r => ReferenceEquals(r.Track, track)) is not { } row) return;
@@ -320,7 +332,7 @@ public sealed class AnimationCommand : Command
             S.Say($"Use a key value from {row.Value.Min:G} to {row.Value.Max:G} {row.Value.Unit}.", true);
             return;
         }
-        var replacement = key with { T = newTime, V = value, Timing = timing ?? key.Timing };
+        var replacement = key with { T = newTime, V = value, Timing = timing ?? key.Timing, Curve = curve ?? key.Curve };
         if (replacement == key) return;
         track.Keys[i] = replacement;
         track.Keys.Sort((a, b) => a.T.CompareTo(b.T));
