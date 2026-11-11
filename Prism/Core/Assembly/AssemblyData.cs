@@ -131,8 +131,14 @@ public sealed record AnimCurve(double X1 = .25, double Y1 = .1, double X2 = .25,
     public double ValueAt(double time)
     {
         if (!double.IsFinite(X1) || !double.IsFinite(Y1) || !double.IsFinite(X2) || !double.IsFinite(Y2)) return time;
-        static double Bezier(double t, double a, double b)
-            => 3 * (1 - t) * (1 - t) * t * Math.Clamp(a, 0, 1) + 3 * (1 - t) * t * t * Math.Clamp(b, 0, 1) + t * t * t;
+        return Bezier(ParameterAt(time), Y1, Y2);
+    }
+
+    static double Bezier(double t, double a, double b)
+        => 3 * (1 - t) * (1 - t) * t * Math.Clamp(a, 0, 1) + 3 * (1 - t) * t * t * Math.Clamp(b, 0, 1) + t * t * t;
+
+    double ParameterAt(double time)
+    {
         double low = 0, high = 1;
         for (int i = 0; i < 40; i++)
         {
@@ -140,6 +146,15 @@ public sealed record AnimCurve(double X1 = .25, double Y1 = .1, double X2 = .25,
             if (Bezier(mid, X1, X2) < time) low = mid;
             else high = mid;
         }
-        return Bezier((low + high) * .5, Y1, Y2);
+        return (low + high) * .5;
+    }
+
+    public (double Value, double Speed, double Acceleration) KinematicsAt(double time)
+    {
+        double t = ParameterAt(time), remaining = 1 - t;
+        double First(double a, double b) => 3 * (remaining * remaining * a + 2 * remaining * t * (b - a) + t * t * (1 - b));
+        double Second(double a, double b) => 6 * (remaining * (b - 2 * a) + t * (1 - 2 * b + a));
+        double dx = First(X1, X2), dy = First(Y1, Y2);
+        return (Bezier(t, Y1, Y2), dy / dx, (Second(Y1, Y2) * dx - dy * Second(X1, X2)) / (dx * dx * dx));
     }
 }

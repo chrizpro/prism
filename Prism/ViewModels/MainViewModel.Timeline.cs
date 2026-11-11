@@ -22,6 +22,8 @@ public sealed partial class MainViewModel
         if (AnimationEditor != null && _timelineHook != null) AnimationEditor.TimelineChanged -= _timelineHook;
         _timelineHook = null;
         AnimationEditor = value as AnimationCommand;
+        if (value is MotionStudyCommand motion)
+            motion.EditCurveRequested = (subject, curve, apply) => OpenCurveEditor(subject, curve, apply);
         if (AnimationEditor is { } editor)
         {
             editor.EditCurveRequested = (curve, apply) => OpenCurveEditor("Timing to next key", curve, apply);

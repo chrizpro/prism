@@ -91,6 +91,10 @@ public class KinematicsTests
     {
         var curve = new AnimCurve(1.0 / 3, 0, 2.0 / 3, 0);
         Assert.Equal(.125, curve.ValueAt(.5), 8);
+        var derivatives = curve.KinematicsAt(.5);
+        Assert.Equal(.125, derivatives.Value, 8);
+        Assert.Equal(.75, derivatives.Speed, 8);
+        Assert.Equal(3, derivatives.Acceleration, 8);
         var track = new AnimTrack("shaft", false, [new(0, 0, AnimTiming.Custom, curve), new(4, 1800)]);
         Assert.Equal(225, track.ValueAt(2, false), 6);
         Assert.Equal(0, track.ValueAt(0, false));

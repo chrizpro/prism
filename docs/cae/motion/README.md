@@ -4,11 +4,21 @@ One set of tools for every mechanism. A mechanism is parts, joints, couplings be
 
 ## Ribbon
 
-- **Mechanism:** Parts (Make Part, Insert Component, Parts Library), Ground, Joint (Rigid, Revolute, Slider, Cylindrical, Ball, Planar), Couple, Drive Joints
-- **Simulate:** Motion Study
-- **Springs and loads:** Spring / Actuator, Force / Torque
-- **Review:** Load from Motion, Clear Results
-- **Appearance:** shared section
+- **Setup:** Motion Study, Materials
+- **Loads:** Spring / Actuator, Force / Torque
+- **Results:** Clear Results, Load from Motion
+
+Owner approved the Motion workflow organization in [#122](https://github.com/chrizpro/prism/issues/122). Build the mechanism in Assemble and Joints, then open Motion Study. The panel groups Setup, Drives, Loads, Solve and Results. Choose a joint to show its drive inputs, while a compact result summary lists all drives. Switching the selection preserves every joint's settings.
+
+Select Movement only or Include forces. Choosing a Free drive switches to Include forces because gravity and loads determine its movement. Run study works in the background with progress and Stop study. Changing the setup or model while it runs prevents publication of stale results.
+
+Result Time is entered in seconds and shows the nearest stored output sample. Move to Position supports the shared Curve Editor through Move timing → Custom curve. Apply the curve and rerun the study. [Maintained workflow tests](../../../Prism.Tests/Headless/Assembly/MotionWorkflowTests.cs) cover hidden drive inputs, forces, cancellation, stale results, exact time and custom motion profiles. [Ribbon checks](../../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs) cover the tab layout.
+
+### Verification — 2026-11-10
+
+Windows Release verification passed 43 Headless checks (Motion, CAE and Assembly), 15 Assembly Unit checks and 75 standalone Motion engine checks. The desktop build succeeded and the generated ribbon catalog passed its freshness check. MOT-I001 opened the gallery orrery in the native app and solved 11 samples over one second: the driver reached 30° at 30°/s and coupled followers moved at their ratios. [Setup capture](evidence/MOT-I001-motion-workflow.png) and [solved capture](evidence/MOT-I001-motion-results.png) show the native interface. The source revision and verification commands are recorded in [#122](https://github.com/chrizpro/prism/issues/122).
+
+The [manual checklist](../../tabs/checklists/motion-manual-test-checklist.md) covers pointer-driven curve editing, playback and representative mechanism checks. Motion Study inputs remain session state; saving the assembly persists its joint/load objects, not a reusable study configuration. Contact and flexible-body behavior remain outside the study.
 
 ## What it covers
 
@@ -48,7 +58,7 @@ For a shorter introduction, see the public [simulation guide](../../../site/guid
 | Drives and coupling | Drive Joints and Couple can control assemblies | Owner approval needed for limit handling, sign conventions and invalid mechanisms |
 | Simulation scope | Contact and flexible-body simulation are out of scope in the existing guide | Confirm intended limitations with owner before making them test requirements |
 
-**No new requirement IDs, GitHub Issues, or tests have been assigned by this pilot.** Review and record specific expectations first. When the owner approves a behavior, add a stable ID only if beneficial and link an existing test or actionable issue (if one exists). See [the tab guide index](../../tabs/README.md) and [the shared workflow](../../engineering/requirements-and-testing.md).
+The workflow changes above are approved and tracked in #122. The broader simulation acceptance criteria in this pilot still require review. See the [tab guide index](../../tabs/README.md) and [shared workflow](../../engineering/requirements-and-testing.md).
 
 ### Related detail
 

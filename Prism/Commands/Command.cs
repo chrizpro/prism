@@ -440,6 +440,8 @@ public abstract partial class Command : ObservableObject
         return s;
     }
 
+    protected virtual IReadOnlyList<string> WorkflowSectionOrder => [];
+
     protected void RefreshWorkflow()
     {
         var groups = new List<(string title, List<object> items)>();
@@ -454,6 +456,8 @@ public abstract partial class Command : ObservableObject
         foreach (var p in AdvancedSettings) Place("Advanced", p);
         foreach (var p in ResultSettings) Place("Result", p);
         foreach (var slot in ResultSlots) Place("Result", slot);
+        if (WorkflowSectionOrder.Count > 0)
+            groups = groups.OrderBy(g => { int i = WorkflowSectionOrder.ToList().IndexOf(g.title); return i < 0 ? int.MaxValue : i; }).ToList();
         int number = 0;
         foreach (var group in groups)
         {

@@ -1399,28 +1399,18 @@ public sealed partial class MainViewModel : ViewModelBase
                     foreach (var section in command.WorkflowSections) section.IsExpanded = section.Title == "Results";
             }, "Open the returned mode controls.", can: () => Session.Cae?.Outcome?.Kind == CaeKind.Modal),
             Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
-        var motion = new RibbonTab {Title="Motion",Groups=
-        [G("Mechanism",
-            ToolMenu("Parts","component","Get parts for the mechanism: make them from bodies in this file, or bring them in.",
-                MakePartBtn(),
-                AsmCmd("Insert\nComponent","component",()=>new InsertComponentCommand(),"Place a part from another open document or a part file."),
-                Btn("Parts\nLibrary","component",OpenLibrary,"Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",RibbonSize.Large,()=>!IsSketching)),
-            Btn("Ground","ground",ToggleGround,"Fix the selected component in place. Motion is solved outwards from the grounded part.",RibbonSize.Large,()=>HasComponents()&&!IsSketching,()=>SelectedComponent?.Component?.Grounded==true),
-            ToolMenu("Joint","joint-revolute","Connect two components. Create the joints here or in the Assemble workspace; they are the same joints.",
-                AsmCmd("Rigid","joint-rigid",()=>new JointCommand(JointType.Rigid),"Lock one component to another.",RibbonSize.Large,HasBodies),
-                AsmCmd("Revolute","joint-revolute",()=>new JointCommand(JointType.Revolute),"A hinge or shaft: the second component turns about the axis.",RibbonSize.Large,HasBodies),
-                AsmCmd("Slider","joint-slider",()=>new JointCommand(JointType.Slider),"The second component slides along one direction.",RibbonSize.Large,HasBodies),
-                AsmCmd("Cylindrical","joint-cyl",()=>new JointCommand(JointType.Cylindrical),"Turns about an axis and slides along it.",RibbonSize.Large,HasBodies),
-                AsmCmd("Ball","joint-ball",()=>new JointCommand(JointType.Ball),"Pivots about a point.",RibbonSize.Large,HasBodies),
-                AsmCmd("Planar","joint-planar",()=>new JointCommand(JointType.Planar),"Slides over a flat face in two directions.",RibbonSize.Large,HasBodies)),
-            CoupleBtn(),
-            AsmCmd("Drive\nJoints","joint-revolute",()=>new DriveJointsCommand(),"Move the joints by hand to check the mechanism before simulating it.",RibbonSize.Large,HasJoints)),
-         G("Simulate",
-            Cmd("Motion\nStudy","motion-dynamics",()=>new MotionStudyCommand(),"Move any mechanism: choose how each joint moves and read the motion, paths and collisions. With masses and forces on, also motor torque, power, energy and joint reactions.")),
-         G("Springs and loads",
-            Cmd("Spring /\nActuator","motion-spring",()=>new MotionSpringCommand(),"A spring, damper or cylinder between two points (or a point and a fixed body).",RibbonSize.Large),
-            Cmd("Force /\nTorque","motion-force",()=>new MotionLoadCommand(),"A force or torque on a part, constant, a pulse or alternating.",RibbonSize.Large)),
-         G("Review",Cmd("Load from\nMotion","motion-force",()=>new MotionLoadToStaticCommand(),"Turn the force a joint held in the last Motion Study into a load in a new Static study.",RibbonSize.Large),Btn("Clear\nResults","clear-analysis",ClearResults,"Remove the motion paths from the model."))]};
+        var motion = new RibbonTab { Title = "Motion", Groups =
+        [
+            G("Setup",
+                Cmd("Motion\nStudy", "motion-dynamics", () => new MotionStudyCommand(), "Set joint drives and inspect movement, forces and reactions."),
+                Btn("Materials", "materials", OpenMaterials, "Assign materials when calculating masses and forces.")),
+            G("Loads",
+                Cmd("Spring /\nActuator", "motion-spring", () => new MotionSpringCommand(), "Add a spring, damper or actuator between points."),
+                Cmd("Force /\nTorque", "motion-force", () => new MotionLoadCommand(), "Apply a constant, pulsed or alternating force or torque.")),
+            G("Results",
+                Btn("Clear\nResults", "clear-analysis", ClearResults, "Remove the motion paths from the model."),
+                Cmd("Load from\nMotion", "motion-force", () => new MotionLoadToStaticCommand(), "Use a calculated joint reaction in a new Static study.")),
+        ] };
         var fluids = new RibbonTab {Title="Fluids",Groups=
         [G("Pipe Calculations",Cmd("Pipe\nFlow","cae-fluid",()=>new PipeFlowCommand(),"Incompressible circular-pipe pressure drop and Reynolds number for one pipe."),Cmd("Pipe\nNetwork","cae-network",()=>new PipeNetworkCommand(),"Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.")),
          G("3D Flow",Cmd("Flow\nStudy","cae-flow",()=>new FlowStudyCommand(),"Basic 3D flow around a body or through a duct: colors, streamlines, drag and pressure drop. Dependable for slow, smooth flow; a picture for fast, turbulent flow."))]};

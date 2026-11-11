@@ -1,5 +1,5 @@
 {
-  "sourceHash": "F0FF9E0CA112F6D60E79E3696E850CC3A02B746DA1C8C4B94E81832CEE18E367",
+  "sourceHash": "01A55DF0E72C6F401050CC26D3F817C89636903557AB8E16F2D5E9D46A0D5C7A",
   "workspaces": [
     {
       "Id": "design",
@@ -4780,134 +4780,52 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Mechanism",
+          "title": "Setup",
           "tools": [
             {
-              "id": "component|Make Part",
-              "label": "Make Part",
-              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
+              "id": "motion-dynamics|Motion Study",
+              "label": "Motion Study",
+              "description": "Set joint drives and inspect movement, forces and reactions.",
               "shortcut": ""
             },
             {
-              "id": "component|Insert Component",
-              "label": "Insert Component",
-              "description": "Place a part from another open document or a part file.",
-              "shortcut": ""
-            },
-            {
-              "id": "component|Parts Library",
-              "label": "Parts Library",
-              "description": "Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",
-              "shortcut": ""
-            },
-            {
-              "id": "ground|Ground",
-              "label": "Ground",
-              "description": "Fix the selected component in place. Motion is solved outwards from the grounded part.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-rigid|Rigid",
-              "label": "Rigid",
-              "description": "Lock one component to another.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-revolute|Revolute",
-              "label": "Revolute",
-              "description": "A hinge or shaft: the second component turns about the axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-slider|Slider",
-              "label": "Slider",
-              "description": "The second component slides along one direction.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-cyl|Cylindrical",
-              "label": "Cylindrical",
-              "description": "Turns about an axis and slides along it.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-ball|Ball",
-              "label": "Ball",
-              "description": "Pivots about a point.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-planar|Planar",
-              "label": "Planar",
-              "description": "Slides over a flat face in two directions.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-gear|Couple",
-              "label": "Couple",
-              "description": "Make one joint follow another at a ratio: gears, belts and chains, a rack, pulley or screw, or a lever or cable.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-revolute|Drive Joints",
-              "label": "Drive Joints",
-              "description": "Move the joints by hand to check the mechanism before simulating it.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Assign materials when calculating masses and forces.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Springs and loads",
+          "title": "Loads",
           "tools": [
             {
               "id": "motion-spring|Spring / Actuator",
               "label": "Spring / Actuator",
-              "description": "A spring, damper or cylinder between two points (or a point and a fixed body).",
+              "description": "Add a spring, damper or actuator between points.",
               "shortcut": ""
             },
             {
               "id": "motion-force|Force / Torque",
               "label": "Force / Torque",
-              "description": "A force or torque on a part, constant, a pulse or alternating.",
+              "description": "Apply a constant, pulsed or alternating force or torque.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Simulate",
+          "title": "Results",
           "tools": [
-            {
-              "id": "motion-dynamics|Motion Study",
-              "label": "Motion Study",
-              "description": "Move any mechanism: choose how each joint moves and read the motion, paths and collisions. With masses and forces on, also motor torque, power, energy and joint reactions.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Review",
-          "tools": [
-            {
-              "id": "motion-force|Load from Motion",
-              "label": "Load from Motion",
-              "description": "Turn the force a joint held in the last Motion Study into a load in a new Static study.",
-              "shortcut": ""
-            },
             {
               "id": "clear-analysis|Clear Results",
               "label": "Clear Results",
               "description": "Remove the motion paths from the model.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
+            },
             {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "id": "motion-force|Load from Motion",
+              "label": "Load from Motion",
+              "description": "Use a calculated joint reaction in a new Static study.",
               "shortcut": ""
             }
           ]

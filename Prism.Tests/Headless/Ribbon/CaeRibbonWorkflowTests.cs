@@ -17,6 +17,7 @@ public class CaeRibbonWorkflowTests
     [InlineData("Thermal", "Setup|Reuse|Results")]
     [InlineData("Dynamics", "Setup|Reuse|Results")]
     [InlineData("Fluids", "Pipe Calculations|3D Flow")]
+    [InlineData("Motion", "Setup|Loads|Results")]
     [Trait("TestId", "CAE-H001")]
     public void WorkflowOrderAndCommandsRemainAvailable(string title, string sections)
     {
