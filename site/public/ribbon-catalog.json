@@ -1,5 +1,5 @@
 {
-  "sourceHash": "93B9B7591404121E7521C9C335FFF47E595A05F93B6611472901B37ED8CEB1FC",
+  "sourceHash": "85A549372F836830E5165804F34384408555006162B4FD94463B41309CE07332",
   "workspaces": [
     {
       "Id": "design",
@@ -4268,7 +4268,7 @@
           ]
         },
         {
-          "title": "Set up",
+          "title": "Prepare",
           "tools": [
             {
               "id": "mesh-align|Align",
@@ -4285,52 +4285,52 @@
           ]
         },
         {
-          "title": "Sketch from scan",
+          "title": "Sketch from Scan",
           "tools": [
             {
               "id": "mesh-section|Section Sketch",
               "label": "Section Sketch",
-              "description": "Put a plane on the scan and get an editable sketch of fitted lines, arcs and circles to extrude or revolve.",
+              "description": "Create editable lines, arcs and circles from a scan section. Add dimensions and constraints, then extrude or revolve to build parametric features.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Fit",
+          "title": "Fit Surfaces",
           "tools": [
             {
               "id": "mesh-fit|Segment \u0026 Fit",
               "label": "Segment \u0026 Fit",
-              "description": "Find planes, cylinders, spheres and cones in a scan, read their sizes, and make them exact surfaces.",
+              "description": "Identify and measure regions across a scan; optionally create separate fitted CAD surfaces.",
               "shortcut": ""
             },
             {
               "id": "mesh-patch|Fit Surface to Region",
               "label": "Fit Surface to Region",
-              "description": "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-fit|Rebuild from Scan",
-              "label": "Rebuild from Scan",
-              "description": "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan.",
+              "description": "Choose a region and fit one exact surface or smooth NURBS patch. This does not recover a feature history.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Convert",
+          "title": "Rebuild",
           "tools": [
+            {
+              "id": "mesh-fit|Rebuild from Scan",
+              "label": "Rebuild from Scan",
+              "description": "Fit faces and attempt a shell or direct-edit solid. This does not recover the original sketches or feature history.",
+              "shortcut": ""
+            },
             {
               "id": "form-scan|Freeform from Scan",
               "label": "Freeform from Scan",
-              "description": "Wrap an editable quad cage around the scan.",
+              "description": "Create an editable freeform cage around the scan for manual shape refinement.",
               "shortcut": ""
             },
             {
               "id": "mesh-solid|Mesh to Solid",
               "label": "Mesh to Solid",
-              "description": "Last resort: a CAD body with one face per triangle. Heavy, and hard to edit.",
+              "description": "Last resort: one CAD face per triangle. Heavy, hard to edit, and no recovered feature history.",
               "shortcut": ""
             }
           ]

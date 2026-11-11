@@ -749,6 +749,7 @@ public sealed class MeshSegmentCommand : MeshCommand
         for (int i = 0; i < Math.Min(found.Count, 40); i++)
             Row($"{i + 1}.  {found[i].Describe()}", $"{found[i].Area:#,0} mm²   rms {found[i].Rms:0.###}");
         Row("Gray areas", "free-form surface that is not a simple shape");
+        Row("Output", _create.Index == 0 ? "Analysis only; no CAD geometry is created" : "Separate fitted CAD surfaces; original sketches and feature history are not recovered");
 
         if (_create.Index == 0) return Report();
         var o = new CommandOutput { Label = "Fit geometry", Icon = Icon };
@@ -937,7 +938,7 @@ public sealed class MeshToSolidCommand : MeshCommand
         PreviewButton();
     }
     public override string Title => "Mesh to Solid";
-    public override string Hint => "Turns a mesh into a CAD body made of one flat face per triangle, so you can cut, combine and measure it. Large meshes are reduced first. For a clean parametric rebuild use Segment & Fit.";
+    public override string Hint => "Fallback conversion: one flat CAD face per triangle, with no recovered feature history. Large meshes are reduced first. For a parametric rebuild, use Section Sketch, add dimensions and build your own features.";
     public override string Icon => "mesh-solid";
     public override string OkText => "Convert";
 
@@ -953,6 +954,7 @@ public sealed class MeshToSolidCommand : MeshCommand
         });
         if (shape == null) { Row("Triangles", $"{Count(m.TriCount)} (limit {Count(_limit.Value)})"); return null; }
         Row("Triangles used", Count(shape.Mesh.TriCount));
+        Row("Output", "Triangle-based CAD body; original sketches and feature history are not recovered");
         Row("Result", shape.Shape.HasSolids ? "Solid" : "Shell (not closed)", shape.Shape.HasSolids || _result.Index == 1 ? 1 : 2);
         var o = new CommandOutput { Label = "Mesh to solid", Icon = Icon };
         o.Add.Add(new(shape.Shape, obj.Name + " body", shape.Shape.HasSolids ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));

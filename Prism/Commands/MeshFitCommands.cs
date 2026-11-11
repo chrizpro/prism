@@ -64,6 +64,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         foreach (var l in result.Rows) Results.Add(l);
         _outlines = result.Outlines; _samples = result.Samples;
         if (result.Shape == null) return null;
+        Row("Output", "Fitted CAD geometry; original sketches and feature history are not recovered");
         var o = new CommandOutput { Label = "Fit surface", Icon = Icon };
         o.Add.Add(new(result.Shape, result.Name, result.Solid ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));
         return o;

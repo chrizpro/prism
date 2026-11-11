@@ -26,8 +26,13 @@ Start with **Align**: drop the scan on the bed, center it, lay a flat face down,
 
 **Rebuild from Scan** makes an exact solid when every region is a plane, cylinder, cone or sphere. Parts with free-form regions are sewn instead and may stay open. **Mesh to Solid** converts a mesh directly.
 
+The ribbon follows **Prepare → Sketch from Scan → Fit Surfaces → Rebuild → Check**. Fit Surface to Region is directly accessible for local corrections; Mesh to Solid is under **Rebuild → Fallback**.
+
+For a **parametric part**, create a Section Sketch, edit it to add dimensions and constraints, then extrude or revolve. You can trim unwanted sketch outlines first: an axial tube section has an outline on either side of the axis, and you normally revolve only one. Change the sketch dimensions to adjust your rebuilt part. Rebuild from Scan and surface fitting do not recover the original feature tree; Freeform from Scan creates an editable cage.
+
 <GuideImage image="scan-section-sketch" />
 
 ## Check
 
-**Deviation** colors the CAD model by its distance from the scan. **Clear Colors** removes the overlay.
+**Deviation** colors the scan by its distance from the reference CAD model or mesh. **Clear Colors** removes the overlay.
+Select the scan as the mesh to check and the rebuilt CAD body as the reference. The check samples the scan against the reference; it cannot establish the intended shape where the scan is missing.

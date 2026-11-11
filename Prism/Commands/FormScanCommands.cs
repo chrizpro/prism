@@ -32,6 +32,7 @@ public sealed class FormFromScanCommand : MeshCommand
         Results.Clear();
         var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
         var m = obj.Tri!; var size = m.Size; var c = m.Center; int n = _res.Value;
+        Row("Output", "Editable freeform cage; original sketches and feature history are not recovered");
         SubdMesh cage;
         double pad = 1.15;
         switch (_shape.Index)
