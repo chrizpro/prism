@@ -72,7 +72,7 @@ public class ComponentTests
         AssertBounds(session.Find(second.Id)!.Shape, new(0, 0, 4 + travel), new(2, 3, 8 + travel));
     }
 
-    [AvaloniaFact(DisplayName = "ASM-H003 | Assemble exposes Joint and Rigid As Positioned preserves both component poses")]
+    [AvaloniaFact(DisplayName = "ASM-H003 | Joints owns joint creation and Rigid As Positioned preserves both component poses")]
     [Trait("TestId", "ASM-H003")]
     public void AsPositionedRigidJointPreservesPose()
     {
@@ -81,15 +81,14 @@ public class ComponentTests
         var assemble = vm.Tabs.Single(t => t.Title == "Assemble");
         Assert.Equal(new[] { "Select", "Add Parts", "Assemble", "Manage Parts", "Review", "Share" }, assemble.Groups.Select(g => g.Title));
         var tools = assemble.Groups.Single(g => g.Title == "Assemble").Items.OfType<RibbonButton>().ToArray();
-        Assert.Equal(new[] { "Ground", "Move\nComponent", "Mate", "Joint" }, tools.Select(b => b.Label));
+        Assert.Equal(new[] { "Ground", "Move\nComponent", "Mate" }, tools.Select(b => b.Label));
         var joints = vm.Tabs.Single(t => t.Title == "Joints").Groups.Single(g => g.Title == "Joint");
-        Assert.Equal(joints.Items.OfType<RibbonButton>().Select(b => b.Label), tools[3].Menu!.Select(b => b.Label));
-        Assert.Equal(6, tools[3].Menu!.Count);
+        Assert.Equal(new[] { "Rigid", "Revolute", "Slider", "Cylindrical", "Ball", "Planar" }, joints.Items.OfType<RibbonButton>().Select(b => b.Label));
 
         var first = session.MakePart(CreateBoxBody(session, Vec3.Zero, 2, 3, 4).Id);
         var second = session.MakePart(CreateBoxBody(session, new(10, 3, 5), 2, 3, 4).Id);
         vm.RefreshRibbon();
-        tools[3].Menu![0].Invoke();
+        joints.Items.OfType<RibbonButton>().First().Invoke();
         var command = Assert.IsType<JointCommand>(session.ActiveCommand);
         command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Placement").Index = 1;
         Assert.All(command.Slots, slot => Assert.Equal(SelFilter.Solid, slot.PickFilter));

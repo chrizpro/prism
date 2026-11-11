@@ -6,10 +6,12 @@ Make Part turns a body into a component where it stands. The first component is 
 
 Owner approved the ribbon and joint placement changes on 2026-11-10. After **Select**, the Assemble ribbon follows this order.
 
+Owner requested removing the duplicate Joint menu from Assemble in [#125](https://github.com/chrizpro/prism/issues/125). Joint creation lives on the dedicated Joints tab; Assemble retains Ground, Move Component and Mate. Maintained verification: [ComponentTests (ASM-H003)](../../../Prism.Tests/Headless/Assembly/ComponentTests.cs). Windows Release verification on 2026-11-10 passed 31 Assembly Headless tests and the generated ribbon catalog freshness check.
+
 | Section | Tools |
 | --- | --- |
 | Add Parts | Insert Component, Parts Library, Create Part, Make Part |
-| Assemble | Ground, Move Component, Mate, Joint (Rigid, Revolute, Slider, Cylindrical, Ball, Planar) |
+| Assemble | Ground, Move Component, Mate |
 | Manage Parts | Edit Part, Component Pattern, Refresh |
 | Review | Interference, Measure, Properties, Parts List, Exploded View |
 | Share | Existing AR and sharing tools |
