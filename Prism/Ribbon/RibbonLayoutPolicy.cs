@@ -38,7 +38,11 @@ public static class RibbonLayoutPolicy
 
     public static void Order(RibbonTab tab)
     {
-        var groups = tab.Groups.OrderBy(g => Rank(g.Title)).ToArray();
+        string[]? workflow = tab.Title == "Static"
+            ? ["Select", "Setup", "Supports", "Loads", "Solve", "Results", "Advanced", "Reuse & Export"]
+            : null;
+        var groups = tab.Groups.OrderBy(g => workflow == null ? Rank(g.Title) :
+            Array.IndexOf(workflow, g.Title) is var index && index >= 0 ? index : workflow.Length).ToArray();
         tab.Groups.Clear();
         tab.Groups.AddRange(groups);
     }

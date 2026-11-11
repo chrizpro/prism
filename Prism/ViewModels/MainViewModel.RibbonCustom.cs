@@ -125,7 +125,7 @@ public sealed partial class MainViewModel
                 tab.Groups.Remove(look);
                 tab.Groups.Add(appearance());
             }
-            if (tab.Title is "Thermal" or "Dynamics" or "Static" or "Motion")
+            if (tab.Title is "Thermal" or "Dynamics" or "Motion")
             {
                 foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
                 tab.Groups.Add(appearance());
@@ -140,6 +140,19 @@ public sealed partial class MainViewModel
             foreach (var group in tab.Groups)
             {
                 var buttons = group.Items.OfType<RibbonButton>().ToArray();
+                if (tab.Title == "Static" && group.Title is "Supports" or "Loads")
+                {
+                    int primary = group.Title == "Supports" ? 1 : 2;
+                    group.Items.Clear();
+                    group.Items.AddRange(buttons.Take(primary));
+                    group.Items.Add(new RibbonButton
+                    {
+                        Label = "Other", Description = group.Title == "Supports" ? "Other support types." : "Other load types.",
+                        Icon = buttons[primary].Icon, Id = "menu:static-" + group.Title.ToLowerInvariant(),
+                        Menu = [.. buttons.Skip(primary)], Size = RibbonSize.Small,
+                    });
+                    continue;
+                }
                 if (group.Title == "Combine" && buttons.Length > 1)
                 {
                     group.Items.Clear();
@@ -162,7 +175,7 @@ public sealed partial class MainViewModel
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
                 bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "ECAD" && group.Title == "Fit check") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
-                if (tab.Title is "Assemble" or "Animate" || (tab.Title == "Joints" && group.Title == "Joint") ||
+                if (tab.Title is "Assemble" or "Animate" or "Static" || (tab.Title == "Joints" && group.Title == "Joint") ||
                     !compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = tab.Title == "Mesh" && group.Title == "Reshape" ? 3 : tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));

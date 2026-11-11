@@ -1042,30 +1042,28 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 SelectGrp(),
-                G("Study",
+                G("Setup",
                     Btn("New\nStudy", "sim-study", NewStudy, "Start a static stress study on the selected solid body. Select several touching bodies to study them together, each with its own material.", RibbonSize.Large, () => !IsSketching),
-                    Btn("Materials", "materials", OpenMaterials, "Pick the material: stiffness and strength come from the library.", RibbonSize.Large, () => !IsSketching)),
+                    Btn("Select Study", "sim-new", () => Session.StartCommand(() => new SelectStudyCommand()), "Choose a saved static study.", small, id: "sim-new|Select static study"),
+                    Btn("Materials", "materials", OpenMaterials, "Pick the material: stiffness and strength come from the library.", small, () => !IsSketching)),
                 G("Supports",
                     SimCmd("Fixed\nSupport", "sim-fixed", () => new FixtureCommand(FixtureKind.Fixed), "Faces that cannot move at all."),
                     SimCmd("Roller /\nSymmetry", "sim-roller", () => new FixtureCommand(FixtureKind.Slider), "Faces that slide in their plane but cannot move through it."),
                     SimCmd("Fixed\nDirections", "sim-directional", () => new FixtureCommand(FixtureKind.Directional), "Lock only chosen global directions on faces.")),
                 G("Loads",
                     SimCmd("Force", "sim-force", () => new LoadCommand(LoadKind.Force), "A force spread over faces."),
-                    SimCmd("Pressure", "sim-pressure", () => new LoadCommand(LoadKind.Pressure), "Pressure acting on faces."),
+                    SimCmd("Pressure", "sim-pressure", () => new LoadCommand(LoadKind.Pressure), "Pressure acting on faces.", small),
                     SimCmd("Torque", "sim-torque", () => new LoadCommand(LoadKind.Torque), "A twisting moment on a flat face."),
                     SimCmd("Gravity", "sim-gravity", () => new LoadCommand(LoadKind.Gravity), "The part's own weight.")),
                 G("Solve",
-                    Btn("Create\nMesh", "sim-mesh", MeshStudy, "Generate the tetrahedral mesh and look at it.", RibbonSize.Large, () => Session.ActiveStudy != null && !SimBusy),
+                    Btn("Create Mesh", "sim-mesh", MeshStudy, "Generate the tetrahedral mesh and look at it.", small, () => Session.ActiveStudy != null && !SimBusy, id: "sim-mesh|Create Mesh"),
                     Btn("Run\nStudy", "sim-run", RunStudy, "Mesh (if needed) and solve.", RibbonSize.Large, () => Session.ActiveStudy != null && !SimBusy)),
-                G("Generative",
-                    SimCmd("Generative\nDesign", "generative", () => new GenerativeCommand(), "Let the software find the lightest stiff shape for the supports and loads you set: it removes the material that carries the least. The result is a new mesh body.")),
                 G("Results",
                     Btn("von Mises\nStress", "sim-stress", () => SetResultKind(ResultKind.VonMises), "Color by equivalent stress.", RibbonSize.Large, () => HasResult),
-                    Btn("Displace-\nment", "sim-displacement", () => SetResultKind(ResultKind.Displacement), "Color by how far each point moves.", RibbonSize.Large, () => HasResult),
-                    Btn("Factor of\nSafety", "sim-safety", () => SetResultKind(ResultKind.SafetyFactor), "Yield strength divided by stress: below 1 means yielding.", RibbonSize.Large, () => HasResult),
-                    Btn("Fatigue", "cae-fatigue", () => Session.StartCommand(new FatigueCommand()), "Fatigue life and safety factor of the solved study under repeated loading (stress-life).", RibbonSize.Large, () => HasResult),
-                    Btn("Probe", "sim-probe", () => Session.StartCommand(new ProbeCommand()), "Click the result to read values.", RibbonSize.Large, () => HasResult),
-                    Btn("Clear\nResults", "clear-analysis", ClearResults, "Show the normal model again.", RibbonSize.Large, () => Session.Result != null)),
+                    Btn("Displacement", "sim-displacement", () => SetResultKind(ResultKind.Displacement), "Color by how far each point moves.", small, () => HasResult, id: "sim-displacement|Displace- ment"),
+                    Btn("Safety Factor", "sim-safety", () => SetResultKind(ResultKind.SafetyFactor), "Yield strength divided by stress: below 1 means yielding.", small, () => HasResult, id: "sim-safety|Factor of Safety"),
+                    Btn("Probe", "sim-probe", () => Session.StartCommand(new ProbeCommand()), "Click the result to read values.", small, () => HasResult),
+                    Btn("Clear\nResults", "clear-analysis", ClearResults, "Show the normal model again.", RibbonSize.Large, () => Session.Result != null, id: "clear-analysis|Clear Results")),
             ],
         };
 
@@ -1365,10 +1363,27 @@ public sealed partial class MainViewModel : ViewModelBase
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Review the bodies and write a model for your resin slicer."))]};
         var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", () => _ = ImportMoldPart(), "Bring a part in from a Prism, STEP, IGES or BREP file as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
         var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
-        simulate.Groups.Add(G("Study workflow",ToolMenu("Selections & setups","sim-fixed","Save and reuse boundary selections and analysis setups.",
-            Cmd("Select static study","sim-new",()=>new SelectStudyCommand(),"Select a saved static study."),
-            Cmd("Save face selection","sim-fixed",()=>new NamedFacesCommand(),"Name selected boundary faces."),Cmd("Recall face selection","sim-fixed",()=>new RecallFacesCommand(),"Recall a named face group."),Cmd("Saved CAE setups","sim-run",()=>new SavedCaeCommand(),"Rerun saved thermal/modal setups.")),
-            Cmd("Mesh refinement","sim-mesh",()=>new ConvergenceCommand(),"Compare three meshes using displacement."),Cmd("Export results","export",()=>new ExportStudyCommand(),"Export static nodal results and metadata.")));
+        simulate.Groups.Single(g => g.Title == "Solve").Items.Insert(1,
+            Btn("Refinement", "sim-mesh", () => Session.StartCommand(() => new ConvergenceCommand()), "Compare three meshes using displacement.", small, id: "sim-mesh|Mesh refinement"));
+        simulate.Groups.Add(G("Advanced", new RibbonButton
+        {
+            Label = "Advanced", Icon = "generative", Id = "menu:static-advanced",
+            Menu =
+            [
+                Btn("Fatigue", "cae-fatigue", () => Session.StartCommand(new FatigueCommand()), "Inspect fatigue under repeated loading.", can: () => HasResult),
+                SimCmd("Generative\nDesign", "generative", () => new GenerativeCommand(), "Find a lighter shape from the study supports and loads."),
+            ],
+        }));
+        simulate.Groups.Add(G("Reuse & Export", new RibbonButton
+        {
+            Label = "Face Selections", Icon = "sim-fixed", Id = "menu:static-face-selections", Size = RibbonSize.Small,
+            Menu =
+            [
+                Cmd("Save face selection","sim-fixed",()=>new NamedFacesCommand(),"Name selected boundary faces."),
+                Cmd("Recall face selection","sim-fixed",()=>new RecallFacesCommand(),"Recall a named face group."),
+                Cmd("Saved CAE setups","sim-run",()=>new SavedCaeCommand(),"Rerun saved thermal/modal setups."),
+            ],
+        }, Cmd("Export results","export",()=>new ExportStudyCommand(),"Export static nodal results and metadata.", small)));
         var thermal = new RibbonTab {Title="Thermal",Groups=
         [G("Conduction",Cmd("Thermal\nAnalysis","cae-thermal",()=>new CaeSolveCommand(true),"Steady or transient conduction with prescribed temperatures in one homogeneous solid."),
             Btn("Materials","materials",OpenMaterials,"Assign conductivity, density and heat capacity.")),

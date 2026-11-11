@@ -1,5 +1,7 @@
 # CAE
 
+Owner approved organization of Static, Thermal, Dynamics and Fluids around setup, solving and results. [Maintained ribbon and panel checks](../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs) verify these entry points.
+
 - [Static structural analysis](static-analysis/README.md)
 - [Fluids](fluids/README.md)
 - [Motion](motion/README.md)

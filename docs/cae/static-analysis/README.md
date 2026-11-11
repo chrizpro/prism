@@ -12,6 +12,8 @@ Thermal, modal, topology optimization, fatigue, contact/nonlinear analysis and m
 
 ## Current implementation
 
+Owner approved ribbon organization. The Static ribbon follows Select, Setup, Supports, Loads, Solve, Results, Advanced, and Reuse & Export. Setup keeps study selection and Materials together. Fixed Support, Force and Pressure stay visible. Other support/load types use menus. Mesh Refinement follows Run Study. Fatigue and Generative Design are under Advanced. [CAE ribbon checks](../../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs) verify the workflow and retained tools.
+
 Source: [study definitions](../../../Prism/Simulation/Study.cs), [setup references](../../../Prism/Simulation/StudySetup.cs), [StudyRunner](../../../Prism/Simulation/StudyRunner.cs), [native interface](../../../Prism.Kernel/Sim.cs) and [native solver](../../../native/sim.cpp). Ribbon entry points are in [MainViewModel.cs](../../../Prism/ViewModels/MainViewModel.cs).
 
 | Area | Source-observed behavior |

@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5D606E72580AD13DCC9CD7E81313A31D7897B2C1829E8B9C287718A4F8136632",
+  "sourceHash": "2AE7E345EF452BDAFCE527AB2AEB548BFCDC0A66ED67FDF91468BB566AD6C8CF",
   "workspaces": [
     {
       "Id": "design",
@@ -4487,12 +4487,24 @@
           ]
         },
         {
-          "title": "Study",
+          "title": "Setup",
           "tools": [
             {
               "id": "sim-study|New Study",
               "label": "New Study",
               "description": "Start a static stress study on the selected solid body. Select several touching bodies to study them together, each with its own material.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-new|Select static study",
+              "label": "Select Study",
+              "description": "Choose a saved static study.",
+              "shortcut": ""
+            },
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Pick the material: stiffness and strength come from the library.",
               "shortcut": ""
             }
           ]
@@ -4563,57 +4575,11 @@
               "label": "Run Study",
               "description": "Mesh (if needed) and solve.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Generative",
-          "tools": [
-            {
-              "id": "generative|Generative Design",
-              "label": "Generative Design",
-              "description": "Let the software find the lightest stiff shape for the supports and loads you set: it removes the material that carries the least. The result is a new mesh body.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Study workflow",
-          "tools": [
-            {
-              "id": "sim-new|Select static study",
-              "label": "Select static study",
-              "description": "Select a saved static study.",
-              "shortcut": ""
             },
             {
-              "id": "sim-fixed|Save face selection",
-              "label": "Save face selection",
-              "description": "Name selected boundary faces.",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-fixed|Recall face selection",
-              "label": "Recall face selection",
-              "description": "Recall a named face group.",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-run|Saved CAE setups",
-              "label": "Saved CAE setups",
-              "description": "Rerun saved thermal/modal setups.",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-mesh|Mesh refinement",
-              "label": "Mesh refinement",
+              "id": "sim-mesh|Mesh Refinement",
+              "label": "Mesh Refinement",
               "description": "Compare three meshes using displacement.",
-              "shortcut": ""
-            },
-            {
-              "id": "export|Export results",
-              "label": "Export results",
-              "description": "Export static nodal results and metadata.",
               "shortcut": ""
             }
           ]
@@ -4640,12 +4606,6 @@
               "shortcut": ""
             },
             {
-              "id": "cae-fatigue|Fatigue",
-              "label": "Fatigue",
-              "description": "Fatigue life and safety factor of the solved study under repeated loading (stress-life).",
-              "shortcut": ""
-            },
-            {
               "id": "sim-probe|Probe",
               "label": "Probe",
               "description": "Click the result to read values.",
@@ -4660,12 +4620,47 @@
           ]
         },
         {
-          "title": "Appearance",
+          "title": "Advanced",
           "tools": [
             {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "id": "cae-fatigue|Fatigue",
+              "label": "Fatigue",
+              "description": "Inspect fatigue under repeated loading.",
+              "shortcut": ""
+            },
+            {
+              "id": "generative|Generative Design",
+              "label": "Generative Design",
+              "description": "Find a lighter shape from the study supports and loads.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Reuse \u0026 Export",
+          "tools": [
+            {
+              "id": "sim-fixed|Save face selection",
+              "label": "Save face selection",
+              "description": "Name selected boundary faces.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-fixed|Recall face selection",
+              "label": "Recall face selection",
+              "description": "Recall a named face group.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-run|Saved CAE setups",
+              "label": "Saved CAE setups",
+              "description": "Rerun saved thermal/modal setups.",
+              "shortcut": ""
+            },
+            {
+              "id": "export|Export results",
+              "label": "Export results",
+              "description": "Export static nodal results and metadata.",
               "shortcut": ""
             }
           ]
