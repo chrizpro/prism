@@ -1,5 +1,5 @@
 {
-  "sourceHash": "2AE7E345EF452BDAFCE527AB2AEB548BFCDC0A66ED67FDF91468BB566AD6C8CF",
+  "sourceHash": "E290C03DE982D342EE8DD2FD59C75ECB92FB7F6A4BD2881168D3B5B3AFCF1F55",
   "workspaces": [
     {
       "Id": "design",
@@ -4672,18 +4672,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Conduction",
+          "title": "Setup",
           "tools": [
             {
               "id": "cae-thermal|Thermal Analysis",
               "label": "Thermal Analysis",
-              "description": "Steady or transient conduction with prescribed temperatures in one homogeneous solid.",
+              "description": "Set up steady or transient heating and cooling.",
+              "shortcut": ""
+            },
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Assign conductivity, density and heat capacity.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Saved workflow",
+          "title": "Reuse",
           "tools": [
             {
               "id": "sim-run|Saved setups",
@@ -4700,23 +4706,12 @@
           ]
         },
         {
-          "title": "Review",
+          "title": "Results",
           "tools": [
             {
               "id": "clear-analysis|Clear Results",
               "label": "Clear Results",
               "description": "Return to normal model shading.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]

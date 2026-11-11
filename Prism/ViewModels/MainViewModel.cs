@@ -1385,9 +1385,9 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         }, Cmd("Export results","export",()=>new ExportStudyCommand(),"Export static nodal results and metadata.", small)));
         var thermal = new RibbonTab {Title="Thermal",Groups=
-        [G("Conduction",Cmd("Thermal\nAnalysis","cae-thermal",()=>new CaeSolveCommand(true),"Steady or transient conduction with prescribed temperatures in one homogeneous solid."),
+        [G("Setup",Cmd("Thermal\nAnalysis","cae-thermal",()=>new CaeSolveCommand(true),"Set up steady or transient heating and cooling."),
             Btn("Materials","materials",OpenMaterials,"Assign conductivity, density and heat capacity.")),
-         G("Review",Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
+         G("Results",Btn("Clear\nResults","clear-analysis",ClearResults,"Return to normal model shading."))]};
         var dynamics = new RibbonTab {Title="Dynamics",Groups=
         [G("Vibration",Cmd("Natural\nFrequencies","cae-modal",()=>new CaeSolveCommand(false),"Linear modal frequencies and arbitrary-amplitude mode shapes; fixed faces on one homogeneous solid."),
             Btn("Materials","materials",OpenMaterials,"Assign elastic modulus, Poisson ratio and density.")),
@@ -1457,7 +1457,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 AppearanceGrp(),
             ],
         };
-        foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
+        foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G(tab == thermal ? "Reuse" : "Saved workflow",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
         foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.

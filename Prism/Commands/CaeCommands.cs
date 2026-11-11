@@ -44,6 +44,15 @@ public sealed class CaeSolveCommand : AnalysisCommand
             if(S.Find(result.Prepared.Body.Id)!=result.Prepared.Body){S.Say("The source body changed; run the analysis again.",true);return;}
             S.ShowResult(ResultView.Field(result,_showMode.Value-1));
         }});
+        if (thermal)
+        {
+            _body.Section = _type.Section = _initial.Section = _duration.Section = "Setup";
+            foreach (var slot in new[] { _first, _second, _heated, _cooled }) slot.Section = "Heating & Cooling";
+            foreach (var parameter in new Param[] { _hot, _cold, _power, _coolant, _film, _ambient, _emissivity }) parameter.Section = "Heating & Cooling";
+            _size.Section = "Mesh";
+            _name.Section = "Reuse";
+            foreach (var action in Params.OfType<ActionParam>()) action.Section = action.Label == "Save setup" ? "Reuse" : "Solve";
+        }
     }
     public override string Title=>_thermal?"Thermal Analysis":"Natural Frequencies";
     public override string Icon=>_thermal?"cae-thermal":"cae-modal";
