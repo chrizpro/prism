@@ -4,13 +4,15 @@ The two tabs do different jobs. **Mesh** fixes a mesh, and the result is still a
 
 ## Mesh
 
+Owner approved the Mesh organization and scoped Repair in [#123](https://github.com/chrizpro/prism/issues/123) on 2026-11-10. Repair offers Entire mesh and Selected region; region scope preserves geometry outside the selection and fills only holes whose complete rim is selected. Missing/stale regions must be selected again rather than falling back to global repair. Eligible hole rims are previewed before applying.
+
 - **Select, Datum:** shared sections
-- **Get a mesh:** Import Mesh, Solid to Mesh, Import Point Cloud / Reconstruct Surface
-- **Region:** Select Region
-- **Repair:** Repair (with Fill holes as a setting), Print Check, Mesh Quality
-- **Reshape:** Reduce, Remesh, Smooth, More (Offset, Split, Mesh Boolean)
-- **Print analysis:** Wall Thickness, Overhang & Orientation
-- **Display:** Clear Colors
+- **Import & Convert:** Import Mesh, Solid to Mesh, Import Point Cloud / Reconstruct Surface
+- **Check:** Mesh Quality, Print Check
+- **Repair:** Repair (with Fill holes as a setting), Select Region
+- **Reshape:** Reduce, Remesh, Smooth
+- **Modify:** Split, Offset, Mesh Boolean
+- **Print analysis:** Wall Thickness, Overhang & Orientation, Clear Colors
 - **Transform, Inspect, Appearance:** shared sections
 
 ### Removing something from a mesh
@@ -20,7 +22,17 @@ Open **Select Region**, pick the area with smart patch, brush, rectangle or lass
 - **Smooth** adds points at the mesh's own size and follows a curved surface fitted to the mesh around the opening.
 - **Flat** only triangulates the opening.
 
-Repair's Fill holes closes every hole up to a size limit, which is what you want before printing.
+### Controlling Repair
+
+Repair's **Scope** section offers Entire mesh and Selected region. If a current nonempty region exists, opening Repair selects that mesh and defaults to Selected region. Otherwise it defaults to Entire mesh. Choose the scope explicitly before applying.
+
+For a local repair, open Select Region, select the triangles around an unwanted opening, then open Repair. A hole is eligible only when the triangle beside **every edge of its rim** is selected. Partial rims and openings outside the region stay open. Green outlines preview the holes that will be filled; the report counts filled candidates, protected holes and remaining holes. The hole limit is a count of rim edges, not a diameter in millimeters. Turning Fill holes off leaves hole filling disabled in either scope.
+
+**Cleanup** controls merging duplicate vertices, removing degenerate/duplicate triangles, removing tiny floating shells and correcting normals. Selected-region mode restricts these operations too: vertices shared with unselected faces stay fixed, junk triangles outside the region remain, and a tiny shell is removed only if it is wholly selected. Normal correction uses surrounding unselected faces as anchors; it cannot fix an inconsistent surrounding mesh without changing the scope. Seam defects can require a larger selection or Entire mesh. Entire mesh retains the global cleanup behavior. There is no general automatic repair for self-intersections or non-manifold edges.
+
+Selection is tied to one version of one mesh. A missing, empty, wrong-mesh or stale region blocks selected-region repair and asks you to select again. Applying a topology change requires a new region for the next local repair. Inspect the preview and rerun Mesh Quality / Print Check after applying. Undo restores the prior mesh.
+
+Remesh remains separate: it rebuilds the triangle pattern, whereas Repair fixes mesh defects. Remesh can retain sharp/open edges and optionally keep the original for comparison; inspect the reported volume change and small details.
 
 ## Reverse Engineer
 
@@ -50,12 +62,16 @@ Repair's Fill holes closes every hole up to a size limit, which is what you want
 
 [Mesh tool tests](../../../Prism.Tests/Headless/Mesh/MeshToolTests.cs) cover Repair and Fill Holes, Print Check (printers, custom volume, materials), Reduce, Smooth, Offset, Split (every plane, flip, open cut, keep options), Section Curves, Wall Thickness, Overhang orientation, Deviation, every Align mode, Mesh Boolean, Remesh, Mesh Quality and both conversions between meshes and solids. [Reverse engineering tests](../../../Prism.Tests/Headless/Mesh/ReverseEngineerTests.cs) cover Segment & Fit, Rebuild from Scan (faces, curves and sewn solid), Section Lines & Arcs, Section Sketch and Select Region actions. Run `./tools/test.ps1 -Feature Mesh`.
 
+[Scoped Repair workflow tests](../../../Prism.Tests/Headless/Mesh/MeshRepairScopeTests.cs) cover complete and partial rims, protecting another opening and unselected faces, green preview boundaries, invalid selections, Undo and ribbon organization. [Scoped algorithm tests](../../../Prism.Tests/Unit/Mesh/MeshRegionRepairTests.cs) cover welding anchors, cleanup/colors, whole-shell selection and normal correction. Pointer-driven and real-scan checks remain in the [manual checklist](../../tabs/checklists/mesh-manual-test-checklist.md).
+
 Fixed on 2026-11-05:
 
 - Section Curves (with "Create curves" off), Section Lines & Arcs (with "Create lines and arcs" off), Segment & Fit ("Nothing - just analyze", and a missing region number) and Rebuild from Scan ("Nothing - analysis…") used to clear their report before returning, so the panel showed no rows. They now keep it; report-only tests cover each mode.
 - Solid to Mesh detail levels used to produce the same mesh on small curved bodies: a fixed angular limit outweighed the chord error, and a finer triangulation already stored on the body (such as the display mesh) was reused. Each level now has its own angular limit (Custom leaves the chord error in charge) and meshes a fresh copy of the geometry. The test asserts Coarse < Normal < Fine.
 
 ## Tested on
+
+Windows Release verification on 2026-11-10 passed **72 Mesh Headless tests** and **4 scoped-repair Unit tests**, with no failures or skips. The desktop build succeeded (zero errors, nine existing warnings), and the generated ribbon catalog passed its freshness check. Native scenario **MSH-I001** imported an eight-triangle box with top and bottom openings, selected the four triangles beside the top rim, and verified Repair defaults to Selected region: 8 → 10 triangles and 2 → 1 holes. Entire mesh preview instead produced 12 triangles and zero holes. [Selected-region capture](evidence/MSH-I001-selected-repair.png) and [entire-mesh capture](evidence/MSH-I001-entire-repair.png) show the ribbon, scope controls and green rims. The source revision and commands are recorded in [#123](https://github.com/chrizpro/prism/issues/123). Brush/lasso usability and real-scan checks remain manual.
 
 Generated parts only: a drilled plate, an L bracket and a plate with a boss, remeshed and given up to ±0.2 mm of random noise. Each rebuilt to a valid solid with the right faces, within 0.3% of the volume, and Direct Edit pulled a face as it does on the original. No real scan has been tried, and real scans have holes, missing sides and uneven noise.
 

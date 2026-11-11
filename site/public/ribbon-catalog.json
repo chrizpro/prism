@@ -1,5 +1,5 @@
 {
-  "sourceHash": "01A55DF0E72C6F401050CC26D3F817C89636903557AB8E16F2D5E9D46A0D5C7A",
+  "sourceHash": "93B9B7591404121E7521C9C335FFF47E595A05F93B6611472901B37ED8CEB1FC",
   "workspaces": [
     {
       "Id": "design",
@@ -3973,7 +3973,7 @@
           ]
         },
         {
-          "title": "Get a mesh",
+          "title": "Import \u0026 Convert",
           "tools": [
             {
               "id": "mesh-import|Import Mesh",
@@ -4002,12 +4002,18 @@
           ]
         },
         {
-          "title": "Region",
+          "title": "Check",
           "tools": [
             {
-              "id": "mesh-select|Select Region",
-              "label": "Select Region",
-              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
+              "id": "mesh-quality|Mesh Quality",
+              "label": "Mesh Quality",
+              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
               "shortcut": ""
             }
           ]
@@ -4018,19 +4024,13 @@
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
-              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "description": "Repair the entire mesh or a selected region; preview the holes to fill.",
               "shortcut": ""
             },
             {
-              "id": "mesh-check|Print Check",
-              "label": "Print Check",
-              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-quality|Mesh Quality",
-              "label": "Mesh Quality",
-              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "id": "mesh-select|Select Region",
+              "label": "Select Region",
+              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
               "shortcut": ""
             }
           ]
@@ -4055,17 +4055,22 @@
               "label": "Smooth",
               "description": "Remove scanner noise without shrinking the part.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "mesh-cut|Split",
+              "label": "Split",
+              "description": "Cut with a plane and cap the halves.",
+              "shortcut": ""
             },
             {
               "id": "mesh-offset|Offset",
               "label": "Offset",
               "description": "Grow or shrink the surface (tolerances, clearances).",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-cut|Split",
-              "label": "Split",
-              "description": "Cut with a plane and cap the halves.",
               "shortcut": ""
             },
             {
@@ -4090,12 +4095,7 @@
               "label": "Overhang \u0026 Orientation",
               "description": "Find what needs supports and the best way to lay the part down.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Display",
-          "tools": [
+            },
             {
               "id": "clear-analysis|Clear Colors",
               "label": "Clear Colors",
