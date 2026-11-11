@@ -1,4 +1,6 @@
-# Tooling manual test checklist
+# Mold inspection checklist (formerly Tooling)
+
+These tools now live in **Mold → Inspect**. Tooling has been removed as a separate ribbon tab.
 
 See the [feature guide](../../modeling/mold/README.md). Record the Prism build and any result that differs from the expected behavior.
 

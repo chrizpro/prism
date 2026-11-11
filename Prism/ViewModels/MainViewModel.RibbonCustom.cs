@@ -23,7 +23,7 @@ public sealed partial class MainViewModel
         foreach (var tab in Tabs)
         {
             // Look At lives in the viewport toolbar and the View tab.
-            if (tab.Title != "View")
+            if (tab.Title is not ("View" or "Render"))
                 foreach (var group in tab.Groups)
                     group.Items.RemoveAll(i => i is RibbonButton { Icon: "look-at" });
             // Shared sections come from fresh factories, never from a different tab's mutable buttons.
@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
                 if (group.Title == "Transform") tab.Groups[i] = transform();
                 else if (group.Title == "Appearance") tab.Groups[i] = appearance();
                 else if (group.Title == "Select" && !tab.IsContextual) tab.Groups[i] = select();
-                else if (group.Title == "Inspect")
+                else if (group.Title == "Inspect" && tab.Title != "Mold")
                     tab.Groups[i] = tab.Title == "View" ? G("Section", group.Items.ToArray()) : inspect();
                 else if (group.Title == "Components" && tab.Title == "Freeform")
                     tab.Groups[i] = G("Topology", group.Items.ToArray());
@@ -119,12 +119,6 @@ public sealed partial class MainViewModel
                 tab.Groups.Remove(section);
                 tab.Groups.Add(G("Bounds", section.Items.OfType<RibbonButton>().Where(b => b.Icon == "bbox").ToArray()));
             }
-            if (tab.Title == "Render")
-            {
-                var look = tab.Groups.Single(g => g.Title == "Look");
-                tab.Groups.Remove(look);
-                tab.Groups.Add(appearance());
-            }
             if (tab.Title is "Home" or "Solid")
             {
                 var modify = tab.Groups.Single(g => g.Title == "Modify");
@@ -170,7 +164,7 @@ public sealed partial class MainViewModel
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
                 bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "ECAD" && group.Title == "Fit check") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
-                if (tab.Title is "Assemble" or "Animate" or "Static" or "Thermal" or "Dynamics" or "Motion" || (tab.Title == "Joints" && group.Title == "Joint") ||
+                if (tab.Title is "Assemble" or "Animate" or "Static" or "Thermal" or "Dynamics" or "Motion" or "Render" || (tab.Title == "Joints" && group.Title == "Joint") || (tab.Title == "Mold" && group.Title == "Inspect") ||
                     (tab.Title == "Mesh" && group.Title is "Reshape" or "Modify" or "Print analysis") ||
                     !compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
                 int keep = tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;

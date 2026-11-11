@@ -606,7 +606,7 @@ public sealed class CreatePartCommand : Command
     public override string Title => "Create Part";
     public override string Icon => "component";
     public override string OkText => "Create and model it";
-    public override string Hint => "Model a new part in its own tab. Visible assembly components appear dimmed for reference. Press Back to assembly to insert the finished part.";
+    public override string Hint => "Model a new part in its own tab. Visible assembly components appear dimmed for reference. Press Finish part and return to insert the finished part.";
 
     protected override void OnBegin() { if (_name.Value.Length == 0) _name.Value = $"Part {S.Components.Count() + 1}"; }
 

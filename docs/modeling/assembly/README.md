@@ -4,6 +4,10 @@ Make Part turns a body into a component where it stands. The first component is 
 
 ## Assemble workflow
 
+Owner-requested usability changes on 2026-11-11 ([#126](https://github.com/chrizpro/prism/issues/126)): **Finish part & return** completes a valid active modeling command/sketch, inserts or refreshes the part, and selects the Assemble workspace and tab. An empty part stays open for modeling. Assemble includes Solid, Surface, Freeform, NURBS, Direct Modeling and Sheet Metal tabs. Components show Grounded, Jointed, Free, or Grounded · Jointed in the browser. Jointed means participation in a persistent joint, not fully constrained motion. Owner explicitly retained Mate's positioning-only behavior; mating does not falsely mark a part as jointed.
+
+[Usability workflow tests and native evidence](../../interface/operation-progress.md#verification--2026-11-11) verify the return flow, browser states and workspace/ribbon access. Status appears below component names so it remains readable in a narrow browser. Direct Modeling opens contextually through Direct Edit.
+
 Owner approved the ribbon and joint placement changes on 2026-11-10. After **Select**, the Assemble ribbon follows this order.
 
 Owner requested removing the duplicate Joint menu from Assemble in [#125](https://github.com/chrizpro/prism/issues/125). Joint creation lives on the dedicated Joints tab; Assemble retains Ground, Move Component and Mate. Maintained verification: [ComponentTests (ASM-H003)](../../../Prism.Tests/Headless/Assembly/ComponentTests.cs). Windows Release verification on 2026-11-10 passed 31 Assembly Headless tests and the generated ribbon catalog freshness check.

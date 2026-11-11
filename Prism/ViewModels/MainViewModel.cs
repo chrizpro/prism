@@ -290,15 +290,17 @@ public sealed partial class MainViewModel : ViewModelBase
         if (Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj" or ".ply" or ".3mf") { StartMeshImport(path); return; }
         if (Path.GetExtension(path).ToLowerInvariant() is not (".step" or ".stp" or ".iges" or ".igs" or ".brep")) { Guard(() => Session.ImportFile(path)); return; }
         bool finished = false;
-        var progress = new Progress<string>(m => { if (!finished) Session.Say(m); });
+        var importSession = Session;
+        using var work = importSession.Work.Begin("Import CAD");
+        var progress = new Progress<string>(m => { if (!finished) { importSession.Say(m); work.Report(m); } });
         try
         {
-            Session.Say($"Importing {Path.GetFileName(path)}…");
+            importSession.Say($"Importing {Path.GetFileName(path)}…");
             var prepared = await Task.Run(() => CadSession.PrepareImport(path, progress));
             finished = true;
-            Session.AddPrepared(prepared, path);
+            importSession.AddPrepared(prepared, path);
         }
-        catch (Exception e) { finished = true; Session.Say(e.Message, true); }
+        catch (Exception e) { finished = true; importSession.Say(e.Message, true); }
     }
 
     /// <summary>Import a part from disk for a mold. It becomes a reference part: shown here, not saved with the file, left out of drawings.</summary>
@@ -1221,7 +1223,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Add Parts",
                     AsmCmd("Insert\nComponent", "component", () => new InsertComponentCommand(), "Place a part from another open document or a part file. Model each part on its own first (bottom-up)."),
                     Btn("Parts\nLibrary", "component", OpenLibrary, "Browse a folder of STEP or Prism parts (and built-in fasteners, washers, bearings and more) as pictures. Double-click a part to insert it.", RibbonSize.Large, () => !IsSketching),
-                    AsmCmd("Create\nPart", "component", () => new CreatePartCommand(), "Start a new part inside this assembly. It opens in the Design workspace; press Back to assembly when it is done.", RibbonSize.Large),
+                    AsmCmd("Create\nPart", "component", () => new CreatePartCommand(), "Start a new part inside this assembly. It opens in the Design workspace; press Finish part and return when it is done.", RibbonSize.Large),
                     MakePartBtn()),
                 G("Assemble",
                     Btn("Ground", "ground", ToggleGround, "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.", RibbonSize.Large, () => HasComponents() && !IsSketching, () => SelectedComponent?.Component?.Grounded == true),
@@ -1273,7 +1275,8 @@ public sealed partial class MainViewModel : ViewModelBase
             [
                 G("Render",
                     Cmd("Render\nImage", "render", () => new RenderCommand(), "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install."),
-                    Cmd("Render\nAnimation", "animation", () => new RenderAnimationCommand(), "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4."),
+                    Cmd("Render\nAnimation", "animation", () => new RenderAnimationCommand(), "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.")),
+                G("Output",
                     Btn("Save\nPicture", "save", () => { Session.SaveRender(); }, "Save the last render as a PNG in Documents\\Prism\\Renders.", RibbonSize.Large, () => Session.Render != null),
                     Btn("Close\nPicture", "cancel", () => Session.CloseRender(), "Hide the rendered picture and return to the model.", RibbonSize.Large, () => Session.Render != null)),
                 G("Lighting",
@@ -1282,8 +1285,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Spot", "light-spot", () => new LightsCommand(LightKind.Spot), "Drop in a spotlight: lumens, cone angle and soft edge. Drag the lamp and its aim point."),
                     Cmd("Edit\nLights", "light-edit", () => new LightsCommand(), "Select, drag, tune or delete the lights in this document."),
                     Btn("Show\nLights", "light-lamp", () => { Session.ShowLights = !Session.ShowLights; Session.Invalidate(); }, "Show or hide the light markers in the viewport.", RibbonSize.Large, null, () => Session.ShowLights)),
-                G("Look",
-                    Btn("Materials", "materials", () => OpenMaterials(), "Colours and finishes: metals and glossy plastics reflect in the render.", RibbonSize.Large),
+                G("Materials", Btn("Materials", "materials", () => OpenMaterials(), "Colours and finishes: metals and glossy plastics reflect in the render.", RibbonSize.Large)),
+                G("Camera",
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch (N).", RibbonSize.Large, null, null, "N")),
             ],
         };
@@ -1363,7 +1366,7 @@ public sealed partial class MainViewModel : ViewModelBase
             }),
             G("Export",Cmd("Export for resin","print3d",()=>new PrintExportCommand(true),"Review the bodies and write a model for your resin slicer."))]};
         var mold = new RibbonTab { Title = "Mold", Groups = [G("Part", Btn("Import\nfrom file", "mold-file", () => _ = ImportMoldPart(), "Bring a part in from a Prism, STEP, IGES or BREP file as a reference part, ready for a mold."), Cmd("From\nopen tab", "mold-tab", () => new MoldPartFromTabCommand(), "Bring a part in from another open tab as a reference part.")), G("Mold", Cmd("Create\nMold", "mold", () => new MoldCommand(), "Cut a part out of a block, split the block and pull the halves apart."))] };
-        var tooling = new RibbonTab {Title="Tooling",Groups=[G("Mold inspection",Cmd("Draft analysis","draft",()=>new DraftCommand(),"Check pull-direction draft."),Cmd("Section analysis","section",()=>new SectionCommand(),"Inspect cavities and walls."),Cmd("Check geometry","check",()=>new CheckCommand(),"Check tooling geometry."))]};
+        mold.Groups.Add(G("Inspect", Cmd("Draft analysis", "draft", () => new DraftCommand(), "Check pull-direction draft."), Cmd("Section analysis", "section", () => new SectionCommand(), "Inspect cavities and walls."), Cmd("Check geometry", "check", () => new CheckCommand(), "Check tooling geometry.")));
         simulate.Groups.Single(g => g.Title == "Solve").Items.Insert(1,
             Btn("Refinement", "sim-mesh", () => Session.StartCommand(() => new ConvergenceCommand()), "Compare three meshes using displacement.", small, id: "sim-mesh|Mesh refinement"));
         simulate.Groups.Add(G("Advanced", new RibbonButton
@@ -1457,7 +1460,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Reuse",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, tooling, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         // The ribbon's Move buttons arm the move gizmo instead of a command; keep the param-driven
         // transform reachable from command search.

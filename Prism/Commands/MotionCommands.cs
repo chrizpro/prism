@@ -238,6 +238,7 @@ public sealed class MotionStudyCommand : Command
     {
         if (_running) return;
         var cancel = new CancellationTokenSource();
+        using var progress = S.Work.Begin("Motion study", cancel.Cancel);
         _cancel = cancel;
         _running = true;
         _progress = "Preparing study";
@@ -309,7 +310,7 @@ public sealed class MotionStudyCommand : Command
         }
         void Report(string message) => Dispatcher.UIThread.Post(() =>
         {
-            if (ReferenceEquals(_cancel, cancel) && ReferenceEquals(S.ActiveCommand, this)) { _progress = message; OnChanged(); }
+            if (ReferenceEquals(_cancel, cancel) && ReferenceEquals(S.ActiveCommand, this)) { progress.Report(message); _progress = message; OnChanged(); }
         });
         bool CanPublish(string requested, object source)
         {

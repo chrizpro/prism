@@ -61,6 +61,8 @@ public sealed class GenerativeCommand : Command
         try { st = S.ActiveStudy ?? throw new InvalidOperationException("Start a study first (Simulate > New Study), add a support and a load, then come back."); Body(); }
         catch (Exception e) { S.Say(e.Message, true); return; }
         _cts = new CancellationTokenSource(); var ct = _cts.Token;
+        var progress = S.Work.Begin("Generative design", _cts.Cancel);
+        progress.Report("Meshing…");
         _running = true; _final = null; _error = null; _history.Clear(); _previewV = []; _previewI = [];
         int maxIt = _iters.Value; double volFrac = _vol.Value / 100; int smooth = _smooth.Value;
         double divisions = _res.Index switch { 0 => 22, 2 => 46, _ => 32 };
@@ -106,6 +108,7 @@ public sealed class GenerativeCommand : Command
                         var iso = IsoSurface.Extract(prep.Mesh, run.Density, run.Volume, prep.BoundaryNormal);
                         _previewV = iso.V; _previewI = iso.T;
                     }
+                    progress.Report($"Iteration {run.Iteration}/{maxIt}", (double)run.Iteration / maxIt);
                     Refresh($"Iteration {run.Iteration}: stiffness cost {run.Compliance:0.###} N·mm, material {run.VolumeFraction * 100:0.#} %, change {run.Change:0.000}  ({run.StepSeconds:0.0} s per step)");
                     if (run.Iteration >= 50 && run.Change < 0.004) break;
                 }
@@ -113,6 +116,7 @@ public sealed class GenerativeCommand : Command
                 // cutting the density field at a fixed level loses the grey (half-removed) material and smoothing shrinks thin members, so the skin comes out
                 // much lighter than the volume asked for. Find the density level whose smoothed shape weighs what the optimizer says it should.
                 double target = run.Volume.Zip(run.Density, (v, d) => v * d).Sum();
+                progress.Report("Building the final surface…");
                 TriMesh Shape(double level)
                 {
                     var m = IsoSurface.Extract(prep.Mesh, run.Density, run.Volume, prep.BoundaryNormal, level);
@@ -142,7 +146,7 @@ public sealed class GenerativeCommand : Command
                 Refresh($"Done after {run.Iteration} iterations: {rep.Triangles:#,0} triangles, {(rep.Closed ? "closed surface" : "surface has gaps (try more smoothing or a finer detail)")}.");
             }
             catch (Exception e) { _error = e.Message; Refresh("Stopped: " + e.Message); }
-            finally { _running = false; Refresh(null); }
+            finally { progress.Dispose(); _running = false; Refresh(null); }
         });
     }
 

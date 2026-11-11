@@ -1,6 +1,7 @@
 # Interface
 
 - [Ribbon and workspace index](../tabs/README.md)
+- [Consistent operation progress](operation-progress.md)
 - [Startup model gallery](gallery/README.md)
 - [Saving, closing and recovery copies](document-safety/README.md)
 - [Document tabs](document-tabs/README.md)

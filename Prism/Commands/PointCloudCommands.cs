@@ -48,6 +48,7 @@ public static class PointCloudCommands
     {
         if (!IsPointCloudFile(path)) return false;
         s.Say($"Reading {Path.GetFileName(path)}…");
+        using var progress = s.Work.Begin("Read point cloud");
         var cloud = await Task.Run(() => PointCloud.Load(path));
         Begin(s, cloud, path);
         return true;
@@ -112,16 +113,18 @@ public sealed class ReconstructSurfaceCommand : Command
         if (key == _key && _result != null) return;
         _cts?.Cancel(); var cts = _cts = new CancellationTokenSource();
         var job = Job(); _force = true;
+        var progress = S.Work.Begin("Reconstruct surface", cts.Cancel);
         _status = "Working…"; OnChanged();
         Task.Run(() =>
         {
             try
             {
-                var m = job(cts.Token, msg => Dispatcher.UIThread.Post(() => { if (!cts.IsCancellationRequested) { _status = msg + "…"; OnChanged(); } }));
+                var m = job(cts.Token, msg => { progress.Report(msg); Dispatcher.UIThread.Post(() => { if (!cts.IsCancellationRequested) { _status = msg + "…"; OnChanged(); } }); });
                 Dispatcher.UIThread.Post(() => { if (cts.IsCancellationRequested) return; _key = key; _result = m; _status = ""; OnChanged(); });
             }
             catch (OperationCanceledException) { }
             catch (Exception e) { Dispatcher.UIThread.Post(() => { if (!cts.IsCancellationRequested) { _status = "Failed: " + e.Message; OnChanged(); } }); }
+            finally { progress.Dispose(); }
         });
     }
 

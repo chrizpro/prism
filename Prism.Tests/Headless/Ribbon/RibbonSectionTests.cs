@@ -70,7 +70,7 @@ public sealed class RibbonSectionTests
             AssertCaptions("Subtractive", "Setup", "Toolpaths", "Review", "Export");
             AssertCaptions("3D FDM", "Prepare", "Troubleshoot", "Export");
             AssertCaptions("3D Resin", "Prepare", "Troubleshoot", "Export");
-            AssertCaptions("Mold", "Part", "Mold");
+            AssertCaptions("Mold", "Part", "Mold", "Inspect");
             AssertModelingPalette("Solid", dark ? "#79A8F2" : "#2F66C9", dark ? "#2F66C9" : "#2656AD", "#4C86E0", "#9CC4FF");
             AssertModelingPalette("Surface", dark ? "#53D491" : "#16824A", dark ? "#26764D" : "#15603A", "#39A669", "#9AD9B2");
             AssertModelingPalette("NURBS", dark ? "#FF8186" : "#D13438", dark ? "#A83B47" : "#A5323C", "#DA5359", "#F7A8A8");

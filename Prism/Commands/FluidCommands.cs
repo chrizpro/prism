@@ -205,16 +205,18 @@ public sealed class FlowStudyCommand : AnalysisCommand
         {
             _error = ""; var setup = Setup();
             _cancel?.Cancel(); var cancel = _cancel = new CancellationTokenSource();
+            var progress = S.Work.Begin("Flow study", cancel.Cancel);
             Result = null; _status = "Starting…"; Paint(); OnChanged();
             _ = Task.Run(() =>
             {
                 try
                 {
-                    var r = FlowSolver.Solve(setup, m => Dispatcher.UIThread.Post(() => { _status = m; if (ReferenceEquals(S.ActiveCommand, this)) OnChanged(); }), cancel.Token);
+                    var r = FlowSolver.Solve(setup, m => { progress.Report(m); Dispatcher.UIThread.Post(() => { _status = m; if (ReferenceEquals(S.ActiveCommand, this)) OnChanged(); }); }, cancel.Token);
                     Dispatcher.UIThread.Post(() => { Show(r); _status = ""; });
                 }
                 catch (OperationCanceledException) { Dispatcher.UIThread.Post(() => { _status = "Stopped."; OnChanged(); }); }
                 catch (Exception e) when (e is InvalidOperationException or ArgumentException) { Dispatcher.UIThread.Post(() => { _error = e.Message; _status = ""; OnChanged(); }); }
+                finally { progress.Dispose(); }
             });
         }
         catch (Exception e) when (e is InvalidOperationException or ArgumentException) { _error = e.Message; S.Say(e.Message, true); OnChanged(); }

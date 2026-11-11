@@ -15,6 +15,7 @@ public sealed partial class BrowserNode : ObservableObject
     public Guid ObjectId { get; init; }
     public int OriginIndex { get; init; } = -1;
     public ObjKind ObjKind { get; init; }
+    public bool HasComponentStatus { get; init; }
     /// <summary>For Datum rows: the saved datum's kind. ObjectId is the owning sketch (Guid.Empty for the sketch being edited) and OriginIndex its position in that sketch's datum list.</summary>
     public Core.Sketching.SketchDatumKind? DatumKind { get; init; }
     public string Icon { get; init; } = "box";

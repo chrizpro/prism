@@ -79,9 +79,11 @@ public sealed class ImportMeshCommand : Command
         _units.Index = Math.Clamp(p.Units, 0, 4); _up.Index = Math.Clamp(p.UpAxis, 0, 2); _split.Index = Math.Clamp(p.Split, 0, 3);
         _weld.Value = Math.Max(0, p.Weld); _repair.Value = p.Repair; _ask.Value = _auto ? false : p.Ask;
         var ct = _readCts.Token;
-        var progress = new Progress<ImportProgress>(pr => { _frac = pr.Fraction; _status = pr.Status; if (_file == null) Post(OnChanged); });
+        var work = S.Work.Begin("Read mesh", _readCts.Cancel);
+        var progress = new Progress<ImportProgress>(pr => { work.Report(pr.Status, pr.Fraction); _frac = pr.Fraction; _status = pr.Status; if (_file == null) Post(OnChanged); });
         Task.Run(() => MeshIO.Read(_path, progress, ct), ct).ContinueWith(t => Post(() =>
         {
+            work.Dispose();
             if (ct.IsCancellationRequested) return;
             if (t.IsFaulted) _readError = t.Exception!.GetBaseException().Message; else if (t.IsCompletedSuccessfully) _file = t.Result;
             OnChanged();
@@ -161,8 +163,10 @@ public sealed class ImportMeshCommand : Command
         _procCts.Cancel(); _procCts = new CancellationTokenSource();
         var ct = _procCts.Token; var file = _file!; var opts = Options();
         _runningKey = key; _procError = null;
+        var work = S.Work.Begin("Prepare mesh", _procCts.Cancel);
         Task.Run(() => MeshImporter.Process(file, opts, null, ct), ct).ContinueWith(t => Post(() =>
         {
+            work.Dispose();
             if (ct.IsCancellationRequested || _runningKey != key) return;
             if (t.IsFaulted) _procError = t.Exception!.GetBaseException().Message;
             else if (t.IsCompletedSuccessfully) { _result = t.Result; _resultKey = key; }

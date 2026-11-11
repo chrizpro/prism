@@ -176,6 +176,8 @@ public sealed partial class MainViewModel
     {
         var st = Session.ActiveStudy; if (st == null || SimBusy) return;
         SimBusy = true; SimStatus = "Meshing…";
+        using var progress = Session.Work.Begin("Create simulation mesh");
+        progress.Report(SimStatus);
         try
         {
             var data = await Task.Run(() => StudyRunner.Mesh(Session, st));
@@ -217,7 +219,8 @@ public sealed partial class MainViewModel
     {
         var st = Session.ActiveStudy; if (st == null || SimBusy) { if (st == null) Session.Say("Create a study first (Simulate > New Study).", true); return; }
         SimBusy = true; SimStatus = "Starting…";
-        void Status(string m) => Dispatcher.UIThread.Post(() => SimStatus = m);
+        using var progress = Session.Work.Begin("Simulation study");
+        void Status(string m) => Dispatcher.UIThread.Post(() => { SimStatus = m; progress.Report(m); });
         try
         {
             var runSession=Session;

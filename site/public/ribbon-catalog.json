@@ -1,5 +1,5 @@
 {
-  "sourceHash": "3151C4B5D12469259AD92E8895E00E83BDF9C4EA9E97376B729BE02449815042",
+  "sourceHash": "3E5C3157F8044497A304793C5A808300A2FEC6E27C4887894EF5A7DC5F3D3D8D",
   "workspaces": [
     {
       "Id": "design",
@@ -33,6 +33,9 @@
       "Tabs": [
         "Home",
         "ECAD",
+        "Solid",
+        "Sheet Metal",
+        "Direct Modeling",
         "Analyze",
         "View"
       ]
@@ -48,6 +51,7 @@
         "Solid",
         "Surface",
         "Freeform",
+        "NURBS",
         "Direct Modeling",
         "Analyze",
         "View"
@@ -64,6 +68,8 @@
         "Dynamics",
         "Motion",
         "Fluids",
+        "Solid",
+        "Direct Modeling",
         "Analyze",
         "View"
       ]
@@ -71,11 +77,17 @@
     {
       "Id": "assemble",
       "Name": "Assemble",
-      "Tip": "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.",
+      "Tip": "Build assemblies and model their parts, connect joints, test motion and animate.",
       "Tabs": [
         "Home",
         "Assemble",
         "Joints",
+        "Solid",
+        "Surface",
+        "Freeform",
+        "NURBS",
+        "Direct Modeling",
+        "Sheet Metal",
         "Animate",
         "Analyze",
         "View"
@@ -89,6 +101,9 @@
         "Home",
         "Render",
         "Animate",
+        "Solid",
+        "Direct Modeling",
+        "Analyze",
         "View"
       ]
     },
@@ -101,6 +116,9 @@
         "Subtractive",
         "3D FDM",
         "3D Resin",
+        "Solid",
+        "Direct Modeling",
+        "Mesh",
         "Analyze",
         "View"
       ]
@@ -108,13 +126,15 @@
     {
       "Id": "mold",
       "Name": "Mold",
-      "Tip": "Make a two-part mold from a block and the part inside it, split where you choose and shown exploded; check draft and sections with Tooling.",
+      "Tip": "Build and inspect a two-part mold; check draft, sections and geometry directly in Mold.",
       "Tabs": [
         "Home",
         "Solid",
+        "Surface",
+        "Freeform",
+        "NURBS",
         "Direct Modeling",
         "Mold",
-        "Tooling",
         "Analyze",
         "View"
       ]
@@ -4947,7 +4967,7 @@
             {
               "id": "component|Create Part",
               "label": "Create Part",
-              "description": "Start a new part inside this assembly. It opens in the Design workspace; press Back to assembly when it is done.",
+              "description": "Start a new part inside this assembly. It opens in the Design workspace; press Finish part and return when it is done.",
               "shortcut": ""
             },
             {
@@ -5254,30 +5274,12 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Render",
+          "title": "Materials",
           "tools": [
             {
-              "id": "render|Render Image",
-              "label": "Render Image",
-              "description": "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install.",
-              "shortcut": ""
-            },
-            {
-              "id": "animation|Render Animation",
-              "label": "Render Animation",
-              "description": "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.",
-              "shortcut": ""
-            },
-            {
-              "id": "save|Save Picture",
-              "label": "Save Picture",
-              "description": "Save the last render as a PNG in Documents\\Prism\\Renders.",
-              "shortcut": ""
-            },
-            {
-              "id": "cancel|Close Picture",
-              "label": "Close Picture",
-              "description": "Hide the rendered picture and return to the model.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Colours and finishes: metals and glossy plastics reflect in the render.",
               "shortcut": ""
             }
           ]
@@ -5318,6 +5320,51 @@
           ]
         },
         {
+          "title": "Camera",
+          "tools": [
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Look straight at the selected plane, face or sketch (N).",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Render",
+          "tools": [
+            {
+              "id": "render|Render Image",
+              "label": "Render Image",
+              "description": "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install.",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Render Animation",
+              "label": "Render Animation",
+              "description": "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Output",
+          "tools": [
+            {
+              "id": "save|Save Picture",
+              "label": "Save Picture",
+              "description": "Save the last render as a PNG in Documents\\Prism\\Renders.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Close Picture",
+              "label": "Close Picture",
+              "description": "Hide the rendered picture and return to the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Share",
           "tools": [
             {
@@ -5330,46 +5377,6 @@
               "id": "cancel|Stop Sharing",
               "label": "Stop Sharing",
               "description": "Stop serving the AR page to phones.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
-              "shortcut": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "Tooling",
-      "contextual": false,
-      "groups": [
-        {
-          "title": "Mold inspection",
-          "tools": [
-            {
-              "id": "draft|Draft analysis",
-              "label": "Draft analysis",
-              "description": "Check pull-direction draft.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section analysis",
-              "label": "Section analysis",
-              "description": "Inspect cavities and walls.",
-              "shortcut": ""
-            },
-            {
-              "id": "check|Check geometry",
-              "label": "Check geometry",
-              "description": "Check tooling geometry.",
               "shortcut": ""
             }
           ]
@@ -5404,6 +5411,29 @@
               "id": "mold|Create Mold",
               "label": "Create Mold",
               "description": "Cut a part out of a block, split the block and pull the halves apart.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "draft|Draft analysis",
+              "label": "Draft analysis",
+              "description": "Check pull-direction draft.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section analysis",
+              "label": "Section analysis",
+              "description": "Inspect cavities and walls.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Check tooling geometry.",
               "shortcut": ""
             }
           ]

@@ -211,6 +211,21 @@
 
         <!-- ============ status bar ============ -->
 
+        <Border DockPanel.Dock="Bottom" IsVisible="{Binding Session.Work.HasTasks}" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,7">
+            <ItemsControl ItemsSource="{Binding Session.Work.Items}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="core:OperationProgress">
+                        <Grid ColumnDefinitions="170,*,180,Auto" Margin="0,3">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0"/>
+                            <ProgressBar Grid.Column="2" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Height="5" VerticalAlignment="Center"/>
+                            <Button Grid.Column="3" Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Margin="10,0,0,0" Padding="10,3"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
         <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
@@ -363,7 +378,7 @@
 
                         <Panel>
 
-                            <TreeView Name="Tree" Classes="browser" ItemsSource="{Binding Browser}" SelectionMode="Multiple" SelectionChanged="OnTreeSelectionChanged"
+                            <TreeView Name="Tree" Classes="browser" ItemsSource="{Binding Browser}" SelectionMode="Multiple" SelectionChanged="OnTreeSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
 
                                       ContextRequested="OnTreeContext" KeyDown="OnTreeKey" DoubleTapped="OnTreeDoubleTapped">
 
@@ -379,7 +394,7 @@
 
                                                     Background="{Binding Color, Converter={x:Static c:ArgbToBrush.Instance}}"/>
 
-                                            <Panel Grid.Column="2" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" ToolTip.Tip="{Binding Title}">
 
                                                 <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Classes.hidden="{Binding !IsVisible}" Classes.folder="{Binding IsFolder}" IsVisible="{Binding !IsEditing}"/>
 
@@ -387,9 +402,10 @@
 
                                                          Initialized="OnRenameBoxInit" KeyDown="OnRenameKey" LostFocus="OnRenameLost"/>
 
-                                            </Panel>
+                                                <TextBlock Text="{Binding Badge}" FontSize="10" Classes="faint" IsVisible="{Binding HasComponentStatus}"/>
+                                            </StackPanel>
 
-                                            <TextBlock Grid.Column="3" Text="{Binding Badge}" Classes="faint" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Badge}" Classes="faint" VerticalAlignment="Center" IsVisible="{Binding !HasComponentStatus}"/>
 
                                             <ToggleButton Grid.Column="4" IsChecked="{Binding IsVisible}" IsVisible="{Binding HasEye}" Classes="tool" Padding="4" Background="Transparent" BorderThickness="0"
 
@@ -797,7 +813,7 @@
 
                 <Border Name="PartEditBanner" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,46" Padding="6,5,16,5" CornerRadius="20" Background="{DynamicResource Accent}" IsVisible="{Binding ShowEditBanner}">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Name="BackToAssembly" Content="← Back to assembly" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,5" CornerRadius="15"/>
+                        <Button Name="BackToAssembly" Content="✓ Finish part &amp; return" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,5" CornerRadius="15"/>
                         <TextBlock Text="{Binding EditBannerText}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>

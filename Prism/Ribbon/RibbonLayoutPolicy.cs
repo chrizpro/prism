@@ -42,6 +42,8 @@ public static class RibbonLayoutPolicy
             ? ["Select", "Setup", "Supports", "Loads", "Solve", "Results", "Advanced", "Reuse & Export"]
             : tab.Title is "Thermal" or "Dynamics" ? ["Setup", "Reuse", "Results"]
             : tab.Title == "Motion" ? ["Setup", "Loads", "Results"]
+            : tab.Title == "Render" ? ["Materials", "Lighting", "Camera", "Render", "Output"]
+            : tab.Title == "Mold" ? ["Part", "Mold", "Inspect"]
             : tab.Title == "Mesh" ? ["Select", "Datum", "Import & Convert", "Check", "Repair", "Reshape", "Modify", "Print analysis", "Transform", "Inspect", "Appearance"]
             : tab.Title == "Reverse Engineer" ? ["Select", "Datum", "Prepare", "Sketch from Scan", "Fit Surfaces", "Rebuild", "Check", "Transform", "Inspect", "Appearance"]
             : tab.Title == "Fluids" ? ["Pipe Calculations", "3D Flow"] : null;

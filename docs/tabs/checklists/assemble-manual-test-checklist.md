@@ -1,5 +1,7 @@
 # Assemble manual test checklist
 
+- [ ] Create a part, build geometry, then Finish part & return. Confirm the component is inserted once and Assemble is active. Check Grounded / Jointed / Free badges and modeling tabs.
+
 See the [feature guide](../../modeling/assembly/README.md). Record the Prism build and any result that differs from the expected behavior.
 
 - [ ] Insert two components and move one by a known distance. Measure their separation and confirm the browser names match the parts.

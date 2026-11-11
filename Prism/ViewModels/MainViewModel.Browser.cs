@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
         BrowserNode Folder(string title, string icon) => new() { Kind = NodeKind.Folder, Title = title, Icon = icon, ExpansionKey = title, IsExpanded = filtering || _folderOpen.GetValueOrDefault(title, true), VisibilityEdited = OnNodeVisibility };
 
         var roots = new List<BrowserNode>();
+        var connected = s.JointObjects.SelectMany(j => new[] { j.joint.ParentKey, j.joint.ChildKey }).ToHashSet();
         BrowserNode ConstructionNode(Guid id, Prism.Core.Sketching.SketchModel model)
         {
             var node = new BrowserNode { Kind = NodeKind.Construction, ObjectId = id, Title = "Construction", Icon = "construction", Badge = model.Entities.Count(e => e.Construction).ToString(), VisibilityEdited = OnNodeVisibility };
@@ -89,8 +90,11 @@ public sealed partial class MainViewModel
                 var n = new BrowserNode
                 {
                     Kind = NodeKind.Object, ObjectId = o.Id, ObjKind = o.Kind, Title = o.Name, Icon = IconFor(o.Kind), Color = o.Color,
+                    HasComponentStatus = o.Component != null,
                     ExpansionKey = o.Id.ToString(), IsExpanded = filtering || _folderOpen.GetValueOrDefault(o.Id.ToString(), true),
-                    Badge = o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
+                    Badge = o.Component is { } component ?
+                        (component.Grounded ? "Grounded" + (connected.Contains(component.Key) ? " · Jointed" : "") : connected.Contains(component.Key) ? "Jointed" : "Free") :
+                        o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
                     VisibilityEdited = OnNodeVisibility, RenameEdited = OnNodeRenamed,
                 };
                 n.SetVisibleSilently(s.PlaneShown(o));

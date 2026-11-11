@@ -6,7 +6,7 @@ The **Assemble** workspace builds assemblies bottom-up and animates them. Refere
 
 Your workspace folder is your parts library. **Parts Library** lists every part in it, with part numbers, descriptions, revisions and costs from each part's **Part info**. **Insert Component** places one in the assembly.
 
-**Make Part** turns bodies already in the file into parts where they stand, so joints can connect them; picking a plain body with a joint tool does this for you. **Create Part** starts a new part inside the assembly and opens it in the Design workspace; **Edit Part** opens the selected component's part the same way. Press **Back to assembly** to bring the changes in. **Ground** fixes a component in place; the first component is grounded for you.
+**Make Part** turns bodies already in the file into parts where they stand, so joints can connect them; picking a plain body with a joint tool does this for you. **Create Part** starts a new part inside the assembly and opens it in the Design workspace; **Edit Part** opens the selected component's part the same way. Press **Finish part & return** to bring the changes in. **Ground** fixes a component in place; the first component is grounded for you.
 
 <GuideImage image="assembly-components" />
 

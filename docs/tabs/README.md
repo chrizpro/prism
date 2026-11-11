@@ -6,7 +6,11 @@ Use [the requirements and testing workflow](../engineering/requirements-and-test
 
 ## Ribbon section names
 
-Each ribbon tab shows its section captions below the tools in both themes. **3D FDM** and **3D Resin** use **Prepare**, **Troubleshoot**, and **Export**. **Mold** uses **Part** and **Mold**. The Drawing workspace uses its own toolbar with named menus.
+Owner approved the workspace access review in [#126](https://github.com/chrizpro/prism/issues/126), 2026-11-11. Assemble now includes Solid, Surface, Freeform, NURBS, Direct Modeling and Sheet Metal. Scan adds NURBS; ECAD includes Solid, Direct Modeling and Sheet Metal; CAE and Render include Solid and Direct Modeling; CAM includes Solid, Direct Modeling and Mesh; Mold includes Surface, NURBS and Freeform alongside Solid/Direct Modeling. Drawing remains focused on its dedicated editor. Mesh tabs still appear contextually for documents containing meshes; user-hidden tabs and custom layouts remain respected.
+
+Tooling was redundant: its three commands now live directly in **Mold → Inspect** (Draft analysis, Section analysis, Check geometry), so the separate tab is removed. Render follows **Materials → Lighting → Camera → Render → Output**. See the [interface checklist](checklists/interface-manual-test-checklist.md) and [maintained usability checks](../../Prism.Tests/Headless/Interface/UsabilityWorkflowTests.cs).
+
+Each ribbon tab shows its section captions below the tools in both themes. **3D FDM** and **3D Resin** use **Prepare**, **Troubleshoot**, and **Export**. **Mold** uses **Part**, **Mold** and **Inspect**. The Drawing workspace uses its own toolbar with named menus. Direct Modeling remains contextual: enter Direct Edit from Solid to open it; it is not a permanently visible tab.
 
 Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issues/113). On 2026-11-10, RIB-H001 checked names for all shipped tabs and rendered the two print tabs and Mold in both themes. RIB-I001 captured those tabs on the Windows desktop in both themes. See the [ribbon section tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
 
@@ -65,7 +69,7 @@ Each file covers a short hands-on pass for one shipped tab. Drawing has its own 
 - [Joints](checklists/joints-manual-test-checklist.md)
 - [Animate](checklists/animate-manual-test-checklist.md)
 - [Render](checklists/render-manual-test-checklist.md)
-- [Tooling](checklists/tooling-manual-test-checklist.md)
+- [Mold inspection (formerly Tooling)](checklists/tooling-manual-test-checklist.md)
 - [Mold](checklists/mold-manual-test-checklist.md)
 - [Materials](checklists/materials-manual-test-checklist.md)
 - [Sketch](checklists/sketch-manual-test-checklist.md)

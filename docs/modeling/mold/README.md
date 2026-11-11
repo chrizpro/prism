@@ -2,7 +2,7 @@
 
 **Review state:** Owner-requested 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)); implemented as the owner described, details open to review.
 
-The **Mold** tab has two named sections. **Part** contains **Import from file** and **From open tab**. **Mold** contains **Create Mold**. To create a mold, pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
+The **Mold** tab has Part, Mold and Inspect sections. Inspect contains Draft analysis, Section analysis and Check geometry, moved from the removed Tooling tab under owner approval on 2026-11-11 (#126). **Part** contains **Import from file** and **From open tab**. **Mold** contains **Create Mold**. To create a mold, pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
 
 ## Where the block splits
 
@@ -39,7 +39,7 @@ Use **Import mold** in CAM → **Subtractive** or **3D Resin**. It adds exact so
 
 ## Not included yet
 
-Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, shrinkage allowance and more than two parts. The existing **Tooling** tab keeps draft and section analysis for checking the part. The mold is an illustration of the process, not a validated mold design.
+Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, shrinkage allowance and more than two parts. The **Mold > Inspect** section provides draft, section and geometry checks. The mold is an illustration of the process, not a validated mold design.
 
 ## Tests
 

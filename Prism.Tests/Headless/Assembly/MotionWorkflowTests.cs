@@ -96,9 +96,11 @@ public class MotionWorkflowTests
         Assert.Equal(1e-9, command.Result.Dofs[0].Damping);
         Input<NumberParam>(command, "Duration").Value = 10;
         Input<ActionParam>(command, "Run study").Run();
+        Assert.Contains(vm.Session.Work.Items, work => work.Title == "Motion study");
         Input<ActionParam>(command, "Stop study").Run();
         await Finished(command);
         Assert.Null(command.Result);
+        Assert.False(vm.Session.Work.HasTasks);
         Assert.Contains(command.Results, r => r.Label == "Status" && r.Value.Contains("stopped"));
         vm.Session.CancelCommand();
     }

@@ -31,10 +31,11 @@ public sealed partial class CadSession
         _=Run();
         async Task Run()
         {
+            using var progress = Work.Begin(settings.Kind == CaeKind.Modal ? "Natural frequencies" : "Thermal analysis", job.Cancellation.Cancel);
             try
             {
                 var outcome=await Task.Run(()=>CaeSolver.Solve(body,settings,folder,job.Cancellation.Token,
-                    status=>Dispatcher.UIThread.Post(()=>{job.Status=status;if(ReferenceEquals(Cae,job))CaeChanged?.Invoke();}),others));
+                    status=>Dispatcher.UIThread.Post(()=>{progress.Report(status);job.Status=status;if(ReferenceEquals(Cae,job))CaeChanged?.Invoke();}),others));
                 job.Cancellation.Token.ThrowIfCancellationRequested();
                 job.Outcome=outcome;job.Status="Complete — results in "+folder;
                 if(ReferenceEquals(Cae,job) && ReferenceEquals(Find(body.Id),body) && others.All(o=>ReferenceEquals(Find(o.Id),o))) ShowResult(ResultView.Field(outcome));
