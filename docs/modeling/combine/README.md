@@ -2,9 +2,11 @@
 
 Union merges the selected bodies, Subtract cuts the tools out of a base body, and Intersect keeps their shared geometry. Keep tool bodies preserves the tools. The base receives the result.
 
+The Combine group sits on every modeling tab — Home, Solid, Surface, NURBS and Sheet Metal. Base and tool picks accept solids and surfaces: surfaces fuse or intersect, and subtracting open surfaces fails with "Boolean operation failed". Freeform omits Combine on purpose — subdivision (Catmull-Clark) cages do not survive exact booleans; Convert to NURBS first. Verified 2026-11-12 by SFC-H006/SFC-H007 in [SurfaceOptionTests](../../../Prism.Tests/Headless/Surfacing/SurfaceOptionTests.cs).
+
 ## Review and verification
 
-This guide describes observed behavior. Additional requirements are proposed and need owner review. [Tracking issue #28](https://github.com/chrizpro/prism/issues/28).
+This guide describes observed behavior. [Tracking issue #28](https://github.com/chrizpro/prism/issues/28).
 
 - [Maintained headless coverage](../../../Prism.Tests/Headless/Solid/CombineTests.cs)
 

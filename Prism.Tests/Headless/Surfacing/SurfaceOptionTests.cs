@@ -138,6 +138,49 @@ public class SurfaceOptionTests
         AssertNear(7, Vec3.Dot(patch.Props().Center, plane.Normal), "Patch offset (mm)");
     }
 
+    // NURBS exposes the same finishing and boolean tools as the other modeling tabs; Freeform stays out because
+    // Catmull-Clark cages do not survive exact booleans (they convert to NURBS first).
+    [AvaloniaFact(DisplayName = "SFC-H005 | Enclosed Body launches from the NURBS Finish group")]
+    [Trait("TestId", "SFC-H005")]
+    public void EnclosedBodyFromNurbsRibbon()
+    {
+        var vm = new MainViewModel();
+        Assert.IsType<BoundaryFillCommand>(Start<BoundaryFillCommand>(vm, "NURBS"));
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H006 | Union, Subtract and Intersect run from every modeling tab")]
+    [InlineData("Home")]
+    [InlineData("Solid")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [InlineData("Sheet Metal")]
+    [Trait("TestId", "SFC-H006")]
+    public void CombineOnModelingTabs(string tab)
+    {
+        var vm = new MainViewModel();
+        var buttons = vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct().ToList();
+        var labels = buttons.Select(b => b.Label.Replace('\n', ' ')).ToList();
+        Assert.Contains("Union", labels);
+        Assert.Contains("Subtract", labels);
+        Assert.Contains("Intersect", labels);
+        buttons.Single(b => b.Menu == null && b.Label.Replace('\n', ' ') == "Union").Invoke();
+        var command = Assert.IsType<BooleanCommand>(vm.Session.ActiveCommand);
+        Assert.Equal("Union", command.Title);
+        vm.Session.CancelCommand();
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H007 | Freeform omits CAD booleans: Catmull-Clark cages convert to NURBS first")]
+    [Trait("TestId", "SFC-H007")]
+    public void FreeformOmitsCombine()
+    {
+        var vm = new MainViewModel();
+        var labels = vm.Tabs.Single(t => t.Title == "Freeform").Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct()
+            .Select(b => b.Label.Replace('\n', ' ')).ToList();
+        Assert.DoesNotContain(labels, label => label is "Union" or "Subtract" or "Intersect");
+    }
+
     static SceneObject Sheet(CadSession session)
     {
         using var boundary = Occ.Polyline([Vec3.Zero, new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)], true);

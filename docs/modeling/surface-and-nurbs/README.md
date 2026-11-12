@@ -21,6 +21,7 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 - **Modify:** Trim, Sew, More (Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
 - **Edit curves:** Fillet / Chamfer, Offset, Blend, Join, Explode, Trim, Extend, Rebuild, Divide
 - **Convert:** Convert to NURBS
+- **Combine:** Union, Subtract, Intersect (SFC-H006)
 - **Transform, Inspect, Appearance:** shared sections
 
 ## NURBS
@@ -33,7 +34,8 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 - **Detail:** Add Detail, Raise Degree
 - **Convert:** Convert to NURBS
 - **Continuity:** Match Surface, Check Seam
-- **Finish:** Sew, Unsew, Thicken, Trim, Untrim, Extend, Reverse Normal, Offset
+- **Finish:** Sew, Unsew, Thicken, Trim, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
+- **Combine:** Union, Subtract, Intersect — the same BooleanCommand as Solid and Home; it accepts solids and surfaces (SFC-H006)
 - **Transform, Inspect, Appearance:** shared sections
 
 ## One tool, several jobs
@@ -62,11 +64,11 @@ Checked in the running app on 2026-11-12:
 - Compared Warp with the old Deform on a Control Grid patch: Deform moves the surface's control net directly and still works; Warp now reaches the same control-net machinery and produces a bent sheet.
 - Trim works on a Control Grid patch (subtractive direction), and Untrim restores it.
 
-## Proposed for owner review
+Approved and shipped on 2026-11-12:
 
-- **Enclosed Body on the NURBS tab.** It already runs on surface objects (SRF-H019–H021) and sits under Surface > Modify > More; the request is to surface it on NURBS > Finish so enclosed sheets can become solids without switching tabs.
-- **Combine (Union / Subtract / Intersect) on the NURBS tab, and possibly shared tabs.** `BooleanCommand` already accepts `SelFilter.Solid | SelFilter.SurfaceObj` for base and tools, so the commands accept surfaces; live runs confirm surface Union and solid×surface Intersect build, while subtracting open surfaces fails with "Boolean operation failed" as expected for open geometry. Open question: which tabs (Freeform excluded — Catmull-Clark forms do not survive exact booleans; convert to NURBS first) and which group it lives in.
-- **Subtractive/additive NURBS modeling** more broadly: Trim as the subtractive path already works; the Combine exposure above would be the additive path.
+- **Enclosed Body is on the NURBS tab** under Finish (SFC-H005), matching its Surface > Modify placement.
+- **Combine (Union / Subtract / Intersect) is on every modeling tab** — Home, Solid, Surface, NURBS and Sheet Metal (SFC-H006). `BooleanCommand` accepts `SelFilter.Solid | SelFilter.SurfaceObj` for base and tools, so it works on surfaces as well as solids; surface Union and solid×surface Intersect build in the running app, while subtracting open surfaces reports "Boolean operation failed" as expected for open geometry. **Freeform intentionally omits Combine** (SFC-H007): Catmull-Clark cages do not survive exact booleans; Convert to NURBS first, then combine.
+- **Additive/subtractive NURBS modeling**: Trim/Untrim is the subtractive path on open surfaces and Combine is the additive path once sheets sew or enclose into bodies.
 
 ## Feature requirement reviews
 
