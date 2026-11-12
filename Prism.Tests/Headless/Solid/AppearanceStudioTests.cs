@@ -29,6 +29,24 @@ public class AppearanceStudioTests
         s.Undo(); Assert.Same(previous, s.Current); Assert.All(s.Objects, o => Assert.Null(o.Look.Surface));
         s.Redo(); Assert.All(s.Objects, o => Assert.Equal(.7f, o.Look.Surface!.Coverage, 5));
     }
+    [AvaloniaFact(DisplayName = "APP-H005 | Clicking a material in the list applies it to the selected bodies; browsing with nothing selected only shows it")]
+    [Trait("TestId", "APP-H005")]
+    public void ClickingAMaterialAppliesIt()
+    {
+        var vm = new MainViewModel(); var s = vm.Session; var body = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        vm.OpenMaterials();
+        vm.SelectedMaterialRow = vm.MaterialList.First(r => r.Material.Id == "304");
+        Assert.Null(s.Find(body.Id)!.Material);                 // nothing selected: browsing only
+        s.SelectItems([SelItem.Of(body)]);
+        vm.SelectedMaterialRow = vm.MaterialList.First(r => r.Material.Id == "6061");
+        Assert.Equal("6061", s.Find(body.Id)!.Material!.Id);
+        var step = s.Current;
+        vm.MaterialSearch = "60";                               // refreshing the list keeps the row and must not re-apply
+        Assert.Same(step, s.Current);
+        vm.ShowAssignedMaterial();                              // jumping to the assigned material is not a change either
+        Assert.Same(step, s.Current);
+    }
+
     [AvaloniaFact(DisplayName = "APP-H002 | Changing engineering material preserves an override and reset restores the new material finish")]
     [Trait("TestId", "APP-H002")]
     public void MaterialChangesPreserveOverrideUntilReset()

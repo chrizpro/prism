@@ -142,6 +142,47 @@ public class AssemblyToolTests
         AssertBuildFails(command, "held by a joint");
     }
 
+    [AvaloniaFact(DisplayName = "ASM-H123 | The Move gizmo moves a free part's placement with its shape and refuses held parts")]
+    [Trait("TestId", "ASM-H123")]
+    public void MoveGizmoMovesPlacementAndRefusesHeldParts()
+    {
+        var (session, fixedPart, free) = TwoParts();
+        Assert.Contains("grounded", session.WhyPartIsHeld(fixedPart)!);
+        Assert.Null(session.WhyPartIsHeld(free));
+        session.TransformTarget(SelItem.Of(free), Xform.Translation(new Vec3(0, 5, 0)), checkpoint: true);
+        var moved = session.Find(free.Id)!;
+        AssertBounds(moved.Shape, new(10, 5, 0), new(12, 8, 4));
+        AssertPoint(new Vec3(0, 5, 0), moved.Component!.Placement.T, 1e-9, "Placement follows the shape");
+        // the solver reads placements: re-solving must leave the part where the gizmo put it
+        session.SolveAssembly();
+        AssertBounds(session.Find(free.Id)!.Shape, new(10, 5, 0), new(12, 8, 4));
+        // a grounded part does not move at all
+        session.TransformTarget(SelItem.Of(fixedPart), Xform.Translation(new Vec3(0, 5, 0)), checkpoint: true);
+        AssertBounds(session.Find(fixedPart.Id)!.Shape, new(0, 0, 0), new(2, 3, 4));
+        Assert.True(session.StatusIsError);
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H124 | A revolute joint placed Keep where it is leaves both parts put and turns about the first pick's axis")]
+    [Trait("TestId", "ASM-H124")]
+    public void RevoluteKeepWhereItIs()
+    {
+        var (session, fixedPart, free) = TwoParts();
+        var joint = Begin(session, () => new JointCommand(JointType.Revolute));
+        SetChoice(joint, "Placement", "Keep where it is");
+        Pick(joint, "On the first part (face, circle edge or round face)", FaceFacing(fixedPart, Vec3.UnitZ));   // axis: Z through (1, 1.5, 4)
+        Pick(joint, "On the part that moves", FaceFacing(free, -Vec3.UnitX));
+        BuildOutput(joint);
+        Assert.Equal("Both parts stay where they are", Result(joint, "Placement"));
+        Commit(session);
+        AssertBounds(session.Find(free.Id)!.Shape, new(10, 0, 0), new(12, 3, 4));
+        var drive = Begin(session, () => new DriveJointsCommand());
+        SetNumber(drive, $"{session.JointObjects.Single().joint.Name}  (angle)", 90);
+        BuildOutput(drive);
+        Commit(session);
+        // a quarter turn about the vertical axis through the fixed part's top-face centre (1, 1.5): x 10..12 becomes y 10.5..12.5
+        AssertBounds(session.Find(free.Id)!.Shape, new(-0.5, 10.5, 0), new(2.5, 12.5, 4));
+    }
+
     // ------------------------------------------------------------------ Component Pattern
 
     [AvaloniaFact(DisplayName = "ASM-H106 | Component Pattern makes linear copies as free components of the same part")]

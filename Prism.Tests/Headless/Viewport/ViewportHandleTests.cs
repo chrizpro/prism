@@ -239,6 +239,47 @@ public class ViewportHandleTests
         Assert.Equal(3, hs.Count(h => h.Ref != null));   // rx/ry/rz rings
     }
 
+    [AvaloniaFact(DisplayName = "HDL-H021 | Arrows whose value is 0 keep a grabbable stub along their own axis")]
+    [Trait("TestId", "HDL-H021")]
+    public void ZeroValueArrowsKeepAStub()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        var move = Begin(session, () => new TransformCommand(TransformCommand.Kind.Move));
+        Pick(move, "Objects", body);
+        var hs = move.Handles;
+        var y = At(hs, "Δ Y"); var z = At(hs, "Δ Z");
+        Assert.Equal(0, y.Param.Value);
+        // the tip collapses onto the origin, the grip does not: it sits a fixed number of pixels along +Y
+        AssertPoint(y.Origin, CadSession.HandleTip(y), 1e-9, "Zero-value tip");
+        var gripY = session.HandleGrip(y); var gripZ = session.HandleGrip(z);
+        double stub = session.Camera.PixelSizeAt(y.Origin) * CadSession.HandleStubPixels;
+        AssertPoint(y.Origin + Vec3.UnitY * stub, gripY, 1e-9, "Y stub grip");
+        AssertPoint(z.Origin + Vec3.UnitZ * stub, gripZ, 1e-9, "Z stub grip");
+        Assert.True((gripY - gripZ).Length > stub, "The Y and Z grips must not overlap");
+        // a handle with a real value keeps its tip as the grip
+        var x = At(hs, "Δ X");
+        AssertPoint(CadSession.HandleTip(x), session.HandleGrip(x), 1e-9, "Non-zero grip is the tip");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H022 | Dragging a zero-value arrow moves the value by exactly how far the pointer travelled")]
+    [Trait("TestId", "HDL-H022")]
+    public void DraggingAZeroArrowIsRelative()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        var move = Begin(session, () => new TransformCommand(TransformCommand.Kind.Move));
+        Pick(move, "Objects", body);
+        var y = At(move.Handles, "Δ Y");
+        var grip = session.HandleGrip(y);
+        var a = session.Camera.Project(grip)!.Value; var b = session.Camera.Project(grip + Vec3.UnitY * 10)!.Value;
+        session.PointerDown(new PointerInfo(a.x, a.y, true, false, false, false));
+        session.PointerMove(new PointerInfo(b.x, b.y, true, false, false, true));     // Alt: no snapping
+        session.PointerUp(new PointerInfo(b.x, b.y, false, false, false, true));
+        AssertClose(10, y.Param.Value, 0.05, "Δ Y after a 10 mm drag along +Y");
+        Assert.Equal(0, At(move.Handles, "Δ Z").Param.Value);
+    }
+
     // ------------------------------------------------------------------ meshes and sections
 
     [AvaloniaFact(DisplayName = "HDL-H016 | Section drags its offset along the cut normal")]

@@ -1,6 +1,6 @@
 # Operation progress
 
-Owner requested consistent progress for slow work on 2026-11-11, [#126](https://github.com/chrizpro/prism/issues/126). The shared operation strip appears at the bottom of the window for the active document. Each job has its own title, stage and progress bar. Known fractions use actual samples, frames or reported import progress; unknown stages use an indeterminate bar.
+Owner requested consistent progress for slow work on 2026-11-11, [#126](https://github.com/chrizpro/prism/issues/126). Running work shows in the existing status bar at the bottom of the window for the active document, not in a second strip (owner direction 2026-11-12: one bottom area, in the style of a JetBrains IDE). The chip between the status text and the right-hand widgets shows the most recently started job: its title, stage, a thin progress bar and a small stop button. When several jobs run, a **+N** button opens a list with every job's title, stage, progress bar and Stop. Known fractions use actual samples, frames or reported import progress; unknown stages use an indeterminate bar.
 
 Stop appears only for cancellable work. It requests cooperative cancellation, displays “Stopping after the current step…” and stays until that job exits. Unsupported cancellation has no Stop button. Completion, cancellation and failure remove the running item; existing tool/result status retains the outcome. Concurrent jobs own independent entries; completed jobs ignore late messages. Switching documents shows that document's work.
 

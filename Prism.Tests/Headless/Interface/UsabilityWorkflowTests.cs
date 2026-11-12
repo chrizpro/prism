@@ -36,6 +36,21 @@ public class UsabilityWorkflowTests
         vm.BackToAssembly(); Assert.Single(vm.Session.Components);
     }
 
+    [AvaloniaFact(DisplayName = "UX-H006 | New Study brings the Simulation panel forward even when Properties was selected")]
+    [Trait("TestId", "UX-H006")]
+    public void NewStudySelectsItsPanel()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var bar = CreateBoxBody(s, Vec3.Zero, 10, 10, 100);
+        vm.SetWorkspace("simulate");
+        vm.SelectedRightPanel = "properties";
+        s.SelectItems([SelItem.Of(bar)]);
+        vm.NewStudy();
+        Assert.NotNull(s.ActiveStudy);
+        Assert.Equal("context", vm.SelectedRightPanel);
+        Assert.True(vm.ShowSimPanel);
+    }
+
     [AvaloniaFact(DisplayName = "UX-H002 | Browser connection badges follow actual grounding and persistent joints")]
     [Trait("TestId", "UX-H002")]
     public void ComponentStatusTracksConnections()

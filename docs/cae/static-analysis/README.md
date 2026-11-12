@@ -29,6 +29,8 @@ Source: [study definitions](../../../Prism/Simulation/Study.cs), [setup referenc
 
 The single-body path uses `prism_sim`; multi-body work uses a separate CalculiX-backed path. Neither should silently substitute for the other in test reporting.
 
+**New Study brings its panel forward (2026-11-12):** creating a study selects the context tab on the right so the Simulation panel is what the user sees, even when Properties or another tab had been selected by hand (the owner reported staring at Properties after New Study). The Simulation context behaves like a command or sketch: it takes the front while a study is active and gives the previous tab back afterwards. Maintained check: UX-H006 in [UsabilityWorkflowTests](../../../Prism.Tests/Headless/Interface/UsabilityWorkflowTests.cs).
+
 ## Independent axial-bar benchmark
 
 Use a 10 × 10 × 100 mm bar with E = 68,900 MPa, fixed at Z=0, and total axial force 1,000 N at Z=100. The independent reference equations are:
