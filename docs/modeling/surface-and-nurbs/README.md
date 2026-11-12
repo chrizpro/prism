@@ -53,8 +53,20 @@ The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface
 ## Still to check
 
 - Drag every merged tool in the running app; these results come from headless tests.
-- Compare Warp with the old Deform on NURBS surfaces. Deform moved control points directly, and Warp's result has not been compared.
 - A second rail steers rotation only. It does not stretch the profile to reach the rail.
+
+Checked in the running app on 2026-11-12:
+
+- Control Grid creates a valid surface (one face, settable grid/degree/relief) and Edit Points, Sculpt, Rebuild Surface, Add Detail, Raise Degree, Match Surface and Check Seam all open or complete on it. The flat-from-one-angle preview is the shallow default relief, not a failure.
+- Warp on NURBS surfaces was broken — a stored Control Grid patch failed with "Face has no surface." and warp on lofted/swept surfaces crashed the desktop app. Root cause and fix are recorded in the [transform guide](../transform/README.md#coverage-gaps); WRP-H008 covers it and warp on Control Grid, loft and sweep surfaces now completes in the running app.
+- Compared Warp with the old Deform on a Control Grid patch: Deform moves the surface's control net directly and still works; Warp now reaches the same control-net machinery and produces a bent sheet.
+- Trim works on a Control Grid patch (subtractive direction), and Untrim restores it.
+
+## Proposed for owner review
+
+- **Enclosed Body on the NURBS tab.** It already runs on surface objects (SRF-H019–H021) and sits under Surface > Modify > More; the request is to surface it on NURBS > Finish so enclosed sheets can become solids without switching tabs.
+- **Combine (Union / Subtract / Intersect) on the NURBS tab, and possibly shared tabs.** `BooleanCommand` already accepts `SelFilter.Solid | SelFilter.SurfaceObj` for base and tools, so the commands accept surfaces; live runs confirm surface Union and solid×surface Intersect build, while subtracting open surfaces fails with "Boolean operation failed" as expected for open geometry. Open question: which tabs (Freeform excluded — Catmull-Clark forms do not survive exact booleans; convert to NURBS first) and which group it lives in.
+- **Subtractive/additive NURBS modeling** more broadly: Trim as the subtractive path already works; the Combine exposure above would be the additive path.
 
 ## Feature requirement reviews
 

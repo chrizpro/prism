@@ -12,11 +12,13 @@ This guide describes observed behavior. Additional requirements are proposed and
 
 The headless cases check exact-body bounds and volume for translation, world-origin rotation, uniform scaling and mirror copy, plus the Duplicate session action.
 
-[Warp tests](../../../Prism.Tests/Headless/Solid/WarpTests.cs) check Stretch with start/end ranges, Taper, Twist, Bend of a line centred on the origin and a stretched solid.
+[Warp tests](../../../Prism.Tests/Headless/Solid/WarpTests.cs) check Stretch with start/end ranges, Taper, Twist, Bend of a line centred on the origin, a stretched solid and Bend of a stored NURBS surface patch (WRP-H008).
 
 ## Coverage gaps
 
 Fixed on 2026-11-05: Warp's Bend used to add the shape's centre along the bend axis twice, so a shape not centred on the origin jumped when bent (a line from X = 0 to 100 bent 90° ended at X ≈ 113.7 instead of 63.7). Bend tests now cover a centred line and one starting at the origin.
+
+Fixed on 2026-11-12: Warp could not touch any stored NURBS surface — a Control Grid patch reported "Face has no surface." and lofted or swept surfaces crashed the app outright. The build reads the object's mesh for its bounds before converting to NURBS, and converting an already-NURBS face that carries triangulation produced faces with no surface at all (the converter rebuilds those faces for the cached mesh but reports no surface change). `ck_nurbs_convert` now converts a mesh-free copy. WRP-H008 bends a stored patch 90° into a quarter cylinder; warp on Control Grid, loft and sweep surfaces was re-verified in the running app.
 
 
 Mixed selections, custom transform pivots and desktop gizmo interactions still need coverage.

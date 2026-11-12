@@ -899,8 +899,11 @@ CK_API void* ck_surface_fit(const double* xyz, int rows, int cols) {
         return wrap(BRepBuilderAPI_MakeFace(fit.Surface(), Precision::Confusion()).Face());
     CATCH(nullptr)
 }
+// Convert through a mesh-free copy: the NurbsConvert modifier rebuilds faces that carry triangulation or edge
+// polygons, but for faces already in BSpline form it reports no surface change, so the rebuilt TFace is left with
+// no surface at all. Stripping the cached mesh lets already-NURBS faces keep their surface through conversion.
 CK_API void* ck_nurbs_convert(void* s) {
-    TRY return wrap(BRepBuilderAPI_NurbsConvert(get(s), true).Shape()); CATCH(nullptr)
+    TRY return wrap(BRepBuilderAPI_NurbsConvert(BRepBuilderAPI_Copy(get(s), Standard_True, Standard_False).Shape(), true).Shape()); CATCH(nullptr)
 }
 // dims: [rows, cols, degU, degV]
 CK_API int ck_face_dims(void* f, int* d) {
