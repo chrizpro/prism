@@ -134,8 +134,8 @@ public class SelectionChainTests
         Assert.Equal(3, plain.EdgeRule); Assert.True(plain.IsPartialLoop); Assert.Equal(SelFilter.Edge, plain.PickFilter);
         var profile = new SelectionSlot { Filter = SelFilter.Edge | SelFilter.CurveObj, Multi = true, ProfileSelection = true, SelectionRuleIndex = 0 };
         Assert.Equal(["Whole profile", "Single edges", "Connected chain", "Tangent chain", "Partial loop"], profile.SelectionRules);
-        Assert.Equal(-1, profile.EdgeRule);                                    // "Whole profile" picks the object, not an edge
-        Assert.False(profile.PickFilter.HasFlag(SelFilter.Edge));
+        Assert.Equal(-1, profile.EdgeRule);                                    // "Whole profile" resolves a clicked curve to its connected profile
+        Assert.True(profile.PickFilter.HasFlag(SelFilter.Edge));               // edges stay pickable so the click knows which curve was meant
         profile.SelectionRuleIndex = 1;
         Assert.Equal(0, profile.EdgeRule); Assert.True(profile.PickFilter.HasFlag(SelFilter.Edge));
     }

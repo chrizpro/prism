@@ -626,7 +626,11 @@ public sealed partial class AutomationApi
             foreach (var it in items)
             {
                 if (!S.Matches(it, slot.Filter)) throw new ArgumentException($"'{S.Describe(it)}' is not accepted by slot '{slot.Label}'.");
-                slot.TryAdd(it);
+                // same entity binding Command.Pick applies: a sketch edge becomes an entity pick (its connected profile in whole-profile mode)
+                var add = it.Kind == SelKind.Edge && S.Objects.FirstOrDefault(o => o.Id == it.Obj) is { Kind: ObjKind.Sketch }
+                    ? slot.EdgeRule < 0 ? S.SketchComponentItems(it) ?? [it] : S.SketchEntityOf(it) is { } e ? [e] : [it]
+                    : (IReadOnlyList<SelItem>)[it];
+                foreach (var x in add) slot.TryAdd(x);
                 if (!slot.Multi) break;
             }
         }
@@ -910,6 +914,23 @@ public sealed partial class AutomationApi
 
         Add("object_info", "Detailed information about one object: volume, area, size, center, validity, sketch plane.",
             Schema(["object"], ("object", "string", "Object name.")), a => Describe(FindObject(Str(a, "object")), true));
+
+        Add("pick_at", "What a viewport click at this world point would pick through the given filter (or the active slot's filter): item, kind, index and a readable name. Diagnostic for pick wiring.",
+            Schema(["at"], ("at", "array", "World point [x,y,z] to project and pick."), ("filter", "string", "Optional filter like 'Edge' or 'SketchObj|CurveObj|Face|Edge' (default: the active filter).")), a =>
+            {
+                var q = new Vec3(a["at"]![0]!.GetValue<double>(), a["at"]![1]!.GetValue<double>(), a["at"]![2]!.GetValue<double>());
+                var filter = a["filter"] is { } f ? f.ToString().Split('|', ',').Select(x => Enum.Parse<SelFilter>(x.Trim(), true)).Aggregate((x, y) => x | y) : S.ActiveFilter;
+                var px = S.Camera.Project(q) ?? throw new InvalidOperationException("That point is off screen.");
+                var hit = S.Pick(px.x, px.y, filter);
+                if (hit == null) return new JsonObject { ["hit"] = null, ["px"] = Math.Round(px.x, 1), ["py"] = Math.Round(px.y, 1), ["filter"] = filter.ToString() };
+                var h = hit.Value;
+                return new JsonObject
+                {
+                    ["item"] = Describe(h.Item), ["kind"] = h.Item.Kind.ToString(), ["index"] = h.Item.Index,
+                    ["object"] = S.Find(h.Item.Obj)?.Name, ["point"] = new JsonArray(Math.Round(h.Point.X, 4), Math.Round(h.Point.Y, 4), Math.Round(h.Point.Z, 4)),
+                    ["depth"] = Math.Round(h.Depth, 4), ["px"] = Math.Round(px.x, 1), ["py"] = Math.Round(px.y, 1), ["filter"] = filter.ToString(),
+                };
+            });
 
         Add("object_update", "Rename, recolor or show/hide an object.",
             Schema(["object"], ("object", "string", "Object name."), ("name", "string", "New name."), ("color", "string", "Hex colour like #E5484D."), ("visible", "boolean", "Visibility.")), a =>
@@ -1278,7 +1299,7 @@ public sealed partial class AutomationApi
                 if (S.Sketch != null) throw new InvalidOperationException("A sketch is already open. Call sketch_finish first.");
                 if (a["edit"] != null)
                 {
-                    if (!S.EditSketch(FindObject(Str(a, "edit")))) throw new InvalidOperationException(S.Status);
+                    if (!S.EditSketch(FindObject(Str(a, "edit")), alignView: Bool(a, "look_normal", true))) throw new InvalidOperationException(S.Status);
                     return SketchStateJson();
                 }
                 Plane3 pl;
@@ -1576,7 +1597,7 @@ public sealed partial class AutomationApi
                 return res;
             });
 
-        Add("pointer", "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'drag', x,y,z, x2,y2,z2 (drag end)}]. A {type:'key', key:'Char:E'|'Tab'|'Enter'|...} event sends a viewport key. Returns the active command's first grab handle (origin, tip, value), every handle (label, origin, grip, value), the command gizmo (mode, center, arrow length, a grab point per axis, values) and the camera.",
+        Add("pointer", "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'click'|'dclick'|'drag', x,y,z, x2,y2,z2 (drag end)}]. A {type:'key', key:'Char:E'|'Tab'|'Enter'|...} event sends a viewport key. Returns the active command's first grab handle (origin, tip, value), every handle (label, origin, grip, value), the command gizmo (mode, center, arrow length, a grab point per axis, values) and the camera.",
             Schema(["events"], ("events", "array", "Event objects.")), a =>
             {
                 (double x, double y) Px(double x, double y, double z) { var q = S.Camera.Project(new Vec3(x, y, z)); return q is { } v ? (v.x, v.y) : throw new InvalidOperationException("Off screen."); }
@@ -1593,6 +1614,8 @@ public sealed partial class AutomationApi
                         case "move": S.PointerMove(P(px, py, false)); break;
                         case "down": S.PointerMove(P(px, py, false)); S.PointerDown(P(px, py, true)); break;
                         case "up": S.PointerUp(P(px, py, false)); break;
+                        case "click": S.PointerMove(P(px, py, false)); S.PointerDown(P(px, py, true)); S.PointerUp(P(px, py, false)); break;
+                        case "dclick": S.PointerMove(P(px, py, false)); S.PointerDown(P(px, py, true)); S.PointerUp(P(px, py, false)); S.PointerDown(new PointerInfo(px, py, true, shiftKey, false, altKey, 2)); S.PointerUp(new PointerInfo(px, py, false, shiftKey, false, altKey, 2)); break;
                         case "drag":
                         {
                             S.PointerMove(P(px, py, false)); S.PointerDown(P(px, py, true));

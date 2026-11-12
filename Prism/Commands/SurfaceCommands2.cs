@@ -87,6 +87,40 @@ public sealed class TrimSurfaceCommand : Command
     }
 }
 
+/// <summary>Cut a surface in two (or more) along a plane, face or surface and keep every piece as its own surface.</summary>
+public sealed class SplitSurfaceCommand : Command
+{
+    readonly SelectionSlot _target, _tool;
+
+    public SplitSurfaceCommand()
+    {
+        _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj });
+        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
+    }
+
+    public override string Title => "Split Surface";
+    public override string Icon => "splitbody";
+    public override string OkText => "Split";
+    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, or a solid. Every piece becomes its own surface.";
+
+    protected override CommandOutput? Build()
+    {
+        Results.Clear();
+        if (_target.Items.Count == 0 || _tool.Items.Count == 0) return null;
+        var obj = S.Find(_target.Items[0].Obj) ?? throw new FormatException("That surface is gone.");
+        if (obj.Kind != ObjKind.Surface || !obj.HasBrep) throw new FormatException("Split Surface works on surfaces.");
+        var tool = ToolShapes.For(S, _tool.Items[0]);
+        var pieces = Occ.Split(obj.Shape, tool);
+        int n = pieces.Count(SubKind.Face);
+        if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not cut all the way through the surface. Extend it so it crosses the surface completely.");
+        var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
+        o.Replace.Add((obj, pieces.Sub(SubKind.Face, 0)));
+        for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Face, i), "Split piece", ObjKind.Surface));
+        Results.Add(new ResultLine("Pieces", n.ToString()));
+        return o;
+    }
+}
+
 /// <summary>Make solids out of the spaces enclosed by surfaces, planes and bodies.</summary>
 public sealed class BoundaryFillCommand : Command
 {

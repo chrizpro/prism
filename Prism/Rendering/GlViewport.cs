@@ -605,8 +605,7 @@ public sealed unsafe class GlViewport : Decorator
                 gl.DepthMask(false);
                 DrawFaces(gl, g, 0xFF9AA4B5, 0xFF9AA4B5, 0.22f, (0, 0, 0, 0), 0, -1);
                 gl.Disable(EnableCap.PolygonOffsetFill);
-                gl.UseProgram(_line);
-                DrawEdges(gl, g, 0, g.SegCount, (0.60f, 0.65f, 0.72f, 0.45f), 1.1f * scale, 0.0003f);
+                if (!p.NoEdges) { gl.UseProgram(_line); DrawEdges(gl, g, 0, g.SegCount, (0.60f, 0.65f, 0.72f, 0.45f), 1.1f * scale, 0.0003f); }
                 continue;
             }
             if (p.Ghost)

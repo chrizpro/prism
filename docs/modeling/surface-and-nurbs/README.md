@@ -18,11 +18,11 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 - **References:** Create Sketch, Construction Plane
 - **Curves:** Curve, Curve from Data, Intersection Curve, Project, Isocurves, Contour, Duplicate Edge
 - **Create:** Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
-- **Modify:** Trim, Sew, More (Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
+- **Modify:** Trim, Split Surface, Sew, More (Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
 - **Edit curves:** Fillet / Chamfer, Offset, Blend, Join, Explode, Trim, Extend, Rebuild, Divide
 - **Convert:** Convert to NURBS
 - **Combine:** Union, Subtract, Intersect (SFC-H006)
-- **Transform, Inspect, Appearance:** shared sections
+- **Transform, Inspect, Appearance:** shared sections (Transform includes Mirror — it accepts any object, so surfaces mirror directly; SFC-H009)
 
 ## NURBS
 
@@ -33,9 +33,9 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 - **Shape:** Edit Points, Sculpt, Rebuild Surface, Warp (direct buttons)
 - **Detail:** Add Detail, Raise Degree
 - **Continuity:** Match Surface, Check Seam
-- **Finish:** Sew, Unsew, Thicken, Trim, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
+- **Finish:** Sew, Unsew, Thicken, Trim, Split Surface, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
 - **Combine:** Union, Subtract, Intersect — the same BooleanCommand as Solid and Home; it accepts solids and surfaces (SFC-H006)
-- **Transform, Inspect, Appearance:** shared sections
+- **Transform, Inspect, Appearance:** shared sections (Transform includes Mirror — surfaces mirror directly; SFC-H009)
 
 ## One tool, several jobs
 
@@ -69,6 +69,9 @@ Approved and shipped on 2026-11-12:
 - **Combine (Union / Subtract / Intersect) is on every modeling tab** — Home, Solid, Surface, NURBS and Sheet Metal (SFC-H006). `BooleanCommand` accepts `SelFilter.Solid | SelFilter.SurfaceObj` for base and tools, so it works on surfaces as well as solids; surface Union and solid×surface Intersect build in the running app, while subtracting open surfaces reports "Boolean operation failed" as expected for open geometry. **Freeform intentionally omits Combine** (SFC-H007): Catmull-Clark cages do not survive exact booleans; Convert to NURBS first, then combine.
 - **Additive/subtractive NURBS modeling**: Trim/Untrim is the subtractive path on open surfaces and Combine is the additive path once sheets sew or enclose into bodies.
 - **Convert to NURBS is off the NURBS tab** (owner direction 2026-11-12): the tab is already NURBS geometry, so the group carried no work there. It remains on Surface and Freeform, where it converts their outputs.
+- **Split Surface is on Surface (Modify) and NURBS (Finish)** (SFC-H008): unlike Trim — which cuts and keeps one side — Split keeps every piece as its own surface object, the same contract Split Body has for solids. Cutting a multi-face sewn sheet produces one surface per resulting face; re-sew if the pieces should stay grouped.
+- **Mirror was already on Surface, NURBS, Solid and Freeform** via the shared Transform group (SFC-H009); `TransformCommand` accepts any object kind, so surfaces mirror without conversion. Freeform additionally keeps its cage-level "Mirror and weld" under Symmetry.
+- **Freeform has no Split Surface or Split Body equivalent, deliberately**: splitting a Catmull-Clark form's baked shape would sever the cage↔surface link and leave a dumb surface. The path is Convert to NURBS, then split — the same reason Combine stays off Freeform.
 
 ## Feature requirement reviews
 

@@ -23,6 +23,8 @@ public sealed class PreviewItem
     public PreviewItem(Meshing.TriMesh tri, uint? solidColor = null) { Tri = tri; Kind = ObjKind.Mesh; SolidColor = solidColor; }
     /// <summary>A see-through helper volume (the tool that is cutting), drawn faintly on top of the result.</summary>
     public bool Ghost { get; init; }
+    /// <summary>Suppress edge outlines: a context surface ghost keeps only its faint fill, so its tessellated edges do not look like stray curves.</summary>
+    public bool NoEdges { get; init; }
     public Meshing.TriMesh? Tri { get; }
     public Shape? Shape { get; }
     public Form.SubdMesh? FormCage { get; }
@@ -569,6 +571,51 @@ public sealed partial class CadSession : ObservableObject
         return e == null || e.Construction ? null : model.ShapeOf(e, plane);
     }
 
+    /// <summary>The sketch entity a baked edge index belongs to (emission order: root entities, then each section's), as an Entity pick. Null when not a sketch edge.</summary>
+    public SelItem? SketchEntityOf(SelItem edge)
+    {
+        if (edge.Kind != SelKind.Edge || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        int at = 0;
+        for (int sec = 0; sec <= sd.Sections.Count; sec++)
+        {
+            var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+            var plane = sec == 0 ? root : sd.Sections[sec - 1].Plane;
+            foreach (var e in model.Entities)
+            {
+                if (e.Construction) continue;
+                using var s = model.ShapeOf(e, plane);
+                if (s == null) continue;
+                at += s.Count(SubKind.Edge);
+                if (edge.Index < at) return new SelItem(edge.Obj, SelKind.Entity, e.Id, sec);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The Entity picks for the connected profile a clicked sketch edge belongs to: every non-construction entity joined end to end
+    /// (shared points, or endpoints that coincide after constraint solving), so clicking a rectangle side picks its four lines while
+    /// a loose spline picks just itself. Null when the item is not a sketch edge.
+    /// </summary>
+    public List<SelItem>? SketchComponentItems(SelItem edge)
+    {
+        if (SketchEntityOf(edge) is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        Sketching.SketchModel model; Plane3 plane;
+        if (first.Index2 <= 0) { model = sd; plane = root; }
+        else if (first.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[first.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
+        else return null;
+        var ents = model.Entities.Where(e => !e.Construction).ToList();
+        var ends = ents.ToDictionary(e => e.Id, e => model.EndpointsOf(e).Select(id => { var p = model.P(id); return (id, p.X, p.Y, p.Z); }).ToList());
+        static bool Touch(List<(int id, double x, double y, double z)> a, List<(int id, double x, double y, double z)> b) =>
+            a.Any(x => b.Any(y => x.id == y.id || (Math.Abs(x.x - y.x) < 1e-6 && Math.Abs(x.y - y.y) < 1e-6 && Math.Abs(x.z - y.z) < 1e-6)));
+        var comp = new List<int> { first.Index };
+        for (int i = 0; i < comp.Count; i++)
+            foreach (var e in ents)
+                if (!comp.Contains(e.Id) && Touch(ends[comp[i]], ends[e.Id])) comp.Add(e.Id);
+        return ents.Where(e => comp.Contains(e.Id) && Emits(e)).Select(e => new SelItem(edge.Obj, SelKind.Entity, e.Id, first.Index2)).ToList();
+        bool Emits(Sketching.SkEntity e) { using var s = model.ShapeOf(e, plane); return s != null; }
+    }
+
     public string Describe(SelItem it)
     {
         if(DatumOf(it) is { } datum)return datum.Name;
@@ -823,7 +870,8 @@ public sealed partial class CadSession : ObservableObject
             var e = Picking.NearestEdge(cam, vis, px, py, Picking.EdgeTolerancePx, o => EdgeEligible(o, filter));
             if (e is { } ee)
             {
-                bool curveObj = (ee.obj.Kind == ObjKind.Curve && filter.HasFlag(SelFilter.CurveObj)) || (ee.obj.Kind == ObjKind.Sketch && filter.HasFlag(SelFilter.SketchObj));
+                // Edge-flagged slots want per-curve granularity: a clicked sketch curve or curve object yields its edge, not the whole object.
+                bool curveObj = !filter.HasFlag(SelFilter.Edge) && ((ee.obj.Kind == ObjKind.Curve && filter.HasFlag(SelFilter.CurveObj)) || (ee.obj.Kind == ObjKind.Sketch && filter.HasFlag(SelFilter.SketchObj)));
                 var item = curveObj ? SelItem.Of(ee.obj) : new SelItem(ee.obj.Id, SelKind.Edge, ee.edge);
                 er = new PickResult(item, ee.point, Vec3.UnitZ, ee.depth);
             }
@@ -1286,11 +1334,11 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Re-open an existing sketch object for editing (geometry, constraints and dimensions are preserved).</summary>
-    public bool EditSketch(SceneObject obj, HistoryNode? source = null)
+    public bool EditSketch(SceneObject obj, HistoryNode? source = null, bool alignView = true)
     {
         if (obj.Kind != ObjKind.Sketch || obj.SketchData == null || obj.SketchPlane is not { } plane) { Say("This sketch has no editable definition (it was created before constraints existed, or was transformed).", true); return false; }
         if (Sketch != null) { Say("Finish the current sketch first.", true); return false; }
-        if(DeferToolChange("Edit "+obj.Name,()=>EditSketch(Find(obj.Id)??obj,source)))return false;
+        if(DeferToolChange("Edit "+obj.Name,()=>EditSketch(Find(obj.Id)??obj,source,alignView)))return false;
         CancelCommand();
         // Roll back before dependent features, keeping their original branch intact.
         // Visibility changes are folded into snapshots, so compare sketch definitions.
@@ -1315,15 +1363,15 @@ public sealed partial class CadSession : ObservableObject
                 .Select(ContextGhostOf).Where(g => g != null).ToList();
             if (ghosts.Count > 0) { _sketchSavedContext = ContextItems; SetContext([.. _sketchSavedContext, .. ghosts!]); }
         }
-        EnterSketch(plane, obj.SketchData.Clone(), obj.Id);
+        EnterSketch(plane, obj.SketchData.Clone(), obj.Id, alignView);
         return true;
     }
 
     static PreviewItem? ContextGhostOf(SceneObject o)
     {
-        if (o.Tri is { } t) return new PreviewItem(t) { Context = true };
-        if (o.Form is { } f) return new PreviewItem(f) { Context = true };
-        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true } : null;
+        if (o.Tri is { } t) return new PreviewItem(t) { Context = true, NoEdges = true };
+        if (o.Form is { } f) return new PreviewItem(f) { Context = true, NoEdges = true };
+        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : null;
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
@@ -1354,7 +1402,9 @@ public sealed partial class CadSession : ObservableObject
                     int i = Objects.FindIndex(o => o.Id == id);
                     Objects = Objects.SetItem(i, old.WithSketch(compound, model, sk.RootPlane));
                     RaiseScene();
-                    _selection.Clear(); _selection.Add(SelItem.Of(Find(id)!)); SelectionChanged?.Invoke();
+                    // The sketch stays unselected: a selected whole sketch seeds every curve it has into the next
+                    // profile tool, which made a freshly added curve extrude together with the old ones.
+                    _selection.Clear(); SelectionChanged?.Invoke();
                     Say($"{old.Name} updated");
                     committed = true;
                     if (source != null && end != null) ReplayAfterEdit(source, old.Name, end);

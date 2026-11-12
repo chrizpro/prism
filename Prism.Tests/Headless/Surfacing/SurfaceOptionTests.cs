@@ -181,6 +181,50 @@ public class SurfaceOptionTests
         Assert.DoesNotContain(labels, label => label is "Union" or "Subtract" or "Intersect");
     }
 
+    [AvaloniaTheory(DisplayName = "SFC-H008 | Split Surface cuts a sheet into separate surfaces from Surface and NURBS")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [Trait("TestId", "SFC-H008")]
+    public void SplitSurfaceFromRibbon(string tab)
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var wallEdge = Occ.Polyline([new(5, -5, -5), new(5, 15, -5), new(5, 15, 15), new(5, -5, 15)], true);
+        var wall = vm.Session.AddObject(Occ.Profile([wallEdge], true), "Wall", ObjKind.Surface);
+        var command = Start<SplitSurfaceCommand>(vm, tab);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface or solid)", wall);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var kept = Assert.Single(output.Replace);
+        var added = Assert.Single(output.Add);
+        using var a = kept.New; using var b = added.Shape!;
+        Assert.True(a.IsValid && b.IsValid);
+        AssertNear(50, a.Props().Area, "First piece area (mm²)");       // halves of the 10×10 sheet
+        AssertNear(50, b.Props().Area, "Second piece area (mm²)");
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H009 | Mirror launches from the shared Transform group on modeling tabs")]
+    [InlineData("Solid")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [InlineData("Freeform")]
+    [Trait("TestId", "SFC-H009")]
+    public void MirrorOnModelingTabs(string tab)
+    {
+        var vm = new MainViewModel();
+        var buttons = vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct().ToList();
+        var button = buttons.Single(b => b.Menu == null && b.Label.Replace('\n', ' ') == "Mirror");
+        button.Invoke();
+        var command = Assert.IsType<TransformCommand>(vm.Session.ActiveCommand);
+        Assert.Equal("Mirror", command.Title);
+        vm.Session.CancelCommand();
+    }
+
     static SceneObject Sheet(CadSession session)
     {
         using var boundary = Occ.Polyline([Vec3.Zero, new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)], true);

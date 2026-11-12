@@ -98,7 +98,7 @@ public sealed partial class SelectionSlot : ObservableObject
     public int EdgeRule => SelectionRuleIndex - (ProfileSelection ? 1 : 0);
     public bool IsPartialLoop => HasSelectionRules && EdgeRule == 3;
     public bool ReplacesSelection => !Multi || ProfileSelection && EdgeRule < 0;
-    public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter & ~SelFilter.Edge : SelFilter.Edge;
+    public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter : SelFilter.Edge;
     internal SelItem? ChainStart, ChainEnd;
     internal bool PathNeedsUpdate;
     public void ResetChain() { ChainStart = ChainEnd = null; PathNeedsUpdate = false; }
@@ -543,7 +543,7 @@ public abstract partial class Command : ObservableObject
             {
                 if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
                 foreach (var item in selected)
-                    if (s.Matches(item, seed.Filter)) seed.TryAdd(item);
+                    if (s.Matches(item, seed.Filter)) seed.TryAdd(s.SketchEntityOf(item) ?? item);
             }
             ActivateFirstOpenSlot();
         });
@@ -581,15 +581,23 @@ public abstract partial class Command : ObservableObject
     {
         var slot = ActiveSlot;
         if (slot == null || !S.Matches(item, slot.PickFilter)) return false;
+        if (slot.ProfileSelection && slot.EdgeRule < 0)
+        {
+            // A whole-profile click picks the profile the curve belongs to: the connected chain it shares endpoints with
+            // (a rectangle's four lines, a lone spline alone). Curve objects are already whole profiles; body edges stay edges.
+            slot.Items.Clear();
+            if (item.Kind == SelKind.Edge && S.SketchComponentItems(item) is { Count: > 0 } comp) foreach (var c in comp) slot.Items.Add(c);
+            else if (item.Kind == SelKind.Edge && S.Find(item.Obj) is { Kind: ObjKind.Curve } curve) slot.Items.Add(SelItem.Of(curve));
+            else slot.Items.Add(item);
+            AdvanceSlot(slot); return true;
+        }
+        // A sketch edge kept by another rule (single edge) binds the entity it came from, so it survives later sketch edits.
+        if (item.Kind == SelKind.Edge && !(slot.HasSelectionRules && slot.EdgeRule > 0) && S.SketchEntityOf(item) is { } entity) item = entity;
         if (slot.HasSelectionRules && item.Kind == SelKind.Edge && slot.EdgeRule > 0)
         {
             try { ConfigureInputs(() => SelectionChains.Pick(S, slot, item)); UpdateSlots(); OnChanged(); }
             catch (KernelException e) { S.Say(e.Message, true); }
             return true;
-        }
-        if (slot.ProfileSelection && slot.EdgeRule < 0)
-        {
-            slot.Items.Clear(); slot.Items.Add(item); AdvanceSlot(slot); return true;
         }
         if (slot.Multi && slot.SmartPick && item.Kind == SelKind.Face && PickFeature(slot, item)) return true;
         if (slot.Multi)

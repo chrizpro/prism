@@ -169,6 +169,15 @@ public sealed class SketchModel
         _ => e.Pts,
     };
 
+    /// <summary>The points where an entity ends, where another curve may join it. Circles, ellipses and closed splines end where they start: no endpoints.</summary>
+    public IEnumerable<int> EndpointsOf(SkEntity e) => e.Type switch
+    {
+        EntType.Line => [e.A, e.B],
+        EntType.Arc => [e.B, e.C],
+        EntType.Spline => e.Closed || e.Pts.Count == 0 ? [] : [e.Pts[0], e.Pts[^1]],
+        _ => [],
+    };
+
     /// <summary>Delete an entity, every constraint that referenced it, and points nothing else uses.</summary>
     public void RemoveEntity(int entityId)
     {
