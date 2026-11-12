@@ -195,7 +195,7 @@ public class SurfaceOptionTests
         command.ConfigureInputs(() =>
         {
             SetSelection(command, "Surface to split", sheet);
-            SetSelection(command, "Splitting tool (plane, face, surface or solid)", wall);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", wall);
         });
         var output = command.TryBuild();
         Assert.True(output != null, command.Error);
@@ -204,6 +204,31 @@ public class SurfaceOptionTests
         using var a = kept.New; using var b = added.Shape!;
         Assert.True(a.IsValid && b.IsValid);
         AssertNear(50, a.Props().Area, "First piece area (mm²)");       // halves of the 10×10 sheet
+        AssertNear(50, b.Props().Area, "Second piece area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H010 | Split Surface splits along a curve's projection; pieces are separate objects")]
+    [Trait("TestId", "SFC-H010")]
+    public void SplitSurfaceByCurve()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        // A curve crossing the sheet in its own plane: the split follows the curve's projection on the surface.
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "Surface");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var kept = Assert.Single(output.Replace);
+        var added = Assert.Single(output.Add);
+        using var a = kept.New; using var b = added.Shape!;
+        Assert.True(a.IsValid && b.IsValid);
+        AssertNear(50, a.Props().Area, "First piece area (mm²)");
         AssertNear(50, b.Props().Area, "Second piece area (mm²)");
     }
 

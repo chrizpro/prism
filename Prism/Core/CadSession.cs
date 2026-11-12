@@ -778,6 +778,8 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return it.Index < 3 ? OriginPlane(it.Index) : null;
         var o = Find(it.Obj); if (o == null) return null;
         if (it.Kind == SelKind.Object && o.Kind is ObjKind.Plane or ObjKind.Sketch) return o.SketchPlane;
+        if (it.Kind == SelKind.Entity && o.SketchData is { } sd && o.SketchPlane is { } root)
+            return it.Index2 <= 0 ? root : it.Index2 - 1 < sd.Sections.Count ? sd.Sections[it.Index2 - 1].Plane : null;
         if (it.Kind == SelKind.Edge || it.Kind == SelKind.Object && o.Kind == ObjKind.Curve)
         {
             var mesh = o.Mesh.EdgePoints;

@@ -87,7 +87,7 @@ public sealed class TrimSurfaceCommand : Command
     }
 }
 
-/// <summary>Cut a surface in two (or more) along a plane, face or surface and keep every piece as its own surface.</summary>
+/// <summary>Cut a surface in two (or more) along a plane, face, surface, solid or curve and keep every piece as its own surface.</summary>
 public sealed class SplitSurfaceCommand : Command
 {
     readonly SelectionSlot _target, _tool;
@@ -95,13 +95,13 @@ public sealed class SplitSurfaceCommand : Command
     public SplitSurfaceCommand()
     {
         _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj });
-        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
+        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, sketch, curve or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge });
     }
 
     public override string Title => "Split Surface";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, or a solid. Every piece becomes its own surface.";
+    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. Every piece becomes its own surface.";
 
     protected override CommandOutput? Build()
     {
@@ -109,15 +109,44 @@ public sealed class SplitSurfaceCommand : Command
         if (_target.Items.Count == 0 || _tool.Items.Count == 0) return null;
         var obj = S.Find(_target.Items[0].Obj) ?? throw new FormatException("That surface is gone.");
         if (obj.Kind != ObjKind.Surface || !obj.HasBrep) throw new FormatException("Split Surface works on surfaces.");
-        var tool = ToolShapes.For(S, _tool.Items[0]);
-        var pieces = Occ.Split(obj.Shape, tool);
+        var pieces = Cut(obj.Shape, _tool.Items[0]);
         int n = pieces.Count(SubKind.Face);
-        if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not cut all the way through the surface. Extend it so it crosses the surface completely.");
+        if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not split the surface. A plane, face, surface or solid must cross it completely; a sketch or curve splits along its projection on the surface.");
         var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
         o.Replace.Add((obj, pieces.Sub(SubKind.Face, 0)));
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Face, i), "Split piece", ObjKind.Surface));
         Results.Add(new ResultLine("Pieces", n.ToString()));
         return o;
+    }
+
+    bool IsCurveTool(SelItem it) => it.Kind is SelKind.Edge or SelKind.Entity
+        || it.Kind == SelKind.Object && S.Find(it.Obj)?.Kind is ObjKind.Sketch or ObjKind.Curve;
+
+    Shape Cut(Shape target, SelItem toolItem)
+    {
+        if (!IsCurveTool(toolItem)) return Occ.Split(target, ToolShapes.For(S, toolItem));
+        var wire = S.ShapeOf(toolItem) ?? throw new FormatException("That curve is gone.");
+        // A curve splits along its shadow on the surface: project along its own plane's normal when it has one,
+        // or pull it straight down the surface's normals. The curtain through the curve is the fallback.
+        try
+        {
+            var projected = S.PlaneOf(toolItem) is { } pl ? Occ.ProjectCurve(wire, target, pl.Normal, false) : Occ.ProjectCurve(wire, target, Vec3.UnitZ, true);
+            var pieces = Occ.Split(target, projected);
+            if (pieces.Count(SubKind.Face) > target.Count(SubKind.Face)) return pieces;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException) { }
+        return Occ.Split(target, Curtain(target, wire, toolItem));
+    }
+
+    Shape Curtain(Shape target, Shape wire, SelItem it)
+    {
+        var wc = ToolShapes.Centroid(wire); var tc = ToolShapes.Centroid(target);
+        var dir = S.PlaneOf(it) is { } pl ? pl.Normal : tc - wc;
+        if (dir.Length < 1e-9) dir = tc - wc;
+        if (dir.Length > 1e-9 && (tc - wc).Length > 1e-9 && Vec3.Dot(dir, tc - wc) < 0) dir = -dir;
+        if (dir.Length < 1e-9) dir = Vec3.UnitZ;
+        var span = (tc - wc).Length + target.Props().Size.Length + wire.Props().Size.Length + 1;
+        return Occ.Extrude(wire, dir.Normalized() * span);
     }
 }
 
