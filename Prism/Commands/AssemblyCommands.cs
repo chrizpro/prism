@@ -489,16 +489,29 @@ public sealed class ComponentPatternCommand : Command
         get
         {
             if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj) return [];
+            if (_kind.Index == 0) return [];
             var m = obj.Mesh; var c = (m.Min + m.Max) * 0.5;
-            if (_kind.Index == 0) return [new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz)];
             var axis = _axis.Index switch { 0 => Vec3.UnitX, 1 => Vec3.UnitY, _ => Vec3.UnitZ };
             var through = new Vec3(_cx.Value, _cy.Value, _cz.Value);
             var foot = through + axis * Vec3.Dot(c - through, axis);
-            var rel = c - foot; if (rel.Length < 1e-6) return [new(c, Vec3.UnitX, _cx), new(c, Vec3.UnitY, _cy), new(c, Vec3.UnitZ, _cz)];
+            var rel = c - foot; if (rel.Length < 1e-6) return [];
             return [new(foot, axis, _angle, 1, rel.Normalized(), rel.Length)];
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
+    /// <summary>Linear: the gizmo sits where the first copy lands and sets the spacing. Circular: it sits on the point the axis passes through; the angle keeps its ring.</summary>
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj) return null;
+            var m = obj.Mesh; var c = (m.Min + m.Max) * 0.5;
+            return _kind.Index == 0
+                ? GizmoSpec.At(c + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz)
+                : GizmoSpec.At(new Vec3(_cx.Value, _cy.Value, _cz.Value), _cx, _cy, _cz);
+        }
+    }
 
     protected override CommandOutput? Build()
     {

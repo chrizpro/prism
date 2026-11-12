@@ -1,6 +1,7 @@
 using Avalonia.Headless.XUnit;
 using Prism.Commands;
 using Prism.Core;
+using Prism.Core.Assembly;
 using Prism.Kernel;
 using Xunit;
 using static Prism.HeadlessTests.Support.ModelingScenario;
@@ -32,6 +33,7 @@ public class ViewportHandleTests
         var gizmo = Assert.IsType<GizmoSpec>(box.Gizmo);
         Assert.Equal("Position X", gizmo.Move[0]!.Label); Assert.Equal("Position Z", gizmo.Move[2]!.Label);
         Assert.True(gizmo.Supports(0)); Assert.False(gizmo.Supports(1));
+        AssertPoint(new Vec3(20, 15, 10), gizmo.Center, 1e-9, "Gizmo sits in the middle of the box");
         var h = At(hs, "Height (Z)");
         AssertPoint(Vec3.Zero, h.Origin, 1e-9, "Height arrow base");
         AssertPoint(Vec3.UnitZ, h.Dir, 1e-9, "Height arrow direction");
@@ -48,10 +50,13 @@ public class ViewportHandleTests
         var hs = cyl.Handles;
         Assert.Equal(2, hs.Count);   // radius + height; the position is the gizmo
         Assert.True(Vec3.Dot(At(hs, "Radius").Dir, Vec3.UnitX) > 0.99, "Radius arrow points radially");
-        Assert.True(Vec3.Dot(At(hs, "Height").Dir, Vec3.UnitZ) > 0.99, "Height arrow along +Z");
+        var height = At(hs, "Height");
+        Assert.True(Vec3.Dot(height.Dir, Vec3.UnitZ) > 0.99, "Height arrow along +Z");
+        AssertPoint(new Vec3(12, 0, 0), height.Origin, 1e-9, "Height arrow runs up the wall, from the end of the radius arrow");
+        AssertPoint(new Vec3(0, 0, 15), cyl.Gizmo!.Center, 1e-9, "Gizmo sits in the middle of the cylinder");
     }
 
-    [AvaloniaFact(DisplayName = "HDL-H003 | Cone anchors the top-radius arrow at the top of the cone")]
+    [AvaloniaFact(DisplayName = "HDL-H003 | Cone, torus and sphere anchor their size arrows on the shape, clear of the gizmo")]
     [Trait("TestId", "HDL-H003")]
     public void ConeTopRadiusAnchor()
     {
@@ -59,9 +64,42 @@ public class ViewportHandleTests
         var cone = Begin(session, () => new ConeCommand());
         var top = At(cone.Handles, "Top radius");
         AssertClose(30, top.Origin.Z, 1e-9, "Top radius arrow height (mm)");
+        AssertPoint(new Vec3(16, 0, 0), At(cone.Handles, "Height").Origin, 1e-9, "Height arrow stands beside the cone, level with its widest end");
+        AssertPoint(new Vec3(0, 0, 15), cone.Gizmo!.Center, 1e-9, "Gizmo sits in the middle of the cone");
+        session.CancelCommand();
         var torus = Begin(session, () => new TorusCommand());
         var minor = At(torus.Handles, "Minor radius");
-        AssertClose(20, minor.Origin.X, 1e-9, "Minor radius arrow on the ring's centre line (mm)");
+        AssertClose(20, Math.Abs(minor.Origin.X), 1e-9, "Minor radius arrow on the ring's centre line (mm)");
+        Assert.True(Vec3.Dot(minor.Dir, Vec3.UnitX) < -0.99, "Torus radii point away from the gizmo's X arrow");
+        AssertPoint(Vec3.Zero, torus.Gizmo!.Center, 1e-9, "Gizmo sits in the middle of the torus");
+        session.CancelCommand();
+        var sphere = Begin(session, () => new SphereCommand());
+        Assert.True(Vec3.Dot(At(sphere.Handles, "Radius").Dir, Vec3.UnitX) < -0.99, "Sphere radius points away from the gizmo's X arrow");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H025 | No primitive size arrow lies along one of the gizmo's arrows")]
+    [Trait("TestId", "HDL-H025")]
+    public void PrimitiveArrowsStayClearOfTheGizmo()
+    {
+        var session = new CadSession();
+        Func<Command>[] primitives = [() => new BoxCommand(), () => new CylinderCommand(), () => new SphereCommand(), () => new ConeCommand(), () => new TorusCommand()];
+        foreach (var create in primitives)
+        {
+            session.StartCommand(create);
+            var command = session.ActiveCommand!;
+            SetNumber(command, "Position X", 7); SetNumber(command, "Position Y", -4); SetNumber(command, "Position Z", 3);
+            var gizmo = Assert.IsType<GizmoSpec>(command.Gizmo);
+            Assert.NotEmpty(command.Handles);
+            foreach (var h in command.Handles)
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    // a size arrow collides with a gizmo arrow when both leave the same line in the same direction
+                    var along = gizmo.Axes[axis]; var offset = h.Origin - gizmo.Center;
+                    bool sameLine = (offset - along * Vec3.Dot(offset, along)).Length < 1e-6;
+                    Assert.False(sameLine && Vec3.Dot(h.Dir.Normalized(), along) > 0.99, $"{command.Title}: '{h.Param.Label}' lies along the gizmo's arrow {axis}");
+                }
+            session.CancelCommand();
+        }
     }
 
     // ------------------------------------------------------------------ curve tools and pipe
@@ -250,8 +288,8 @@ public class ViewportHandleTests
         AssertPoint(new Vec3(10, 15, 10), move.Gizmo!.Center, 1e-9, "Gizmo rides on the typed move");
     }
 
-    [AvaloniaFact(DisplayName = "HDL-H021 | Arrows whose value is 0 keep a grabbable stub along their own axis")]
-    [Trait("TestId", "HDL-H021")]
+    [AvaloniaFact(DisplayName = "HDL-H024 | Arrows whose value is 0 keep a grabbable stub along their own axis")]
+    [Trait("TestId", "HDL-H024")]
     public void ZeroValueArrowsKeepAStub()
     {
         var session = new CadSession();
@@ -296,7 +334,7 @@ public class ViewportHandleTests
         AssertPoint(gizmo.Center + Vec3.UnitY * 10, move.Gizmo!.Center, 0.05, "The gizmo rides with the face");
     }
 
-    [AvaloniaFact(DisplayName = "HDL-H023 | Transform Move, Rotate and Scale are driven by the shared gizmo, with one ring for the chosen axis")]
+    [AvaloniaFact(DisplayName = "HDL-H023 | Transform Move, Rotate and Scale are driven by the shared gizmo; pressing a ring chooses the turn axis")]
     [Trait("TestId", "HDL-H023")]
     public void TransformUsesTheGizmo()
     {
@@ -312,12 +350,243 @@ public class ViewportHandleTests
         Pick(rotate, "Objects", body);
         g = Assert.IsType<GizmoSpec>(rotate.Gizmo);
         Assert.False(g.Supports(0)); Assert.True(g.Supports(1));
-        Assert.Null(g.Turn[0]); Assert.Null(g.Turn[1]); Assert.Equal("Angle", g.Turn[2]!.Label);   // default axis Z
+        Assert.All(g.Turn, ring => Assert.Equal("Angle", ring!.Label));   // a ring per axis, all turning the one angle
+        var axis = rotate.Params.OfType<ChoiceParam>().Single(p => p.Label == "Axis");
+        Assert.Equal(2, axis.Index);                                       // Z until a ring says otherwise
+        Assert.Equal(45, g.Turn[2]!.Value);
+        // press the X ring: the tool turns about X from then on, starting from no turn
+        var (spec, length, _) = session.CommandGizmoInfo!.Value;
+        var onRing = session.Camera.Project(spec.Center + (Vec3.UnitY + Vec3.UnitZ).Normalized() * length * .8)!.Value;
+        session.PointerDown(new PointerInfo(onRing.x, onRing.y, true, false, false, false));
+        session.PointerUp(new PointerInfo(onRing.x, onRing.y, false, false, false, false));
+        Assert.Equal(0, axis.Index);
+        Assert.Equal(0, g.Turn[0]!.Value);
+        // pressing the ring of the axis already chosen keeps the angle
+        SetNumber(rotate, "Angle", 30);
+        session.PointerDown(new PointerInfo(onRing.x, onRing.y, true, false, false, false));
+        session.PointerUp(new PointerInfo(onRing.x, onRing.y, false, false, false, false));
+        Assert.Equal(30, g.Turn[0]!.Value);
         session.CancelCommand();
         var scale = Begin(session, () => new TransformCommand(TransformCommand.Kind.Scale));
         Pick(scale, "Objects", body);
         g = Assert.IsType<GizmoSpec>(scale.Gizmo);
         Assert.True(g.Supports(2)); Assert.Equal("Factor", g.Scale!.Label);
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H026 | Typed numbers, Tab and W / E / R work on the gizmo; only the engaged axis is labelled")]
+    [Trait("TestId", "HDL-H026")]
+    public void GizmoTakesTypedNumbers()
+    {
+        var session = new CadSession();
+        var part = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        session.MakePart(part.Id);
+        var move = Begin(session, () => new MoveComponentCommand());
+        Pick(move, "Component", session.Find(part.Id)!);
+        var g = Assert.IsType<GizmoSpec>(move.Gizmo);
+        var atRest = new Overlay(); session.BuildOverlay(atRest);
+
+        // hovering an arrow labels that arrow and nothing else
+        var (spec, length, mode) = session.CommandGizmoInfo!.Value;
+        Assert.Equal(0, mode);
+        var onY = session.Camera.Project(spec.Center + Vec3.UnitY * length * .7)!.Value;
+        session.PointerMove(new PointerInfo(onY.x, onY.y, false, false, false, false));
+        var hovering = new Overlay(); session.BuildOverlay(hovering);
+        Assert.Equal(atRest.Labels.Count + 1, hovering.Labels.Count);
+
+        // a typed number sets the engaged axis; Tab steps to the next one
+        Assert.True(session.Key("Char:1")); Assert.True(session.Key("Char:5"));
+        Assert.Equal(15, g.Move[1]!.Value); Assert.Equal(0, g.Move[0]!.Value);
+        var typing = new Overlay(); session.BuildOverlay(typing);
+        Assert.Contains(typing.Labels, l => l.Text.StartsWith("15_") && l.Text.Contains("Enter to apply"));
+        Assert.True(session.Key("Tab")); Assert.True(session.Key("Char:7"));
+        Assert.Equal(7, g.Move[2]!.Value); Assert.Equal(15, g.Move[1]!.Value);
+        Assert.True(session.Key("Minus"));
+        Assert.Equal(-7, g.Move[2]!.Value);
+        Assert.True(session.Key("Enter"));
+
+        // E switches to the rings, and the next number is an angle
+        Assert.True(session.Key("Char:E"));
+        Assert.Equal(1, session.CommandGizmoMode);
+        Assert.True(session.Key("Char:9")); Assert.True(session.Key("Char:0"));
+        Assert.Equal(90, g.Turn[0]!.Value);
+        Assert.Equal(-7, g.Move[2]!.Value);
+        Assert.True(session.Key("Char:W"));
+        Assert.Equal(0, session.CommandGizmoMode);
+        Assert.False(session.Key("Char:R"));          // Move Component has no scale
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H027 | Direct Edit moves with the gizmo; the pull arrow stands in for the gizmo arrow along the face normal")]
+    [Trait("TestId", "HDL-H027")]
+    public void DirectEditUsesTheGizmo()
+    {
+        const string slot = "Click a face or feature (a hole, slot, pocket, boss or fillet)";
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 40, 40, 40);
+        var edit = Begin(session, () => new DirectEditCommand());
+        Pick(edit, slot, FaceFacing(body, Vec3.UnitZ));
+        Assert.Equal(2, edit.Handles.Count);                    // pull and tilt: the three move arrows are the gizmo now
+        var pull = At(edit.Handles, "Pull (positive moves faces out)");
+        Assert.True(Vec3.Dot(pull.Dir.Normalized(), Vec3.UnitZ) > 0.99, "Pull arrow along the face normal");
+        Assert.NotNull(At(edit.Handles, "Tilt").Ref);
+        var g = Assert.IsType<GizmoSpec>(edit.Gizmo);
+        AssertPoint(new Vec3(20, 20, 40), g.Center, 1e-6, "Gizmo sits in the middle of the face");
+        AssertPoint(new Vec3(20, 20, 40), pull.Origin, 1e-6, "Pull arrow leaves the middle of the face");
+        Assert.Equal("Move X", g.Move[0]!.Label); Assert.Equal("Move Y", g.Move[1]!.Label);
+        Assert.Null(g.Move[2]);                                 // the pull arrow already leaves this spot along +Z
+        Assert.False(g.Supports(1));
+
+        // a number typed after touching the gizmo moves the face; it does not pull it
+        double length = session.CommandGizmoInfo!.Value.length;
+        var onX = session.Camera.Project(g.Center + Vec3.UnitX * length * .7)!.Value;
+        session.PointerMove(new PointerInfo(onX.x, onX.y, false, false, false, false));
+        Assert.True(session.Key("Char:7"));
+        Assert.Equal(7, g.Move[0]!.Value); Assert.Equal(0, pull.Param.Value);
+        // once the face is moving the pull arrow is gone, so the gizmo offers all three directions
+        Assert.DoesNotContain(edit.Handles, h => h.Param.Label.StartsWith("Pull"));
+        var moving = Assert.IsType<GizmoSpec>(edit.Gizmo);
+        Assert.NotNull(moving.Move[2]);
+        AssertPoint(new Vec3(27, 20, 40), moving.Center, 1e-6, "Gizmo rides with the move");
+        session.CancelCommand();
+
+        // a number typed after touching the pull arrow pulls the face; it does not move it
+        edit = Begin(session, () => new DirectEditCommand());
+        Pick(edit, slot, FaceFacing(body, Vec3.UnitZ));
+        pull = At(edit.Handles, "Pull (positive moves faces out)");
+        var onPull = session.Camera.Project(session.HandleGrip(pull))!.Value;
+        session.PointerMove(new PointerInfo(onPull.x, onPull.y, false, false, false, false));
+        Assert.True(session.Key("Char:3"));
+        Assert.Equal(3, pull.Param.Value);
+        Assert.Equal(0, edit.Gizmo!.Move[0]!.Value);
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H028 | Component Pattern sets its spacing and its axis point with the gizmo")]
+    [Trait("TestId", "HDL-H028")]
+    public void ComponentPatternUsesTheGizmo()
+    {
+        var session = new CadSession();
+        var part = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        session.MakePart(part.Id);
+        var pattern = Begin(session, () => new ComponentPatternCommand());
+        Pick(pattern, "Component to repeat", session.Find(part.Id)!);
+        Assert.Empty(pattern.Handles);
+        var g = Assert.IsType<GizmoSpec>(pattern.Gizmo);
+        Assert.Equal("Spacing X", g.Move[0]!.Label); Assert.Equal("Spacing Z", g.Move[2]!.Label);
+        AssertPoint(new Vec3(30, 10, 10), g.Center, 1e-9, "Gizmo sits where the first copy lands: the component's centre plus one spacing");
+        SetChoice(pattern, "Pattern", "Circular");
+        var ring = Assert.Single(pattern.Handles);
+        Assert.Equal("Angle between copies", ring.Param.Label); Assert.NotNull(ring.Ref);
+        g = Assert.IsType<GizmoSpec>(pattern.Gizmo);
+        Assert.Equal("Axis passes through X", g.Move[0]!.Label);
+        AssertPoint(Vec3.Zero, g.Center, 1e-9, "Gizmo sits on the point the axis passes through");
+        SetNumber(pattern, "Axis passes through Y", 12);
+        AssertPoint(new Vec3(0, 12, 0), pattern.Gizmo!.Center, 1e-9, "Gizmo rides with the axis point");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H029 | A turning handle without stops is a ring, grabbable anywhere, that turns by how far the pointer went round")]
+    [Trait("TestId", "HDL-H029")]
+    public void TurningRingDragsRelatively()
+    {
+        var session = new CadSession();
+        var box = CreateBoxBody(session, Vec3.Zero, 40, 20, 20);
+        var warp = Begin(session, () => new WarpCommand());
+        Pick(warp, "What to warp", box);
+        SetChoice(warp, "Warp", "Twist");
+        var ring = Assert.Single(warp.Handles, h => h.Ref != null);
+        Assert.Equal((0d, 360d), CadSession.TurnTrack(ring));       // -360..360 is more than a turn: the whole circle
+        double start = ring.Param.Value;
+        Vec3 OnRing(double degrees) => ring.Origin + JointVisuals.Rotate(ring.Ref!.Value.Normalized(), ring.Dir.Normalized(), degrees) * ring.Radius;
+        // press the ring a quarter turn away from the grip, then go 30 degrees further round
+        var a = session.Camera.Project(OnRing(start + 90))!.Value; var b = session.Camera.Project(OnRing(start + 120))!.Value;
+        session.PointerDown(new PointerInfo(a.x, a.y, true, false, false, false));
+        Assert.Equal(start, ring.Param.Value);                      // the press alone changes nothing
+        session.PointerMove(new PointerInfo(b.x, b.y, true, false, false, true));     // Alt: no snapping
+        session.PointerUp(new PointerInfo(b.x, b.y, false, false, false, true));
+        AssertClose(start + 30, ring.Param.Value, 0.05, "Twist angle after going 30 degrees round the ring (degrees)");
+
+        // a turning handle with stops keeps its arc: the track is just the stretch it may take
+        session.CancelCommand();
+        var body = CreateBoxBody(session, new Vec3(100, 0, 0), 20, 20, 20);
+        var move = Begin(session, () => new MoveFaceCommand());
+        Pick(move, "Flat faces to move", FaceFacing(body, Vec3.UnitZ));
+        var tilt = At(move.Handles, "Tilt angle");
+        var (from, to) = CadSession.TurnTrack(tilt);
+        Assert.True(to - from < 360, "A tilt with stops covers less than a turn");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H030 | Where a size arrow's grip and the gizmo overlap, the grip takes the press; elsewhere the gizmo does")]
+    [Trait("TestId", "HDL-H030")]
+    public void SizeGripBeatsTheGizmo()
+    {
+        var session = new CadSession();
+        session.Camera.SetView(0, 90);        // from the top the cylinder's radius arrow lies under the gizmo's X arrow
+        var cyl = Begin(session, () => new CylinderCommand());
+        double length = session.CommandGizmoInfo!.Value.length;
+        SetNumber(cyl, "Radius", Math.Round(length * .6, 3));
+        var radius = At(cyl.Handles, "Radius"); double r0 = radius.Param.Value;
+        var gizmo = Assert.IsType<GizmoSpec>(cyl.Gizmo);
+
+        // on the gizmo's arrow, over the radius arrow's shaft but away from its grip: the gizmo moves the cylinder
+        var onArrow = gizmo.Center + Vec3.UnitX * length * .3;
+        var a = session.Camera.Project(onArrow)!.Value; var b = session.Camera.Project(onArrow + Vec3.UnitX * 10)!.Value;
+        session.PointerDown(new PointerInfo(a.x, a.y, true, false, false, false));
+        session.PointerMove(new PointerInfo(b.x, b.y, true, false, false, true));
+        session.PointerUp(new PointerInfo(b.x, b.y, false, false, false, true));
+        AssertClose(10, gizmo.Move[0]!.Value, 0.05, "Position X after dragging the gizmo arrow 10 mm");
+        AssertClose(r0, radius.Param.Value, 1e-9, "Radius is untouched by the gizmo drag");
+
+        // on the radius arrow's own grip, which is also on the gizmo's arrow: the grip sets the radius
+        radius = At(cyl.Handles, "Radius");
+        var grip = session.HandleGrip(radius);
+        a = session.Camera.Project(grip)!.Value; b = session.Camera.Project(grip + Vec3.UnitX * 5)!.Value;
+        session.PointerDown(new PointerInfo(a.x, a.y, true, false, false, false));
+        session.PointerMove(new PointerInfo(b.x, b.y, true, false, false, true));
+        session.PointerUp(new PointerInfo(b.x, b.y, false, false, false, true));
+        AssertClose(r0 + 5, radius.Param.Value, 0.05, "Radius after dragging its grip 5 mm");
+        AssertClose(10, gizmo.Move[0]!.Value, 0.05, "Position X is untouched by the grip drag");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H031 | A turning handle with stops follows the pointer, stops at each limit and says so")]
+    [Trait("TestId", "HDL-H031")]
+    public void LimitedTurningHandleStopsAtItsLimits()
+    {
+        var session = new CadSession();
+        SceneObject Part(string name, double x, bool ground)
+        {
+            var o = session.AddObject(Occ.Translate(Occ.Box(10, 10, 10), new Vec3(x, 0, 0)), name, ObjKind.Solid);
+            session.Update(o.Id, v => v.WithAsm(new ComponentInfo(CadSession.NewKey(), name, null, Xform.Identity.ToArray(), ground), v.Shape), false);
+            return session.Find(o.Id)!;
+        }
+        var hub = Part("Hub", 0, true); var arm = Part("Arm", 20, false);
+        var frame = JointInfo.Pack(Xform.Identity);
+        var hinge = session.AddObject(Occ.Line(Vec3.Zero, new Vec3(0, 0, 0.01)), "Hinge", ObjKind.Joint);
+        session.Update(hinge.Id, v => v.WithAsm(new JointInfo("hinge", "Hinge", JointType.Revolute, hub.Component!.Key, arm.Component!.Key, frame, frame, false, 0, 0, 0, true, -45, 90, 0, 0)), false);
+        session.Camera.Width = 800; session.Camera.Height = 600; session.Camera.SetView(0, 90);
+
+        session.StartCommand(() => new DriveJointsCommand());
+        var drive = session.ActiveCommand!;
+        var handle = Assert.Single(drive.Handles);
+        Assert.NotNull(handle.Ref);
+        Assert.Equal((-45d, 90d), CadSession.TurnTrack(handle));     // the arc is just the stretch the joint may take
+        (double x, double y) Screen(double degrees)
+        {
+            var h = drive.Handles.Single();
+            var p = session.Camera.Project(h.Origin + JointVisuals.Rotate(h.Ref!.Value.Normalized(), h.Dir, degrees) * h.Radius)!.Value;
+            return (p.x, p.y);
+        }
+        void MoveTo(double degrees) { var (x, y) = Screen(degrees); session.PointerMove(new PointerInfo(x, y, true, false, false, false)); }
+        var grab = Screen(0);
+        session.PointerDown(new PointerInfo(grab.x, grab.y, true, false, false, false));
+        MoveTo(60);
+        AssertClose(60, drive.Handles.Single().Param.Value, 1.5, "Joint angle with the pointer 60 degrees round (degrees)");
+        MoveTo(170);
+        Assert.Equal(90, drive.Handles.Single().Param.Value);       // past the upper stop
+        MoveTo(0); MoveTo(-120);                                    // a drag passes through the angles on the way
+        Assert.Equal(-45, drive.Handles.Single().Param.Value);      // past the lower stop
+        var atLimit = new Overlay(); session.BuildOverlay(atLimit);
+        Assert.Contains(atLimit.Labels, l => l.Text.Contains("limit"));
+        Assert.Contains(atLimit.Dots, d => d.Color == JointVisuals.HitColor);
+        var end = Screen(-120);
+        session.PointerUp(new PointerInfo(end.x, end.y, false, false, false, false));
     }
 
     // ------------------------------------------------------------------ meshes and sections

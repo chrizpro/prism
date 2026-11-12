@@ -1377,8 +1377,10 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand != null)
         {
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
-            if (CommandGizmoDown(p)) return true;
-            var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; BeginHandleDrag(hl[i], p); return true; }
+            var hl = ActiveCommand.Handles; int grabbed = HandleAt(hl, p.X, p.Y, gripOnly: true);
+            if (grabbed < 0 && CommandGizmoDown(p)) return true;
+            if (grabbed < 0) grabbed = HandleAt(hl, p.X, p.Y, gripOnly: false);
+            if (grabbed >= 0) { _handleDrag = true; _handleIdx = grabbed; _typed = ""; _gizmoFocus = false; ClearGizmoHover(); BeginHandleDrag(hl[grabbed], p); return true; }
             if (TryBeginRegion(p)) return true;
             if (TryBeginClickDrag(p)) return true;
             ClickAt(p);
@@ -1396,14 +1398,15 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
         if (DatumVisible) Datum!.PointerMove(this, p);
         if (_cmdGrab && p.Left && ActiveCommand != null) { ActiveCommand.GrabMove(this, p.X, p.Y, p.Alt); Invalidate(); return; }
-        if (CommandGizmoMove(p)) return;
+        // hovering a size handle's grip keeps the gizmo under it quiet: the grip is what a press there would take
+        bool onGrip = !p.Left && !_handleDrag && _gizmoDrag == GizmoDrag.None && ActiveTool == null && ActiveCommand is { } gc && HandleAt(gc.Handles, p.X, p.Y, gripOnly: true) >= 0;
+        if (onGrip) ClearGizmoHover(); else if (CommandGizmoMove(p)) return;
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
-            int hot = -1;
-            for (int i = 0; i < hhs.Count; i++) if (HandleHit(hhs[i], p.X, p.Y)) { hot = i; break; }
+            int hot = HandleAt(hhs, p.X, p.Y, gripOnly: false);
             if ((hot >= 0) != _handleHover) { _handleHover = hot >= 0; Invalidate(); }
-            if (hot >= 0 && hot != _handleIdx) { _handleIdx = hot; Invalidate(); }
+            if (hot >= 0 && (hot != _handleIdx || _gizmoFocus)) { _handleIdx = hot; if (_gizmoFocus) _typed = ""; _gizmoFocus = false; Invalidate(); }
         }
         ActiveTool?.PointerMove(this, p);
     }
@@ -1429,13 +1432,53 @@ public sealed partial class CadSession : ObservableObject
         return h.Origin + h.Dir.Normalized() * (along < 0 ? -stub : stub);
     }
 
+    /// <summary>The handle under the pointer: one whose grip (the cone or dot at its value) is there first, then one whose shaft or ring is. -1 for none.</summary>
+    int HandleAt(IReadOnlyList<HandleSpec> hs, double px, double py, bool gripOnly)
+    {
+        if (!GizmoSettings.Current.Allows(0,0)) return -1;
+        // the nearest grip, not the first: two grips that sit close together (a pull arrow and a tilt ring on one face) both stay reachable
+        int nearest = -1; double reach = GizmoSettings.Current.Tolerance * 2;
+        for (int i = 0; i < hs.Count; i++)
+            if (Camera.Project(HandleGrip(hs[i])) is { } g && Math.Sqrt((g.x - px) * (g.x - px) + (g.y - py) * (g.y - py)) is var d && d < reach) { reach = d; nearest = i; }
+        if (nearest >= 0 || gripOnly) return nearest;
+        for (int i = 0; i < hs.Count; i++) if (HandleHit(hs[i], px, py)) return i;
+        return -1;
+    }
+
     bool HandleHit(HandleSpec h, double px, double py)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return false;
         var a = Camera.Project(h.Origin); var b = Camera.Project(HandleGrip(h)); if (a == null || b == null) return false;
         var (_, d) = Picking.SegDist(px, py, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
         double dt = Math.Sqrt((b.Value.x - px) * (b.Value.x - px) + (b.Value.y - py) * (b.Value.y - py));
-        return dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8;
+        if (dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8) return true;
+        if (h.Ref == null || HandleShowsLimits(h)) return false;
+        var (from, to) = TurnTrack(h); var ring = TurnArc(h, from, to);
+        for (int i = 0; i + 1 < ring.Count; i++)
+        {
+            if (Camera.Project(ring[i]) is not { } r0 || Camera.Project(ring[i + 1]) is not { } r1) continue;
+            if (Picking.SegDist(px, py, r0.x, r0.y, r1.x, r1.y).Item2 < GizmoSettings.Current.Tolerance * .8) return true;
+        }
+        return false;
+    }
+
+    /// <summary>A turning handle that draws its allowed arc with a tick at each stop (a joint, a tilt with limits). Others draw the gizmo's ring.</summary>
+    static bool HandleShowsLimits(HandleSpec h) => h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max));
+
+    /// <summary>The angles a turning handle's ring covers: the whole circle, or just the stretch its number may take when that is less than a turn.</summary>
+    public static (double from, double to) TurnTrack(HandleSpec h)
+    {
+        double lo = h.Param.Min, hi = h.Param.Max;
+        return Assembly.JointVisuals.IsLimit(lo) && Assembly.JointVisuals.IsLimit(hi) && hi - lo < 360 ? (lo, hi) : (0, 360);
+    }
+
+    static List<Vec3> TurnArc(HandleSpec h, double from, double to)
+    {
+        var zero = h.Ref!.Value.Normalized(); var axis = h.Dir.Normalized();
+        int n = Math.Clamp((int)Math.Ceiling(Math.Abs(to - from) / 5), 2, 288);
+        var pts = new List<Vec3>(n + 1);
+        for (int i = 0; i <= n; i++) pts.Add(h.Origin + Assembly.JointVisuals.Rotate(zero, axis, from + (to - from) * i / n) * h.Radius);
+        return pts;
     }
 
     double _handleGrabOffset;     // value minus the pointer's position along the arrow at press, so a drag moves the value by exactly how far the pointer moved
@@ -1450,25 +1493,34 @@ public sealed partial class CadSession : ObservableObject
         return (b * e - dd) / den * h.Mul;
     }
 
+    /// <summary>The pointer's angle on the plane a turning handle turns in, in degrees from its zero direction, or null when the view is edge-on to it.</summary>
+    double? HandleAngleAt(HandleSpec h, PointerInfo p)
+    {
+        if (h.Ref is not { } refDir) return null;
+        var (o, d) = Camera.Ray(p.X, p.Y);
+        var n = h.Dir.Normalized(); double dn = Vec3.Dot(d, n);
+        if (Math.Abs(dn) < 1e-4) return null;                   // looking edge-on to the turn: no way to tell the angle
+        var hit = o + d * (Vec3.Dot(h.Origin - o, n) / dn) - h.Origin;
+        var r0 = refDir.Normalized(); var r90 = Vec3.Cross(n, r0);
+        return Math.Atan2(Vec3.Dot(hit, r90), Vec3.Dot(hit, r0)) * 180 / Math.PI;
+    }
+
+    static double ShortWay(double degrees) => (degrees % 360 + 540) % 360 - 180;
+
     void BeginHandleDrag(HandleSpec h, PointerInfo p)
     {
         _handleGrabOffset = 0;
-        if (h.Ref != null) return;
+        if (h.Ref != null) { if (HandleAngleAt(h, p) is { } angle) _handleGrabOffset = ShortWay(h.Param.Value - angle); return; }
         if (HandleParamAt(h, p) is { } at) _handleGrabOffset = h.Param.Value - at;
     }
 
     void DragHandle(HandleSpec h, PointerInfo p)
     {
-        var (o, d) = Camera.Ray(p.X, p.Y);
-        if (h.Ref is { } refDir)
+        if (h.Ref != null)
         {
-            // a turning handle: where the pointer is on the plane the joint turns in, as an angle from the zero direction
-            var n = h.Dir.Normalized(); double dn = Vec3.Dot(d, n);
-            if (Math.Abs(dn) < 1e-4) return;                    // looking edge-on to the turn: no way to tell the angle
-            var hit = o + d * (Vec3.Dot(h.Origin - o, n) / dn) - h.Origin;
-            var r0 = refDir.Normalized(); var r90 = Vec3.Cross(n, r0);
-            double target = Math.Atan2(Vec3.Dot(hit, r90), Vec3.Dot(hit, r0)) * 180 / Math.PI;
-            double now = h.Param.Value, delta = ((target - now) % 360 + 540) % 360 - 180;       // the short way round, so the value does not jump by a full turn
+            // a turning handle: the pointer's angle on the plane it turns in, kept the same distance from the value as at the press
+            if (HandleAngleAt(h, p) is not { } angle) return;
+            double now = h.Param.Value, delta = ShortWay(angle + _handleGrabOffset - now);       // the short way round, so the value does not jump by a full turn
             double asked = now + delta, aStep = p.Ctrl ? 0.1 : GizmoSettings.Current.Snap ? GizmoSettings.Current.AngleStep : 1;
             if (!double.IsFinite(aStep) || aStep <= 0) aStep = 1;
             h.Param.Value = p.Alt ? asked : Math.Round(asked / aStep) * aStep;           // the value stops at the joint's limits by itself
@@ -1524,7 +1576,7 @@ public sealed partial class CadSession : ObservableObject
     }
 
     Command? _handleCmd;
-    void ResetTypingFor(Command? c) { if (!ReferenceEquals(_handleCmd, c)) { _handleCmd = c; _typed = ""; _handleIdx = 0; } }
+    void ResetTypingFor(Command? c) { if (!ReferenceEquals(_handleCmd, c)) { _handleCmd = c; _typed = ""; _handleIdx = 0; _gizmoFocus = false; } }
 
     void BuildHandleOverlay(Overlay o)
     {
@@ -1536,36 +1588,51 @@ public sealed partial class CadSession : ObservableObject
     void BuildOneHandle(Overlay o, HandleSpec h, bool active)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return;
+        // only the engaged handle lights up and reads its value: the others stay quiet in their own colour
+        bool hot = active && (_handleDrag || _handleHover);
+        bool typing = active && _typed.Length > 0 && !(CurrentGizmo != null && GizmoHasFocus);
+        uint rest = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
+        uint col = !hot ? rest : h.Colour != 0 ? GizmoVisual.Accent : GizmoVisual.Ink;
+        float stroke = GizmoSettings.Current.Stroke + (hot ? 1.5f : 0);
         if (h.Ref != null)
         {
-            // a turning handle: the allowed arc, the current angle and a grip at its end
-            var grip = HandleTip(h); double cur = h.Param.Value;
-            double lo = h.ShowRange ? h.Param.Min : double.NegativeInfinity, hi = h.ShowRange ? h.Param.Max : double.PositiveInfinity;
-            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
-            bool hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
-            uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
-            o.AddDot(grip, colour, _handleDrag ? 13 : 11);
-            if (active && (_handleDrag || _handleHover || _typed.Length > 0))
-                o.AddLabel(grip, _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}", true, 4);
+            var grip = HandleTip(h); double cur = h.Param.Value; bool hit = false;
+            if (HandleShowsLimits(h))
+            {
+                // a turn with stops: the allowed arc with a tick at each end, red at a limit
+                double lo = h.Param.Min, hi = h.Param.Max;
+                Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
+                hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
+                if (hot) col = 0xFFFFFFFF;
+            }
+            else
+            {
+                // the gizmo's ring: a quiet track where the number may go, the swept angle and a spoke out to the grip
+                var (from, to) = TurnTrack(h);
+                o.AddPolyline(TurnArc(h, from, to), (rest & 0x00FFFFFF) | 0x70000000, GizmoSettings.Current.Stroke);
+                if (Math.Abs(cur) > 1e-9) o.AddPolyline(TurnArc(h, 0, cur), col, stroke);
+                o.AddLine(h.Origin, grip, col, stroke);
+            }
+            o.AddDot(grip, hit ? Assembly.JointVisuals.HitColor : col, hot && _handleDrag ? 13 : 11);
+            if (hot || typing)
+                o.AddLabel(grip, typing ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}", true, 4);
             return;
         }
-        if (h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max)))
+        if (HandleShowsLimits(h))
         {
             // a sliding handle with limits: the ruler of where it may go
             double hs = Camera.PixelSizeAt(h.Origin) * 70;
             Assembly.JointVisuals.Range(o, h.Origin, h.Dir, null, hs, h.Param.Min / h.Mul, h.Param.Max / h.Mul, h.Param.Value / h.Mul);
         }
         var tip = HandleGrip(h); var A = h.Dir.Normalized();
-        uint col = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
         double ps = Camera.PixelSizeAt(tip);
-        bool stub = h.Ref == null && (tip - HandleTip(h)).Length > 1e-9;
+        bool stub = (tip - HandleTip(h)).Length > 1e-9;
         o.AddDot(h.Origin, col, 7);
-        o.AddLine(h.Origin, tip, col, GizmoSettings.Current.Stroke + (_handleDrag || _handleHover ? 1.5f : 0));
-        // arrow head: a small cone at the tip pointing the way the value grows
+        o.AddLine(h.Origin, tip, col, stroke);
+        if (stub) o.AddLine(h.Origin, tip, (col & 0x00FFFFFF) | 0x60000000, GizmoSettings.Current.Stroke + 3);   // a value of zero: the stub is tinted so it reads as "nothing yet, pull me"
+        // the head is the gizmo's cone (same proportions as GizmoVisual.Arrow): it ends exactly at the value, pointing the way the value grows
         double factor = GizmoSettings.Current.Pixels / 96;
         double len = ps * 14 * factor * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 5 * factor;
-        if (stub) o.AddLine(h.Origin, tip, (col & 0x00FFFFFF) | 0x60000000, GizmoSettings.Current.Stroke + 3);   // a value of zero: the stub is tinted so it reads as "nothing yet, pull me"
-        // the head is the gizmo's cone: it ends exactly at the value, pointing the way the value grows
         var u = Math.Abs(A.Z) < 0.9 ? Vec3.Cross(A, Vec3.UnitZ).Normalized() : Vec3.Cross(A, Vec3.UnitX).Normalized();
         var v = Vec3.Cross(A, u); var apex = tip; var back = tip - A * len; const int n = 14;
         for (int i = 0; i < n; i++)
@@ -1576,8 +1643,8 @@ public sealed partial class CadSession : ObservableObject
         }
         string unit = h.Param.Unit.Length > 0 ? " " + h.Param.Unit : "";
         bool atEnd = Assembly.JointVisuals.IsLimit(h.Param.Min) && h.Param.Value <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && h.Param.Value >= h.Param.Max - 1e-6;
-        if (active && (_handleDrag || _handleHover || _typed.Length > 0))
-            o.AddLabel(apex + A * (ps * 12), _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}", true, 4);
+        if (hot || typing)
+            o.AddLabel(apex + A * (ps * 12), typing ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}", true, 4);
     }
 
     /// <summary>Typing a number while a grab handle is showing sets its value (Tab switches handle, Enter applies, Esc cancels).</summary>
@@ -1586,23 +1653,23 @@ public sealed partial class CadSession : ObservableObject
         ResetTypingFor(ActiveCommand);
         if (ActiveCommand?.Handles is not { Count: > 0 } hs || ActiveTool != null) return false;
         if (_handleIdx >= hs.Count) _handleIdx = 0;
-        var h = hs[_handleIdx];
+        var h = hs[_handleIdx].Param;
         bool digit = key.StartsWith("Char:") && key.Length == 6 && (char.IsDigit(key[5]) || key[5] == '.' || key[5] == ',');
         if (digit) { _typed += key[5] == ',' ? "." : key[5].ToString(); ApplyTyped(h); return true; }
         switch (key)
         {
             case "Minus": _typed = _typed.StartsWith('-') ? _typed[1..] : "-" + _typed; ApplyTyped(h); return true;
             case "Back": if (_typed.Length == 0) return false; _typed = _typed[..^1]; ApplyTyped(h); return true;
-            case "Tab": if (hs.Count < 2) return false; _handleIdx = (_handleIdx + 1) % hs.Count; _typed = ""; Invalidate(); return true;
+            case "Tab": if (hs.Count < 2) return false; _handleIdx = (_handleIdx + 1) % hs.Count; _typed = ""; _gizmoFocus = false; Invalidate(); return true;
             case "Enter": if (_typed.Length == 0) return false; ApplyTyped(h); _typed = ""; return true;
             case "Escape": if (_typed.Length == 0) return false; _typed = ""; Invalidate(); return true;
         }
         return false;
     }
 
-    void ApplyTyped(HandleSpec h)
+    void ApplyTyped(NumberParam param)
     {
-        if (double.TryParse(_typed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) { h.Param.Value = v; ActiveCommand?.OnChanged(); }
+        if (double.TryParse(_typed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) { param.Value = v; ActiveCommand?.OnChanged(); }
         Invalidate();
     }
 

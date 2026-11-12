@@ -1,6 +1,6 @@
 # Solid primitives
 
-Box, Cylinder, Sphere, Cone and Torus create exact bodies. Their dimensions and XYZ position are editable. Operation selects New body, Join, Cut or Intersect. The Cone supports a top radius and the Torus constrains its minor radius relative to the major radius.
+Box, Cylinder, Sphere, Cone and Torus create exact bodies. Their dimensions and XYZ position are editable. In the viewport the position is set with the shared move gizmo at the middle of the shape, and each dimension has its own arrow on the shape ([viewport interaction](../../viewport-interaction-handoff.md#command-gizmo-2026-11-12), checks HDL-H001 to HDL-H003, HDL-H025 and HDL-H030). Operation selects New body, Join, Cut or Intersect. The Cone supports a top radius and the Torus constrains its minor radius relative to the major radius.
 
 ## Review and verification
 

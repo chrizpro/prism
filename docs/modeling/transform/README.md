@@ -2,6 +2,8 @@
 
 Move translates in XYZ. Rotate uses a world axis and a selectable pivot. Scale is uniform. Mirror reflects across a world plane and defaults to making a copy. Duplicate copies selected objects through the session action.
 
+In the viewport Move, Rotate and Scale are driven by the shared gizmo: arrows for the offsets, three rings for the angle (pressing a ring makes its axis the turn axis and starts again from 0) and the centre block for the factor. Maintained check: HDL-H023 in [ViewportHandleTests](../../../Prism.Tests/Headless/Viewport/ViewportHandleTests.cs); see [viewport interaction](../../viewport-interaction-handoff.md#command-gizmo-2026-11-12).
+
 ## Review and verification
 
 This guide describes observed behavior. Additional requirements are proposed and need owner review. [Tracking issue #29](https://github.com/chrizpro/prism/issues/29).

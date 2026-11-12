@@ -1576,7 +1576,7 @@ public sealed partial class AutomationApi
                 return res;
             });
 
-        Add("pointer", "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'drag', x,y,z, x2,y2,z2 (drag end)}]. Returns the active command's grab handle (origin, tip, value) and the camera.",
+        Add("pointer", "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'drag', x,y,z, x2,y2,z2 (drag end)}]. A {type:'key', key:'Char:E'|'Tab'|'Enter'|...} event sends a viewport key. Returns the active command's first grab handle (origin, tip, value), every handle (label, origin, grip, value), the command gizmo (mode, center, arrow length, a grab point per axis, values) and the camera.",
             Schema(["events"], ("events", "array", "Event objects.")), a =>
             {
                 (double x, double y) Px(double x, double y, double z) { var q = S.Camera.Project(new Vec3(x, y, z)); return q is { } v ? (v.x, v.y) : throw new InvalidOperationException("Off screen."); }
@@ -1606,6 +1606,27 @@ public sealed partial class AutomationApi
                 {
                     var tip = h.Origin + h.Dir.Normalized() * (h.Param.Value / h.Mul);
                     r["handle"] = new JsonObject { ["origin"] = new JsonArray(h.Origin.X, h.Origin.Y, h.Origin.Z), ["tip"] = new JsonArray(Math.Round(tip.X, 3), Math.Round(tip.Y, 3), Math.Round(tip.Z, 3)), ["value"] = h.Param.Value };
+                }
+                static JsonArray Pt(Vec3 v) => new(Math.Round(v.X, 4), Math.Round(v.Y, 4), Math.Round(v.Z, 4));
+                if (S.ActiveCommand?.Handles is { Count: > 0 } all)
+                    r["handles"] = new JsonArray(all.Select(x => (JsonNode)new JsonObject { ["label"] = x.Param.Label, ["turning"] = x.Ref != null, ["origin"] = Pt(x.Origin), ["grip"] = Pt(S.HandleGrip(x)), ["value"] = x.Param.Value }).ToArray());
+                if (S.CommandGizmoInfo is { } gz)
+                {
+                    // grab points for the current operation: 70 % along each arrow, or 45 degrees round each ring
+                    var (spec, length, mode) = gz; var grab = new JsonObject(); var values = new JsonObject();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        string name = new[] { "x", "y", "z" }[i];
+                        if (mode == 0 && spec.Move[i] is { } mv) { grab[name] = Pt(spec.Center + spec.Axes[i] * length * .7); values[name] = mv.Value; }
+                        if (mode == 1 && spec.Turn[i] is { } tn) { grab[name] = Pt(spec.Center + (spec.Axes[(i + 1) % 3] + spec.Axes[(i + 2) % 3]).Normalized() * length * .8); values[name] = tn.Value; }
+                    }
+                    if (mode == 2 && spec.Scale is { } sc) { grab["center"] = Pt(spec.Center); values["scale"] = sc.Value; }
+                    r["gizmo"] = new JsonObject
+                    {
+                        ["mode"] = mode == 0 ? "move" : mode == 1 ? "rotate" : "scale", ["center"] = Pt(spec.Center), ["length"] = Math.Round(length, 4),
+                        ["supports"] = new JsonArray(new[] { "move", "rotate", "scale" }.Where((_, i) => spec.Supports(i)).Select(x => (JsonNode)x!).ToArray()),
+                        ["grab"] = grab, ["values"] = values,
+                    };
                 }
                 return r;
             });

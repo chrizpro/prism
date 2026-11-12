@@ -158,13 +158,16 @@ public abstract class PrimitiveCommand : BodyCommand
         AddOperation();
     }
 
-    /// <summary>Dimension arrows anchored on the previewed shape; the base adds position arrows from the world origin.</summary>
+    /// <summary>Dimension arrows anchored on the previewed shape. They must not lie along the gizmo's arrows (which leave <see cref="Middle"/> towards +X, +Y and +Z), or the two controls would sit on top of each other.</summary>
     protected virtual IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield break; }
+
+    /// <summary>The middle of the shape measured from its position: where the gizmo that moves it sits.</summary>
+    protected virtual Vec3 Middle => Vec3.Zero;
 
     public override IReadOnlyList<HandleSpec> Handles => [.. DimHandles(new Vec3(X.Value, Y.Value, Z.Value))];
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
-    /// <summary>Where the shape sits is a position: the shared gizmo moves it.</summary>
-    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value), X, Y, Z);
+    /// <summary>Where the shape sits is a position: the shared gizmo moves it, from the middle of the shape.</summary>
+    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value) + Middle, X, Y, Z);
 
     protected override CommandOutput? Build()
     {
@@ -182,6 +185,7 @@ public sealed class BoxCommand : PrimitiveCommand
     protected override string Prefix => "Box";
     public BoxCommand() { W = Num("Width (X)", 40, 0.001); D = Num("Depth (Y)", 30, 0.001); H = Num("Height (Z)", 20, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Box(W.Value, D.Value, H.Value);
+    protected override Vec3 Middle => new(W.Value / 2, D.Value / 2, H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, W);
@@ -197,10 +201,11 @@ public sealed class CylinderCommand : PrimitiveCommand
     protected override string Prefix => "Cylinder";
     public CylinderCommand() { R = Num("Radius", 12, 0.001); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cylinder(R.Value, H.Value);
+    protected override Vec3 Middle => Vec3.UnitZ * (H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, R);
-        yield return new(pos, Vec3.UnitZ, H);
+        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitZ, H);   // up the wall from the end of the radius arrow: the axis belongs to the gizmo
     }
 }
 
@@ -211,7 +216,7 @@ public sealed class SphereCommand : PrimitiveCommand
     protected override string Prefix => "Sphere";
     public SphereCommand() { R = Num("Radius", 18, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Sphere(R.Value);
-    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, Vec3.UnitX, R); }
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, -Vec3.UnitX, R); }   // towards -X: the gizmo's own arrow leaves the centre towards +X
 }
 
 public sealed class ConeCommand : PrimitiveCommand
@@ -221,11 +226,12 @@ public sealed class ConeCommand : PrimitiveCommand
     protected override string Prefix => "Cone";
     public ConeCommand() { R1 = Num("Base radius", 16, 0); R2 = Num("Top radius", 4, 0); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cone(R1.Value, R2.Value, H.Value);
+    protected override Vec3 Middle => Vec3.UnitZ * (H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, R1);
         yield return new(pos + Vec3.UnitZ * H.Value, Vec3.UnitX, R2);
-        yield return new(pos, Vec3.UnitZ, H);
+        yield return new(pos + Vec3.UnitX * Math.Max(R1.Value, R2.Value), Vec3.UnitZ, H);   // beside the cone, level with its widest end: the axis belongs to the gizmo
     }
 }
 
@@ -238,8 +244,9 @@ public sealed class TorusCommand : PrimitiveCommand
     protected override Shape Make() => Occ.Torus(R.Value, Math.Min(r.Value, R.Value * 0.99));
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
-        yield return new(pos, Vec3.UnitX, R);
-        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitX, r);   // minor radius sits at the ring's centre line
+        // towards -X: the gizmo's own arrow leaves the centre towards +X
+        yield return new(pos, -Vec3.UnitX, R);
+        yield return new(pos - Vec3.UnitX * R.Value, -Vec3.UnitX, r);   // minor radius sits at the ring's centre line
     }
 }
 
@@ -1347,28 +1354,11 @@ public sealed class TransformCommand : Command
         _copy = Check("Create copy", kind == Kind.Mirror);
     }
     public override string Title => _kind.ToString();
-    public override string Hint => "Select the objects to transform, then pull the arrows in the viewport or type numbers.";
+    public override string Hint => _kind == Kind.Mirror ? "Select the objects to mirror and choose the mirror plane."
+        : "Select the objects to transform, then drag the gizmo in the viewport or type numbers.";
 
-    public override IReadOnlyList<HandleSpec> Handles
-    {
-        get
-        {
-            if (_objs.Items.Count == 0 || _kind == Kind.Mirror) return [];
-            try
-            {
-                var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
-                foreach (var obj in ObjectsOf(_objs).Distinct())
-                {
-                    var m = obj.Mesh; if (m.Positions.Length < 3) continue;
-                    lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
-                    hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
-                }
-                if (lo.X > hi.X) return [];
-                return [];
-            }
-            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
-        }
-    }
+    // a transform has no feature sizes: everything it edits is on the shared gizmo
+    public override IReadOnlyList<HandleSpec> Handles => [];
     public override HandleSpec? Handle => null;
 
     /// <summary>Centre of the objects before the transform (the preview replaces them, so the gizmo rides on the typed delta instead).</summary>
@@ -1384,7 +1374,7 @@ public sealed class TransformCommand : Command
         return lo.X > hi.X ? null : (lo + hi) * 0.5;
     }
 
-    /// <summary>Move, Rotate and Scale are transforms, so the shared gizmo drives them: arrows for the offsets, the chosen axis's ring for the angle, the centre block for the factor.</summary>
+    /// <summary>Move, Rotate and Scale are transforms, so the shared gizmo drives them: arrows for the offsets, the rings for the angle (grabbing a ring makes its axis the one turned about), the centre block for the factor.</summary>
     public override GizmoSpec? Gizmo
     {
         get
@@ -1399,7 +1389,12 @@ public sealed class TransformCommand : Command
                     case Kind.Rotate:
                     {
                         var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
-                        return GizmoSpec.At(pivot, null, null, null, _axis!.Index == 0 ? _angle : null, _axis.Index == 1 ? _angle : null, _axis.Index == 2 ? _angle : null);
+                        // one angle, three rings: the ring that is grabbed (or stepped to with Tab) becomes the axis, starting again from 0
+                        return GizmoSpec.At(pivot, null, null, null, _angle, _angle, _angle, engage: (op, axis) =>
+                        {
+                            if (op != 1 || axis is < 0 or > 2 || _axis!.Index == axis) return;
+                            _axis.Index = axis; _angle!.Value = 0;
+                        });
                     }
                     default: return GizmoSpec.At(_pivot!.Index == 0 ? center : Vec3.Zero, null, null, null, scale: _factor);
                 }

@@ -202,14 +202,16 @@ public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double
 /// The shared gizmo on a command, for numbers that are a position or an orientation rather than a size. Move holds the
 /// parameter each arrow (and plane block) edits along <see cref="Axes"/>; Turn the degrees each ring edits; Scale the factor
 /// the centre block edits. A null entry hides that handle. Drag deltas are multiplied by Mul before landing in the parameter.
+/// Engage (operation, axis) runs when a handle is pressed or stepped to with Tab, before its value is read: a command whose
+/// one number can act about any axis (Rotate) uses it to switch the axis to the ring that was grabbed.
 /// </summary>
-public sealed record GizmoSpec(Vec3 Center, NumberParam?[] Move, NumberParam?[] Turn, NumberParam? Scale = null, Vec3[]? AxesOverride = null, double Mul = 1)
+public sealed record GizmoSpec(Vec3 Center, NumberParam?[] Move, NumberParam?[] Turn, NumberParam? Scale = null, Vec3[]? AxesOverride = null, double Mul = 1, Action<int, int>? Engage = null)
 {
     public static readonly NumberParam?[] None = [null, null, null];
     public Vec3[] Axes => AxesOverride ?? Core.GizmoVisual.WorldAxes;
     public bool Supports(int operation) => operation switch { 0 => Move.Any(p => p != null), 1 => Turn.Any(p => p != null), _ => Scale != null };
-    public static GizmoSpec At(Vec3 center, NumberParam? x, NumberParam? y, NumberParam? z, NumberParam? rx = null, NumberParam? ry = null, NumberParam? rz = null, NumberParam? scale = null, Vec3[]? axes = null, double mul = 1)
-        => new(center, [x, y, z], [rx, ry, rz], scale, axes, mul);
+    public static GizmoSpec At(Vec3 center, NumberParam? x, NumberParam? y, NumberParam? z, NumberParam? rx = null, NumberParam? ry = null, NumberParam? rz = null, NumberParam? scale = null, Vec3[]? axes = null, double mul = 1, Action<int, int>? engage = null)
+        => new(center, [x, y, z], [rx, ry, rz], scale, axes, mul, engage);
 }
 
 /// <summary>Everything needed to run a command again: how to make it, its picks and its numbers. Stored on the history step the command created.</summary>
