@@ -275,15 +275,19 @@ public sealed class MoveHoleCommand : Command
             if (_faces.Items.Count == 0 || DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body
                 || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } feat || feat.Round is not { } r) return [];
             var (u, _) = SurfaceMath.Basis(feat.Dir.Normalized());
-            var list = new List<HandleSpec>
-            {
-                new(feat.Centre, Vec3.UnitX, _dx), new(feat.Centre, Vec3.UnitY, _dy), new(feat.Centre, Vec3.UnitZ, _dz),
-                new(r.Origin, u, _dia, 2),                      // the tip sits at the new radius (half the diameter)
-            };
-            return list;
+            return [new(r.Origin, u, _dia, 2)];                 // the tip sits at the new radius (half the diameter)
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_faces.Items.Count == 0 || DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body
+                || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } feat || feat.Round == null) return null;
+            return GizmoSpec.At(feat.Centre + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
+        }
+    }
     public override string Hint => "Click the round face of a hole or boss, then type how far to move it (for example Move Z = -10 slides it down 10 mm). You can also give a new diameter. Every face of the same hole is picked up automatically, and its depth is kept. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     sealed record Feature(List<int> Faces, Vec3 Origin, Vec3 Dir, double Radius, bool IsHole, double T0, double T1);
@@ -519,10 +523,7 @@ public sealed class MoveFaceCommand : Command
         get
         {
             if (_faces.Items.Count == 0 || S.PlaneOf(_faces.Items[0]) is not { } pl) return [];
-            var list = new List<HandleSpec>
-            {
-                new(pl.Origin, Vec3.UnitX, _dx), new(pl.Origin, Vec3.UnitY, _dy), new(pl.Origin, Vec3.UnitZ, _dz),
-            };
+            var list = new List<HandleSpec>();
             var info = Occ.FaceInfoOf(S.ShapeOf(_faces.Items[0])!); var n = info.Normal.Normalized();
             Vec3 axis = _axis.Index switch { 0 => pl.U, 1 => pl.V, 2 => Vec3.UnitX, 3 => Vec3.UnitY, _ => Vec3.UnitZ };
             var n0 = n - axis * Vec3.Dot(n, axis);
@@ -535,6 +536,9 @@ public sealed class MoveFaceCommand : Command
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    /// <summary>The move is a position change: the shared gizmo at the face, world axes, riding on the typed offset.</summary>
+    public override GizmoSpec? Gizmo => _faces.Items.Count == 0 || S.PlaneOf(_faces.Items[0]) is not { } pl ? null
+        : GizmoSpec.At(pl.Origin + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
     public override string Hint => "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     protected override CommandOutput? Build()

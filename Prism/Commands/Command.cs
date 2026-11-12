@@ -198,6 +198,20 @@ public sealed class CommandOutput
 /// </summary>
 public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1, Vec3? Ref = null, double Radius = 0, bool ShowRange = false, uint Colour = 0);
 
+/// <summary>
+/// The shared gizmo on a command, for numbers that are a position or an orientation rather than a size. Move holds the
+/// parameter each arrow (and plane block) edits along <see cref="Axes"/>; Turn the degrees each ring edits; Scale the factor
+/// the centre block edits. A null entry hides that handle. Drag deltas are multiplied by Mul before landing in the parameter.
+/// </summary>
+public sealed record GizmoSpec(Vec3 Center, NumberParam?[] Move, NumberParam?[] Turn, NumberParam? Scale = null, Vec3[]? AxesOverride = null, double Mul = 1)
+{
+    public static readonly NumberParam?[] None = [null, null, null];
+    public Vec3[] Axes => AxesOverride ?? Core.GizmoVisual.WorldAxes;
+    public bool Supports(int operation) => operation switch { 0 => Move.Any(p => p != null), 1 => Turn.Any(p => p != null), _ => Scale != null };
+    public static GizmoSpec At(Vec3 center, NumberParam? x, NumberParam? y, NumberParam? z, NumberParam? rx = null, NumberParam? ry = null, NumberParam? rz = null, NumberParam? scale = null, Vec3[]? axes = null, double mul = 1)
+        => new(center, [x, y, z], [rx, ry, rz], scale, axes, mul);
+}
+
 /// <summary>Everything needed to run a command again: how to make it, its picks and its numbers. Stored on the history step the command created.</summary>
 public sealed record FeatureRecipe(Func<Command> Make, string Title, List<object?> Values, List<List<SelItem>> Slots, Dictionary<int, string>? Expressions = null);
 
@@ -410,7 +424,9 @@ public abstract partial class Command : ObservableObject
     /// <summary>Commands can draw markers/curves over the viewport while they are open.</summary>
     public virtual void BuildOverlay(Core.CadSession s, Core.Overlay o) { }
     public IViewportTool? Tool { get; protected set; }
-    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && Handles.Count > 0);
+    /// <summary>The shared gizmo for this command's position/orientation numbers, or null when it has none (see <see cref="GizmoSpec"/>).</summary>
+    public virtual GizmoSpec? Gizmo => null;
+    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && (Handles.Count > 0 || Gizmo != null));
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
     public CadSession S { get; private set; } = null!;

@@ -21,14 +21,17 @@ public class ViewportHandleTests
 
     // ------------------------------------------------------------------ primitives
 
-    [AvaloniaFact(DisplayName = "HDL-H001 | Box shows three dimension arrows plus three position arrows")]
+    [AvaloniaFact(DisplayName = "HDL-H001 | Box shows three dimension arrows and the shared gizmo for its position")]
     [Trait("TestId", "HDL-H001")]
     public void BoxDimensionArrows()
     {
         var session = new CadSession();
         var box = Begin(session, () => new BoxCommand());
         var hs = box.Handles;
-        Assert.Equal(6, hs.Count);
+        Assert.Equal(3, hs.Count);
+        var gizmo = Assert.IsType<GizmoSpec>(box.Gizmo);
+        Assert.Equal("Position X", gizmo.Move[0]!.Label); Assert.Equal("Position Z", gizmo.Move[2]!.Label);
+        Assert.True(gizmo.Supports(0)); Assert.False(gizmo.Supports(1));
         var h = At(hs, "Height (Z)");
         AssertPoint(Vec3.Zero, h.Origin, 1e-9, "Height arrow base");
         AssertPoint(Vec3.UnitZ, h.Dir, 1e-9, "Height arrow direction");
@@ -43,7 +46,7 @@ public class ViewportHandleTests
         var session = new CadSession();
         var cyl = Begin(session, () => new CylinderCommand());
         var hs = cyl.Handles;
-        Assert.Equal(5, hs.Count);   // radius + height + 3 position
+        Assert.Equal(2, hs.Count);   // radius + height; the position is the gizmo
         Assert.True(Vec3.Dot(At(hs, "Radius").Dir, Vec3.UnitX) > 0.99, "Radius arrow points radially");
         Assert.True(Vec3.Dot(At(hs, "Height").Dir, Vec3.UnitZ) > 0.99, "Height arrow along +Z");
     }
@@ -181,7 +184,7 @@ public class ViewportHandleTests
 
     // ------------------------------------------------------------------ direct edits
 
-    [AvaloniaFact(DisplayName = "HDL-H012 | Move Face shows move arrows plus a tilt ring")]
+    [AvaloniaFact(DisplayName = "HDL-H012 | Move Face moves with the gizmo and keeps a tilt ring handle")]
     [Trait("TestId", "HDL-H012")]
     public void MoveFaceHandles()
     {
@@ -190,11 +193,14 @@ public class ViewportHandleTests
         var move = Begin(session, () => new MoveFaceCommand());
         Pick(move, "Flat faces to move", FaceFacing(box, Vec3.UnitZ));
         var hs = move.Handles;
-        Assert.Equal(4, hs.Count);   // dx/dy/dz + tilt ring
+        Assert.Single(hs);   // the tilt ring; dx/dy/dz are the gizmo
         Assert.NotNull(hs.SingleOrDefault(h => h.Param.Label == "Tilt angle" && h.Ref != null));
+        var gizmo = Assert.IsType<GizmoSpec>(move.Gizmo);
+        AssertPoint(new Vec3(20, 20, 40), gizmo.Center, 1e-6, "Gizmo sits on the face");
+        Assert.Equal("Move Z", gizmo.Move[2]!.Label);
     }
 
-    [AvaloniaFact(DisplayName = "HDL-H013 | Move Hole shows move arrows plus a diameter arrow on the wall")]
+    [AvaloniaFact(DisplayName = "HDL-H013 | Move Hole moves with the gizmo and keeps a diameter arrow on the wall")]
     [Trait("TestId", "HDL-H013")]
     public void MoveHoleDiameterArrow()
     {
@@ -204,8 +210,10 @@ public class ViewportHandleTests
         var move = Begin(session, () => new MoveHoleCommand());
         Pick(move, "A hole or boss (click its round face)", new SelItem(plate.Id, SelKind.Face, hole.Faces[0]));
         var hs = move.Handles;
-        Assert.Equal(4, hs.Count);
+        Assert.Single(hs);
         Assert.Equal(2, At(hs, "New diameter (0 = keep)").Mul);   // the tip sits at radius = dia/2
+        var gizmo = Assert.IsType<GizmoSpec>(move.Gizmo);
+        AssertPoint(new Vec3(0, 0, 5), gizmo.Center, 0.5, "Gizmo sits on the hole's centre");
     }
 
     [AvaloniaFact(DisplayName = "HDL-H014 | Edit Feature in Resize shows a diameter arrow for a round feature")]
@@ -225,7 +233,7 @@ public class ViewportHandleTests
 
     // ------------------------------------------------------------------ assembly
 
-    [AvaloniaFact(DisplayName = "HDL-H015 | Move Component shows three arrows and three turning rings")]
+    [AvaloniaFact(DisplayName = "HDL-H015 | Move Component is driven by the shared gizmo: three arrows and three rings")]
     [Trait("TestId", "HDL-H015")]
     public void MoveComponentHandles()
     {
@@ -234,9 +242,12 @@ public class ViewportHandleTests
         session.MakePart(part.Id);
         var move = Begin(session, () => new MoveComponentCommand());
         Pick(move, "Component", session.Find(part.Id)!);
-        var hs = move.Handles;
-        Assert.Equal(6, hs.Count);
-        Assert.Equal(3, hs.Count(h => h.Ref != null));   // rx/ry/rz rings
+        Assert.Empty(move.Handles);
+        var gizmo = Assert.IsType<GizmoSpec>(move.Gizmo);
+        Assert.All(gizmo.Move, p => Assert.NotNull(p)); Assert.All(gizmo.Turn, p => Assert.NotNull(p));
+        AssertPoint(new Vec3(10, 10, 10), gizmo.Center, 1e-9, "Gizmo sits on the component's centre");
+        gizmo.Move[1]!.Value = 5;
+        AssertPoint(new Vec3(10, 15, 10), move.Gizmo!.Center, 1e-9, "Gizmo rides on the typed move");
     }
 
     [AvaloniaFact(DisplayName = "HDL-H021 | Arrows whose value is 0 keep a grabbable stub along their own axis")]
@@ -244,22 +255,21 @@ public class ViewportHandleTests
     public void ZeroValueArrowsKeepAStub()
     {
         var session = new CadSession();
-        var body = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
-        var move = Begin(session, () => new TransformCommand(TransformCommand.Kind.Move));
-        Pick(move, "Objects", body);
-        var hs = move.Handles;
-        var y = At(hs, "Δ Y"); var z = At(hs, "Δ Z");
-        Assert.Equal(0, y.Param.Value);
-        // the tip collapses onto the origin, the grip does not: it sits a fixed number of pixels along +Y
-        AssertPoint(y.Origin, CadSession.HandleTip(y), 1e-9, "Zero-value tip");
-        var gripY = session.HandleGrip(y); var gripZ = session.HandleGrip(z);
-        double stub = session.Camera.PixelSizeAt(y.Origin) * CadSession.HandleStubPixels;
-        AssertPoint(y.Origin + Vec3.UnitY * stub, gripY, 1e-9, "Y stub grip");
-        AssertPoint(z.Origin + Vec3.UnitZ * stub, gripZ, 1e-9, "Z stub grip");
-        Assert.True((gripY - gripZ).Length > stub, "The Y and Z grips must not overlap");
+        // Move Hole's diameter arrow starts at 0 (= keep): it must still show a stub to pull
+        var plate = session.AddObject(Occ.Cut(BoxAt(new Vec3(-30, -30, 0), 60, 60, 10), CylinderAt(new Vec3(0, 0, -5), 5, 20)), "Plate", ObjKind.Solid);
+        var hole = FeatureFinder.Features(plate).Single(f => f.Kind == FeatureKind.Hole);
+        var move = Begin(session, () => new MoveHoleCommand());
+        Pick(move, "A hole or boss (click its round face)", new SelItem(plate.Id, SelKind.Face, hole.Faces[0]));
+        var dia = At(move.Handles, "New diameter (0 = keep)");
+        Assert.Equal(0, dia.Param.Value);
+        // the tip collapses onto the origin, the grip does not: it sits a fixed number of pixels along the arrow
+        AssertPoint(dia.Origin, CadSession.HandleTip(dia), 1e-9, "Zero-value tip");
+        double stub = session.Camera.PixelSizeAt(dia.Origin) * CadSession.HandleStubPixels;
+        AssertPoint(dia.Origin + dia.Dir.Normalized() * stub, session.HandleGrip(dia), 1e-9, "Stub grip");
         // a handle with a real value keeps its tip as the grip
-        var x = At(hs, "Δ X");
-        AssertPoint(CadSession.HandleTip(x), session.HandleGrip(x), 1e-9, "Non-zero grip is the tip");
+        dia.Param.Value = 16;
+        AssertPoint(CadSession.HandleTip(dia), session.HandleGrip(dia), 1e-9, "Non-zero grip is the tip");
+        Assert.True((session.HandleGrip(dia) - dia.Origin).Length > stub, "A real value lies past the stub");
     }
 
     [AvaloniaFact(DisplayName = "HDL-H022 | Dragging a zero-value arrow moves the value by exactly how far the pointer travelled")]
@@ -268,16 +278,46 @@ public class ViewportHandleTests
     {
         var session = new CadSession();
         var body = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
-        var move = Begin(session, () => new TransformCommand(TransformCommand.Kind.Move));
-        Pick(move, "Objects", body);
-        var y = At(move.Handles, "Δ Y");
-        var grip = session.HandleGrip(y);
+        var move = Begin(session, () => new MoveFaceCommand());
+        Pick(move, "Flat faces to move", FaceFacing(body, Vec3.UnitZ));
+        SetChoice(move, "Tilt about", "World X");
+        var tilt = At(move.Handles, "Tilt angle");
+        Assert.NotNull(tilt.Ref);
+        // the tilt ring is a feature handle; the move is the gizmo. Drag the gizmo's Y arrow by 10 mm.
+        var gizmo = Assert.IsType<GizmoSpec>(move.Gizmo);
+        double len = GizmoVisual.Length(session, gizmo.Center);
+        var grip = gizmo.Center + Vec3.UnitY * len * 0.6;
         var a = session.Camera.Project(grip)!.Value; var b = session.Camera.Project(grip + Vec3.UnitY * 10)!.Value;
         session.PointerDown(new PointerInfo(a.x, a.y, true, false, false, false));
         session.PointerMove(new PointerInfo(b.x, b.y, true, false, false, true));     // Alt: no snapping
         session.PointerUp(new PointerInfo(b.x, b.y, false, false, false, true));
-        AssertClose(10, y.Param.Value, 0.05, "Δ Y after a 10 mm drag along +Y");
-        Assert.Equal(0, At(move.Handles, "Δ Z").Param.Value);
+        AssertClose(10, gizmo.Move[1]!.Value, 0.05, "Move Y after a 10 mm drag along +Y");
+        Assert.Equal(0, gizmo.Move[2]!.Value);
+        AssertPoint(gizmo.Center + Vec3.UnitY * 10, move.Gizmo!.Center, 0.05, "The gizmo rides with the face");
+    }
+
+    [AvaloniaFact(DisplayName = "HDL-H023 | Transform Move, Rotate and Scale are driven by the shared gizmo, with one ring for the chosen axis")]
+    [Trait("TestId", "HDL-H023")]
+    public void TransformUsesTheGizmo()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        var move = Begin(session, () => new TransformCommand(TransformCommand.Kind.Move));
+        Pick(move, "Objects", body);
+        Assert.Empty(move.Handles);
+        var g = Assert.IsType<GizmoSpec>(move.Gizmo);
+        AssertPoint(new Vec3(20, 10, 10), g.Center, 1e-9, "Move gizmo sits at the centre plus the default Δ X of 10");
+        session.CancelCommand();
+        var rotate = Begin(session, () => new TransformCommand(TransformCommand.Kind.Rotate));
+        Pick(rotate, "Objects", body);
+        g = Assert.IsType<GizmoSpec>(rotate.Gizmo);
+        Assert.False(g.Supports(0)); Assert.True(g.Supports(1));
+        Assert.Null(g.Turn[0]); Assert.Null(g.Turn[1]); Assert.Equal("Angle", g.Turn[2]!.Label);   // default axis Z
+        session.CancelCommand();
+        var scale = Begin(session, () => new TransformCommand(TransformCommand.Kind.Scale));
+        Pick(scale, "Objects", body);
+        g = Assert.IsType<GizmoSpec>(scale.Gizmo);
+        Assert.True(g.Supports(2)); Assert.Equal("Factor", g.Scale!.Label);
     }
 
     // ------------------------------------------------------------------ meshes and sections

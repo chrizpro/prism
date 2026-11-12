@@ -161,20 +161,10 @@ public abstract class PrimitiveCommand : BodyCommand
     /// <summary>Dimension arrows anchored on the previewed shape; the base adds position arrows from the world origin.</summary>
     protected virtual IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield break; }
 
-    public override IReadOnlyList<HandleSpec> Handles
-    {
-        get
-        {
-            var pos = new Vec3(X.Value, Y.Value, Z.Value);
-            var list = new List<HandleSpec>(DimHandles(pos));
-            // the tips mark the X / Y / Z position components (the shape sits where the tips point)
-            list.Add(new(Vec3.Zero, Vec3.UnitX, X));
-            list.Add(new(Vec3.Zero, Vec3.UnitY, Y));
-            list.Add(new(Vec3.Zero, Vec3.UnitZ, Z));
-            return list;
-        }
-    }
+    public override IReadOnlyList<HandleSpec> Handles => [.. DimHandles(new Vec3(X.Value, Y.Value, Z.Value))];
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    /// <summary>Where the shape sits is a position: the shared gizmo moves it.</summary>
+    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value), X, Y, Z);
 
     protected override CommandOutput? Build()
     {
@@ -1374,26 +1364,49 @@ public sealed class TransformCommand : Command
                     hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
                 }
                 if (lo.X > hi.X) return [];
-                var center = (lo + hi) * 0.5; double size = Math.Max((hi - lo).Length * 0.5, 1);
-                switch (_kind)
-                {
-                    case Kind.Move: return [new(center, Vec3.UnitX, _dx!), new(center, Vec3.UnitY, _dy!), new(center, Vec3.UnitZ, _dz!)];
-                    case Kind.Rotate:
-                    {
-                        var ax = _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
-                        var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
-                        var refDir = Math.Abs(ax.Z) > 0.9 ? Vec3.UnitX : Vec3.UnitZ;
-                        refDir = (refDir - ax * Vec3.Dot(refDir, ax)).Normalized();
-                        return [new(pivot, ax, _angle!, 1, refDir, size * 1.3)];
-                    }
-                    default:
-                        return [new(_pivot!.Index == 0 ? center : Vec3.Zero, Vec3.UnitX, _factor!, 1 / size)];
-                }
+                return [];
             }
             catch (Exception e) when (e is not OutOfMemoryException) { return []; }
         }
     }
-    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    public override HandleSpec? Handle => null;
+
+    /// <summary>Centre of the objects before the transform (the preview replaces them, so the gizmo rides on the typed delta instead).</summary>
+    Vec3? SourceCenter()
+    {
+        var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+        foreach (var obj in ObjectsOf(_objs).Distinct())
+        {
+            var m = obj.Mesh; if (m.Positions.Length < 3) continue;
+            lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+            hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+        }
+        return lo.X > hi.X ? null : (lo + hi) * 0.5;
+    }
+
+    /// <summary>Move, Rotate and Scale are transforms, so the shared gizmo drives them: arrows for the offsets, the chosen axis's ring for the angle, the centre block for the factor.</summary>
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_objs.Items.Count == 0 || _kind == Kind.Mirror) return null;
+            try
+            {
+                if (SourceCenter() is not { } center) return null;
+                switch (_kind)
+                {
+                    case Kind.Move: return GizmoSpec.At(center + new Vec3(_dx!.Value, _dy!.Value, _dz!.Value), _dx, _dy, _dz);
+                    case Kind.Rotate:
+                    {
+                        var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
+                        return GizmoSpec.At(pivot, null, null, null, _axis!.Index == 0 ? _angle : null, _axis.Index == 1 ? _angle : null, _axis.Index == 2 ? _angle : null);
+                    }
+                    default: return GizmoSpec.At(_pivot!.Index == 0 ? center : Vec3.Zero, null, null, null, scale: _factor);
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+        }
+    }
 
     protected override CommandOutput? Build()
     {

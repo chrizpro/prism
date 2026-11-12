@@ -1377,6 +1377,7 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand != null)
         {
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
+            if (CommandGizmoDown(p)) return true;
             var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; BeginHandleDrag(hl[i], p); return true; }
             if (TryBeginRegion(p)) return true;
             if (TryBeginClickDrag(p)) return true;
@@ -1395,6 +1396,7 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
         if (DatumVisible) Datum!.PointerMove(this, p);
         if (_cmdGrab && p.Left && ActiveCommand != null) { ActiveCommand.GrabMove(this, p.X, p.Y, p.Alt); Invalidate(); return; }
+        if (CommandGizmoMove(p)) return;
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
@@ -1406,7 +1408,7 @@ public sealed partial class CadSession : ObservableObject
         ActiveTool?.PointerMove(this, p);
     }
     bool _cmdGrab;
-    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (RegionUp(p)) return; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
+    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (CommandGizmoUp()) return; if (RegionUp(p)) return; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
 
     // ------------------------------------------------------------ grab handle (pull an arrow to set a distance)
     bool _handleDrag, _handleHover;
@@ -1563,13 +1565,14 @@ public sealed partial class CadSession : ObservableObject
         double factor = GizmoSettings.Current.Pixels / 96;
         double len = ps * 14 * factor * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 5 * factor;
         if (stub) o.AddLine(h.Origin, tip, (col & 0x00FFFFFF) | 0x60000000, GizmoSettings.Current.Stroke + 3);   // a value of zero: the stub is tinted so it reads as "nothing yet, pull me"
+        // the head is the gizmo's cone: it ends exactly at the value, pointing the way the value grows
         var u = Math.Abs(A.Z) < 0.9 ? Vec3.Cross(A, Vec3.UnitZ).Normalized() : Vec3.Cross(A, Vec3.UnitX).Normalized();
-        var v = Vec3.Cross(A, u); var apex = tip + A * len; const int n = 14;
+        var v = Vec3.Cross(A, u); var apex = tip; var back = tip - A * len; const int n = 14;
         for (int i = 0; i < n; i++)
         {
             double a0 = 2 * Math.PI * i / n, a1 = 2 * Math.PI * (i + 1) / n;
-            var p0 = tip + (u * Math.Cos(a0) + v * Math.Sin(a0)) * rad; var p1 = tip + (u * Math.Cos(a1) + v * Math.Sin(a1)) * rad;
-            o.AddTri(apex, p0, p1, col); o.AddTri(tip, p1, p0, col);
+            var p0 = back + (u * Math.Cos(a0) + v * Math.Sin(a0)) * rad; var p1 = back + (u * Math.Cos(a1) + v * Math.Sin(a1)) * rad;
+            o.AddTri(apex, p0, p1, col); o.AddTri(back, p1, p0, col);
         }
         string unit = h.Param.Unit.Length > 0 ? " " + h.Param.Unit : "";
         bool atEnd = Assembly.JointVisuals.IsLimit(h.Param.Min) && h.Param.Value <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && h.Param.Value >= h.Param.Max - 1e-6;
@@ -1623,6 +1626,7 @@ public sealed partial class CadSession : ObservableObject
         if (DatumVisible && Datum!.Key(this, key)) return true;
         if (ActiveTool?.Key(this, key) == true) return true;
         if (ActiveCommand == null && Sketch?.DrawingKey(this, key) == true) return true;
+        if (CommandGizmoKey(key)) return true;
         if (TypeIntoHandle(key)) return true;
         switch (key)
         {
@@ -1749,6 +1753,7 @@ public sealed partial class CadSession : ObservableObject
         DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
+        BuildCommandGizmoOverlay(o);
         BuildRegionOverlay(o);
         int toolLines = o.Lines.Count;
         ActiveTool?.BuildOverlay(this, o);

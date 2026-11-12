@@ -76,4 +76,4 @@ Order: F1 → F2 → F3 → F4 → F5.
 
 ## Decisions
 
-_(none yet)_
+* **2026-11-12, owner:** approved V1. Extrude keeps its arrow. The pattern is: **the gizmo for transforming anything that has a position** (part, object, face, vertex, edge, control point…), and **one consistent specialized handle style for feature sizes** (revolve, extrude, chamfer, loft, sweep…), with per-tool extra handles where a feature needs them. V1a–V1d are authorized; commands that drew three loose position arrows move to the real gizmo (V1b, widened to Move Face, Move Hole, Move Component, Transform and Insert Component). V1e (chamfer by angle, native change) is still open.

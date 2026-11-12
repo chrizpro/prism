@@ -43,6 +43,7 @@ public sealed class InsertComponentCommand : Command
     public override string Title => "Insert Component";
     public override string Icon => "component";
     public override string OkText => "Insert";
+    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(_x.Value, _y.Value, _z.Value), _x, _y, _z);
     public override string Hint => "Bottom-up assembly: model each part in its own document, then insert it here. Choose an open document or a part file. The first component is grounded so the rest can be joined to it.";
     protected override void OnBegin()
     {
@@ -409,22 +410,11 @@ public sealed class MoveComponentCommand : Command
         return (m.Min + m.Max) * 0.5;
     }
 
-    public override IReadOnlyList<HandleSpec> Handles
-    {
-        get
-        {
-            if (Centre(out var size) is not { } c) return [];
-            var rx = SurfaceMath.Basis(Vec3.UnitX);
-            var ry = SurfaceMath.Basis(Vec3.UnitY);
-            var rz = SurfaceMath.Basis(Vec3.UnitZ);
-            return
-            [
-                new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz),
-                new(c, Vec3.UnitX, _rx, 1, rx.u, size), new(c, Vec3.UnitY, _ry, 1, ry.u, size), new(c, Vec3.UnitZ, _rz, 1, rz.u, size),
-            ];
-        }
-    }
-    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    public override IReadOnlyList<HandleSpec> Handles => [];
+    public override HandleSpec? Handle => null;
+    /// <summary>A component's place is a position and an orientation: the one shared gizmo, arrows and rings, riding on the typed move.</summary>
+    public override GizmoSpec? Gizmo => Centre(out _) is not { } c ? null
+        : GizmoSpec.At(c + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz, _rx, _ry, _rz);
 
     static Xform Rot(Vec3 axis, double deg)
     {
