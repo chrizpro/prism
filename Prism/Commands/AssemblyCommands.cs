@@ -101,7 +101,7 @@ public sealed class JointCommand : Command
 {
     readonly JointType _type;
     readonly SelectionSlot _a, _b;
-    readonly ChoiceParam? _placement;
+    readonly ChoiceParam _placement;
     readonly ChoiceParam _flip;
     readonly BoolParam _limits;
     readonly NumberParam _min, _max, _min2, _max2;
@@ -112,7 +112,9 @@ public sealed class JointCommand : Command
         _a = Slot(new SelectionSlot { Label = "On the first part (face, circle edge or round face)", Caption = "First part (reference)", Filter = SelFilter.Face | SelFilter.Edge });
         _b = Slot(new SelectionSlot { Label = "On the part that moves", Caption = "Second part", Filter = SelFilter.Face | SelFilter.Edge });
         _flip = Choice("Direction", 0, "Automatic", "Flip", "Do not flip");
-        if (type == JointType.Rigid) _placement = Choice("Placement", 0, "Snap to picks", "As Positioned");
+        // Snap moves the second part onto the first pick; Keep leaves both parts where they stand (the axis still comes from the first pick),
+        // so a part never jumps inside or away from the other one when the picks are not the mating faces
+        _placement = Choice("Placement", 0, "Snap to picks", type == JointType.Rigid ? "As Positioned" : "Keep where it is");
         _limits = Check("Limit the motion", false);
         bool ang = type is JointType.Revolute or JointType.Cylindrical or JointType.Ball;
         _min = Num(ang ? "Minimum angle" : "Minimum travel", ang ? -90 : 0, -1e6, 1e6, 5, ang ? "°" : "mm");
@@ -129,6 +131,7 @@ public sealed class JointCommand : Command
     {
         JointType.Rigid when AsPositioned => "Pick two parts to lock their current relative positions.",
         JointType.Rigid => "Pick a face or circle on each part to snap them together. Choose As Positioned to lock two parts where they already sit.",
+        _ when AsPositioned => "Pick the axis on the first part (a circle edge, round face or flat face), then anything on the part that moves. Both parts stay where they are.",
         JointType.Revolute => "Pick a circle edge or round face (a pin and its hole) on each part (a plain body becomes a part when you pick it). The second turns about that axis.",
         JointType.Slider => "Pick a face on each part (a plain body becomes a part when you pick it). The second slides along the direction of the picked face's normal (or a round feature's axis).",
         JointType.Ball => "Pick a point (a circle centre or a face) on each part (a plain body becomes a part when you pick it). The second pivots about that point: spin about the picked axis and tilt away from it.",
@@ -140,13 +143,15 @@ public sealed class JointCommand : Command
     {
         if (_min == null) return;
         _flip.IsVisible = !AsPositioned;
-        _a.Filter = _b.Filter = AsPositioned ? SelFilter.Solid : SelFilter.Face | SelFilter.Edge;
+        bool rigidInPlace = AsPositioned && _type == JointType.Rigid;
+        _a.Filter = rigidInPlace ? SelFilter.Solid : SelFilter.Face | SelFilter.Edge;
+        _b.Filter = rigidInPlace ? SelFilter.Solid : AsPositioned ? SelFilter.Face | SelFilter.Edge | SelFilter.Solid : SelFilter.Face | SelFilter.Edge;
         _min.IsVisible = _max.IsVisible = _limits.Value && _type != JointType.Rigid;
         _min2.IsVisible = _max2.IsVisible = _limits.Value && _type is JointType.Cylindrical or JointType.Ball or JointType.Planar;
     }
 
     // what Build worked out, shown in the viewport
-    bool AsPositioned => _placement?.Index == 1;
+    bool AsPositioned => _placement.Index == 1;
     Xform? _frameA, _frameB, _axisFrame;
     (Vec3 at, string label)? _labelA, _labelB;
 
@@ -181,7 +186,8 @@ public sealed class JointCommand : Command
                 throw new FormatException($"Pick a flat face, a circular edge or a round face on the {which} part.");
             return WorldFrame(frame);
         }
-        var Aw = AsPositioned ? parent.Component.Placement : Frame(_a.Items[0], "first");
+        // Rigid in place: the parent's own frame. Any other joint in place: the axis from the first pick, and the child keeps its position (its frame is the same world frame).
+        var Aw = AsPositioned && _type == JointType.Rigid ? parent.Component.Placement : Frame(_a.Items[0], "first");
         var Bw = AsPositioned ? Aw : Frame(_b.Items[0], "second");
         bool flip = !AsPositioned && (_flip.Index switch { 1 => true, 2 => false, _ => Vec3.Dot(Aw.AxisZ, Bw.AxisZ) < 0 });
         // where the child frame sits relative to the parent frame right now: used to keep the part's turn about the axis
@@ -228,7 +234,7 @@ public sealed class JointCommand : Command
         }
         _labelA = ShowRole(parent!, 1, "First part");
         _labelB = ShowRole(child!, 2, "Second part");
-        if (AsPositioned) Results.Add(new ResultLine("Placement", "Keep current relative position"));
+        if (AsPositioned) Results.Add(new ResultLine("Placement", "Both parts stay where they are"));
         else Results.Add(new ResultLine("Direction", j.Flip ? "flipped (faces meet)" : "same direction"));
         foreach (var note in notes) Results.Add(new ResultLine("Solver", note));
         if (_type != JointType.Rigid)

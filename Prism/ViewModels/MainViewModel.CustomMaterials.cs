@@ -81,9 +81,10 @@ public sealed partial class MainViewModel
             { AppSettings.Current.CustomMaterials.Remove(m); CustomMaterialStatus = "Could not save custom materials to this computer. Check disk space and permissions."; return; }
             MaterialSearch = ""; MaterialCategoryIndex = MaterialCategories.Count - 1;
             RefreshMaterialFamilies();
-            SelectedMaterialRow = MaterialList.First(r => r.Material.Id == m.Id);
+            _materialListRefreshing = true;      // saving shows the new material; it is not applied until it is clicked
+            try { SelectedMaterialRow = MaterialList.First(r => r.Material.Id == m.Id); } finally { _materialListRefreshing = false; }
             EditingCustomMaterial = false;
-            CustomMaterialStatus = "Saved on this computer · User-defined — not verified by Prism. Select Apply to assign it.";
+            CustomMaterialStatus = "Saved on this computer · User-defined — not verified by Prism. Click it in the list or press Apply to assign it.";
         }
         catch (Exception e) when (e is ArgumentException or FormatException or OverflowException)
         { CustomMaterialStatus = e is FormatException or OverflowException ? "Enter valid numbers with a decimal point; only yield may be NaN." : e.Message; }

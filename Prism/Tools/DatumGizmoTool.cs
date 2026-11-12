@@ -61,7 +61,12 @@ public sealed class DatumGizmoTool : IViewportTool
     /// <summary>Binds targets so the gizmo moves them. A single datum target hands its frame to the gizmo directly.</summary>
     public void BindTargets(CadSession s, IEnumerable<SelItem> items)
     {
-        var added = items.Where(t => TargetCenter(s, t) != null).ToList();
+        var wanted = items.Where(t => TargetCenter(s, t) != null).ToList();
+        // parts held by a joint or grounded are not free to drag: say why instead of silently doing nothing on the drag
+        var held = wanted.Where(t => t.Kind != SelKind.Datum && s.Find(t.Obj) is { } o && s.WhyPartIsHeld(o) != null).ToList();
+        foreach (var t in held) s.Say(s.WhyPartIsHeld(s.Find(t.Obj)!)!, true);
+        var added = wanted.Except(held).ToList();
+        if (added.Count == 0 && held.Count > 0) { s.RaiseState(); s.Invalidate(); return; }
         _targets.AddRange(added.Where(t => !_targets.Contains(t)));
         if (_targets.Count == 0) { _applied = Frame; return; }
         if (_targets.Count == 1 && _targets[0].Kind == SelKind.Datum && s.DatumOf(_targets[0]) is { } datum)

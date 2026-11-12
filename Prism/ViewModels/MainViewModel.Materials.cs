@@ -137,7 +137,14 @@ public sealed partial class MainViewModel
         RefreshMaterialList();
     }
     partial void OnMaterialSortIndexChanged(int value) => RefreshMaterialList();
-    partial void OnSelectedMaterialRowChanged(MaterialRow? value) { ShowMaterial(value?.Material); RefreshRibbon(); }
+    bool _materialListRefreshing;
+    partial void OnSelectedMaterialRowChanged(MaterialRow? value)
+    {
+        ShowMaterial(value?.Material); RefreshRibbon();
+        // picking a material in the list is applying it: the finishes on the Appearance page work the same way, so nothing is left "chosen but not applied"
+        if (value != null && !_materialListRefreshing && !_syncingLook && TargetsForLook() is { Count: > 0 } targets && targets.Any(t => t.Material?.Id != value.Material.Id))
+            ApplyMaterial(value.Material);
+    }
     partial void OnLookMetalChanged(double value) { PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
     partial void OnLookGlossChanged(double value) { OnPropertyChanged(nameof(LookRoughness)); PushLook(); OnPropertyChanged(nameof(ActiveFinishPreset)); }
 
@@ -177,10 +184,15 @@ public sealed partial class MainViewModel
             _ => $"{m.Density:0.##} g/cm³  ·  {m.Ultimate:0.#} MPa",
         };
         var keep = SelectedMaterialRow?.Material.Id;
-        MaterialList.Clear();
-        foreach (var m in q) MaterialList.Add(new MaterialRow { Material = m, Summary = Sum(m) });
-        MatResultCount = $"{MaterialList.Count} material{(MaterialList.Count == 1 ? "" : "s")}";
-        SelectedMaterialRow = MaterialList.FirstOrDefault(r => r.Material.Id == keep);
+        _materialListRefreshing = true;
+        try
+        {
+            MaterialList.Clear();
+            foreach (var m in q) MaterialList.Add(new MaterialRow { Material = m, Summary = Sum(m) });
+            MatResultCount = $"{MaterialList.Count} material{(MaterialList.Count == 1 ? "" : "s")}";
+            SelectedMaterialRow = MaterialList.FirstOrDefault(r => r.Material.Id == keep);
+        }
+        finally { _materialListRefreshing = false; }
     }
 
     MatPropLine Line(string label, double v, string unit, Func<Material, double> f, string hint, string fmt = "#,0.##")
@@ -315,7 +327,7 @@ public sealed partial class MainViewModel
         SelectedSurface = objs.FirstOrDefault()?.Look.Surface ?? new();
         OnPropertyChanged(nameof(AppearanceStatus));
         _syncingLook = false;
-        MatTarget = objs.Count == 0 ? "Nothing selected. Click a body, then press Apply." : objs.Count == 1 ? $"Applies to: {objs[0].Name}" : $"Applies to {objs.Count} objects";
+        MatTarget = objs.Count == 0 ? "Nothing selected. Click a body, then click a material (or press Apply)." : objs.Count == 1 ? $"Click a material to apply it to {objs[0].Name}" : $"Click a material to apply it to {objs.Count} objects";
         var names = objs.Select(o => o.Material?.DisplayName).Distinct().ToList();
         AssignedText = objs.Count == 0 ? "No selection" : names.Count == 1 && names[0] != null ? $"Assigned: {names[0]}" : names.Count > 1 ? "Assigned: mixed materials" : "No material assigned";
         var actual=objs.FirstOrDefault()?.Material;

@@ -62,9 +62,9 @@ public sealed partial class MainViewModel
             {
                 string? previous = _lastPanelContext;
                 _lastPanelContext = context;
-                if (context is "sketch" or "command" or "datum")
+                if (context is "sketch" or "command" or "datum" or "simulation")
                 { _panelBeforeOperation = SelectedRightPanel; SelectedRightPanel = "context"; }
-                else if (previous is "sketch" or "command" or "datum" && SelectedRightPanel == "context" && _openRightPanels.Contains(_panelBeforeOperation))
+                else if (previous is "sketch" or "command" or "datum" or "simulation" && SelectedRightPanel == "context" && _openRightPanels.Contains(_panelBeforeOperation))
                     SelectedRightPanel = _panelBeforeOperation;
             }
             string content = RightPanelContentId;

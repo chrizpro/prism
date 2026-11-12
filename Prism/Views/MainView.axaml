@@ -209,28 +209,58 @@
 
 
 
-        <!-- ============ status bar ============ -->
-
-        <Border DockPanel.Dock="Bottom" IsVisible="{Binding Session.Work.HasTasks}" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,7">
-            <ItemsControl ItemsSource="{Binding Session.Work.Items}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="core:OperationProgress">
-                        <Grid ColumnDefinitions="170,*,180,Auto" Margin="0,3">
-                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0"/>
-                            <ProgressBar Grid.Column="2" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Height="5" VerticalAlignment="Center"/>
-                            <Button Grid.Column="3" Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Margin="10,0,0,0" Padding="10,3"/>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
+        <!-- ============ status bar (context text · running work, JetBrains-style · right-hand widgets) ============ -->
 
         <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
 
                 <TextBlock Name="BottomContext" Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                <!-- running work: one compact chip for the latest job; the count button lists every job -->
+                <ContentControl Grid.Column="1" IsVisible="{Binding Session.Work.HasTasks}" Content="{Binding Session.Work}" Margin="12,0" VerticalAlignment="Center">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="core:OperationTracker">
+                            <Border Name="WorkChip" Padding="8,2" CornerRadius="6" Background="{DynamicResource HoverBg}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <ContentControl Content="{Binding Current}" VerticalAlignment="Center">
+                                        <ContentControl.ContentTemplate>
+                                            <DataTemplate x:DataType="core:OperationProgress">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="12" Classes="faint" MaxWidth="260" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <ProgressBar Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Width="110" Height="4" MinHeight="4" VerticalAlignment="Center"/>
+                                                    <Button Classes="ghost" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="5,1" ToolTip.Tip="Stop this job" AutomationProperties.Name="Stop running work">
+                                                        <TextBlock Text="■" FontSize="9" VerticalAlignment="Center"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ContentControl.ContentTemplate>
+                                    </ContentControl>
+                                    <Button Classes="ghost" Padding="5,1" IsVisible="{Binding HasMore}" ToolTip.Tip="Show every running job" AutomationProperties.Name="Show all running work">
+                                        <TextBlock Text="{Binding MoreText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <Button.Flyout>
+                                            <Flyout Placement="Top">
+                                                <ItemsControl ItemsSource="{Binding Items}" MinWidth="420">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="core:OperationProgress">
+                                                            <Grid ColumnDefinitions="150,*,140,Auto" Margin="0,4" ColumnSpacing="8">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                <ProgressBar Grid.Column="2" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Height="4" MinHeight="4" VerticalAlignment="Center"/>
+                                                                <Button Grid.Column="3" Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,2"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
 
                 <StackPanel Name="StatusRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
 

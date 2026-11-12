@@ -12,7 +12,14 @@ public sealed partial class OperationTracker : ObservableObject
 {
     public ObservableCollection<OperationProgress> Items { get; } = [];
     public bool HasTasks => Items.Count > 0;
-    public OperationTracker() => Items.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTasks));
+    /// <summary>The job the status bar chip shows: the most recently started one.</summary>
+    public OperationProgress? Current => Items.Count > 0 ? Items[^1] : null;
+    public bool HasMore => Items.Count > 1;
+    public string MoreText => Items.Count > 1 ? $"+{Items.Count - 1}" : "";
+    public OperationTracker() => Items.CollectionChanged += (_, _) =>
+    {
+        OnPropertyChanged(nameof(HasTasks)); OnPropertyChanged(nameof(Current)); OnPropertyChanged(nameof(HasMore)); OnPropertyChanged(nameof(MoreText));
+    };
     public OperationProgress Begin(string title, Action? cancel = null)
     {
         var operation = new OperationProgress(this, title, cancel);

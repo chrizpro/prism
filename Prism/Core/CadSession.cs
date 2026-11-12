@@ -1377,7 +1377,7 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand != null)
         {
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
-            var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; return true; }
+            var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; BeginHandleDrag(hl[i], p); return true; }
             if (TryBeginRegion(p)) return true;
             if (TryBeginClickDrag(p)) return true;
             ClickAt(p);
@@ -1415,13 +1415,44 @@ public sealed partial class CadSession : ObservableObject
 
     public static Vec3 HandleTip(HandleSpec h) => h.Ref is { } r ? h.Origin + Assembly.JointVisuals.Rotate(r.Normalized(), h.Dir, h.Param.Value) * h.Radius : h.Origin + h.Dir.Normalized() * (h.Param.Value / h.Mul);
 
+    /// <summary>Shortest arrow drawn for a sliding handle, in pixels: a value of 0 (Move X/Y/Z, offsets) must still show a grabbable stub along its axis instead of collapsing onto the origin dot.</summary>
+    public const double HandleStubPixels = 36;
+
+    /// <summary>Where the handle's grip is drawn and hit-tested: the value's position, or a short stub along the axis when the value is near zero.</summary>
+    public Vec3 HandleGrip(HandleSpec h)
+    {
+        if (h.Ref != null) return HandleTip(h);
+        double along = h.Param.Value / h.Mul, stub = Camera.PixelSizeAt(h.Origin) * HandleStubPixels;
+        if (!double.IsFinite(along) || Math.Abs(along) >= stub) return HandleTip(h);
+        return h.Origin + h.Dir.Normalized() * (along < 0 ? -stub : stub);
+    }
+
     bool HandleHit(HandleSpec h, double px, double py)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return false;
-        var a = Camera.Project(h.Origin); var b = Camera.Project(HandleTip(h)); if (a == null || b == null) return false;
+        var a = Camera.Project(h.Origin); var b = Camera.Project(HandleGrip(h)); if (a == null || b == null) return false;
         var (_, d) = Picking.SegDist(px, py, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
         double dt = Math.Sqrt((b.Value.x - px) * (b.Value.x - px) + (b.Value.y - py) * (b.Value.y - py));
         return dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8;
+    }
+
+    double _handleGrabOffset;     // value minus the pointer's position along the arrow at press, so a drag moves the value by exactly how far the pointer moved
+
+    /// <summary>The pointer's position along a sliding handle's axis (in the parameter's units), or null when the view looks straight along it.</summary>
+    double? HandleParamAt(HandleSpec h, PointerInfo p)
+    {
+        var (o, d) = Camera.Ray(p.X, p.Y);
+        var A = h.Dir.Normalized(); var w0 = h.Origin - o;
+        double b = Vec3.Dot(A, d), dd = Vec3.Dot(A, w0), e = Vec3.Dot(d, w0), den = 1 - b * b;
+        if (Math.Abs(den) < 1e-4) return null;                       // looking straight along the arrow: no way to tell how far
+        return (b * e - dd) / den * h.Mul;
+    }
+
+    void BeginHandleDrag(HandleSpec h, PointerInfo p)
+    {
+        _handleGrabOffset = 0;
+        if (h.Ref != null) return;
+        if (HandleParamAt(h, p) is { } at) _handleGrabOffset = h.Param.Value - at;
     }
 
     void DragHandle(HandleSpec h, PointerInfo p)
@@ -1441,11 +1472,8 @@ public sealed partial class CadSession : ObservableObject
             h.Param.Value = p.Alt ? asked : Math.Round(asked / aStep) * aStep;           // the value stops at the joint's limits by itself
             Invalidate(); return;
         }
-        var A = h.Dir.Normalized(); var w0 = h.Origin - o;
-        double b = Vec3.Dot(A, d), dd = Vec3.Dot(A, w0), e = Vec3.Dot(d, w0), den = 1 - b * b;
-        if (Math.Abs(den) < 1e-4) return;                       // looking straight along the arrow: no way to tell how far
-        double t = (b * e - dd) / den;                          // distance along the arrow axis nearest the pointer
-        double v = t * h.Mul, step = Camera.PixelSizeAt(HandleTip(h)) * 4;
+        if (HandleParamAt(h, p) is not { } at) return;
+        double v = at + _handleGrabOffset, step = Camera.PixelSizeAt(HandleGrip(h)) * 4;
         double snap = step > 5 ? 5 : step > 1 ? 1 : step > 0.2 ? 0.5 : 0.1;       // coarse when zoomed out, fine when zoomed in
         if (p.Ctrl) snap = 0.01;
         if (GizmoSettings.Current.Snap) snap = h.Param.Unit == "°" ? GizmoSettings.Current.AngleStep : GizmoSettings.Current.MoveStep;
@@ -1525,14 +1553,16 @@ public sealed partial class CadSession : ObservableObject
             double hs = Camera.PixelSizeAt(h.Origin) * 70;
             Assembly.JointVisuals.Range(o, h.Origin, h.Dir, null, hs, h.Param.Min / h.Mul, h.Param.Max / h.Mul, h.Param.Value / h.Mul);
         }
-        var tip = HandleTip(h); var A = h.Dir.Normalized();
+        var tip = HandleGrip(h); var A = h.Dir.Normalized();
         uint col = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
         double ps = Camera.PixelSizeAt(tip);
+        bool stub = h.Ref == null && (tip - HandleTip(h)).Length > 1e-9;
         o.AddDot(h.Origin, col, 7);
         o.AddLine(h.Origin, tip, col, GizmoSettings.Current.Stroke + (_handleDrag || _handleHover ? 1.5f : 0));
         // arrow head: a small cone at the tip pointing the way the value grows
         double factor = GizmoSettings.Current.Pixels / 96;
         double len = ps * 14 * factor * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 5 * factor;
+        if (stub) o.AddLine(h.Origin, tip, (col & 0x00FFFFFF) | 0x60000000, GizmoSettings.Current.Stroke + 3);   // a value of zero: the stub is tinted so it reads as "nothing yet, pull me"
         var u = Math.Abs(A.Z) < 0.9 ? Vec3.Cross(A, Vec3.UnitZ).Normalized() : Vec3.Cross(A, Vec3.UnitX).Normalized();
         var v = Vec3.Cross(A, u); var apex = tip + A * len; const int n = 14;
         for (int i = 0; i < n; i++)
