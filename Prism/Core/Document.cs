@@ -114,9 +114,9 @@ public sealed class SceneObject
     public SceneObject WithForm(SubdMesh f) => new(Id, Name, null, ObjKind.Form, Color, Visible, null, f, null, Look);
 }
 
-public enum SelKind { Object, Face, Edge, Origin, Datum }
+public enum SelKind { Object, Face, Edge, Origin, Datum, Entity }
 
-public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index)
+public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index, int Index2 = 0)
 {
     public static SelItem Of(SceneObject o) => new(o.Id, SelKind.Object, -1);
 }

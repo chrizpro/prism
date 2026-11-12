@@ -15,7 +15,7 @@ namespace Prism.Core;
 /// </summary>
 public sealed partial class CadSession
 {
-    sealed record SelItemDto(Guid Obj, int Kind, int Index);
+    sealed record SelItemDto(Guid Obj, int Kind, int Index, int Index2 = 0);
     sealed record RecipeDto(string Key, string Title, List<string?> Values, List<List<SelItemDto>> Slots, Dictionary<int, string>? Expressions);
     sealed record RemovedDto(int Index, ObjDto Object);
     sealed record StepDto(string Label, string Icon, string? Pin, RecipeDto? Recipe, List<DocumentParameter> Parameters, List<Guid> Added, List<ObjDto> Modified, List<RemovedDto> Removed, string? DrawingState = null);
@@ -46,7 +46,7 @@ public sealed partial class CadSession
         {
             string key = CommandCatalog.KeyOf(r.Make());
             if (CommandCatalog.Find(key) == null) return null;           // not a command that can be found again, so the step is kept without its recipe
-            return new RecipeDto(key, r.Title, [.. r.Values.Select(EncodeValue)], [.. r.Slots.Select(s => s.Select(i => new SelItemDto(i.Obj, (int)i.Kind, i.Index)).ToList())], r.Expressions is { Count: > 0 } ? new(r.Expressions) : null);
+            return new RecipeDto(key, r.Title, [.. r.Values.Select(EncodeValue)], [.. r.Slots.Select(s => s.Select(i => new SelItemDto(i.Obj, (int)i.Kind, i.Index, i.Index2)).ToList())], r.Expressions is { Count: > 0 } ? new(r.Expressions) : null);
         }
         catch (Exception) { return null; }
     }
@@ -54,7 +54,7 @@ public sealed partial class CadSession
     static FeatureRecipe? DtoToRecipe(RecipeDto? r)
     {
         if (r == null || CommandCatalog.Find(r.Key) is not { } make) return null;
-        try { return new FeatureRecipe(make, r.Title, [.. r.Values.Select(DecodeValue)], [.. r.Slots.Select(s => s.Select(i => new SelItem(i.Obj, (SelKind)i.Kind, i.Index)).ToList())], r.Expressions == null ? null : new(r.Expressions)); }
+        try { return new FeatureRecipe(make, r.Title, [.. r.Values.Select(DecodeValue)], [.. r.Slots.Select(s => s.Select(i => new SelItem(i.Obj, (SelKind)i.Kind, i.Index, i.Index2)).ToList())], r.Expressions == null ? null : new(r.Expressions)); }
         catch (Exception) { return null; }
     }
 

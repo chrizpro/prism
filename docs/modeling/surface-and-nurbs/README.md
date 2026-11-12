@@ -32,7 +32,6 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 - **Surfaces:** Control Grid, Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
 - **Shape:** Edit Points, Sculpt, Rebuild Surface, Warp (direct buttons)
 - **Detail:** Add Detail, Raise Degree
-- **Convert:** Convert to NURBS
 - **Continuity:** Match Surface, Check Seam
 - **Finish:** Sew, Unsew, Thicken, Trim, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
 - **Combine:** Union, Subtract, Intersect — the same BooleanCommand as Solid and Home; it accepts solids and surfaces (SFC-H006)
@@ -69,6 +68,7 @@ Approved and shipped on 2026-11-12:
 - **Enclosed Body is on the NURBS tab** under Finish (SFC-H005), matching its Surface > Modify placement.
 - **Combine (Union / Subtract / Intersect) is on every modeling tab** — Home, Solid, Surface, NURBS and Sheet Metal (SFC-H006). `BooleanCommand` accepts `SelFilter.Solid | SelFilter.SurfaceObj` for base and tools, so it works on surfaces as well as solids; surface Union and solid×surface Intersect build in the running app, while subtracting open surfaces reports "Boolean operation failed" as expected for open geometry. **Freeform intentionally omits Combine** (SFC-H007): Catmull-Clark cages do not survive exact booleans; Convert to NURBS first, then combine.
 - **Additive/subtractive NURBS modeling**: Trim/Untrim is the subtractive path on open surfaces and Combine is the additive path once sheets sew or enclose into bodies.
+- **Convert to NURBS is off the NURBS tab** (owner direction 2026-11-12): the tab is already NURBS geometry, so the group carried no work there. It remains on Surface and Freeform, where it converts their outputs.
 
 ## Feature requirement reviews
 

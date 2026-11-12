@@ -896,7 +896,6 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Detail",
                     Btn("Add\nDetail", "add-detail", () => FreeformActions.AddDetail(Session), "Insert knots so the selected curve/surface has more control points without changing its shape.", RibbonSize.Large, hasSel),
                     Btn("Raise\nDegree", "raise-degree", () => FreeformActions.RaiseDegree(Session), "Increase the polynomial degree for smoother, more flexible surfaces.", RibbonSize.Large, hasSel)),
-                G("Convert", Btn("Convert to\nNURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session), "Convert the selection to editable NURBS geometry.", RibbonSize.Large, hasSel)),
                 G("Finish",
                     Cmd("Sew", "knit", () => new SewCommand(), "Sew (stitch) surfaces together; closed shells become solids."),
                     Cmd("Unsew", "unstitch", () => new UnstitchCommand(), "Take a sewn shell, or just some of its faces, apart into separate surfaces."),

@@ -338,7 +338,9 @@ public static class ProfileUtil
             var fr = s.FaceFrame(item);
             return (face, fr?.normal ?? Vec3.UnitZ);
         }
-        var sh = item.Kind == SelKind.Edge ? s.ShapeOf(item)! : obj.Shape;
+        var sh = item.Kind is SelKind.Edge or SelKind.Entity
+            ? s.ShapeOf(item) ?? throw new KernelException("A curve the profile used no longer exists.")
+            : obj.Shape;
         Shape prof;
         if (item.Kind == SelKind.Object && obj.SketchData is { Sections.Count: > 0 } document && obj.SketchPlane is { } root)
         {

@@ -287,7 +287,30 @@ public abstract partial class Command : ObservableObject
         }).ToList();
         var expressions = Params.Select((p, i) => (p, i)).Where(x => x.p is NumberParam { Formula.Length: > 0 })
             .ToDictionary(x => x.i, x => ((NumberParam)x.p).Formula);
-        return new FeatureRecipe(Factory, Title, values, [.. Slots.Select(s => s.Items.ToList())], expressions);
+        return new FeatureRecipe(Factory, Title, values, [.. Slots.Select(CaptureItems)], expressions);
+    }
+
+    /// <summary>Profile picks freeze to the sketch entities they resolve to, so curves added to the sketch later are not silently pulled into the feature.</summary>
+    List<SelItem> CaptureItems(SelectionSlot slot)
+    {
+        if (!slot.ProfileSelection || !slot.Items.Any(it => it.Kind == SelKind.Object)) return slot.Items.ToList();
+        var items = new List<SelItem>();
+        foreach (var it in slot.Items)
+        {
+            if (it.Kind == SelKind.Object && S.Find(it.Obj) is { Kind: ObjKind.Sketch, SketchData: { } sd })
+            {
+                int before = items.Count;
+                for (int sec = 0; sec <= sd.Sections.Count; sec++)
+                {
+                    var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+                    foreach (var e in model.Entities)
+                        if (!e.Construction) items.Add(new SelItem(it.Obj, SelKind.Entity, e.Id, sec));
+                }
+                if (items.Count == before) items.Add(it);
+            }
+            else items.Add(it);
+        }
+        return items;
     }
 
     /// <summary>Fill the picks and numbers from a recipe. Picks of objects that were remade since are translated through <paramref name="map"/>.</summary>
@@ -300,7 +323,8 @@ public abstract partial class Command : ObservableObject
             {
                 if (Slots[i].ProfileSelection && r.Slots[i].Any(it => it.Kind == SelKind.Edge)) Slots[i].SelectionRuleIndex = 1;
                 Slots[i].Items.Clear();
-                foreach (var it in r.Slots[i]) Slots[i].TryAdd(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
+                // recipes restore verbatim: pick-time caps and de-duplication are for picking, not for what was captured
+                foreach (var it in r.Slots[i]) Slots[i].Items.Add(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
             }
             for (int i = 0; i < Params.Count && i < r.Values.Count; i++)
             {

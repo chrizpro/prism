@@ -524,6 +524,7 @@ public sealed partial class CadSession : ObservableObject
             case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
             case SelKind.Face: return f.HasFlag(SelFilter.Face);
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
+            case SelKind.Entity: return (f.HasFlag(SelFilter.Edge) || f.HasFlag(SelFilter.SketchObj)) && Find(it.Obj) is { Kind: ObjKind.Sketch };
             case SelKind.Origin: return it.Index < 3 ? f.HasFlag(SelFilter.Plane) : it.Index < 6 && f.HasFlag(SelFilter.Axis);
             default:
                 var o = Find(it.Obj);
@@ -551,8 +552,21 @@ public sealed partial class CadSession : ObservableObject
         {
             SelKind.Face => o.Shape.Sub(SubKind.Face, it.Index),
             SelKind.Edge => o.Shape.Sub(SubKind.Edge, it.Index),
+            SelKind.Entity => EntityShapeOf(o, it),
             _ => o.Shape,
         };
+    }
+
+    /// <summary>The curve of one sketch entity bound by an Entity pick (Index = entity id, Index2 = section, 0 for the root plane).</summary>
+    static Shape? EntityShapeOf(SceneObject o, SelItem it)
+    {
+        if (o.SketchData is not { } sd || o.SketchPlane is not { } root) return null;
+        Sketching.SketchModel model; Plane3 plane;
+        if (it.Index2 <= 0) { model = sd; plane = root; }
+        else if (it.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[it.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
+        else return null;
+        var e = model.EntityOrNull(it.Index);
+        return e == null || e.Construction ? null : model.ShapeOf(e, plane);
     }
 
     public string Describe(SelItem it)
@@ -561,7 +575,7 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return OriginNames[Math.Clamp(it.Index, 0, 6)];
         var o = Find(it.Obj);
         if (o == null) return "?";
-        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", _ => o.Name };
+        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
     }
 
     /// <summary>Polyline of a picked edge (from the tessellation), in order.</summary>
@@ -1222,6 +1236,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial bool SketchOk { get; set; } = true;
     public event Action? SketchChanged;
     HistoryNode? _sketchEditSource, _sketchReturnNode, _sketchRebuildEnd;
+    IReadOnlyList<PreviewItem>? _sketchSavedContext;
 
     public void NotifySketchChanged()
     {
@@ -1291,8 +1306,24 @@ public sealed partial class CadSession : ObservableObject
         }
         _sketchRebuildEnd = _sketchEditSource == null ? null : RebuildEndFor(_sketchEditSource, Current);
         if (_sketchEditSource != null) { GoTo(_sketchEditSource); DocumentParameters = _sketchRebuildEnd!.Parameters; }
+        if (_sketchReturnNode is { } back)
+        {
+            // Rolling back drops dependent objects from the scene; show them faintly so the sketch is edited against the finished model, like editing a sketch in Fusion.
+            var present = Objects.Select(o => o.Id).ToHashSet();
+            var ghosts = back.After
+                .Where(o => o.Visible && !o.IsAnnotation && !present.Contains(o.Id) && o.Id != obj.Id)
+                .Select(ContextGhostOf).Where(g => g != null).ToList();
+            if (ghosts.Count > 0) { _sketchSavedContext = ContextItems; SetContext([.. _sketchSavedContext, .. ghosts!]); }
+        }
         EnterSketch(plane, obj.SketchData.Clone(), obj.Id);
         return true;
+    }
+
+    static PreviewItem? ContextGhostOf(SceneObject o)
+    {
+        if (o.Tri is { } t) return new PreviewItem(t) { Context = true };
+        if (o.Form is { } f) return new PreviewItem(f) { Context = true };
+        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true } : null;
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
@@ -1304,6 +1335,7 @@ public sealed partial class CadSession : ObservableObject
         bool committed = false;
         sk.Tool?.Deactivate(this);
         Sketch = null;
+        if (_sketchSavedContext is { } savedCtx) { _sketchSavedContext = null; SetContext(savedCtx); }
         RestoreProjection();
         SketchStatus = "";
         if (keep && sk.HasContent)
