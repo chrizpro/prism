@@ -421,9 +421,10 @@ public sealed partial class CadSession : ObservableObject
 
     public void DeleteSelection()
     {
-        // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body
+        // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body.
+        // Faces of a surface: Delete removes just those faces and leaves the gap.
         var faces = _selection.Where(i => i.Kind == SelKind.Face).ToList();
-        if (faces.Count > 0 && ActiveCommand == null && Sketch == null && faces.All(f => Find(f.Obj) is { Kind: ObjKind.Solid, HasBrep: true }))
+        if (faces.Count > 0 && ActiveCommand == null && Sketch == null && faces.All(f => Find(f.Obj) is { Kind: ObjKind.Solid or ObjKind.Surface, HasBrep: true }))
         {
             var c = new DeleteFaceCommand { Factory = () => new DeleteFaceCommand() };
             StartCommand(c);

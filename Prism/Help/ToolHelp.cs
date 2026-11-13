@@ -89,6 +89,7 @@ public static partial class ToolHelp
         Commands.LinearPatternCommand => Find("pattern-linear"),
         Commands.CircularPatternCommand => Find("pattern-circular"),
         Commands.TrimSurfaceCommand => Find("surface-trim"),
+        Commands.SplitSurfaceCommand => Find("surface-split"),
         Commands.OffsetSurfaceCommand => Find("surface-offset"),
         Commands.ExtrudeCommand or Commands.LoftCommand or Commands.SweepCommand or Commands.RevolveCommand or Commands.FilletCommand or Commands.ChamferCommand => Find(command.Icon),
         // Unrelated commands share icons (Untrim and Box, Sweep and Sweep 2 rails), so an icon's topic

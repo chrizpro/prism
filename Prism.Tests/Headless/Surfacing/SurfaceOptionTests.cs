@@ -196,6 +196,7 @@ public class SurfaceOptionTests
         {
             SetSelection(command, "Surface to split", sheet);
             SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", wall);
+            SetChoice(command, "Result", "Separate surfaces");
         });
         var output = command.TryBuild();
         Assert.True(output != null, command.Error);
@@ -221,6 +222,7 @@ public class SurfaceOptionTests
         {
             SetSelection(command, "Surface to split", sheet);
             SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+            SetChoice(command, "Result", "Separate surfaces");
         });
         var output = command.TryBuild();
         Assert.True(output != null, command.Error);
@@ -230,6 +232,131 @@ public class SurfaceOptionTests
         Assert.True(a.IsValid && b.IsValid);
         AssertNear(50, a.Props().Area, "First piece area (mm²)");
         AssertNear(50, b.Props().Area, "Second piece area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H011 | Split Surface cuts along every curve of the tool when the curves cross")]
+    [Trait("TestId", "SFC-H011")]
+    public void SplitSurfaceByCrossingCurves()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var across = Occ.Polyline([new(-5, 5, 0), new(15, 5, 0)], false);
+        using var along = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var cross = vm.Session.AddObject(Occ.Compound([across, along]), "Cross", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", cross);
+            SetChoice(command, "Result", "Separate surfaces");
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var pieces = output.Add.Select(a => a.Shape!).Append(Assert.Single(output.Replace).New).ToList();
+        Assert.Equal(4, pieces.Count);
+        foreach (var piece in pieces)
+        {
+            Assert.True(piece.IsValid);
+            AssertNear(25, piece.Props().Area, "Quarter area (mm²)");
+            piece.Dispose();
+        }
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H012 | Split Surface keeps one surface with a face per piece by default")]
+    [Trait("TestId", "SFC-H012")]
+    public void SplitSurfaceIntoFaces()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        Assert.Empty(output.Add);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.True(result.IsValid);
+        Assert.Equal(2, result.Count(SubKind.Face));
+        Assert.Equal(7, result.Count(SubKind.Edge));       // the cut is one edge shared by both faces, not two coincident ones
+        AssertNear(100, result.Props().Area, "Whole area (mm²)");
+        using var half = result.Sub(SubKind.Face, 0);
+        AssertNear(50, half.Props().Area, "Face area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H013 | Delete on a selected face of a split surface removes that face only")]
+    [Trait("TestId", "SFC-H013")]
+    public void DeleteKeyRemovesSurfaceFace()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        Assert.True(command.TryBuild() != null, command.Error);
+        vm.Session.CommitCommand();
+        vm.Session.CancelCommand();
+        Assert.Equal(2, vm.Session.Find(sheet.Id)!.Shape.Count(SubKind.Face));
+
+        vm.Session.SetSelection(new SelItem(sheet.Id, SelKind.Face, 0), false);
+        vm.Session.DeleteSelection();
+
+        var left = vm.Session.Find(sheet.Id);
+        Assert.NotNull(left);
+        Assert.Equal(ObjKind.Surface, left.Kind);
+        Assert.Equal(1, left.Shape.Count(SubKind.Face));
+        AssertNear(50, left.Shape.Props().Area, "Remaining area (mm²)");
+        Assert.NotNull(vm.Session.Find(line.Id));
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses an open surface as the tool and leaves both objects")]
+    [Trait("TestId", "SFC-H014")]
+    public void SubtractRefusesSurfaceTool()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var wallEdge = Occ.Polyline([new(5, -5, -5), new(5, 15, -5), new(5, 15, 15), new(5, -5, 15)], true);
+        var wall = vm.Session.AddObject(Occ.Profile([wallEdge], true), "Wall", ObjKind.Surface);
+        var command = new BooleanCommand(BooleanCommand.Kind.Subtract);
+        vm.Session.StartCommand(command);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Body to cut from", sheet);
+            SetSelection(command, "Tool bodies", wall);
+        });
+        Assert.Null(command.TryBuild());
+        Assert.Contains("no inside", command.Error);
+        vm.Session.CancelCommand();
+        Assert.NotNull(vm.Session.Find(wall.Id));
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H015 | Intersect of surfaces that do not meet fails instead of leaving an empty object")]
+    [Trait("TestId", "SFC-H015")]
+    public void IntersectRefusesEmptyResult()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var boundary = Occ.Polyline([new(0, 0, 20), new(10, 0, 20), new(10, 10, 20), new(0, 10, 20)], true);
+        var above = vm.Session.AddObject(Occ.Profile([boundary], true), "Above", ObjKind.Surface);
+        var command = new BooleanCommand(BooleanCommand.Kind.Intersect);
+        vm.Session.StartCommand(command);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Base body", sheet);
+            SetSelection(command, "Other bodies", above);
+        });
+        Assert.Null(command.TryBuild());
+        Assert.Contains("do not overlap", command.Error);
+        vm.Session.CancelCommand();
     }
 
     [AvaloniaTheory(DisplayName = "SFC-H009 | Mirror launches from the shared Transform group on modeling tabs")]

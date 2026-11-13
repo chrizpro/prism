@@ -183,6 +183,8 @@ public static partial class ToolHelp
                 // ---- surfaces ----
                 case "surface-trim":
                     return new(Marked(K(Sheet(-16, 16)), K(Mv(Occ.Box(0.3, 30, 14), 4, 0, -4)), b), Plain(K(Sheet(-16, 4)), a));
+                case "surface-split":
+                    return new(Marked(K(Sheet(-16, 16)), K(Mv(Occ.Box(0.3, 30, 14), 4, 0, -4)), b), Plain(K(Join([Sheet(-16, 3.4), Sheet(4.6, 16)])), a));
                 case "surface-offset":
                     return new(Plain(K(Sheet(-16, 16)), b), Marked(K(Sheet(-16, 16)), K(Sheet(-16, 16, 4)), a));
                 case "thicken":

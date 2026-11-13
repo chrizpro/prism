@@ -1322,9 +1322,14 @@ public sealed class BooleanCommand : Command
         var target = S.Find(_target.Items[0].Obj)!;
         var tools = _tools.Items.Select(i => S.Find(i.Obj)!).Where(t => t.Id != target.Id).Distinct().ToList();
         if (tools.Count == 0) return null;
+        // an open surface has no inside: subtracting it removes nothing (and used to delete the tool and report success)
+        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface))
+            throw new FormatException("A surface has no inside to cut away. Subtract a solid, or cut with the surface using Trim, Split Surface or Split Body.");
         var res = target.Shape;
         foreach (var t in tools)
             res = _kind switch { Kind.Union => Occ.Fuse(res, t.Shape), Kind.Subtract => Occ.Cut(res, t.Shape), _ => Occ.Common(res, t.Shape) };
+        if (res.Count(SubKind.Face) == 0)
+            throw new FormatException(_kind == Kind.Intersect ? "Those bodies do not overlap, so nothing would be left." : "Nothing would be left of the body.");
         var o = new CommandOutput();
         o.Replace.Add((target, res));
         if (!_keep.Value) o.Remove.AddRange(tools);

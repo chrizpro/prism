@@ -87,21 +87,24 @@ public sealed class TrimSurfaceCommand : Command
     }
 }
 
-/// <summary>Cut a surface in two (or more) along a plane, face, surface, solid or curve and keep every piece as its own surface.</summary>
+/// <summary>Cut a surface in two (or more) along a plane, face, surface, solid or curve. The pieces stay faces of the one surface, or each becomes its own surface.</summary>
 public sealed class SplitSurfaceCommand : Command
 {
     readonly SelectionSlot _target, _tool;
+    readonly ChoiceParam _result;
 
     public SplitSurfaceCommand()
     {
         _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj });
         _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, sketch, curve or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge });
+        _result = Choice("Result", 0, "One surface, several faces", "Separate surfaces");
+        _result.HelpText = "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color.";
     }
 
     public override string Title => "Split Surface";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. Every piece becomes its own surface.";
+    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.";
 
     protected override CommandOutput? Build()
     {
@@ -113,6 +116,14 @@ public sealed class SplitSurfaceCommand : Command
         int n = pieces.Count(SubKind.Face);
         if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not split the surface. A plane, face, surface or solid must cross it completely; a sketch or curve splits along its projection on the surface.");
         var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
+        if (_result.Index == 0)
+        {
+            // one surface: the faces stay joined along the cut, so Thicken, Sew and analysis loads see them as one body
+            var faces = Enumerable.Range(0, n).Select(i => pieces.Sub(SubKind.Face, i)).ToList();
+            o.Replace.Add((obj, Occ.Sew(faces, 0.01, false)));
+            Results.Add(new ResultLine("Faces", $"{obj.Shape.Count(SubKind.Face)}  →  {n}"));
+            return o;
+        }
         o.Replace.Add((obj, pieces.Sub(SubKind.Face, 0)));
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Face, i), "Split piece", ObjKind.Surface));
         Results.Add(new ResultLine("Pieces", n.ToString()));
@@ -131,11 +142,27 @@ public sealed class SplitSurfaceCommand : Command
         try
         {
             var projected = S.PlaneOf(toolItem) is { } pl ? Occ.ProjectCurve(wire, target, pl.Normal, false) : Occ.ProjectCurve(wire, target, Vec3.UnitZ, true);
-            var pieces = Occ.Split(target, projected);
+            var pieces = SplitByEach(target, projected, SubKind.Edge);
             if (pieces.Count(SubKind.Face) > target.Count(SubKind.Face)) return pieces;
         }
         catch (Exception e) when (e is not OutOfMemoryException) { }
-        return Occ.Split(target, Curtain(target, wire, toolItem));
+        return SplitByEach(target, Curtain(target, wire, toolItem), SubKind.Face);
+    }
+
+    /// <summary>Split by each part of the tool in turn. The kernel does not intersect the parts of one tool with each other,
+    /// so curves that cross (two lines of one sketch) handed over together leave cuts out.</summary>
+    static Shape SplitByEach(Shape target, Shape tool, SubKind part)
+    {
+        int n = tool.Count(part);
+        if (n <= 1) return Occ.Split(target, tool);
+        var pieces = target; int done = 0;
+        for (int i = 0; i < n; i++)
+        {
+            try { pieces = Occ.Split(pieces, tool.Sub(part, i)); done++; }
+            catch (KernelException) { }   // a part that misses the surface: the others still cut
+        }
+        if (done == 0) throw new FormatException("The tool does not split the surface.");
+        return pieces;
     }
 
     Shape Curtain(Shape target, Shape wire, SelItem it)
