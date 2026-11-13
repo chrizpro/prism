@@ -85,7 +85,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     Vec3[] _dragAxes=GizmoVisual.WorldAxes;
     Plane3 _bindingStart;
     int _hotMode = -1;
-    public string Prompt => "Click a control point (Shift adds). Drag the point itself, or use the gizmo: arrows move, rings rotate (R), blocks scale (S), T for move. Set an influence radius for soft edits.";
+    public string Prompt => "Click a control point (Shift adds), or drag in empty space to select points inside a rectangle (or the lasso chosen in Select; Ctrl takes away). Drag the point itself, or use the gizmo: arrows move, rings rotate (R), blocks scale (S), T for move. Set an influence radius for soft edits.";
 
     int Mode => cmd.TransformMode.Index;     // 0 move, 1 rotate, 2 scale
 

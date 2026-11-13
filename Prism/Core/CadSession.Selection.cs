@@ -39,12 +39,14 @@ public sealed partial class CadSession
     }
 
     Action<RegionSelect.Region, PointerInfo>? _regionDone;
-    /// <summary>A tool with its own kind of selection (control points) borrows the rectangle or lasso chosen on the ribbon and gets the finished shape back.</summary>
+    /// <summary>
+    /// A tool with its own kind of selection (control points) borrows the rectangle or lasso chosen on the ribbon and gets the finished shape back.
+    /// Such a tool is always in selection mode: with no drag method armed, a drag in empty space draws a rectangle.
+    /// </summary>
     public void BeginToolRegion(PointerInfo p, Action<RegionSelect.Region, PointerInfo> done)
     {
-        if (Method == SelectMethod.Click) return;
         _regionDone = done; _regionDown = p; _regionStart = (p.X, p.Y); _regionMoved = false;
-        _region = new RegionSelect.Region { IsBox = Method == SelectMethod.Rectangle };   // a borrowed region keeps box/lasso shape; Stroke only belongs to session picking
+        _region = new RegionSelect.Region { IsBox = Method is SelectMethod.Click or SelectMethod.Rectangle };   // a borrowed region keeps box/lasso shape; Stroke only belongs to session picking
         _region.Points.Add((p.X, p.Y));
     }
 
