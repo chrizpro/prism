@@ -273,6 +273,8 @@ public sealed partial class MainViewModel
 
     public void IsolateSelected()
     {
+        // faces selected: show only those faces (a way of looking, nothing in the document changes)
+        if (Session.Selection.Any(i => i.Kind == Prism.Core.SelKind.Face)) { Session.IsolateFaces(Session.Selection); return; }
         var keep = Session.SelectedObjects.Select(o => o.Id).ToHashSet();
         if (keep.Count == 0) return;
         foreach (var o in Session.Objects.ToList()) Session.Update(o.Id, x => x.WithVisible(keep.Contains(x.Id)), checkpoint: false);
@@ -280,6 +282,7 @@ public sealed partial class MainViewModel
 
     public void ShowAll()
     {
+        Session.ClearFaceIsolation();
         foreach (var o in Session.Objects.ToList()) if (!o.Visible) Session.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
     }
 

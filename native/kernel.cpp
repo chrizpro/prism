@@ -1424,6 +1424,11 @@ CK_API void* ck_mesh_create(void* shape, double lin, double ang) {
                 if (f1.IsSame(f2)) return false;
                 auto freeform = [](const TopoDS_Face& f) { GeomAbs_SurfaceType t = BRepAdaptor_Surface(f).GetType(); return t == GeomAbs_BSplineSurface || t == GeomAbs_BezierSurface; };
                 if (!freeform(f1) || !freeform(f2)) return false;
+                // Two faces of one and the same surface were divided on purpose (Split Surface, Draw on Surface): that cut is a
+                // real edge the user must see and pick, however smooth the surface is across it.
+                TopLoc_Location l1, l2;
+                Handle(Geom_Surface) g1 = BRep_Tool::Surface(f1, l1), g2 = BRep_Tool::Surface(f2, l2);
+                if (g1 == g2 && l1 == l2) return false;
                 double f, l; Handle(Geom2d_Curve) c1 = BRep_Tool::CurveOnSurface(e, f1, f, l);
                 double g, m2; Handle(Geom2d_Curve) c2 = BRep_Tool::CurveOnSurface(e, f2, g, m2);
                 if (c1.IsNull() || c2.IsNull()) return false;

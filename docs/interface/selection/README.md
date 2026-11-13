@@ -14,6 +14,30 @@ In a multi-plane sketch everything visible is pickable: curves on inactive drawi
 
 **Selected datums show in the viewport (2026-11-07, bug fix).** A datum has no mesh, so the body highlight never reached it: a selected datum showed in the Browser but looked unchanged in the viewport, whether picked by click or by drag. Selected datums, and those picked into an open command's slots, are now drawn orange with heavier lines and a larger dot, and the hovered one blue ([SOL-H106](../../../Prism.Tests/Headless/Solid/RegionSelectionKindsTests.cs)).
 
+## Isolate faces
+
+**Status: owner direction 2026-11-12; implemented; checked in the running app on Windows the same day.**
+
+**Isolate** (View tab) with whole objects selected hides every other object, as before. With **faces** selected it shows only those faces: the other faces of the same bodies and every other solid, surface, form and mesh are hidden. Curves, sketches and planes stay visible as references. A whole object selected together with faces keeps all its faces. **Show All** brings everything back.
+
+- It is a way of looking, not an edit. Nothing in the document changes, it is not saved and it is not an undo step. Commands still work on the whole body.
+- A hidden face cannot be clicked, hovered or taken by a rectangle, lasso or paint stroke; the pick passes through to what is behind it. Only the edges that border a shown face are drawn and pickable.
+- When an isolated body changes shape its face numbers no longer mean the same faces, so that body is shown whole again.
+- Not covered: the photo render and exports ignore face isolation and use the whole body.
+
+[Face isolation checks](../../../Prism.Tests/Headless/Selection/FaceIsolationTests.cs) (`SEL-H013`-`SEL-H015`).
+
+## Selection levels on surfaces: review 2026-11-12
+
+Checked in the running app on a split NURBS surface, for the planned direct-modeling flow on surfaces. **Proposed items below await owner review.**
+
+- **Works:** Object, Face and Edge levels pick a surface, its faces and its border edges by click; Delete removes a selected surface face; Isolate takes faces.
+- **Fixed:** the edge made by splitting a smooth NURBS surface was neither drawn nor pickable, because smooth joins between freeform faces are hidden as patch seams. A cut through one and the same surface is now kept as a real edge (`SFC-H017`). Seams between different patches (a converted Freeform body) stay hidden.
+- **Gap, proposed:** there is no Vertex level for solids and surfaces. Vertex exists only for Freeform cages and sketch points.
+- **Gap, proposed:** the direct face tools stop at surfaces. Offset Face, Move Face and Merge Faces answer "works on solid bodies"; Push / Pull takes only a flat surface face and turns it into a solid. Delete Face works.
+- **Gap, proposed:** the right-click menu for a surface face offers Push / pull, Shell and Hole, which do not apply to a surface.
+- **Note:** the default Shaded display draws no edges, so a split is invisible until an edge is hovered or the display is set to shaded with edges.
+
 ## Edge selection rules in command slots
 
 Multi-pick slots that accept edges (loft sections and rails, sweep paths, surface boundaries) offer a **Select by** rule: **Single edges** (each click toggles one edge), **Connected chain** (all edges touching end-to-end, stopping at free ends and branch junctions), **Tangent chain** (the same but also stopping at corners sharper than 5°), and **Partial loop** (pick the first edge, then the last; the shorter path fills in, or **Other path** takes the longer way; a junction or disconnected end is refused and the first pick is kept for a retry). Profile slots add **Whole profile**, which picks the sketch or curve object itself rather than its edges. Hovering an edge under a chain or partial-loop rule previews every edge a click would add. Bug fix 2026-11-09 (owner report from a Loft guide-rail pick): the preview was worked out but never drawn for edges, so clicking one edge of a rectangle quietly took all four. Owner direction 2026-11-09 for the cue: the first attempt (a fainter blue) did not stand out, so the cue is now a translucent magenta halo, about 11 pixels wide and 40% opaque, laid over every edge the rule would take, the hovered one included. On the blue lines it reads as purple, and the hovered edge's heavier, full-strength blue line still shows through it, so the hovered edge and the chain are both obvious. The chain edges also replace the orange of edges already picked. The colour and strength are a first choice to tune by eye. Under **Single edges** nothing extra lights up. The selection mode also applies: in **Face** mode a slot that offers these rules offers no edges of a body (faces stay pickable where the slot takes them), while Edge and Object modes keep the rules. Correction 2026-11-09 (owner could not select text for Project Curve or Emboss): the first version also removed whole curves and sketches in Face mode. A whole curve or sketch (text, an outline) is an object, not an edge of a body, so it is pickable in every mode ([SEL-H011](../../../Prism.Tests/Headless/Selection/SelectionChainTests.cs), passed Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). The highlight is drawn in the viewport and is not covered by an automated test; objects over 2,048 edges fall back to a clear error instead of a slow search. Implemented in `Prism/Commands/SelectionChains.cs` and `SelectionSlot` (`Prism/Commands/Command.cs`).

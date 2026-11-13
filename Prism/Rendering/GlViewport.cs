@@ -452,7 +452,7 @@ public sealed unsafe class GlViewport : Decorator
         U1(_mesh, "uDraftSin", (float)Math.Sin(s.DraftMin * Math.PI / 180));
         U1(_mesh, "uCurvRange", (float)s.CurvRange);
 
-        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.Result?.Covers(o.Id) != true && o.Id != s.Sketch?.EditingId).ToList();   // a sketch being edited is drawn by the editor, not twice
+        var visible = s.Objects.Where(o => o.Visible && !s.HiddenIds.Contains(o.Id) && s.ShownByIsolation(o) && s.Result?.Covers(o.Id) != true && o.Id != s.Sketch?.EditingId).ToList();   // a sketch being edited is drawn by the editor, not twice
         var usedMaps=visible.SelectMany(o=>new[]{o.Look.Surface?.ColorMap,o.Look.Surface?.RoughnessMap,o.Look.Surface?.BumpMap,o.Look.Surface?.DecalMap}).Where(d=>d!=null).SelectMany(d=>new[]{d!,d+"!a"}).ToHashSet();
         foreach(var key in _surfaceTex.Keys.Where(k=>!usedMaps.Contains(k)).ToArray()){gl.DeleteTexture(_surfaceTex[key]);_surfaceTex.Remove(key);}
         bool fineShading = s.Zebra || s.Analysis == CadSession.AnalysisKind.Curvature;
@@ -486,7 +486,16 @@ public sealed unsafe class GlViewport : Decorator
                 U1(_mesh, "uField", 0);
                 continue;
             }
-            DrawFaces(gl, Upload(fineShading ? o.FineMesh : o.Mesh), o.Color, o.Kind == ObjKind.Surface ? 0xFF8FC9DB : o.Color, faceAlpha, (0, 0, 0, 0), 0, -1);
+            var drawn = fineShading ? o.FineMesh : o.Mesh;
+            if (s.ShownFaces(o) is { } shownFaces)
+            {
+                // isolated faces: only their triangle ranges are drawn
+                var buffers = Upload(drawn);
+                foreach (int f in shownFaces)
+                    if (f + 1 < drawn.FaceTriStart.Length) DrawFaces(gl, buffers, o.Color, o.Kind == ObjKind.Surface ? 0xFF8FC9DB : o.Color, faceAlpha, (0, 0, 0, 0), drawn.FaceTriStart[f], drawn.FaceTriStart[f + 1] - drawn.FaceTriStart[f]);
+                continue;
+            }
+            DrawFaces(gl, Upload(drawn), o.Color, o.Kind == ObjKind.Surface ? 0xFF8FC9DB : o.Color, faceAlpha, (0, 0, 0, 0), 0, -1);
         }
         // selection / hover tint (faces)
         gl.PolygonOffset(-0.5f, -0.5f);
@@ -503,9 +512,10 @@ public sealed unsafe class GlViewport : Decorator
                 if (o.Tri != null && s.Fields.TryGetValue(o.Id, out var fld2) && ReferenceEquals(fld2.Source, o.Tri)) continue;
                 var g = Upload(o.Mesh); var (r, gg, b, _) = C(col); _look = (o.Look.Metal, o.Look.Gloss);
                 SetSurface(gl,o);
-                if (hl.Object) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount * 0.7f), 0, -1);
-                foreach (var f in hl.Faces)
-                    if (f + 1 < o.Mesh.FaceTriStart.Length) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount), o.Mesh.FaceTriStart[f], o.Mesh.FaceTriStart[f + 1] - o.Mesh.FaceTriStart[f]);
+                var tintOnly = s.ShownFaces(o);
+                if (hl.Object && tintOnly == null) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount * 0.7f), 0, -1);
+                foreach (var f in hl.Object && tintOnly != null ? tintOnly : hl.Faces)
+                    if (f + 1 < o.Mesh.FaceTriStart.Length && tintOnly?.Contains(f) != false) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount), o.Mesh.FaceTriStart[f], o.Mesh.FaceTriStart[f + 1] - o.Mesh.FaceTriStart[f]);
             }
         }
         gl.Disable(EnableCap.PolygonOffsetFill);
@@ -524,7 +534,14 @@ public sealed unsafe class GlViewport : Decorator
             {
                 case ObjKind.Solid or ObjKind.Surface:
                     if (mode == DisplayMode.Shaded) break;
-                    DrawEdges(gl, g, 0, g.SegCount, mode == DisplayMode.Wireframe ? (0.75f, 0.86f, 1f, 1f) : (0.10f, 0.12f, 0.16f, 0.95f), mode == DisplayMode.Wireframe ? 1.6f * scale : 1.45f * scale, 0.00025f);
+                    var bodyEdge = mode == DisplayMode.Wireframe ? (0.75f, 0.86f, 1f, 1f) : (0.10f, 0.12f, 0.16f, 0.95f); float bodyWidth = mode == DisplayMode.Wireframe ? 1.6f * scale : 1.45f * scale;
+                    if (s.ShownEdges(o) is { } shownEdges)
+                    {
+                        foreach (int e in shownEdges)
+                            if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], bodyEdge, bodyWidth, 0.00025f);
+                        break;
+                    }
+                    DrawEdges(gl, g, 0, g.SegCount, bodyEdge, bodyWidth, 0.00025f);
                     break;
                 case ObjKind.Form or ObjKind.Mesh:
                     if(o.Kind==ObjKind.Form && s.ActiveCommand is Prism.Commands.EditFormCommand {ShowTriangles:false})break;
@@ -554,6 +571,11 @@ public sealed unsafe class GlViewport : Decorator
                     {
                         EnsureTriangleEdges(gl,m,g);var (red,green,blue,_) = C2(col);
                         DrawEdges(gl,g,0,g.TriangleSegments,(red,green,blue,0.85f),1.2f*scale,0.0012f,g.TriangleEdgeVbo);
+                    }
+                    else if (s.ShownEdges(o) is { } outline)
+                    {
+                        foreach (int e in outline)
+                            if (e + 1 < m.EdgeSegStart.Length) DrawEdges(gl, g, m.EdgeSegStart[e], m.EdgeSegStart[e + 1] - m.EdgeSegStart[e], C2(col), wd * scale, 0.0012f);
                     }
                     else DrawEdges(gl, g, 0, g.SegCount, C2(col), wd * scale, 0.0012f);
                 }

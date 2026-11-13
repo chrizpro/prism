@@ -408,6 +408,31 @@ public class SurfaceOptionTests
         return (wall, corner, border);
     }
 
+    [AvaloniaFact(DisplayName = "SFC-H017 | The cut made by splitting a smooth NURBS surface is an edge that is drawn and can be picked")]
+    [Trait("TestId", "SFC-H017")]
+    public void SplitEdgeOfSmoothSurfaceIsDrawn()
+    {
+        var vm = new MainViewModel();
+        var grid = Occ.NurbsSurface([Vec3.Zero, new(10, 0, 0), new(0, 10, 0), new(10, 10, 0)], 2, 2, 1, 1);
+        var patch = vm.Session.AddObject(grid, "Patch", ObjKind.Surface);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", patch);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        Assert.True(command.TryBuild() != null, command.Error);
+        vm.Session.CommitCommand();
+        var mesh = vm.Session.Find(patch.Id)!.Mesh;
+        Assert.Equal(2, mesh.FaceCount);
+        Assert.Equal(7, mesh.EdgeCount);
+        // smooth joins between different patches are hidden as seams; a cut through one surface must not be
+        for (int e = 0; e < mesh.EdgeCount; e++)
+            Assert.True(mesh.EdgeSegStart[e + 1] > mesh.EdgeSegStart[e], $"Edge {e + 1} has no drawn segments");
+    }
+
     [AvaloniaTheory(DisplayName = "SFC-H009 | Mirror launches from the shared Transform group on modeling tabs")]
     [InlineData("Solid")]
     [InlineData("Surface")]

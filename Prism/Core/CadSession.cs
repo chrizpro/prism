@@ -857,9 +857,9 @@ public sealed partial class CadSession : ObservableObject
         bool wantFaces = filter.HasFlag(SelFilter.Face) || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
         // while a command is collecting picks its preview hides the original bodies; they stay pickable so more edges, faces or spots can be added
         bool picking = ActiveCommand?.ActiveSlot != null;
-        var vis = Objects.Where(o => picking || !HiddenIds.Contains(o.Id)).ToList();
+        var vis = Objects.Where(o => (picking || !HiddenIds.Contains(o.Id)) && ShownByIsolation(o)).ToList();
 
-        var face = wantFaces ? Picking.RayFace(cam, vis, px, py, o => FaceEligible(o, filter)) : null;
+        var face = wantFaces ? Picking.RayFace(cam, vis, px, py, o => FaceEligible(o, filter), ShownFaces) : null;
         PickResult? fr = null;
         if (face is { } f)
         {
@@ -870,7 +870,7 @@ public sealed partial class CadSession : ObservableObject
         PickResult? er = null;
         if (wantEdges)
         {
-            var e = Picking.NearestEdge(cam, vis, px, py, Picking.EdgeTolerancePx, o => EdgeEligible(o, filter));
+            var e = Picking.NearestEdge(cam, vis, px, py, Picking.EdgeTolerancePx, o => EdgeEligible(o, filter), ShownEdges);
             if (e is { } ee)
             {
                 // Edge-flagged slots want per-curve granularity: a clicked sketch curve or curve object yields its edge, not the whole object.
