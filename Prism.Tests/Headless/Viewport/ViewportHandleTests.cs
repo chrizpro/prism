@@ -42,6 +42,28 @@ public class ViewportHandleTests
         }
     }
 
+    [AvaloniaFact(DisplayName = "HDL-H033 | Dragging the edge of a hole in the viewport resizes it, even when the hole is small")]
+    [Trait("TestId", "HDL-H033")]
+    public void HoleResizesByDraggingItsEdge()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 40, 40, 10);
+        session.Camera.Width = 800; session.Camera.Height = 600; session.Camera.SetView(0, 90); session.Camera.Fit(new(0, 0, 0), new(40, 40, 10));
+        var hole = Begin(session, () => new HoleCommand());
+        hole.ConfigureInputs(() => SetSelection(hole, hole.Slots[0].Label, body));
+        var diameter = hole.Params.OfType<NumberParam>().Single(p => p.Label == "Diameter");
+        diameter.Value = 6;
+        (double x, double y) Screen(double dx) { var p = session.Camera.Project(new Vec3(20 + dx, 20, 10))!.Value; return (p.x, p.y); }
+        var rim = Screen(3);                                       // the edge of a 6 mm hole sits only a few pixels from its centre dot
+        session.PointerDown(new PointerInfo(rim.x, rim.y, true, false, false, false));
+        var to = Screen(9);
+        session.PointerMove(new PointerInfo(to.x, to.y, true, false, false, false));
+        session.PointerUp(new PointerInfo(to.x, to.y, false, false, false, false));
+        AssertClose(18, diameter.Value, 0.6, "Hole diameter after dragging the edge out to a 9 mm radius (mm)");
+        var overlay = new Overlay(); session.BuildOverlay(overlay);
+        Assert.NotEmpty(overlay.Dots);                             // the circle is drawn with the centre dot
+    }
+
     [AvaloniaFact(DisplayName = "HDL-H001 | Box shows three dimension arrows and the shared gizmo for its position")]
     [Trait("TestId", "HDL-H001")]
     public void BoxDimensionArrows()

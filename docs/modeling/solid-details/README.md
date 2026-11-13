@@ -1,6 +1,6 @@
 # Solid feature details and body edits
 
-Rib fills the web between a straight sketch line and the body it meets (a gusset in a corner, `SOL-H109`), with thickness across the sketch plane; Reverse switches to the other side of the line, and "Fixed height" grows the lines by a set height instead (`SOL-H036`). Emboss joins a raised planar profile or cuts an engraving. Hole drills from a face or body with extent and thread options. Fillet and Chamfer dress selected edges. Shell offsets walls and can open selected faces. Draft tilts walls about a neutral plane. Split Body keeps the pieces as separate bodies.
+Rib fills the web between a straight sketch line and the body it meets (a gusset in a corner, `SOL-H109`), with thickness across the sketch plane; Reverse switches to the other side of the line, and "Fixed height" grows the lines by a set height instead (`SOL-H036`). Emboss joins a raised planar profile or cuts an engraving. Hole drills from a face or body with extent and thread options; the circle drawn for the hole can be dragged in the viewport to set its diameter (`HDL-H033`, owner report 2026-11-13). Fillet and Chamfer dress selected edges. Shell offsets walls and can open selected faces. Draft tilts walls about a neutral plane. Split Body keeps the pieces as separate bodies.
 
 ## Review and verification
 
