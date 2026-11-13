@@ -379,11 +379,12 @@ public sealed class RibCommand : Command
 {
     readonly SelectionSlot _profile, _body;
     readonly NumberParam _thickness, _height;
-    readonly ChoiceParam _direction, _placement;
+    readonly ChoiceParam _direction, _placement, _extent;
     readonly BoolParam _reverse;
 
     public RibCommand()
     {
+        _extent = Choice("Rib extends", 0, "Up to the body (fills the web)", "Fixed height");
         _profile = Slot(new SelectionSlot { Label = "Rib sketch", Filter = SelFilter.SketchObj });
         _body = Slot(new SelectionSlot { Label = "Target body", Filter = SelFilter.Solid });
         _thickness = Num("Thickness", 2, 0.001, 1e5);
@@ -391,10 +392,70 @@ public sealed class RibCommand : Command
         _direction = Choice("Height direction", 0, "Sketch vertical", "Sketch horizontal");
         _placement = Choice("Thickness placement", 0, "Centered on sketch", "Positive side", "Negative side");
         _reverse = Check("Reverse height direction", false);
+        _extent.Changed = () => { UpdateVisibility(); OnChanged(); };
+        UpdateVisibility();
     }
     public override string Title => "Rib";
     public override string Icon => "rib";
-    public override string Hint => "Select a planar sketch of open rib lines and a solid body. The lines grow in the sketch plane by the chosen height, then gain thickness across the plane. The rib must touch the body; reverse the height direction if needed.";
+    public override string Hint => "Select a planar sketch of straight rib lines and a solid body. By default the rib fills the web between each line and the body, like a gusset in a corner, and gains thickness across the sketch plane; Reverse switches to the other side of the line. Choose Fixed height to grow the lines in the sketch plane by a set height instead. The rib must touch the body.";
+
+    protected override void UpdateVisibility()
+    {
+        bool fixedHeight = _extent.Index == 1;
+        _height.IsVisible = _direction.IsVisible = fixedHeight;
+        _reverse.Caption = fixedHeight ? "Reverse height direction" : "Reverse side";
+        base.UpdateVisibility();
+    }
+
+    /// <summary>The web between each straight line and the body: a slab beyond the line is cut by the body and the pieces that touch the drawn line are kept, on whichever side closes up against the body (the smaller one) unless reversed.</summary>
+    Shape? FillToBody(Shape profile, SceneObject body, Plane3 plane)
+    {
+        var bb = body.Mesh; double reach = (bb.Max - bb.Min).Length * 2 + 10;
+        var normal = plane.Normal;
+        double shift = _placement.Index == 0 ? -_thickness.Value / 2 : _placement.Index == 2 ? -_thickness.Value : 0;
+        Shape? total = null;
+        for (int e = 0; e < profile.Count(SubKind.Edge); e++)
+        {
+            using var edge = profile.Sub(SubKind.Edge, e);
+            var pts = edge.Tessellate().EdgePoints;
+            if (pts.Length < 6) continue;
+            var a = new Vec3(pts[0], pts[1], pts[2]); var b = new Vec3(pts[^3], pts[^2], pts[^1]);
+            var d = (b - a); if (d.Length < 1e-9) continue; d = d.Normalized();
+            for (int i = 0; i + 2 < pts.Length; i += 3)
+            {
+                var q = new Vec3(pts[i], pts[i + 1], pts[i + 2]) - a;
+                if ((q - d * Vec3.Dot(q, d)).Length > 1e-4) throw new KernelException("Up to the body needs straight rib lines. Use Fixed height for curved ones.");
+            }
+            var side = Vec3.Cross(normal, d).Normalized();
+            using var probe = Occ.Vertex((a + b) * 0.5 + normal * (shift + _thickness.Value / 2));
+            var options = new List<(Shape shape, double vol)>();
+            foreach (double sign in new[] { 1.0, -1.0 })
+            {
+                var o = side * sign * reach;
+                using var quad = Occ.Polyline([a - d * reach, b + d * reach, b + d * reach + o, a - d * reach + o], true);
+                using var face = Occ.Profile([quad], true);
+                using var moved = Occ.Translate(face, normal * shift);
+                using var slab = Occ.Extrude(moved, normal * _thickness.Value);
+                using var rest = Occ.Cut(slab, body.Shape);
+                Shape? kept = null; double vol = 0;
+                for (int i = 0; i < rest.Count(SubKind.Solid); i++)
+                {
+                    var piece = rest.Sub(SubKind.Solid, i);
+                    if (Occ.Distance(piece, probe).Distance > 1e-3) { piece.Dispose(); continue; }
+                    vol += piece.Props().Volume;
+                    if (kept == null) kept = piece; else { var fused = Occ.Fuse(kept, piece); kept.Dispose(); piece.Dispose(); kept = fused; }
+                }
+                if (kept != null) options.Add((kept, vol));
+            }
+            if (options.Count == 0) throw new KernelException("That line does not meet the body, so there is nothing to fill. Draw it so both ends touch the body.");
+            // the side that closes up against the body is the smaller piece; Reverse takes the other one
+            var chosen = options.Count == 1 ? options[0] : (_reverse.Value ? options.MaxBy(x => x.vol) : options.MinBy(x => x.vol));
+            foreach (var o in options) if (!ReferenceEquals(o.shape, chosen.shape)) o.shape.Dispose();
+            var best = chosen.shape;
+            total = total == null ? best : Occ.Fuse(total, best);
+        }
+        return total;
+    }
 
     protected override CommandOutput? Build()
     {
@@ -405,6 +466,19 @@ public sealed class RibCommand : Command
         var body = S.Find(_body.Items[0].Obj) ?? throw new KernelException("The target body no longer exists.");
         if (body.Kind != ObjKind.Solid) throw new KernelException("Choose a solid target body.");
         var (profile, _) = ProfileUtil.Resolve(S, _profile, false);
+        if (_extent.Index == 0)
+        {
+            using var web = FillToBody(profile, body, plane) ?? throw new KernelException("The sketch has no lines to build a rib from.");
+            var joined = Occ.Fuse(body.Shape, web);
+            if (!joined.IsValid || joined.Count(SubKind.Solid) != 1 || joined.Props().Volume <= body.Shape.Props().Volume + 1e-8)
+            {
+                joined.Dispose();
+                throw new KernelException("The rib must add material and join the target into one solid. Draw the line so it meets the body at both ends.");
+            }
+            var made = new CommandOutput { Label = "Rib", Icon = "rib" };
+            made.Replace.Add((body, joined));
+            return made;
+        }
         var dir = (_direction.Index == 0 ? plane.V : plane.U).Normalized() * (_reverse.Value ? -1 : 1);
         var normal = plane.Normal;
         double shift = _placement.Index == 0 ? -_thickness.Value / 2 : _placement.Index == 2 ? -_thickness.Value : 0;

@@ -145,8 +145,8 @@ public class SharedToolTests
         AssertBounds(curve, new Vec3(0, 0, 3), new Vec3(4, 5, 3));
     }
 
-    [AvaloniaFact(DisplayName = "SOL-H090 | Intersection Curve given two flat curves makes their shared 3D curve without a mode switch")]
-    [Trait("TestId", "SOL-H090")]
+    [AvaloniaFact(DisplayName = "SOL-H108 | Intersection Curve given two flat curves makes their shared 3D curve without a mode switch")]
+    [Trait("TestId", "SOL-H108")]
     public void IntersectionCurveTakesTwoCurvesDirectly()
     {
         var session = new CadSession();
