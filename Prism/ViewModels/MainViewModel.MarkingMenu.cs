@@ -41,7 +41,7 @@ public sealed partial class MainViewModel
                     Act("Cancel", "cancel", () => s.CancelCommandPanel()), null, Act("Fit view", "zoom-extents", () => s.ZoomExtents()), null];
         var sel = s.Selection;
         if (sel.Count == 0) return EmptyMarking();
-        if (sel[0].Kind == SelKind.Face) return FaceMarking();
+        if (sel[0].Kind == SelKind.Face) return s.Find(sel[0].Obj) is { Kind: ObjKind.Surface } ? SurfaceFaceMarking() : FaceMarking();
         if (sel[0].Kind == SelKind.Edge) return EdgeMarking();
         var objs = s.SelectedObjects.ToList();
         if (objs.Count == 0) return EmptyMarking();
@@ -90,6 +90,14 @@ public sealed partial class MainViewModel
         var s = Session;
         return [Cm("Push / pull", "pushpull", () => new PushPullCommand()), Cm("Create sketch", "sketch", () => new CreateSketchCommand()), Cm("Shell", "shell", () => new ShellCommand()), Act("Look at", "look-at", () => s.LookAtSelection()),
                 Cm("Delete face", "deleteface", () => new DeleteFaceCommand()), Cm("Hole", "pcb-hole", () => new HoleCommand()), Cm("Measure", "measure", () => new MeasureCommand()), Cm("Edit feature", "movehole", () => new FeatureEditCommand())];
+    }
+
+    /// <summary>A face of a surface: the edits that apply to a sheet (a solid's Push / pull, Shell and Hole do not).</summary>
+    IReadOnlyList<MarkItem?> SurfaceFaceMarking()
+    {
+        var s = Session;
+        return [Cm("Offset face", "pushpull", () => new OffsetFaceCommand()), Cm("Move face", "moveface", () => new MoveFaceCommand()), Cm("Draw on surface", "curve-through", () => new DrawOnSurfaceCommand()), Act("Delete face", "deleteface", () => s.DeleteSelection()),
+                null, Act("Isolate", "isolate", IsolateSelected), Cm("Measure", "measure", () => new MeasureCommand()), Cm("Thicken", "thicken", () => new ThickenCommand())];
     }
 
     IReadOnlyList<MarkItem?> EdgeMarking() =>

@@ -78,7 +78,7 @@ public class RibbonHelpTests
         Assert.Equal("Untrim", Title("Surface", "Untrim"));
         Assert.Equal("Thicken Form", Title("Freeform", "Thicken"));
         Assert.Equal("Freeform Cylinder", Title("Freeform", "Cylinder"));
-        Assert.Equal("Isocurves", Title("Surface", "Isocurves"));
+        Assert.Equal("Isocurves", ToolHelp.Find(vm.Tabs.Single(t => t.Title == "Surface").Buttons.Single(b => b.Id == "menu:curves").Menu!.First(b => b.Label == "Isocurves").ExampleIcon)!.Title);   // inside the Curves dropdown since 2026-11-13
         Assert.Equal("Mesh Refinement", Title("Static", "Mesh refinement"));
         // Sweep 2 rails shares the sweep icon but not its one-path instructions.
         Assert.Null(ToolHelp.ForCommand(new SweepTwoRailsCommand()));

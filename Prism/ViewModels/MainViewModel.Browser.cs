@@ -268,6 +268,8 @@ public sealed partial class MainViewModel
 
     public void HideSelected()
     {
+        // faces picked on a body that is not itself selected: hide those faces (kept in the document)
+        if (Session.AppearanceFaces().Count > 0) { Session.HideFaces(); return; }
         foreach (var o in Session.SelectedObjects.ToList()) Session.Update(o.Id, x => x.WithVisible(false), checkpoint: false);
     }
 
@@ -283,6 +285,7 @@ public sealed partial class MainViewModel
     public void ShowAll()
     {
         Session.ClearFaceIsolation();
+        if (Session.AnyHiddenFaces) { var keep = Session.Selection.ToList(); Session.SelectItems([]); Session.ShowHiddenFaces(); Session.SelectItems(keep); }
         foreach (var o in Session.Objects.ToList()) if (!o.Visible) Session.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
     }
 

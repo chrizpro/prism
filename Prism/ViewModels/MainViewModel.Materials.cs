@@ -272,7 +272,43 @@ public sealed partial class MainViewModel
     }
 
     // ------------------------------------------------------------ apply
-    List<SceneObject> TargetsForLook() => Session.SelectedObjects.Where(o => o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form).ToList();
+    /// <summary>
+    /// The bodies the Appearance page edits. A body picked only through some of its faces stands in as a copy wearing the look of the first such face,
+    /// so every reader of the page shows what the faces look like; <see cref="UpdateLook"/> writes an edit back onto those faces.
+    /// </summary>
+    List<SceneObject> TargetsForLook()
+    {
+        var faces = Session.AppearanceFaces();
+        return Session.SelectedObjects.Where(o => o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form)
+            .Select(o => faces.TryGetValue(o.Id, out var list) && list.Count > 0 ? FaceProxy(o, list[0]) : o).ToList();
+    }
+
+    static SceneObject FaceProxy(SceneObject o, int face)
+    {
+        var (color, look) = CadSession.EffectiveLook(o, face);
+        return o.WithColor(color).WithLook(look);
+    }
+
+    /// <summary>True when the Appearance page is editing faces rather than whole bodies.</summary>
+    public bool EditingFaces => Session.AppearanceFaces().Count > 0;
+
+    /// <summary>Apply a look edit to one body, or, when only some of its faces are selected, to those faces: what the edit changes becomes the face's own color or finish.</summary>
+    void UpdateLook(Guid id, Func<SceneObject, SceneObject> edit, string label)
+    {
+        var faces = Session.AppearanceFaces();
+        if (!faces.TryGetValue(id, out var list)) { Session.Update(id, edit, label: label); return; }
+        Session.EditFaceStyles(new() { [id] = list }, (o, style) =>
+        {
+            var current = style.Color != null || style.Look != null ? o.WithColor(style.Color ?? o.Color).WithLook(style.Look ?? o.Look) : o;
+            var after = edit(current);
+            var look = after.Look with { MaterialId = null, PhysicalSnapshot = null };
+            return style with
+            {
+                Color = after.Color != current.Color ? after.Color : style.Color,
+                Look = !Equals(after.Look, current.Look) ? look : style.Look,
+            };
+        }, label);
+    }
 
     public void ApplyMaterial(Material? m = null)
     {
@@ -289,6 +325,7 @@ public sealed partial class MainViewModel
     {
         var targets = TargetsForLook().Where(o => o.Look.MaterialId != null).ToList();
         if (targets.Count == 0) { Session.Say("The selection has no material.", true); return; }
+        if (EditingFaces) { Session.Say("Faces carry no material of their own; the material belongs to the body."); return; }
         foreach (var o in targets) Session.Update(o.Id, x => x.WithLook(x.Look with { MaterialId = null, PhysicalSnapshot = null }), label: "Remove material");
         SyncLook();
     }

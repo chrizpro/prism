@@ -16,10 +16,9 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 
 - **Select, Datum:** shared sections
 - **References:** Create Sketch, Construction Plane
-- **Curves:** Curve, Curve from Data, Intersection Curve, Project, Isocurves, Contour, Duplicate Edge
+- **Curves:** one dropdown with every curve tool that works outside a sketch (see [Curves dropdown](#curves-dropdown))
 - **Create:** Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
-- **Modify:** Trim, Split Surface, Sew, More (Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
-- **Edit curves:** Fillet / Chamfer, Offset, Blend, Join, Explode, Trim, Extend, Rebuild, Divide
+- **Modify:** Trim, Split Surface, More (Fillet / Chamfer, Sew, Offset, Thicken, Unsew, Untrim, Extend, Reverse Normal, Enclosed Body, Flatten / Refold, Warp)
 - **Convert:** Convert to NURBS
 - **Combine:** Union, Subtract, Intersect (SFC-H006)
 - **Transform, Inspect, Appearance:** shared sections (Transform includes Mirror — it accepts any object, so surfaces mirror directly; SFC-H009)
@@ -28,14 +27,22 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 
 - **Select, Datum:** shared sections
 - **References:** Create Sketch (K), Construction Plane
-- **Curves, Edit curves:** same as Surface
+- **Curves:** same dropdown as Surface
 - **Surfaces:** Control Grid, Extrude, Revolve, Sweep (dropdown with Pipe), Loft, Boundary Surface
 - **Shape:** Edit Points, Sculpt, Rebuild Surface, Warp (direct buttons)
 - **Detail:** Add Detail, Raise Degree
 - **Continuity:** Match Surface, Check Seam
-- **Finish:** Sew, Unsew, Thicken, Trim, Split Surface, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
+- **Finish:** Sew, Unsew, Thicken, Trim, Split Surface, Fillet / Chamfer, Untrim, Extend, Reverse Normal, Offset, Enclosed Body
 - **Combine:** Union, Subtract, Intersect — the same BooleanCommand as Solid and Home; it accepts solids and surfaces (SFC-H006)
 - **Transform, Inspect, Appearance:** shared sections (Transform includes Mirror — surfaces mirror directly; SFC-H009)
+
+## Curves dropdown
+
+Owner direction 2026-11-13: the ribbons were busy and the curve tools are used less than the surface tools, so the Curves and Edit curves groups became **one Curves dropdown** on Home, Solid, Surface, NURBS and Freeform (CRV-H034, SEL-H020). It is one level deep and holds Curve, Curve from Data, Intersection Curve, Project, Draw on Surface, Isocurves, Contour (the four that read from surfaces are left out on Solid and Freeform), then Blend, Join, Explode, Extract Edges, Trim, Extend, Offset, Rebuild and Points Along Curve.
+
+- **Flat curves are edited in the sketch.** The Sketch tab already has its own Fillet, Chamfer, Offset, Trim and Extend, which work while a sketch is open and keep its constraints. The tools in the dropdown are for curves outside a sketch: 3D curves, curves drawn on a surface, and edges.
+- **Fillet / Chamfer** sits with the surface tools on Surface (Modify) and NURBS (Finish), because its main job there is rounding the edges of a surface; it still takes flat curves. On Home, Solid and Freeform it is in the Curves dropdown.
+- Layouts customized before this change keep working: the old per-tab menu names resolve to the same tools.
 
 ## One tool, several jobs
 
@@ -80,9 +87,58 @@ Approved and shipped on 2026-11-12:
 - **Draw on Surface can split the face along the drawn curve** (SKT-H057 to SKT-H059), so a cut line can be drawn in place without a sketch. Details are in the [sketch guide](../sketches/README.md#drawing-directly-on-a-surface).
 - **The cut of a split is a real edge** (SFC-H017, fixed 2026-11-12): on a smooth NURBS surface the new edge was hidden as a patch seam, so it could not be seen or picked. It is now drawn and pickable. See the [selection review](../../interface/selection/README.md#selection-levels-on-surfaces-review-2026-11-12).
 - **Isolate with faces selected shows only those faces** ([selection guide](../../interface/selection/README.md#isolate-faces)).
-- **Not available:** a color per face. Appearance is stored per object, so differently colored regions need the Separate surfaces result. Per-face color would be a new feature and has not been proposed in detail.
+- **Not available yet:** a color per face. Appearance is stored per object, so differently colored regions need the Separate surfaces result. A proposal is in [Faces as first-class things](#faces-as-first-class-things-proposed-2026-11-13).
 - **Mirror was already on Surface, NURBS, Solid and Freeform** via the shared Transform group (SFC-H009); `TransformCommand` accepts any object kind, so surfaces mirror without conversion. Freeform additionally keeps its cage-level "Mirror and weld" under Symmetry.
 - **Freeform has no Split Surface or Split Body equivalent, deliberately**: splitting a Catmull-Clark form's baked shape would sever the cage↔surface link and leave a dumb surface. The path is Convert to NURBS, then split — the same reason Combine stays off Freeform.
+
+## Faces as first-class things (proposed 2026-11-13)
+
+**Owner decisions 2026-11-13:** first delivery is the face-identity foundation plus items 1 to 3 (color per face, Select Same, Hide / Show faces); solids as well as surfaces; hide is a saved edit; a face carries the full finish; settings with no successor face are dropped with a message; analysis loads move onto the same face identity (the owner places loads by splitting out the face the force acts on, so they must survive edits). **Items 4 to 10 remain proposed — awaiting owner review.** Split Surface made faces real (select, Isolate, Delete). This proposes what else a user expects to do with a face. The same rules apply to faces of **solids** and **surfaces**, so the feature is not limited to split NURBS surfaces (recommendation; see open decision 2).
+
+### Foundation: a face keeps its identity
+Faces are referred to today by number only (`FaceRef(Obj, Face)` for analysis loads, Isolate and selection), and numbers change when the shape is edited. Face color and other face data would be wrong after a Split, Trim, Thicken or fillet unless faces can be followed through an edit.
+
+- **FACE-P1 (proposed):** data attached to a face (color, hidden state, name) follows that face through edits where the kernel can say which new face came from it. When a face is split, every piece inherits its data. When faces merge, the data of the largest piece wins. When a face has no successor it is dropped, and the status line says how many face settings were lost.
+- Native `.prism` save and reopen keep the data. Files without it open unchanged.
+
+### Proposed abilities, in priority order
+1. **Color per face (Appearance page).** With faces selected, the Appearance page edits those faces. Each face can carry an override of the object's look: base color first, optionally the whole finish (roughness, metal, pattern). The object's material and engineering data stay per object. **Reset** on the page removes the face override. Undo is one step per gesture. The viewport and the CPU render both show it.
+2. **Select Same:** Same color, Same surface type, Adjacent faces, Tangent chain, and Select Linked (all faces of the object). Invert and Isolate already work at the Face level.
+3. **Hide / Show faces** as an edit kept in the document (Isolate is only a view). Hidden faces are not drawn, picked, exported or rendered. Show All in the face list restores them. Open decision 3.
+4. **Extract / Detach faces** into their own surface object (the reverse of the faces result of Split Surface), and **Merge faces** back into one face where they lie on the same surface. This answers "I split, now I want separate objects" without redoing the split.
+5. **Face properties:** area, surface type, normal at the pick and boundary length shown in the status bar for one face, total area for several. Measure accepts a face.
+6. **Reverse normal for selected faces** of a surface.
+7. **Surface faces in the direct tools:** Offset Face, Move Face and Thicken on selected surface faces (the gap already noted in the [selection review](../../interface/selection/README.md#selection-levels-on-surfaces-review-2026-11-12)).
+8. **Right-click menu for a surface face** lists only what applies (Color, Isolate, Delete, Extract, Select Same), replacing Push / pull, Shell and Hole.
+9. **Names for faces** (for example "Mounting face") shown in the browser tree and usable by Simulation loads and CAM.
+10. **Export:** face colors in glTF, 3MF and STEP color attributes, and in the CPU render. Exports that cannot carry face color (STL) ignore it and say so.
+
+### Open decisions for the owner
+1. **Scope of the first delivery.** Recommend items 1, 2 and 3 plus the identity foundation; the rest as later stories.
+2. **Solids too?** Recommend yes: the mechanism is identical and users will try it on a box first.
+3. **Hide faces:** a document edit (recommended, matches CAD users' expectation) or only the view-state Isolate we have.
+4. **Color only, or the full finish per face?** Recommend the full look (it is already one `SurfaceStyle`), with the Appearance page showing "Face override" when faces are selected.
+5. **Identity limits:** accept "settings dropped with a message" when the kernel cannot map a face through an edit, rather than blocking the edit.
+6. **Existing analysis loads** use bare face numbers and share the same weakness. Move them onto the same identity in this work, or leave them for a bug story.
+
+### Delivered 2026-11-13 (owner-approved scope: foundation and items 1 to 3)
+- **Face identity (FACE-P1).** Face data is stored per face number on the object and carried through every shape edit by geometry: a new face takes the data of the old face it lies on (within 0.4% of the model size, facing the same way). A split gives each piece the data; a face with nothing under it has none. Settings with no successor are dropped and the status line says how many. A move or other change that leaves every face area equal keeps the faces in order. No kernel history is used, so a fillet or offset that merges or reshapes faces carries data by where the face now lies, which can occasionally differ from what a kernel history would say.
+- **Color and full finish per face.** With faces selected (and their body not selected as a whole) the Appearance page edits those faces: color, finish preset, metal, gloss, pattern and every layer. The page says "Editing N faces". What you change becomes the face's own value; what you leave alone keeps following the body. A body selected as a whole is still colored as a whole and leaves face settings alone. **Reset** on the page returns the selected faces to the body. Applying a library material to faces gives them its look only; the engineering material stays on the body. Solids and surfaces; Freeform and meshes are not covered.
+- **Select Same** (Select group, split button): Same Color (same effective color and finish), Adjacent (shares an edge) and Linked (the whole body), added to the current face selection.
+- **Hide faces is a saved edit.** **Hide** with faces selected hides just those faces; they are not drawn, hovered or picked, their edges not shared with a shown face disappear, and a click passes through. **Show All** brings them back. Hidden state is saved with the document and survives edits like any other face data. Isolate keeps working as a view only and combines with hidden faces.
+- **Loads and fixtures follow their faces.** A fixture or load on a face is moved to the faces that replace it after an edit (a split gives every piece the load). A study that matched its body before the edit still matches afterwards. Faces with no successor are removed from the fixture or load with a status message. This replaces the earlier behavior where the study went stale after any edit. Not covered: stored face sets and saved CAE cases still use bare face numbers and signatures.
+- **Not yet:** items 4 to 10 above; Same surface type and Tangent chain in Select Same (they need the kernel's surface types); face color in glTF, 3MF and STEP exports (the viewport and the CPU path-traced render show it, and hidden faces are left out of the render); duplicating a body does not copy face settings. Tests: [FaceStyleTests](../../../Prism.Tests/Headless/Faces/FaceStyleTests.cs) (`FACE-H001` to `FACE-H009`).
+
+**Verification 2026-11-13 (Windows workstation, Debug build, installed native libraries not rebuilt):** `Feature=Faces` Headless 9 of 9 (`FACE-H001` to `FACE-H009`); full Headless 937 of 941, the four failures being the ones that predate this work (HLP-H001, HLP-H003, SEC-H001, SOL-H089); Unit 203 of 203. **Not verified:** the viewport drawing of per-face color and the path-traced render of it have not been looked at in the running desktop app, and no viewport image is attached to an issue yet; no GitHub issue has been opened for this delivery; the work is not committed.
+
+### Acceptance criteria (draft)
+- Selecting two faces of a split surface and choosing a color changes only those two faces on screen and in a render; the rest keep the object color.
+- Splitting a colored face again gives both pieces the color. Deleting a neighbouring face does not move the color to another face.
+- Save, close and reopen keeps face colors. Undo and Redo restore them.
+- Reset on the Appearance page returns the selected faces to the object look.
+- Select Same Color picks exactly the faces that share the override.
+
+No test IDs are assigned until the owner approves the scope.
 
 ## Feature requirement reviews
 

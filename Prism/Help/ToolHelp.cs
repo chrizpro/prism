@@ -187,7 +187,7 @@ public static partial class ToolHelp
     public static string? ForButton(string tab, string icon) => icon switch
     {
         // Shared buttons: the same instance appears on several tabs, so these cannot depend on the tab.
-        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" or "sel-rect" or "sel-lasso" or "sel-invert" or "xray" or "zebra" => Find(icon)?.Icon,
+        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" or "sel-rect" or "sel-lasso" or "sel-invert" or "sel-same-color" or "sel-same-adjacent" or "sel-same-linked" or "xray" or "zebra" => Find(icon)?.Icon,
         _ => ForTabButton(tab, icon)
     };
 

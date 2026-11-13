@@ -52,9 +52,9 @@ public sealed class MeasureCommand : AnalysisCommand
     }
 
     public override string Title => "Measure";
-    public override string Hint => "Click a face, edge or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.";
+    public override string Hint => "Click a face, edge, corner point or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.";
 
-    public SelFilter Filter => PickMode.Index switch { 1 => SelFilter.AnyObject, 2 => SelFilter.Face | SelFilter.Edge, 3 => SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject, _ => SelFilter.Face | SelFilter.Edge };
+    public SelFilter Filter => PickMode.Index switch { 1 => SelFilter.AnyObject, 2 => SelFilter.Face | SelFilter.Edge | SelFilter.Vertex, 3 => SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject, _ => SelFilter.Face | SelFilter.Edge | SelFilter.Vertex };
     public bool Multi => PickMode.Index == 3;
     public bool PointMode => PickMode.Index == 2;
 
@@ -62,7 +62,7 @@ public sealed class MeasureCommand : AnalysisCommand
     {
         if (Picks.Count >= 2 && !Multi || Picks.Count >= 60) Picks.Clear();
         MeasureItem item;
-        if (PointMode || forcePoint)
+        if (PointMode || forcePoint || r.Item.Kind == SelKind.Vertex)      // a corner point is measured as the exact point it is
             item = new MeasureItem($"Point ({r.Point.X:0.##}, {r.Point.Y:0.##}, {r.Point.Z:0.##})", null, r.Point, Occ.Vertex(r.Point), true);
         else
         {

@@ -402,6 +402,9 @@ public sealed partial class CadSession : ObservableObject
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithShape(nu));
         }
+        foreach (var (old, nu) in output.Replace) if (!(output.ReplaceIsMove && old.Component != null)) CarryStudyFaces(old, list.FirstOrDefault(o => o.Id == old.Id));
+        int lostFaceStyles = list.Where(o => output.Replace.Any(r => r.Item1.Id == o.Id)).Sum(o => o.FaceStylesLost);
+        if (lostFaceStyles > 0) Say($"{lostFaceStyles} face setting{(lostFaceStyles == 1 ? "" : "s")} (color, finish or hidden) had no matching face after this edit and {(lostFaceStyles == 1 ? "was" : "were")} dropped.");
         foreach (var (old, form) in output.ReplaceForms)
         {
             int i = list.FindIndex(o => o.Id == old.Id);
@@ -454,7 +457,9 @@ public sealed partial class CadSession : ObservableObject
             CommitCommand(); ClearSelection();
             return;
         }
-        var ids = _selection.Select(s => s.Obj).Distinct().ToHashSet();
+        // a corner point is not something Delete can take away, and it must never take the whole body with it
+        if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex)) { Say("A corner point cannot be deleted on its own. Select a face, an edge or the object.", true); return; }
+        var ids = _selection.Where(i => i.Kind != SelKind.Vertex).Select(s => s.Obj).Distinct().ToHashSet();
         if (ids.Count == 0) return;
         // Datum picks remove just that entry — deleting the host object would take every sibling datum with it.
         var datums = _selection.Where(i => i.Kind == SelKind.Datum).ToList();
@@ -547,6 +552,7 @@ public sealed partial class CadSession : ObservableObject
             case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
             case SelKind.Face: return f.HasFlag(SelFilter.Face);
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
+            case SelKind.Vertex: return f.HasFlag(SelFilter.Vertex);
             case SelKind.Entity: return (f.HasFlag(SelFilter.Edge) || f.HasFlag(SelFilter.SketchObj)) && Find(it.Obj) is { Kind: ObjKind.Sketch };
             case SelKind.Origin: return it.Index < 3 ? f.HasFlag(SelFilter.Plane) : it.Index < 6 && f.HasFlag(SelFilter.Axis);
             default:
@@ -575,6 +581,7 @@ public sealed partial class CadSession : ObservableObject
         {
             SelKind.Face => o.Shape.Sub(SubKind.Face, it.Index),
             SelKind.Edge => o.Shape.Sub(SubKind.Edge, it.Index),
+            SelKind.Vertex => o.Shape.Sub(SubKind.Vertex, it.Index),
             SelKind.Entity => EntityShapeOf(o, it),
             _ => o.Shape,
         };
@@ -643,7 +650,7 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return OriginNames[Math.Clamp(it.Index, 0, 6)];
         var o = Find(it.Obj);
         if (o == null) return "?";
-        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
+        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
     }
 
     /// <summary>Polyline of a picked edge (from the tessellation), in order.</summary>
@@ -686,7 +693,7 @@ public sealed partial class CadSession : ObservableObject
                 var f = slot.PickFilter;
                 return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
             }
-            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
+            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
 
@@ -901,6 +908,8 @@ public sealed partial class CadSession : ObservableObject
         }
         PickResult? best2 = fr;
         if (er != null && (fr == null || er.Value.Depth <= fr.Value.Depth + 2e-4)) best2 = er;
+        // a corner point wins over the edge or face it sits on
+        if (filter.HasFlag(SelFilter.Vertex) && PickVertex(cam, vis, px, py) is { } vr && (best2 == null || vr.Depth <= best2.Value.Depth + 2e-4)) best2 = vr;
         foreach(var obj in Objects.Where(o=>o.Visible&&!HiddenIds.Contains(o.Id)&&o.SketchData!=null))
         for(int i=0;i<obj.SketchData!.Datums.Count;i++)
         {
@@ -1927,6 +1936,7 @@ public sealed partial class CadSession : ObservableObject
         BuildHandleOverlay(o);
         BuildCommandGizmoOverlay(o);
         BuildRegionOverlay(o);
+        BuildVertexOverlay(o);
         int toolLines = o.Lines.Count;
         ActiveTool?.BuildOverlay(this, o);
         // while construction mode is on, what is being drawn previews as a dashed reference line from the first moment, as it will look once placed
@@ -1962,7 +1972,10 @@ public sealed partial class CadSession : ObservableObject
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null,
-        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool IsMoldHalf = false);
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool IsMoldHalf = false,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] List<FaceDto>? Faces = null);
+    /// <summary>One face's own color, finish and hidden state, saved by face number.</summary>
+    sealed record FaceDto(int Face, uint? Color = null, Appearance? Look = null, bool Hidden = false);
     /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
     public string? OpeningTab { get; set; }
     /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
@@ -2007,7 +2020,18 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf,FacesToDto(o));
+
+    static List<FaceDto>? FacesToDto(SceneObject o) => o.FaceStyles == null ? null
+        : Enumerable.Range(0, o.FaceStyles.Length).Where(f => o.FaceStyles[f] is { IsEmpty: false }).Select(f => new FaceDto(f, o.FaceStyles[f]!.Color, o.FaceStyles[f]!.Look, o.FaceStyles[f]!.Hidden)).ToList() is { Count: > 0 } l ? l : null;
+
+    static FaceStyle?[]? FacesFromDto(ObjDto d, SceneObject o)
+    {
+        if (d.Faces is not { Count: > 0 } faces || !o.HasBrep) return null;
+        int count = o.Mesh.FaceCount; var a = new FaceStyle?[count];
+        foreach (var f in faces) if (f.Face >= 0 && f.Face < count) a[f.Face] = new FaceStyle(f.Color, f.Look == null ? null : f.Look with { Surface = f.Look.Surface?.Validated() }, f.Hidden);
+        return a.Any(x => x != null) ? a : null;
+    }
 
     static bool IsPartGeometry(ObjKind kind) => kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form or ObjKind.Mesh or ObjKind.Sketch or ObjKind.Curve;
 
@@ -2098,7 +2122,8 @@ public sealed partial class CadSession : ObservableObject
         {
             try { var shapes = d.Sketch.ToShapes(root); shape = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(root.Origin); } catch (KernelException) { }
         }
-        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf };
+        var loaded = new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf };
+        return d.Faces == null ? loaded : loaded.WithFaceStyles(FacesFromDto(d, loaded));
     }
 
     public void Open(string path)

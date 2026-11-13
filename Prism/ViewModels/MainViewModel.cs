@@ -472,7 +472,7 @@ public sealed partial class MainViewModel : ViewModelBase
     public void SetSelectionMode(SelMode mode)
     {
         if(Session.ActiveCommand?.HasPanelStep==true)return;
-        if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face});
+        if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,SelMode.Vertex=>FormMode.Vertex,_=>FormMode.Face});
         else Session.Mode=mode;
     }
     public bool IsSelectionMode(SelMode mode)=>Session.ActiveCommand is EditFormCommand form ? form.SelMode==(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face}) : Session.Mode==mode;
@@ -484,11 +484,11 @@ public sealed partial class MainViewModel : ViewModelBase
         if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null))Session.StartCommand(()=>new EditFormCommand());
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(FormMode.Vertex);
-        else Session.Say("Vertex selection is for Freeform cages: select a Freeform form first.");
+        else { Session.Mode=SelMode.Vertex; Session.Say("Vertex: click a corner point of a solid, surface or curve. Its position shows here; Measure takes two for an exact distance."); }
     }
-    RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",SelectVertices,"Select cage vertices (1 while editing Freeform).",RibbonSize.Small,
-    ()=>IsSketching || (Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null && Session.SelectedObjects.Any(o=>o.Form!=null)),
-    ()=>IsSketching ? Session.Sketch is { Tool: SelectTool } sk && sk.PickLevel == SketchPick.Point : Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex});
+    RibbonButton VertexSelection() => Btn("Vertex","sel-vertex",SelectVertices,"Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",RibbonSize.Small,
+    ()=>IsSketching || Session.ActiveCommand is EditFormCommand {HasPanelStep:false} || Session.ActiveCommand==null,
+    ()=>IsSketching ? Session.Sketch is { Tool: SelectTool } sk && sk.PickLevel == SketchPick.Point : Session.ActiveCommand is EditFormCommand {SelMode:FormMode.Vertex} || Session.ActiveCommand==null && Session.Mode==SelMode.Vertex);
 
     /// <summary>Show the main view from a standard direction named in the part's axes (they follow the home orientation).</summary>
     void ShowStandardView(double yawDeg, double pitchDeg)
@@ -562,41 +562,31 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools],
         };
-        RibbonButton JoinMenu() => Split("split:curve-join", "Join touching curves, explode a curve into segments, or extract edges as independent curves. Click the name to choose.",
-            Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
-            Cmd("Explode", "unstitch", () => new ExplodeCurveCommand(), "Break a curve or sketch into its segments."),
-            LegacyCurveId(Cmd("Extract Edges", "curve-through", () => new DuplicateEdgeCommand(), "Copy selected edges as independent curves, joining touching edges and keeping the source body."), "curve-through|Duplicate Edge"));
-        RibbonButton MoreCurveTools() => CurveMenu("menu:curve-more", "More Curve Tools", "raise-degree",
-            "Rebuild a curve with fewer points, or create evenly spaced points along it.",
-            Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
-            LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"));
-        RibbonGroup CurvesGrp(bool fromSurfaces = true) => G("Curves", new RibbonItem?[]
-        {
-            Split("split:curve-create", "Create a curve by picking points, or from equations, tables and files. Click the name to choose.",
+        // One dropdown holds every curve tool that works outside a sketch, so the modeling ribbons stay short. Flat curves are
+        // filleted, chamfered, offset, trimmed and extended with the Sketch tab's own tools while a sketch is open.
+        // The menu is one level deep so search and customization can reach every tool.
+        RibbonGroup CurvesGrp(bool fromSurfaces = true, bool fillet = true) => G("Curves", CurveMenu("menu:curves", "Curves", "curve-through",
+            "Create and edit curves outside a sketch: draw through points or on a surface, take curves from surfaces, then blend, join, trim, extend, offset or rebuild them.",
+            new RibbonButton?[]
+            {
                 Cmd("Curve", "curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."),
-                Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.")),
-            Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
-            fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
-            fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.") : null,
-            fromSurfaces ? CurveMenu("menu:curve-extract", "Extract Curves", "section", "Extract surface grid lines or a stack of planar sections.",
-                Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface."),
-                Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.")) : null,
-        }.OfType<RibbonItem>().ToArray());
-        RibbonGroup EditCurvesGrp() => G("Edit curves",
-            Cmd("Fillet /\nChamfer", "fillet", () => new CurveFilletCommand(false), "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet."),
-            Cmd("Offset\nCurve", "offset", () => new OffsetCurveCommand(), "Copy a flat curve parallel to itself."),
-            Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
-            JoinMenu(),
-            Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
-            Cmd("Extend\nCurve", "extend-surface", () => new ExtendCurveCommand(), "Grow a curve past its end, keeping it smooth."),
-            MoreCurveTools());
-        // Freeform only needs to clean up the profiles and rails it builds from.
-        RibbonGroup FormCurvesEdit() => G("Edit curves",
-            JoinMenu(),
-            Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
-            Cmd("Extend\nCurve", "extend-surface", () => new ExtendCurveCommand(), "Grow a curve past its end, keeping it smooth."),
-            Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
-            MoreCurveTools());
+                Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file."),
+                Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
+                fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
+                fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.") : null,
+                fromSurfaces ? Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface.") : null,
+                fromSurfaces ? Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.") : null,
+                Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
+                Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
+                Cmd("Explode", "unstitch", () => new ExplodeCurveCommand(), "Break a curve or sketch into its segments."),
+                LegacyCurveId(Cmd("Extract Edges", "curve-through", () => new DuplicateEdgeCommand(), "Copy selected edges as independent curves, joining touching edges and keeping the source body."), "curve-through|Duplicate Edge"),
+                Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
+                Cmd("Extend\nCurve", "extend-surface", () => new ExtendCurveCommand(), "Grow a curve past its end, keeping it smooth."),
+                Cmd("Offset\nCurve", "offset", () => new OffsetCurveCommand(), "Copy a flat curve parallel to itself."),
+                fillet ? Cmd("Fillet /\nChamfer", "fillet", () => new CurveFilletCommand(false), "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.") : null,
+                Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
+                LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"),
+            }.OfType<RibbonButton>().ToArray()));
         RibbonButton SweepSplit(string id) => Split(id, "Build a surface by carrying a section along a path: sweep a profile, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
             Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Carry a profile along a path. Add a second rail to steer how it turns."),
             Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered tube along a path curve; set the radius, or make it a solid."));
@@ -611,6 +601,10 @@ public sealed partial class MainViewModel : ViewModelBase
                 SelMethod("Lasso", "sel-lasso", SelectMethod.Lasso, "Draw around what you want to select. Whatever the loop touches is picked."),
                 SelMethod("Paint", "sel-paint", SelectMethod.Paint, "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking."))),
             Btn("Invert", "sel-invert", () => Session.InvertSelection(), "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.", small, () => !IsSketching),
+            Followed(Split(RibbonSize.Small, "split:select-same", "Add to the selection the faces that share something with the selected faces. Click the name for Same Color; the arrow offers the others.",
+                Btn("Same Color", "sel-same-color", () => Session.SelectSameFaces(CadSession.FaceMatch.SameColor), "Add every face of the same body that has the same color and finish as a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
+                Btn("Adjacent", "sel-same-adjacent", () => Session.SelectSameFaces(CadSession.FaceMatch.Adjacent), "Add the faces that share an edge with a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
+                Btn("Linked", "sel-same-linked", () => Session.SelectSameFaces(CadSession.FaceMatch.Linked), "Add every face of the body a selected face belongs to.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)))),
             Btn("Through", "xray", () => Session.XRay = !Session.XRay, "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.", small, () => !IsSketching, () => Session.XRay));
         RibbonButton SelMethod(string label, string icon, SelectMethod method, string desc) =>
             Btn(label, icon, () => { if (IsSketching) SetSketchSelectMethod((int)method - 1); else Session.Method = Session.Method == method ? SelectMethod.Click : method; }, desc, RibbonSize.Small,
@@ -676,7 +670,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Construction\nPlane", "origin-plane", () => new ConstructionPlaneCommand(), "Make planes: offset (one or a whole stack), angled, midway, square to a curve, or through three points. Sketch on them or use them as references."),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Turn the view to look straight at the selected plane, face or sketch (or the sketch you are drawing).", RibbonSize.Large, null, null, "N")),
                 // Keep menus one level deep so search and customization can reach every curve tool.
-                CurvesGrp(), EditCurvesGrp(),
+                CurvesGrp(),
                 G("Create", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid."),
@@ -785,7 +779,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Surface",
             Groups =
             [
-                SketchGrp(), PlanesGrp(false), CurvesGrp(), EditCurvesGrp(),
+                SketchGrp(), PlanesGrp(false), CurvesGrp(fillet: false),
                 G("Create",
                     Cmd("Extrude", "extrude-surface", () => new ExtrudeCommand(true), "Extrude a curve or sketch into a surface."),
                     Cmd("Revolve", "revolve-surface", () => new RevolveCommand(true), "Revolve a curve into a surface."),
@@ -795,6 +789,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Modify",
                     Cmd("Trim", "trim", () => new TrimSurfaceCommand(), "Cut a surface with a plane, another surface or a solid and keep the side you want."),
                     Cmd("Split\nSurface", "splitbody", () => new SplitSurfaceCommand(), "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface."),
+                    Cmd("Fillet /\nChamfer", "fillet", () => new CurveFilletCommand(false), "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch."),
                     Cmd("Sew", "knit", () => new SewCommand(), "Sew (stitch) surfaces together; closed shells become solids."),
                     Cmd("Offset", "offset", () => new OffsetSurfaceCommand(), "Create a parallel copy of a surface or face."),
                     Cmd("Thicken", "thicken", () => new ThickenCommand(), "Give a surface thickness to make a solid."),
@@ -820,7 +815,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Freeform",
             Groups =
             [
-                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false), FormCurvesEdit(),
+                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false),
                 G("Create",
                     Split("split:form-shape", "A starting shape for freeform modeling: plane, box, sphere, cylinder or torus. Click the name (or right-click) for the others.",
                         Cmd("Plane", "form-plane", () => new FormPlaneCommand(), "A flat grid of faces to push, pull and sculpt."),
@@ -881,7 +876,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "NURBS",
             Groups =
             [
-                G("Sketch", Btn("Create\nSketch", "sketch", StartFluidSketch, "Draw flat, then shape curves in space.", RibbonSize.Large, null, null, "K")), PlanesGrp(false), CurvesGrp(), EditCurvesGrp(),
+                G("Sketch", Btn("Create\nSketch", "sketch", StartFluidSketch, "Draw flat, then shape curves in space.", RibbonSize.Large, null, null, "K")), PlanesGrp(false), CurvesGrp(fillet: false),
                 G("Surfaces",
                     Cmd("Control\nGrid", "nurbs-patch", () => new NurbsPatchCommand(), "Create a grid of control points to shape freely."),
                     Cmd("Extrude", "extrude-surface", () => new ExtrudeCommand(true), "Extrude a curve or sketch into a surface."),
@@ -903,6 +898,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Thicken", "thicken", () => new ThickenCommand(), "Give a surface thickness to make a solid."),
                     Cmd("Trim", "trim", () => new TrimSurfaceCommand(), "Cut a surface with a plane, another surface or a solid and keep the side you want."),
                     Cmd("Split\nSurface", "splitbody", () => new SplitSurfaceCommand(), "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface."),
+                    Cmd("Fillet /\nChamfer", "fillet", () => new CurveFilletCommand(false), "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch."),
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
@@ -1198,9 +1194,9 @@ public sealed partial class MainViewModel : ViewModelBase
                     Disp("Wireframe", "wireframe", DisplayMode.Wireframe, "Edges only."),
                     Btn("X-ray", "xray", () => Session.XRay = !Session.XRay, "Toggle translucent faces in shaded styles to see geometry behind them. Wireframe already shows all edges without faces.", small, null, () => Session.XRay)),
                 G("Show",
-                    Btn("Hide", "visibility-off", () => HideSelected(), "Hide the selected objects. Show All brings them back.", small, () => Session.SelectedObjects.Any()),
+                    Btn("Hide", "visibility-off", () => HideSelected(), "Hide the selected objects. With faces selected, hide just those faces; this is saved with the document. Show All brings them back.", small, () => Session.SelectedObjects.Any()),
                     Btn("Isolate", "isolate", () => IsolateSelected(), "Hide everything except the selected objects. With faces selected, show only those faces; Show All brings the rest back.", small, () => Session.SelectedObjects.Any()),
-                    Btn("Show All", "visibility-on", () => ShowAll(), "Show every hidden object and every face hidden by Isolate.", small, () => Session.FacesIsolated || Session.Objects.Any(o => !o.Visible)),
+                    Btn("Show All", "visibility-on", () => ShowAll(), "Show every hidden object, every hidden face and every face hidden by Isolate.", small, () => Session.FacesIsolated || Session.AnyHiddenFaces || Session.Objects.Any(o => !o.Visible)),
                     Btn("Grid", "grid", () => Session.ShowGrid = !Session.ShowGrid, "Show the construction grid.", small, null, () => Session.ShowGrid),
                     Btn("Data\nTable", "table", ToggleDataPanel, "Show or hide the Data panel: spreadsheets saved with the document. Paste from Excel or open a CSV, text or Excel file, then use a sheet for points, positions or motion with @ and its name.", RibbonSize.Large, null, () => IsDataPanelOpen),
                     Btn("Zebra stripes", "zebra", () => Session.Zebra = !Session.Zebra, "Reflection stripes for surface quality.", small, null, () => Session.Zebra)),

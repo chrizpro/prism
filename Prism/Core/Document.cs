@@ -40,6 +40,16 @@ public sealed class SceneObject
     public Appearance Look { get; }
     /// <summary>Triangle mesh for Mesh objects (scans, STL imports); null for every other kind.</summary>
     public Meshing.TriMesh? Tri { get; }
+    /// <summary>Per-face color, finish and hidden state, indexed by face number; null when no face has any. Carried through edits by geometry (see <see cref="FaceStyleMap"/>).</summary>
+    public FaceStyle?[]? FaceStyles { get; init; }
+    /// <summary>Set on the object an edit just produced: how many face settings had no successor face and were dropped. Not kept by later copies.</summary>
+    public int FaceStylesLost { get; init; }
+    public bool HasFaceStyles => FaceStyles != null;
+    public FaceStyle? FaceStyleOf(int face) => FaceStyles != null && face >= 0 && face < FaceStyles.Length ? FaceStyles[face] : null;
+    public bool IsFaceHidden(int face) => FaceStyleOf(face)?.Hidden == true;
+    /// <summary>Same object with these face styles (null clears them all).</summary>
+    public SceneObject WithFaceStyles(FaceStyle?[]? styles) => styles == FaceStyles ? this : new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm)
+    { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, FaceStyles = styles };
     public Material? Material => Look.PhysicalSnapshot ?? Materials.Find(Look.MaterialId);
     public bool Visible { get; }
     public Plane3? SketchPlane { get; }
@@ -83,15 +93,15 @@ public sealed class SceneObject
     public static ObjKind Classify(Shape s) => s.HasSolids ? ObjKind.Solid : s.HasFaces ? ObjKind.Surface : ObjKind.Curve;
 
     SceneObject Copy(string? name = null, uint? color = null, bool? visible = null, Appearance? look = null, bool? reference = null, bool? moldHalf = null, bool? tracking = null) => new(Id, name ?? Name, _shape, Kind, color ?? Color, visible ?? Visible, SketchPlane, Form, SketchData, look ?? Look, Tri, Asm)
-    { _mesh = _mesh, FlatMap = FlatMap, IsReference = reference ?? IsReference, IsMoldHalf = moldHalf ?? IsMoldHalf, TrackHistory = tracking ?? TrackHistory };
+    { _mesh = _mesh, FlatMap = FlatMap, IsReference = reference ?? IsReference, IsMoldHalf = moldHalf ?? IsMoldHalf, TrackHistory = tracking ?? TrackHistory, FaceStyles = FaceStyles };
     public SceneObject WithTracking(bool on) => Copy(tracking: on);
     public SceneObject WithName(string n) => Copy(name: n);
     public SceneObject WithColor(uint c) => Copy(color: c);
     public SceneObject WithVisible(bool v) => Copy(visible: v);
     /// <summary>Same identity and geometry, new construction/reference plane frame.</summary>
-    public SceneObject WithPlane(Plane3 p) => new(Id, Name, _shape, Kind, Color, Visible, p, Form, SketchData, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, TrackHistory = TrackHistory };
+    public SceneObject WithPlane(Plane3 p) => new(Id, Name, _shape, Kind, Color, Visible, p, Form, SketchData, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, TrackHistory = TrackHistory, FaceStyles = FaceStyles };
     /// <summary>Same identity, new sketch model (used to append model-space datums without touching the shape).</summary>
-    public SceneObject WithSketch(Sketching.SketchModel? m) => new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, m, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, TrackHistory = TrackHistory };
+    public SceneObject WithSketch(Sketching.SketchModel? m) => new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, m, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, TrackHistory = TrackHistory, FaceStyles = FaceStyles };
     public SceneObject WithLook(Appearance a) => Copy(look: a);
     /// <summary>Same identity, new triangle mesh.</summary>
     public SceneObject WithTri(Meshing.TriMesh t) => new(Id, Name, null, ObjKind.Mesh, Color, Visible, null, null, null, Look, t);
@@ -102,9 +112,15 @@ public sealed class SceneObject
         ? Copy(look: Look with { MaterialId = m.Id, PhysicalSnapshot = m })
         : Copy(color: m.Color, look: m.Look);
     /// <summary>Same identity (id, name, colour), new exact geometry (a Form becomes a regular B-rep object).</summary>
-    public SceneObject WithShape(Shape s) => new(Id, Name, s, Kind is ObjKind.Sketch or ObjKind.Plane or ObjKind.Joint or ObjKind.Animation or ObjKind.Toolpath ? Kind : Classify(s), Color, Visible, SketchPlane, null, null, Look, null, Asm) { FlatMap=FlatMap, TrackHistory = TrackHistory, IsMoldHalf = IsMoldHalf };
+    public SceneObject WithShape(Shape s)
+    {
+        var next = new SceneObject(Id, Name, s, Kind is ObjKind.Sketch or ObjKind.Plane or ObjKind.Joint or ObjKind.Animation or ObjKind.Toolpath ? Kind : Classify(s), Color, Visible, SketchPlane, null, null, Look, null, Asm) { FlatMap=FlatMap, TrackHistory = TrackHistory, IsMoldHalf = IsMoldHalf };
+        if (FaceStyles == null || !next.HasBrep) return next;
+        var carried = FaceStyleMap.Remap(Mesh, FaceStyles, next.Mesh, out int lost);
+        return new SceneObject(Id, Name, s, next.Kind, Color, Visible, SketchPlane, null, null, Look, null, Asm) { _mesh = next._mesh, FlatMap = FlatMap, TrackHistory = TrackHistory, IsMoldHalf = IsMoldHalf, FaceStyles = carried, FaceStylesLost = lost };
+    }
     /// <summary>Same identity with new assembly data (and optionally new geometry, e.g. after the component moved).</summary>
-    public SceneObject WithAsm(Assembly.AssemblyData? a, Shape? shape = null) => new(Id, Name, shape ?? _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, a) { _mesh = shape == null ? _mesh : null, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory };
+    public SceneObject WithAsm(Assembly.AssemblyData? a, Shape? shape = null) => new(Id, Name, shape ?? _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, a) { _mesh = shape == null ? _mesh : null, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, FaceStyles = FaceStyles };
     /// <summary>Same identity, new sketch geometry and definition.</summary>
     /// <summary>A picture on a plane: the plane object keeps the frame outline, the info holds the picture and how it is shown.</summary>
     public SceneObject WithImage(Assembly.ImageInfo info, Shape frame, Plane3 plane) => new(Id, Name, frame, ObjKind.Plane, Color, Visible, plane, null, null, Look, null, info);
@@ -114,7 +130,7 @@ public sealed class SceneObject
     public SceneObject WithForm(SubdMesh f) => new(Id, Name, null, ObjKind.Form, Color, Visible, null, f, null, Look);
 }
 
-public enum SelKind { Object, Face, Edge, Origin, Datum, Entity }
+public enum SelKind { Object, Face, Edge, Origin, Datum, Entity, Vertex }
 
 public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index, int Index2 = 0)
 {
@@ -127,9 +143,11 @@ public enum SelFilter
     None = 0, Solid = 1, SurfaceObj = 2, CurveObj = 4, SketchObj = 8, Face = 16, Edge = 32, Form = 64, Plane = 128, Axis = 256, MeshObj = 512,
     /// <summary>Datum annotations (points, axes, planes) hosted by sketch data.</summary>
     Datum = 1024,
+    /// <summary>Corner points of solids, surfaces and curves.</summary>
+    Vertex = 2048,
     AnyObject = Solid | SurfaceObj | CurveObj | SketchObj | Form | MeshObj,
     AnyCurve = CurveObj | SketchObj,
     Any = AnyObject | Face | Edge | Plane | Axis | Datum,
 }
 
-public enum SelMode { Object, Face, Edge }
+public enum SelMode { Object, Face, Edge, Vertex }

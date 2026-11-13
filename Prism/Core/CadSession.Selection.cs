@@ -251,5 +251,7 @@ public sealed partial class CadSession
         }
         if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return; }
         SetSelection(hit.Value.Item, p.Ctrl || p.Shift);
+        if (hit.Value.Item.Kind == SelKind.Vertex && VertexPoint(hit.Value.Item) is { } corner)
+            Say($"{Describe(hit.Value.Item)} at X {corner.X:0.###}, Y {corner.Y:0.###}, Z {corner.Z:0.###} mm");
     }
 }

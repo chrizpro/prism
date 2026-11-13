@@ -2170,7 +2170,7 @@ public sealed partial class AutomationApi
                 if (a["xray"] != null) S.XRay = Bool(a,"xray",false);
                 if (a["zebra"] != null) S.Zebra = a["zebra"]!.GetValue<bool>();
                 if (a["grid"] != null) S.ShowGrid = a["grid"]!.GetValue<bool>();
-                if (a["select_mode"] != null) S.Mode = a["select_mode"]!.ToString().ToLowerInvariant() switch { "face" => SelMode.Face, "edge" => SelMode.Edge, _ => SelMode.Object };
+                if (a["select_mode"] != null) S.Mode = a["select_mode"]!.ToString().ToLowerInvariant() switch { "face" => SelMode.Face, "edge" => SelMode.Edge, "vertex" => SelMode.Vertex, _ => SelMode.Object };
                 if (a["distance"] != null) S.Camera.Distance = Dbl(a, "distance", S.Camera.Distance);
                 if (a["target"] != null) S.Camera.Target = V3(a["target"]!);
                 if (Bool(a, "fit", false)) S.ZoomExtents();

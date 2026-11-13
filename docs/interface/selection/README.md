@@ -1,6 +1,6 @@
 # Selection controls and region picking
 
-Object, Face and Edge choose the pick level. Vertex requires a selected Freeform cage or active cage editing. Rectangle dragged left to right requires containment, and the reverse drag accepts crossing geometry. Lasso uses the drawn polygon. Paint (proposed 2026-11) takes whatever the freehand stroke itself crosses — the trail does not need to enclose anything. Through includes occluded objects in region selection. Invert complements the current selection at its pick level.
+Object, Face, Edge and Vertex choose the pick level. Vertex picks corner points of solids, surfaces and curves; with a Freeform cage selected it opens cage editing on its vertices, and in a sketch it picks points. Rectangle dragged left to right requires containment, and the reverse drag accepts crossing geometry. Lasso uses the drawn polygon. Paint (proposed 2026-11) takes whatever the freehand stroke itself crosses — the trail does not need to enclose anything. Through includes occluded objects in region selection. Invert complements the current selection at its pick level.
 
 The same Select group ships on every modeling ribbon tab — Home, Solid, Direct Modeling, Surface, NURBS, Sheet Metal, Analyze, Static, Assemble and Joints — so the pick levels, drag methods, Invert and Through are one habit. The Sketch tab ships the same group: Object arms the sketch Select tool, the Rectangle / Lasso / Paint methods set how its drag selects (they have no right-panel section), and Face, Edge, Vertex, Invert and Through, which act on bodies, are unavailable while sketching. Edit Sketch sits at the start of the Sketch tab's Modify group.
 
@@ -33,10 +33,20 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 
 - **Works:** Object, Face and Edge levels pick a surface, its faces and its border edges by click; Delete removes a selected surface face; Isolate takes faces.
 - **Fixed:** the edge made by splitting a smooth NURBS surface was neither drawn nor pickable, because smooth joins between freeform faces are hidden as patch seams. A cut through one and the same surface is now kept as a real edge (`SFC-H017`). Seams between different patches (a converted Freeform body) stay hidden.
-- **Gap, proposed:** there is no Vertex level for solids and surfaces. Vertex exists only for Freeform cages and sketch points.
-- **Gap, proposed:** the direct face tools stop at surfaces. Offset Face, Move Face and Merge Faces answer "works on solid bodies"; Push / Pull takes only a flat surface face and turns it into a solid. Delete Face works.
-- **Gap, proposed:** the right-click menu for a surface face offers Push / pull, Shell and Hole, which do not apply to a surface.
+- **Closed 2026-11-13:** the Vertex level, Offset Face and Move Face on surface faces, and the right-click menu for a surface face. See the next section.
+- **Still open:** Merge Faces works on solids only; Push / Pull takes only a flat surface face and turns it into a solid.
 - **Note:** the default Shaded display draws no edges, so a split is invisible until an edge is hovered or the display is set to shaded with edges.
+
+## Direct edits and the Vertex level on surfaces
+
+**Status: owner approved 2026-11-13 ("proceed with all 3"); implemented.**
+
+- **Vertex level** (`SEL-H016`, `SEL-H017`, `SOL-H074`). The Vertex button is available on every modeling tab. It shows a small dot on every corner point of the visible solids, surfaces and curves; a click selects the corner under the pointer (within 9 pixels, not hidden behind a face unless Through is on) and the status line gives its position. Measure takes corner points as exact points, so two corners give an exact distance. Delete with only corner points selected removes nothing. Not yet built: moving a corner, drag-selecting corners, and using a corner as a pick in other tools.
+- **Move Face on a surface** (`SEL-H018`). Any face of a surface, flat or curved, is carried by the typed or dragged move. Walls are added along the edges it shared with faces that stay, so the result is one surface with a raised or sunk panel. Edges on the open border of the surface get no wall. Tilt is refused on surface faces.
+- **Offset Face on a surface** (`SEL-H019`). The face is carried along its own normals by the distance (a curved face becomes its offset) and joined back with walls in the same way.
+- **Right-click on a surface face** offers Offset face, Move face, Draw on surface, Delete face, Isolate, Measure and Thicken, in place of the solid-only Push / pull, Shell and Hole.
+
+[Checks](../../../Prism.Tests/Headless/Selection/VertexAndSurfaceFaceTests.cs).
 
 ## Edge selection rules in command slots
 

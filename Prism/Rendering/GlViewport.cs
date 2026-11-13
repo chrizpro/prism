@@ -487,6 +487,11 @@ public sealed unsafe class GlViewport : Decorator
                 continue;
             }
             var drawn = fineShading ? o.FineMesh : o.Mesh;
+            if (o.HasFaceStyles && drawn.FaceCount == o.Mesh.FaceCount)
+            {
+                DrawStyledFaces(gl, o, drawn, s.ShownFaces(o), faceAlpha);
+                continue;
+            }
             if (s.ShownFaces(o) is { } shownFaces)
             {
                 // isolated faces: only their triangle ranges are drawn
@@ -515,7 +520,7 @@ public sealed unsafe class GlViewport : Decorator
                 var tintOnly = s.ShownFaces(o);
                 if (hl.Object && tintOnly == null) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount * 0.7f), 0, -1);
                 foreach (var f in hl.Object && tintOnly != null ? tintOnly : hl.Faces)
-                    if (f + 1 < o.Mesh.FaceTriStart.Length && tintOnly?.Contains(f) != false) DrawFaces(gl, g, o.Color, o.Color, faceAlpha, (r, gg, b, amount), o.Mesh.FaceTriStart[f], o.Mesh.FaceTriStart[f + 1] - o.Mesh.FaceTriStart[f]);
+                    if (f + 1 < o.Mesh.FaceTriStart.Length && tintOnly?.Contains(f) != false) DrawFaces(gl, g, o.FaceStyleOf(f)?.Color ?? o.Color, o.FaceStyleOf(f)?.Color ?? o.Color, faceAlpha, (r, gg, b, amount), o.Mesh.FaceTriStart[f], o.Mesh.FaceTriStart[f + 1] - o.Mesh.FaceTriStart[f]);
             }
         }
         gl.Disable(EnableCap.PolygonOffsetFill);
@@ -694,13 +699,14 @@ public sealed unsafe class GlViewport : Decorator
         _surfaceTex[key]=tex; return tex;
     }
     void ClearSurface() { U1(_mesh,"uLayers",0); }
-    void SetSurface(GL gl,SceneObject obj)
+    void SetSurface(GL gl,SceneObject obj)=>SetSurface(gl,obj.Look,obj.Mesh.Min);
+    void SetSurface(GL gl,Appearance look,Vec3 min)
     {
-        U1(_mesh,"uPattern",(int)MaterialSurface.Pattern(obj.Look));
-        U2(_mesh,"uPatternParams",Math.Max(obj.Look.PatternScale,.1f),obj.Look.PatternAngle*(float)Math.PI/180);
-        var min=obj.Mesh.Min; U3(_mesh,"uPatternOrigin",(float)min.X,(float)min.Y,(float)min.Z);
-        var style=(obj.Look.Surface??new()).Validated();
-        U1(_mesh,"uLayers",obj.Look.Surface==null?0:1);
+        U1(_mesh,"uPattern",(int)MaterialSurface.Pattern(look));
+        U2(_mesh,"uPatternParams",Math.Max(look.PatternScale,.1f),look.PatternAngle*(float)Math.PI/180);
+        U3(_mesh,"uPatternOrigin",(float)min.X,(float)min.Y,(float)min.Z);
+        var style=(look.Surface??new()).Validated();
+        U1(_mesh,"uLayers",look.Surface==null?0:1);
         U1(_mesh,"uGradient",(int)style.Gradient);U1(_mesh,"uGradientAxis",(int)style.Axis);
         U4(_mesh,"uGradientParams",style.GradientSize,style.GradientOffset,style.GradientAngle*(float)Math.PI/180,0);
         U3(_mesh,"uColor2",SurfaceLayers.Srgb(style.Color2));U3(_mesh,"uColor3",SurfaceLayers.Srgb(style.Color3));U3(_mesh,"uColor4",SurfaceLayers.Srgb(style.Color4));
@@ -712,7 +718,7 @@ public sealed unsafe class GlViewport : Decorator
         U4(_mesh,"uTexturePlacement",style.TextureOffsetX,style.TextureOffsetY,style.TextureOffsetZ,style.TextureAspect);
         U1(_mesh,"uProjection",(int)style.Projection);U1(_mesh,"uTextureAxis",(int)style.TextureAxis);U1(_mesh,"uTextureRepeat",style.TextureRepeat?1:0);
         U2(_mesh,"uAnisotropy",style.Anisotropy,style.AnisotropyAngle*(float)Math.PI/180);
-        U2(_mesh,"uTransmission",style.Transmission*(1-obj.Look.Metal),style.Ior);U3(_mesh,"uAbsorptionTint",SurfaceLayers.Srgb(style.AbsorptionColor));
+        U2(_mesh,"uTransmission",style.Transmission*(1-look.Metal),style.Ior);U3(_mesh,"uAbsorptionTint",SurfaceLayers.Srgb(style.AbsorptionColor));
         int unit=0;
         foreach(var (name,data) in new[]{("Color",style.ColorMap),("Rough",style.RoughnessMap),("Bump",style.BumpMap),("Decal",style.DecalMap)})
         {
@@ -721,6 +727,39 @@ public sealed unsafe class GlViewport : Decorator
             gl.BindTexture(TextureTarget.Texture2D,tex);U1(_mesh,"uHas"+name+"Map",tex==0?0:1);U1(_mesh,"u"+name+"Map",unit++);
         }
         gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    static readonly FaceStyle PlainFace = new();
+
+    /// <summary>Draw a body whose faces carry their own color or finish: faces with the same style are drawn together, in runs of neighbouring triangles.</summary>
+    void DrawStyledFaces(GL gl, SceneObject o, MeshData drawn, IReadOnlySet<int>? shown, float alpha)
+    {
+        var buffers = Upload(drawn);
+        var groups = new Dictionary<FaceStyle, List<int>>(ReferenceEqualityComparer.Instance);
+        for (int f = 0; f < drawn.FaceCount; f++)
+        {
+            if (shown != null && !shown.Contains(f)) continue;
+            var st = o.FaceStyleOf(f) ?? PlainFace;
+            if (!groups.TryGetValue(st, out var list)) groups[st] = list = [];
+            list.Add(f);
+        }
+        uint baseBack = o.Kind == ObjKind.Surface ? 0xFF8FC9DB : o.Color;
+        foreach (var (st, faces) in groups)
+        {
+            var look = st.Look ?? o.Look;
+            _look = (look.Metal, look.Gloss);
+            SetSurface(gl, look, o.Mesh.Min);
+            uint color = st.Color ?? o.Color, back = st.Color ?? baseBack;
+            int f0 = 0;
+            while (f0 < faces.Count)
+            {
+                int f1 = f0;
+                while (f1 + 1 < faces.Count && faces[f1 + 1] == faces[f1] + 1) f1++;
+                int start = drawn.FaceTriStart[faces[f0]], end = drawn.FaceTriStart[faces[f1] + 1];
+                DrawFaces(gl, buffers, color, back, alpha, (0, 0, 0, 0), start, end - start);
+                f0 = f1 + 1;
+            }
+        }
     }
 
     void DrawFaces(GL gl, GpuMesh g, uint color, uint back, float alpha, (float r, float g, float b, float a) tint, int triStart, int triCount)

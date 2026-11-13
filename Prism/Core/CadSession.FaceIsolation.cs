@@ -52,18 +52,33 @@ public sealed partial class CadSession
     /// <summary>False for a body that face isolation hides completely.</summary>
     public bool ShownByIsolation(SceneObject o) => _isolated == null || !HasFaces(o) || _isolated.ContainsKey(o.Id);
 
+    sealed record ShownCache(SceneObject Obj, IsolatedBody? Iso, HashSet<int> Faces, HashSet<int> Edges);
+    readonly Dictionary<Guid, ShownCache> _shown = [];
+
+    /// <summary>Faces left on screen by isolation and by faces hidden in the document, cached per object state.</summary>
+    ShownCache? ShownOf(SceneObject o)
+    {
+        var iso = Isolation(o);
+        if (!o.HasFaceStyles || !o.FaceStyles!.Any(s => s?.Hidden == true))
+            return iso == null ? null : new(o, iso, iso.Faces, iso.Edges);
+        if (_shown.TryGetValue(o.Id, out var c) && ReferenceEquals(c.Obj, o) && ReferenceEquals(c.Iso, iso)) return c;
+        var mesh = o.Mesh;
+        var faces = (iso?.Faces ?? Enumerable.Range(0, mesh.FaceCount).ToHashSet()).Where(f => !o.IsFaceHidden(f)).ToHashSet();
+        return _shown[o.Id] = new(o, iso, faces, EdgesOf(mesh, faces));
+    }
+
     /// <summary>The faces of this body that are shown, or null when all of them are.</summary>
-    public IReadOnlySet<int>? ShownFaces(SceneObject o) => Isolation(o)?.Faces;
+    public IReadOnlySet<int>? ShownFaces(SceneObject o) => ShownOf(o)?.Faces;
 
     /// <summary>The edges of this body that border a shown face, or null when all edges are shown.</summary>
-    public IReadOnlySet<int>? ShownEdges(SceneObject o) => Isolation(o)?.Edges;
+    public IReadOnlySet<int>? ShownEdges(SceneObject o) => ShownOf(o)?.Edges;
 
-    /// <summary>True when isolation leaves this face, edge or object on screen.</summary>
+    /// <summary>True when isolation and hidden faces leave this face, edge or object on screen.</summary>
     public bool ShownByIsolation(SelItem item)
     {
-        if (_isolated == null || Find(item.Obj) is not { } o) return true;
+        if (Find(item.Obj) is not { } o) return true;
         if (!ShownByIsolation(o)) return false;
-        if (Isolation(o) is not { } body) return true;
+        if (ShownOf(o) is not { } body) return true;
         return item.Kind switch { SelKind.Face => body.Faces.Contains(item.Index), SelKind.Edge => body.Edges.Contains(item.Index), _ => true };
     }
 

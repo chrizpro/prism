@@ -6,7 +6,7 @@ Curve uses picked points as interpolated points or control points. Curve from Da
 
 Approved by the owner on 2026-11-08; implemented on `cleanup/curve-tools`, branched from `develop`. [Delivery issue #72](https://github.com/chrizpro/prism/issues/72).
 
-The shipped Home, Surface and NURBS ribbons expose six core editing actions: Fillet / Chamfer, Offset Curve, Blend Curve, Join, Trim Curve and Extend Curve. Freeform retains its smaller profile/rail editing set.
+Since 2026-11-13 (owner direction) Home, Solid, Surface, NURBS and Freeform each show one **Curves** dropdown that holds every curve creation and editing tool; the separate Edit curves group is gone. See the [Curves dropdown](../surface-and-nurbs/README.md#curves-dropdown).
 
 - **Curve dropdown:** Curve and Curve from Data. Interactive Curve still offers through-points and control-points modes.
 - **Join dropdown:** Join, Explode and Extract Edges (formerly Duplicate Edge). Join assembles touching segments without bridging gaps. Explode separates existing segments. Extract Edges copies selected body/surface edges into independent curves, joining touching edges and keeping the source body. Join and extraction share the same joining operation.

@@ -35,11 +35,11 @@ public sealed partial class MainViewModel
         try
         {
             foreach (var target in targets)
-                Session.Update(target.Id, o => o.WithColor(preset.Color).WithLook(o.Look with
+                UpdateLook(target.Id, o => o.WithColor(preset.Color).WithLook(o.Look with
                 {
                     Metal = (float)preset.Metal, Gloss = (float)preset.Gloss,
                     Pattern = preset.Pattern, PatternScale = 12, PatternAngle = 0, Surface = new SurfaceStyle { Override = true },
-                }), label: "Finish: " + preset.Name);
+                }), "Finish: " + preset.Name);
         }
         finally { Session.EndGroup("Finish: " + preset.Name); }
         SyncLook(); Session.Say(preset.Name + " finish applied.");
@@ -77,7 +77,16 @@ public sealed partial class MainViewModel
     public bool HasColorGradient => GradientMode != 0;
     public bool HasFreeformGradient => GradientMode == 4;
     public bool HasWeathering => WeatheringMode != 0;
-    public string AppearanceStatus => TargetsForLook().FirstOrDefault()?.HasAppearanceOverride == true ? "Custom appearance · visual override" : "Material / default appearance";
+    public string AppearanceStatus => FaceStatus() ?? (TargetsForLook().FirstOrDefault()?.HasAppearanceOverride == true ? "Custom appearance · visual override" : "Material / default appearance");
+
+    string? FaceStatus()
+    {
+        var faces = Session.AppearanceFaces();
+        if (faces.Count == 0) return null;
+        int n = faces.Values.Sum(l => l.Count);
+        bool own = faces.Any(kv => Session.Find(kv.Key) is { } o && kv.Value.Any(f => o.FaceStyleOf(f) is { IsEmpty: false } s && (s.Color != null || s.Look != null)));
+        return $"Editing {n} face{(n == 1 ? "" : "s")} · " + (own ? "own color or finish (Reset returns them to the body)" : "same as the body");
+    }
 
     public string ColorMapStatus => SelectedSurface.ColorMap == null ? "No color image" : "Color image embedded";
 
@@ -101,7 +110,7 @@ public sealed partial class MainViewModel
 
         _editingAppearance = true; Session.BeginGroup();
 
-        try { foreach (var o in targets) Session.Update(o.Id, edit, label: label); }
+        try { foreach (var o in targets) UpdateLook(o.Id, edit, label); }
 
         finally { Session.EndGroup(label); _editingAppearance = false; }
 
@@ -247,7 +256,9 @@ public sealed partial class MainViewModel
 
         {
 
-            foreach (var target in targets)
+            var faces = Session.AppearanceFaces();
+            if (faces.Count > 0) Session.EditFaceStyles(faces, (_, s) => s with { Color = null, Look = null }, "Reset face finish");
+            foreach (var target in targets.Where(t => !faces.ContainsKey(t.Id)))
 
                 Session.Update(target.Id, o => o.WithColor(o.Material?.Color ?? Palette.DefaultFor(o.Kind, 0))
 

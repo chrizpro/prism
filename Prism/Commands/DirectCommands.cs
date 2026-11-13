@@ -537,9 +537,18 @@ public sealed class MoveFaceCommand : Command
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     /// <summary>The move is a position change: the shared gizmo at the face, world axes, riding on the typed offset.</summary>
-    public override GizmoSpec? Gizmo => _faces.Items.Count == 0 || S.PlaneOf(_faces.Items[0]) is not { } pl ? null
-        : GizmoSpec.At(pl.Origin + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
-    public override string Hint => "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
+    public override GizmoSpec? Gizmo => _faces.Items.Count == 0 || Anchor() is not { } at ? null
+        : GizmoSpec.At(at + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
+
+    /// <summary>Where the gizmo sits: the middle of a flat face, or of a curved face of a surface.</summary>
+    Vec3? Anchor()
+    {
+        var item = _faces.Items[0];
+        if (S.PlaneOf(item) is { } pl) return pl.Origin;
+        if (S.Find(item.Obj) is not { Kind: ObjKind.Surface, HasBrep: true }) return null;
+        try { return S.ShapeOf(item) is { } face ? ToolShapes.Centroid(face) : null; } catch (KernelException) { return null; }
+    }
+    public override string Hint => "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. On a surface any face, flat or curved, is carried by the move and walls join it back to its neighbours. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     protected override CommandOutput? Build()
     {
@@ -549,7 +558,17 @@ public sealed class MoveFaceCommand : Command
         var o = new CommandOutput { Label = "Move face", Icon = "moveface" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
-            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies.");
+            if (S.Find(grp.Key) is { Kind: ObjKind.Surface, HasBrep: true } sheet)
+            {
+                // a surface face (flat or curved) is carried by the move and joined back with walls along the step
+                if (Math.Abs(_tilt.Value) > 1e-9) throw new FormatException("Tilt works on flat faces of a solid. On a surface, move the face without a tilt.");
+                if (move.Length < 1e-9) return null;
+                var picked = grp.Select(i => i.Index).ToHashSet();
+                o.Replace.Add((sheet, SurfaceFaceEdit.Move(sheet.Shape, picked, move)));
+                Results.Add(new ResultLine("Surface faces moved", $"{picked.Count}  by {move.Length:0.###} mm"));
+                continue;
+            }
+            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies and on faces of a surface.");
             var result = body.Shape;
             var plan = new List<(Shape face, Vec3 n, Vec3 pt, Vec3 nt)>();
             foreach (var it in DirectHelpers.Scope(S, body, grp, _scope.Index, Results))

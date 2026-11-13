@@ -212,19 +212,20 @@ public sealed partial class MainViewModel
         foreach (var t in Tabs.Where(t => !t.IsFile))
             foreach (var b in t.Buttons)
                 if (_catalog.TryAdd(b.Id, b)) _catalogTab[b.Id] = t.Title;
-        // Edited layouts may still refer to the former single curve dropdowns. Keep those
-        // IDs as flat compatibility menus while new default layouts use the smaller families.
+        // Every curve tool is in one Curves dropdown. Edited layouts may still refer to the earlier per-tab
+        // "Curves" and "Edit curves" menus, so both IDs stay as flat menus of the same tools.
         foreach (var tab in Tabs.Where(t => !t.IsFile))
-            foreach (var group in tab.Groups.Where(g => g.Title is "Curves" or "Edit curves"))
+            foreach (var group in tab.Groups.Where(g => g.Title == "Curves"))
             {
                 var leaves = group.Items.OfType<RibbonButton>().SelectMany(b => b.Menu ?? [b]).ToList();
-                // Home used to combine creation and editing in its Curves dropdown.
-                if (tab.Title == "Home" && group.Title == "Curves")
-                    leaves.AddRange(tab.Groups.Single(g => g.Title == "Edit curves").Items.OfType<RibbonButton>().SelectMany(b => b.Menu ?? [b]));
-                string id = "menu:" + tab.Title + ":" + group.Title;
-                _catalog.TryAdd(id, new RibbonButton { Id = id, Label = group.Title, Icon = leaves[0].Icon, Menu = leaves,
-                    Description = "Curve tools from your customized layout. Reset this tab in Settings to use the new grouped menus." });
-                _catalogTab.TryAdd(id, tab.Title);
+                if (leaves.Count == 0) continue;
+                foreach (string title in new[] { "Curves", "Edit curves" })
+                {
+                    string id = "menu:" + tab.Title + ":" + title;
+                    _catalog.TryAdd(id, new RibbonButton { Id = id, Label = title, Icon = leaves[0].Icon, Menu = leaves,
+                        Description = "Curve tools from your customized layout. Reset this tab in Settings to use the single Curves menu." });
+                    _catalogTab.TryAdd(id, tab.Title);
+                }
             }
         foreach (var t in Tabs.Where(t => !t.IsFile && !t.IsContextual)) _defaultGroups[t.Title] = [.. t.Groups];
         ApplyRibbonLayout(initial: true);
