@@ -353,24 +353,32 @@ public sealed class IntersectCurvesCommand : Command
     {
         _a = Slot(new SelectionSlot { Label = "First", Filter = Solids });
         _b = Slot(new SelectionSlot { Label = "Second", Filter = Solids });
-        _between = Choice("Between", 0, "Planes, faces or bodies", "Two flat curves (projected)");
+        _between = Choice("Between", 0, "Automatic (from what you pick)", "Two flat curves (projected)", "Planes, faces or bodies");
         _separate = Check("Make each curve its own object", false);
     }
 
     public override string Title => "Intersection Curve";
     public override string Icon => "section";
     public override string OkText => "Create curve";
-    public override string Hint => "Pick two planes, flat or curved faces, or bodies: the curve where they cross is created. Two planes give a straight line, a plane through a body gives the outline of the cut. Or choose Two flat curves: each curve on its own plane is projected along that plane's normal and the shared 3D curve is created. Use it for sweep rails, loft guides and sketch references.";
+    public override string Hint => "Pick two planes, flat or curved faces, or bodies: the curve where they cross is created. Two planes give a straight line, a plane through a body gives the outline of the cut. Or pick two flat curves (they are recognised on their own; Between can force either kind): each curve on its own plane is projected along that plane's normal and the shared 3D curve is created. Use it for sweep rails, loft guides and sketch references.";
+
+    int _lastBetween;
+
+    bool IsCurveItem(SelItem it) => it.Kind == SelKind.Edge || S.Find(it.Obj)?.Kind is ObjKind.Curve or ObjKind.Sketch;
+
+    /// <summary>Two flat curves when asked for, or when the first thing picked is a curve; planes, faces and bodies otherwise.</summary>
+    bool CurveMode => _between.Index == 1 || _between.Index == 0 && _a.Items.Count > 0 && IsCurveItem(_a.Items[0]);
 
     protected override void UpdateVisibility()
     {
-        var filter = _between.Index == 1 ? Curves : Solids;
-        if (_a.Filter == filter) return;
-        _a.Filter = _b.Filter = filter;
-        _a.Items.Clear(); _b.Items.Clear();
+        // Automatic: until something is picked either kind is welcome; the first pick decides what the second may be
+        var filter = _between.Index == 1 ? Curves : _between.Index == 2 ? Solids : CurveMode ? Curves : _a.Items.Count > 0 ? Solids : Solids | Curves;
+        if (_lastBetween != _between.Index) { _lastBetween = _between.Index; _a.Items.Clear(); _b.Items.Clear(); }
+        _b.Filter = filter;
+        _a.Filter = _between.Index == 0 ? Solids | Curves : filter;
     }
 
-    public override void BuildOverlay(CadSession s, Overlay o) { if (_between.Index == 1) _curves?.BuildOverlay(s, o); }
+    public override void BuildOverlay(CadSession s, Overlay o) { if (CurveMode) _curves?.BuildOverlay(s, o); }
 
     Shape ShapeFor(SelectionSlot slot)
     {
@@ -389,7 +397,7 @@ public sealed class IntersectCurvesCommand : Command
     {
         Results.Clear();
         if (_a.Items.Count == 0 || _b.Items.Count == 0) return null;
-        if (_between.Index == 1)
+        if (CurveMode)
         {
             var curves = _curves = new CurveIntersectCommand();
             curves.Begin(S);
@@ -402,6 +410,7 @@ public sealed class IntersectCurvesCommand : Command
             foreach (var line in curves.Results) Results.Add(line);
             return output;
         }
+        if (IsCurveItem(_b.Items[0])) throw new FormatException("Pick two curves, or two planes, faces or bodies. A curve and a surface do not make a curve.");
         var cut = Occ.Intersect(ShapeFor(_a), ShapeFor(_b));
         int edges = cut.Count(SubKind.Edge);
         if (edges == 0) throw new FormatException("Those two do not cross each other.");

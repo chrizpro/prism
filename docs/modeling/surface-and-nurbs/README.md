@@ -55,7 +55,7 @@ Owner direction 2026-11-13: the ribbons were busy and the curve tools are used l
 | Fillet / Chamfer | Rounds or cuts the corners of a flat curve, or the edges where two faces of a surface or body meet. |
 | Draw on Surface | A curve laid on the surface, or a split of the face along it. |
 | Trim Curve | Keeps one part, or cuts the curve into pieces. |
-| Intersection Curve | Between planes, faces, surfaces or bodies, or two flat curves on different planes. |
+| Intersection Curve | Between planes, faces, surfaces or bodies, or two flat curves on different planes. Pick two curves and the tool recognises them (SOL-H090): each projects along its own plane and the shared 3D curve is made. The "Between" choice can force either kind. |
 
 The older commands (Sweep 2 Rails, Patch, Planar Surface, Ruled, Network Surface, Blend Surface, Split Curve, Deform, Intersect Surfaces, Curve Intersect) are off the ribbon but still work from scripts.
 
