@@ -189,6 +189,40 @@ public class SurfaceToolTests
         Assert.Equal(keep ? 0 : 1, output.Remove.Count);
     }
 
+    [AvaloniaFact(DisplayName = "SRF-H029 | Rebuild Surface draws the grid of points and redraws it when the counts change")]
+    [Trait("TestId", "SRF-H029")]
+    public void RebuildSurfaceShowsItsGrid()
+    {
+        var session = new CadSession();
+        var sheet = NurbsSheet(session, 0, 10);
+        var command = Begin(session, () => new RebuildSurfaceCommand());
+        Pick(command, "Surface or face", sheet);
+        SetInteger(command, "Points in U", 5); SetInteger(command, "Points in V", 6);
+        var first = new Overlay(); session.BuildOverlay(first);
+        Assert.Equal(30, first.Dots.Count(d => d.Color == 0xFFFFFFFF));
+        SetInteger(command, "Points in U", 7);
+        var second = new Overlay(); session.BuildOverlay(second);
+        Assert.Equal(42, second.Dots.Count(d => d.Color == 0xFFFFFFFF));
+    }
+
+    [AvaloniaFact(DisplayName = "SRF-H030 | Edit Control Points selects the points inside a rectangle dragged in empty space without arming a select method")]
+    [Trait("TestId", "SRF-H030")]
+    public void EditPointsDragSelects()
+    {
+        var session = new CadSession();
+        var sheet = NurbsSheet(session, 0, 10);
+        session.Camera.Width = 800; session.Camera.Height = 600; session.Camera.SetView(0, 90); session.Camera.Fit(new(0, 0, 0), new(10, 10, 0));
+        var command = Begin(session, () => new EditPointsCommand());
+        Pick(command, "Curve or surface", sheet); command.OnChanged();
+        Assert.Equal(SelectMethod.Click, session.Method);
+        var tool = Assert.IsType<EditPointsTool>(command.Tool);
+        Assert.Empty(tool.Selected);
+        session.PointerDown(new PointerInfo(2, 2, true, false, false, false));
+        session.PointerMove(new PointerInfo(790, 590, true, false, false, false));
+        session.PointerUp(new PointerInfo(790, 590, false, false, false, false));
+        Assert.Equal(command.Model!.Points.Length, tool.Selected.Count);
+    }
+
     // ------------------------------------------------------------------ Network Surface
 
     [AvaloniaFact(DisplayName = "SRF-H010 | Network Surface lifts a square outline toward a raised curve across it")]

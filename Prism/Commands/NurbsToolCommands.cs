@@ -717,7 +717,35 @@ public sealed class RebuildSurfaceCommand : Command
     }
     public override string Title => "Rebuild Surface";
     public override string Icon => "raise-degree";
-    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely.";
+    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.";
+    (SelItem item, int u, int v, Vec3[] points)? _gridCache;
+
+    /// <summary>The grid of points the new surface is fitted through, drawn as it changes with Points in U and V.</summary>
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_src.Items.Count == 0) return;
+        var item = _src.Items[0]; int nu = _u.Value, nv = _v.Value;
+        try
+        {
+            if (_gridCache is not { } c || c.item != item || c.u != nu || c.v != nv)
+                _gridCache = (item, nu, nv, Occ.SurfaceSamples(NurbsUtil.OfItem(S, item), nu, nv));
+        }
+        catch (Exception e) when (e is KernelException or FormatException) { _gridCache = null; return; }
+        var pts = _gridCache!.Value.points;
+        var line = new List<Vec3>();
+        for (int i = 0; i < nu; i++)
+        {
+            line.Clear(); for (int j = 0; j < nv; j++) line.Add(pts[i * nv + j]);
+            o.AddPolyline(line, 0xFFFF8A1F, 1.5f);
+        }
+        for (int j = 0; j < nv; j++)
+        {
+            line.Clear(); for (int i = 0; i < nu; i++) line.Add(pts[i * nv + j]);
+            o.AddPolyline(line, 0xFFFF8A1F, 1.5f);
+        }
+        foreach (var p in pts) o.AddDot(p, 0xFFFFFFFF, 5);
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
