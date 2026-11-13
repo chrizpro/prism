@@ -22,12 +22,33 @@ public class ViewportHandleTests
 
     // ------------------------------------------------------------------ primitives
 
+    /// <summary>Shapes no longer show the move gizmo while they are inserted (owner direction 2026-11-13); these tests turn it on the way a user would.</summary>
+    static void WithGizmo(Command command) => command.Params.OfType<BoolParam>().Single(p => p.Label == "Move with gizmo").Value = true;
+
+    [AvaloniaFact(DisplayName = "HDL-H032 | A shape being inserted shows no move gizmo until Move with gizmo is on")]
+    [Trait("TestId", "HDL-H032")]
+    public void InsertingAShapeShowsNoGizmo()
+    {
+        var session = new CadSession();
+        foreach (var create in new Func<Command>[] { () => new BoxCommand(), () => new CylinderCommand(), () => new SphereCommand(), () => new ConeCommand(), () => new TorusCommand() })
+        {
+            session.StartCommand(create);
+            var command = session.ActiveCommand!;
+            Assert.Null(command.Gizmo);
+            Assert.Null(session.CommandGizmoInfo);
+            WithGizmo(command);
+            Assert.NotNull(command.Gizmo);
+            session.CancelCommand();
+        }
+    }
+
     [AvaloniaFact(DisplayName = "HDL-H001 | Box shows three dimension arrows and the shared gizmo for its position")]
     [Trait("TestId", "HDL-H001")]
     public void BoxDimensionArrows()
     {
         var session = new CadSession();
         var box = Begin(session, () => new BoxCommand());
+        WithGizmo(box);
         var hs = box.Handles;
         Assert.Equal(3, hs.Count);
         var gizmo = Assert.IsType<GizmoSpec>(box.Gizmo);
@@ -47,6 +68,7 @@ public class ViewportHandleTests
     {
         var session = new CadSession();
         var cyl = Begin(session, () => new CylinderCommand());
+        WithGizmo(cyl);
         var hs = cyl.Handles;
         Assert.Equal(2, hs.Count);   // radius + height; the position is the gizmo
         Assert.True(Vec3.Dot(At(hs, "Radius").Dir, Vec3.UnitX) > 0.99, "Radius arrow points radially");
@@ -62,18 +84,21 @@ public class ViewportHandleTests
     {
         var session = new CadSession();
         var cone = Begin(session, () => new ConeCommand());
+        WithGizmo(cone);
         var top = At(cone.Handles, "Top radius");
         AssertClose(30, top.Origin.Z, 1e-9, "Top radius arrow height (mm)");
         AssertPoint(new Vec3(16, 0, 0), At(cone.Handles, "Height").Origin, 1e-9, "Height arrow stands beside the cone, level with its widest end");
         AssertPoint(new Vec3(0, 0, 15), cone.Gizmo!.Center, 1e-9, "Gizmo sits in the middle of the cone");
         session.CancelCommand();
         var torus = Begin(session, () => new TorusCommand());
+        WithGizmo(torus);
         var minor = At(torus.Handles, "Minor radius");
         AssertClose(20, Math.Abs(minor.Origin.X), 1e-9, "Minor radius arrow on the ring's centre line (mm)");
         Assert.True(Vec3.Dot(minor.Dir, Vec3.UnitX) < -0.99, "Torus radii point away from the gizmo's X arrow");
         AssertPoint(Vec3.Zero, torus.Gizmo!.Center, 1e-9, "Gizmo sits in the middle of the torus");
         session.CancelCommand();
         var sphere = Begin(session, () => new SphereCommand());
+        WithGizmo(sphere);
         Assert.True(Vec3.Dot(At(sphere.Handles, "Radius").Dir, Vec3.UnitX) < -0.99, "Sphere radius points away from the gizmo's X arrow");
     }
 
@@ -87,6 +112,7 @@ public class ViewportHandleTests
         {
             session.StartCommand(create);
             var command = session.ActiveCommand!;
+            WithGizmo(command);
             SetNumber(command, "Position X", 7); SetNumber(command, "Position Y", -4); SetNumber(command, "Position Z", 3);
             var gizmo = Assert.IsType<GizmoSpec>(command.Gizmo);
             Assert.NotEmpty(command.Handles);
@@ -520,6 +546,7 @@ public class ViewportHandleTests
         var session = new CadSession();
         session.Camera.SetView(0, 90);        // from the top the cylinder's radius arrow lies under the gizmo's X arrow
         var cyl = Begin(session, () => new CylinderCommand());
+        WithGizmo(cyl);
         double length = session.CommandGizmoInfo!.Value.length;
         SetNumber(cyl, "Radius", Math.Round(length * .6, 3));
         var radius = At(cyl.Handles, "Radius"); double r0 = radius.Param.Value;
@@ -674,6 +701,7 @@ public class ViewportHandleTests
         var session = new CadSession();
         session.Camera.SetView(-35, 28);
         var box = Begin(session, () => new BoxCommand());
+        WithGizmo(box);
         var atRest = new Overlay();
         session.BuildOverlay(atRest);
         Assert.DoesNotContain(atRest.Labels, l => l.Text.Contains("mm") || l.Text.Contains('°'));

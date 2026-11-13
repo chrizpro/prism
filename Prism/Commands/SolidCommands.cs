@@ -148,6 +148,7 @@ public abstract class BodyCommand : Command
 public abstract class PrimitiveCommand : BodyCommand
 {
     protected NumberParam X = null!, Y = null!, Z = null!;
+    BoolParam? _moveGizmo;
     protected abstract string Prefix { get; }
     protected abstract Shape Make();
     public override string Hint => "Set the dimensions, then press OK. Use Operation to join or cut from an existing body.";
@@ -155,6 +156,7 @@ public abstract class PrimitiveCommand : BodyCommand
     protected void AddPosition()
     {
         X = Num("Position X", 0); Y = Num("Position Y", 0); Z = Num("Position Z", 0);
+        _moveGizmo = Check("Move with gizmo", false);
         AddOperation();
     }
 
@@ -167,7 +169,8 @@ public abstract class PrimitiveCommand : BodyCommand
     public override IReadOnlyList<HandleSpec> Handles => [.. DimHandles(new Vec3(X.Value, Y.Value, Z.Value))];
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
     /// <summary>Where the shape sits is a position: the shared gizmo moves it, from the middle of the shape.</summary>
-    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value) + Middle, X, Y, Z);
+    /// <summary>The move gizmo is not wanted while a shape is being inserted; it appears only when "Move with gizmo" is on.</summary>
+    public override GizmoSpec? Gizmo => _moveGizmo?.Value == true ? GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value) + Middle, X, Y, Z) : null;
 
     protected override CommandOutput? Build()
     {

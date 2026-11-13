@@ -16,7 +16,7 @@ public sealed class InsertComponentCommand : Command
     readonly ChoiceParam _doc;
     readonly TextParam _file;
     readonly NumberParam _x, _y, _z;
-    readonly BoolParam _ground, _link;
+    readonly BoolParam _ground, _link, _moveGizmo;
     readonly List<(string Title, CadSession Session)> _docs;
 
     LibraryPart? _library;
@@ -36,6 +36,7 @@ public sealed class InsertComponentCommand : Command
         _doc = Choice("Part from an open document", 0, names);
         _file = Text("…or from a part file", "", "full path of a .prism file");
         _x = Num("Place at X", 0); _y = Num("Place at Y", 0); _z = Num("Place at Z", 0);
+        _moveGizmo = Check("Move with gizmo", false);
         _ground = Check("Ground it (fix it in place)", false);
         _link = Check("Keep linked to the file (Refresh updates it)", true);
     }
@@ -43,7 +44,7 @@ public sealed class InsertComponentCommand : Command
     public override string Title => "Insert Component";
     public override string Icon => "component";
     public override string OkText => "Insert";
-    public override GizmoSpec? Gizmo => GizmoSpec.At(new Vec3(_x.Value, _y.Value, _z.Value), _x, _y, _z);
+    public override GizmoSpec? Gizmo => _moveGizmo.Value ? GizmoSpec.At(new Vec3(_x.Value, _y.Value, _z.Value), _x, _y, _z) : null;
     public override string Hint => "Bottom-up assembly: model each part in its own document, then insert it here. Choose an open document or a part file. The first component is grounded so the rest can be joined to it.";
     protected override void OnBegin()
     {

@@ -90,11 +90,12 @@ Tolerances and process values (sew/repair/check/K-factor/mesh quality thresholds
 Owner decision, 2026-11-12: **the gizmo transforms anything that has a position; feature sizes keep one consistent handle style.** Extrude keeps its arrow. The plan and the decision are in [NURBS, Freeform and viewport-interaction plan](engineering/nurbs-freeform-viewport-plan.md#decisions).
 
 * **How a command asks for it.** `Command.Gizmo` returns a `GizmoSpec(Center, Move[3], Turn[3], Scale, …)`: the parameter each arrow, ring and the centre block edits, with `null` hiding a handle. `CadSession.CommandGizmo.cs` draws it with the same `GizmoVisual` as the Move tool, so size, tolerance and snapping come from the gizmo settings. Size handles stay in `Command.Handles`.
+* **A gizmo appears only when the command is about moving something.** Move, Rotate, Scale, Move Face, Move Hole, Direct Edit and Move Component open with it. Commands that create or insert something (shapes, Insert Component) keep it off until the user asks for it with the "Move with gizmo" check (`HDL-H032`).
 * **Commands on the gizmo now:**
 
   | Command | Gizmo sets | Size handles kept |
   |---|---|---|
-  | Box, Cylinder, Sphere, Cone, Torus | Position X / Y / Z, shown at the middle of the shape | Width, depth, height, radii, anchored on the shape and clear of the gizmo arrows |
+  | Box, Cylinder, Sphere, Cone, Torus | Position X / Y / Z, shown at the middle of the shape **only when "Move with gizmo" is on** (off by default, owner direction 2026-11-13: a gizmo while inserting a shape is in the way) | Width, depth, height, radii, anchored on the shape and clear of the gizmo arrows |
   | Transform → Move | Move X / Y / Z | none |
   | Transform → Rotate | The angle, on three rings. Pressing a ring makes its axis the turn axis and starts again from 0 | none |
   | Transform → Scale | The factor, on the centre block | none |
@@ -102,7 +103,7 @@ Owner decision, 2026-11-12: **the gizmo transforms anything that has a position;
   | Move Hole | Move X / Y / Z at the hole | Diameter arrow |
   | Direct Edit | Move X / Y / Z at the middle of a flat face or the feature centre | Pull arrow, tilt ring, rim radius |
   | Move Component | Move X / Y / Z and Turn X / Y / Z | none |
-  | Insert Component | Position X / Y / Z | none |
+  | Insert Component | Position X / Y / Z, only when "Move with gizmo" is on (off by default) | none |
   | Component Pattern | Linear: spacing X / Y / Z, shown where the first copy lands. Circular: the point the axis passes through | Circular: the angle ring |
 
 * **One control per direction.** In Direct Edit the pull arrow leaves the middle of a flat face along its normal. While it is showing and the normal is a world axis, the gizmo hides its own arrow for that axis, so two arrows never lie on top of each other. Once the face is being moved the pull arrow hides and the gizmo arrow comes back.
