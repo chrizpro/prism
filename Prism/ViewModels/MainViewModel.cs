@@ -613,7 +613,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonGroup TransformGrp() => G("Transform",
             MoveBtn(RibbonSize.Large),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
-            Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects uniformly.", small),
+            Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects evenly, or stretch them along each axis.", small),
             Cmd("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror), "Reflect objects across a plane.", small),
             Btn("Duplicate", "duplicate", Session.Duplicate, "Copy the selected objects.", small, hasSel));
         RibbonGroup AppearanceGrp() => G("Appearance",
@@ -687,7 +687,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 G("Transform",
                     MoveBtn(small),
                     Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),
-                    Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects uniformly.", small),
+                    Cmd("Scale", "scale", () => new TransformCommand(TransformCommand.Kind.Scale), "Resize objects evenly, or stretch them along each axis.", small),
                     Cmd("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror), "Reflect objects across a plane.", small),
                     Btn("Duplicate", "duplicate", Session.Duplicate, "Copy the selected objects.", small, hasSel)),
                 G("Appearance",

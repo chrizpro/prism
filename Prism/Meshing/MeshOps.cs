@@ -550,6 +550,9 @@ public static class MeshOps
         return origin + v * c + Vec3.Cross(k, v) * s + k * (Vec3.Dot(k, v) * (1 - c));
     }
 
+    /// <summary>Stretch by a different factor along each world axis; a negative factor mirrors, so the winding follows.</summary>
+    public static TriMesh Scale(TriMesh m, Vec3 origin, Vec3 f) => m.Transformed(p => { var v = p - origin; return origin + new Vec3(v.X * f.X, v.Y * f.Y, v.Z * f.Z); }, flipWinding: f.X * f.Y * f.Z < 0);
+
     public static TriMesh Scale(TriMesh m, Vec3 origin, double f) => m.Transformed(p => origin + (p - origin) * f, flipWinding: f < 0);
 
     public static TriMesh Mirror(TriMesh m, Vec3 origin, Vec3 normal)

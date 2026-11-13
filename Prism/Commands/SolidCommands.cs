@@ -1420,8 +1420,8 @@ public sealed class TransformCommand : Command
     public enum Kind { Move, Rotate, Scale, Mirror }
     readonly Kind _kind;
     readonly SelectionSlot _objs;
-    readonly NumberParam? _dx, _dy, _dz, _angle, _factor;
-    readonly ChoiceParam? _axis, _pivot, _plane;
+    readonly NumberParam? _dx, _dy, _dz, _angle, _factor, _fx, _fy, _fz;
+    readonly ChoiceParam? _axis, _pivot, _plane, _scaleType;
     readonly BoolParam _copy;
 
     public TransformCommand(Kind kind)
@@ -1432,18 +1432,55 @@ public sealed class TransformCommand : Command
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
             case Kind.Rotate: _axis = Choice("Axis", 2, "X", "Y", "Z"); _angle = Num("Angle", 45, -360, 360, 1, "°"); _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
-            case Kind.Scale: _factor = Num("Factor", 1.5, 0.001, 1000, 0.1, "×"); _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
+            case Kind.Scale:
+                _scaleType = Choice("Scale type", 0, "Uniform", "Per axis (stretch)");
+                _factor = Num("Factor", 1.5, 0.001, 1000, 0.1, "×");
+                _fx = Num("Factor X", 1.5, 0.001, 1000, 0.1, "×"); _fy = Num("Factor Y", 1, 0.001, 1000, 0.1, "×"); _fz = Num("Factor Z", 1, 0.001, 1000, 0.1, "×");
+                _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
             case Kind.Mirror: _plane = Choice("Mirror plane", 0, "XY (Z = 0)", "XZ (Y = 0)", "YZ (X = 0)"); break;
         }
         _copy = Check("Create copy", kind == Kind.Mirror);
     }
     public override string Title => _kind.ToString();
     public override string Hint => _kind == Kind.Mirror ? "Select the objects to mirror and choose the mirror plane."
+        : _kind == Kind.Scale ? "Select the objects to scale. Uniform scales every dimension together (drag the block on the gizmo, or type a factor). Per axis stretches each of X, Y and Z by its own factor: drag the arrows on the object's faces, or type the factors. Stretching follows the world axes."
         : "Select the objects to transform, then drag the gizmo in the viewport or type numbers.";
 
-    // a transform has no feature sizes: everything it edits is on the shared gizmo
-    public override IReadOnlyList<HandleSpec> Handles => [];
-    public override HandleSpec? Handle => null;
+    bool PerAxis => _kind == Kind.Scale && _scaleType!.Index == 1;
+    Vec3 AxisFactors => new(_fx!.Value, _fy!.Value, _fz!.Value);
+
+    protected override void UpdateVisibility()
+    {
+        if (_kind != Kind.Scale) return;
+        _factor!.IsVisible = !PerAxis;
+        _fx!.IsVisible = _fy!.IsVisible = _fz!.IsVisible = PerAxis;
+    }
+
+    // Move, Rotate and uniform Scale are on the shared gizmo; a per-axis stretch has one arrow per axis on the object's faces
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (!PerAxis || _objs.Items.Count == 0) return [];
+            try
+            {
+                var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+                foreach (var obj in ObjectsOf(_objs).Distinct())
+                {
+                    var m = obj.Mesh; if (m.Positions.Length < 3) continue;
+                    lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+                    hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+                }
+                if (lo.X > hi.X) return [];
+                var c = (lo + hi) * 0.5; var half = (hi - lo) * 0.5;
+                // the arrow's tip rides the object's face: the factor is the tip's distance from the centre divided by the half-size
+                double Mul(double h) => 1 / Math.Max(h, 1e-6);
+                return [new HandleSpec(c, Vec3.UnitX, _fx!, Mul(half.X)), new HandleSpec(c, Vec3.UnitY, _fy!, Mul(half.Y)), new HandleSpec(c, Vec3.UnitZ, _fz!, Mul(half.Z))];
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return []; }
+        }
+    }
+    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
 
     /// <summary>Centre of the objects before the transform (the preview replaces them, so the gizmo rides on the typed delta instead).</summary>
     Vec3? SourceCenter()
@@ -1463,7 +1500,7 @@ public sealed class TransformCommand : Command
     {
         get
         {
-            if (_objs.Items.Count == 0 || _kind == Kind.Mirror) return null;
+            if (_objs.Items.Count == 0 || _kind == Kind.Mirror || PerAxis) return null;
             try
             {
                 if (SourceCenter() is not { } center) return null;
@@ -1500,7 +1537,7 @@ public sealed class TransformCommand : Command
             {
                 Kind.Move => Occ.Translate(obj.Shape, new(_dx!.Value, _dy!.Value, _dz!.Value)),
                 Kind.Rotate => Occ.Rotate(obj.Shape, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
-                Kind.Scale => Occ.Scale(obj.Shape, center, _factor!.Value),
+                Kind.Scale => PerAxis ? Occ.Scale(obj.Shape, center, AxisFactors) : Occ.Scale(obj.Shape, center, _factor!.Value),
                 _ => Occ.Mirror(obj.Shape, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
             };
             if (_copy.Value) o.Add.Add(new(r, StripNumber(obj.Name), obj.Kind, obj.Color, obj.SketchPlane, null, obj.Look));
@@ -1518,7 +1555,7 @@ public sealed class TransformCommand : Command
         {
             Kind.Move => Meshing.MeshOps.Move(tri, new(_dx!.Value, _dy!.Value, _dz!.Value)),
             Kind.Rotate => Meshing.MeshOps.Rotate(tri, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
-            Kind.Scale => Meshing.MeshOps.Scale(tri, center, _factor!.Value),
+            Kind.Scale => PerAxis ? Meshing.MeshOps.Scale(tri, center, AxisFactors) : Meshing.MeshOps.Scale(tri, center, _factor!.Value),
             _ => Meshing.MeshOps.Mirror(tri, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
         };
         if (_copy.Value) o.Add.Add(new(null, StripNumber(obj.Name), ObjKind.Mesh, obj.Color, null, null, obj.Look, r));
@@ -1535,6 +1572,7 @@ public sealed class TransformCommand : Command
         switch (_kind)
         {
             case Kind.Move: { var d = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); t = p => p + d; break; }
+            case Kind.Scale when PerAxis: { var k = AxisFactors; t = p => { var v = p - center; return center + new Vec3(v.X * k.X, v.Y * k.Y, v.Z * k.Z); }; break; }
             case Kind.Scale: { double k = _factor!.Value; t = p => center + (p - center) * k; break; }
             case Kind.Rotate:
             {

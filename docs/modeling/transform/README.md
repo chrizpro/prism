@@ -1,6 +1,6 @@
 # Solid transforms
 
-Move translates in XYZ. Rotate uses a world axis and a selectable pivot. Scale is uniform. Mirror reflects across a world plane and defaults to making a copy. Duplicate copies selected objects through the session action.
+Move translates in XYZ. Rotate uses a world axis and a selectable pivot. Scale is uniform by default; **Scale type: Per axis (stretch)** gives X, Y and Z their own factors (owner report 2026-11-13: only a uniform scale existed). In that mode the viewport shows one arrow on each face of the selection and dragging it sets that factor (`SOL-H110`, `SOL-H111`). The stretch follows the world axes, so a part turned off-axis is sheared; a sphere becomes an ellipsoid and other curved faces become freeform surfaces. The kernel call needs the native library built from this change (`ck_scale3`). Mirror reflects across a world plane and defaults to making a copy. Duplicate copies selected objects through the session action.
 
 In the viewport Move, Rotate and Scale are driven by the shared gizmo: arrows for the offsets, three rings for the angle (pressing a ring makes its axis the turn axis and starts again from 0) and the centre block for the factor. Maintained check: HDL-H023 in [ViewportHandleTests](../../../Prism.Tests/Headless/Viewport/ViewportHandleTests.cs); see [viewport interaction](../../viewport-interaction-handoff.md#command-gizmo-2026-11-12).
 

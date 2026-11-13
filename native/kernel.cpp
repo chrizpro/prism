@@ -62,6 +62,8 @@
 #include <BRepBuilderAPI_NurbsConvert.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
+#include <BRepBuilderAPI_GTransform.hxx>
+#include <gp_GTrsf.hxx>
 #include <BRepBuilderAPI_Copy.hxx>
 #include <BRepCheck_Analyzer.hxx>
 #include <BRepClass_FaceClassifier.hxx>
@@ -801,6 +803,12 @@ CK_API void* ck_rotate(void* s, const double* o, const double* axis, double deg)
 }
 CK_API void* ck_scale(void* s, const double* o, double f) {
     TRY gp_Trsf t; t.SetScale(gp_Pnt(o[0], o[1], o[2]), f); return wrap(transformed(get(s), t)); CATCH(nullptr)
+}
+// Stretch by a different factor along each world axis about a point. Curved faces come out as NURBS, so the shape stays exact but loses its analytic type.
+CK_API void* ck_scale3(void* s, const double* o, double fx, double fy, double fz) {
+    TRY gp_GTrsf g; g.SetValue(1, 1, fx); g.SetValue(2, 2, fy); g.SetValue(3, 3, fz);
+        g.SetTranslationPart(gp_XYZ(o[0] * (1 - fx), o[1] * (1 - fy), o[2] * (1 - fz)));
+        BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
 }
 CK_API void* ck_mirror(void* s, const double* o, const double* n) {
     TRY gp_Trsf t; t.SetMirror(gp_Ax2(gp_Pnt(o[0], o[1], o[2]), gp_Dir(n[0], n[1], n[2]))); return wrap(transformed(get(s), t)); CATCH(nullptr)
