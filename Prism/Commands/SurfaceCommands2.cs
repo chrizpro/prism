@@ -95,7 +95,7 @@ public sealed class SplitSurfaceCommand : Command
 
     public SplitSurfaceCommand()
     {
-        _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj });
+        _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj | SelFilter.Face });
         _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, sketch, curve or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge });
         _result = Choice("Result", 0, "One surface, several faces", "Separate surfaces");
         _result.HelpText = "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color.";
@@ -104,7 +104,7 @@ public sealed class SplitSurfaceCommand : Command
     public override string Title => "Split Surface";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.";
+    public override string Hint => "Pick the surface (at the Face level, pick one face to split just that face), then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.";
 
     protected override CommandOutput? Build()
     {
@@ -112,7 +112,11 @@ public sealed class SplitSurfaceCommand : Command
         if (_target.Items.Count == 0 || _tool.Items.Count == 0) return null;
         var obj = S.Find(_target.Items[0].Obj) ?? throw new FormatException("That surface is gone.");
         if (obj.Kind != ObjKind.Surface || !obj.HasBrep) throw new FormatException("Split Surface works on surfaces.");
-        var pieces = Cut(obj.Shape, _tool.Items[0]);
+        // at the Face pick level a picked face is split on its own and the rest of the surface is kept as it is
+        var picked = _target.Items[0];
+        int only = picked.Kind == SelKind.Face && S.Mode == SelMode.Face ? picked.Index : -1;
+        if (only >= obj.Shape.Count(SubKind.Face)) throw new FormatException("That face is gone.");
+        var pieces = only < 0 ? Cut(obj.Shape, _tool.Items[0]) : CutFace(obj.Shape, only, _tool.Items[0]);
         int n = pieces.Count(SubKind.Face);
         if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not split the surface. A plane, face, surface or solid must cross it completely; a sketch or curve splits along its projection on the surface.");
         var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
@@ -128,6 +132,17 @@ public sealed class SplitSurfaceCommand : Command
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Face, i), "Split piece", ObjKind.Surface));
         Results.Add(new ResultLine("Pieces", n.ToString()));
         return o;
+    }
+
+    /// <summary>Split one face by the tool and gather it with every other face of the surface, ready to sew.</summary>
+    Shape CutFace(Shape surface, int index, SelItem tool)
+    {
+        using var face = surface.Sub(SubKind.Face, index);
+        var cut = Cut(face, tool);
+        var all = new List<Shape>();
+        for (int i = 0; i < surface.Count(SubKind.Face); i++) if (i != index) all.Add(surface.Sub(SubKind.Face, i));
+        for (int i = 0; i < cut.Count(SubKind.Face); i++) all.Add(cut.Sub(SubKind.Face, i));
+        return Occ.Compound(all);
     }
 
     bool IsCurveTool(SelItem it) => it.Kind is SelKind.Edge or SelKind.Entity

@@ -223,6 +223,26 @@ public class SurfaceToolTests
         Assert.Equal(command.Model!.Points.Length, tool.Selected.Count);
     }
 
+    [AvaloniaFact(DisplayName = "SRF-H031 | Split Surface at the Face level splits only the picked face and keeps the rest of the surface")]
+    [Trait("TestId", "SRF-H031")]
+    public void SplitSurfaceSplitsPickedFace()
+    {
+        var session = new CadSession();
+        using var box = Occ.Box(20, 20, 10);
+        var faces = Enumerable.Range(0, box.Count(SubKind.Face)).Select(i => box.Sub(SubKind.Face, i)).ToList();
+        var cube = session.AddObject(Occ.Sew(faces, 0.01, false), "Cube", ObjKind.Surface);
+        int top = Enumerable.Range(0, 6).Single(i => { using var f = cube.Shape.Sub(SubKind.Face, i); return Math.Abs(f.Props().Center.Z - 10) < 1e-6 && f.Props().Size.X > 19 && f.Props().Size.Z < 1e-6; });
+        var line = session.AddObject(Occ.Line(new Vec3(0, -11, 10), new Vec3(0, 11, 10)), "Cut line", ObjKind.Curve);
+        session.Mode = SelMode.Face;
+        var command = Begin(session, () => new SplitSurfaceCommand());
+        Pick(command, "Surface to split", new SelItem(cube.Id, SelKind.Face, top));
+        Pick(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        var output = BuildOutput(command);
+        var result = Assert.Single(output.Replace).New;
+        Assert.True(7 == result.Count(SubKind.Face), string.Join(", ", Enumerable.Range(0, result.Count(SubKind.Face)).Select(i => { using var f = result.Sub(SubKind.Face, i); return $"{f.Props().Area:0.#}@{f.Props().Center.X:0.#},{f.Props().Center.Y:0.#},{f.Props().Center.Z:0.#}"; })));                       // the top became two, the other five are untouched
+        AssertClose(2 * 400 + 4 * 200, result.Props().Area, 1e-6, "Area is unchanged (mm²)");
+    }
+
     // ------------------------------------------------------------------ Network Surface
 
     [AvaloniaFact(DisplayName = "SRF-H010 | Network Surface lifts a square outline toward a raised curve across it")]
