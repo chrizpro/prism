@@ -63,7 +63,7 @@ static class NurbsUtil
 }
 
 // =================================================================== curve editing
-/// <summary>Round or chamfer the corners of a flat curve.</summary>
+/// <summary>Round or chamfer the corners of a flat curve, or the edges where the faces of a surface or body meet.</summary>
 public sealed class CurveFilletCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -74,25 +74,46 @@ public sealed class CurveFilletCommand : Command
 
     public CurveFilletCommand(bool chamfer)
     {
-        _curve = Slot(new SelectionSlot { Label = "Flat curve or sketch", Filter = SelFilter.AnyCurve | SelFilter.Edge });
+        _curve = Slot(new SelectionSlot { Label = "Flat curve or sketch, or edges of a surface", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true });
         _corner = Choice("Corners", chamfer ? 1 : 0, "Fillet (round)", "Chamfer (cut)");
         _radius = Num("Fillet radius", 5, 0.001);
         _distance = Num("Chamfer distance", 3, 0.001);
         _keep = Check("Keep the original curve", true);
         UpdateVisibility();
     }
-    public override string Title => "Fillet / Chamfer Curve";
+    public override string Title => "Fillet / Chamfer";
     public override string Icon => "fillet";
-    public override string Hint => "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. An open curve keeps its two ends. The curve has to lie in one plane.";
+    public override string Hint => "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. Or pick edges where two faces of a surface or body meet: those edges are rounded or cut on the surface itself. Sew separate surfaces first so they share the edge.";
     public override HandleSpec? Handle => _curve.Items.Count == 0 ? null : EdgeHandle(_curve.Items[0], Chamfer ? _distance : _radius);
-    protected override void UpdateVisibility() { _radius.IsVisible = !Chamfer; _distance.IsVisible = Chamfer; }
+
+    /// <summary>An edge of a surface or solid body, as opposed to a curve, a sketch or one curve of a sketch.</summary>
+    bool IsBodyEdge(SelItem item) => item.Kind == SelKind.Edge && S.Find(item.Obj) is { Kind: ObjKind.Surface or ObjKind.Solid, HasBrep: true };
+
+    protected override void UpdateVisibility()
+    {
+        _radius.IsVisible = !Chamfer; _distance.IsVisible = Chamfer;
+        _keep.IsVisible = S == null || !_curve.Items.Any(IsBodyEdge);
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var item = _curve.Items[0];
         double size = Chamfer ? _distance.Value : _radius.Value;
-        var o = NurbsUtil.Curves(NurbsUtil.Wires(NurbsUtil.Curve(S, item)).Select(w => Occ.WireFillet(w, size, Chamfer)).ToList(), Chamfer ? "Chamfered curve" : "Filleted curve");
-        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, [item]);
+        var o = new CommandOutput();
+        foreach (var body in _curve.Items.Where(IsBodyEdge).GroupBy(i => i.Obj))
+        {
+            var obj = S.Find(body.Key)!; var edges = body.Select(i => i.Index).Distinct().ToArray();
+            try { o.Replace.Add((obj, Chamfer ? Occ.Chamfer(obj.Shape, edges, size) : Occ.Fillet(obj.Shape, edges, size))); }
+            catch (KernelException e) when (e.Message.Contains("no suitable edges", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new FormatException("That edge is an open border of the surface. Pick an edge where two faces meet; Sew separate surfaces first so they share the edge.");
+            }
+        }
+        var curves = _curve.Items.Where(i => !IsBodyEdge(i)).ToList();
+        foreach (var item in curves)
+            foreach (var w in NurbsUtil.Wires(NurbsUtil.Curve(S, item)))
+                o.Add.Add(new(Occ.WireFillet(w, size, Chamfer), Chamfer ? "Chamfered curve" : "Filleted curve", ObjKind.Curve));
+        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, curves);
         return o;
     }
 }

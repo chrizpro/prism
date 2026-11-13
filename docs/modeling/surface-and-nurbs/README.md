@@ -45,7 +45,8 @@ Home has one **Curves** dropdown with every tool from Curves and Edit curves, be
 | Sweep | One path, or a path plus a second rail that steers how the profile turns. |
 | Curve | Through the points, or control points. |
 | Curve from Data | An equation, or a table or file of points. |
-| Fillet / Chamfer | Rounds or cuts the corners of a flat curve. |
+| Fillet / Chamfer | Rounds or cuts the corners of a flat curve, or the edges where two faces of a surface or body meet. |
+| Draw on Surface | A curve laid on the surface, or a split of the face along it. |
 | Trim Curve | Keeps one part, or cuts the curve into pieces. |
 | Intersection Curve | Between planes, faces, surfaces or bodies, or two flat curves on different planes. |
 
@@ -75,6 +76,8 @@ Approved and shipped on 2026-11-12:
 - **Split Surface also takes sketches and curves as the tool** (SFC-H010), which Split Body does not: a sketch or curve splits the surface along its projection (projected along the sketch plane's normal when it has one, otherwise pulled down the surface normals; a curtain through the curve is the fallback). Picking a whole sketch splits along every curve in it, including curves that cross each other (SFC-H011); picking one sketch curve splits along just that one. A curve must run from edge to edge, or close on itself, to divide the surface.
 - **Delete removes a selected surface face** (SFC-H013, owner decision 2026-11-12): with faces of a surface selected and no tool open, the Delete key removes those faces and leaves the gap; the rest of the surface stays. Deleting every face removes the surface. This is the quick subtractive workflow: draw a line where the boundary should go, split, select the face to drop, press Delete.
 - **Fixed on 2026-11-12:** a sketch whose curves cross (two lines forming a cross) only split along some of them, because the kernel does not intersect the parts of one tool with each other. Split Surface now cuts with each curve in turn.
+- **Fillet / Chamfer also dresses surface edges** (SFC-H016, owner direction 2026-11-12): the Edit curves button now takes edges of a surface or solid body as well as flat curves. An edge where two faces of one surface meet is rounded or cut on the surface itself; several edges can be picked. A border edge is refused with a message, and separate surfaces must be sewn first so they share the edge. No new ribbon button was added.
+- **Draw on Surface can split the face along the drawn curve** (SKT-H057 to SKT-H059), so a cut line can be drawn in place without a sketch. Details are in the [sketch guide](../sketches/README.md#drawing-directly-on-a-surface).
 - **Not available:** a color per face. Appearance is stored per object, so differently colored regions need the Separate surfaces result. Per-face color would be a new feature and has not been proposed in detail.
 - **Mirror was already on Surface, NURBS, Solid and Freeform** via the shared Transform group (SFC-H009); `TransformCommand` accepts any object kind, so surfaces mirror without conversion. Freeform additionally keeps its cage-level "Mirror and weld" under Symmetry.
 - **Freeform has no Split Surface or Split Body equivalent, deliberately**: splitting a Catmull-Clark form's baked shape would sever the cage↔surface link and leave a dumb surface. The path is Convert to NURBS, then split — the same reason Combine stays off Freeform.

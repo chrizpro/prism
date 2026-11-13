@@ -151,7 +151,7 @@ public sealed class SplitSurfaceCommand : Command
 
     /// <summary>Split by each part of the tool in turn. The kernel does not intersect the parts of one tool with each other,
     /// so curves that cross (two lines of one sketch) handed over together leave cuts out.</summary>
-    static Shape SplitByEach(Shape target, Shape tool, SubKind part)
+    internal static Shape SplitByEach(Shape target, Shape tool, SubKind part)
     {
         int n = tool.Count(part);
         if (n <= 1) return Occ.Split(target, tool);

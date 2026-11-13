@@ -359,6 +359,55 @@ public class SurfaceOptionTests
         vm.Session.CancelCommand();
     }
 
+    [AvaloniaTheory(DisplayName = "SFC-H016 | Fillet / Chamfer rounds or cuts the edge where two faces of a surface meet")]
+    [InlineData("Surface", false)]
+    [InlineData("NURBS", true)]
+    [Trait("TestId", "SFC-H016")]
+    public void FilletChamferSurfaceEdge(string tab, bool chamfer)
+    {
+        var vm = new MainViewModel();
+        var (wall, corner, border) = CornerWall(vm.Session);
+        var command = StartFillet(vm, tab);
+        command.ConfigureInputs(() =>
+        {
+            command.Slots[0].TryAdd(new SelItem(wall.Id, SelKind.Edge, corner));
+            SetChoice(command, "Corners", chamfer ? "Chamfer (cut)" : "Fillet (round)");
+            SetNumber(command, chamfer ? "Chamfer distance" : "Fillet radius", chamfer ? 4 : 5);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        Assert.Empty(output.Add);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.True(result.IsValid);
+        Assert.Equal(3, result.Count(SubKind.Face));
+        // two 25 mm tall walls of 40 and 30 mm: the corner strip replaces 2 x size of wall with an arc or a diagonal
+        double expected = chamfer ? 1750 - (8 - 4 * Math.Sqrt(2)) * 25 : 1750 - (10 - Math.PI * 2.5) * 25;
+        AssertNear(expected, result.Props().Area, "Area after the edge is dressed (mm²)");
+        vm.Session.CancelCommand();
+
+        var open = StartFillet(vm, tab);
+        open.ConfigureInputs(() => open.Slots[0].TryAdd(new SelItem(wall.Id, SelKind.Edge, border)));
+        Assert.Null(open.TryBuild());
+        Assert.Contains("open border", open.Error);
+    }
+
+    /// <summary>Two flat walls meeting at a right angle, sewn as one surface; the indices of the shared edge and of one border edge.</summary>
+    static (SceneObject wall, int corner, int border) CornerWall(CadSession session)
+    {
+        using var path = Occ.Polyline([Vec3.Zero, new(40, 0, 0), new(40, 30, 0)], false);
+        var wall = session.AddObject(Occ.Extrude(path, new Vec3(0, 0, 25)), "Corner wall", ObjKind.Surface);
+        int corner = -1, border = -1;
+        for (int i = 0; i < wall.Shape.Count(SubKind.Edge); i++)
+        {
+            using var edge = wall.Shape.Sub(SubKind.Edge, i);
+            var info = Occ.EdgeInfoOf(edge);
+            bool atCorner = Math.Abs(info.Start.X - 40) < 1e-6 && Math.Abs(info.End.X - 40) < 1e-6 && Math.Abs(info.Start.Y) < 1e-6 && Math.Abs(info.End.Y) < 1e-6;
+            if (atCorner) corner = i; else if (border < 0) border = i;
+        }
+        Assert.True(corner >= 0, "The walls share an edge");
+        return (wall, corner, border);
+    }
+
     [AvaloniaTheory(DisplayName = "SFC-H009 | Mirror launches from the shared Transform group on modeling tabs")]
     [InlineData("Solid")]
     [InlineData("Surface")]
@@ -391,5 +440,13 @@ public class SurfaceOptionTests
             .Single(b => b.Label.Replace('\n', ' ') == title || (title == "Offset Surface" && b.Label == "Offset"));
         button.Invoke();
         return Assert.IsType<T>(vm.Session.ActiveCommand);
+    }
+
+    static CurveFilletCommand StartFillet(MainViewModel vm, string tab)
+    {
+        vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct()
+            .Single(b => b.Label.Replace('\n', ' ') == "Fillet / Chamfer").Invoke();
+        return Assert.IsType<CurveFilletCommand>(vm.Session.ActiveCommand);
     }
 }

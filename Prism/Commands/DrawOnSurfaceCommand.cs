@@ -24,9 +24,15 @@ public sealed class DrawOnSurfaceCommand : Command
     List<Vec3>? _preview;
     long _lastPreview;
     bool _placing = true;
+    bool _curveClosed;
+    readonly ChoiceParam _result;
+    readonly BoolParam _closed;
 
     public DrawOnSurfaceCommand()
     {
+        _result = Choice("Result", 0, "Curve", "Split the face along the curve");
+        _result.HelpText = "Split divides the face you drew on into two faces along the curve. An end that stops short of an edge is run on to it.";
+        _closed = Check("Closed loop", false);
         Add(new ActionParam { Label = "Add more points", Run = () => StartPlacing(S) });
         Add(new ActionParam { Label = "Clear points", Run = () => { _picks.Clear(); _selected = -1; Reset(); OnChanged(); } });
         Tool = new DrawOnSurfaceTool(this);
@@ -34,8 +40,12 @@ public sealed class DrawOnSurfaceCommand : Command
 
     public override string Title => "Draw on Surface";
     public override string Icon => "curve-through";
-    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes.";
-    public override string OkText => "Make curve";
+    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes. Under Result choose Split to divide the face along the curve instead of keeping the curve.";
+    public override string OkText => _result.Index == 1 ? "Split" : "Make curve";
+
+    bool Closed => _closed.Value && _picks.Count >= 3;
+    /// <summary>The clicked points in order, with the first one again at the end for a closed loop.</summary>
+    List<Spot> Route() => Closed ? [.. _picks, _picks[0]] : _picks;
 
     public int PickCount => _picks.Count;
 
@@ -159,9 +169,11 @@ public sealed class DrawOnSurfaceCommand : Command
 
     (List<Vec3> Points, List<bool> Pinned)? Curve()
     {
+        if (_curveClosed != Closed) { _curveClosed = Closed; _curveValid = false; }
         if (!_curveValid && _graph != null && _picks.Count >= 2)
         {
-            _curve = _graph.Trace(_picks.Select(p => p.Point).ToList(), _picks.Select(p => p.Tri).ToList());
+            var route = Route();
+            _curve = _graph.Trace(route.Select(p => p.Point).ToList(), route.Select(p => p.Tri).ToList());
             _curveValid = true;
         }
         return _curve;
@@ -179,7 +191,8 @@ public sealed class DrawOnSurfaceCommand : Command
     protected override CommandOutput? Build()
     {
         if (_picks.Count < 2 || Curve() is not { } curve) return null;
-        var shape = Fit(curve.Points, curve.Pinned);
+        bool closed = Closed;
+        var shape = Fit(curve.Points, curve.Pinned, closed);
 
         // On an exact solid or surface body, pull the curve onto the true surface: the display mesh is only an approximation of it.
         string note = "";
@@ -192,14 +205,68 @@ public sealed class DrawOnSurfaceCommand : Command
         Results.Clear();
         Results.Add(new ResultLine("Points", _picks.Count.ToString()));
         Results.Add(new ResultLine("Length", $"{SurfaceGraph.Length(curve.Points):0.###} mm" + note));
-        return NurbsUtil.Curves([shape], "Curve on surface");
+        return _result.Index == 1 ? SplitAlong(shape, curve.Points, closed) : NurbsUtil.Curves([shape], "Curve on surface");
     }
+
+    /// <summary>
+    /// Divide the faces the curve was drawn on. An open curve has to reach an edge at both ends to divide anything, and clicks
+    /// rarely land exactly on an edge, so each end is run on: straight to the edge when one is close, otherwise along the
+    /// curve's own direction. The extension is laid on the same faces only, so it stops at their border.
+    /// </summary>
+    CommandOutput SplitAlong(Shape curve, List<Vec3> laid, bool closed)
+    {
+        if (_picks.Select(p => p.Obj.Id).Distinct().Count() != 1 || _picks[0].Obj is not { Form: null, Tri: null, HasBrep: true, Kind: ObjKind.Surface or ObjKind.Solid } body)
+            throw new FormatException("Splitting works on one surface or solid body. Draw the whole curve on the same body, or choose Curve under Result.");
+        double diag = body.Shape.Props().Size.Length;
+        int faceCount = body.Shape.Count(SubKind.Face);
+        var faces = new List<Shape>();
+        for (int i = 0; i < faceCount; i++)
+        {
+            var face = body.Shape.Sub(SubKind.Face, i);
+            if (Occ.Distance(face, curve).Distance <= Math.Max(0.02, 0.003 * diag)) faces.Add(face);
+        }
+        if (faces.Count == 0) throw new FormatException("The curve is not on a face of that body.");
+        var parts = new List<Shape> { curve };
+        if (!closed)
+        {
+            var borders = Occ.Compound(faces.SelectMany(f => Enumerable.Range(0, f.Count(SubKind.Edge)).Select(i => f.Sub(SubKind.Edge, i))).ToList());
+            double length = SurfaceGraph.Length(laid);
+            foreach (var (end, next) in new[] { (laid[0], laid[1]), (laid[^1], laid[^2]) })
+            {
+                using var at = Occ.Vertex(end);
+                var edge = Occ.Distance(at, borders); var along = (end - next).Normalized();
+                bool near = edge.Distance > 1e-6 && edge.Distance <= 0.25 * length;
+                var reach = near ? end + (edge.B - end).Normalized() * (edge.Distance + 0.005 * diag) : end + along * (edge.Distance <= 1e-6 ? 0.005 * diag : diag);
+                parts.Add(Occ.Line(end, reach));
+            }
+        }
+        Shape pieces;
+        try
+        {
+            var onFaces = Occ.ProjectCurve(Occ.Compound(parts), Occ.Compound(faces), Vec3.Zero, true);
+            pieces = Occ.Split(body.Shape, onFaces);
+            if (pieces.Count(SubKind.Face) <= faceCount) pieces = SplitSurfaceCommand.SplitByEach(body.Shape, onFaces, SubKind.Edge);
+        }
+        catch (KernelException) { throw new FormatException(NoSplit(closed)); }
+        int after = pieces.Count(SubKind.Face);
+        if (after <= faceCount || body.Kind == ObjKind.Solid && pieces.Count(SubKind.Solid) != 1) throw new FormatException(NoSplit(closed));
+        var result = body.Kind == ObjKind.Solid ? pieces.Sub(SubKind.Solid, 0)
+            : Occ.Sew(Enumerable.Range(0, after).Select(i => pieces.Sub(SubKind.Face, i)).ToList(), 0.01, false);
+        Results.Add(new ResultLine("Faces", $"{faceCount}  →  {after}"));
+        var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
+        o.Replace.Add((body, result));
+        return o;
+    }
+
+    static string NoSplit(bool closed) => closed
+        ? "The loop does not divide the face. Keep the whole loop on the body."
+        : "The curve does not divide the face. Start and end it near an edge of the face, or turn on Closed loop to cut out a region.";
 
     /// <summary>
     /// A smooth spline through the laid-down samples: the clicked points exactly, and between them every third sample, so the
     /// spline stays calm instead of copying every tiny wobble of the mesh. Two points make a straight line.
     /// </summary>
-    static Shape Fit(List<Vec3> pts, List<bool> pinned)
+    static Shape Fit(List<Vec3> pts, List<bool> pinned, bool closed = false)
     {
         var kept = new List<Vec3>(); var keptPinned = new List<bool>();
         for (int i = 0; i < pts.Count; i++)
@@ -208,6 +275,7 @@ public sealed class DrawOnSurfaceCommand : Command
         for (int j = kept.Count - 1; j >= 0; j--)
             if (!keptPinned[j] && (j > 0 && (kept[j] - kept[j - 1]).Length < gap || j + 1 < kept.Count && (kept[j] - kept[j + 1]).Length < gap)) { kept.RemoveAt(j); keptPinned.RemoveAt(j); }
         for (int j = kept.Count - 1; j > 0; j--) if ((kept[j] - kept[j - 1]).Length < 1e-9) { kept.RemoveAt(j); keptPinned.RemoveAt(j); }
+        if (closed && kept.Count >= 4) return Occ.Spline(kept.Take(kept.Count - 1).ToList(), true);
         return kept.Count < 3 ? Occ.Line(kept[0], kept[^1]) : Occ.Spline(kept);
     }
 
