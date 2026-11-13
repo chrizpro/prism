@@ -116,6 +116,7 @@ public partial class MainWindow : Window
             case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");
             case "view.lookat": return s.Key("LookAt");
             case "view.extents": case "view.extents.home": s.ZoomExtents(); return true;
+            case "view.quad.maximize": return (Content as MainView)?.TryToggleQuadMaximize() == true;
             case "app.search": (Content as MainView)?.FocusSearch(); return true;
             case "sketch.gizmo.move": return free && gizmoTarget && s.Key("GizmoMove");
             case "sketch.gizmo.rotate": return free && gizmoTarget && s.Key("GizmoRotate");

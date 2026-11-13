@@ -86,16 +86,20 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>The camera of the view being used right now (the one under the pointer); tools, picking and drawing all work through it.</summary>
     public Camera Camera { get => _activeCamera ??= Cameras[0]; set => _activeCamera = value; }
     public ViewLayout Layout { get; private set; }
+    /// <summary>When <see cref="Layout"/> is <see cref="ViewLayout.Quad"/>, the temporarily maximized pane index (0–3), or null when all four views are shown.</summary>
+    public int? MaximizedView { get; private set; }
     public bool LinkViews { get; set; } = true;
     public event Action? LayoutChanged;
-    public int VisibleViews => Layout switch { ViewLayout.Single => 1, ViewLayout.Dual => 2, _ => 4 };
-    public IEnumerable<Camera> VisibleCameras => Layout switch { ViewLayout.Single => [Cameras[0]], ViewLayout.Dual => [Cameras[0], Cameras[3]], _ => Cameras };
+    public event Action? MaximizedViewChanged;
+    public int VisibleViews => Layout == ViewLayout.Quad && MaximizedView != null ? 1 : Layout switch { ViewLayout.Single => 1, ViewLayout.Dual => 2, _ => 4 };
+    public IEnumerable<Camera> VisibleCameras => Layout == ViewLayout.Quad && MaximizedView is { } m ? [Cameras[m]] : Layout switch { ViewLayout.Single => [Cameras[0]], ViewLayout.Dual => [Cameras[0], Cameras[3]], _ => Cameras };
 
     static void Standard(Camera c, double yawDeg, double pitchDeg, bool ortho) { c.SetView(yawDeg, pitchDeg); c.Orthographic = ortho; c.Locked = true; }
 
     public void SetLayout(ViewLayout l)
     {
         Layout = l;
+        MaximizedView = null;
         var main = Cameras[0];
         Standard(Cameras[1], 0, 0, Ortho); Standard(Cameras[2], 90, 0, Ortho); Standard(Cameras[3], 0, 90, Ortho);
         foreach (var c in Cameras.Skip(1)) { c.Target = main.Target; c.Distance = main.Distance; }
@@ -104,11 +108,27 @@ public sealed partial class CadSession : ObservableObject
         LayoutChanged?.Invoke(); Invalidate();
     }
 
+    /// <summary>In the four-view layout, maximize the hovered pane (0–3) or restore all four views when a pane is already maximized.</summary>
+    public bool ToggleMaximizedView(int viewIndex)
+    {
+        if (Layout != ViewLayout.Quad || viewIndex is < 0 or > 3) return false;
+        if (MaximizedView != null) MaximizedView = null;
+        else
+        {
+            MaximizedView = viewIndex;
+            _activeCamera = Cameras[viewIndex];
+        }
+        MaximizedViewChanged?.Invoke();
+        Invalidate();
+        return true;
+    }
+
     /// <summary>Linked views follow each other: panning or zooming one moves the others to the same spot and scale.</summary>
     public void SyncViews(Camera src)
     {
         if (!LinkViews || Layout == ViewLayout.Single) return;
-        foreach (var c in VisibleCameras) if (!ReferenceEquals(c, src)) { c.Target = src.Target; c.Distance = src.Distance; }
+        Camera[] targets = Layout == ViewLayout.Dual ? [Cameras[0], Cameras[3]] : Cameras;
+        foreach (var c in targets) if (!ReferenceEquals(c, src)) { c.Target = src.Target; c.Distance = src.Distance; }
         Invalidate();
     }
     public ImmutableList<SceneObject> Objects { get; private set; } = [];
@@ -2356,6 +2376,7 @@ public sealed partial class CadSession : ObservableObject
             double d = VisibleCameras.Max(c => c.Distance);
             foreach (var c in VisibleCameras) c.Distance = d;
         }
+        else if (Layout == ViewLayout.Quad && MaximizedView is { } m && LinkViews) SyncViews(Cameras[m]);
         Invalidate();
     }
 

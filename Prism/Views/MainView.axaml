@@ -596,7 +596,7 @@
 
                 <!-- the model view plus three locked standard views, arranged by the active layout -->
 
-                <Grid Name="ViewGrid" ColumnDefinitions="*,*" RowDefinitions="*,*">
+                <Grid Name="ViewGrid" ColumnDefinitions="*,*" RowDefinitions="*,*" Background="Transparent">
 
                     <Grid Name="Cell0" Background="Transparent" Grid.ColumnSpan="2" Grid.RowSpan="2" ClipToBounds="True">
 

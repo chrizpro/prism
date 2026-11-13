@@ -47,6 +47,7 @@ public static class Hotkeys
         new("view.lookat", "Look at the selected plane, face or sketch", "View", Global, "N"),
         new("view.extents", "Zoom to fit everything (Zoom Extents)", "View", Global, "F", "F for Fit; the same key fits the view in the drawing editor"),
         new("view.extents.home", "Zoom to fit everything (Home key)", "View", Global, "Home", "A second key for Zoom Extents; while the animation timeline is open Home goes to the start instead"),
+        new("view.quad.maximize", "Maximize or restore hovered view (Four Views)", "View", Global, "Space", "Hover a pane in Four Views and press Space to maximize it, or press Space again to return; while the animation timeline is open Space plays or pauses"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
         new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
         new("datum.gizmo", "Edit Gizmo", "Modeling", Global, "G", "At the viewport cursor (origin if the pointer is outside it)"),

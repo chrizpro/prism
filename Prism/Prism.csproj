@@ -30,4 +30,9 @@
     <ItemGroup>
         <ProjectReference Include="..\Prism.Kernel\Prism.Kernel.csproj"/>
     </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Prism.HeadlessTests"/>
+        <InternalsVisibleTo Include="Prism.UnitTests"/>
+    </ItemGroup>
 </Project>

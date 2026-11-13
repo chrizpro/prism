@@ -58,6 +58,7 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Look at the selected plane, face or sketch | <kbd>N</kbd> | Everywhere |  |
 | Zoom to fit everything (Zoom Extents) | <kbd>F</kbd> | Everywhere | F for Fit; the same key fits the view in the drawing editor |
 | Zoom to fit everything (Home key) | <kbd>Home</kbd> | Everywhere | A second key for Zoom Extents; while the animation timeline is open Home goes to the start instead |
+| Maximize or restore hovered view (Four Views) | <kbd>Space</kbd> | Everywhere | Hover a pane in Four Views and press Space to maximize it, or press Space again to return; while the animation timeline is open Space plays or pauses |
 | Search commands | <kbd>Ctrl</kbd> + <kbd>K</kbd> | Everywhere |  |
 
 ## Modeling
