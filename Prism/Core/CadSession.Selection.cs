@@ -149,6 +149,31 @@ public sealed partial class CadSession
     }
     static readonly (int a, int b)[] Box = [(0, 1), (1, 2), (2, 3), (3, 0)];
 
+    // ------------------------------------------------------------ select all
+    /// <summary>Ctrl+A: everything at the current pick level (bodies, faces, edges or corner points), or all the geometry of the open sketch, cage or point set.</summary>
+    public void SelectAll()
+    {
+        if (ActiveCommand is Commands.EditFormCommand form) { form.SelectOp("all"); return; }
+        if (ActiveCommand is Commands.EditPointsCommand points) { points.SelectAllPoints(); return; }
+        if (ActiveCommand == null && Sketch is { } sk)
+        {
+            sk.SelEntities.Clear(); foreach (var e in sk.Model.Entities) sk.SelEntities.Add(e.Id);
+            NotifySketchChanged(); Say($"{sk.SelEntities.Count} selected"); return;
+        }
+        var slot = ActiveCommand?.ActiveSlot;
+        if (slot != null && ActiveCommand is { } cmd) { cmd.ConfigureInputs(() => slot.Items.Clear()); }
+        else _selection.Clear();
+        var filter = ActiveFilter;
+        if (slot == null && Mode == SelMode.Vertex)
+        {
+            foreach (var o in Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && !o.IsAnnotation && HasVertices(o)))
+                for (int i = 0; i < VertexPoints(o).Count; i++) _selection.Add(new SelItem(o.Id, SelKind.Vertex, i));
+            SelectionChanged?.Invoke(); Say($"{_selection.Count} selected"); Invalidate(); return;
+        }
+        InvertSelection();                     // with nothing selected, Invert takes everything at the current level
+        Say($"{(slot != null ? slot.Items.Count : _selection.Count)} selected");
+    }
+
     // ------------------------------------------------------------ invert
     /// <summary>
     /// Select what is not selected. Faces and edges invert within the bodies they belong to (so you can pick a few faces to leave out, invert,

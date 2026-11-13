@@ -176,4 +176,22 @@ public class VertexAndSurfaceFaceTests
         Assert.True(slab.Count(SubKind.Solid) >= 1);
         Assert.True(slab.Props().Volume > 100);
     }
+
+    [AvaloniaFact(DisplayName = "SEL-H024 | Ctrl+A selects everything at the current pick level")]
+    [Trait("TestId", "SEL-H024")]
+    public void SelectAllAtCurrentLevel()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var a = Support.ModelingScenario.CreateBoxBody(s, Vec3.Zero, 10, 10, 10);
+        var b = Support.ModelingScenario.CreateBoxBody(s, new Vec3(30, 0, 0), 10, 10, 10);
+        Assert.Contains(Prism.Core.Hotkeys.Actions, h => h.Id == "edit.selectall" && h.Default == "Ctrl+A");
+        s.SelectAll();
+        Assert.Equal(2, s.Selection.Count(i => i.Kind == SelKind.Object));
+        s.Mode = SelMode.Face; s.SelectAll();
+        Assert.Equal(12, s.Selection.Count(i => i.Kind == SelKind.Face));
+        s.Mode = SelMode.Edge; s.SelectAll();
+        Assert.Equal(24, s.Selection.Count(i => i.Kind == SelKind.Edge));
+        s.Mode = SelMode.Vertex; s.SelectAll();
+        Assert.Equal(16, s.Selection.Count(i => i.Kind == SelKind.Vertex));
+    }
 }

@@ -40,6 +40,7 @@ public static class Hotkeys
         new("edit.undo", "Undo", "Edit", Global, "Ctrl+Z"),
         new("edit.redo", "Redo", "Edit", Global, "Ctrl+Y"),
         new("edit.duplicate", "Duplicate selection", "Edit", Global, "Ctrl+D"),
+        new("edit.selectall", "Select all", "Edit", Global, "Ctrl+A"),
         new("edit.delete", "Delete selection", "Edit", Global, "Delete"),
         new("edit.cancel", "Cancel / end the current step", "Edit", Global, "Escape"),
         new("edit.accept", "Accept / finish", "Edit", Global, "Enter"),
