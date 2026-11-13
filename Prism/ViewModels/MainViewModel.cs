@@ -612,7 +612,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonButton SelMethod(string label, string icon, SelectMethod method, string desc) =>
             Btn(label, icon, () => { if (IsSketching) SetSketchSelectMethod((int)method - 1); else Session.Method = Session.Method == method ? SelectMethod.Click : method; }, desc, RibbonSize.Small,
                 () => IsSketching || Session.ActiveCommand?.HasPanelStep != true, () => IsSketching ? IsSketchSelectMethod((int)method - 1) : Session.Method == method);
-        RibbonButton MoveBtn(RibbonSize size) => Btn("Move", "move", MoveWithGizmo, "Grab anything — objects, meshes, datums — and drag it with the gizmo, or type exact values in the panel.", size, () => !IsSketching, () => Session.Datum is { MoveMode: true } && Session.DatumVisible);
+        RibbonButton MoveBtn(RibbonSize size) => Btn("Move", "move", MoveWithGizmo, "Grab anything — objects, meshes, datums — and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.", size, () => !IsSketching, () => Session.Datum is { MoveMode: true } && Session.DatumVisible);
         RibbonGroup TransformGrp() => G("Transform",
             MoveBtn(RibbonSize.Large),
             Cmd("Rotate", "rotate", () => new TransformCommand(TransformCommand.Kind.Rotate), "Rotate objects around an axis.", small),

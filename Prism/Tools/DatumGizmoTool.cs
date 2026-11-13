@@ -31,7 +31,7 @@ public sealed class DatumGizmoTool : IViewportTool
     Vec3[] _axes = GizmoVisual.WorldAxes;
 
     public string Prompt => MoveMode && _targets.Count > 0
-        ? $"Moving {_targets.Count} item(s) — drag an arrow, block or ring, or type values in the Gizmo panel. Click empty space to re-pick; Esc releases."
+        ? $"Moving {_targets.Count} item(s) — drag an arrow, block or ring (hold Alt to drag a copy), or type values in the Gizmo panel. Click empty space to re-pick; Esc releases."
         : MoveMode
             ? "Move: click anything to grab it — objects, meshes, datums — then drag the gizmo. Esc hides it."
             : "Drag an arrow to move the datum, a block to move in a plane, or a ring to rotate it. Esc hides it.";
@@ -112,6 +112,8 @@ public sealed class DatumGizmoTool : IViewportTool
         }
         if (op != Mode) Mode = op;
         _checkpointed = false;
+        // Alt-drag with the Move tool leaves the originals where they are and drags copies
+        if (p.Alt && MoveMode && Mode == 0) CopyTargetsForDrag(s);
         _axes = Binding.Axes; _frame0 = Frame; _c0 = _frame0.Origin; _axis = axis;
         var (o, d) = s.Camera.Ray(p.X, p.Y);
         if (Mode == 1)
@@ -171,11 +173,24 @@ public sealed class DatumGizmoTool : IViewportTool
         s.RaiseState(); s.Invalidate();
     }
 
+    List<SceneObject>? _dragCopies;
+
+    void CopyTargetsForDrag(CadSession s)
+    {
+        var objects = _targets.Where(t => t.Kind == SelKind.Object).ToList();
+        if (objects.Count == 0 || s.CopyForDrag(objects.Select(t => t.Obj)) is not { } copies) return;
+        _targets.RemoveAll(objects.Contains);
+        _targets.AddRange(copies.Select(SelItem.Of));
+        _dragCopies = copies;
+        s.Say($"Dragging {copies.Count} cop{(copies.Count == 1 ? "y" : "ies")}; the originals stay where they are.");
+    }
+
     public void PointerUp(CadSession s, PointerInfo p)
     {
         bool dragged = _drag != Drag.None;
         _drag = Drag.None;
         if (dragged) SyncTargets(s);        // the last frame of the drag always lands, however recently the previous one did
+        if (_dragCopies is { } copies) { _dragCopies = null; s.SelectObjects(copies.Select(c => c.Id)); }
         s.RaiseState();
     }
 
