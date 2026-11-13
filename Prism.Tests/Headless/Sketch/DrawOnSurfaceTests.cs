@@ -96,6 +96,28 @@ public class DrawOnSurfaceTests
         Assert.Equal(6000, result.Shape.Props().Volume, 3);
     }
 
+    [AvaloniaFact(DisplayName = "SKT-H060 | Clicking the first point again closes the curve drawn on a surface into a loop")]
+    [Trait("TestId", "SKT-H060")]
+    public void ClickingFirstPointClosesLoop()
+    {
+        var s = new CadSession();
+        var sheet = Sheet(s);
+        s.Camera.Width = 800; s.Camera.Height = 600; s.Camera.SetView(0, 90); s.Camera.Fit(new(0, 0, 0), new(40, 30, 0));
+        var cmd = Start(s, split: false);
+        var corners = new[] { new Vec3(10, 8, 0), new Vec3(30, 8, 0), new Vec3(30, 22, 0), new Vec3(10, 22, 0) };
+        foreach (var c in corners) cmd.AddPoint(s, sheet, c);
+        Assert.False(cmd.IsClosed);
+        var first = s.Camera.Project(corners[0])!.Value;
+        s.PointerDown(new PointerInfo(first.x, first.y, true, false, false, false));
+        s.PointerUp(new PointerInfo(first.x, first.y, false, false, false, false));
+        Assert.True(cmd.IsClosed);
+        Assert.True(cmd.Params.OfType<BoolParam>().Single(p => p.Label == "Closed loop").Value);
+        s.CommitCommand();
+        Assert.False(s.StatusIsError, s.Status);
+        var curve = Assert.Single(s.Objects, o => o.Kind == ObjKind.Curve);
+        Assert.Equal(0, curve.Shape.Count(SubKind.Vertex) - curve.Shape.Count(SubKind.Edge));   // a closed loop has as many vertices as edges
+    }
+
     static SceneObject Sheet(CadSession s)
     {
         using var boundary = Occ.Polyline([Vec3.Zero, new(40, 0, 0), new(40, 30, 0), new(0, 30, 0)], true);

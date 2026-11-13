@@ -40,10 +40,21 @@ public sealed class DrawOnSurfaceCommand : Command
 
     public override string Title => "Draw on Surface";
     public override string Icon => "curve-through";
-    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes. Under Result choose Split to divide the face along the curve instead of keeping the curve.";
+    public override string Hint => "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Click the first point again (or tick Closed loop) to join the curve into a closed loop. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes. Under Result choose Split to divide the face along the curve instead of keeping the curve.";
     public override string OkText => _result.Index == 1 ? "Split" : "Make curve";
 
     bool Closed => _closed.Value && _picks.Count >= 3;
+    public bool IsClosed => Closed;
+
+    /// <summary>Join the last point back to the first, so the curve is a closed loop (a circle, an outline). Clicking the first point does this.</summary>
+    public void CloseLoop(CadSession s)
+    {
+        if (_picks.Count < 3) { s.Say("A closed loop needs at least three points.", true); return; }
+        if (Lay(s, [.. _picks, _picks[0]]) == null) { s.Say("The last point is not joined to the first by surface: the loop would have to cross empty space.", true); return; }
+        ConfigureInputs(() => _closed.Value = true);
+        Reset(); _placing = false; _preview = null; OnChanged(); s.Invalidate();
+        s.Say("Loop closed. Drag a point to adjust it, then press Enter or Make curve. Untick Closed loop to open it again.");
+    }
     /// <summary>The clicked points in order, with the first one again at the end for a closed loop.</summary>
     List<Spot> Route() => Closed ? [.. _picks, _picks[0]] : _picks;
 
@@ -305,15 +316,23 @@ public sealed class DrawOnSurfaceCommand : Command
 public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
 {
     int _drag = -1;
+    bool _closing, _moved;
+    double _downX, _downY;
 
-    public string Prompt => cmd.Placing ? "Draw on Surface: click points on a surface. Drag a point to move it, Delete removes the selected point. Esc stops adding points; Enter finishes." : "Draw on Surface: drag a point to adjust it, Delete removes it. Enter or Make curve finishes, Esc cancels.";
+    public string Prompt => cmd.Placing ? "Draw on Surface: click points on a surface; click the first point again to close the loop. Drag a point to move it, Delete removes the selected point. Esc stops adding points; Enter finishes." : "Draw on Surface: drag a point to adjust it, Delete removes it. Enter or Make curve finishes, Esc cancels.";
 
     public bool PointerDown(CadSession s, PointerInfo p)
     {
         if (!p.Left) return false;
         if (p.Clicks >= 2 && cmd.PickCount >= 2) { s.CommitCommand(); return true; }
         int at = cmd.PointAt(s, p.X, p.Y);
-        if (at >= 0) { _drag = at; cmd.Select(s, at); return true; }
+        if (at >= 0)
+        {
+            _drag = at; cmd.Select(s, at); _downX = p.X; _downY = p.Y; _moved = false;
+            // pressing the first point and letting go without dragging closes the loop
+            _closing = at == 0 && cmd.Placing && cmd.PickCount >= 3 && !cmd.IsClosed;
+            return true;
+        }
         if (cmd.Placing && cmd.Hit(s, p.X, p.Y) is { } hit) cmd.AddPoint(s, hit.obj, hit.point);
         return true;
     }
@@ -322,6 +341,8 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
     {
         if (_drag >= 0)
         {
+            if (Math.Abs(p.X - _downX) + Math.Abs(p.Y - _downY) > 4) _moved = true;
+            if (!_moved) return;
             if (cmd.Hit(s, p.X, p.Y) is { } over) cmd.MovePoint(s, _drag, over.obj, over.point);
             return;
         }
@@ -330,7 +351,12 @@ public sealed class DrawOnSurfaceTool(DrawOnSurfaceCommand cmd) : IViewportTool
         if (cmd.Hit(s, p.X, p.Y) is { } hit) cmd.Preview(s, hit.obj, hit.point); else cmd.ClearPreview(s);
     }
 
-    public void PointerUp(CadSession s, PointerInfo p) => _drag = -1;
+    public void PointerUp(CadSession s, PointerInfo p)
+    {
+        bool close = _closing && !_moved && _drag == 0;
+        _drag = -1; _closing = false;
+        if (close) cmd.CloseLoop(s);
+    }
 
     public bool Key(CadSession s, string key)
     {
