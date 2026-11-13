@@ -41,6 +41,8 @@ public static class Hotkeys
         new("edit.redo", "Redo", "Edit", Global, "Ctrl+Y"),
         new("edit.duplicate", "Duplicate selection", "Edit", Global, "Ctrl+D"),
         new("edit.selectall", "Select all", "Edit", Global, "Ctrl+A"),
+        new("edit.group", "Group selection", "Edit", Global, "Ctrl+G"),
+        new("edit.ungroup", "Ungroup selection", "Edit", Global, "Ctrl+Shift+G"),
         new("edit.delete", "Delete selection", "Edit", Global, "Delete"),
         new("edit.cancel", "Cancel / end the current step", "Edit", Global, "Escape"),
         new("edit.accept", "Accept / finish", "Edit", Global, "Enter"),
@@ -163,7 +165,7 @@ public static class Hotkeys
     static readonly Dictionary<string, (string[] Tabs, string Label)> ButtonOf = new()
     {
         ["sketch.start"] = (["NURBS"], "Create Sketch"), ["file.new"] = ([], "New"), ["file.open"] = ([], "Open"), ["file.save"] = ([], "Save"), ["file.saveas"] = ([], "Save As"),
-        ["edit.duplicate"] = ([], "Duplicate"), ["view.lookat"] = ([], "Look At"), ["view.extents"] = ([], "Zoom Extents"), ["view.extents.home"] = ([], "Zoom Extents"),
+        ["edit.duplicate"] = ([], "Duplicate"), ["edit.group"] = ([], "Group"), ["edit.ungroup"] = ([], "Ungroup"), ["view.lookat"] = ([], "Look At"), ["view.extents"] = ([], "Zoom Extents"), ["view.extents.home"] = ([], "Zoom Extents"),
         ["model.extrude"] = (["Home", "Solid", "Sheet Metal"], "Extrude"), ["datum.gizmo"] = ([], "Gizmo"), ["form.edit"] = ([], "Edit Freeform"),
         ["sketch.line"] = (["Sketch"], "Line"), ["sketch.rect"] = (["Sketch"], "Rectangle"), ["sketch.ellipse"] = (["Sketch"], "Ellipse"),
         ["sketch.spline"] = (["Sketch"], "Spline"), ["sketch.arc"] = (["Sketch"], "Arc"),

@@ -1973,7 +1973,8 @@ public sealed partial class CadSession : ObservableObject
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
         SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null,
         [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool IsMoldHalf = false,
-        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] List<FaceDto>? Faces = null);
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] List<FaceDto>? Faces = null,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Group = null);
     /// <summary>One face's own color, finish and hidden state, saved by face number.</summary>
     sealed record FaceDto(int Face, uint? Color = null, Appearance? Look = null, bool Hidden = false);
     /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
@@ -2020,7 +2021,7 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf,FacesToDto(o));
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf,FacesToDto(o),o.Group);
 
     static List<FaceDto>? FacesToDto(SceneObject o) => o.FaceStyles == null ? null
         : Enumerable.Range(0, o.FaceStyles.Length).Where(f => o.FaceStyles[f] is { IsEmpty: false }).Select(f => new FaceDto(f, o.FaceStyles[f]!.Color, o.FaceStyles[f]!.Look, o.FaceStyles[f]!.Hidden)).ToList() is { Count: > 0 } l ? l : null;
@@ -2106,7 +2107,7 @@ public sealed partial class CadSession : ObservableObject
     static SceneObject FromDto(ObjDto d)
     {
         Plane3? plane = d.Plane is { Length: 9 } q ? new(new(q[0], q[1], q[2]), new(q[3], q[4], q[5]), new(q[6], q[7], q[8])) : null;
-        if (d.Mesh is { } mb) return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb));
+        if (d.Mesh is { } mb) return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb)) { Group = d.Group };
         if (d.Form is { } fd)
         {
             var sm = new Form.SubdMesh { Level = fd.Level, Sym = fd.Sym ?? "off" };
@@ -2114,7 +2115,7 @@ public sealed partial class CadSession : ObservableObject
             foreach (var face in fd.F) sm.F.Add(face);
             for (int i = 0; i < fd.CreaseKeys.Length; i++) sm.Crease[fd.CreaseKeys[i]] = fd.CreaseVals[i];
             if (fd.Frozen is { } fz) for (int i = 0; i + 2 < fz.Length; i += 3) sm.Frozen.Add((fz[i], fz[i + 1], fz[i + 2]));
-            return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d));
+            return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d)) { Group = d.Group };
         }
         var shape = Occ.FromBrep(d.Brep!);
         // older files stored construction curves inside the sketch's shape, where they showed as solid lines and joined the profile
@@ -2122,7 +2123,7 @@ public sealed partial class CadSession : ObservableObject
         {
             try { var shapes = d.Sketch.ToShapes(root); shape = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(root.Origin); } catch (KernelException) { }
         }
-        var loaded = new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf };
+        var loaded = new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf, Group = d.Group };
         return d.Faces == null ? loaded : loaded.WithFaceStyles(FacesFromDto(d, loaded));
     }
 

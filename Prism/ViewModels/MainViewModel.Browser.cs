@@ -149,10 +149,30 @@ public sealed partial class MainViewModel
                 }
             }
         }
+        // groups: a parent folder over its members, wherever the members would otherwise sit in the tree
+        var groupFolders = new List<BrowserNode>();
+        foreach (var name in s.GroupNames)
+        {
+            var members = s.GroupMembers(name).ToList();
+            var folder = new BrowserNode { Kind = NodeKind.Folder, IsGroup = true, Title = name, Icon = "group", ExpansionKey = "group:" + name,
+                IsExpanded = filtering || _folderOpen.GetValueOrDefault("group:" + name, true), VisibilityEdited = OnNodeVisibility, RenameEdited = OnGroupRenamed };
+            foreach (var member in members)
+            {
+                if (!nodesById.TryGetValue(member.Id, out var node)) continue;
+                bool moved = false;
+                foreach (var root in roots) moved |= root.Children.Remove(node);
+                if (moved) folder.Children.Add(node);
+            }
+            if (folder.Children.Count == 0) continue;
+            folder.Badge = folder.Children.Count.ToString();
+            folder.SetVisibleSilently(folder.Children.All(c => c.IsVisible));
+            groupFolders.Add(folder);
+        }
         foreach (var root in roots) if (root.IsFolder) root.Badge = root.Children.Count.ToString();
         roots.RemoveAll(r => r.IsFolder && r.Children.Count == 0);
         var document = new BrowserNode { Kind = NodeKind.Folder, Title = s.FilePath is { } path ? System.IO.Path.GetFileName(path) : "Untitled model", Icon = "component", ExpansionKey = "Document",
             IsExpanded = filtering || _folderOpen.GetValueOrDefault("Document", true), VisibilityEdited = OnNodeVisibility };
+        foreach (var folder in groupFolders) document.Children.Add(folder);
         foreach (var root in roots)
         {
             if (root.Title is "Bodies" or "Components") foreach (var body in root.Children) document.Children.Add(body);
@@ -233,6 +253,13 @@ public sealed partial class MainViewModel
         var text = node.EditText.Trim();
         if (text.Length == 0 || text == node.Title) return;
         Session.Update(node.ObjectId, o => o.WithName(text), label: "Rename");
+    }
+
+    void OnGroupRenamed(BrowserNode node)
+    {
+        var text = node.EditText.Trim();
+        if (text.Length == 0 || text == node.Title) return;
+        Session.RenameGroup(node.Title, text);
     }
 
     public IEnumerable<BrowserNode> AllBrowserNodes()

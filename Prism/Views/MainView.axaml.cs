@@ -449,6 +449,9 @@ public partial class MainView : UserControl
         var selectedNodes = SelectedNodes();
         if (selectedNodes.Count == 1 && selectedNodes[0].IsActiveSketchDatum) { vm.UseDatumNode(selectedNodes[0]); return; }
         var items = selectedNodes.Select(n => n.SelectionItem).Where(i => i != null).Select(i => i!.Value).ToList();
+        // a group row stands for everything in the group
+        foreach (var group in selectedNodes.Where(n => n.IsGroup))
+            foreach (var member in vm.Session.GroupMembers(group.Title)) { var it = Prism.Core.SelItem.Of(member); if (!items.Contains(it)) items.Add(it); }
         if (vm.Session.ActiveCommand is { } cmd && cmd.ActiveSlot != null)
         {
             foreach (var it in items) if (!cmd.ActiveSlot.Items.Contains(it)) cmd.Pick(it, true);
@@ -488,6 +491,11 @@ public partial class MainView : UserControl
             bool on = tracking.All(o => o.TrackHistory);
             items.Add(Mi(on ? "Stop tracking history" : "Track history", () => vm.SetTrackHistory(tracking.Select(o => o.Id), !on)));
         }
+        var groups = nodes.Where(n => n.IsGroup).ToList();
+        if (objs.Count >= 2 && groups.Count == 0) items.Add(Mi("Group            Ctrl+G", () => vm.Session.GroupSelection(), vm.Session.CanGroup));
+        if (groups.Count > 0 || objs.Any(o => vm.Session.Find(o.ObjectId)?.Group != null))
+            items.Add(Mi("Ungroup            Ctrl+Shift+G", () => { if (groups.Count > 0) vm.Session.Ungroup(groups.Select(g => g.Title)); else vm.Session.Ungroup(); }));
+        if (groups.Count == 1 && objs.Count == 0) items.Add(Mi("Rename            F2", () => groups[0].BeginRename()));
         if (objs.Count == 1) items.Add(Mi("Rename            F2", () => objs[0].BeginRename()));
         if (objs.Count > 0)
         {
@@ -510,6 +518,7 @@ public partial class MainView : UserControl
         if (e.Source is TextBox || Vm is not { } vm) return;
         var objs = SelectedNodes().Where(n => n.IsObject).ToList();
         if (e.Key == Key.F2 && objs.Count == 1) { objs[0].BeginRename(); e.Handled = true; }
+        else if (e.Key == Key.F2 && SelectedNodes() is [{ IsGroup: true } group]) { group.BeginRename(); e.Handled = true; }
         else if (e.Key == Key.Delete && objs.Count > 0) { vm.DeleteNodes(objs); e.Handled = true; }
     }
 

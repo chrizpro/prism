@@ -32,12 +32,14 @@ public sealed partial class BrowserNode : ObservableObject
     [ObservableProperty] public partial bool IsEditing { get; set; }
     [ObservableProperty] public partial string EditText { get; set; } = "";
 
+    /// <summary>True for a user's group: a folder over objects that share a group name (Title is that name).</summary>
+    public bool IsGroup { get; init; }
     public bool IsFolder => Kind == NodeKind.Folder;
     public bool IsObject => Kind == NodeKind.Object;
     public bool HasSwatch => Kind == NodeKind.Object;
     public bool HasEye => Kind == NodeKind.Datum ? false : Kind != NodeKind.Folder || Children.Count > 0;
     public bool IsActiveSketchDatum => Kind == NodeKind.Datum && ObjectId == Guid.Empty;
-    public bool CanRename => Kind == NodeKind.Object;
+    public bool CanRename => Kind == NodeKind.Object || IsGroup;
     public SelItem? SelectionItem => Kind switch
     {
         NodeKind.Object => new SelItem(ObjectId, SelKind.Object, -1),

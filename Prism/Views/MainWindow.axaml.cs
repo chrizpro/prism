@@ -112,6 +112,8 @@ public partial class MainWindow : Window
             case "edit.redo": s.Redo(); return true;
             case "edit.duplicate": s.Duplicate(); return true;
             case "edit.selectall": s.SelectAll(); return true;
+            case "edit.group": if (!s.CanGroup) return false; s.GroupSelection(); return true;
+            case "edit.ungroup": if (!s.CanUngroup) return false; s.Ungroup(); return true;
             case "edit.delete": return s.Key("Delete");
             case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
             case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");

@@ -334,6 +334,8 @@ public static partial class ToolHelp
         "image-edit" => File(icon, "Edit Image", "Change a picture's opacity, size, position, turn or mirroring."),
         "image-scale" => File(icon, "Set Scale", "Make a picture true size: click two points on it and say how far apart they really are."),
         "duplicate" => File(icon, "Duplicate", "Copy the selected objects."),
+        "group" => File(icon, "Group", "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl+G."),
+        "ungroup" => File(icon, "Ungroup", "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl+Shift+G."),
         "cancel" or "finish" => File(icon, "Done / Cancel", "Finish the current edit, or cancel it."),
         "refresh" => File(icon, "Refresh", "Reload components from the part files they were inserted from, keeping their positions."),
         "ground" => File(icon, "Ground", "Fix the selected component in place; motion is solved outwards from it."),

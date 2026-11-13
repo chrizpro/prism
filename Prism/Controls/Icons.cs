@@ -303,6 +303,8 @@ public static class Icons
         ["sel-same-color"] = ["B|b|2.4|M5 5 H27 V27 H5Z", "-|b|2.4|M5 5 H27 V16 H5Z", "w|b|1.6|M9 21 H23"],
         ["sel-same-adjacent"] = ["B|b|2.4|M4 10 H16 V22 H4Z", "-|b|2.4|M16 10 H28 V22 H16Z"],
         ["sel-same-linked"] = ["B|b|2.4|M5 5 H27 V27 H5Z", "-|b|1.8|M5 16 H27 M16 5 V27"],
+        ["group"] = ["-|k|1.3|M3 3 H29 V29 H3Z", "B|k|1.3|M7 8 H17 V18 H7Z", "w|k|1.3|M14 14 H25 V25 H14Z", "-|b|1.6|M9.5 11 H14.5"],
+        ["ungroup"] = ["-|s|1.3|M3 3 H11 M21 3 H29 V11 M29 21 V29 H21 M11 29 H3 V21 M3 11 V3", "B|k|1.3|M6 7 H16 V17 H6Z", "w|k|1.3|M16 15 H26 V25 H16Z"],
         ["sel-invert"] = ["B|b|2.4|M5 5 H19 V19 H5Z", "-|b|2.4|M13 13 H27 V27 H13Z"],
         ["xray"] = [$"#3D4C86E0|k|1.2|{CubeLeft}", $"#3D2F66C9|k|1.2|{CubeRight}", $"#5979A8F2|k|1.2|{CubeTop}", "-|s|1.3|M16 16.5 V28.5 M5 10.5 L16 16.5 L27 10.5"],
         ["home"] = ["w|k|1.4|M4 15 L16 5 L28 15 V28 H4Z", "S|k|1.2|M13 28 V19 H19 V28", "-|o|2|M2.5 15.5 L16 4 L29.5 15.5"],
