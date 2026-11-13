@@ -118,7 +118,7 @@ public sealed class MergeFacesCommand : Command
         var o = new CommandOutput { Label = "Merge faces", Icon = "replaceface" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
-            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Merge Faces works on solid bodies.");
+            var body = S.Find(grp.Key) is { HasBrep: true, Kind: ObjKind.Solid or ObjKind.Surface } b ? b : throw new FormatException("Merge Faces works on solid bodies and surfaces.");
             var infos = grp.Select(i => Occ.FaceInfoOf(S.ShapeOf(i) ?? throw new FormatException("That face is gone."))).ToList();
             if (infos.Count < 2) throw new FormatException("Pick at least two faces to merge.");
             if (infos.Any(i => i.Type != infos[0].Type)) throw new FormatException("Those faces are not on the same kind of surface, so they cannot become one face.");

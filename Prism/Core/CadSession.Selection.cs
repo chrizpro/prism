@@ -84,7 +84,7 @@ public sealed partial class CadSession
         var slot = ActiveCommand?.ActiveSlot;
         var filter = ActiveFilter;
         var mode = slot != null ? (filter.HasFlag(SelFilter.Face) ? SelMode.Face : filter.HasFlag(SelFilter.Edge) ? SelMode.Edge : SelMode.Object) : Mode;
-        var items = RegionSelect.Collect(this, region, mode, XRay).Where(i => Matches(i, filter) && ShownByIsolation(i)).ToList();
+        var items = (mode == SelMode.Vertex ? VertexRegionItems(region) : RegionSelect.Collect(this, region, mode, XRay)).Where(i => Matches(i, filter) && ShownByIsolation(i)).ToList();
         if (items.Count == 0) { if (!mods.Shift && !mods.Ctrl && slot == null) ClearSelection(); Say("Nothing there."); return; }
         if (slot != null && ActiveCommand is { } cmd)
         {

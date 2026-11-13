@@ -41,6 +41,25 @@ public sealed partial class CadSession
         return item.Index >= 0 && item.Index < points.Count ? points[item.Index] : null;
     }
 
+    /// <summary>Every corner point inside a drag region, leaving out the ones hidden behind a face unless Through is on.</summary>
+    List<SelItem> VertexRegionItems(RegionSelect.Region region)
+    {
+        var found = new List<SelItem>(); var cam = Camera; var vp = cam.ViewProjection;
+        var visible = Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && !o.IsAnnotation).ToList();
+        foreach (var o in visible)
+        {
+            if (!HasVertices(o)) continue;
+            var points = VertexPoints(o);
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (cam.Project(points[i], vp) is not { } q || !region.Contains(q.x, q.y)) continue;
+                if (!XRay && Picking.RayFace(cam, visible, q.x, q.y, null, ShownFaces) is { } face && cam.Project(face.point, vp) is { } front && front.depth < q.depth - 2e-4) continue;
+                found.Add(new SelItem(o.Id, SelKind.Vertex, i));
+            }
+        }
+        return found;
+    }
+
     /// <summary>The vertex nearest the pointer, unless a face in front hides it.</summary>
     PickResult? PickVertex(Camera cam, List<SceneObject> visible, double px, double py)
     {

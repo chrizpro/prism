@@ -120,4 +120,60 @@ public class VertexAndSurfaceFaceTests
             Assert.Contains(tool, labels);
         Assert.All(curves.Menu!, b => Assert.Null(b.Menu));              // one level deep
     }
+
+    [AvaloniaFact(DisplayName = "SEL-H021 | Dragging a box in Vertex mode picks the corner points inside it")]
+    [Trait("TestId", "SEL-H021")]
+    public void VertexDragSelect()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var box = Support.ModelingScenario.CreateBoxBody(s, Vec3.Zero, 20, 20, 20);
+        s.Mode = SelMode.Vertex; s.XRay = true;
+        var corner = new Vec3(box.Mesh.Max.X, box.Mesh.Min.Y, box.Mesh.Max.Z);
+        var px = s.Camera.Project(corner)!.Value;
+        var region = new RegionSelect.Region { IsBox = true };
+        region.Points.Add((px.x - 6, px.y - 6)); region.Points.Add((px.x + 6, px.y + 6));
+        s.ApplyRegion(region, new PointerInfo(0, 0, true, false, false, false));
+        var picked = Assert.Single(s.Selection);
+        Assert.Equal(SelKind.Vertex, picked.Kind);
+        Assert.True((s.VertexPoint(picked)!.Value - corner).Length < 1e-6);
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H022 | Merge Faces joins the two faces of a split surface back into one")]
+    [Trait("TestId", "SEL-H022")]
+    public void MergeSurfaceFaces()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var sheet = SplitSheet(s);
+        var cmd = new MergeFacesCommand(); s.StartCommand(cmd);
+        cmd.ConfigureInputs(() =>
+        {
+            cmd.Slots[0].TryAdd(new SelItem(sheet.Id, SelKind.Face, 0));
+            cmd.Slots[0].TryAdd(new SelItem(sheet.Id, SelKind.Face, 1));
+        });
+        var output = cmd.TryBuild();
+        Assert.True(output != null, cmd.Error);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.Equal(1, result.Count(SubKind.Face));
+        Assert.Equal(100, result.Props().Area, 3);
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H023 | Push / Pull on a curved surface face grows a solid slab along its normals")]
+    [Trait("TestId", "SEL-H023")]
+    public void PushPullCurvedSurfaceFace()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        using var ball = Occ.Sphere(10);
+        var dome = s.AddObject(ball.Sub(SubKind.Face, 0), "Dome", ObjKind.Surface);
+        var cmd = new PushPullCommand(); s.StartCommand(cmd);
+        cmd.ConfigureInputs(() =>
+        {
+            cmd.Slots[0].TryAdd(new SelItem(dome.Id, SelKind.Face, 0));
+            cmd.Params.OfType<NumberParam>().First().Value = 2;
+        });
+        var output = cmd.TryBuild();
+        Assert.True(output != null, cmd.Error);
+        var slab = Assert.Single(output.Add).Shape!;
+        Assert.True(slab.Count(SubKind.Solid) >= 1);
+        Assert.True(slab.Props().Volume > 100);
+    }
 }

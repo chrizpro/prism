@@ -34,14 +34,15 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 - **Works:** Object, Face and Edge levels pick a surface, its faces and its border edges by click; Delete removes a selected surface face; Isolate takes faces.
 - **Fixed:** the edge made by splitting a smooth NURBS surface was neither drawn nor pickable, because smooth joins between freeform faces are hidden as patch seams. A cut through one and the same surface is now kept as a real edge (`SFC-H017`). Seams between different patches (a converted Freeform body) stay hidden.
 - **Closed 2026-11-13:** the Vertex level, Offset Face and Move Face on surface faces, and the right-click menu for a surface face. See the next section.
-- **Still open:** Merge Faces works on solids only; Push / Pull takes only a flat surface face and turns it into a solid.
+- **Closed 2026-11-13:** Merge Faces works on surfaces too (`SEL-H022`), and Push / Pull takes curved surface faces (`SEL-H023`).
+- **Still open:** moving a corner point directly, and using a corner point as a pick inside other tools. Corner control points of a NURBS surface already move with Edit Points.
 - **Note:** the default Shaded display draws no edges, so a split is invisible until an edge is hovered or the display is set to shaded with edges.
 
 ## Direct edits and the Vertex level on surfaces
 
 **Status: owner approved 2026-11-13 ("proceed with all 3"); implemented.**
 
-- **Vertex level** (`SEL-H016`, `SEL-H017`, `SOL-H074`). The Vertex button is available on every modeling tab. It shows a small dot on every corner point of the visible solids, surfaces and curves; a click selects the corner under the pointer (within 9 pixels, not hidden behind a face unless Through is on) and the status line gives its position. Measure takes corner points as exact points, so two corners give an exact distance. Delete with only corner points selected removes nothing. Not yet built: moving a corner, drag-selecting corners, and using a corner as a pick in other tools.
+- **Vertex level** (`SEL-H016`, `SEL-H017`, `SOL-H074`). The Vertex button is available on every modeling tab. It shows a small dot on every corner point of the visible solids, surfaces and curves; a click selects the corner under the pointer (within 9 pixels, not hidden behind a face unless Through is on) and the status line gives its position. Measure takes corner points as exact points, so two corners give an exact distance. Delete with only corner points selected removes nothing. Dragging a box selects the corners inside it (`SEL-H021`; hidden ones are skipped unless Through is on). Not yet built: moving a corner, and using a corner as a pick in other tools.
 - **Move Face on a surface** (`SEL-H018`). Any face of a surface, flat or curved, is carried by the typed or dragged move. Walls are added along the edges it shared with faces that stay, so the result is one surface with a raised or sunk panel. Edges on the open border of the surface get no wall. Tilt is refused on surface faces.
 - **Offset Face on a surface** (`SEL-H019`). The face is carried along its own normals by the distance (a curved face becomes its offset) and joined back with walls in the same way.
 - **Right-click on a surface face** offers Offset face, Move face, Draw on surface, Delete face, Isolate, Measure and Thicken, in place of the solid-only Push / pull, Shell and Hole.

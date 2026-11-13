@@ -192,7 +192,7 @@ public sealed class PushPullCommand : Command
     public override string Icon => "pushpull";
     public override string OkText => "Apply";
     public override HandleSpec? Handle => _faces.Items.Count == 0 ? null : SurfaceHandle(_faces.Items[0], _dist);
-    public override string Hint => "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on flat surface faces (they sweep into a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
+    public override string Hint => "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on surface faces (flat ones sweep, curved ones grow a slab along their normals; both make a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     protected override CommandOutput? Build()
     {
@@ -209,8 +209,9 @@ public sealed class PushPullCommand : Command
                 {
                     var face = S.ShapeOf(it) ?? throw new FormatException("That face is gone.");
                     var info = Occ.FaceInfoOf(face);
-                    if (info.Type != "Plane") throw new FormatException("Only flat surface faces can be pulled into a solid. For a curved surface use Thicken.");
-                    o.Add.Add(new NewObject(Occ.Extrude(face, info.Normal.Normalized() * _dist.Value), "Pulled face", ObjKind.Solid));
+                    // a flat face sweeps straight; a curved face grows a slab that follows its own normals
+                    var solid = info.Type == "Plane" ? Occ.Extrude(face, info.Normal.Normalized() * _dist.Value) : Occ.Thicken(face, _dist.Value);
+                    o.Add.Add(new NewObject(solid, "Pulled face", ObjKind.Solid));
                 }
                 Results.Add(new ResultLine("Surface faces pulled into solids", $"{grp.Count()}  by {_dist.Value:0.##} mm"));
                 continue;
