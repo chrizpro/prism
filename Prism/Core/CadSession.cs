@@ -499,17 +499,19 @@ public sealed partial class CadSession : ObservableObject
         var copies = new List<SceneObject>();
         foreach (var o in objs)
         {
-            var name = NextName(StripNumber(o!.Name));
-            var c = o.Tri != null
-                ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
-                : o.Form != null
-                ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
-                : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, null, o.Look);
+            var c = CloneObject(o!, NextName(StripNumber(o!.Name)));
             Objects = Objects.Add(c); copies.Add(c);
         }
         _selection.Clear(); foreach (var c in copies) _selection.Add(SelItem.Of(c));
         RaiseScene(); SelectionChanged?.Invoke(); Say($"Duplicated {copies.Count} object(s)");
     }
+
+    /// <summary>An independent copy of an object under a new identity: its own geometry, with the same colour and finish.</summary>
+    static SceneObject CloneObject(SceneObject o, string name) => o.Tri != null
+        ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
+        : o.Form != null
+        ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
+        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData, o.Look).WithFaceStyles(o.FaceStyles);
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
     // ------------------------------------------------------------ selection

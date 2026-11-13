@@ -41,6 +41,8 @@ public static class Hotkeys
         new("edit.redo", "Redo", "Edit", Global, "Ctrl+Y"),
         new("edit.duplicate", "Duplicate selection", "Edit", Global, "Ctrl+D"),
         new("edit.selectall", "Select all", "Edit", Global, "Ctrl+A"),
+        new("edit.copy", "Copy selection", "Edit", Global, "Ctrl+C"),
+        new("edit.paste", "Paste", "Edit", Global, "Ctrl+V"),
         new("edit.group", "Group selection", "Edit", Global, "Ctrl+G"),
         new("edit.ungroup", "Ungroup selection", "Edit", Global, "Ctrl+Shift+G"),
         new("edit.delete", "Delete selection", "Edit", Global, "Delete"),
