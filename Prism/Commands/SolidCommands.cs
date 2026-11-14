@@ -1461,9 +1461,13 @@ public sealed class ShellCommand : Command
         _faces = Slot(new SelectionSlot { Label = "Faces to remove", Filter = SelFilter.Face | SelFilter.Solid, Multi = true });
         _t = Num("Wall thickness", 2, 0.001);
         _dir = Choice("Direction", 0, "Inside", "Outside");
+        _own = Slot(new SelectionSlot { Label = "Faces with a different wall (optional)", Filter = SelFilter.Face, Multi = true, Optional = true });
+        _ownT = Num("Wall thickness on those faces", 4, 0.001);
     }
+    readonly SelectionSlot _own;
+    readonly NumberParam _ownT;
     public override string Title => "Shell";
-    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness.";
+    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness. To make some walls thicker or thinner, pick them in the optional slot and set their thickness.";
     public override HandleSpec? Handle
     {
         get
@@ -1483,14 +1487,18 @@ public sealed class ShellCommand : Command
         {
             var obj = S.Find(g.Key)!;
             var faces = g.Where(i => i.Kind == SelKind.Face).Select(i => i.Index).ToArray();
+            var own = _own.Items.Where(i => i.Obj == g.Key && i.Kind == SelKind.Face).Select(i => i.Index).Distinct().ToArray();
+            if (own.Intersect(faces).Any()) throw new FormatException("A face cannot be both opened up and given its own wall thickness.");
+            Shape Make() => own.Length == 0 ? Occ.Shell(obj.Shape, faces, t)
+                : Occ.ShellVariable(obj.Shape, faces, t, own, [.. own.Select(_ => _ownT.Value * (_dir.Index == 0 ? -1 : 1))]);
             if (faces.Length > 0)
             {
-                o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+                o.Replace.Add((obj, Make()));
                 continue;
             }
 
             // With no open faces the kernel returns the offset solid. The wall is the difference between the two solids.
-            using var offset = Occ.Shell(obj.Shape, faces, t);
+            using var offset = Make();
             var wall = t < 0 ? Occ.Cut(obj.Shape, offset) : Occ.Cut(offset, obj.Shape);
             o.Replace.Add((obj, wall));
         }

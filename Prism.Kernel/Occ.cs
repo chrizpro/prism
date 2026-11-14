@@ -306,6 +306,12 @@ public static unsafe class Occ
     public static Shape Chamfer(Shape s, int[] edges, double d) { fixed (int* p = edges) return Wrap(Native.ck_chamfer(s.Handle, p, edges.Length, d)); }
     public static Shape Shell(Shape s, int[] openFaces, double t) { fixed (int* p = openFaces) return Wrap(Native.ck_shell(s.Handle, p, openFaces.Length, t)); }
     public static Shape Offset(Shape s, double d) => Wrap(Native.ck_offset(s.Handle, d));
+    /// <summary>Shell with a different wall thickness on some faces (signed like <paramref name="t"/>: negative for walls inside).</summary>
+    public static Shape ShellVariable(Shape s, int[] openFaces, double t, int[] ownFaces, double[] ownThickness)
+    {
+        fixed (int* o = openFaces) fixed (int* f = ownFaces) fixed (double* d = ownThickness)
+            return Wrap(Native.ck_shell_var(s.Handle, o, openFaces.Length, t, f, d, ownFaces.Length));
+    }
     public static Shape Thicken(Shape s, double d) => Wrap(Native.ck_thicken(s.Handle, d));
     public static Shape Sew(IReadOnlyList<Shape> shapes, double tol, bool solid) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_sew(p, shapes.Count, tol, solid ? 1 : 0)); }
 

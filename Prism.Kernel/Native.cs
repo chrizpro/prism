@@ -79,6 +79,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern int ck_face_dims(IntPtr f, int* d);
     [DllImport(Lib)] public static extern IntPtr ck_surface_match(IntPtr source, int side, IntPtr reference, int refSide, int continuity, int reverse, double scale);
     [DllImport(Lib)] public static extern IntPtr ck_surface_match_edge(IntPtr source, int side, IntPtr reference, int continuity, double scale, int refine, double* result);
+    [DllImport(Lib)] public static extern IntPtr ck_shell_var(IntPtr s, int* faceIds, int n, double thickness, int* ownIds, double* ownThickness, int m);
     [DllImport(Lib)] public static extern int ck_surface_continuity(IntPtr source, int side, IntPtr reference, int refSide, int reverse, int samples, double* result);
     [DllImport(Lib)] public static extern int ck_face_get_poles(IntPtr f, double* xyz);
     [DllImport(Lib)] public static extern IntPtr ck_face_set_poles(IntPtr f, double* xyz);

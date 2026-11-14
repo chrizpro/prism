@@ -710,6 +710,19 @@ CK_API void* ck_shell(void* s, const int* faceIds, int n, double thickness) {
         return wrap(mk.Shape());
     CATCH(nullptr)
 }
+// Shell where some faces have their own wall thickness. Same offset builder the plain shell uses, with a distance set on chosen faces.
+CK_API void* ck_shell_var(void* s, const int* faceIds, int n, double thickness, const int* ownIds, const double* ownThickness, int m) {
+    TRY
+        TopTools_IndexedMapOfShape mp; TopExp::MapShapes(get(s), TopAbs_FACE, mp);
+        BRepOffset_MakeOffset mk;
+        mk.Initialize(get(s), thickness, 1e-3, BRepOffset_Skin, false, false, GeomAbs_Arc, true);
+        for (int i = 0; i < m; ++i) mk.SetOffsetOnFace(TopoDS::Face(mp(ownIds[i] + 1)), ownThickness[i]);
+        for (int i = 0; i < n; ++i) mk.AddFace(TopoDS::Face(mp(faceIds[i] + 1)));
+        mk.MakeThickSolid();
+        if (!mk.IsDone()) { fail("Shell failed. Try thinner walls."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
 CK_API void* ck_offset(void* s, double d) {
     TRY
         BRepOffsetAPI_MakeOffsetShape mk;
