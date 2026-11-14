@@ -14,6 +14,16 @@ Each ribbon tab shows its section captions below the tools in both themes. **3D 
 
 Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issues/113). On 2026-11-10, RIB-H001 checked names for all shipped tabs and rendered the two print tabs and Mold in both themes. RIB-I001 captured those tabs on the Windows desktop in both themes. See the [ribbon section tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
 
+## Tools shared between modeling tabs
+
+A tool that works on more than one kind of body is offered on every modeling tab that makes those bodies, so a workflow never has to go to another tab for it. Checked 2026-11-14 ([RIB-H003, RIB-H004](../../Prism.Tests/Headless/Ribbon/CommonToolPlacementTests.cs)).
+
+- **Pattern** (Linear, Circular, Along Curve, Fill, Table) takes solids, surfaces and curves: Home, Solid, Surface and NURBS.
+- **Wrap** (in the Curves dropdown) wraps onto any face: Home, Solid, Surface and NURBS.
+- **Match Surface** is on Surface and NURBS. **Analyze** (Zebra Stripes, Curvature Map, Draft Analysis) is on Solid, Surface and NURBS; Check Seam joins it only where surfaces meet, on Surface and NURBS.
+- **Thicken** (surfaces, and faces of solids), Sweep, Loft, Pipe and Intersection Curve are on the surface-making tabs. **Hole** and **Thread** need exact solids and stay on Home and Solid.
+- **Not offered on Freeform:** Pattern, Wrap, Match Surface, Combine and Analyze take solids, surfaces and curves, not subdivision forms; convert a form to NURBS first. Freeform keeps its own Zebra Stripes and Check Quality.
+
 ## Modeling ribbon palette
 
 Solid-first review (2026-11-10, [#118](https://github.com/chrizpro/prism/issues/118)). Solid uses blue for modeled geometry and pattern instances. Smaller accents distinguish a direction arrow, cut line or modified edge. The shared Gizmo control uses the viewport's red, green and blue axes, a center handle and a rotation arc. Move uses its separate icon. RIB-H002 verified the viewport axis colors in both themes and the saved Gizmo ribbon ID. RIB-I002 captured the Solid preview on Windows in [Light](evidence/RIB-I002-solid-light.png) and [Dark](evidence/RIB-I002-solid-dark.png). [Ribbon tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).

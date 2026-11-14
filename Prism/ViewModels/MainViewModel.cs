@@ -566,12 +566,12 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonButton LegacyCurveId(RibbonButton button, string id) { button.Id = id; return button; }
         RibbonButton CurveMenu(string id, string label, string icon, string description, params RibbonButton[] tools) => new()
         {
-            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools.Where(t => !t.IsLegacy)],
+            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools.Where(t => t is { IsLegacy: false })],
         };
         // One dropdown holds every curve tool that works outside a sketch, so the modeling ribbons stay short. Flat curves are
         // filleted, chamfered, offset, trimmed and extended with the Sketch tab's own tools while a sketch is open.
         // The menu is one level deep so search and customization can reach every tool.
-        RibbonGroup CurvesGrp(bool fromSurfaces = true, bool fillet = true) => G("Curves", CurveMenu("menu:curves", "Curves", "curve-through",
+        RibbonGroup CurvesGrp(bool fromSurfaces = true, bool fillet = true, bool wrap = false) => G("Curves", CurveMenu("menu:curves", "Curves", "curve-through",
             "Create and edit curves outside a sketch: draw through points or on a surface, take curves from surfaces, then blend, join, trim, extend, offset or rebuild them.",
             new RibbonButton?[]
             {
@@ -579,7 +579,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file."),
                 Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
                 fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
-                fromSurfaces ? Cmd("Wrap", "section", () => new WrapCurveCommand(), "Lay flat curves onto a surface by distance, the way a label wraps a bottle: lengths stay true on planes, cylinders and cones.") : null,
+                fromSurfaces || wrap ? Cmd("Wrap", "section", () => new WrapCurveCommand(), "Lay flat curves onto a surface by distance, the way a label wraps a bottle: lengths stay true on planes, cylinders and cones.") : null,
                 fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.") : null,
                 fromSurfaces ? Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface.") : null,
                 fromSurfaces ? Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.") : null,
@@ -595,12 +595,19 @@ public sealed partial class MainViewModel : ViewModelBase
                 LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"),
             }.OfType<RibbonButton>().ToArray()));
         // Surface-quality checks beside the modeling tools, so continuity can be judged while working. The same commands as the Analyze tab.
-        RibbonGroup AnalyzeGrp() => G("Analyze", CurveMenu("menu:analyze", "Analyze", "zebra",
+        RibbonGroup AnalyzeGrp(bool seam = true) => G("Analyze", CurveMenu("menu:analyze", "Analyze", "zebra",
             "Check surface quality while you model: reflection stripes, curvature colors, draft angles and the continuity of a seam between two surfaces.",
             Btn("Zebra\nStripes", "zebra", () => { Session.Analysis = CadSession.AnalysisKind.None; Session.Zebra = !Session.Zebra; }, "Reflection stripes: smooth, continuous stripes mean a smooth surface.", RibbonSize.Large, null, () => Session.Zebra),
             Cmd("Curvature\nMap", "curvature", () => new CurvatureCommand(), "Color surfaces by curvature."),
             Cmd("Draft\nAnalysis", "draft", () => new DraftCommand(), "Check faces for mold release in a pull direction."),
-            Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
+            seam ? Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.") : null));
+        // Patterns repeat solids, surfaces and curves alike, so every tab that makes them can offer the same group.
+        RibbonGroup PatternGrp() => G("Pattern",
+            Cmd("Linear", "pattern-linear", () => new LinearPatternCommand(), "Repeat objects along one, two or three directions (grids and blocks)."),
+            Cmd("Circular", "pattern-circular", () => new CircularPatternCommand(), "Repeat objects around an axis, with optional concentric rings."),
+            Cmd("Along\nCurve", "pattern-curve", () => new CurvePatternCommand(), "Repeat objects along a curve or edge chain, turning each copy to follow it."),
+            Cmd("Fill", "pattern-fill", () => new FillPatternCommand(), "Fill a face or closed sketch with copies."),
+            Cmd("Table", "pattern-table", () => new TablePatternCommand(), "Place copies at positions you type: irregular layouts."));
         RibbonButton SweepSplit(string id) => Split(id, "Build a surface by carrying a section along a path: sweep a profile, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
             Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Carry a profile along a path. Add a second rail to steer how it turns."),
             Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered tube along a path curve; set the radius, or make it a solid."));
@@ -730,7 +737,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Solid",
             Groups =
             [
-                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false),
+                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false, wrap: true),
                 G("Primitives", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
@@ -759,6 +766,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Along\nCurve", "pattern-curve", () => new CurvePatternCommand(), "Repeat objects along a curve or edge chain, turning each copy to follow it."),
                     Cmd("Fill", "pattern-fill", () => new FillPatternCommand(), "Fill a face or closed sketch with copies: square, hex, ring or spiral layouts, with a margin from the edge."),
                     Cmd("Table", "pattern-table", () => new TablePatternCommand(), "Place copies at positions you type: irregular layouts.")),
+                AnalyzeGrp(false),
                 SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -815,6 +823,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Unsew", "unstitch", () => new UnstitchCommand(), "Take a sewn shell, or just some of its faces, apart into separate surfaces."),
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
+                    Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Reshape a surface edge to meet another surface or face smoothly: touching (G0), tangent (G1) or curvature-continuous (G2). The other face can be trimmed, or a face of a solid."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
                     Cmd("Enclosed\nBody", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
                     Cmd("Flatten /\nRefold", "flatten", () => new FlattenCommand(), "Flatten a surface and keep the layout, or return to wrap curves, sheets and solids onto its source or another surface."),
@@ -824,6 +833,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                PatternGrp(),
                 AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
@@ -928,6 +938,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                PatternGrp(),
                 AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
