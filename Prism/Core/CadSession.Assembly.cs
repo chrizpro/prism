@@ -74,7 +74,15 @@ public sealed partial class CadSession
     {
         if (it.Kind == SelKind.Origin) return null;
         var sh = ShapeOf(it);
-        if (sh != null && Occ.AxisOf(sh) is { } ax && ax.Dir.Length > 1e-9) return (ax.Origin, ax.Dir.Normalized());
+        if (sh != null && Occ.AxisOf(sh) is { } ax && ax.Dir.Length > 1e-9)
+        {
+            var dir = ax.Dir.Normalized(); var origin = ax.Origin;
+            // A round face reports where its surface was built (the base of the cutter that made the hole, say), which can be anywhere along the axis.
+            // The joint belongs at the face itself: the point of the axis level with the middle of the face.
+            if (it.Kind == SelKind.Face && Occ.FaceInfoOf(sh).Type is "Cylinder" or "Cone")
+                origin += dir * Vec3.Dot(sh.Props().Center - origin, dir);
+            return (origin, dir);
+        }
         return null;
     }
 
