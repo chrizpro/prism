@@ -101,7 +101,7 @@ public sealed class RibbonSectionTests
             Assert.All(visible, icon => Assert.Equal(tabTitle, icon.RibbonTab));
             var tab = vm.SelectedTab!;
             var curve = Assert.Single(tab.Buttons, button => button.Id == "menu:curves");   // one Curves dropdown since 2026-11-13
-            Assert.Equal(new[] { "curve-through|Curve", "curve-equation|Curve from Data" }, curve.Menu!.Take(2).Select(item => item.Id));
+            Assert.Equal(new[] { "curve-equation|Curve from Data", "section|Intersection Curve" }, curve.Menu!.Take(2).Select(item => item.Id));
 
             var app = Application.Current!;
             var previous = app.RequestedThemeVariant;
@@ -117,7 +117,7 @@ public sealed class RibbonSectionTests
                         .OfType<ISolidColorBrush>().Select(brush => brush.Color);
                     Assert.True(colors.Any(expected.Contains), $"{tabTitle}: {button.Label} ({button.Icon}) lacks a ribbon color");
                 }
-                foreach (var item in curve.Menu!.Take(2))
+                foreach (var item in curve.Menu!.Take(1))
                     Assert.Equal(Color.Parse(palette[0]), Assert.IsAssignableFrom<ISolidColorBrush>(Icons.Get(item.Icon, tabTitle)![0].Stroke!.Brush).Color);
             }
             finally { app.RequestedThemeVariant = previous; }

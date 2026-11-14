@@ -116,8 +116,11 @@ public class VertexAndSurfaceFaceTests
         var curves = Assert.Single(ribbon.Groups.Single(g => g.Title == "Curves").Items.OfType<RibbonButton>());
         Assert.Equal("Curves", curves.Label);
         var labels = curves.Menu!.Select(b => b.Label.Replace('\n', ' ')).ToList();
-        foreach (var tool in new[] { "Curve", "Intersection Curve", "Blend Curve", "Join", "Explode", "Trim Curve", "Extend Curve", "Offset Curve", "Rebuild Curve" })
+        foreach (var tool in new[] { "Curve from Data", "Intersection Curve", "Extract Edges", "Rebuild Curve" })
             Assert.Contains(tool, labels);
+        // owner direction 2026-11-14: these seven are [Legacy] and no longer offered (see CRV-H034)
+        foreach (var tool in new[] { "Curve", "Blend Curve", "Join", "Explode", "Trim Curve", "Extend Curve", "Offset Curve" })
+            Assert.DoesNotContain(tool, labels);
         Assert.All(curves.Menu!, b => Assert.Null(b.Menu));              // one level deep
     }
 
