@@ -12,12 +12,14 @@ Living [Sweep](../sweep/README.md#freeform-sweep) and [Loft](../loft/README.md#f
 
 - **Select, Datum, References, Curves:** shared sections
 - **Create:** Plane / Box / Sphere / Cylinder / Torus, Create Face, Loft / Sweep / Pipe / Extrude Profile / Revolve
-- **Modify:** Edit Freeform, Extrude, Slide, Subdivide, More (Bevel, Delete, Split face, Smooth, Flatten, Fill holes, Thicken)
+- **Modify:** Edit Freeform, Extrude, Slide, Subdivide, More (Bevel, Delete, Split face, Smooth, Flatten, Fill holes, Thicken, Warp)
 - **Edit curves:** Join, Trim, Extend, Rebuild, Blend
-- **Loops:** Insert Edge, Inset, Select Loop, Bridge
+- **Loops:** Knife, Insert Edge, Inset, Select Loop, Bridge
 - **Lock and align:** Freeze, Align to Curve
 - **Topology:** Smooth surface, Weld, Crease, Merge, Unweld edges, Pull, Flip normals
 - **Symmetry:** Mirror and weld
+- **Pattern:** Linear, Circular, Along Curve, Fill, Table (a freeform is copied as a new freeform)
+- **Analyze:** Zebra Stripes, Curvature Map, Draft Analysis
 - **Quality:** Check Quality
 - **Finish:** Convert to NURBS, Convert fewer faces
 - **Transform, Inspect, Appearance:** shared sections
@@ -46,6 +48,24 @@ The panel keeps what the ribbon has no room for, and only shows what fits the se
 - **Scan tools**, when the document has a scan
 
 Invert and Select All come from **Invert** in the Select section, and undo is Ctrl+Z.
+
+## Cage edit checks
+
+- **FRM-P0 checked 2026-11-14 (owner request).** The cage edit operations are plain geometry, so [Freeform edit tests](../../../Prism.Tests/Unit/Freeform/FormEditTests.cs) (FRM-U010 to FRM-U033, 22 cases) check them against known answers without the native kernel: every result is a closed manifold, and the volume, face and point counts and Euler number match. They cover Extrude (one face and a 2 x 2 region), Insert Edge, Subdivide, Inset, Bridge, Mirror and weld, Merge, Weld (collapse), Split face, Delete and Fill holes, Flip normals, Bevel (chamfer), Solidify, Flatten, Smooth, a Catmull-Clark step and crease. [Conversion tests](../../../Prism.Tests/Headless/Freeform/FormConvertTests.cs) (FRM-H120 to FRM-H123) check Convert to NURBS: a fully creased 30 x 20 x 10 box comes out as a valid 6000 mm³ solid within 1%, a smooth box is rounded and stays inside its cage, a quad-ball is a valid solid just inside its sphere, and fewer faces gives no more faces than exact with a similar volume.
+- **Findings, for owner review (behavior is characterized as it is, not changed):**
+  1. **Inset *Amount* is measured along each corner's diagonal**, so 0.5 leaves a ring 0.354 mm wide. Most tools measure the ring's width across.
+  2. **Bevel (flat) *Width* is how far each new point moves toward the middle of its faces**, not the length of the cut's legs: 0.5 on a cube's top edges removes about 2 mm³, where 0.5 mm legs would remove 1.
+  3. **A single isolated edge cannot be bevelled** (it returns nothing): a flat bevel needs edges that meet end to end or run through the form.
+  4. **Crease sharpness 1 holds for one smoothing level.** The default is 1 and the display uses 3 levels, so a default crease rounds off after the first level; a cube creased at 1 and smoothed three times has volume about 6.4 instead of 8, and at 3 it stays exactly 8. The panel's help says larger values hold more levels, but the ribbon button says "Make the selected edges sharp".
+  Proposed: measure Inset and Bevel across, allow a single-edge bevel, and make the default crease hold for every display level (or offer *Sharp* as a setting beyond 5). Not applied until you decide.
+
+## Knife and patterns
+
+- **FRM-P1 delivered 2026-11-14 (owner request).** **Knife** (Loops group) cuts a freeform with a plane: a construction plane or flat face you pick, or the X, Y or Z world plane at a position you type. Every edge the plane crosses gets a new point, every face it passes through is split in two along the cut, and a plane through existing points splits the face between them; faces that only touch the plane or lie in it are left alone. *Crease the cut* sharpens the new edges. A plane that misses the form is refused with a message. Insert Edge still makes a loop parallel to the existing ones; Knife cuts at any angle.
+- **Patterns** accept freeforms: Linear, Circular, Along Curve, Fill and Table make new freeforms moved or turned like a body would be. Joining a freeform into, or cutting it from, another body is refused with a message; convert the form to NURBS first.
+- **Warp** and the **Analyze** dropdown (Zebra Stripes, Curvature Map, Draft Analysis) are on the Freeform tab; they already accepted forms.
+- **Not built:** a Knife you draw by clicking points across the form, a Knife limited to selected faces, and booleans (by design, since Catmull-Clark does not suit them).
+- **Acceptance.** A plane through the middle of a cube cuts its four walls: 4 new points, 4 more faces, volume unchanged, still closed. A plane through two opposite vertical edges splits the top and bottom along their diagonals without adding points. A slanted plane through a quad-ball keeps it closed with every new point on the plane. Three copies of a form 50 mm apart start 0, 50 and 100 mm along. Tests: [FRM-U030 to FRM-U033](../../../Prism.Tests/Unit/Freeform/FormEditTests.cs) and [FRM-H110 to FRM-H115](../../../Prism.Tests/Headless/Freeform/FormKnifeAndPatternTests.cs). Not tried by hand.
 
 ## Feature requirement reviews
 

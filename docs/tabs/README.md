@@ -18,11 +18,11 @@ Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issu
 
 A tool that works on more than one kind of body is offered on every modeling tab that makes those bodies, so a workflow never has to go to another tab for it. Checked 2026-11-14 ([RIB-H003, RIB-H004](../../Prism.Tests/Headless/Ribbon/CommonToolPlacementTests.cs)).
 
-- **Pattern** (Linear, Circular, Along Curve, Fill, Table) takes solids, surfaces and curves: Home, Solid, Surface and NURBS.
+- **Pattern** (Linear, Circular, Along Curve, Fill, Table) takes solids, surfaces, curves and freeforms: Home, Solid, Surface, NURBS and Freeform (a freeform is copied as a new freeform; joining or cutting with one needs a converted body).
 - **Wrap** (in the Curves dropdown) wraps onto any face: Home, Solid, Surface and NURBS.
-- **Match Surface** is on Surface and NURBS. **Analyze** (Zebra Stripes, Curvature Map, Draft Analysis) is on Solid, Surface and NURBS; Check Seam joins it only where surfaces meet, on Surface and NURBS.
+- **Match Surface** is on Surface and NURBS. **Analyze** (Zebra Stripes, Curvature Map, Draft Analysis) is on Solid, Surface, NURBS and Freeform; Check Seam joins it only where surfaces meet, on Surface and NURBS. **Warp** is on Surface, NURBS and Freeform, where it takes forms too.
 - **Thicken** (surfaces, and faces of solids), Sweep, Loft, Pipe and Intersection Curve are on the surface-making tabs. **Hole** and **Thread** need exact solids and stay on Home and Solid.
-- **Not offered on Freeform:** Pattern, Wrap, Match Surface, Combine and Analyze take solids, surfaces and curves, not subdivision forms; convert a form to NURBS first. Freeform keeps its own Zebra Stripes and Check Quality.
+- **Not offered on Freeform:** Wrap, Match Surface and Combine do not take subdivision forms (a smooth subdivision surface has no exact boundary to match, and booleans do not work well on one); convert a form to NURBS first. **Knife** is Freeform-only because it cuts a cage.
 
 ## Modeling ribbon palette
 
