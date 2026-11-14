@@ -593,6 +593,13 @@ public sealed partial class MainViewModel : ViewModelBase
                 Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
                 LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"),
             }.OfType<RibbonButton>().ToArray()));
+        // Surface-quality checks beside the modeling tools, so continuity can be judged while working. The same commands as the Analyze tab.
+        RibbonGroup AnalyzeGrp() => G("Analyze", CurveMenu("menu:analyze", "Analyze", "zebra",
+            "Check surface quality while you model: reflection stripes, curvature colors, draft angles and the continuity of a seam between two surfaces.",
+            Btn("Zebra\nStripes", "zebra", () => { Session.Analysis = CadSession.AnalysisKind.None; Session.Zebra = !Session.Zebra; }, "Reflection stripes: smooth, continuous stripes mean a smooth surface.", RibbonSize.Large, null, () => Session.Zebra),
+            Cmd("Curvature\nMap", "curvature", () => new CurvatureCommand(), "Color surfaces by curvature."),
+            Cmd("Draft\nAnalysis", "draft", () => new DraftCommand(), "Check faces for mold release in a pull direction."),
+            Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
         RibbonButton SweepSplit(string id) => Split(id, "Build a surface by carrying a section along a path: sweep a profile, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
             Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Carry a profile along a path. Add a second rail to steer how it turns."),
             Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered tube along a path curve; set the radius, or make it a solid."));
@@ -814,6 +821,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -917,6 +925,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -1339,8 +1348,7 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
         freeform.Groups.Insert(3, G("Continuity",
-            Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Match compatible natural patch boundaries with G0, G1 or G2 constraints."),
-            Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
+            Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Match compatible natural patch boundaries with G0, G1 or G2 constraints.")));
         form.Groups.Insert(3, G("Validate", Cmd("Check\nCage", "check", () => new CheckCageCommand(), "Check manifold topology, winding, degenerate faces and extraordinary points.")));
         var additive = new RibbonTab {Title="3D FDM",Groups=[
             G("Prepare",Cmd("Place on bed","rotate",()=>new PlaceOnBedCommand(),"Pick the flat face of a CAD solid to set it down at Z = 0."),

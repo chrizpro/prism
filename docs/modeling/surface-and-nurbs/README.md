@@ -157,6 +157,7 @@ No test IDs are assigned until the owner approves the scope.
 **Today.** Zebra, Curvature Map, Draft Analysis and Check Seam live on the Analyze tab (Check Seam is on NURBS only).
 - **ANA-P1.** Surface and NURBS each get one **Analyze** dropdown (one group slot) holding Zebra, Curvature Map, Draft Analysis, Curvature Graph and Check Seam. The commands are the same ones the Analyze tab runs; nothing is copied. The Analyze tab is unchanged.
 - **Acceptance.** Each dropdown entry starts the same command class as the Analyze tab; the Surface and NURBS ribbons gain one group, not five buttons.
+- **Delivered 2026-11-14 ([SFC-H018](../../../Prism.Tests/Headless/Surfacing/AnalyzeDropdownTests.cs), passed on Windows).** The dropdown holds Zebra Stripes, Curvature Map, Draft Analysis and Check Seam. Check Seam moved into it from the NURBS Continuity group (which keeps Match Surface). Curvature Graph is not in the dropdown: it is a curve tool, not an analysis command on any ribbon. Not tried by hand in the desktop app.
 
 ### 3. Merge Surface
 - **MRG-P1.** Sew gets a **Result** choice: *Stitch* (today: shared edges, closed shells become solids) and *Merge into one patch* (adjacent faces on the same underlying surface, or tangent-continuous natural patches, become one face). If the kernel cannot merge a pair, the faces stay stitched and the status line names them. Faces are not merged across a crease.
