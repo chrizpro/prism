@@ -234,3 +234,8 @@ Desktop integration: [SFC-I001 viewport evidence](../../integration-evidence/REA
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
 The [SFC-I001 test](../../../Prism.Tests/Integration/DesktopModelingTests.cs) also checks the measured distance between a face and a parallel offset surface through MCP.
+
+
+## 0.4 illustrated documentation
+
+The [0.4 visual guide](../../../site/guide/modeling-04.md) explains the delivered subset on `v0.4-work` with labeled concept diagrams. It separates development features from released installers and names unfinished options. Diagrams explain geometry; they are not viewport verification. See the [approved scope and delivery record](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) for remaining decisions.

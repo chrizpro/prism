@@ -1,5 +1,10 @@
 # Changes
 
+## 0.4 development branch — unreleased
+
+See the [illustrated modeling guide](/guide/modeling-04) for Boundary Surface modes, separate-surface fillets, per-edge radii, chamfer styles, Sew merging, solid-face Imprint, helix paths and sweep scale tables. Draft adds neutral-plane parting lines; Surface and NURBS gain an Analyze dropdown. Source-retention options and hidden legacy curve tools are explained alongside current limits. This describes `v0.4-work`, not a published installer.
+
+
 ## 0.3.0 alpha
 
 Selecting, grouping and copying; more of what you can do to a surface; and a lot of workflow work across printing, manufacturing, electronics, animation and simulation.

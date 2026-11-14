@@ -22,3 +22,10 @@ Individual fitting controls, continuity and weight changes, blend fullness, open
 Standalone Patch currently rejects one bent spline that Boundary Surface fills. The maintained cases preserve the reproduction and verify the rejected operation leaves the document unchanged. [Issue #51](https://github.com/chrizpro/prism/issues/51).
 
 Local Windows verification with the installed native kernel passed all 26 Boundary Surface, Ruled and Patch cases.
+
+
+## 0.4 illustrated documentation
+
+**Delivered on v0.4-work:** Mode offers Automatic, Fill boundary, Edge (two to four curves), Blend (two surface edges) and Network (outline plus interior curves). Explicit modes validate inputs instead of silently falling back. Fill with remains a separate control. [Maintained mode checks](../../../Prism.Tests/Headless/Surfacing/BoundaryModeTests.cs).
+
+The [0.4 visual guide](../../../site/guide/modeling-04.md) explains the delivered subset on `v0.4-work` with labeled concept diagrams. It separates development features from released installers and names unfinished options. Diagrams explain geometry; they are not viewport verification. See the [approved scope and delivery record](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) for remaining decisions.

@@ -46,3 +46,10 @@ Old Split history and the `curve_split` scripting name use a compatibility adapt
 Closed and control-point curves, import variants, projected intersections and viewport picking need more coverage. New requirements need owner review.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+
+## 0.4 illustrated documentation
+
+**Delivered on v0.4-work:** Curve from Data adds Points from → Helix with radius, end radius (0 keeps the start radius), pitch, turns, handedness, X/Y/Z axis and position. It creates a curve for a later Sweep, not a thread feature. [Helix checks](../../../Prism.Tests/Headless/Curves/HelixTests.cs). Intersection Curve defaults to replacing two flat source curves unless Keep the original curves is on; reference planes, faces and bodies remain. Old saved steps retain curves. [Retention checks](../../../Prism.Tests/Headless/Curves/KeepOriginalsTests.cs).
+
+The [0.4 visual guide](../../../site/guide/modeling-04.md) explains the delivered subset on `v0.4-work` with labeled concept diagrams. It separates development features from released installers and names unfinished options. Diagrams explain geometry; they are not viewport verification. See the [approved scope and delivery record](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) for remaining decisions.

@@ -33,6 +33,10 @@ export const commandImages = {
 
 // Concept drawings explain the geometry. A matching capture, when available, follows them.
 export const commandDiagrams = {
+  boundary_surface: 'diagram-v04-boundary',
+  knit: 'diagram-v04-sew',
+  curve_equation: 'diagram-v04-helix',
+  split_face: 'diagram-v04-imprint',
   cam_setup: 'diagram-cnc-work-zero',
   cnc_stock_review: 'diagram-cnc-stock-review',
   cnc_pocket: 'diagram-cnc-pocket',
@@ -50,7 +54,7 @@ export const commandDiagrams = {
   sweep_surface: 'diagram-solid-sweep',
   sweep: 'diagram-solid-sweep',
   fillet: 'diagram-solid-fillet',
-  chamfer: 'diagram-solid-chamfer',
+  chamfer: 'diagram-v04-chamfer',
   shell: 'diagram-solid-shell',
   split_body: 'diagram-solid-split',
   pattern_linear: 'diagram-solid-pattern',

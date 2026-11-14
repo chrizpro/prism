@@ -16,7 +16,7 @@
   "diagram-cnc-pocket": {
     "src": "/images/diagrams/cnc-pocket.svg",
     "alt": "Top view of a circular pocket with nested cutter paths, and a side view of three cuts ending at Z minus 3.",
-    "caption": "Pocket clears inside a boundary. Each ring shown is the route of the cutter center. A 3 mm pocket with 1 mm per pass reaches Z −1, −2 and −3 relative to stock zero.",
+    "caption": "Pocket clears inside a boundary. Each ring shown is the route of the cutter center. A 3 mm pocket with 1 mm per pass reaches Z \u22121, \u22122 and \u22123 relative to stock zero.",
     "width": 720,
     "height": 300
   },
@@ -143,6 +143,76 @@
     "src": "/images/diagrams/mold-halves.svg",
     "alt": "Two tooling halves separated to reveal opposing recessed cavities in cross-section.",
     "caption": "Create Mold cuts a cavity around the part and separates the tooling halves to expose it.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-boundary": {
+    "src": "/images/diagrams/v04-boundary.svg",
+    "alt": "Three drawings compare a filled loop, a span between curves and a boundary with crossing interior guide curves.",
+    "caption": "Automatic chooses from your inputs. Explicit modes make the intended construction clear; Blend bridges two surface edges.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-sew": {
+    "src": "/images/diagrams/v04-sew.svg",
+    "alt": "Two separate planar sheets become a stitched sheet with a middle edge, or one merged planar face without the edge.",
+    "caption": "Merge can remove a seam between faces on the same underlying surface. A crease stays; unsuccessful merges remain stitched.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-chamfer": {
+    "src": "/images/diagrams/v04-chamfer.svg",
+    "alt": "Three bevel cross-sections show equal legs, unequal legs and a leg plus angle.",
+    "caption": "Cross-section sketches, not to scale. Style selects the dimensions used to define the cut.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-imprint": {
+    "src": "/images/diagrams/v04-imprint.svg",
+    "alt": "A circle drawn on a planar face marks a disc region, while a line ending inside the face adds an edge without enclosing a region.",
+    "caption": "Split Face \u2192 Mode \u2192 Imprint works on solids in this branch. A closed loop can divide the face; an interior-ending line does not make another face.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-helix": {
+    "src": "/images/diagrams/v04-helix.svg",
+    "alt": "A helix around its axis, the pitch-times-turns height calculation and a thickened path illustrating a later sweep.",
+    "caption": "Choose X, Y or Z, radius, pitch, turns and handedness. End radius 0 keeps the starting radius; a different end radius tapers the helix.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-sweep": {
+    "src": "/images/diagrams/v04-sweep.svg",
+    "alt": "A taper from full to half scale, a bulging variable section and the interpretation of the midpoint scale pair.",
+    "caption": "The optional scale table uses normalized path position and positive scale. A second rail steers rotation; it does not stretch the section to reach that rail.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-fillet": {
+    "src": "/images/diagrams/v04-fillet.svg",
+    "alt": "An ordered edge selection, a per-edge radius list and a rounded junction between two perpendicular sheets.",
+    "caption": "A range varies radius along one edge. Two touching separate surfaces can be joined and dressed; borders alone and non-touching sheets are refused. Setback is not available.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-draft": {
+    "src": "/images/diagrams/v04-draft.svg",
+    "alt": "A straight-sided part split at its middle plane and a drafted part that narrows toward both ends.",
+    "caption": "An exaggerated cross-section illustrates opposite draft directions. Walls that cross the plane need splitting first; Draft does not split them for you.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-analyze": {
+    "src": "/images/diagrams/v04-analyze.svg",
+    "alt": "Stylized zebra stripes, a curvature color strip and the Draft Analysis and Check Seam menu entries.",
+    "caption": "Surface and NURBS share the Analyze dropdown. These are schematic inspection examples, not measured results or a real curvature legend.",
+    "width": 720,
+    "height": 300
+  },
+  "diagram-v04-keep": {
+    "src": "/images/diagrams/v04-keep.svg",
+    "alt": "Separate input sheets, a result alone with retention off and originals plus result with retention on; shown apart for clarity.",
+    "caption": "Sew and Thicken default to replacing their inputs. Intersection Curve replaces two flat source curves by default but never removes reference planes, faces or bodies.",
     "width": 720,
     "height": 300
   }

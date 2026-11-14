@@ -34,6 +34,7 @@ const guideSidebar = [
   { text: 'Design', items: [
     { text: 'Sketching', link: '/guide/sketching' },
     { text: 'Solid modeling', link: '/guide/solid' },
+    { text: '0.4 visual guide', link: '/guide/modeling-04' },
     { text: 'Surfaces and NURBS', link: '/guide/surfacing' },
     { text: 'Freeform', link: '/guide/freeform' },
     { text: 'Sketches, solids and surfaces', link: '/guide/modeling' },
