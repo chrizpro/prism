@@ -158,6 +158,18 @@
   ],
   "params": [
    {
+    "label": "Mode",
+    "type": "choice",
+    "default": "Automatic",
+    "options": [
+     "Automatic",
+     "Fill boundary",
+     "Edge: span two to four curves",
+     "Blend: bridge two surface edges",
+     "Network: outline and curves across"
+    ]
+   },
+   {
     "label": "Join the patch to the boundary surfaces (closes into a solid when it can)",
     "type": "boolean",
     "default": true
@@ -1399,7 +1411,7 @@
  {
   "name": "chamfer",
   "title": "Chamfer",
-  "hint": "Click edges on a body (click again to deselect). Pull the arrow in the viewport or type a number to set the size.",
+  "hint": "Click edges on a body. Equal distance cuts the same amount from both faces. Two distances, or a distance and an angle, make an uneven chamfer: Swap the two sides if it leans the wrong way.",
   "slots": [
    {
     "label": "Edges",
@@ -1415,6 +1427,36 @@
     "default": 1.5,
     "unit": "mm",
     "min": 0.001
+   },
+   {
+    "label": "Style",
+    "type": "choice",
+    "default": "Equal distance",
+    "options": [
+     "Equal distance",
+     "Two distances",
+     "Distance and angle"
+    ]
+   },
+   {
+    "label": "Second distance",
+    "type": "number",
+    "default": 1.5,
+    "unit": "mm",
+    "min": 0.001
+   },
+   {
+    "label": "Angle",
+    "type": "number",
+    "default": 45,
+    "unit": "°",
+    "min": 1,
+    "max": 89
+   },
+   {
+    "label": "Swap the two sides",
+    "type": "boolean",
+    "default": false
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -3730,7 +3772,8 @@
     "default": "Equation",
     "options": [
      "Equation",
-     "Table or file"
+     "Table or file",
+     "Helix"
     ]
    },
    {
@@ -3836,6 +3879,54 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Helix radius",
+    "type": "number",
+    "default": 10,
+    "unit": "mm",
+    "min": 0.001
+   },
+   {
+    "label": "End radius (0 = same)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0
+   },
+   {
+    "label": "Pitch (rise per turn)",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001
+   },
+   {
+    "label": "Turns",
+    "type": "number",
+    "default": 5,
+    "unit": "",
+    "min": 0.05,
+    "max": 1000
+   },
+   {
+    "label": "Handedness",
+    "type": "choice",
+    "default": "Right-handed",
+    "options": [
+     "Right-handed",
+     "Left-handed"
+    ]
+   },
+   {
+    "label": "Axis",
+    "type": "choice",
+    "default": "Z",
+    "options": [
+     "X",
+     "Y",
+     "Z"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -4230,7 +4321,8 @@
     "default": "Table or file",
     "options": [
      "Equation",
-     "Table or file"
+     "Table or file",
+     "Helix"
     ]
    },
    {
@@ -4336,6 +4428,54 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Helix radius",
+    "type": "number",
+    "default": 10,
+    "unit": "mm",
+    "min": 0.001
+   },
+   {
+    "label": "End radius (0 = same)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0
+   },
+   {
+    "label": "Pitch (rise per turn)",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001
+   },
+   {
+    "label": "Turns",
+    "type": "number",
+    "default": 5,
+    "unit": "",
+    "min": 0.05,
+    "max": 1000
+   },
+   {
+    "label": "Handedness",
+    "type": "choice",
+    "default": "Right-handed",
+    "options": [
+     "Right-handed",
+     "Left-handed"
+    ]
+   },
+   {
+    "label": "Axis",
+    "type": "choice",
+    "default": "Z",
+    "options": [
+     "X",
+     "Y",
+     "Z"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -4740,6 +4880,15 @@
      "Only what I picked",
      "Matching features",
      "The whole pattern"
+    ]
+   },
+   {
+    "label": "Parting line",
+    "type": "choice",
+    "default": "None (all walls lean one way)",
+    "options": [
+     "None (all walls lean one way)",
+     "At the neutral plane (walls lean opposite ways)"
     ]
    }
   ],
@@ -6346,6 +6495,12 @@
     "default": 0,
     "unit": "mm",
     "min": 0
+   },
+   {
+    "label": "Radius per edge (optional)",
+    "type": "text",
+    "default": "",
+    "help": "One entry per picked edge, in the order picked, separated by commas: 3, 5, 2 gives each edge its own radius, and 3-5 grows that edge from 3 to 5. An edge with no entry uses Radius. Leave blank for one radius on every edge."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7546,18 +7701,15 @@
     "options": [
      "Untitled",
      "Untitled 2",
-     "Untitled 3",
-     "Untitled 4",
-     "Untitled 5",
+     "helix-result",
+     "scaled-sweep-result",
+     "sew-merge-result",
      "Untitled 6",
-     "Untitled 7",
-     "Untitled 8",
-     "Untitled 9",
-     "Untitled 10",
-     "Untitled 11",
-     "Untitled 12",
-     "Untitled 13",
-     "wrench"
+     "helix-result",
+     "scaled-sweep-result",
+     "sew-merge-result",
+     "surface-fillet-result",
+     "imprint-result"
     ]
    },
    {
@@ -7673,13 +7825,18 @@
     "type": "choice",
     "default": "Automatic (from what you pick)",
     "options": [
-     "Automatic (from what you pick)",
+     "Planes, faces or bodies",
      "Two flat curves (projected)",
-     "Planes, faces or bodies"
+     "Automatic (from what you pick)"
     ]
    },
    {
     "label": "Make each curve its own object",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Keep the original curves",
     "type": "boolean",
     "default": false
    }
@@ -8157,7 +8314,7 @@
  {
   "name": "knit",
   "title": "Knit",
-  "hint": "Pick the surfaces to join along their shared edges.",
+  "hint": "Pick the surfaces to join along their shared edges. Choose Merge to also fuse neighbouring faces that lie on the same surface (two halves of a flat sheet become one face); faces that meet at a crease stay separate.",
   "slots": [
    {
     "label": "Surfaces",
@@ -8179,6 +8336,20 @@
     "label": "Make solid if closed",
     "type": "boolean",
     "default": true
+   },
+   {
+    "label": "Keep the originals",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Result",
+    "type": "choice",
+    "default": "Stitch (keep each face)",
+    "options": [
+     "Stitch (keep each face)",
+     "Merge into one patch where they lie on the same surface"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -10140,17 +10311,14 @@
     "options": [
      "Untitled",
      "Untitled 2",
-     "Untitled 3",
-     "Untitled 4",
-     "Untitled 5",
+     "helix-result",
+     "scaled-sweep-result",
+     "sew-merge-result",
      "Untitled 6",
-     "Untitled 7",
-     "Untitled 8",
-     "Untitled 9",
-     "Untitled 10",
-     "Untitled 11",
-     "Untitled 12",
-     "Untitled 13"
+     "helix-result",
+     "scaled-sweep-result",
+     "sew-merge-result",
+     "surface-fillet-result"
     ]
    }
   ],
@@ -13776,17 +13944,27 @@
     "optional": false
    }
   ],
-  "params": [],
+  "params": [
+   {
+    "label": "Mode",
+    "type": "choice",
+    "default": "Split (cut across the face)",
+    "options": [
+     "Split (cut across the face)",
+     "Imprint (mark curves on the face)"
+    ]
+   }
+  ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
   "name": "split_surface",
   "title": "Split Surface",
-  "hint": "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.",
+  "hint": "Pick the surface (at the Face level, pick one face to split just that face), then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.",
   "slots": [
    {
     "label": "Surface to split",
-    "accepts": "SurfaceObj",
+    "accepts": "SurfaceObj, Face",
     "multi": false,
     "optional": false
    },
@@ -13944,6 +14122,19 @@
     "max": 100
    },
    {
+    "label": "Scale at the start",
+    "type": "number",
+    "default": 1,
+    "unit": "",
+    "min": 0.01,
+    "max": 100
+   },
+   {
+    "label": "Scale along the path (optional)",
+    "type": "text",
+    "default": ""
+   },
+   {
     "label": "Operation",
     "type": "choice",
     "default": "New body",
@@ -14036,6 +14227,19 @@
     "unit": "",
     "min": 0.01,
     "max": 100
+   },
+   {
+    "label": "Scale at the start",
+    "type": "number",
+    "default": 1,
+    "unit": "",
+    "min": 0.01,
+    "max": 100
+   },
+   {
+    "label": "Scale along the path (optional)",
+    "type": "text",
+    "default": ""
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14058,6 +14262,11 @@
     "type": "number",
     "default": 3,
     "unit": "mm"
+   },
+   {
+    "label": "Keep the original surface",
+    "type": "boolean",
+    "default": false
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."

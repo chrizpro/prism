@@ -111,3 +111,8 @@ An approved requirement can still be a product gap, and a working feature may st
 ## Suggested review sequence
 
 Review one existing guide at a time. Keep accepted behavior; flag unclear or changed semantics for owner decision; then file issues for confirmed gaps. Start with a small pilot rather than reformatting all guides. See [Motion's review section](../cae/motion/README.md#requirements-review-and-traceability) as an example of a *review queue*, not approved tests.
+
+
+## Illustrated tool reference
+
+Every current [tool-reference page](../../site/tools/index.md) now has a primary image, including non-command buttons such as file operations, selection, sketch constraints and view controls. The [image maintenance guide](../engineering/tool-reference-images.md) documents before/after help renders, explicit action diagrams, actual 0.4 result captures and the complete-page coverage check. These are documentation examples; canonical behavior and maintained feature tests remain in the guides linked above.

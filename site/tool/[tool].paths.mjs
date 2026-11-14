@@ -37,6 +37,7 @@ function toolPage(page) {
   const guide = tabGuides[first.tab]
   if (guide) meta.push(`- **Guide:** [${guide.text}](${guide.link})`)
   lines.push(...meta, '')
+  lines.push(`<GuideImage tool="${page.slug}" />`, '')
   if (commandDiagrams[command?.name]) lines.push(illustration(commandDiagrams[command.name]), '')
   if (exercises[command?.name]) {
     const [label, link] = exercises[command.name]
@@ -45,8 +46,8 @@ function toolPage(page) {
   if (commandImages[command?.name]) lines.push(illustration(commandImages[command.name]), '')
   const tip = groupTips[`${first.tab}:${first.group}`] ?? groupTips[first.group]
   if (tip) lines.push('::: tip', tip, ':::', '')
-  if (['boundary_surface', 'fillet', 'chamfer', 'knit', 'thicken', 'curve_equation', 'intersect_curves', 'split_face', 'sweep', 'sweep_surface', 'draft'].includes(command?.name)) {
-    lines.push('::: info 0.4 development branch', 'See the [illustrated 0.4 guide](/guide/modeling-04) for new options and current limits. The settings snapshot below predates these branch changes.', ':::', '')
+  if (['boundary_surface', 'fillet', 'chamfer', 'knit', 'thicken', 'curve_equation', 'intersect_curves', 'split_face', 'sweep', 'sweep_surface', 'draft', 'draft_face'].includes(command?.name)) {
+    lines.push('::: info 0.4 development branch', 'See the [illustrated 0.4 guide](/guide/modeling-04) for workflows and current limits. The settings below were refreshed from the development branch.', ':::', '')
   }
   if (command) lines.push(...commandSections(command, tool))
   return lines.join('\n')

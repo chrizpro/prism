@@ -25,6 +25,8 @@ In **Fillet**, use **Radius** for the common value. To vary individual edges, ty
 
 On Surface or NURBS, **Fillet / Chamfer** also accepts one edge from each of two separate, touching surfaces. They become one dressed surface. The branch uses a 0.05 mm joining tolerance; it refuses non-touching sheets and a mixed solid/surface pair. This is not a general bridge across a gap.
 
+<GuideImage tool="fillet-chamfer" />
+
 <GuideImage image="diagram-v04-chamfer" />
 
 In solid **Chamfer**, choose **Style**: Equal distance, Two distances, or Distance and angle. **Swap the two sides** changes which side receives each value. See [Solid modeling](/guide/solid#modify).
@@ -34,6 +36,8 @@ In solid **Chamfer**, choose **Style**: Equal distance, Two distances, or Distan
 <GuideImage image="diagram-v04-sew" />
 
 In **Sew**, **Stitch** keeps each face. **Merge into one patch** also tries to merge neighboring faces on the same underlying surface. Two coplanar halves can become one face; a sharp crease remains. If merging cannot be done, the faces stay stitched. It does not refit arbitrary tangent patches into a new smooth surface.
+
+<GuideImage tool="sew" />
 
 <GuideImage image="diagram-v04-keep" />
 
@@ -46,6 +50,8 @@ Sew's **Keep the originals** is off by default. Turn it on to retain the input s
 <GuideImage image="diagram-v04-imprint" />
 
 Start **Split Face**, choose **Mode → Imprint**, and pick the face and curves or sketch. A closed circle can mark out a disc face without cutting material away. A line ending inside the face adds an edge without enclosing a new face. Check the preview before confirming.
+
+<GuideImage tool="split-face-direct-modeling" />
 
 Imprint is implemented for **solids** in this branch. For surface sheets, use [Split Surface](/guide/surfacing#split-a-surface-into-faces) or Draw on Surface's split result. Wrap is not available.
 
@@ -60,11 +66,15 @@ Imprint is implemented for **solids** in this branch. For surface sheets, use [S
 
 For example, pitch 10 mm and 5 turns give 50 mm of rise along the axis. This makes a path; it does not automatically create thread geometry or a thread standard.
 
+<GuideImage tool="curve-from-data" />
+
 ## Change a sweep's section size
 
 <GuideImage image="diagram-v04-sweep" />
 
 For a simple taper, set **Scale at the start** and the end scale. For a varying section, enter `0:1, 0.5:1.6, 1:0.7` in **Scale along the path (optional)**. Each pair means **position : scale**; positions run from 0 to 1, and scales must be positive. The smoothly joined table replaces the start and end scales.
+
+<GuideImage tool="sweep" />
 
 The second rail still steers orientation only. Stretching the section to guide rails and a twist law are not implemented. These controls describe exact Solid/Surface/NURBS Sweep, not Freeform's cage sweep.
 
@@ -86,4 +96,4 @@ Curve, Blend Curve, Join, Explode, Trim Curve, Extend Curve and Offset Curve are
 
 The [canonical modeling change record](https://github.com/chrizpro/prism/blob/v0.4-work/docs/modeling/surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) separates owner-approved scope, delivered subsets and open decisions. Maintained tests include [Boundary modes](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Surfacing/BoundaryModeTests.cs), [surface fillets](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Surfacing/FilletAcrossSurfacesTests.cs), [dress-up](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Solid/DressUpDepthTests.cs), [Imprint](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Solid/ImprintTests.cs), [helix](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Curves/HelixTests.cs) and [sweep scaling](https://github.com/chrizpro/prism/blob/v0.4-work/Prism.Tests/Headless/Sweep/SweepScaleLawTests.cs).
 
-The source guides record earlier Windows headless runs. This documentation change does not rerun or claim desktop geometry validation. The diagrams explain construction and are not numerical or viewport evidence.
+The source guides record earlier Windows headless runs. This documentation task also executed the five examples captured above in an isolated Windows desktop instance. These are documentation captures, not maintained acceptance-test runs. The concept diagrams explain construction; only pictures labeled Prism result capture are actual viewport screenshots. [Capture method and provenance](https://github.com/chrizpro/prism/blob/codex/v0.4-illustrated-docs/docs/engineering/tool-reference-images.md).

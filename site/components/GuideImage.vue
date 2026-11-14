@@ -3,9 +3,11 @@ import { withBase } from 'vitepress'
 import { computed } from 'vue'
 import images from '../data/guide-images.json'
 import diagrams from '../data/guide-diagrams.json'
+import toolImages from '../data/tool-images.json'
 
 const props = defineProps({
   image: String,
+  tool: String,
   src: String,
   alt: String,
   caption: String,
@@ -14,9 +16,9 @@ const props = defineProps({
 })
 
 const picture = computed(() => {
-  const registered = props.image ? images[props.image] ?? diagrams[props.image] : {}
-  if (!registered) throw new Error(`Unknown guide image: ${props.image}`)
-  const overrides = Object.fromEntries(Object.entries(props).filter(([key, value]) => key !== 'image' && value !== undefined))
+  const registered = props.tool ? toolImages[props.tool] : props.image ? images[props.image] ?? diagrams[props.image] : {}
+  if (!registered) throw new Error(`Unknown guide image: ${props.tool ?? props.image}`)
+  const overrides = Object.fromEntries(Object.entries(props).filter(([key, value]) => !['image', 'tool'].includes(key) && value !== undefined))
   return { ...registered, ...overrides }
 })
 </script>
@@ -26,7 +28,7 @@ const picture = computed(() => {
     <a :href="withBase(picture.src)" :aria-label="`${picture.alt}. Open full-size image`">
       <img :src="withBase(picture.src)" :alt="picture.alt" :width="picture.width" :height="picture.height" loading="lazy" decoding="async" />
     </a>
-    <figcaption><strong v-if="image && diagrams[image]">Concept diagram. </strong>{{ picture.caption }} <a :href="withBase(picture.src)">View full size</a></figcaption>
+    <figcaption><strong v-if="picture.kind === 'diagram' || image && diagrams[image]">Concept diagram. </strong><strong v-else-if="picture.kind === 'example'">Prism help example. </strong><strong v-else-if="picture.kind === 'capture'">Prism result capture. </strong>{{ picture.caption }} <a :href="withBase(picture.src)">View full size</a></figcaption>
   </figure>
 </template>
 

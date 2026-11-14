@@ -79,8 +79,11 @@ const apiSidebar = [
 const base = process.env.PRISM_SITE_BASE || '/'
 const origin = process.env.PRISM_SITE_ORIGIN || 'https://chrizpro.github.io'
 const repo = 'https://github.com/chrizpro/prism'
+const buildRoot = process.env.PRISM_DOCS_BUILD_ROOT
 
 export default defineConfig({
+  outDir: buildRoot ? `${buildRoot}/vitepress` : undefined,
+  cacheDir: buildRoot ? `${buildRoot}/cache` : undefined,
   title: 'Prism',
   description: 'Prism CAD documentation for 3D modeling, simulation, manufacturing and Python scripting.',
   cleanUrls: true,
