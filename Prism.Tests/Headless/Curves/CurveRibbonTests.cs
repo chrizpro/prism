@@ -34,16 +34,29 @@ public class CurveRibbonTests
         Assert.Equal("menu:curves", curves.Id);
         Assert.False(curves.IsSplit);
         var labels = curves.Menu!.Select(b => b.Label).ToList();
-        foreach (var tool in new[] { "Curve", "Isocurves", "Contour", "Blend\nCurve", "Join", "Explode", "Extract Edges", "Trim\nCurve", "Extend\nCurve", "Offset\nCurve", "Rebuild\nCurve", "Points Along\nCurve" })
+        foreach (var tool in new[] { "Isocurves", "Contour", "Extract Edges", "Rebuild\nCurve", "Points Along\nCurve" })
             Assert.Contains(tool, labels);
+        // owner direction 2026-11-14: these are [Legacy], hidden from the GUI but still reachable by saved files and scripts
+        foreach (var tool in new[] { "Curve", "Blend\nCurve", "Join", "Explode", "Trim\nCurve", "Extend\nCurve", "Offset\nCurve" })
+            Assert.DoesNotContain(tool, labels);
         Assert.All(tab.Buttons.Where(b => b.HasMenu), b => Assert.All(b.Menu!, child => Assert.False(child.HasMenu)));
         var hits = vm.AllCommandHits().Where(h => h.Tab == title).ToList();
         Assert.Contains(hits, h => h.Label == "Points Along Curve");
         Assert.Contains(hits, h => h.Label == "Rebuild Curve");
-        Assert.Contains(hits, h => h.Label == "Explode");
+        Assert.DoesNotContain(hits, h => h.Label is "Explode" or "Join" or "Blend Curve" or "Trim Curve" or "Extend Curve" or "Offset Curve");
         Assert.DoesNotContain(hits, h => h.Label is "Split Curve" or "Divide" or "Duplicate Edge");
-        curves.Menu!.Single(b => b.Label == "Join").Invoke();
-        Assert.IsType<JoinCurvesCommand>(vm.Session.ActiveCommand);
+    }
+
+    [AvaloniaFact(DisplayName = "CRV-H037 | Legacy curve commands are hidden from the ribbon but still resolve for saved files and scripts")]
+    [Trait("TestId", "CRV-H037")]
+    public void LegacyCurveCommandsStayReachableOutsideTheGui()
+    {
+        DefaultRibbon();
+        foreach (var type in new[] { typeof(CurveByPointsCommand), typeof(BlendCurveCommand), typeof(JoinCurvesCommand), typeof(ExplodeCurveCommand), typeof(TrimCurveCommand), typeof(ExtendCurveCommand), typeof(OffsetCurveCommand) })
+            Assert.True(LegacyAttribute.IsLegacy(type), type.Name);
+        Assert.False(LegacyAttribute.IsLegacy(typeof(RebuildCurveCommand)));
+        Assert.IsType<JoinCurvesCommand>(CommandCatalog.Find("Prism.Commands.JoinCurvesCommand|Join Curves")!());
+        Assert.IsType<TrimCurveCommand>(CommandCatalog.Find("Prism.Commands.TrimCurveCommand|Trim Curve")!());
     }
 
     [AvaloniaFact(DisplayName = "CRV-H035 | Renamed curve commands restore old saved identities, button IDs and shortcuts")]
@@ -76,8 +89,8 @@ public class CurveRibbonTests
         {
             var vm = new MainViewModel();
             var menu = Assert.Single(vm.Tabs.Single(t => t.Title == "Home").Groups.Single(g => g.Title == "My curves").Items.OfType<RibbonButton>());
-            Assert.Contains(menu.Menu!, b => b.Label == "Curve");
-            Assert.Contains(menu.Menu!, b => b.Label == "Explode");
+            Assert.Contains(menu.Menu!, b => b.Label == "Isocurves");
+            Assert.DoesNotContain(menu.Menu!, b => b.Label == "Explode");
             Assert.Contains(menu.Menu!, b => b.Label == "Points Along\nCurve");
             Assert.All(menu.Menu!, b => Assert.False(b.HasMenu));
         }

@@ -8,6 +8,8 @@ Approved by the owner on 2026-11-08; implemented on `cleanup/curve-tools`, branc
 
 Since 2026-11-13 (owner direction) Home, Solid, Surface, NURBS and Freeform each show one **Curves** dropdown that holds every curve creation and editing tool; the separate Edit curves group is gone. See the [Curves dropdown](../surface-and-nurbs/README.md#curves-dropdown).
 
+> **Proposed, awaiting owner review (2026-11-14):** Curve, Blend Curve, Join, Explode, Trim Curve, Extend Curve and Offset Curve are retired from the Curves dropdown, search and ribbon customization. Their commands are marked `[Legacy]` in code, so they are hidden from the GUI but still load from saved files and run from scripts; search for `[Legacy` to list them when deciding whether to delete them. Sketch's own Trim, Extend and Offset tools are unchanged. The descriptions of those tools below describe the retired behavior.
+
 - **Curve dropdown:** Curve and Curve from Data. Interactive Curve still offers through-points and control-points modes.
 - **Join dropdown:** Join, Explode and Extract Edges (formerly Duplicate Edge). Join assembles touching segments without bridging gaps. Explode separates existing segments. Extract Edges copies selected body/surface edges into independent curves, joining touching edges and keeping the source body. Join and extraction share the same joining operation.
 - **Trim Curve:** Keep one part using a percentage range, or choose **Cut into pieces** and enter split percentages. There is no separate Split ribbon entry. Trim and Extend currently require a single segment; use Join > Explode for a multi-segment curve first.

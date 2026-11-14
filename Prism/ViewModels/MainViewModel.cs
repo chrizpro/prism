@@ -427,6 +427,8 @@ public sealed partial class MainViewModel : ViewModelBase
         var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching, () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
         // Some unrelated tools share an icon (for example Sweep and Sweep 2 rails).
         button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
+        // Retired commands stay registered (saved files and scripts still reach them) but no button is shown for them.
+        button.IsLegacy = LegacyAttribute.IsLegacy(make().GetType());
         return button;
     }
     /// <summary>A sketch tool button (shows as pressed while any mode of that tool family is active).</summary>
@@ -537,7 +539,7 @@ public sealed partial class MainViewModel : ViewModelBase
         "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
         RibbonSize.Large, () => CanEditFeature);
 
-    static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items] };
+    static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items.Where(i => i is not RibbonButton { IsLegacy: true })] };
 
     RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or place datum points, axes and planes.",
         Btn("Gizmo", "gizmo", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Gizmo }, id: "move|Gizmo"),
@@ -564,7 +566,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonButton LegacyCurveId(RibbonButton button, string id) { button.Id = id; return button; }
         RibbonButton CurveMenu(string id, string label, string icon, string description, params RibbonButton[] tools) => new()
         {
-            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools],
+            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools.Where(t => !t.IsLegacy)],
         };
         // One dropdown holds every curve tool that works outside a sketch, so the modeling ribbons stay short. Flat curves are
         // filleted, chamfered, offset, trimmed and extended with the Sketch tab's own tools while a sketch is open.

@@ -119,6 +119,7 @@ public sealed class CurveFilletCommand : Command
 }
 
 /// <summary>Parallel copy of a flat curve.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class OffsetCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -142,6 +143,7 @@ public sealed class OffsetCurveCommand : Command
 }
 
 /// <summary>A curve that joins two curves with position, tangent or curvature continuity.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class BlendCurveCommand : Command
 {
     readonly SelectionSlot _a, _b;
@@ -186,6 +188,7 @@ public sealed class BlendCurveCommand : Command
 }
 
 /// <summary>Join curves that touch end to end into one.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class JoinCurvesCommand : Command
 {
     readonly SelectionSlot _curves;
@@ -210,6 +213,7 @@ public sealed class JoinCurvesCommand : Command
 }
 
 /// <summary>Break a curve into its segments.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class ExplodeCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -236,6 +240,7 @@ public sealed class ExplodeCurveCommand : Command
 }
 
 /// <summary>Keep part of a curve.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class TrimCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -328,6 +333,7 @@ public sealed class SplitCurveCommand : Command
 }
 
 /// <summary>Make a curve longer.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class ExtendCurveCommand : Command
 {
     readonly SelectionSlot _curve;
