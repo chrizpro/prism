@@ -346,7 +346,7 @@ public sealed class IntersectCurvesCommand : Command
     const SelFilter Curves = SelFilter.AnyCurve | SelFilter.Edge;
     readonly SelectionSlot _a, _b;
     readonly ChoiceParam _between;
-    readonly BoolParam _separate;
+    readonly BoolParam _separate, _keep;
     CurveIntersectCommand? _curves;
 
     public IntersectCurvesCommand()
@@ -356,7 +356,12 @@ public sealed class IntersectCurvesCommand : Command
         // Automatic is last and the default so a step saved when there were two choices keeps its meaning (0 = planes, faces or bodies, 1 = two flat curves)
         _between = Choice("Between", 2, "Planes, faces or bodies", "Two flat curves (projected)", "Automatic (from what you pick)");
         _separate = Check("Make each curve its own object", false);
+        _keep = Check("Keep the original curves", false);
     }
+
+    /// <summary>Steps saved before the option existed always kept their curves, so they keep doing so.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == 2 ? recipe with { Values = [.. recipe.Values, true] } : recipe;
 
     public override string Title => "Intersection Curve";
     public override string Icon => "section";
@@ -377,6 +382,7 @@ public sealed class IntersectCurvesCommand : Command
         if (_lastBetween != _between.Index) { _lastBetween = _between.Index; _a.Items.Clear(); _b.Items.Clear(); }
         _b.Filter = filter;
         _a.Filter = _between.Index == 2 ? Solids | Curves : filter;
+        _keep.IsVisible = CurveMode;   // planes, faces and bodies are references and always stay
     }
 
     public override void BuildOverlay(CadSession s, Overlay o) { if (CurveMode) _curves?.BuildOverlay(s, o); }
@@ -409,6 +415,7 @@ public sealed class IntersectCurvesCommand : Command
             });
             var output = curves.TryBuild() ?? throw new FormatException(curves.Error ?? "Those curves have no shared curve.");
             foreach (var line in curves.Results) Results.Add(line);
+            if (!_keep.Value) NurbsUtil.RemoveSources(S, output, [_a.Items[0], _b.Items[0]]);
             return output;
         }
         if (IsCurveItem(_b.Items[0])) throw new FormatException("Pick two curves, or two planes, faces or bodies. A curve and a surface do not make a curve.");

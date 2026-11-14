@@ -143,10 +143,12 @@ public sealed class ThickenCommand : Command
 {
     readonly SelectionSlot _src;
     readonly NumberParam _t;
+    readonly BoolParam _keep;
     public ThickenCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Surface", Filter = SelFilter.SurfaceObj });
         _t = Num("Thickness", 3);
+        _keep = Check("Keep the original surface", false);
     }
     public override string Title => "Thicken";
     public override string Hint => "Pick a surface to turn into a solid, then pull the orange arrow or type a thickness. Negative thickness goes the other way.";
@@ -156,7 +158,7 @@ public sealed class ThickenCommand : Command
         if (!Complete) return null;
         var obj = S.Find(_src.Items[0].Obj)!;
         var o = new CommandOutput();
-        o.Remove.Add(obj);
+        if (!_keep.Value) o.Remove.Add(obj);
         var thick = Occ.Thicken(obj.Shape, _t.Value);
         if (!thick.IsValid) throw new FormatException("Thickening gave an invalid solid. The surface probably has a sharp point, a very tight bend (tighter than the thickness) or overlapping edges: smooth those out, or use a smaller thickness.");
         o.Add.Add(new(thick, "Thickened", ObjKind.Solid));
@@ -168,12 +170,13 @@ public sealed class SewCommand : Command
 {
     readonly SelectionSlot _surfaces;
     readonly NumberParam _tol;
-    readonly BoolParam _solid;
+    readonly BoolParam _solid, _keep;
     public SewCommand()
     {
         _surfaces = Slot(new SelectionSlot { Label = "Surfaces", Filter = SelFilter.SurfaceObj, Multi = true });
         _tol = Num("Tolerance", 0.01, 1e-6, 10, 0.01);
         _solid = Check("Make solid if closed", true);
+        _keep = Check("Keep the originals", false);
     }
     public override string Title => "Knit";
     public override string Hint => "Pick the surfaces to join along their shared edges.";
@@ -183,7 +186,7 @@ public sealed class SewCommand : Command
         var objs = ObjectsOf(_surfaces).ToList();
         var res = Occ.Sew(objs.Select(o => o.Shape).ToList(), _tol.Value, _solid.Value);
         var o = new CommandOutput();
-        o.Remove.AddRange(objs);
+        if (!_keep.Value) o.Remove.AddRange(objs);
         o.Add.Add(new(res, res.HasSolids ? "Body" : "Knit"));
         return o;
     }
