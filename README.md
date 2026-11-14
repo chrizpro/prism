@@ -185,8 +185,8 @@ Preview locally with `npm ci` then `npm run dev` in `site` or `web`. See the [si
 Push a version tag to build installers for Windows, macOS (Apple silicon and Intel) and Linux, publish them as a GitHub pre-release and refresh the download page:
 
 ```bash
-git tag v0.2.0-alpha.1
-git push origin v0.2.0-alpha.1
+git tag v0.3.0-alpha.1
+git push origin v0.3.0-alpha.1
 ```
 
 A release is published only if every platform builds. Run **Build Prism installers** by hand from the Actions tab to build one platform without releasing. See [packaging](packaging/README.md) for local installer builds. Windows is the most tested platform; macOS and Linux packages are built and runtime-checked in CI. Code signing and notarization are not set up yet.

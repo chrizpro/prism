@@ -68,23 +68,46 @@ def revolve_shell():
     return [("revolved bottle profile", first), ("box shelled open at the top, 3 mm wall", render(-35, 40)), ("checks", text_panel(checks))]
 
 
-@scenario("sketch__draw-on-curved-surface")
-def sketch_on_surface():
+@scenario("curve__draw-on-surface-closing-the-loop-by-clicking-the-first-point")
+def draw_on_surface_loop():
     cad.call("document_new")
     ball = cad.sphere(radius=30)
     ball.rename("Ball")
-    cad.call("run_command", name="create_sketch", slots={"Plane or flat face": [{"object": "Ball", "face": 1}]}, commit=True)
-    cad.call("sketch_add", entities=[{"type": "circle", "center": [0, 0], "radius": 10}, {"type": "polyline", "points": [[-14, -14], [14, -14], [14, 14], [-14, 14]], "closed": True}])
-    cad.call("sketch_finish")
-    names = [o.name for o in cad.objects()]
-    ok = any(n.startswith("Curve on surface") for n in names)
-    curve = next(o for o in cad.objects() if o.name.startswith("Curve on surface"))
-    box = cad.call("object_info", object=curve.name)
-    far = max(math.dist([0, 0, 0], p) for p in (box["min"], box["max"]))
-    ok = ok and 20 < far < 45
-    names.append(f"curve box {[round(v, 1) for v in box['min']]} to {[round(v, 1) for v in box['max']]}")
-    return [("curves drawn on the sphere", render(-30, 35, background="White")), ("seen from above", render(0, 89)),
-            ("checks", text_panel(["Create Sketch on a curved face, draw a circle and a square, finish", f"objects: {names}", f"CHECK a 'Curve on surface' exists: {'PASS' if ok else 'FAIL'}"]))]
+    cad.call("view", yaw=0, pitch=89, fit=True, grid=False)
+    cad.call("wait_idle")
+    rows = []
+
+    def ring_points(latitude, n=6):
+        lat = math.radians(latitude)
+        return [(30 * math.cos(lat) * math.cos(2 * math.pi * i / n), 30 * math.cos(lat) * math.sin(2 * math.pi * i / n), 30 * math.sin(lat)) for i in range(n)]
+
+    def draw(points, close_by_click):
+        before = {o.name for o in cad.objects()}
+        cad.call("run_command", name="curve_on_surface", commit=False)
+        clicks = [{"type": "click", "x": p[0], "y": p[1], "z": p[2]} for p in points]
+        if close_by_click:
+            clicks.append(clicks[0])                      # pressing the first point again closes the loop (SKT-H060)
+        cad.call("pointer", events=clicks)
+        status = cad.call("get_log", count=1)[-1]["message"]
+        cad.call("command_commit")
+        made = [o for o in cad.objects() if o.name not in before and o.kind == "Curve"]
+        return made, status
+    made, status = draw(ring_points(55), True)
+    info = cad.call("object_info", object=made[0].name) if made else {}
+    ok = bool(made) and info.get("valid") and "Loop closed" in status
+    rows.append(("Clicking the first point closes the loop", f"{status[:60]}; {len(made)} curve", ok))
+    if made:
+        # six points 55 degrees up a 30 mm ball: a ring 2 x 30 x cos 55 = 34.4 mm across at a height of 30 x sin 55 = 24.6 mm
+        width = info["size"][0]
+        rows.append(("The loop lies on the ball", f"{width:.1f} mm across (expect about 34.4), top at z {info['max'][2]:.1f} (expect about 24.6 to 25.3)", 33 < width < 35.5 and 24.3 < info["max"][2] < 25.4))
+    made2, status2 = draw(ring_points(25)[:4], False)
+    info2 = cad.call("object_info", object=made2[0].name) if made2 else {}
+    rows.append(("Without closing, the curve stays open and on the surface", f"{len(made2)} curve, top at z {info2.get('max', [0, 0, 0])[2]:.1f} (30 x sin 25 = 12.7)", bool(made2) and info2.get("valid") and 11 < info2["max"][2] < 14))
+    for o in cad.objects():
+        if o.name == "Ball":
+            cad.call("object_update", object=o.name, color="#9FB6CC")
+    strip = ["Draw on Surface on a sphere: a closed loop by clicking the first point again, and an open curve"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("curves drawn on the sphere", render(-30, 35, background="White")), ("seen from above", render(0, 89)), ("checks", text_panel(strip))]
 
 
 @scenario("mold__create-mold-exploded-reference-part")
@@ -893,7 +916,7 @@ def cae_other():
         while time.monotonic() < deadline:
             rows_ = cad.call("command_set", params={}).get("results", [])
             text = " ".join(map(str, rows_))
-            if "Status: Complete" in text or "Status: Failed" in text:
+            if "Result files" in text or "Status: Complete" in text or "Status: Failed" in text:     # the panel stopped printing "Status: Complete"; the result-files line ends every run
                 break
             time.sleep(2)
         cad.call("command_cancel")
@@ -2482,7 +2505,7 @@ def rib_blend_fill_matrix():
         p = cad.box(width=60, depth=40, height=4, operation="New body"); p.rename("Plate")
         s = sketch([{"type": "line", "points": [[-20, 4], [20, 4]]}], plane="XZ").name
         before = info("Plate")["volume"]
-        cad.call("run_command", name="rib", slots={"Rib sketch": [s], "Target body": ["Plate"]}, params={"Thickness": 2, "Height": 10})
+        cad.call("run_command", name="rib", slots={"Rib sketch": [s], "Target body": ["Plate"]}, params={"Rib extends": "Fixed height", "Thickness": 2, "Height": 10})
         after = info("Plate")["volume"]
         return abs((after - before) - 2 * 40 * 10) < 40, f"volume {before:.0f} -> {after:.0f} (+{after - before:.0f}; expect +800: a 2 mm rib 40 long and 10 high)"
     case("Rib 2 mm thick, 10 high, 40 long on a plate", rib)
@@ -2552,7 +2575,8 @@ def export_images_network():
             f.unlink()
         for i in range(bodies):
             b = cad.box(width=20, depth=20, height=10, operation="New body"); b.rename(f"Part{i}"); cad.move(b, x=i * 40)
-        cad.call("run_command", name=command, params={"Folder": str(folder), "File name": "part", "Format": fmt, "Selection only (all visible if none)": False, "One file per body": one_per_body}, commit=False)
+        cad.call("run_command", name=command, params={"Folder": str(folder), "File name": "part", "Format": fmt, "Selection only (all visible if none selected)": False, "One file per body": one_per_body}, commit=False)
+        cad.call("command_set", params={"Review export": True})      # since #109 an export is written only after it has been reviewed
         cad.call("command_set", params={"Export": True})
         cad.call("wait_idle", timeout_ms=60000)
         time.sleep(1)
@@ -3135,7 +3159,7 @@ def section_saved_matrix():
         for _ in range(150):
             text = [str(x) for x in cad.call("command_set", params={}).get("results", [])]
             joined = " ".join(text)
-            if "Status: Complete" in joined or "Status: Failed" in joined:
+            if "Result files" in joined or "Status: Complete" in joined or "Status: Failed" in joined:
                 break
             time.sleep(2)
         return text
@@ -3291,7 +3315,8 @@ def motion_kinematics_matrix():
         text = []
         for _ in range(60):
             text = [f"{x['label']}: {x['value']}" if isinstance(x, dict) else str(x) for x in cad.call("command_set", params={}).get("results", [])]
-            if any(wait in x or "Could not run" in x for x in text):
+            # "Revolute" means the joint's result row ("Revolute 1: -3 to 62 °"), not the "Drive: Revolute 1 — ..." row of the setup that shows before the solve
+            if any((x.startswith("Revolute 1") if wait == "Revolute" else wait in x) or "Could not run" in x for x in text):
                 break
             time.sleep(1)
         cad.call("command_cancel")
@@ -3760,3 +3785,147 @@ def mold_tab_matrix():
         rows.append(("Part from Open Tab", str(error)[:140], False))
     strip = ["Mold: Part from Open Tab (the reference flag, saved-file and drawing exclusions are checked by the headless tests MOLD-H005)"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("the plate with the part brought in", render(-30, 30)), ("checks", text_panel(strip))]
+
+
+# ---------------------------------------------------------------- 0.3.0: Split Surface, per-axis Scale, Constant-Z, Group
+@scenario("surface__split-into-faces-and-separate-pieces", columns=1)
+def split_surface_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=45)
+    tool_slot = "Splitting tool (plane, face, surface, sketch, curve or solid)"
+
+    def sheet():
+        """A flat 30 x 20 sheet standing in the XZ plane: area 600."""
+        before = names()
+        cad.call("run_command", name="extrude_surface", slots={"Profile": line_curve((0, 0, 0), (30, 0, 0))}, params={"Extent": "Distance", "Distance": 20})
+        return new_object(before, ("Surface",))
+
+    def faces_of(name):
+        return next(o for o in cad.call("get_state", fields=["objects"])["objects"] if o["name"] == name).get("faces")
+
+    def split(surface, x, result):
+        cad.call("run_command", name="split_surface", slots={"Surface to split": surface, tool_slot: line_curve((x, 0, -5), (x, 0, 25))}, params={"Result": result})
+
+    def one_surface():
+        s = sheet()
+        split(s, 10, "One surface, several faces")
+        info = cad.call("object_info", object=s)
+        return s, f"{faces_of(s)} faces, area {info['area']:.0f} (expect 2 faces, 600 mm2 kept)", faces_of(s) == 2 and close(info["area"], 600, .5)
+    m.check("Split by a curve: one surface, two faces", one_surface)
+
+    def separate():
+        s = sheet()
+        before = names()
+        split(s, 10, "Separate surfaces")
+        mine = [o.name for o in cad.objects() if o.kind == "Surface" and (o.name not in before or o.name == s)]
+        for other in mine:
+            if other != s:
+                cad.move(cad.get(other), x=m.slot * 45)      # the Matrix moves only the named one; keep the second piece beside it
+        areas = sorted(round(cad.call("object_info", object=n)["area"]) for n in mine)
+        return s, f"pieces {areas} (expect [200, 400])", areas == [200, 400]
+    m.check("Split by a curve: separate surfaces 200 and 400", separate)
+
+    def two_cuts():
+        s = sheet()
+        split(s, 10, "One surface, several faces")
+        split(s, 20, "One surface, several faces")
+        info = cad.call("object_info", object=s)
+        return s, f"{faces_of(s)} faces, area {info['area']:.0f} (expect 3 faces, 600 mm2)", faces_of(s) == 3 and close(info["area"], 600, .5)
+    m.check("Two cuts in turn: three faces", two_cuts)
+    for o in cad.objects():
+        if o.kind == "Curve":
+            cad.call("object_update", object=o.name, visible=False)
+    return [("iso, each result in its own slot", render(-25, 20)), ("front", render(0, 0)), ("checks", text_panel(m.strip()))]
+
+
+@scenario("solid__scale-per-axis-stretch-copy-and-pivot", columns=1)
+def scale_per_axis_matrix():
+    cad.call("document_new")
+    m = Matrix(spacing=0)
+    rows_done = [0]
+
+    def info(n):
+        return cad.call("object_info", object=n)
+
+    def variant(label, build, params, check):
+        y0 = rows_done[0] * 60
+        rows_done[0] += 1
+        try:
+            n = build(y0)
+            before = names()
+            cad.call("run_command", name="scale", slots={"Objects": [n]}, params=params)
+            made = sorted({n} | {o.name for o in cad.objects() if o.kind == "Solid" and o.name not in before})
+            ok, detail = check(made)
+            m.rows.append((label, detail, ok))
+        except Exception as error:
+            m.rows.append((label, str(error)[:120], False))
+
+    def block(y0, x=0):
+        b = cad.box(width=20, depth=10, height=10, operation="New body"); cad.move(b, x=x, y=y0)
+        return b.name
+
+    def ball(y0):
+        s = cad.sphere(radius=8, operation="New body"); cad.move(s, y=y0)
+        return s.name
+    per = {"Scale type": "Per axis (stretch)"}
+    variant("Box stretched 2 x 1 x 3", lambda y: block(y), {**per, "Factor X": 2, "Factor Y": 1, "Factor Z": 3},
+            lambda ns: (close(info(ns[0])["volume"], 12000, 5) and all(close(a, b, .05) for a, b in zip(info(ns[0])["size"], [40, 10, 30])), f"size {[round(v, 1) for v in info(ns[0])['size']]}, volume {info(ns[0])['volume']:.0f} (expect 40 x 10 x 30, 12000)"))
+    ellipsoid = 4 / 3 * math.pi * 8 ** 3 * 2
+    variant("Sphere stretched 2 x 1 x 1 becomes an ellipsoid", ball, {**per, "Factor X": 2, "Factor Y": 1, "Factor Z": 1},
+            lambda ns: (info(ns[0])["valid"] and close(info(ns[0])["volume"], ellipsoid, ellipsoid * .015), f"valid {info(ns[0])['valid']}, volume {info(ns[0])['volume']:.0f} (expect {ellipsoid:.0f})"))
+    variant("Equal factors 1.5 match a uniform scale", lambda y: block(y), {**per, "Factor X": 1.5, "Factor Y": 1.5, "Factor Z": 1.5},
+            lambda ns: (close(info(ns[0])["volume"], 2000 * 1.5 ** 3, 5), f"volume {info(ns[0])['volume']:.0f} (expect {2000 * 1.5 ** 3:.0f})"))
+    variant("Per axis with Create copy keeps the original", lambda y: block(y), {**per, "Factor X": 2, "Factor Y": 1, "Factor Z": 1, "Create copy": True},
+            lambda ns: (len(ns) == 2 and sorted(round(info(n)["volume"]) for n in ns) == [2000, 4000], f"{len(ns)} bodies, volumes {sorted(round(info(n)['volume']) for n in ns)} (expect [2000, 4000])"))
+    variant("Pivot at the world origin pushes the box outward", lambda y: block(y, x=30), {**per, "Factor X": 2, "Factor Y": 1, "Factor Z": 1, "Pivot": "World origin"},
+            lambda ns: (close(info(ns[0])["min"][0], 40, .05) and close(info(ns[0])["max"][0], 80, .05), f"x from {info(ns[0])['min'][0]:.1f} to {info(ns[0])['max'][0]:.1f} (expect 40 to 80: the 20 to 40 box doubled about the origin)"))
+    variant("Uniform scale still works", lambda y: block(y), {"Scale type": "Uniform", "Factor": 2, "Pivot": "Object center"},
+            lambda ns: (close(info(ns[0])["volume"], 16000, 10), f"volume {info(ns[0])['volume']:.0f} (expect 16000)"))
+    return [("iso, rows are the variants", render(-25, 30)), ("from above", render(0, 89)), ("checks", text_panel(m.strip()))]
+
+
+@scenario("cam__constant-z-finish-follows-steep-walls-level-by-level", columns=1)
+def constant_z_finish():
+    cad.call("document_new")
+    rows = []
+    cyl = cad.cylinder(radius=15, height=20, operation="New body"); cyl.rename("Post")
+    cad.call("run_command", name="cam_setup", slots={"Model body": "Post"}, params={"Stock allowance XY": 2, "Top allowance": 2, "Bottom allowance": 0, "Work zero (G54)": "Model origin", "Tool diameter": 6})
+    cad.call("run_command", name="cnc_constant_z", slots={"Model to finish": "Post"}, params={"Tool diameter": 6, "Depth per pass": 2.5, "Finish top Z": 20, "Finish bottom Z": 2})
+    text = gcode_of("Saved CAM setup")
+    moves = cut_moves(text)
+    radii = [math.hypot(p[0], p[1]) for p in moves]
+    levels = sorted({round(p[2], 2) for p in moves}, reverse=True)
+    rows.append(("Cuts exist and stay outside the wall", f"{len(moves)} cutting moves, closest tool centre {min(radii) if radii else 0:.2f} from the axis (expect about 18: 15 radius + 3 tool radius)", bool(moves) and 17.8 < min(radii) < 18.4))
+    rows.append(("One flat contour per height", f"{len(levels)} levels {levels[:4]} (20 down to 2 in 2.5 mm steps)", 7 <= len(levels) <= 9 and max(levels) <= 20.01 and min(levels) >= 1.99))
+    strip = ["Constant-Z Finish on a 15 mm radius post, read back from the posted G-code"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("toolpath from above", toolpath_plot(text, title="Constant-Z")), ("the post", render(-35, 28)), ("checks", text_panel(strip))]
+
+
+@scenario("selection__group-ungroup-and-undo-from-the-ribbon", columns=1)
+def group_ribbon():
+    cad.call("document_new")
+    rows = []
+    boxes = []
+    for i in range(3):
+        b = cad.box(width=10, depth=10, height=10, operation="New body"); cad.move(b, x=i * 20); boxes.append(b.name)
+
+    def status():
+        return cad.call("get_log", count=1)[-1]["message"]
+    cad.call("select", items=boxes)
+    cad.call("ribbon_click", label="Group")
+    s = status()
+    rows.append(("Three objects join Group 1", s[:100], "3 objects grouped as Group 1" in s))
+    cad.call("history", action="undo")
+    cad.call("select", items=boxes)
+    cad.call("ribbon_click", label="Group")
+    s = status()
+    rows.append(("Undo took the group away, so the next one is Group 1 again", s[:100], "Group 1" in s))
+    cad.call("select", items=[boxes[1]])
+    try:
+        cad.call("ribbon_click", label="Ungroup")
+        rows.append(("Ungroup takes the selected object out", status()[:100], len(cad.objects()) == 3))
+    except Exception as error:
+        rows.append(("Ungroup takes the selected object out", str(error)[:110], False))
+    rows.append(("Nothing is deleted by grouping", f"{len(cad.objects())} objects (expect 3)", len(cad.objects()) == 3))
+    strip = ["Group and Ungroup through the ribbon (browser nesting, hide and rename are checked by SEL-H025 to SEL-H027)"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("three bodies", render(-25, 30)), ("checks", text_panel(strip))]

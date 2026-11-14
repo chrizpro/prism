@@ -49,6 +49,8 @@ Look at a sheet; when it is right, copy it into `tests/visual/approved/`. `--com
 
 Mouse tools are driven with the `pointer` call at world positions (Measure, Create Face, Probe, Set Image Scale, Select Region, Edit Form, Edit Control Points). A picture only on screen (curvature colours, the CAM layer view) is checked by reading its settings back.
 
+Full run on 2026-11-13 (Windows, `--fast`, before 0.3.0): all 74 scenarios passed against a freshly built desktop app. It added Split Surface, per-axis Scale, Constant-Z Finish and Group scenarios, and moved the Draw on Surface scenario to the Draw on Surface tool. CalculiX scenarios stalled on an earlier app started by the automation bridge, with the solver idle at startup; Prism now closes the solver's standard input before waiting on it.
+
 ## Limits
 
 A document with nothing the renderer can draw (empty, or only a picture) never starts a render and gives no status (issue #90); give such scenarios a small solid before `render()`.
