@@ -1315,7 +1315,51 @@ public abstract class EdgeDressCommand : Command
 public sealed class FilletCommand : EdgeDressCommand
 {
     readonly NumberParam _endRadius;
-    public FilletCommand() : base(2) { _endRadius = Num("End radius (0 = same as radius)", 0, 0); }
+    readonly TextParam _perEdge;
+    public FilletCommand() : base(2)
+    {
+        _endRadius = Num("End radius (0 = same as radius)", 0, 0);
+        _perEdge = Text("Radius per edge (optional)", "");
+        _perEdge.HelpText = "One entry per picked edge, in the order picked, separated by commas: 3, 5, 2 gives each edge its own radius, and 3-5 grows that edge from 3 to 5. An edge with no entry uses Radius. Leave blank for one radius on every edge.";
+    }
+
+    /// <summary>"3, 5-8, 2" as one (start, end) pair per entry; null when the text is blank or not numbers.</summary>
+    static List<(double start, double end)>? ParseRadii(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var list = new List<(double, double)>();
+        foreach (var raw in text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = raw.Split('-', StringSplitOptions.TrimEntries);
+            if (parts.Length is < 1 or > 2 || !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a) || a <= 0) throw new FormatException($"'{raw}' is not a radius. Use numbers like 3 or 3-5, separated by commas.");
+            double b = a;
+            if (parts.Length == 2 && (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out b) || b <= 0)) throw new FormatException($"'{raw}' is not a radius. Use numbers like 3 or 3-5, separated by commas.");
+            list.Add((a, b));
+        }
+        return list;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        var radii = ParseRadii(_perEdge.Value);
+        if (radii == null) return base.Build();
+        if (!Complete) return null;
+        var o = new CommandOutput();
+        foreach (var g in Edges.Items.GroupBy(i => i.Obj))
+        {
+            var obj = S.Find(g.Key)!;
+            var picked = g.ToList();
+            var start = new double[picked.Count]; var end = new double[picked.Count];
+            for (int i = 0; i < picked.Count; i++)
+            {
+                int order = Edges.Items.IndexOf(picked[i]);
+                var r = order < radii.Count ? radii[order] : (Size.Value, _endRadius.Value > 1e-9 ? _endRadius.Value : Size.Value);
+                (start[i], end[i]) = r;
+            }
+            o.Replace.Add((obj, Occ.FilletEdges(obj.Shape, picked.Select(i => i.Index).ToArray(), start, end)));
+        }
+        return o;
+    }
     public override string Title => "Fillet";
     protected override string SizeLabel => "Radius";
     public override string Hint => "Click edges on a body (click again to deselect). Give an end radius to make the fillet grow or shrink along each edge.";
@@ -1345,10 +1389,33 @@ public sealed class FilletCommand : EdgeDressCommand
 
 public sealed class ChamferCommand : EdgeDressCommand
 {
-    public ChamferCommand() : base(1.5) { }
+    readonly ChoiceParam _style;
+    readonly NumberParam _second, _angle;
+    readonly BoolParam _swap;
+    public ChamferCommand() : base(1.5)
+    {
+        _style = Choice("Style", 0, "Equal distance", "Two distances", "Distance and angle");
+        _second = Num("Second distance", 1.5, 0.001);
+        _angle = Num("Angle", 45, 1, 89, 1, "°");
+        _swap = Check("Swap the two sides", false);
+    }
     public override string Title => "Chamfer";
     protected override string SizeLabel => "Distance";
-    protected override Shape Apply(Shape s, int[] edges, double size) => Occ.Chamfer(s, edges, size);
+    public override string Hint => "Click edges on a body. Equal distance cuts the same amount from both faces. Two distances, or a distance and an angle, make an uneven chamfer: Swap the two sides if it leans the wrong way.";
+    protected override void UpdateVisibility()
+    {
+        if (_style == null) return;
+        _second.IsVisible = _style.Index == 1;
+        _angle.IsVisible = _style.Index == 2;
+        _swap.IsVisible = _style.Index > 0;
+    }
+    protected override Shape Apply(Shape s, int[] edges, double size) => _style.Index switch
+    {
+        1 => _swap.Value ? Occ.Chamfer2(s, edges, _second.Value, size, 0) : Occ.Chamfer2(s, edges, size, _second.Value, 0),
+        // "swap" for distance and angle measures the distance on the other face, which is the same chamfer seen from the other side: use the complementary angle
+        2 => Occ.Chamfer2(s, edges, size, _swap.Value ? 90 - _angle.Value : _angle.Value, 1),
+        _ => Occ.Chamfer(s, edges, size),
+    };
 }
 
 public sealed class ShellCommand : Command

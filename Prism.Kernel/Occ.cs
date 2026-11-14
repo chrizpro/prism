@@ -396,6 +396,14 @@ public static unsafe class Occ
     /// <summary>Cut a shape into pieces along another shape.</summary>
     public static Shape Draft(Shape s, int[] faces, Vec3 pull, double angleDeg, Vec3 planeOrigin, Vec3 planeNormal) { fixed (int* f = faces) fixed (double* d = V(pull.Normalized())) fixed (double* o = V(planeOrigin)) fixed (double* n = V(planeNormal.Normalized())) return Wrap(Native.ck_draft(s.Handle, f, faces.Length, d, angleDeg * Math.PI / 180, o, n)); }
     public static Shape Split(Shape s, Shape tool) => Wrap(Native.ck_split(s.Handle, tool.Handle));
+    /// <summary>Draft with a signed angle for each face (degrees), so walls either side of a parting line can lean opposite ways.</summary>
+    public static Shape DraftSigned(Shape s, int[] faces, double[] anglesDeg, Vec3 pull, Vec3 planeOrigin, Vec3 planeNormal) { var rad = anglesDeg.Select(x => x * Math.PI / 180).ToArray(); fixed (int* f = faces) fixed (double* a = rad) fixed (double* d = V(pull.Normalized())) fixed (double* o = V(planeOrigin)) fixed (double* n = V(planeNormal.Normalized())) return Wrap(Native.ck_draft_signed(s.Handle, f, faces.Length, d, a, o, n)); }
+    /// <summary>Chamfer with two distances (mode 0) or a distance and an angle in degrees (mode 1).</summary>
+    public static Shape Chamfer2(Shape s, int[] edges, double d1, double d2, int mode) { fixed (int* p = edges) return Wrap(Native.ck_chamfer2(s.Handle, p, edges.Length, d1, d2, mode)); }
+    /// <summary>Fillet with a start and end radius for each edge.</summary>
+    public static Shape FilletEdges(Shape s, int[] edges, double[] start, double[] end) { fixed (int* p = edges) fixed (double* a = start) fixed (double* b = end) return Wrap(Native.ck_fillet_edges(s.Handle, p, edges.Length, a, b)); }
+    /// <summary>Mark curves lying on one face onto it, dividing the face without changing the shape of the body.</summary>
+    public static Shape Imprint(Shape s, int faceIndex, Shape curves) => Wrap(Native.ck_imprint(s.Handle, faceIndex, curves.Handle));
     /// <summary>The enclosed spaces between faces, shells and solids, as a compound of solids.</summary>
     public static Shape MakeVolumes(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_make_volumes(p, shapes.Count)); }
     public static Shape Section(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_section(s.Handle, o, n)); }

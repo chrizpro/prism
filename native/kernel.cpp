@@ -121,6 +121,7 @@
 #include <ShapeUpgrade_UnifySameDomain.hxx>
 #include <BRepAlgoAPI_Defeaturing.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
+#include <BRepFeat_SplitShape.hxx>
 #include <BOPAlgo_MakerVolume.hxx>
 #include <TopTools_ListOfShape.hxx>
 #include <BRepOffsetAPI_MakeOffset.hxx>
@@ -2214,5 +2215,84 @@ CK_API void* ck_draft(void* s, const int* faceIds, int n, const double* dir, dou
         if (!mk.IsDone()) { fail("Draft failed. Try a smaller angle or a different neutral plane."); return nullptr; }
         if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Draft produced invalid geometry. Try a smaller angle."); return nullptr; }
         return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// ---------------------------------------------------------------- 0.4 additions
+
+// Draft with its own signed angle per face, so one pass can lean the walls above a parting line one way and the walls below the other.
+CK_API void* ck_draft_signed(void* s, const int* faceIds, int n, const double* dir, const double* angles, const double* po, const double* pn) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_FACE, m);
+        BRepOffsetAPI_DraftAngle mk(get(s));
+        gp_Pln neutral(gp_Pnt(po[0], po[1], po[2]), gp_Dir(pn[0], pn[1], pn[2]));
+        gp_Dir d(dir[0], dir[1], dir[2]);
+        for (int i = 0; i < n; ++i) {
+            if (faceIds[i] < 0 || faceIds[i] >= m.Extent()) { fail("Face index out of range."); return nullptr; }
+            mk.Add(TopoDS::Face(m(faceIds[i] + 1)), d, angles[i], neutral, Standard_True);
+            if (!mk.AddDone()) { fail("That face cannot be drafted (it must be flat, round or conical and not parallel to the pull direction)."); return nullptr; }
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Draft failed. Try a smaller angle or a different neutral plane."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Draft produced invalid geometry. Try a smaller angle."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Chamfer with two distances (mode 0: d1 along the first face found at each edge, d2 along the other) or a distance and an angle in degrees (mode 1).
+CK_API void* ck_chamfer2(void* s, const int* edgeIds, int n, double d1, double d2, int mode) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_EDGE, m);
+        TopTools_IndexedDataMapOfShapeListOfShape anc; TopExp::MapShapesAndAncestors(get(s), TopAbs_EDGE, TopAbs_FACE, anc);
+        BRepFilletAPI_MakeChamfer mk(get(s));
+        for (int i = 0; i < n; ++i) {
+            if (edgeIds[i] < 0 || edgeIds[i] >= m.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge e = TopoDS::Edge(m(edgeIds[i] + 1));
+            int k = anc.FindIndex(e);
+            if (k == 0 || anc.FindFromIndex(k).IsEmpty()) { fail("That edge has no face to measure the chamfer from."); return nullptr; }
+            TopoDS_Face f = TopoDS::Face(anc.FindFromIndex(k).First());
+            if (mode == 1) mk.AddDA(d1, d2 * M_PI / 180.0, e, f); else mk.Add(d1, d2, e, f);
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Chamfer failed. Try smaller distances."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Chamfer produced invalid geometry. Try smaller distances or different edges."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Fillet with its own start and end radius per edge.
+CK_API void* ck_fillet_edges(void* s, const int* edgeIds, int n, const double* r1, const double* r2) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_EDGE, m);
+        BRepFilletAPI_MakeFillet mk(get(s));
+        for (int i = 0; i < n; ++i) {
+            if (edgeIds[i] < 0 || edgeIds[i] >= m.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge e = TopoDS::Edge(m(edgeIds[i] + 1));
+            if (std::abs(r1[i] - r2[i]) < 1e-9) mk.Add(r1[i], e); else mk.Add(r1[i], r2[i], e);
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Fillet failed. Try smaller radii."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Fillet produced invalid geometry. Try smaller radii or different edges."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Imprint: mark curves that already lie on one face onto it, so it divides into faces on the same surface and the body keeps its shape.
+// Closed loops split off a piece; a curve that ends inside the face stays as an edge of it.
+CK_API void* ck_imprint(void* s, int faceId, void* curves) {
+    TRY
+        TopTools_IndexedMapOfShape fm; TopExp::MapShapes(get(s), TopAbs_FACE, fm);
+        if (faceId < 0 || faceId >= fm.Extent()) { fail("Face index out of range."); return nullptr; }
+        TopoDS_Face face = TopoDS::Face(fm(faceId + 1));
+        BRepFeat_SplitShape sp(get(s));
+        int added = 0;
+        for (TopExp_Explorer wx(get(curves), TopAbs_WIRE); wx.More(); wx.Next()) { sp.Add(TopoDS::Wire(wx.Current()), face); ++added; }
+        if (added == 0)
+            for (TopExp_Explorer ex(get(curves), TopAbs_EDGE); ex.More(); ex.Next()) { sp.Add(TopoDS::Edge(ex.Current()), face); ++added; }
+        if (added == 0) { fail("There are no curves to imprint."); return nullptr; }
+        sp.Build();
+        if (!sp.IsDone() || sp.Shape().IsNull()) { fail("Those curves could not be imprinted on the face. They must lie on it."); return nullptr; }
+        if (!BRepCheck_Analyzer(sp.Shape()).IsValid()) { fail("Imprinting produced invalid geometry."); return nullptr; }
+        return wrap(sp.Shape());
     CATCH(nullptr)
 }
