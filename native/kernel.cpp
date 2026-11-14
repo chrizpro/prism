@@ -122,6 +122,8 @@
 #include <BRepAlgoAPI_Defeaturing.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
 #include <BRepFeat_SplitShape.hxx>
+#include <Law_Interpol.hxx>
+#include <TColgp_Array1OfPnt2d.hxx>
 #include <BOPAlgo_MakerVolume.hxx>
 #include <TopTools_ListOfShape.hxx>
 #include <BRepOffsetAPI_MakeOffset.hxx>
@@ -2294,5 +2296,31 @@ CK_API void* ck_imprint(void* s, int faceId, void* curves) {
         if (!sp.IsDone() || sp.Shape().IsNull()) { fail("Those curves could not be imprinted on the face. They must lie on it."); return nullptr; }
         if (!BRepCheck_Analyzer(sp.Shape()).IsValid()) { fail("Imprinting produced invalid geometry."); return nullptr; }
         return wrap(sp.Shape());
+    CATCH(nullptr)
+}
+
+// Sweep whose profile is scaled by a law given as (position 0..1 along the path, scale) points, joined smoothly.
+CK_API void* ck_sweep_law(void* profile, void* path, int makeSolid, int mode, int n, const double* params, const double* scales, const double* binormal) {
+    TRY
+        if (n < 2) { fail("A scale law needs at least two points."); return nullptr; }
+        TopoDS_Wire spine = asWire(get(path)), prof = asWire(get(profile));
+        BRepOffsetAPI_MakePipeShell ps(spine);
+        if (mode == 1) {
+            Bnd_Box pb; BRepBndLib::Add(prof, pb);
+            BRepAdaptor_Curve first(TopoDS::Edge(BRepTools_WireExplorer(spine).Current()));
+            gp_Pnt p; gp_Vec t; first.D1(first.FirstParameter(), p, t);
+            ps.SetMode(gp_Ax2(p, gp_Dir(t)));
+        }
+        else if (mode == 2) ps.SetMode(gp_Dir(binormal[0], binormal[1], binormal[2]));
+        else ps.SetMode(false);
+        TColgp_Array1OfPnt2d pts(1, n);
+        for (int i = 0; i < n; ++i) pts.SetValue(i + 1, gp_Pnt2d(params[i], scales[i]));
+        Handle(Law_Interpol) law = new Law_Interpol();
+        law->Set(pts, Standard_False);
+        ps.SetLaw(prof, law, Standard_False, Standard_False);
+        ps.Build();
+        if (!ps.IsDone()) { fail("Sweep failed."); return nullptr; }
+        if (makeSolid) ps.MakeSolid();
+        return wrap(ps.Shape());
     CATCH(nullptr)
 }

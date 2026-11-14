@@ -16,6 +16,7 @@ public sealed class EquationCurveCommand : Command
 {
     readonly ChoiceParam _source;
     bool Table => _source.Index == 1;
+    bool Helix => _source.Index == 2;
     // formula mode
     readonly ChoiceParam _system = null!, _angles = null!;
     readonly TextParam _e1 = null!, _e2 = null!, _e3 = null!;
@@ -28,13 +29,16 @@ public sealed class EquationCurveCommand : Command
     readonly ChoiceParam _kind;
     readonly BoolParam _closed;
     readonly NumberParam _ox, _oy, _oz;
+    // helix mode
+    readonly NumberParam _radius = null!, _endRadius = null!, _pitch = null!, _turns = null!;
+    readonly ChoiceParam _hand = null!, _axis = null!;
 
     /// <summary>Read the points from a sheet of the Data panel.</summary>
     public void UseSheet(string name) { _source.Index = 1; _rows.Value = "@" + name; OnChanged(); }
 
     public EquationCurveCommand(bool table)
     {
-        _source = Choice("Points from", table ? 1 : 0, "Equation", "Table or file");
+        _source = Choice("Points from", table ? 1 : 0, "Equation", "Table or file", "Helix");
         _system = Choice("Coordinates", 0, "Cartesian  x, y, z", "Cylindrical  r, θ, z", "Spherical  ρ, θ (from Z), φ");
         _e1 = Text("x  |  r  |  ρ", "20*cos(t*720)", "formula of t, e.g. 20*cos(t*360)");
         _e2 = Text("y  |  θ  |  θ", "20*sin(t*720)", "angles in degrees unless set below");
@@ -49,6 +53,12 @@ public sealed class EquationCurveCommand : Command
         _kind = Choice("Curve", 0, "Smooth through the points", "NURBS control points", "Straight segments");
         _closed = Check("Closed", false);
         _ox = Num("Move X", 0); _oy = Num("Move Y", 0); _oz = Num("Move Z", 0);
+        _radius = Num("Helix radius", 10, 0.001);
+        _endRadius = Num("End radius (0 = same)", 0, 0);
+        _pitch = Num("Pitch (rise per turn)", 5, 0.001);
+        _turns = Num("Turns", 5, 0.05, 1000, 0.5, "");
+        _hand = Choice("Handedness", 0, "Right-handed", "Left-handed");
+        _axis = Choice("Axis", 2, "X", "Y", "Z");
         UpdateVisibility();
     }
 
@@ -56,17 +66,57 @@ public sealed class EquationCurveCommand : Command
     {
         _system.IsVisible = _e1.IsVisible = _e2.IsVisible = _e3.IsVisible = _t0.IsVisible = _t1.IsVisible = _count.IsVisible = _angles.IsVisible = !Table;
         _rows.IsVisible = _file.IsVisible = _scale.IsVisible = Table;
+        _system.IsVisible = _e1.IsVisible = _e2.IsVisible = _e3.IsVisible = _t0.IsVisible = _t1.IsVisible = _count.IsVisible = _angles.IsVisible = _source.Index == 0;
+        _radius.IsVisible = _endRadius.IsVisible = _pitch.IsVisible = _turns.IsVisible = _hand.IsVisible = _axis.IsVisible = Helix;
+    }
+
+    /// <summary>A point of the helix about the +Z axis, turned onto the chosen axis (the cycle keeps its handedness) and moved by Move X, Y and Z.</summary>
+    Vec3 Place(double x, double y, double z)
+    {
+        var p = _axis.Index switch { 0 => new Vec3(z, x, y), 1 => new Vec3(y, z, x), _ => new Vec3(x, y, z) };
+        return p + new Vec3(_ox.Value, _oy.Value, _oz.Value);
+    }
+
+    List<Vec3> HelixPoints()
+    {
+        double r0 = _radius.Value, r1 = _endRadius.Value > 1e-9 ? _endRadius.Value : r0, sign = _hand.Index == 0 ? 1 : -1;
+        int n = Math.Clamp((int)Math.Ceiling(_turns.Value * 24), 8, 4000) + 1;
+        var pts = new List<Vec3>(n);
+        for (int i = 0; i < n; i++)
+        {
+            double u = (double)i / (n - 1), a = 2 * Math.PI * _turns.Value * u, r = r0 + (r1 - r0) * u;
+            pts.Add(Place(r * Math.Cos(a), sign * r * Math.Sin(a), _pitch.Value * _turns.Value * u));
+        }
+        return pts;
+    }
+
+    /// <summary>Pull the radius at the start, and the pitch at the far end (the end moves one turn's rise for each turn of pitch).</summary>
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (!Helix) return [];
+            Vec3 Dir(double x, double y, double z) => Place(x, y, z) - Place(0, 0, 0);
+            return
+            [
+                new HandleSpec(Place(_radius.Value, 0, 0), Dir(1, 0, 0), _radius),
+                new HandleSpec(Place(0, 0, _pitch.Value * _turns.Value), Dir(0, 0, 1), _pitch, 1 / _turns.Value),
+            ];
+        }
     }
 
     public override string Title => "Curve from Data";
     public override string Icon => "curve-through";
     public override string OkText => "Create curve";
-    public override string Hint => Table
+    public override string Hint => Helix
+        ? "A helix about the chosen axis: set the radius, the rise per turn (pitch) and the number of turns, and pull the arrows in the viewport. An end radius makes it a taper. Use it as a sweep path for springs and threads. Move X, Y and Z place its start."
+        : Table
         ? "Type or paste points (x,y,z per row), or read a file (CSV, text or Excel) or a sheet of the Data panel with @ and its name. The curve passes through them, follows them as control points, or joins them with straight segments."
         : "Describe the curve with formulas of t. Cartesian, cylindrical and spherical coordinates are supported; t runs from the first value to the last, so a full turn of a helix is x=r*cos(t*360), y=r*sin(t*360) for t from 0 to 1.";
 
     List<Vec3> Points()
     {
+        if (Helix) return HelixPoints();
         var pts = new List<Vec3>();
         if (Table)
         {

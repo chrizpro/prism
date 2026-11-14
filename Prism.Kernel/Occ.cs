@@ -404,6 +404,8 @@ public static unsafe class Occ
     public static Shape FilletEdges(Shape s, int[] edges, double[] start, double[] end) { fixed (int* p = edges) fixed (double* a = start) fixed (double* b = end) return Wrap(Native.ck_fillet_edges(s.Handle, p, edges.Length, a, b)); }
     /// <summary>Mark curves lying on one face onto it, dividing the face without changing the shape of the body.</summary>
     public static Shape Imprint(Shape s, int faceIndex, Shape curves) => Wrap(Native.ck_imprint(s.Handle, faceIndex, curves.Handle));
+    /// <summary>Sweep a profile along a path, scaling it by a law of (position 0..1 along the path, scale) points.</summary>
+    public static Shape SweepLaw(Shape profile, Shape path, bool solid, int orient, double[] positions, double[] scales, Vec3 binormal) { fixed (double* p = positions) fixed (double* c = scales) fixed (double* b = V(binormal)) return Wrap(Native.ck_sweep_law(profile.Handle, path.Handle, solid ? 1 : 0, orient, positions.Length, p, c, b)); }
     /// <summary>The enclosed spaces between faces, shells and solids, as a compound of solids.</summary>
     public static Shape MakeVolumes(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_make_volumes(p, shapes.Count)); }
     public static Shape Section(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_section(s.Handle, o, n)); }

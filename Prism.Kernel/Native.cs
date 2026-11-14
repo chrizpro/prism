@@ -130,6 +130,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_chamfer2(IntPtr s, int* ids, int n, double d1, double d2, int mode);
     [DllImport(Lib)] public static extern IntPtr ck_fillet_edges(IntPtr s, int* ids, int n, double* r1, double* r2);
     [DllImport(Lib)] public static extern IntPtr ck_imprint(IntPtr s, int faceId, IntPtr curves);
+    [DllImport(Lib)] public static extern IntPtr ck_sweep_law(IntPtr profile, IntPtr path, int makeSolid, int mode, int n, double* ps, double* scales, double* binormal);
     [DllImport(Lib)] public static extern IntPtr ck_sweep_rails(IntPtr profile, IntPtr rail1, IntPtr rail2, int solid);
     [DllImport(Lib)] public static extern IntPtr ck_curve_trim(IntPtr s, double t0, double t1);
     [DllImport(Lib)] public static extern IntPtr ck_curve_extend(IntPtr s, int atEnd, double length);

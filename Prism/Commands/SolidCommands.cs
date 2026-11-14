@@ -843,7 +843,8 @@ public sealed class SweepCommand : BodyCommand
     readonly bool _surface;
     readonly SelectionSlot _profile, _path, _rail;
     readonly ChoiceParam _orient;
-    readonly NumberParam _endScale;
+    readonly NumberParam _endScale, _startScale;
+    readonly TextParam _scaleTable;
     public SweepCommand(bool surface = false)
     {
         _surface = surface;
@@ -852,12 +853,14 @@ public sealed class SweepCommand : BodyCommand
         _rail = Slot(new SelectionSlot { Label = "Second rail (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
+        _startScale = Num("Scale at the start", 1, 0.01, 100, 0.1, "");
+        _scaleTable = Text("Scale along the path (optional)", "", "position from 0 (start) to 1 (end), a colon, then the scale: 0:1, 0.5:1.6, 1:0.7. Replaces the start and end scale.");
         if (!surface) AddOperation();
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
-    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _rail.Items.Count == 0; }
+    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _startScale.IsVisible = _scaleTable.IsVisible = _rail.Items.Count == 0; }
 
     public override HandleSpec? Handle
     {
@@ -907,13 +910,41 @@ public sealed class SweepCommand : BodyCommand
         return wantFaces ? ProfileUtil.Closed(picked) : Occ.Profile(picked, false);
     }
 
+    /// <summary>The scale law from the table text, or from a start and end scale when they differ from the plain end scale; null for a constant or end-only scale.</summary>
+    (double[] positions, double[] scales)? ScaleLaw()
+    {
+        var points = new List<(double at, double scale)>();
+        foreach (var raw in _scaleTable.Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = raw.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at) || at < 0 || at > 1
+                || !double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var scale) || scale <= 0)
+                throw new FormatException($"'{raw}' is not a position and scale. Use position 0 to 1, a colon, then a scale above 0, for example 0:1, 0.5:1.6, 1:0.7.");
+            points.Add((at, scale));
+        }
+        if (points.Count == 0)
+        {
+            if (Math.Abs(_startScale.Value - 1) < 1e-9) return null;      // only an end scale: the plain linear sweep
+            points = [(0, _startScale.Value), (1, _endScale.Value)];
+        }
+        points = [.. points.OrderBy(p => p.at)];
+        if (points.Select(p => p.at).Distinct().Count() != points.Count) throw new FormatException("Each position in the scale list must be different.");
+        if (points[0].at > 1e-9) points.Insert(0, (0, points[0].scale));
+        if (points[^1].at < 1 - 1e-9) points.Add((1, points[^1].scale));
+        if (points.Count < 2) throw new FormatException("Give at least two positions in the scale list.");
+        return ([.. points.Select(p => p.at)], [.. points.Select(p => p.scale)]);
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var path = SlotShape(_path, false);
+        var law = _rail.Items.Count > 0 ? null : ScaleLaw();
         var shape = _rail.Items.Count > 0
             ? Occ.SweepRails(SlotShape(_profile, false), path, SlotShape(_rail, false), !_surface)
-            : Occ.Sweep2(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
+            : law is { } l
+                ? Occ.SweepLaw(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, l.positions, l.scales, Vec3.UnitZ)
+                : Occ.Sweep2(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Sweep");
     }
