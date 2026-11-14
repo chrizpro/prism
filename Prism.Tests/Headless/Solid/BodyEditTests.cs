@@ -175,6 +175,29 @@ public class BodyEditTests
         AssertNear(before + 200 * 2, result.Props().Volume, "The web is the 20 x 20 triangle, 2 mm thick (mm³)");
     }
 
+    [AvaloniaFact(DisplayName = "SOL-H116 | A rib line lying on a face has no web to fill, so the default Rib refuses instead of building an oversized slab")]
+    [Trait("TestId", "SOL-H116")]
+    public void RibLineOnAFaceHasNoWeb()
+    {
+        var session = new CadSession();
+        var source = CreateBoxBody(session, Vec3.Zero, 60, 40, 4);
+        var sketch = new Prism.Core.Sketching.SketchModel();
+        int first = sketch.AddPoint(10, 4);
+        int last = sketch.AddPoint(50, 4);
+        sketch.AddLine(first, last);
+        session.EnterSketch(Plane3.XZ with { Origin = new Vec3(0, 20, 0) }, sketch);
+        session.ExitSketch(keep: true);
+        var profile = Assert.Single(session.Objects, item => item.Kind == ObjKind.Sketch);
+        var command = StartCommand(session, profile, () => new RibCommand());
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Rib sketch", profile);
+            SetSelection(command, "Target body", source);
+        });
+        AssertBuildFails(command, "Fixed height");
+        Assert.Equal(4 * 60 * 40, source.Shape.Props().Volume, 3);
+    }
+
     [AvaloniaFact(DisplayName = "SOL-H037 | Drafting one cube wall changes volume by the analytic wedge volume")]
     [Trait("TestId", "SOL-H037")]
     public void DraftTiltsWallAboutNeutralFace()

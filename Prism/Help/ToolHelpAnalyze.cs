@@ -72,7 +72,7 @@ public static partial class ToolHelp
             "Hidden faces are skipped."),
         "move" => Topic(icon, "Move", "Slide objects to a new position.", "Start: a gap beside the post", "Result: moved to touch the post",
             "1. Select the objects.\n2. Drag an arrow, or type a distance.\n3. Check the preview, then accept.",
-            "Type exact distances for precise placement. Snaps help line faces up."),
+            "Type exact distances for precise placement. Snaps help line faces up. Hold Alt as you press an arrow or block to drag a copy and leave the original where it is."),
         "rotate" => Topic(icon, "Rotate", "Turn objects around an axis.", "Start: the part's orientation", "Result: the part turned",
             "1. Select the objects.\n2. Choose the axis and angle.\n3. Check the preview, then accept.",
             "Use it to lay a part flat for printing, or to turn it into the setup you need."),

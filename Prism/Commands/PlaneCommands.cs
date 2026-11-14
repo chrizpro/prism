@@ -353,7 +353,8 @@ public sealed class IntersectCurvesCommand : Command
     {
         _a = Slot(new SelectionSlot { Label = "First", Filter = Solids });
         _b = Slot(new SelectionSlot { Label = "Second", Filter = Solids });
-        _between = Choice("Between", 0, "Automatic (from what you pick)", "Two flat curves (projected)", "Planes, faces or bodies");
+        // Automatic is last and the default so a step saved when there were two choices keeps its meaning (0 = planes, faces or bodies, 1 = two flat curves)
+        _between = Choice("Between", 2, "Planes, faces or bodies", "Two flat curves (projected)", "Automatic (from what you pick)");
         _separate = Check("Make each curve its own object", false);
     }
 
@@ -367,15 +368,15 @@ public sealed class IntersectCurvesCommand : Command
     bool IsCurveItem(SelItem it) => it.Kind == SelKind.Edge || S.Find(it.Obj)?.Kind is ObjKind.Curve or ObjKind.Sketch;
 
     /// <summary>Two flat curves when asked for, or when the first thing picked is a curve; planes, faces and bodies otherwise.</summary>
-    bool CurveMode => _between.Index == 1 || _between.Index == 0 && _a.Items.Count > 0 && IsCurveItem(_a.Items[0]);
+    bool CurveMode => _between.Index == 1 || _between.Index == 2 && _a.Items.Count > 0 && IsCurveItem(_a.Items[0]);
 
     protected override void UpdateVisibility()
     {
         // Automatic: until something is picked either kind is welcome; the first pick decides what the second may be
-        var filter = _between.Index == 1 ? Curves : _between.Index == 2 ? Solids : CurveMode ? Curves : _a.Items.Count > 0 ? Solids : Solids | Curves;
+        var filter = _between.Index == 1 ? Curves : _between.Index == 0 ? Solids : CurveMode ? Curves : _a.Items.Count > 0 ? Solids : Solids | Curves;
         if (_lastBetween != _between.Index) { _lastBetween = _between.Index; _a.Items.Clear(); _b.Items.Clear(); }
         _b.Filter = filter;
-        _a.Filter = _between.Index == 0 ? Solids | Curves : filter;
+        _a.Filter = _between.Index == 2 ? Solids | Curves : filter;
     }
 
     public override void BuildOverlay(CadSession s, Overlay o) { if (CurveMode) _curves?.BuildOverlay(s, o); }

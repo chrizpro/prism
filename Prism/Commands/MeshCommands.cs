@@ -66,6 +66,10 @@ public sealed class MeshRepairCommand : MeshCommand
     readonly NumberParam _weldTol;
     readonly IntParam _minShell, _maxHole;
 
+    // Steps saved before "Repair scope" was added have no value for it, which would shift every later value by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_scope), 0) : recipe;
+
     public MeshRepairCommand(bool holesOnly = false) : base("Meshes", true)
     {
         _scope = Choice("Repair scope", 0, "Entire mesh", "Selected region");

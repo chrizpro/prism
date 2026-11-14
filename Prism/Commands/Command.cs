@@ -350,6 +350,17 @@ public abstract partial class Command : ObservableObject
 
     protected virtual FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe;
 
+    /// <summary>
+    /// Recipes restore their numbers by position, so a parameter added in the middle of a command's list shifts every later value of a recipe saved before.
+    /// An upgrade calls this to put the new parameter's value at its place.
+    /// </summary>
+    protected static FeatureRecipe InsertValue(FeatureRecipe recipe, int index, object? value)
+    {
+        var values = new List<object?>(recipe.Values);
+        values.Insert(Math.Min(index, values.Count), value);
+        return recipe with { Values = values, Expressions = recipe.Expressions?.ToDictionary(p => p.Key >= index ? p.Key + 1 : p.Key, p => p.Value) };
+    }
+
     /// <summary>The arrow the user can pull in the viewport (null when there is nothing to pull yet).</summary>
     public virtual HandleSpec? Handle => null;
     /// <summary>All grab handles (a command with two-sided input shows one per side).</summary>

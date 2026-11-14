@@ -105,9 +105,9 @@ public static partial class ToolHelp
             ""),
 
         // ---- solid editing ----
-        "rib" => new(icon, "Rib", "Add a reinforcing rib from a planar sketch to a solid body.", "A bracket and a rib sketch", "A rib joined to the body",
-            "1. Sketch the rib's line on a plane through the body.\n2. Choose Rib and pick the sketch.\n3. Set the thickness, check the preview, then accept.",
-            ""),
+        "rib" => new(icon, "Rib", "Add a reinforcing rib from a planar sketch to a solid body: the web between the sketch line and the body.", "A bracket and a rib sketch", "A rib joined to the body",
+            "1. Sketch a straight line on a plane through the body.\n2. Choose Rib and pick the sketch.\n3. Set the thickness, check the preview, then accept.",
+            "The rib fills the corner between the line and the body, like a gusset. Reverse takes the other side of the line; Fixed height grows the line by a set height instead."),
         "thicken" => new(icon, "Thicken", "Give a surface thickness to make a solid.", "A surface", "A thin-walled solid",
             "1. Choose Thicken.\n2. Pick the surface.\n3. Set the thickness and side, then accept.",
             ""),
@@ -342,7 +342,7 @@ public static partial class ToolHelp
         "sculpt" => new(icon, "Sculpt", "Brush the surface: pull, push, move or smooth.", "A flat patch", "A sculpted bump",
             "1. Choose Sculpt and the brush.\n2. Set its size and strength.\n3. Drag on the surface.", "", Picture: "edit-points"),
         "edit-points" => new(icon, "Edit Points", "Drag NURBS control points, with soft influence on neighbours.", "A flat patch", "Points pulled up",
-            "1. Choose Edit Points.\n2. Pick the curve or surface.\n3. Drag its control points.", "Fewer points give smoother results."),
+            "1. Choose Edit Points.\n2. Pick the curve or surface.\n3. Drag a point, or drag across empty space to box-select several, then move them.", "Fewer points give smoother results. Shift-click adds points to the selection."),
         "sketch" => new(icon, "Create Sketch", "Draw constrained curves on one or more planes in space.", "", "",
             "1. Choose Create Sketch and pick a plane or face.\n2. Draw with the Sketch tools.\n3. Finish Sketch keeps it.",
             "G positions the drawing gizmo; E edits curves; N looks normal.", NoPreview: true),

@@ -153,7 +153,10 @@ public class SharedToolTests
         var front = session.AddObject(Occ.NurbsCurve([new(-60, -20, -35), new(-20, 45, -35), new(20, -45, -35), new(60, 20, -35)]), "Front profile", ObjKind.Curve, 0xFFF6B85B, new(new(0, 0, -35), Vec3.UnitX, Vec3.UnitY));
         var side = session.AddObject(Occ.NurbsCurve([new(-60, -50, 0), new(-20, -50, 65), new(20, -50, -25), new(60, -50, 40)]), "Side profile", ObjKind.Curve, 0xFFB697FF, new(new(0, -50, 0), Vec3.UnitX, Vec3.UnitZ));
         var command = StartCommand(session, front, () => new IntersectCurvesCommand());
-        Assert.Equal("Automatic (from what you pick)", command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Between").Options[0]);
+        // Automatic is the last option and the default, so steps saved with the two older choices keep their numbers
+        var between = command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Between");
+        Assert.Equal("Automatic (from what you pick)", between.Options[between.Index]);
+        Assert.Equal("Planes, faces or bodies", between.Options[0]);
         command.ConfigureInputs(() =>
         {
             SetSelection(command, "First", front);

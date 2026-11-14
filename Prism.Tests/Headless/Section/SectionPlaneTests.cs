@@ -30,12 +30,15 @@ public sealed class SectionPlaneTests
         Assert.Equal(4, command.Handles.Count);
 
         var travel = command.Handles[0];
-        var from = session.Camera.Project(CadSession.HandleTip(travel))!.Value;
-        var to = session.Camera.Project(travel.Origin + travel.Dir * 5)!.Value;
+        // At a value of 0 the arrow is drawn as a grabbable stub; the drag is relative, so grab the stub and move it by what 5 mm looks like.
+        var from = session.Camera.Project(session.HandleGrip(travel))!.Value;
+        var zero = session.Camera.Project(travel.Origin)!.Value;
+        var five = session.Camera.Project(travel.Origin + travel.Dir * 5)!.Value;
+        var to = (x: from.x + five.x - zero.x, y: from.y + five.y - zero.y);
         Assert.True(session.PointerDown(new PointerInfo(from.x, from.y, true, false, false, false)));
         session.PointerMove(new PointerInfo(to.x, to.y, true, false, false, true));
         session.PointerUp(new PointerInfo(to.x, to.y, false, false, false, true));
-        Assert.Equal(85, session.Clip!.Origin.Z, 5);
+        Assert.Equal(85, session.Clip!.Origin.Z, 0);       // a drag is whole pixels, so within half a millimetre
 
         SetNumber(command, "Tilt about X", 30);
         SetNumber(command, "Tilt about Y", 20);

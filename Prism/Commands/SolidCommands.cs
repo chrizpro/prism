@@ -153,6 +153,10 @@ public abstract class PrimitiveCommand : BodyCommand
     protected abstract Shape Make();
     public override string Hint => "Set the dimensions, then press OK. Use Operation to join or cut from an existing body.";
 
+    // Files saved before "Move with gizmo" existed have no value for it, which would shift Operation by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        _moveGizmo != null && recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_moveGizmo), false) : recipe;
+
     protected void AddPosition()
     {
         X = Num("Position X", 0); Y = Num("Position Y", 0); Z = Num("Position Z", 0);
@@ -395,6 +399,10 @@ public sealed class RibCommand : Command
         _extent.Changed = () => { UpdateVisibility(); OnChanged(); };
         UpdateVisibility();
     }
+    // Ribs saved before "Rib extends" grew the lines by a fixed height, so they keep that.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_extent), 1) : recipe;
+
     public override string Title => "Rib";
     public override string Icon => "rib";
     public override string Hint => "Select a planar sketch of straight rib lines and a solid body. By default the rib fills the web between each line and the body, like a gusset in a corner, and gains thickness across the sketch plane; Reverse switches to the other side of the line. Choose Fixed height to grow the lines in the sketch plane by a set height instead. The rib must touch the body.";
@@ -405,6 +413,22 @@ public sealed class RibCommand : Command
         _height.IsVisible = _direction.IsVisible = fixedHeight;
         _reverse.Caption = fixedHeight ? "Reverse height direction" : "Reverse side";
         base.UpdateVisibility();
+    }
+
+    /// <summary>
+    /// True when a piece of the slab reaches the slab's far edge, so nothing closed it off: the line does not leave a gap against the body (it lies on a face, say),
+    /// and the "web" would be the whole oversized slab.
+    /// </summary>
+    static bool RunsOut(Shape piece, Vec3 a, Vec3 d, Vec3 side, double length, double reach)
+    {
+        var p = piece.Props();
+        foreach (double x in new[] { p.Min.X, p.Max.X }) foreach (double y in new[] { p.Min.Y, p.Max.Y }) foreach (double z in new[] { p.Min.Z, p.Max.Z })
+        {
+            var q = new Vec3(x, y, z) - a;
+            double across = Math.Abs(Vec3.Dot(q, side)), along = Vec3.Dot(q, d);
+            if (across > reach * 0.99 || along < -reach * 0.99 || along > length + reach * 0.99) return true;
+        }
+        return false;
     }
 
     /// <summary>The web between each straight line and the body: a slab beyond the line is cut by the body and the pieces that touch the drawn line are kept, on whichever side closes up against the body (the smaller one) unless reversed.</summary>
@@ -441,13 +465,13 @@ public sealed class RibCommand : Command
                 for (int i = 0; i < rest.Count(SubKind.Solid); i++)
                 {
                     var piece = rest.Sub(SubKind.Solid, i);
-                    if (Occ.Distance(piece, probe).Distance > 1e-3) { piece.Dispose(); continue; }
+                    if (Occ.Distance(piece, probe).Distance > 1e-3 || RunsOut(piece, a, d, side, (b - a).Length, reach)) { piece.Dispose(); continue; }
                     vol += piece.Props().Volume;
                     if (kept == null) kept = piece; else { var fused = Occ.Fuse(kept, piece); kept.Dispose(); piece.Dispose(); kept = fused; }
                 }
                 if (kept != null) options.Add((kept, vol));
             }
-            if (options.Count == 0) throw new KernelException("That line does not meet the body, so there is nothing to fill. Draw it so both ends touch the body.");
+            if (options.Count == 0) throw new KernelException("That line has no web to fill against the body. Draw it so both ends touch the body with a gap between the line and the body, like a gusset in a corner. For a wall standing on a face, use Fixed height.");
             // the side that closes up against the body is the smaller piece; Reverse takes the other one
             var chosen = options.Count == 1 ? options[0] : (_reverse.Value ? options.MaxBy(x => x.vol) : options.MinBy(x => x.vol));
             foreach (var o in options) if (!ReferenceEquals(o.shape, chosen.shape)) o.shape.Dispose();
@@ -1442,6 +1466,14 @@ public sealed class TransformCommand : Command
         _copy = Check("Create copy", kind == Kind.Mirror);
     }
     public override string Title => _kind.ToString();
+    // Scales saved before "Scale type" held [Factor, Pivot, Create copy]; the stretch factors were added after the type and the factor.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (_kind != Kind.Scale || recipe.Values.Count != Params.Count - 4) return recipe;
+        var v = recipe.Values;
+        return recipe with { Values = [0, v[0], 1.5, 1.0, 1.0, v[1], v[2]], Expressions = recipe.Expressions?.ToDictionary(p => p.Key == 0 ? 1 : p.Key, p => p.Value) };
+    }
+
     public override string Hint => _kind == Kind.Mirror ? "Select the objects to mirror and choose the mirror plane."
         : _kind == Kind.Scale ? "Select the objects to scale. Uniform scales every dimension together (drag the block on the gizmo, or type a factor). Per axis stretches each of X, Y and Z by its own factor: drag the arrows on the object's faces, or type the factors. Stretching follows the world axes."
         : "Select the objects to transform, then drag the gizmo in the viewport or type numbers.";

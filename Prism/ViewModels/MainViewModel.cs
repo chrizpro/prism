@@ -379,8 +379,12 @@ public sealed partial class MainViewModel : ViewModelBase
         bool HasMeshGeometry(bool excludeAnnotations = false) => Session.MeshExportObjects.Any(o =>
             (!excludeAnnotations || !o.IsAnnotation) &&
             (o.Tri is { TriCount: > 0 } || o.Tri == null && (o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form) && o.Mesh.TriangleCount > 0));
-        RibbonButton Format(string label, string extension, string icon, string description, Func<bool> available) =>
-            Btn(label, icon, () => Export(extension), description, can: available, id: "export-as:" + extension);
+        RibbonButton Format(string label, string extension, string icon, string description, Func<bool> available)
+        {
+            var button = Btn(label, icon, () => Export(extension), description, can: available, id: "export-as:" + extension);
+            button.ExampleIcon = "export-as|" + extension;      // each file type has its own hover help
+            return button;
+        }
         const string exact = "Requires visible exact geometry, such as a solid or surface.";
         const string mesh = "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.";
         return new RibbonButton

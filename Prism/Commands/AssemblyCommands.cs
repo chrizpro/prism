@@ -41,6 +41,10 @@ public sealed class InsertComponentCommand : Command
         _link = Check("Keep linked to the file (Refresh updates it)", true);
     }
 
+    // Files saved before "Move with gizmo" have no value for it, which would shift Ground and Keep linked by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_moveGizmo), false) : recipe;
+
     public override string Title => "Insert Component";
     public override string Icon => "component";
     public override string OkText => "Insert";

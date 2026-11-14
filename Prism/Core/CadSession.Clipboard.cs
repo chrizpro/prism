@@ -14,6 +14,9 @@ public sealed partial class CadSession
 
     List<SceneObject> CopyableSelection() => _selection.Select(i => Find(i.Obj)).Where(o => o != null && Copyable(o!)).Select(o => o!).Distinct().ToList();
 
+    /// <summary>True for an object Copy, Paste and Alt-drag can copy (not annotations, reference parts or assembly components).</summary>
+    public bool IsCopyable(Guid id) => Find(id) is { } o && Copyable(o);
+
     public bool CanCopy => ActiveCommand == null && Sketch == null && CopyableSelection().Count > 0;
     public bool CanPaste => ActiveCommand == null && Sketch == null && _clipboard.Count > 0;
 

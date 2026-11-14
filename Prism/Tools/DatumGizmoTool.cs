@@ -177,7 +177,8 @@ public sealed class DatumGizmoTool : IViewportTool
 
     void CopyTargetsForDrag(CadSession s)
     {
-        var objects = _targets.Where(t => t.Kind == SelKind.Object).ToList();
+        // only what can be copied is swapped for a copy; anything else in the selection (an assembly component, say) keeps moving as itself
+        var objects = _targets.Where(t => t.Kind == SelKind.Object && s.IsCopyable(t.Obj)).ToList();
         if (objects.Count == 0 || s.CopyForDrag(objects.Select(t => t.Obj)) is not { } copies) return;
         _targets.RemoveAll(objects.Contains);
         _targets.AddRange(copies.Select(SelItem.Of));
