@@ -53,11 +53,13 @@ static class FaceOpsHelpers
 public sealed class SplitFaceCommand : Command
 {
     readonly SelectionSlot _face, _tool;
+    readonly ChoiceParam _mode;
 
     public SplitFaceCommand()
     {
         _face = Slot(new SelectionSlot { Label = "Face to split", Filter = SelFilter.Face, SmartPick = true });
         _tool = Slot(new SelectionSlot { Label = "Splitting plane, edge or sketch", Filter = SelFilter.Plane | SelFilter.Edge | SelFilter.SketchObj | SelFilter.CurveObj });
+        _mode = Choice("Mode", 0, "Split (cut across the face)", "Imprint (mark curves on the face)");
     }
 
     public override string Title => "Split Face";
@@ -82,6 +84,7 @@ public sealed class SplitFaceCommand : Command
             if (S.FaceFrame(fi) is { } fr) { try { curves = Occ.ProjectCurve(curves, face, fr.normal, false); } catch (KernelException) { } }
         }
         int before = body.Shape.Count(SubKind.Face);
+        if (_mode.Index == 1) return Imprint(body, fi, curves, before);
         Shape res;
         try { res = Occ.Split(body.Shape, curves); }
         catch (KernelException) { throw new FormatException("That does not cross the face. Extend the plane, edge or sketch so it runs from one side of the face to the other."); }
@@ -90,6 +93,20 @@ public sealed class SplitFaceCommand : Command
         res = res.Sub(SubKind.Solid, 0);
         Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
+        o.Replace.Add((body, res));
+        return o;
+    }
+
+    /// <summary>Mark the curves onto the face: a closed loop cuts out a piece, a curve that stops inside the face stays as an edge of it. The shape of the body does not change.</summary>
+    CommandOutput Imprint(SceneObject body, SelItem face, Shape curves, int before)
+    {
+        Shape res;
+        try { res = Occ.Imprint(body.Shape, face.Index, curves); }
+        catch (KernelException e) { throw new FormatException(e.Message + " Pick curves or a sketch that lie on the face, or switch Mode to Split."); }
+        if (res.Count(SubKind.Solid) == 0 || res.Count(SubKind.Face) < before) throw new FormatException("Imprinting did not leave a valid body.");
+        if (res.Count(SubKind.Solid) > 1) res = res.Sub(SubKind.Solid, 0);
+        Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        var o = new CommandOutput { Label = "Imprint face", Icon = "splitbody" };
         o.Replace.Add((body, res));
         return o;
     }

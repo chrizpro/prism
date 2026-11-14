@@ -171,20 +171,30 @@ public sealed class SewCommand : Command
     readonly SelectionSlot _surfaces;
     readonly NumberParam _tol;
     readonly BoolParam _solid, _keep;
+    readonly ChoiceParam _result;
     public SewCommand()
     {
         _surfaces = Slot(new SelectionSlot { Label = "Surfaces", Filter = SelFilter.SurfaceObj, Multi = true });
         _tol = Num("Tolerance", 0.01, 1e-6, 10, 0.01);
         _solid = Check("Make solid if closed", true);
         _keep = Check("Keep the originals", false);
+        _result = Choice("Result", 0, "Stitch (keep each face)", "Merge into one patch where they lie on the same surface");
     }
     public override string Title => "Knit";
-    public override string Hint => "Pick the surfaces to join along their shared edges.";
+    public override string Hint => "Pick the surfaces to join along their shared edges. Choose Merge to also fuse neighbouring faces that lie on the same surface (two halves of a flat sheet become one face); faces that meet at a crease stay separate.";
     protected override CommandOutput? Build()
     {
         if (_surfaces.Items.Count < 1) return null;
         var objs = ObjectsOf(_surfaces).ToList();
         var res = Occ.Sew(objs.Select(o => o.Shape).ToList(), _tol.Value, _solid.Value);
+        Results.Clear();
+        if (_result.Index == 1)
+        {
+            int before = res.Count(SubKind.Face);
+            try { res = Occ.UnifyFaces(res, Enumerable.Range(0, before).ToArray()); }
+            catch (KernelException) { Results.Add(new ResultLine("Merge", "the faces could not be merged, so they stay stitched", 2)); }
+            Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        }
         var o = new CommandOutput();
         if (!_keep.Value) o.Remove.AddRange(objs);
         o.Add.Add(new(res, res.HasSolids ? "Body" : "Knit"));
