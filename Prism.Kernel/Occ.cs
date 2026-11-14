@@ -342,6 +342,12 @@ public static unsafe class Occ
         try { fixed (double* o = V(origin)) return Wrap(Native.ck_scale3(s.Handle, o, factors.X, factors.Y, factors.Z)); }
         catch (EntryPointNotFoundException) { throw new KernelException("This build of the kernel cannot stretch per axis yet. Rebuild native/ (build.ps1) to add it, or scale uniformly."); }
     }
+    /// <summary>Apply any linear map (row-major 3x3: stretches and shears too) and then move by <paramref name="t"/>.</summary>
+    public static Shape Affine(Shape s, double[] m, Vec3 t)
+    {
+        var tt = new[] { t.X, t.Y, t.Z };
+        fixed (double* pm = m) fixed (double* pt = tt) return Wrap(Native.ck_affine(s.Handle, pm, pt));
+    }
     public static Shape Mirror(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_mirror(s.Handle, o, n)); }
 
     // ---- freeform

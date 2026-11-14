@@ -96,4 +96,51 @@ public class SweepTwistTests
         var (_, sweep) = GuidedSweep(new(0, 0, 0), new(5, 0, 20));
         AssertBuildFails(sweep, "touches the path");
     }
+
+    const string SecondGuideSlot = "Second guide curve (optional)";
+
+    static Command TwoGuides(Vec3 a0, Vec3 a1, Vec3 b0, Vec3 b1, string mode)
+    {
+        var session = new CadSession();
+        var profile = CreateRectangleSketch(session, Plane3.XY, width: 10, height: 10, startU: -5, startV: -5);
+        var path = CreateCurve(session, [Vec3.Zero, new Vec3(0, 0, 20)]);
+        var first = CreateCurve(session, [a0, a1]);
+        var second = CreateCurve(session, [b0, b1]);
+        var sweep = StartCommand(session, profile, () => new SweepCommand());
+        sweep.ConfigureInputs(() => { SetSelection(sweep, "Path", path); SetSelection(sweep, GuideSlot, first); SetSelection(sweep, SecondGuideSlot, second); SetChoice(sweep, "Between two guides", mode); });
+        return sweep;
+    }
+
+    [AvaloniaFact(DisplayName = "SWP-H018 | Two guides spreading apart resize the profile evenly, to the analytic volume")]
+    [Trait("TestId", "SWP-H018")]
+    public void TwoGuidesResizeEvenly()
+    {
+        // the gap between the guides doubles from 12 to 24 mm, so the whole section doubles: 100 mm² * 20 mm * the mean of (1 + t)^2
+        var solid = BuildSingleAddedShape(TwoGuides(new(6, 0, 0), new(12, 0, 20), new(-6, 0, 0), new(-12, 0, 20), "Resize evenly"));
+        AssertValidSolid(solid);
+        AssertClose(2000 * 7.0 / 3, solid.Props().Volume, 2000 * 7.0 / 3 * 0.01, "Evenly resized volume (mm³)");
+        AssertClose(20, solid.Props().Size.X, 0.15, "Width at the far end (mm)");
+        AssertClose(20, solid.Props().Size.Y, 0.15, "Depth at the far end (mm)");
+    }
+
+    [AvaloniaFact(DisplayName = "SWP-H019 | Two guides spreading apart stretch only between them, to the analytic volume")]
+    [Trait("TestId", "SWP-H019")]
+    public void TwoGuidesStretchBetweenThem()
+    {
+        var solid = BuildSingleAddedShape(TwoGuides(new(6, 0, 0), new(12, 0, 20), new(-6, 0, 0), new(-12, 0, 20), "Stretch between the guides"));
+        AssertValidSolid(solid);
+        // only the width between the guides grows: 100 mm² * 20 mm * the mean of (1 + t)
+        AssertClose(3000, solid.Props().Volume, 30, "Stretched volume (mm³)");
+        AssertClose(20, solid.Props().Size.X, 0.15, "Width at the far end (mm)");
+        AssertClose(10, solid.Props().Size.Y, 0.15, "Depth stays (mm)");
+    }
+
+    [AvaloniaFact(DisplayName = "SWP-H020 | Two guides refuse a twist or scale list that would fight them")]
+    [Trait("TestId", "SWP-H020")]
+    public void TwoGuidesRefuseATwist()
+    {
+        var sweep = TwoGuides(new(6, 0, 0), new(6, 0, 20), new(-6, 0, 0), new(-6, 0, 20), "Resize evenly");
+        SetNumber(sweep, "Twist along the path", 30);
+        AssertBuildFails(sweep, "Clear the twist");
+    }
 }

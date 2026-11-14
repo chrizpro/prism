@@ -841,7 +841,8 @@ public sealed class SweepCommand : BodyCommand
     /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
     public override bool WantsHomeView => true;
     readonly bool _surface;
-    readonly SelectionSlot _profile, _path, _rail, _guide;
+    readonly SelectionSlot _profile, _path, _rail, _guide, _guide2;
+    readonly ChoiceParam _guideMode;
     readonly ChoiceParam _orient;
     readonly NumberParam _endScale, _startScale;
     readonly TextParam _scaleTable;
@@ -852,6 +853,8 @@ public sealed class SweepCommand : BodyCommand
         _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _rail = Slot(new SelectionSlot { Label = "Second rail (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
         _guide = Slot(new SelectionSlot { Label = "Guide curve: the profile grows and shrinks with its distance (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guide2 = Slot(new SelectionSlot { Label = "Second guide curve (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guideMode = Choice("Between two guides", 0, "Resize evenly", "Stretch between the guides");
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
         _startScale = Num("Scale at the start", 1, 0.01, 100, 0.1, "");
@@ -872,18 +875,6 @@ public sealed class SweepCommand : BodyCommand
             pts.AddRange(run);
         }
         return pts;
-    }
-
-    static double DistanceToPolyline(List<Vec3> poly, Vec3 p)
-    {
-        double best = double.MaxValue;
-        for (int i = 1; i < poly.Count; i++)
-        {
-            var a = poly[i - 1]; var ab = poly[i] - a; double len2 = Vec3.Dot(ab, ab);
-            double t = len2 < 1e-18 ? 0 : Math.Clamp(Vec3.Dot(p - a, ab) / len2, 0, 1);
-            best = Math.Min(best, p.DistanceTo(a + ab * t));
-        }
-        return best;
     }
 
     /// <summary>Points along the path spaced evenly by length, each with the direction of travel there.</summary>
@@ -918,11 +909,51 @@ public sealed class SweepCommand : BodyCommand
         return result;
     }
 
+    // ---- 3x3 helpers (row-major) for the station sweep
+    static double[] Identity() => [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    static double[] Mul(double[] a, double[] b)
+    {
+        var r = new double[9];
+        for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) r[3 * i + j] += a[3 * i + k] * b[3 * k + j];
+        return r;
+    }
+    static Vec3 Apply(double[] m, Vec3 v) => new(m[0] * v.X + m[1] * v.Y + m[2] * v.Z, m[3] * v.X + m[4] * v.Y + m[5] * v.Z, m[6] * v.X + m[7] * v.Y + m[8] * v.Z);
+    /// <summary>Rotation by an angle (radians) about a unit axis.</summary>
+    static double[] Turn(Vec3 axis, double angle)
+    {
+        double c = Math.Cos(angle), s = Math.Sin(angle), t = 1 - c, x = axis.X, y = axis.Y, z = axis.Z;
+        return [t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c];
+    }
+    /// <summary>The rotation that swings unit direction a onto unit direction b by the shortest way.</summary>
+    static double[] Swing(Vec3 a, Vec3 b)
+    {
+        var axis = Vec3.Cross(a, b);
+        if (axis.Length < 1e-9) return Vec3.Dot(a, b) > 0 ? Identity() : Turn((Math.Abs(a.X) < 0.9 ? Vec3.Cross(a, Vec3.UnitX) : Vec3.Cross(a, Vec3.UnitY)).Normalized(), Math.PI);
+        return Turn(axis.Normalized(), Math.Acos(Math.Clamp(Vec3.Dot(a, b), -1, 1)));
+    }
+
+    /// <summary>Where a guide crosses the plane through <paramref name="p"/> square to <paramref name="t"/>: the crossing nearest p, or the nearest approach if it never crosses.</summary>
+    static Vec3 CrossingOf(List<Vec3> guide, Vec3 p, Vec3 t)
+    {
+        Vec3? best = null; double bestDistance = double.MaxValue;
+        for (int i = 1; i < guide.Count; i++)
+        {
+            double f0 = Vec3.Dot(guide[i - 1] - p, t), f1 = Vec3.Dot(guide[i] - p, t);
+            if (f0 * f1 > 0 || Math.Abs(f1 - f0) < 1e-12) continue;
+            var q = guide[i - 1] + (guide[i] - guide[i - 1]) * (f0 / (f0 - f1));
+            if (q.DistanceTo(p) < bestDistance) { bestDistance = q.DistanceTo(p); best = q; }
+        }
+        if (best is { } hit) return hit;
+        var near = guide.OrderBy(g => Math.Abs(Vec3.Dot(g - p, t))).First();
+        return near - t * Vec3.Dot(near - p, t);
+    }
+
     /// <summary>
-    /// A sweep whose profile also turns about the path by a total angle: the profile is carried along the path without
-    /// spinning of its own accord, turned a little further at each of 40 stations and scaled by the scale law, and the sections are lofted smoothly.
+    /// A sweep built from 40 sections along the path, lofted smoothly. The profile is carried along without spinning of its own accord, then
+    /// turned by the twist, scaled by the scale list and fitted to the guides: one guide sets the size from its distance, two guides pin two
+    /// points of the profile to them, so it is resized (or stretched between them) and turned as they move.
     /// </summary>
-    Shape TwistedSweep(Shape profile, Shape path)
+    Shape StationSweep(Shape profile, Shape path)
     {
         const int Stations = 40;
         var law = ScaleLaw();
@@ -934,45 +965,62 @@ public sealed class SweepCommand : BodyCommand
             return l.scales[^1];
         }
         var stations = PathStations(path, Stations);
-        // with a guide curve the profile's size follows how far the path is from the guide, relative to the start
-        var scales = Enumerable.Range(0, Stations + 1).Select(k => ScaleAt((double)k / Stations)).ToArray();
-        if (_guide.Items.Count > 0)
+        var guide1 = _guide.Items.Count > 0 ? GuidePolyline(SlotShape(_guide, false)) : null;
+        var guide2 = _guide2.Items.Count > 0 ? GuidePolyline(SlotShape(_guide2, false)) : null;
+        if (guide2 != null && guide1 == null) throw new FormatException("Pick the first guide curve before the second.");
+        if (guide2 != null && (Math.Abs(_twist.Value) > 1e-9 || law != null)) throw new FormatException("Two guide curves set the size and the turn of the profile themselves. Clear the twist and the scale list.");
+        var p0 = stations[0].p; var t0 = stations[0].t;
+        Vec3? a0 = guide1 == null ? null : CrossingOf(guide1, p0, t0) - p0;
+        Vec3? b0 = guide2 == null ? null : CrossingOf(guide2, p0, t0) - p0;
+        if (a0 is { } av && av.Length < 1e-9) throw new FormatException("The guide curve touches the path at its start, so the profile has no size to follow. Move the guide away from the path.");
+        if (a0 is { } av2 && b0 is { } bv && (bv - av2).Length < 1e-9) throw new FormatException("The two guide curves meet at the start of the path. Keep them apart.");
+
+        var sections = new List<Shape>();
+        var carried = Identity();
+        try
         {
-            var guide = GuidePolyline(SlotShape(_guide, false));
-            double d0 = DistanceToPolyline(guide, stations[0].p);
-            if (d0 < 1e-9) throw new FormatException("The guide curve touches the path at its start, so the profile has no size to follow. Move the guide away from the path.");
             for (int k = 0; k <= Stations; k++)
             {
-                scales[k] = DistanceToPolyline(guide, stations[k].p) / d0;
-                if (scales[k] < 1e-3) throw new FormatException("The guide curve meets the path, which would shrink the profile to nothing. Keep the guide away from the path.");
+                var (p, t) = stations[k];
+                if (k > 0) carried = Mul(Swing(stations[k - 1].t, t), carried);
+                double fraction = (double)k / Stations;
+                var g = Turn(t, _twist.Value * Math.PI / 180 * fraction);
+                var shift = Vec3.Zero;
+                double scale = ScaleAt(fraction);
+                if (a0 is { } a && b0 is null)
+                {
+                    scale *= (CrossingOf(guide1!, p, t) - p).Length / a.Length;
+                    if (scale < 1e-3) throw new FormatException("The guide curve meets the path, which would shrink the profile to nothing. Keep the guide away from the path.");
+                }
+                if (a0 is { } ac0 && b0 is { } bc0)
+                {
+                    var ac = Apply(carried, ac0); var bc = Apply(carried, bc0);
+                    var ak = CrossingOf(guide1!, p, t) - p; var bk = CrossingOf(guide2!, p, t) - p;
+                    var u = (bc - ac).Normalized(); var uk = bk - ak; double lambda = uk.Length / (bc - ac).Length;
+                    if (lambda < 1e-3) throw new FormatException("The guide curves meet, which would shrink the profile to nothing. Keep them apart.");
+                    uk = uk.Normalized();
+                    double theta = Math.Atan2(Vec3.Dot(t, Vec3.Cross(u, uk)), Vec3.Dot(u, uk));
+                    g = Turn(t, theta);
+                    double l1 = lambda - 1;
+                    g = _guideMode.Index == 1       // stretch only along the line between the guides
+                        ? Mul([1 + l1 * uk.X * uk.X, l1 * uk.X * uk.Y, l1 * uk.X * uk.Z, l1 * uk.Y * uk.X, 1 + l1 * uk.Y * uk.Y, l1 * uk.Y * uk.Z, l1 * uk.Z * uk.X, l1 * uk.Z * uk.Y, 1 + l1 * uk.Z * uk.Z], g)
+                        : Mul([lambda, 0, 0, 0, lambda, 0, 0, 0, lambda], g);
+                    shift = ak - Apply(g, ac);
+                }
+                else g = Mul([scale, 0, 0, 0, scale, 0, 0, 0, scale], g);
+                var m = Mul(g, carried);
+                sections.Add(Occ.Affine(profile, m, p + shift - Apply(m, p0)));
             }
+            return Occ.Loft(sections, !_surface, false);
         }
-        var sections = new List<Shape>();
-        var current = Occ.Translate(profile, Vec3.Zero);
-        double scale = scales[0];
-        if (Math.Abs(scale - 1) > 1e-9) { var scaled = Occ.Scale(current, stations[0].p, scale); current.Dispose(); current = scaled; }
-        sections.Add(current);
-        for (int k = 1; k <= Stations; k++)
-        {
-            var (p0, t0) = stations[k - 1]; var (p1, t1) = stations[k];
-            var moved = Occ.Translate(current, p1 - p0);
-            // swing the section round with the path (shortest turn from the old direction to the new one)
-            var axis = Vec3.Cross(t0, t1); double cos = Math.Clamp(Vec3.Dot(t0, t1), -1, 1);
-            if (axis.Length > 1e-9) { var turned = Occ.Rotate(moved, p1, axis.Normalized(), Math.Acos(cos) * 180 / Math.PI); moved.Dispose(); moved = turned; }
-            double twist = _twist.Value / Stations;
-            var twisted = Occ.Rotate(moved, p1, t1, twist); moved.Dispose(); moved = twisted;
-            double ratio = scales[k] / scales[k - 1];
-            if (Math.Abs(ratio - 1) > 1e-9) { var scaled = Occ.Scale(moved, p1, ratio); moved.Dispose(); moved = scaled; }
-            sections.Add(moved); current = moved;
-        }
-        try { return Occ.Loft(sections, !_surface, false); }
         finally { foreach (var s in sections) s.Dispose(); }
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
     protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _startScale.IsVisible = _scaleTable.IsVisible = _twist.IsVisible = _rail.Items.Count == 0;
-        _guide.IsVisible = _rail.Items.Count == 0; _rail.IsVisible = _guide.Items.Count == 0; }
+        _guide.IsVisible = _rail.Items.Count == 0; _rail.IsVisible = _guide.Items.Count == 0 && _guide2.Items.Count == 0;
+        _guide2.IsVisible = _rail.Items.Count == 0 && _guide.Items.Count > 0; _guideMode.IsVisible = _rail.Items.Count == 0 && _guide2.Items.Count > 0; }
 
     public override HandleSpec? Handle
     {
@@ -1052,11 +1100,11 @@ public sealed class SweepCommand : BodyCommand
         if (!Complete) return null;
         var path = SlotShape(_path, false);
         var law = _rail.Items.Count > 0 ? null : ScaleLaw();
-        if (_rail.Items.Count > 0 && _guide.Items.Count > 0) throw new FormatException("Use a second rail or a guide curve, not both.");
-        if (_rail.Items.Count == 0 && (Math.Abs(_twist.Value) > 1e-9 || _guide.Items.Count > 0))
+        if (_rail.Items.Count > 0 && (_guide.Items.Count > 0 || _guide2.Items.Count > 0)) throw new FormatException("Use a second rail or a guide curve, not both.");
+        if (_rail.Items.Count == 0 && (Math.Abs(_twist.Value) > 1e-9 || _guide.Items.Count > 0 || _guide2.Items.Count > 0))
         {
             if (_orient.Index != 0) throw new FormatException("Twist and a guide curve need the profile to follow the path. Set Profile orientation to Follow the path.");
-            var twisted = TwistedSweep(SlotShape(_profile, false), path);
+            var twisted = StationSweep(SlotShape(_profile, false), path);
             if (_surface) { var r = new CommandOutput(); r.Add.Add(new(twisted, "Surface", ObjKind.Surface)); return r; }
             return Finish(twisted, "Sweep");
         }

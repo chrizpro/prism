@@ -827,6 +827,12 @@ CK_API void* ck_scale3(void* s, const double* o, double fx, double fy, double fz
         g.SetTranslationPart(gp_XYZ(o[0] * (1 - fx), o[1] * (1 - fy), o[2] * (1 - fz)));
         BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
 }
+// Any linear map (row-major 3x3, including stretches and shears) followed by a move.
+CK_API void* ck_affine(void* s, const double* m, const double* t) {
+    TRY gp_GTrsf g; for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) g.SetValue(i + 1, j + 1, m[3 * i + j]);
+        g.SetTranslationPart(gp_XYZ(t[0], t[1], t[2]));
+        BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
+}
 CK_API void* ck_mirror(void* s, const double* o, const double* n) {
     TRY gp_Trsf t; t.SetMirror(gp_Ax2(gp_Pnt(o[0], o[1], o[2]), gp_Dir(n[0], n[1], n[2]))); return wrap(transformed(get(s), t)); CATCH(nullptr)
 }
