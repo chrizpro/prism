@@ -113,7 +113,7 @@ Faces are referred to today by number only (`FaceRef(Obj, Face)` for analysis lo
 9. **Names for faces** (for example "Mounting face") shown in the browser tree and usable by Simulation loads and CAM.
 10. **Export:** face colors in glTF, 3MF and STEP color attributes, and in the CPU render. Exports that cannot carry face color (STL) ignore it and say so.
 
-### Open decisions for the owner
+### Decisions (owner approved the recommendations 2026-11-14)
 1. **Scope of the first delivery.** Recommend items 1, 2 and 3 plus the identity foundation; the rest as later stories.
 2. **Solids too?** Recommend yes: the mechanism is identical and users will try it on a box first.
 3. **Hide faces:** a document edit (recommended, matches CAD users' expectation) or only the view-state Isolate we have.
@@ -139,6 +139,64 @@ Faces are referred to today by number only (`FaceRef(Obj, Face)` for analysis lo
 - Select Same Color picks exactly the faces that share the override.
 
 No test IDs are assigned until the owner approves the scope.
+
+## 0.4 modeling gaps (approved by the owner 2026-11-14)
+
+**Status: approved by the owner on 2026-11-14, with the recommended answer to each open decision below; not yet implemented or tested.** Wrap (IMP-P2) and solid Thicken (DRS-P4) are deferred past 0.4. Test IDs are assigned as each item is built. Owner direction 2026-11-14 asked what Prism still lacks next to Creo and Plasticity, and set the headline for 0.4: **surface blending to G2, not G3**. Findings come from reading the ribbon and command classes; the app was not run, so every "today" line is to be re-checked before code. Rules for all items: prefer a mode or dropdown entry over a new top-level ribbon button; keep each workflow different (a tool is added to another tab only where it fits, and unsure placements are listed under Open decisions); no test IDs are assigned until the owner approves.
+
+### 1. Surface blending and fillets (lead item)
+**Today.** Boundary Surface already blends two separate surface edges and gives each edge G0/G1/G2 and a weight. Edge Surface, Blend Surface and Network Surface exist only as hidden commands (`EdgeSurfaceCommand`, `BlendSurfaceCommand`, `NetworkSurfaceCommand`), reachable from scripts. Match Surface works only on natural patch boundaries of compatible, untrimmed, non-rational rectangular patches. Fillet / Chamfer on surfaces needs the surfaces sewn first and has no setback.
+
+- **BLD-P1 Boundary Surface modes.** Boundary Surface gets a **Mode** choice: *Boundary* (today's behavior, the default), *Blend* (bridge two separate edges with per-end continuity and fullness), *Edge* (two to four curves or edges span a surface) and *Network* (a grid of crossing curves). Each mode shows only the picks and options it needs. The hidden commands keep working from scripts and saved files and are marked `[Legacy]`. No new ribbon buttons.
+- **BLD-P2 Match Surface beyond natural boundaries.** Match Surface accepts an edge of a trimmed face or a face of a solid as the reference, and a trimmed source where the kernel can match it; when it cannot, it says which condition failed instead of producing a fold. Continuity stays G0, G1, G2 (**no G3**). The result report keeps the sampled gap, normal angle and curvature difference.
+- **BLD-P3 Fillet between separate surfaces.** Fillet / Chamfer accepts one edge from each of two unsewn surfaces that meet or nearly meet, and rounds between them. Today's refusal ("sew first") remains only when the surfaces do not come within the tolerance.
+- **BLD-P4 Setback and variable radius.** Fillet gets per-edge radius (start and end values per picked edge), and a **Setback** distance at corners where three or more filleted edges meet. Conic or full-round blends are out of scope unless the kernel supports them cheaply.
+- **Acceptance (draft).** Blend between two parallel offset sheets at G2 reports gap ≤ 0.01 mm and curvature difference ≤ 0.01 /mm at both seams. Edge mode on four straight edges of a square gives a flat surface. A fillet between two unsewn perpendicular sheets of radius 5 mm leaves a quarter-cylinder 5 mm in radius. Match Surface at G2 never reports a larger gap than G1 on the same input. Each retired hidden command still opens from `CommandCatalog` by its old key.
+
+### 2. Analysis on the modeling tabs
+**Today.** Zebra, Curvature Map, Draft Analysis and Check Seam live on the Analyze tab (Check Seam is on NURBS only).
+- **ANA-P1.** Surface and NURBS each get one **Analyze** dropdown (one group slot) holding Zebra, Curvature Map, Draft Analysis, Curvature Graph and Check Seam. The commands are the same ones the Analyze tab runs; nothing is copied. The Analyze tab is unchanged.
+- **Acceptance.** Each dropdown entry starts the same command class as the Analyze tab; the Surface and NURBS ribbons gain one group, not five buttons.
+
+### 3. Merge Surface
+- **MRG-P1.** Sew gets a **Result** choice: *Stitch* (today: shared edges, closed shells become solids) and *Merge into one patch* (adjacent faces on the same underlying surface, or tangent-continuous natural patches, become one face). If the kernel cannot merge a pair, the faces stay stitched and the status line names them. Faces are not merged across a crease.
+- **Acceptance.** Two coplanar halves of a split plane merge into one face (face count 2 → 1, area unchanged). Two faces meeting at a 90° crease are never merged. Stitch result is unchanged from today.
+
+### 4. Solid dress-up depth
+**Today.** Fillet takes a start and end radius per call; Chamfer one distance; Shell one thickness; Draft one neutral plane and one angle; Thicken is surface-only.
+- **DRS-P1.** Chamfer gains *Two distances* and *Distance and angle*.
+- **DRS-P2.** Shell gains a per-face thickness list (faces default to the overall thickness).
+- **DRS-P3.** Draft gains **Parting line**: faces above and below a chosen plane or edge loop lean in opposite directions.
+- **DRS-P4.** Thicken accepts a face selection on a solid to add or remove material from those faces (solid Thicken). Open decision: this overlaps Offset Face, which stays gizmo-only; recommend not adding it unless the owner finds a case Offset Face cannot do.
+- Fillet radius and setback are BLD-P4, which also applies to solids.
+- **Acceptance.** A 10 mm box chamfered 2 mm × 4 mm has those two leg lengths. A shell with one face at 3 mm and the rest at 1 mm measures that. A part drafted at a mid-plane parting line with 2° has the upper and lower walls 2° off vertical in opposite directions.
+
+### 5. Imprint and Wrap
+**Today.** Draw on Surface and Project lay curves on a surface; Draw on Surface can split the face along the curve; Split Face divides a solid face with a plane, edge or sketch. Nothing marks a face with a curve without cutting it apart.
+- **IMP-P1 Imprint.** An **Imprint** mode of Split Face (not a new button): the picked curves become edges on the face, dividing it into faces that stay on the same surface, so each can be recolored, hidden or deleted. It works on solids and surfaces and keeps the body's shape. Curves that do not fully cross the face still imprint (the open part ends in the face), which is the difference from Split.
+- **IMP-P2 Wrap (larger, later).** Wrap a flat sketch or curve onto a curved face by distance, as Creo does. Proposed only; not planned for 0.4 until the owner agrees.
+- **Acceptance.** A circle imprinted on a flat face adds one face (the disc) and one inner loop on the remaining face; volume and outer shape are unchanged. A line ending in the middle of the face adds an edge but no new face.
+
+### 6. "Keep the originals" consistency
+**Today.** Combine already has *Keep tool bodies* (default off, `SolidCommands.cs`). Many curve tools have *Keep the original(s)* (Join, Explode, Trim, Extend, Rebuild, Project …) with differing wording and defaults. A first search found none on **Intersection Curve**, Sew/Unsew, Thicken, Offset/Extend/Trim/Split Surface, Pipe, Shell, Split Body, Loft and Sweep; that is a first search only and each class must be read before deciding.
+- **KEP-P1.** Tools that consume curves or bodies to make a new one offer one consistent option, **Keep the originals**, in the same place in the panel with one default per tool family. Recommended defaults: *off* where the result replaces the input (Join, Sew, Boolean, Intersection Curve), *on* where the input is a reference (Project, Offset, Thicken, Loft, Sweep profiles). Intersection Curve is the owner's example: two curves become one, and the user may not want the two sources afterward.
+- **KEP-P2.** The audit lists every command that takes selections and records for each: has the option, should have it, or should not (for example Extrude of a sketch). Only the "should have it" tools are changed.
+- **Acceptance.** For each changed tool: with the option off the sources are gone and undo restores them; with it on they are untouched; the saved history re-edits with the same setting.
+
+### 7. Sweep modes: variable section and helix
+**Today.** Sweep takes a path and an optional second rail that steers rotation only. Helices come from Curve from Data (an equation), which stays.
+- **SWP-P1 Variable section.** Sweep gets a **Section** choice: *Constant* (today), *Scaled* (start and end scale along the path), *Follow guide curves* (the section is stretched to reach one or two guide rails), and *Law* (scale and twist given by a numeric table or curve). Result is a surface or a solid as today.
+- **SWP-P2 Helix.** An interactive **Helix** path for Sweep (and as a curve source): axis (pick or datum), radius, pitch, turns and handedness with on-canvas handles; taper optional. A **Helical sweep** is Sweep with this path, so threads and springs need no formula.
+- **Acceptance.** A circle swept *Scaled* 1 → 0.5 along a 100 mm line has end diameter half the start. A helix of pitch 10 mm and 5 turns is 50 mm long along its axis and winds the chosen way. A section swept along two guide rails touches both rails at every sampled station within 0.05 mm.
+
+### Decisions (owner approved the recommendations 2026-11-14)
+1. BLD-P2: accept "match fails with a named reason" when the kernel cannot match a trimmed edge, instead of blocking the tool?
+2. BLD-P4 and DRS: confirm conic and full-round blends are out of scope for 0.4.
+3. MRG-P1: Merge as a Sew result (recommended) or a separate Merge Surface button?
+4. DRS-P4: drop solid Thicken because Offset Face covers it?
+5. IMP-P2 Wrap: defer past 0.4?
+6. KEP-P1: confirm the recommended defaults, and that the option is added only to tools the audit marks "should have it".
+7. Placement beyond the first home: Analyze dropdown (Surface, NURBS), Merge and Imprint (Surface and NURBS first; Solid for faces of solids), Sweep modes (Solid, Surface, NURBS), Keep the originals (everywhere the command already appears). Not certain: whether Imprint and Merge also belong on **Freeform** (which deliberately omits Split and Combine); recommend no.
 
 ## Feature requirement reviews
 

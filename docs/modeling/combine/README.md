@@ -19,3 +19,6 @@ The Windows verification run passed all 175 Headless tests selected by `Feature=
 ## Coverage gaps
 
 Disjoint and tangent inputs, multiple tools, empty intersections and regeneration still need coverage.
+
+
+**Approved 2026-11-14:** a consistent *Keep the originals* option across tools that consume curves or bodies (Combine already has *Keep tool bodies*). See [0.4 modeling gaps, item 6](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14).
