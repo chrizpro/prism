@@ -841,7 +841,7 @@ public sealed class SweepCommand : BodyCommand
     /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
     public override bool WantsHomeView => true;
     readonly bool _surface;
-    readonly SelectionSlot _profile, _path, _rail;
+    readonly SelectionSlot _profile, _path, _rail, _guide;
     readonly ChoiceParam _orient;
     readonly NumberParam _endScale, _startScale;
     readonly TextParam _scaleTable;
@@ -851,16 +851,128 @@ public sealed class SweepCommand : BodyCommand
         _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _rail = Slot(new SelectionSlot { Label = "Second rail (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guide = Slot(new SelectionSlot { Label = "Guide curve: the profile grows and shrinks with its distance (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
         _startScale = Num("Scale at the start", 1, 0.01, 100, 0.1, "");
         _scaleTable = Text("Scale along the path (optional)", "", "position from 0 (start) to 1 (end), a colon, then the scale: 0:1, 0.5:1.6, 1:0.7. Replaces the start and end scale.");
+        _twist = Num("Twist along the path", 0, -3600, 3600, 15, "°");
+        _twist.HelpText = "Turns the profile steadily about the path as it travels, by this many degrees from start to end (right-handed for a positive angle). Builds the result through 40 sections along the path.";
         if (!surface) AddOperation();
+    }
+    readonly NumberParam _twist;
+
+    static List<Vec3> GuidePolyline(Shape guide)
+    {
+        var pts = new List<Vec3>();
+        foreach (var edge in Occ.CurveSamples(guide, 200, 64))
+        {
+            var run = edge.Select(s => s.p).ToList();
+            if (pts.Count > 0 && run[^1].DistanceTo(pts[^1]) < run[0].DistanceTo(pts[^1])) run.Reverse();
+            pts.AddRange(run);
+        }
+        return pts;
+    }
+
+    static double DistanceToPolyline(List<Vec3> poly, Vec3 p)
+    {
+        double best = double.MaxValue;
+        for (int i = 1; i < poly.Count; i++)
+        {
+            var a = poly[i - 1]; var ab = poly[i] - a; double len2 = Vec3.Dot(ab, ab);
+            double t = len2 < 1e-18 ? 0 : Math.Clamp(Vec3.Dot(p - a, ab) / len2, 0, 1);
+            best = Math.Min(best, p.DistanceTo(a + ab * t));
+        }
+        return best;
+    }
+
+    /// <summary>Points along the path spaced evenly by length, each with the direction of travel there.</summary>
+    static List<(Vec3 p, Vec3 t)> PathStations(Shape path, int count)
+    {
+        var pts = new List<Vec3>();
+        foreach (var edge in Occ.CurveSamples(path, 200, 64))
+        {
+            var run = edge.Select(s => s.p).ToList();
+            if (pts.Count > 0 && run[^1].DistanceTo(pts[^1]) < run[0].DistanceTo(pts[^1])) run.Reverse();     // follow the chain, not each edge's own direction
+            foreach (var p in run) if (pts.Count == 0 || pts[^1].DistanceTo(p) > 1e-9) pts.Add(p);
+        }
+        if (pts.Count < 2) throw new FormatException("The path is too short.");
+        var along = new List<double> { 0 };
+        for (int i = 1; i < pts.Count; i++) along.Add(along[^1] + pts[i].DistanceTo(pts[i - 1]));
+        double total = along[^1];
+        Vec3 At(double s)
+        {
+            s = Math.Clamp(s, 0, total);
+            int i = Math.Clamp(along.BinarySearch(s) is var k && k >= 0 ? k : ~k, 1, pts.Count - 1);
+            double f = (s - along[i - 1]) / Math.Max(along[i] - along[i - 1], 1e-12);
+            return pts[i - 1] + (pts[i] - pts[i - 1]) * f;
+        }
+        var result = new List<(Vec3, Vec3)>(); double d = total / (count * 4);
+        for (int k = 0; k <= count; k++)
+        {
+            double s = total * k / count;
+            var tangent = At(s + d) - At(s - d);
+            if (tangent.Length < 1e-12) throw new FormatException("The path doubles back on itself.");
+            result.Add((At(s), tangent.Normalized()));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// A sweep whose profile also turns about the path by a total angle: the profile is carried along the path without
+    /// spinning of its own accord, turned a little further at each of 40 stations and scaled by the scale law, and the sections are lofted smoothly.
+    /// </summary>
+    Shape TwistedSweep(Shape profile, Shape path)
+    {
+        const int Stations = 40;
+        var law = ScaleLaw();
+        double ScaleAt(double t)
+        {
+            if (law is not { } l) return 1;
+            for (int i = 1; i < l.positions.Length; i++)
+                if (t <= l.positions[i] + 1e-12) return l.scales[i - 1] + (l.scales[i] - l.scales[i - 1]) * (t - l.positions[i - 1]) / Math.Max(l.positions[i] - l.positions[i - 1], 1e-12);
+            return l.scales[^1];
+        }
+        var stations = PathStations(path, Stations);
+        // with a guide curve the profile's size follows how far the path is from the guide, relative to the start
+        var scales = Enumerable.Range(0, Stations + 1).Select(k => ScaleAt((double)k / Stations)).ToArray();
+        if (_guide.Items.Count > 0)
+        {
+            var guide = GuidePolyline(SlotShape(_guide, false));
+            double d0 = DistanceToPolyline(guide, stations[0].p);
+            if (d0 < 1e-9) throw new FormatException("The guide curve touches the path at its start, so the profile has no size to follow. Move the guide away from the path.");
+            for (int k = 0; k <= Stations; k++)
+            {
+                scales[k] = DistanceToPolyline(guide, stations[k].p) / d0;
+                if (scales[k] < 1e-3) throw new FormatException("The guide curve meets the path, which would shrink the profile to nothing. Keep the guide away from the path.");
+            }
+        }
+        var sections = new List<Shape>();
+        var current = Occ.Translate(profile, Vec3.Zero);
+        double scale = scales[0];
+        if (Math.Abs(scale - 1) > 1e-9) { var scaled = Occ.Scale(current, stations[0].p, scale); current.Dispose(); current = scaled; }
+        sections.Add(current);
+        for (int k = 1; k <= Stations; k++)
+        {
+            var (p0, t0) = stations[k - 1]; var (p1, t1) = stations[k];
+            var moved = Occ.Translate(current, p1 - p0);
+            // swing the section round with the path (shortest turn from the old direction to the new one)
+            var axis = Vec3.Cross(t0, t1); double cos = Math.Clamp(Vec3.Dot(t0, t1), -1, 1);
+            if (axis.Length > 1e-9) { var turned = Occ.Rotate(moved, p1, axis.Normalized(), Math.Acos(cos) * 180 / Math.PI); moved.Dispose(); moved = turned; }
+            double twist = _twist.Value / Stations;
+            var twisted = Occ.Rotate(moved, p1, t1, twist); moved.Dispose(); moved = twisted;
+            double ratio = scales[k] / scales[k - 1];
+            if (Math.Abs(ratio - 1) > 1e-9) { var scaled = Occ.Scale(moved, p1, ratio); moved.Dispose(); moved = scaled; }
+            sections.Add(moved); current = moved;
+        }
+        try { return Occ.Loft(sections, !_surface, false); }
+        finally { foreach (var s in sections) s.Dispose(); }
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
-    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _startScale.IsVisible = _scaleTable.IsVisible = _rail.Items.Count == 0; }
+    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _startScale.IsVisible = _scaleTable.IsVisible = _twist.IsVisible = _rail.Items.Count == 0;
+        _guide.IsVisible = _rail.Items.Count == 0; _rail.IsVisible = _guide.Items.Count == 0; }
 
     public override HandleSpec? Handle
     {
@@ -940,6 +1052,14 @@ public sealed class SweepCommand : BodyCommand
         if (!Complete) return null;
         var path = SlotShape(_path, false);
         var law = _rail.Items.Count > 0 ? null : ScaleLaw();
+        if (_rail.Items.Count > 0 && _guide.Items.Count > 0) throw new FormatException("Use a second rail or a guide curve, not both.");
+        if (_rail.Items.Count == 0 && (Math.Abs(_twist.Value) > 1e-9 || _guide.Items.Count > 0))
+        {
+            if (_orient.Index != 0) throw new FormatException("Twist and a guide curve need the profile to follow the path. Set Profile orientation to Follow the path.");
+            var twisted = TwistedSweep(SlotShape(_profile, false), path);
+            if (_surface) { var r = new CommandOutput(); r.Add.Add(new(twisted, "Surface", ObjKind.Surface)); return r; }
+            return Finish(twisted, "Sweep");
+        }
         var shape = _rail.Items.Count > 0
             ? Occ.SweepRails(SlotShape(_profile, false), path, SlotShape(_rail, false), !_surface)
             : law is { } l
