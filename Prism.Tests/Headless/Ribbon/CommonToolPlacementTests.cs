@@ -53,4 +53,18 @@ public sealed class CommonToolPlacementTests
         Assert.Contains("Check Seam", Labels(vm, "Surface"));
         Assert.Contains("Check Seam", Labels(vm, "NURBS"));
     }
+
+    [AvaloniaTheory(DisplayName = "RIB-H005 | Hole and Thread share one dropdown on Home and Solid, with Hole showing first")]
+    [InlineData("Home")]
+    [InlineData("Solid")]
+    [Trait("TestId", "RIB-H005")]
+    public void HoleAndThreadShareADropdown(string tab)
+    {
+        var vm = new MainViewModel();
+        var split = Assert.Single(Flatten(vm.Tabs.Single(t => t.Title == tab).Buttons), b => b.Id == "split:hole-thread");
+        Assert.Equal(["Hole", "Thread"], split.Menu!.OfType<RibbonButton>().Select(b => b.Label).ToArray());
+        var top = vm.Tabs.Single(t => t.Title == tab).Groups.SelectMany(g => g.Items.OfType<RibbonButton>()).ToList();
+        Assert.DoesNotContain(top, b => b.Label == "Thread");      // it lives in the dropdown, not beside it
+        Assert.Equal("Hole", Assert.Single(top, b => b.Id == "split:hole-thread").Label);
+    }
 }

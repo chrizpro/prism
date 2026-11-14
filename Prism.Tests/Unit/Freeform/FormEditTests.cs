@@ -335,4 +335,96 @@ public class FormEditTests
         FormOps.CutWithPlane(cube, new Vec3(0, 0, 1), Vec3.UnitZ, out _, crease: 2);
         Assert.Equal(4, cube.Crease.Count(c => c.Value == 2));
     }
+
+    // ---- the knife drawn across the form (a view from the front, along +Y: the cube's -Y face faces the viewer)
+    static readonly KnifeView Front = new(new Vec3(0, -10, 1), Vec3.UnitY, Orthographic: true);
+    static readonly KnifeView Eye = new(new Vec3(0, -10, 1), Vec3.UnitY, Orthographic: false);
+
+    [Fact(DisplayName = "FRM-U034 | A line drawn across the front of a cube cuts the face it crosses and puts a point on each side edge")]
+    [Trait("TestId", "FRM-U034")]
+    public void KnifeLineAcrossTheFront()
+    {
+        var cube = Cube();
+        var added = FormKnife.Cut(cube, [new Vec3(-2, -1, .5), new Vec3(2, -1, .5)], [Front, Front], extend: true, cutThrough: false, 0, out int cut, out _);
+        AssertClosedManifold(cube);
+        Assert.Equal(1, cut); Assert.Equal(2, added.Count);
+        Assert.Equal(7, cube.F.Count); Assert.Equal(10, cube.V.Count);
+        Assert.Equal(8, Volume(cube), 9);
+        Assert.Equal(2, Euler(cube));
+        Assert.All(added, v => { Assert.Equal(.5, cube.V[v].Z, 9); Assert.Equal(-1, cube.V[v].Y, 9); Assert.Equal(1, Math.Abs(cube.V[v].X), 9); });
+    }
+
+    [Fact(DisplayName = "FRM-U035 | A line that ends inside a face does not cut it unless the ends run on to the edges")]
+    [Trait("TestId", "FRM-U035")]
+    public void KnifeLineEndingInsideAFace()
+    {
+        var stops = Cube();
+        var none = FormKnife.Cut(stops, [new Vec3(-.5, -1, .5), new Vec3(.5, -1, .5)], [Front, Front], extend: false, cutThrough: false, 0, out int cut, out int ended);
+        Assert.Empty(none); Assert.Equal(0, cut); Assert.Equal(1, ended); Assert.Equal(6, stops.F.Count);
+
+        var runs = Cube();
+        FormKnife.Cut(runs, [new Vec3(-.5, -1, .5), new Vec3(.5, -1, .5)], [Front, Front], extend: true, cutThrough: false, 0, out cut, out _);
+        AssertClosedManifold(runs); Assert.Equal(1, cut); Assert.Equal(7, runs.F.Count);
+    }
+
+    [Fact(DisplayName = "FRM-U036 | Cut through also cuts the faces turned away: the same line cuts all four walls")]
+    [Trait("TestId", "FRM-U036")]
+    public void KnifeCutThrough()
+    {
+        var cube = Cube();
+        var added = FormKnife.Cut(cube, [new Vec3(-2, -1, .5), new Vec3(2, -1, .5)], [Front, Front], extend: true, cutThrough: true, 0, out int cut, out _);
+        AssertClosedManifold(cube);
+        Assert.Equal(4, cut); Assert.Equal(4, added.Count); Assert.Equal(10, cube.F.Count);
+        Assert.Equal(2, Euler(cube));
+    }
+
+    [Fact(DisplayName = "FRM-U037 | A bend in the line becomes a point inside the face it falls in")]
+    [Trait("TestId", "FRM-U037")]
+    public void KnifeBend()
+    {
+        var cube = Cube();
+        var added = FormKnife.Cut(cube, [new Vec3(-2, -1, .5), new Vec3(0, -1, 1.2), new Vec3(2, -1, .5)], [Front, Front, Front], extend: true, cutThrough: false, 0, out int cut, out _);
+        AssertClosedManifold(cube);
+        Assert.Equal(1, cut); Assert.Equal(3, added.Count);
+        Assert.Equal(7, cube.F.Count); Assert.Equal(11, cube.V.Count);
+        var bend = added.Select(v => cube.V[v]).Single(p => Math.Abs(p.X) < 1e-9);
+        Assert.Equal(new Vec3(0, -1, 1.2), bend);
+        Assert.Equal(8, Volume(cube), 9);
+        Assert.Equal(2, Euler(cube));
+    }
+
+    [Fact(DisplayName = "FRM-U038 | Seen in perspective, a line drawn along the face still cuts where it lies on the face")]
+    [Trait("TestId", "FRM-U038")]
+    public void KnifeInPerspective()
+    {
+        var cube = Cube();
+        var added = FormKnife.Cut(cube, [new Vec3(-2, -1, .5), new Vec3(2, -1, .5)], [Eye, Eye], extend: true, cutThrough: false, 0, out int cut, out _);
+        AssertClosedManifold(cube);
+        Assert.Equal(1, cut);
+        Assert.All(added, v => { Assert.Equal(.5, cube.V[v].Z, 9); Assert.Equal(-1, cube.V[v].Y, 9); });
+    }
+
+    [Fact(DisplayName = "FRM-U039 | A line through two corners splits a face along its diagonal without adding points")]
+    [Trait("TestId", "FRM-U039")]
+    public void KnifeThroughCorners()
+    {
+        var cube = Cube();
+        var added = FormKnife.Cut(cube, [new Vec3(-3, -1, -2), new Vec3(3, -1, 4)], [Front, Front], extend: true, cutThrough: false, 0, out int cut, out _);
+        AssertClosedManifold(cube);
+        Assert.Empty(added); Assert.Equal(1, cut);
+        Assert.Equal(7, cube.F.Count); Assert.Equal(8, cube.V.Count);
+        Assert.Equal(8, Volume(cube), 9);
+    }
+
+    [Fact(DisplayName = "FRM-U040 | The knife can crease its cut, and a crease on a cut edge carries over to both pieces")]
+    [Trait("TestId", "FRM-U040")]
+    public void KnifeCrease()
+    {
+        var cube = Cube();
+        var side = cube.Edges().First(e => cube.V[e.a].X > .9 && cube.V[e.b].X > .9 && cube.V[e.a].Y < -.9 && cube.V[e.b].Y < -.9);
+        FormOps.SetCrease(cube, [side], 2);
+        FormKnife.Cut(cube, [new Vec3(-2, -1, .5), new Vec3(2, -1, .5)], [Front, Front], extend: true, cutThrough: false, 4, out _, out _);
+        Assert.Equal(2, cube.Crease.Count(c => c.Value == 2));      // the sharp edge is now two pieces
+        Assert.Equal(1, cube.Crease.Count(c => c.Value == 4));      // and the cut itself is one new edge across the front face
+    }
 }

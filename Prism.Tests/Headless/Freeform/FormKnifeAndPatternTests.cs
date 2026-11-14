@@ -33,6 +33,7 @@ public class FormKnifeAndPatternTests
         var (min, max) = before.Bounds();
         var knife = Begin(session, () => new FormKnifeCommand());
         Pick(knife, "Freeform to cut", form);
+        SetChoice(knife, "Cut with", "A plane");
         SetChoice(knife, "Or cut across", "Bottom to top (Z)");
         SetNumber(knife, "Position along that direction", (min.Z + max.Z) / 2);
         var (old, cut) = Assert.Single(BuildOutput(knife).ReplaceForms);
@@ -53,6 +54,7 @@ public class FormKnifeAndPatternTests
         var knife = Begin(session, () => new FormKnifeCommand());
         Pick(knife, "Freeform to cut", form);
         SetNumber(knife, "Position along that direction", (min.Z + max.Z) / 2);
+        SetChoice(knife, "Cut with", "A plane");
         SetChoice(knife, "Or cut across", "Bottom to top (Z)");
         SetNumber(knife, "Crease the cut", 2);
         var (_, cut) = Assert.Single(BuildOutput(knife).ReplaceForms);
@@ -66,6 +68,7 @@ public class FormKnifeAndPatternTests
         var (session, form) = Box();
         var knife = Begin(session, () => new FormKnifeCommand());
         Pick(knife, "Freeform to cut", form);
+        SetChoice(knife, "Cut with", "A plane");
         SetChoice(knife, "Or cut across", "Bottom to top (Z)");
         SetNumber(knife, "Position along that direction", 500);
         AssertBuildFails(knife, "does not cut");
@@ -113,5 +116,77 @@ public class FormKnifeAndPatternTests
         Pick(pattern, "Target body", solid);
         Assert.Null(pattern.TryBuild());
         Assert.Contains(pattern.Results, r => r.Label == "Freeforms");
+    }
+
+    // ---- the knife drawn across the form: looking straight down at a 30 x 20 x 10 box, a line along X at y = 0
+    static (CadSession session, SceneObject form, FormKnifeCommand knife) TopView(bool snap = false)
+    {
+        var (session, form) = Box();
+        session.Camera.Width = 800; session.Camera.Height = 600; session.Camera.SetView(0, 90);
+        session.Camera.Fit(new Vec3(-15, -10, 0), new Vec3(15, 10, 10));
+        var knife = Begin(session, () => new FormKnifeCommand());
+        Pick(knife, "Freeform to cut", form);
+        knife.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Snap")).Value = snap;
+        return (session, form, knife);
+    }
+
+    static void Click(FormKnifeCommand knife, SceneObject form, Vec3 at) =>
+        Assert.True(knife.PickPoint(new PickResult(SelItem.Of(form), at, Vec3.UnitZ, 0), false));
+
+    [AvaloniaFact(DisplayName = "FRM-H116 | Knife: two clicks draw a line across the top; it splits the top face and puts a point on each side edge")]
+    [Trait("TestId", "FRM-H116")]
+    public void KnifeLineByClicks()
+    {
+        var (_, form, knife) = TopView();
+        Click(knife, form, new Vec3(-20, 0, 10)); Click(knife, form, new Vec3(20, 0, 10));
+        var before = form.Form!;
+        var (_, cut) = Assert.Single(BuildOutput(knife).ReplaceForms);
+        Assert.True(cut.IsClosed());
+        Assert.Equal(before.F.Count + 1, cut.F.Count);
+        Assert.Equal(before.V.Count + 2, cut.V.Count);
+        Assert.Equal("2", Result(knife, "New points"));
+        Assert.All(cut.V.Skip(before.V.Count), v => { Assert.Equal(0, v.Y, 6); Assert.Equal(10, v.Z, 6); Assert.Equal(15, Math.Abs(v.X), 6); });
+    }
+
+    [AvaloniaFact(DisplayName = "FRM-H117 | Knife with Cut through also cuts the faces turned away: two walls, top and bottom")]
+    [Trait("TestId", "FRM-H117")]
+    public void KnifeCutThrough()
+    {
+        var (_, form, knife) = TopView();
+        knife.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Cut through")).Value = true;
+        Click(knife, form, new Vec3(-20, 0, 10)); Click(knife, form, new Vec3(20, 0, 10));
+        var before = form.Form!;
+        var (_, cut) = Assert.Single(BuildOutput(knife).ReplaceForms);
+        Assert.True(cut.IsClosed());
+        Assert.Equal(before.F.Count + 4, cut.F.Count);
+        Assert.Equal(before.V.Count + 4, cut.V.Count);
+    }
+
+    [AvaloniaFact(DisplayName = "FRM-H118 | Knife clicks snap to a nearby point of the cage, and Undo takes the last click back")]
+    [Trait("TestId", "FRM-H118")]
+    public void KnifeSnapAndUndo()
+    {
+        var (_, form, knife) = TopView(snap: true);
+        Click(knife, form, new Vec3(14.9, 9.9, 10));
+        var path = knife.Params.OfType<TextParam>().Single(p => p.Label.StartsWith("Points of the cut"));
+        Assert.StartsWith("15 10 10 |", path.Value);                       // pulled onto the corner of the cage
+        Click(knife, form, new Vec3(-15, -10, 10));
+        Assert.Equal(2, path.Value.Split('\n').Length);
+        Assert.True(knife.TryUndo());
+        Assert.Single(path.Value.Split('\n'));
+        Assert.True(knife.TryUndo());
+        Assert.False(knife.TryUndo());
+    }
+
+    [AvaloniaFact(DisplayName = "FRM-H119 | Knife with one click has nothing to cut yet; a line that misses the form is refused with a message")]
+    [Trait("TestId", "FRM-H119")]
+    public void KnifeNeedsALineThatCrosses()
+    {
+        var (_, form, knife) = TopView();
+        Click(knife, form, new Vec3(-20, 0, 10));
+        Assert.Null(knife.TryBuild());
+        var miss = TopView();
+        Click(miss.knife, miss.form, new Vec3(-40, 30, 10)); Click(miss.knife, miss.form, new Vec3(40, 30, 10));
+        AssertBuildFails(miss.knife, "does not cross");
     }
 }
