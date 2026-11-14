@@ -823,16 +823,19 @@ public sealed class RebuildSurfaceCommand : Command
     readonly SelectionSlot _src;
     readonly IntParam _u, _v;
     readonly BoolParam _keep;
+    readonly NumberParam _join;
     public RebuildSurfaceCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Surface or face", Filter = SelFilter.SurfaceObj | SelFilter.Face });
         _u = Add(new IntParam { Label = "Points in U", Value = 8, Min = 4, Max = 60 });
         _v = Add(new IntParam { Label = "Points in V", Value = 8, Min = 4, Max = 60 });
         _keep = Check("Keep the original", true);
+        _join = Num("Join tolerance for several faces (0 = automatic)", 0, 0, 100, 0.01);
+        _join.HelpText = "A surface made of several faces is rebuilt one patch per face and the patches are joined again along their shared edges. Automatic is 0.2% of the surface's size.";
     }
     public override string Title => "Rebuild Surface";
     public override string Icon => "raise-degree";
-    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.";
+    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points; a surface of several faces is rebuilt one patch per face and joined again. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.";
     (SelItem item, int u, int v, Vec3[] points)? _gridCache;
 
     /// <summary>The grid of points the new surface is fitted through, drawn as it changes with Points in U and V.</summary>
@@ -861,21 +864,52 @@ public sealed class RebuildSurfaceCommand : Command
         foreach (var p in pts) o.AddDot(p, 0xFFFFFFFF, 5);
     }
 
-    protected override CommandOutput? Build()
+    /// <summary>How far the rebuilt surface is from the original: exact distance from points sampled on the original to the rebuilt surface.</summary>
+    static double Deviation(Shape original, Shape rebuilt)
     {
-        if (!Complete) return null;
-        var item = _src.Items[0]; var face = NurbsUtil.OfItem(S, item);
-        var grid = Occ.SurfaceSamples(face, _u.Value, _v.Value);
-        var rebuilt = Occ.FitSurface(grid, _u.Value, _v.Value);
-        // how far the result is from the original: exact distance from points sampled on the original to the rebuilt surface
         double worst = 0;
-        foreach (var p in Occ.SurfaceSamples(face, 15, 15))
+        foreach (var p in Occ.SurfaceSamples(original, 15, 15))
         {
             using var point = Occ.Vertex(p);
             worst = Math.Max(worst, Occ.Distance(point, rebuilt).Distance);
         }
+        return worst;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        var item = _src.Items[0]; var whole = NurbsUtil.OfItem(S, item);
+        Results.Clear();
+        int faceCount = whole.Count(SubKind.Face);
+        Shape rebuilt; double worst = 0;
+        if (faceCount <= 1)
+        {
+            rebuilt = Occ.FitSurface(Occ.SurfaceSamples(whole, _u.Value, _v.Value), _u.Value, _v.Value);
+            worst = Deviation(whole, rebuilt);
+        }
+        else
+        {
+            // one patch per face, then joined where they meet; the faces of the original that met stay met
+            var patches = new List<Shape>();
+            for (int f = 0; f < faceCount; f++)
+            {
+                using var face = whole.Sub(SubKind.Face, f);
+                var patch = Occ.FitSurface(Occ.SurfaceSamples(face, _u.Value, _v.Value), _u.Value, _v.Value);
+                worst = Math.Max(worst, Deviation(face, patch));
+                patches.Add(patch);
+            }
+            var size = whole.Props(); double diagonal = (size.Max - size.Min).Length;
+            double tolerance = _join.Value > 0 ? _join.Value : Math.Max(0.002 * diagonal, 1e-4);
+            rebuilt = Occ.Sew(patches, tolerance, false);
+            foreach (var patch in patches) patch.Dispose();
+            int openBefore = Occ.FreeEdges(whole).Length, openAfter = Occ.FreeEdges(rebuilt).Length;
+            Results.Add(new ResultLine("Faces rebuilt", $"{faceCount}, joined to {rebuilt.Count(SubKind.Face)} face(s)"));
+            Results.Add(new ResultLine("Open edges", $"{openBefore}  →  {openAfter}", openAfter > openBefore ? 2 : 1));
+            if (openAfter > openBefore) Results.Add(new ResultLine("Some faces did not join", "Raise the join tolerance, or use more points so the patches follow the original more closely.", 2));
+        }
         var bounds = rebuilt.Props(); double diag = (bounds.Max - bounds.Min).Length;
-        Results.Clear(); Results.Add(new ResultLine("Largest deviation (approx.)", $"{worst:0.###} mm", worst < diag * 0.01 ? 1 : 2));
+        Results.Add(new ResultLine("Largest deviation (approx.)", $"{worst:0.###} mm", worst < diag * 0.01 ? 1 : 2));
         var o = SurfaceUtil.Single(rebuilt, "Rebuilt surface");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, [item]);
         return o;

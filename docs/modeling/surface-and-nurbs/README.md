@@ -113,6 +113,12 @@ Faces are referred to today by number only (`FaceRef(Obj, Face)` for analysis lo
 9. **Names for faces** (for example "Mounting face") shown in the browser tree and usable by Simulation loads and CAM.
 10. **Export:** face colors in glTF, 3MF and STEP color attributes, and in the CPU render. Exports that cannot carry face color (STL) ignore it and say so.
 
+### Rebuild Surface of several faces
+
+- **RBD-P1 delivered 2026-11-14 (owner request: fix shallow tools).** Rebuild Surface used to give one patch for one face. A surface of several faces (for example a sewn corner) is now rebuilt one patch per face, using the same Points in U and V for each, and the patches are sewn together again with a **Join tolerance** (0 means automatic: 0.2% of the surface's size). The result lines show the faces rebuilt, the open edges before and after, and the largest deviation of any face. If more edges are open after than before, the panel says so and suggests a larger join tolerance or more points.
+- **Not built:** a single patch across several faces (one grid through the whole shell), and keeping continuity across the joins beyond what the sewn edges already have.
+- **Acceptance.** A sewn two-face corner (two 10 mm sheets at 90°) rebuilds to two faces of the same total area (200 mm² within 0.5) with no more open edges than before. Test: [SRF-H037](../../../Prism.Tests/Headless/Surfacing/RebuildSeveralFacesTests.cs), Surfacing slice 139 of 139 passed on Windows; not tried by hand.
+
 ### Decisions (owner approved the recommendations 2026-11-14)
 1. **Scope of the first delivery.** Recommend items 1, 2 and 3 plus the identity foundation; the rest as later stories.
 2. **Solids too?** Recommend yes: the mechanism is identical and users will try it on a box first.
