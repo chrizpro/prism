@@ -2648,21 +2648,56 @@ CK_API void* ck_fillet_edges(void* s, const int* edgeIds, int n, const double* r
 
 // Imprint: mark curves that already lie on one face onto it, so it divides into faces on the same surface and the body keeps its shape.
 // Closed loops split off a piece; a curve that ends inside the face stays as an edge of it.
+// Mark curves on a face of a solid: a closed loop cuts a piece out of the face, a curve that stops inside the face stays as an edge of it.
+// Curves that are not on the face are first pulled onto it (normal projection); the face is then split by the edges that lie on it.
+static int countEdges(const TopoDS_Shape& s) { TopTools_IndexedMapOfShape m; TopExp::MapShapes(s, TopAbs_EDGE, m); return m.Extent(); }
+static bool edgeOnFace(const TopoDS_Edge& e, const TopoDS_Face& f, double tol) {
+    BRepAdaptor_Curve c(e);
+    for (int i = 0; i <= 6; i++) {
+        gp_Pnt p = c.Value(c.FirstParameter() + (c.LastParameter() - c.FirstParameter()) * i / 6.0);
+        BRepExtrema_DistShapeShape d(BRepBuilderAPI_MakeVertex(p).Vertex(), f);
+        if (!d.IsDone() || d.Value() > tol) return false;
+    }
+    return true;
+}
 CK_API void* ck_imprint(void* s, int faceId, void* curves) {
     TRY
         TopTools_IndexedMapOfShape fm; TopExp::MapShapes(get(s), TopAbs_FACE, fm);
         if (faceId < 0 || faceId >= fm.Extent()) { fail("Face index out of range."); return nullptr; }
         TopoDS_Face face = TopoDS::Face(fm(faceId + 1));
+        Bnd_Box bb; BRepBndLib::Add(get(s), bb); double x0, y0, z0, x1, y1, z1; bb.Get(x0, y0, z0, x1, y1, z1);
+        double scale = std::max(std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0)), 1.0);
+        double onTol = 1e-3 * scale;
+        TopTools_ListOfShape onFace, offFace;
+        for (TopExp_Explorer ex(get(curves), TopAbs_EDGE); ex.More(); ex.Next()) {
+            TopoDS_Edge e = TopoDS::Edge(ex.Current());
+            if (edgeOnFace(e, face, onTol)) onFace.Append(e); else offFace.Append(e);
+        }
+        if (onFace.IsEmpty() && offFace.IsEmpty()) { fail("There are no curves to imprint."); return nullptr; }
+        if (!offFace.IsEmpty()) {            // pull what is not on the face onto it
+            BRepOffsetAPI_NormalProjection np(face);
+            for (auto& e : offFace) np.Add(e);
+            np.SetParams(1e-5 * scale, 1e-6, GeomAbs_C1, 14, 16);
+            np.Build();
+            if (np.IsDone()) for (TopExp_Explorer ex(np.Shape(), TopAbs_EDGE); ex.More(); ex.Next()) onFace.Append(ex.Current());
+        }
+        if (onFace.IsEmpty()) { fail("Those curves could not be placed on the face."); return nullptr; }
+        int before = countEdges(get(s));
+        auto tryBuild = [&](TopoDS_Shape& out) {
+            BRepAlgoAPI_Splitter sp; TopTools_ListOfShape args; args.Append(get(s));
+            sp.SetArguments(args); sp.SetTools(onFace); sp.SetFuzzyValue(1e-4 * scale); sp.Build();
+            if (sp.HasErrors() || sp.Shape().IsNull() || !BRepCheck_Analyzer(sp.Shape()).IsValid()) return false;
+            out = sp.Shape(); return countEdges(out) > before;
+        };
+        TopoDS_Shape result;
+        if (tryBuild(result)) return wrap(result);
+        // the older route: edges that carry their own curve on the face
         BRepFeat_SplitShape sp(get(s));
-        int added = 0;
-        for (TopExp_Explorer wx(get(curves), TopAbs_WIRE); wx.More(); wx.Next()) { sp.Add(TopoDS::Wire(wx.Current()), face); ++added; }
-        if (added == 0)
-            for (TopExp_Explorer ex(get(curves), TopAbs_EDGE); ex.More(); ex.Next()) { sp.Add(TopoDS::Edge(ex.Current()), face); ++added; }
-        if (added == 0) { fail("There are no curves to imprint."); return nullptr; }
+        for (auto& e : onFace) sp.Add(TopoDS::Edge(e), face);
         sp.Build();
-        if (!sp.IsDone() || sp.Shape().IsNull()) { fail("Those curves could not be imprinted on the face. They must lie on it."); return nullptr; }
-        if (!BRepCheck_Analyzer(sp.Shape()).IsValid()) { fail("Imprinting produced invalid geometry."); return nullptr; }
-        return wrap(sp.Shape());
+        if (sp.IsDone() && !sp.Shape().IsNull() && BRepCheck_Analyzer(sp.Shape()).IsValid() && countEdges(sp.Shape()) > before) return wrap(sp.Shape());
+        fail("Those curves could not be marked on the face. They must lie on it, or be a closed shape or a curve running across it.");
+        return nullptr;
     CATCH(nullptr)
 }
 
