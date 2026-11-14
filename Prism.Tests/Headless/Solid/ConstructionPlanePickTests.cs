@@ -74,4 +74,22 @@ public class ConstructionPlanePickTests
         Assert.Equal(slot, command.ActiveSlot!.Label);
         Assert.True(command.ActiveSlot.IsVisible);
     }
+
+    [AvaloniaFact(DisplayName = "SOL-H163 | Clicking three corners in turn fills the three point slots in order")]
+    [Trait("TestId", "SOL-H163")]
+    public void ClicksFillTheThreePointsInTurn()
+    {
+        var session = new CadSession();
+        var box = CreateBoxBody(session, Vec3.Zero, 40, 30, 20);
+        var command = Begin(session, () => new ConstructionPlaneCommand());
+        command.ConfigureInputs(() => SetChoice(command, "Method", "Through three points"));
+        command.OnChanged();
+        foreach (var index in new[] { 0, 1, 2 })
+        {
+            Assert.True(command.Pick(new SelItem(box.Id, SelKind.Vertex, index), false));
+        }
+        string[] labels = ["First point (a corner or a point)", "Second point (a corner or a point)", "Third point (a corner or a point)"];
+        Assert.All(labels, label => Assert.Single(command.Slots.Single(s => s.Label == label).Items));
+        Assert.Equal(3, labels.Select(label => command.Slots.Single(s => s.Label == label).Items[0].Index).Distinct().Count());
+    }
 }

@@ -37,7 +37,7 @@ public sealed class ConstructionPlaneCommand : Command
         _flat = Slot(new SelectionSlot { Label = "Flat curve or sketch", Filter = SelFilter.AnyCurve | SelFilter.Edge, IsVisible = false });
         string[] ordinal = ["First", "Second", "Third"];
         for (int i = 0; i < 3; i++)
-            _picked[i] = Slot(new SelectionSlot { Label = $"{ordinal[i]} point (a corner or a point)", Filter = SelFilter.Vertex | SelFilter.Datum, Optional = true, IsVisible = false });
+            _picked[i] = Slot(new SelectionSlot { Label = $"{ordinal[i]} point (a corner or a point)", Filter = SelFilter.Vertex | SelFilter.Datum, Optional = true, ChainNext = true, IsVisible = false });
         _distance = Num("Distance", 10);
         _angle = Num("Angle", 45, -360, 360, 5, "°");
         _count = Add(new IntParam { Label = "Number of planes", Min = 1, Max = 100, Value = 1 });

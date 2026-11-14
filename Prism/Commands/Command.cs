@@ -124,6 +124,8 @@ public sealed partial class SelectionSlot : ObservableObject
     [ObservableProperty] public partial int IntentIndex { get; set; }
     public PickIntent Intent => (PickIntent)Math.Clamp(IntentIndex, 0, IntentNames.Length - 1);
     public bool Optional { get; init; }
+    /// <summary>An optional slot that picking still moves on to once the one before it is filled (the second and third of three points, say).</summary>
+    public bool ChainNext { get; init; }
     public bool Ordered { get; init; }
     public bool IsResult { get; init; }
     public int MaxCount { get; init; } = int.MaxValue;
@@ -653,7 +655,7 @@ public abstract partial class Command : ObservableObject
     void UpdateSlots() { foreach (var s in Slots) s.Update(S.Describe); }
     void AdvanceSlot(SelectionSlot slot)
     {
-        var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && !x.Optional && x.Items.Count == 0);
+        var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && (!x.Optional || x.ChainNext) && x.Items.Count == 0);
         if (next != null) { slot.IsActive = false; next.IsActive = true; }
     }
 
