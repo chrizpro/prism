@@ -15,7 +15,6 @@ This page lists problems we know about. The live list is the set of [open bug re
 
 | Issue | Area | Problem |
 | --- | --- | --- |
-| [#32](https://github.com/chrizpro/prism/issues/32) | [Shell](/tool/shell) | Shelling a whole body inward returns the inner core instead of a closed hollow. A 10 mm cube with a 2 mm inside wall comes back as a 6 mm cube. |
 | [#51](https://github.com/chrizpro/prism/issues/51) | [Boundary Surface](/tool/boundary-surface) › Patch | Patch rejects some bent closed loops as bulging outside their outline. **Workaround:** Boundary Surface's smooth path fills the same loop. |
 
 ## Platforms

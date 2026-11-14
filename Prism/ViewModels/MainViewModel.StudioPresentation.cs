@@ -200,4 +200,30 @@ public sealed partial class MainViewModel
         if (StudioPanel == "parameters") { UpdateParameterPresentation(); OnSelectedParameterDraftChanged(SelectedParameterDraft); }
     }
     public void RefreshParameterTable() { UpdateParameterPresentation(); PreviewDocumentParameters(); }
+
+    public void AnimateSelectedParameter()
+    {
+        if (SelectedParameterDraft is not { } selected) return;
+        if (Session.ActiveCommand != null || Session.Sketch != null)
+        {
+            StudioMessage = "Finish the current edit before opening animation.";
+            return;
+        }
+        if (!DocumentParameterRows.Select(p => new DocumentParameter(p.Name, p.Formula, p.Pinned)).SequenceEqual(Session.DocumentParameters))
+        {
+            StudioMessage = "Apply the parameter table changes before animating.";
+            return;
+        }
+        if (!Session.AnimatableParameters().Any(p => p.Name.Equals(selected.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            StudioMessage = "This parameter follows a formula. Animate one of the numeric parameters used by that formula.";
+            return;
+        }
+        string name = selected.Name;
+        OpenStudio(null);
+        SetWorkspace("assemble");
+        if (Tabs.FirstOrDefault(t => t.Title == "Animate") is { } tab) SelectTab(tab);
+        Session.StartCommand(() => new AnimationCommand());
+        if (Session.ActiveCommand is AnimationCommand editor) editor.FocusParameter(name);
+    }
 }

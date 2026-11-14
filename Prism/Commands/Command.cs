@@ -98,7 +98,7 @@ public sealed partial class SelectionSlot : ObservableObject
     public int EdgeRule => SelectionRuleIndex - (ProfileSelection ? 1 : 0);
     public bool IsPartialLoop => HasSelectionRules && EdgeRule == 3;
     public bool ReplacesSelection => !Multi || ProfileSelection && EdgeRule < 0;
-    public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter & ~SelFilter.Edge : SelFilter.Edge;
+    public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter : SelFilter.Edge;
     internal SelItem? ChainStart, ChainEnd;
     internal bool PathNeedsUpdate;
     public void ResetChain() { ChainStart = ChainEnd = null; PathNeedsUpdate = false; }
@@ -166,7 +166,7 @@ public sealed record ResultLine(string Label, string Value, int Level = 0)
 }
 
 // ---------------------------------------------------------------- command result
-public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null);
+public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null, bool IsReference = false, bool IsMoldHalf = false);
 
 public sealed class CommandOutput
 {
@@ -197,6 +197,22 @@ public sealed class CommandOutput
 /// With a Ref direction it is a turning handle instead: Dir is the axis, Param is an angle in degrees, and the tip rides an arc of the given Radius starting from Ref.
 /// </summary>
 public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double Mul = 1, Vec3? Ref = null, double Radius = 0, bool ShowRange = false, uint Colour = 0);
+
+/// <summary>
+/// The shared gizmo on a command, for numbers that are a position or an orientation rather than a size. Move holds the
+/// parameter each arrow (and plane block) edits along <see cref="Axes"/>; Turn the degrees each ring edits; Scale the factor
+/// the centre block edits. A null entry hides that handle. Drag deltas are multiplied by Mul before landing in the parameter.
+/// Engage (operation, axis) runs when a handle is pressed or stepped to with Tab, before its value is read: a command whose
+/// one number can act about any axis (Rotate) uses it to switch the axis to the ring that was grabbed.
+/// </summary>
+public sealed record GizmoSpec(Vec3 Center, NumberParam?[] Move, NumberParam?[] Turn, NumberParam? Scale = null, Vec3[]? AxesOverride = null, double Mul = 1, Action<int, int>? Engage = null)
+{
+    public static readonly NumberParam?[] None = [null, null, null];
+    public Vec3[] Axes => AxesOverride ?? Core.GizmoVisual.WorldAxes;
+    public bool Supports(int operation) => operation switch { 0 => Move.Any(p => p != null), 1 => Turn.Any(p => p != null), _ => Scale != null };
+    public static GizmoSpec At(Vec3 center, NumberParam? x, NumberParam? y, NumberParam? z, NumberParam? rx = null, NumberParam? ry = null, NumberParam? rz = null, NumberParam? scale = null, Vec3[]? axes = null, double mul = 1, Action<int, int>? engage = null)
+        => new(center, [x, y, z], [rx, ry, rz], scale, axes, mul, engage);
+}
 
 /// <summary>Everything needed to run a command again: how to make it, its picks and its numbers. Stored on the history step the command created.</summary>
 public sealed record FeatureRecipe(Func<Command> Make, string Title, List<object?> Values, List<List<SelItem>> Slots, Dictionary<int, string>? Expressions = null);
@@ -271,7 +287,30 @@ public abstract partial class Command : ObservableObject
         }).ToList();
         var expressions = Params.Select((p, i) => (p, i)).Where(x => x.p is NumberParam { Formula.Length: > 0 })
             .ToDictionary(x => x.i, x => ((NumberParam)x.p).Formula);
-        return new FeatureRecipe(Factory, Title, values, [.. Slots.Select(s => s.Items.ToList())], expressions);
+        return new FeatureRecipe(Factory, Title, values, [.. Slots.Select(CaptureItems)], expressions);
+    }
+
+    /// <summary>Profile picks freeze to the sketch entities they resolve to, so curves added to the sketch later are not silently pulled into the feature.</summary>
+    List<SelItem> CaptureItems(SelectionSlot slot)
+    {
+        if (!slot.ProfileSelection || !slot.Items.Any(it => it.Kind == SelKind.Object)) return slot.Items.ToList();
+        var items = new List<SelItem>();
+        foreach (var it in slot.Items)
+        {
+            if (it.Kind == SelKind.Object && S.Find(it.Obj) is { Kind: ObjKind.Sketch, SketchData: { } sd })
+            {
+                int before = items.Count;
+                for (int sec = 0; sec <= sd.Sections.Count; sec++)
+                {
+                    var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+                    foreach (var e in model.Entities)
+                        if (!e.Construction) items.Add(new SelItem(it.Obj, SelKind.Entity, e.Id, sec));
+                }
+                if (items.Count == before) items.Add(it);
+            }
+            else items.Add(it);
+        }
+        return items;
     }
 
     /// <summary>Fill the picks and numbers from a recipe. Picks of objects that were remade since are translated through <paramref name="map"/>.</summary>
@@ -284,7 +323,8 @@ public abstract partial class Command : ObservableObject
             {
                 if (Slots[i].ProfileSelection && r.Slots[i].Any(it => it.Kind == SelKind.Edge)) Slots[i].SelectionRuleIndex = 1;
                 Slots[i].Items.Clear();
-                foreach (var it in r.Slots[i]) Slots[i].TryAdd(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
+                // recipes restore verbatim: pick-time caps and de-duplication are for picking, not for what was captured
+                foreach (var it in r.Slots[i]) Slots[i].Items.Add(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
             }
             for (int i = 0; i < Params.Count && i < r.Values.Count; i++)
             {
@@ -309,6 +349,17 @@ public abstract partial class Command : ObservableObject
     }
 
     protected virtual FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe;
+
+    /// <summary>
+    /// Recipes restore their numbers by position, so a parameter added in the middle of a command's list shifts every later value of a recipe saved before.
+    /// An upgrade calls this to put the new parameter's value at its place.
+    /// </summary>
+    protected static FeatureRecipe InsertValue(FeatureRecipe recipe, int index, object? value)
+    {
+        var values = new List<object?>(recipe.Values);
+        values.Insert(Math.Min(index, values.Count), value);
+        return recipe with { Values = values, Expressions = recipe.Expressions?.ToDictionary(p => p.Key >= index ? p.Key + 1 : p.Key, p => p.Value) };
+    }
 
     /// <summary>The arrow the user can pull in the viewport (null when there is nothing to pull yet).</summary>
     public virtual HandleSpec? Handle => null;
@@ -410,7 +461,9 @@ public abstract partial class Command : ObservableObject
     /// <summary>Commands can draw markers/curves over the viewport while they are open.</summary>
     public virtual void BuildOverlay(Core.CadSession s, Core.Overlay o) { }
     public IViewportTool? Tool { get; protected set; }
-    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && Handles.Count > 0);
+    /// <summary>The shared gizmo for this command's position/orientation numbers, or null when it has none (see <see cref="GizmoSpec"/>).</summary>
+    public virtual GizmoSpec? Gizmo => null;
+    public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && (Handles.Count > 0 || Gizmo != null));
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
     public CadSession S { get; private set; } = null!;
@@ -440,7 +493,9 @@ public abstract partial class Command : ObservableObject
         return s;
     }
 
-    void RefreshWorkflow()
+    protected virtual IReadOnlyList<string> WorkflowSectionOrder => [];
+
+    protected void RefreshWorkflow()
     {
         var groups = new List<(string title, List<object> items)>();
         void Place(string title, object item)
@@ -454,6 +509,8 @@ public abstract partial class Command : ObservableObject
         foreach (var p in AdvancedSettings) Place("Advanced", p);
         foreach (var p in ResultSettings) Place("Result", p);
         foreach (var slot in ResultSlots) Place("Result", slot);
+        if (WorkflowSectionOrder.Count > 0)
+            groups = groups.OrderBy(g => { int i = WorkflowSectionOrder.ToList().IndexOf(g.title); return i < 0 ? int.MaxValue : i; }).ToList();
         int number = 0;
         foreach (var group in groups)
         {
@@ -497,7 +554,7 @@ public abstract partial class Command : ObservableObject
             {
                 if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
                 foreach (var item in selected)
-                    if (s.Matches(item, seed.Filter)) seed.TryAdd(item);
+                    if (s.Matches(item, seed.Filter)) seed.TryAdd(s.SketchEntityOf(item) ?? item);
             }
             ActivateFirstOpenSlot();
         });
@@ -535,15 +592,23 @@ public abstract partial class Command : ObservableObject
     {
         var slot = ActiveSlot;
         if (slot == null || !S.Matches(item, slot.PickFilter)) return false;
+        if (slot.ProfileSelection && slot.EdgeRule < 0)
+        {
+            // A whole-profile click picks the profile the curve belongs to: the connected chain it shares endpoints with
+            // (a rectangle's four lines, a lone spline alone). Curve objects are already whole profiles; body edges stay edges.
+            slot.Items.Clear();
+            if (item.Kind == SelKind.Edge && S.SketchComponentItems(item) is { Count: > 0 } comp) foreach (var c in comp) slot.Items.Add(c);
+            else if (item.Kind == SelKind.Edge && S.Find(item.Obj) is { Kind: ObjKind.Curve } curve) slot.Items.Add(SelItem.Of(curve));
+            else slot.Items.Add(item);
+            AdvanceSlot(slot); return true;
+        }
+        // A sketch edge kept by another rule (single edge) binds the entity it came from, so it survives later sketch edits.
+        if (item.Kind == SelKind.Edge && !(slot.HasSelectionRules && slot.EdgeRule > 0) && S.SketchEntityOf(item) is { } entity) item = entity;
         if (slot.HasSelectionRules && item.Kind == SelKind.Edge && slot.EdgeRule > 0)
         {
             try { ConfigureInputs(() => SelectionChains.Pick(S, slot, item)); UpdateSlots(); OnChanged(); }
             catch (KernelException e) { S.Say(e.Message, true); }
             return true;
-        }
-        if (slot.ProfileSelection && slot.EdgeRule < 0)
-        {
-            slot.Items.Clear(); slot.Items.Add(item); AdvanceSlot(slot); return true;
         }
         if (slot.Multi && slot.SmartPick && item.Kind == SelKind.Face && PickFeature(slot, item)) return true;
         if (slot.Multi)

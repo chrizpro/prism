@@ -12,16 +12,16 @@ The tab reads left to right: **Select, Datum, Edit, Repair, Transform, Inspect, 
 
 ## The gizmo
 
-There is no button for it. It is open whenever the tab is open. Click a face, hole, slot, pocket, boss or fillet (one click picks the whole feature) and handles appear on it:
+There is no button for it. It is open whenever the tab is open. Click a face, hole, slot, pocket, boss or fillet (one click picks the whole feature) and controls appear on it:
 
 | Handle | Colour | What it does |
 |---|---|---|
-| Move arrows (X, Y, Z) | red, green, blue | Move the selection. A hole, slot, pocket or boss moves as a whole feature; flat faces slide and the body stretches to follow. |
+| The shared gizmo | red, green, blue | Moves the selection along X, Y or Z. It is the same gizmo as the Move tool and sits at the middle of a flat face or at the centre of a feature. A hole, slot, pocket or boss moves as a whole feature; flat faces slide and the body stretches to follow. On a flat face that looks along X, Y or Z, the pull handle stands in for the gizmo arrow in that direction until the face is moved. |
 | Pull | orange | Moves every picked face along its own normal. A positive value moves faces out of the part (a boss grows, a hole gets smaller). |
 | Tilt arc | purple | Tilts a single flat face about its own X direction. |
 | Rim handle | teal | On a round hole or boss, sets the radius. |
 
-Drag a handle, or type a number while it is showing. Only one handle can be used per edit; use another for the next one. The same results are available from the older tools (Offset Face, Move Face, Rotate Face and Edit Feature's move), which the gizmo hands the work to.
+Drag a handle, or type a number while it is showing; the number goes to the control the pointer was last over. Only one handle can be used per edit; use another for the next one. Maintained checks: HDL-H027 in [ViewportHandleTests](../../../Prism.Tests/Headless/Viewport/ViewportHandleTests.cs) and the older [direct gizmo checks](../../../tests/Prism.DirectModelTests/GizmoTests.cs). The same results are available from the older tools (Offset Face, Move Face, Rotate Face and Edit Feature's move), which the gizmo hands the work to.
 
 ## History
 

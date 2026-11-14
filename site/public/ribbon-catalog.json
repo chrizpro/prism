@@ -1,5 +1,5 @@
 {
-  "sourceHash": "5F9EDF0D58DA579AA90C26C04FBCCD414C1248238C828B12480761B511B0869B",
+  "sourceHash": "684A250F4AA7D6727651B5AFB187DBC1B6B7E1E7D47218C175311F92F04AF49A",
   "workspaces": [
     {
       "Id": "design",
@@ -33,6 +33,9 @@
       "Tabs": [
         "Home",
         "ECAD",
+        "Solid",
+        "Sheet Metal",
+        "Direct Modeling",
         "Analyze",
         "View"
       ]
@@ -48,6 +51,7 @@
         "Solid",
         "Surface",
         "Freeform",
+        "NURBS",
         "Direct Modeling",
         "Analyze",
         "View"
@@ -64,6 +68,8 @@
         "Dynamics",
         "Motion",
         "Fluids",
+        "Solid",
+        "Direct Modeling",
         "Analyze",
         "View"
       ]
@@ -71,11 +77,17 @@
     {
       "Id": "assemble",
       "Name": "Assemble",
-      "Tip": "Bottom-up assemblies: insert parts, joint them, test the motion and animate it.",
+      "Tip": "Build assemblies and model their parts, connect joints, test motion and animate.",
       "Tabs": [
         "Home",
         "Assemble",
         "Joints",
+        "Solid",
+        "Surface",
+        "Freeform",
+        "NURBS",
+        "Direct Modeling",
+        "Sheet Metal",
         "Animate",
         "Analyze",
         "View"
@@ -89,6 +101,9 @@
         "Home",
         "Render",
         "Animate",
+        "Solid",
+        "Direct Modeling",
+        "Analyze",
         "View"
       ]
     },
@@ -101,6 +116,9 @@
         "Subtractive",
         "3D FDM",
         "3D Resin",
+        "Solid",
+        "Direct Modeling",
+        "Mesh",
         "Analyze",
         "View"
       ]
@@ -108,13 +126,15 @@
     {
       "Id": "mold",
       "Name": "Mold",
-      "Tip": "Make a two-part mold from a block and the part inside it, split where you choose and shown exploded; check draft and sections with Tooling.",
+      "Tip": "Build and inspect a two-part mold; check draft, sections and geometry directly in Mold.",
       "Tabs": [
         "Home",
         "Solid",
+        "Surface",
+        "Freeform",
+        "NURBS",
         "Direct Modeling",
         "Mold",
-        "Tooling",
         "Analyze",
         "View"
       ]
@@ -254,6 +274,77 @@
       "contextual": false,
       "groups": [
         {
+          "title": "Document",
+          "tools": [
+            {
+              "id": "saveas|Save As",
+              "label": "Save As",
+              "description": "Save the editable Prism document with the matching native file type.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:prism",
+              "label": "Prism document (.prism)",
+              "description": "Write a general editable Prism copy. Finish any open edit and close the exploded view first.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:step",
+              "label": "STEP (.step)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:iges",
+              "label": "IGES (.iges)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:brep",
+              "label": "BREP (.brep)",
+              "description": "Requires visible exact geometry, such as a solid or surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:dxf",
+              "label": "Sketch DXF (.dxf)",
+              "description": "Requires a selected or visible sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:glb",
+              "label": "glTF (.glb)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:3mf",
+              "label": "3MF (.3mf)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:stl",
+              "label": "STL (.stl)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:obj",
+              "label": "OBJ (.obj)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            },
+            {
+              "id": "export-as:ply",
+              "label": "PLY (.ply)",
+              "description": "Requires a mesh, solid or surface in the selection, or visible in the document when nothing is selected.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Select",
           "tools": [
             {
@@ -277,7 +368,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -299,9 +390,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -388,7 +509,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -401,23 +522,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -454,6 +558,18 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
               "shortcut": ""
             },
             {
@@ -650,7 +766,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -662,7 +778,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -743,7 +859,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -765,9 +881,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -843,6 +989,66 @@
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve, or cut it into pieces.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Divide",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -1022,7 +1228,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -1034,7 +1240,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -1115,7 +1321,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -1137,9 +1343,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -1226,7 +1462,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -1239,23 +1475,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1292,6 +1511,12 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1356,6 +1581,18 @@
               "id": "trim|Trim",
               "label": "Trim",
               "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
+              "shortcut": ""
+            },
+            {
+              "id": "splitbody|Split Surface",
+              "label": "Split Surface",
+              "description": "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch.",
               "shortcut": ""
             },
             {
@@ -1432,12 +1669,35 @@
           ]
         },
         {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies and surfaces into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body or surface out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Transform",
           "tools": [
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -1449,7 +1709,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -1548,7 +1808,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -1570,9 +1830,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -1649,12 +1939,13 @@
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
             {
               "id": "knit|Join",
               "label": "Join",
@@ -1686,9 +1977,15 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
               "shortcut": ""
             },
             {
@@ -1996,7 +2293,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2008,7 +2305,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2095,7 +2392,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2117,9 +2414,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -2206,7 +2533,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -2219,23 +2546,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2272,6 +2582,12 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2426,6 +2742,18 @@
               "shortcut": ""
             },
             {
+              "id": "splitbody|Split Surface",
+              "label": "Split Surface",
+              "description": "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch.",
+              "shortcut": ""
+            },
+            {
               "id": "untrim|Untrim",
               "label": "Untrim",
               "description": "Undo a trim: restore the whole natural surface, or just fill the holes in a face.",
@@ -2448,16 +2776,34 @@
               "label": "Offset",
               "description": "Create a parallel copy of a surface or face.",
               "shortcut": ""
+            },
+            {
+              "id": "fill|Enclosed Body",
+              "label": "Enclosed Body",
+              "description": "Make solids from the spaces enclosed by surfaces, planes and bodies.",
+              "shortcut": ""
             }
           ]
         },
         {
-          "title": "Convert",
+          "title": "Combine",
           "tools": [
             {
-              "id": "to-nurbs|Convert to NURBS",
-              "label": "Convert to NURBS",
-              "description": "Convert the selection to editable NURBS geometry.",
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies and surfaces into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body or surface out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
               "shortcut": ""
             }
           ]
@@ -2468,7 +2814,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2480,7 +2826,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2579,7 +2925,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2601,9 +2947,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -2731,7 +3107,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2743,7 +3119,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2835,7 +3211,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2857,9 +3233,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -2975,12 +3381,35 @@
           ]
         },
         {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Transform",
           "tools": [
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2992,7 +3421,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -3073,7 +3502,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3095,9 +3524,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3158,6 +3617,12 @@
           "title": "Board",
           "tools": [
             {
+              "id": "import|Import STEP",
+              "label": "Import board STEP",
+              "description": "Import a board and component geometry from a STEP file.",
+              "shortcut": ""
+            },
+            {
               "id": "pcb|Rectangular board",
               "label": "Rectangular board",
               "description": "Board thickness, elevation and four optional mounting holes.",
@@ -3172,7 +3637,7 @@
             {
               "id": "pcb-hole|Mounting Hole",
               "label": "Mounting Hole",
-              "description": "Cut a mechanical mounting hole along world Z.",
+              "description": "Click a board face to cut a mounting hole.",
               "shortcut": ""
             }
           ]
@@ -3183,70 +3648,65 @@
             {
               "id": "component|Component Envelope",
               "label": "Component Envelope",
-              "description": "Place a package envelope or mechanical keepout, with top/bottom side and rotation.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Mechanical checks",
-          "tools": [
-            {
-              "id": "interference|Interference",
-              "label": "Interference",
-              "description": "Find overlapping components or enclosure bodies. This is a mechanical check, not an electrical design rule.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Exchange",
-          "tools": [
-            {
-              "id": "import|Import STEP",
-              "label": "Import STEP",
-              "description": "Import board/component models exported by an ECAD application.",
+              "description": "Create a package envelope or mechanical keepout.",
               "shortcut": ""
             },
             {
-              "id": "export|Export STEP",
-              "label": "Export STEP",
-              "description": "Export visible board and component geometry for mechanical exchange.",
+              "id": "component|Place on Board",
+              "label": "Place on Board",
+              "description": "Click a flat board face to position a component solid.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Transform",
-          "tools": [
+            },
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
               "id": "rotate|Rotate",
               "label": "Rotate",
-              "description": "Rotate objects around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "scale|Scale",
-              "label": "Scale",
-              "description": "Resize objects uniformly.",
-              "shortcut": ""
-            },
-            {
-              "id": "mirror|Mirror",
-              "label": "Mirror",
-              "description": "Reflect objects across a plane.",
+              "description": "Orient a component.",
               "shortcut": ""
             },
             {
               "id": "duplicate|Duplicate",
               "label": "Duplicate",
-              "description": "Copy the selected objects.",
+              "description": "Copy a selected component.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Fit check",
+          "tools": [
+            {
+              "id": "interference|Interference",
+              "label": "Interference",
+              "description": "Find overlapping solids.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Check Clearance",
+              "label": "Check Clearance",
+              "description": "Compare the gap between two solids with a required clearance.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section View",
+              "label": "Section View",
+              "description": "Look inside the board and enclosure.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Export",
+          "tools": [
+            {
+              "id": "export|Export STEP",
+              "label": "Export STEP",
+              "description": "Review which bodies will be included, then export STEP.",
               "shortcut": ""
             }
           ]
@@ -3347,6 +3807,12 @@
           "title": "Setup",
           "tools": [
             {
+              "id": "mold-import|Import mold",
+              "label": "Import mold",
+              "description": "Import exact mold solids from a .prism_mld file.",
+              "shortcut": ""
+            },
+            {
               "id": "cnc|CAM setup",
               "label": "CAM setup",
               "description": "Stock, G54 work zero and shared tool settings.",
@@ -3373,7 +3839,7 @@
           ]
         },
         {
-          "title": "CNC",
+          "title": "Toolpaths",
           "tools": [
             {
               "id": "cnc-profile|Profile",
@@ -3430,9 +3896,9 @@
               "shortcut": ""
             },
             {
-              "id": "gcode|Post G-code",
-              "label": "Post G-code",
-              "description": "Post existing CNC toolpaths for GRBL, Mach3 or LinuxCNC.",
+              "id": "cnc|Constant-Z Finish",
+              "label": "Constant-Z Finish",
+              "description": "Finish steep walls with horizontal contours at successive heights.",
               "shortcut": ""
             }
           ]
@@ -3471,6 +3937,17 @@
               "shortcut": ""
             }
           ]
+        },
+        {
+          "title": "Export",
+          "tools": [
+            {
+              "id": "gcode|Post G-code",
+              "label": "Post G-code",
+              "description": "Post reviewed CNC toolpaths for GRBL, Mach3 or LinuxCNC.",
+              "shortcut": ""
+            }
+          ]
         }
       ]
     },
@@ -3479,35 +3956,29 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Preparation",
+          "title": "Prepare",
           "tools": [
+            {
+              "id": "rotate|Place on bed",
+              "label": "Place on bed",
+              "description": "Pick the flat face of a CAD solid to set it down at Z = 0.",
+              "shortcut": ""
+            },
             {
               "id": "print3d|FDM check",
               "label": "FDM check",
-              "description": "Check nozzle-based walls, overhangs, bed contact, build fit and filament weight on CAD bodies or meshes.",
-              "shortcut": ""
-            },
-            {
-              "id": "rotate|Orient part",
-              "label": "Orient part",
-              "description": "Rotate the model for bed contact, supports and layer strength.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh|Split mesh",
-              "label": "Split mesh",
-              "description": "Split an imported mesh to fit the build volume.",
+              "description": "Check walls, overhangs, bed contact and fit against your build dimensions.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Mesh preparation",
+          "title": "Troubleshoot",
           "tools": [
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
-              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "description": "Merge vertices, fix normals and fill holes in imported meshes.",
               "shortcut": ""
             },
             {
@@ -3519,7 +3990,7 @@
             {
               "id": "mesh-overhang|Overhang \u0026 Orientation",
               "label": "Overhang \u0026 Orientation",
-              "description": "Find what needs supports and the best way to lay the part down.",
+              "description": "Find overhangs and compare orientations.",
               "shortcut": ""
             },
             {
@@ -3527,28 +3998,11 @@
               "label": "Wall Thickness",
               "description": "Color the part by wall thickness.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Nozzle review",
-          "tools": [
-            {
-              "id": "gcode|Import nozzle path",
-              "label": "Import nozzle path",
-              "description": "Read linear G0/G1 output from an external slicer.",
-              "shortcut": ""
             },
             {
-              "id": "animation|Playback",
-              "label": "Playback",
-              "description": "Animate nozzle travel and extrusion paths.",
-              "shortcut": ""
-            },
-            {
-              "id": "toolpath|Layer view",
-              "label": "Layer view",
-              "description": "Inspect imported print layers.",
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Inspect model geometry.",
               "shortcut": ""
             }
           ]
@@ -3559,13 +4013,7 @@
             {
               "id": "print3d|Export for printing",
               "label": "Export for printing",
-              "description": "Write 3MF, STL, OBJ or PLY and open in your slicer.",
-              "shortcut": ""
-            },
-            {
-              "id": "check|Check geometry",
-              "label": "Check geometry",
-              "description": "Inspect model geometry.",
+              "description": "Review the bodies and write a model for your slicer.",
               "shortcut": ""
             }
           ]
@@ -3577,31 +4025,49 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Resin preparation",
+          "title": "Prepare",
           "tools": [
             {
-              "id": "print3d|Resin check",
-              "label": "Resin check",
-              "description": "Screen cavities, drainage, potential cups, islands, thin features and build fit.",
+              "id": "mold-import|Import mold",
+              "label": "Import mold",
+              "description": "Import exact mold solids from a .prism_mld file.",
+              "shortcut": ""
+            },
+            {
+              "id": "rotate|Tilt part",
+              "label": "Tilt part",
+              "description": "Tilt the model, then rerun resin checks to compare cups, islands and peak layer area.",
               "shortcut": ""
             },
             {
               "id": "shell|Hollow body",
               "label": "Hollow body",
-              "description": "Hollow an exact CAD body with a chosen wall thickness; add drainage and recheck.",
+              "description": "Hollow a CAD body with a chosen wall thickness.",
               "shortcut": ""
             },
             {
               "id": "pcb-hole|Drain / vent hole",
               "label": "Drain / vent hole",
-              "description": "Cut a plain drainage or vent hole through a selected face or exact body.",
+              "description": "Cut a plain drain or vent hole from an entry face into the cavity.",
+              "shortcut": ""
+            },
+            {
+              "id": "print3d|Resin check",
+              "label": "Resin check",
+              "description": "Screen cavities, drainage, potential cups, islands, thin features and build fit.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Mesh preparation",
+          "title": "Troubleshoot",
           "tools": [
+            {
+              "id": "section|Section",
+              "label": "Section",
+              "description": "Inspect hollow walls and drainage paths.",
+              "shortcut": ""
+            },
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
@@ -3618,23 +4084,6 @@
               "id": "mesh-thickness|Wall Thickness",
               "label": "Wall Thickness",
               "description": "Color the part by wall thickness.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Orientation \u0026 inspection",
-          "tools": [
-            {
-              "id": "rotate|Tilt part",
-              "label": "Tilt part",
-              "description": "Tilt the model, then rerun resin checks to compare cups, islands and peak layer area.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section",
-              "label": "Section",
-              "description": "Inspect hollow walls and drainage paths.",
               "shortcut": ""
             },
             {
@@ -3651,7 +4100,7 @@
             {
               "id": "print3d|Export for resin",
               "label": "Export for resin",
-              "description": "Export 3MF/STL to your resin slicer for supports and exposure settings.",
+              "description": "Review the bodies and write a model for your resin slicer.",
               "shortcut": ""
             }
           ]
@@ -3686,7 +4135,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3708,9 +4157,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3847,7 +4326,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3869,9 +4348,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3912,7 +4421,7 @@
           ]
         },
         {
-          "title": "Get a mesh",
+          "title": "Import \u0026 Convert",
           "tools": [
             {
               "id": "mesh-import|Import Mesh",
@@ -3941,12 +4450,18 @@
           ]
         },
         {
-          "title": "Region",
+          "title": "Check",
           "tools": [
             {
-              "id": "mesh-select|Select Region",
-              "label": "Select Region",
-              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
+              "id": "mesh-quality|Mesh Quality",
+              "label": "Mesh Quality",
+              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
               "shortcut": ""
             }
           ]
@@ -3957,19 +4472,13 @@
             {
               "id": "mesh-repair|Repair",
               "label": "Repair",
-              "description": "Merge vertices, remove junk, fix normals and fill holes.",
+              "description": "Repair the entire mesh or a selected region; preview the holes to fill.",
               "shortcut": ""
             },
             {
-              "id": "mesh-check|Print Check",
-              "label": "Print Check",
-              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-quality|Mesh Quality",
-              "label": "Mesh Quality",
-              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "id": "mesh-select|Select Region",
+              "label": "Select Region",
+              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
               "shortcut": ""
             }
           ]
@@ -3994,17 +4503,22 @@
               "label": "Smooth",
               "description": "Remove scanner noise without shrinking the part.",
               "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Modify",
+          "tools": [
+            {
+              "id": "mesh-cut|Split",
+              "label": "Split",
+              "description": "Cut with a plane and cap the halves.",
+              "shortcut": ""
             },
             {
               "id": "mesh-offset|Offset",
               "label": "Offset",
               "description": "Grow or shrink the surface (tolerances, clearances).",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-cut|Split",
-              "label": "Split",
-              "description": "Cut with a plane and cap the halves.",
               "shortcut": ""
             },
             {
@@ -4029,12 +4543,7 @@
               "label": "Overhang \u0026 Orientation",
               "description": "Find what needs supports and the best way to lay the part down.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Display",
-          "tools": [
+            },
             {
               "id": "clear-analysis|Clear Colors",
               "label": "Clear Colors",
@@ -4049,7 +4558,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -4061,7 +4570,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -4142,7 +4651,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4164,9 +4673,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4207,7 +4746,7 @@
           ]
         },
         {
-          "title": "Set up",
+          "title": "Prepare",
           "tools": [
             {
               "id": "mesh-align|Align",
@@ -4224,52 +4763,52 @@
           ]
         },
         {
-          "title": "Sketch from scan",
+          "title": "Sketch from Scan",
           "tools": [
             {
               "id": "mesh-section|Section Sketch",
               "label": "Section Sketch",
-              "description": "Put a plane on the scan and get an editable sketch of fitted lines, arcs and circles to extrude or revolve.",
+              "description": "Create editable lines, arcs and circles from a scan section. Add dimensions and constraints, then extrude or revolve to build parametric features.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Fit",
+          "title": "Fit Surfaces",
           "tools": [
             {
               "id": "mesh-fit|Segment \u0026 Fit",
               "label": "Segment \u0026 Fit",
-              "description": "Find planes, cylinders, spheres and cones in a scan, read their sizes, and make them exact surfaces.",
+              "description": "Identify and measure regions across a scan; optionally create separate fitted CAD surfaces.",
               "shortcut": ""
             },
             {
               "id": "mesh-patch|Fit Surface to Region",
               "label": "Fit Surface to Region",
-              "description": "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-fit|Rebuild from Scan",
-              "label": "Rebuild from Scan",
-              "description": "Automatic reverse engineering: fit all surface types, merge, build faces and edge curves, sew, and report the deviation to the scan.",
+              "description": "Choose a region and fit one exact surface or smooth NURBS patch. This does not recover a feature history.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Convert",
+          "title": "Rebuild",
           "tools": [
+            {
+              "id": "mesh-fit|Rebuild from Scan",
+              "label": "Rebuild from Scan",
+              "description": "Fit faces and attempt a shell or direct-edit solid. This does not recover the original sketches or feature history.",
+              "shortcut": ""
+            },
             {
               "id": "form-scan|Freeform from Scan",
               "label": "Freeform from Scan",
-              "description": "Wrap an editable quad cage around the scan.",
+              "description": "Create an editable freeform cage around the scan for manual shape refinement.",
               "shortcut": ""
             },
             {
               "id": "mesh-solid|Mesh to Solid",
               "label": "Mesh to Solid",
-              "description": "Last resort: a CAD body with one face per triangle. Heavy, and hard to edit.",
+              "description": "Last resort: one CAD face per triangle. Heavy, hard to edit, and no recovered feature history.",
               "shortcut": ""
             }
           ]
@@ -4297,7 +4836,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -4309,7 +4848,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -4390,7 +4929,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4412,9 +4951,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4426,12 +4995,24 @@
           ]
         },
         {
-          "title": "Study",
+          "title": "Setup",
           "tools": [
             {
               "id": "sim-study|New Study",
               "label": "New Study",
               "description": "Start a static stress study on the selected solid body. Select several touching bodies to study them together, each with its own material.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-new|Select static study",
+              "label": "Select Study",
+              "description": "Choose a saved static study.",
+              "shortcut": ""
+            },
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Pick the material: stiffness and strength come from the library.",
               "shortcut": ""
             }
           ]
@@ -4498,6 +5079,12 @@
               "shortcut": ""
             },
             {
+              "id": "sim-mesh|Mesh refinement",
+              "label": "Refinement",
+              "description": "Compare three meshes using displacement.",
+              "shortcut": ""
+            },
+            {
               "id": "sim-run|Run Study",
               "label": "Run Study",
               "description": "Mesh (if needed) and solve.",
@@ -4506,25 +5093,60 @@
           ]
         },
         {
-          "title": "Generative",
+          "title": "Results",
           "tools": [
             {
-              "id": "generative|Generative Design",
-              "label": "Generative Design",
-              "description": "Let the software find the lightest stiff shape for the supports and loads you set: it removes the material that carries the least. The result is a new mesh body.",
+              "id": "sim-stress|von Mises Stress",
+              "label": "von Mises Stress",
+              "description": "Color by equivalent stress.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-displacement|Displace- ment",
+              "label": "Displacement",
+              "description": "Color by how far each point moves.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-safety|Factor of Safety",
+              "label": "Safety Factor",
+              "description": "Yield strength divided by stress: below 1 means yielding.",
+              "shortcut": ""
+            },
+            {
+              "id": "sim-probe|Probe",
+              "label": "Probe",
+              "description": "Click the result to read values.",
+              "shortcut": ""
+            },
+            {
+              "id": "clear-analysis|Clear Results",
+              "label": "Clear Results",
+              "description": "Show the normal model again.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Study workflow",
+          "title": "Advanced",
           "tools": [
             {
-              "id": "sim-new|Select static study",
-              "label": "Select static study",
-              "description": "Select a saved static study.",
+              "id": "cae-fatigue|Fatigue",
+              "label": "Fatigue",
+              "description": "Inspect fatigue under repeated loading.",
               "shortcut": ""
             },
+            {
+              "id": "generative|Generative Design",
+              "label": "Generative Design",
+              "description": "Find a lighter shape from the study supports and loads.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Reuse \u0026 Export",
+          "tools": [
             {
               "id": "sim-fixed|Save face selection",
               "label": "Save face selection",
@@ -4544,67 +5166,9 @@
               "shortcut": ""
             },
             {
-              "id": "sim-mesh|Mesh refinement",
-              "label": "Mesh refinement",
-              "description": "Compare three meshes using displacement.",
-              "shortcut": ""
-            },
-            {
               "id": "export|Export results",
               "label": "Export results",
               "description": "Export static nodal results and metadata.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Results",
-          "tools": [
-            {
-              "id": "sim-stress|von Mises Stress",
-              "label": "von Mises Stress",
-              "description": "Color by equivalent stress.",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-displacement|Displace- ment",
-              "label": "Displace- ment",
-              "description": "Color by how far each point moves.",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-safety|Factor of Safety",
-              "label": "Factor of Safety",
-              "description": "Yield strength divided by stress: below 1 means yielding.",
-              "shortcut": ""
-            },
-            {
-              "id": "cae-fatigue|Fatigue",
-              "label": "Fatigue",
-              "description": "Fatigue life and safety factor of the solved study under repeated loading (stress-life).",
-              "shortcut": ""
-            },
-            {
-              "id": "sim-probe|Probe",
-              "label": "Probe",
-              "description": "Click the result to read values.",
-              "shortcut": ""
-            },
-            {
-              "id": "clear-analysis|Clear Results",
-              "label": "Clear Results",
-              "description": "Show the normal model again.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -4616,18 +5180,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Conduction",
+          "title": "Setup",
           "tools": [
             {
               "id": "cae-thermal|Thermal Analysis",
               "label": "Thermal Analysis",
-              "description": "Steady or transient conduction with prescribed temperatures in one homogeneous solid.",
+              "description": "Set up steady or transient heating and cooling.",
+              "shortcut": ""
+            },
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Assign conductivity, density and heat capacity.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Saved workflow",
+          "title": "Reuse",
           "tools": [
             {
               "id": "sim-run|Saved setups",
@@ -4644,23 +5214,12 @@
           ]
         },
         {
-          "title": "Review",
+          "title": "Results",
           "tools": [
             {
               "id": "clear-analysis|Clear Results",
               "label": "Clear Results",
               "description": "Return to normal model shading.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -4672,18 +5231,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Vibration",
+          "title": "Setup",
           "tools": [
             {
               "id": "cae-modal|Natural Frequencies",
               "label": "Natural Frequencies",
-              "description": "Linear modal frequencies and arbitrary-amplitude mode shapes; fixed faces on one homogeneous solid.",
+              "description": "Set up natural frequencies and vibration modes.",
+              "shortcut": ""
+            },
+            {
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Assign elastic modulus, Poisson ratio and density.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Saved workflow",
+          "title": "Reuse",
           "tools": [
             {
               "id": "sim-run|Saved setups",
@@ -4700,23 +5265,18 @@
           ]
         },
         {
-          "title": "Review",
+          "title": "Results",
           "tools": [
+            {
+              "id": "cae-modal|Show Mode",
+              "label": "Show Mode",
+              "description": "Open the returned mode controls.",
+              "shortcut": ""
+            },
             {
               "id": "clear-analysis|Clear Results",
               "label": "Clear Results",
               "description": "Return to normal model shading.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
               "shortcut": ""
             }
           ]
@@ -4728,134 +5288,52 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Mechanism",
+          "title": "Setup",
           "tools": [
             {
-              "id": "component|Make Part",
-              "label": "Make Part",
-              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
+              "id": "motion-dynamics|Motion Study",
+              "label": "Motion Study",
+              "description": "Set joint drives and inspect movement, forces and reactions.",
               "shortcut": ""
             },
             {
-              "id": "component|Insert Component",
-              "label": "Insert Component",
-              "description": "Place a part from another open document or a part file.",
-              "shortcut": ""
-            },
-            {
-              "id": "component|Parts Library",
-              "label": "Parts Library",
-              "description": "Browse and insert parts for the mechanism. The same parts library as the Assemble workspace.",
-              "shortcut": ""
-            },
-            {
-              "id": "ground|Ground",
-              "label": "Ground",
-              "description": "Fix the selected component in place. Motion is solved outwards from the grounded part.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-rigid|Rigid",
-              "label": "Rigid",
-              "description": "Lock one component to another.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-revolute|Revolute",
-              "label": "Revolute",
-              "description": "A hinge or shaft: the second component turns about the axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-slider|Slider",
-              "label": "Slider",
-              "description": "The second component slides along one direction.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-cyl|Cylindrical",
-              "label": "Cylindrical",
-              "description": "Turns about an axis and slides along it.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-ball|Ball",
-              "label": "Ball",
-              "description": "Pivots about a point.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-planar|Planar",
-              "label": "Planar",
-              "description": "Slides over a flat face in two directions.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-gear|Couple",
-              "label": "Couple",
-              "description": "Make one joint follow another at a ratio: gears, belts and chains, a rack, pulley or screw, or a lever or cable.",
-              "shortcut": ""
-            },
-            {
-              "id": "joint-revolute|Drive Joints",
-              "label": "Drive Joints",
-              "description": "Move the joints by hand to check the mechanism before simulating it.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Assign materials when calculating masses and forces.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Springs and loads",
+          "title": "Loads",
           "tools": [
             {
               "id": "motion-spring|Spring / Actuator",
               "label": "Spring / Actuator",
-              "description": "A spring, damper or cylinder between two points (or a point and a fixed body).",
+              "description": "Add a spring, damper or actuator between points.",
               "shortcut": ""
             },
             {
               "id": "motion-force|Force / Torque",
               "label": "Force / Torque",
-              "description": "A force or torque on a part, constant, a pulse or alternating.",
+              "description": "Apply a constant, pulsed or alternating force or torque.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Simulate",
+          "title": "Results",
           "tools": [
-            {
-              "id": "motion-dynamics|Motion Study",
-              "label": "Motion Study",
-              "description": "Move any mechanism: choose how each joint moves and read the motion, paths and collisions. With masses and forces on, also motor torque, power, energy and joint reactions.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Review",
-          "tools": [
-            {
-              "id": "motion-force|Load from Motion",
-              "label": "Load from Motion",
-              "description": "Turn the force a joint held in the last Motion Study into a load in a new Static study.",
-              "shortcut": ""
-            },
             {
               "id": "clear-analysis|Clear Results",
               "label": "Clear Results",
               "description": "Remove the motion paths from the model.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
+            },
             {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
+              "id": "motion-force|Load from Motion",
+              "label": "Load from Motion",
+              "description": "Use a calculated joint reaction in a new Static study.",
               "shortcut": ""
             }
           ]
@@ -4867,24 +5345,24 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Pipe flow",
+          "title": "Pipe Calculations",
           "tools": [
-            {
-              "id": "cae-network|Pipe Network",
-              "label": "Pipe Network",
-              "description": "Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.",
-              "shortcut": ""
-            },
             {
               "id": "cae-fluid|Pipe Flow",
               "label": "Pipe Flow",
               "description": "Incompressible circular-pipe pressure drop and Reynolds number for one pipe.",
               "shortcut": ""
+            },
+            {
+              "id": "cae-network|Pipe Network",
+              "label": "Pipe Network",
+              "description": "Steady flow through pipes and pumps: how the flow splits, the pressure at each point and where a pump settles.",
+              "shortcut": ""
             }
           ]
         },
         {
-          "title": "3D flow",
+          "title": "3D Flow",
           "tools": [
             {
               "id": "cae-flow|Flow Study",
@@ -4924,7 +5402,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4946,9 +5424,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4960,8 +5468,14 @@
           ]
         },
         {
-          "title": "Components",
+          "title": "Add Parts",
           "tools": [
+            {
+              "id": "component|Insert Component",
+              "label": "Insert Component",
+              "description": "Place a part from another open document or a part file. Model each part on its own first (bottom-up).",
+              "shortcut": ""
+            },
             {
               "id": "component|Parts Library",
               "label": "Parts Library",
@@ -4969,9 +5483,26 @@
               "shortcut": ""
             },
             {
-              "id": "component|Insert Component",
-              "label": "Insert Component",
-              "description": "Place a part from another open document or a part file. Model each part on its own first (bottom-up).",
+              "id": "component|Create Part",
+              "label": "Create Part",
+              "description": "Start a new part inside this assembly. It opens in the Design workspace; press Finish part and return when it is done.",
+              "shortcut": ""
+            },
+            {
+              "id": "component|Make Part",
+              "label": "Make Part",
+              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Assemble",
+          "tools": [
+            {
+              "id": "ground|Ground",
+              "label": "Ground",
+              "description": "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.",
               "shortcut": ""
             },
             {
@@ -4981,17 +5512,16 @@
               "shortcut": ""
             },
             {
-              "id": "component|Create Part",
-              "label": "Create Part",
-              "description": "Start a new part inside this assembly. It opens in the Design workspace; press Back to assembly when it is done.",
+              "id": "joint-rigid|Mate",
+              "label": "Mate",
+              "description": "Snap a free component onto another by two faces: touching, flush or a set distance apart.",
               "shortcut": ""
-            },
-            {
-              "id": "component|Make Part",
-              "label": "Make Part",
-              "description": "Turn solid bodies in this file into parts, so joints can connect them. Picking a body with a joint tool does this for you.",
-              "shortcut": ""
-            },
+            }
+          ]
+        },
+        {
+          "title": "Manage Parts",
+          "tools": [
             {
               "id": "component|Edit Part",
               "label": "Edit Part",
@@ -4999,27 +5529,9 @@
               "shortcut": ""
             },
             {
-              "id": "joint-rigid|Mate",
-              "label": "Mate",
-              "description": "Snap a free component onto another by two faces: touching, flush or a set distance apart.",
-              "shortcut": ""
-            },
-            {
               "id": "pattern-linear|Component Pattern",
               "label": "Component Pattern",
               "description": "Repeat a component in a line or around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "component|Parts List",
-              "label": "Parts List",
-              "description": "Count every part, with material, mass and cost from each part\u0027s info. Save it as a CSV.",
-              "shortcut": ""
-            },
-            {
-              "id": "ground|Ground",
-              "label": "Ground",
-              "description": "Fix the selected component in place. Joints are solved outwards from grounded components. The first component is grounded for you.",
               "shortcut": ""
             },
             {
@@ -5034,15 +5546,15 @@
           "title": "Review",
           "tools": [
             {
-              "id": "explode|Exploded View",
-              "label": "Exploded View",
-              "description": "Pull the parts apart to see how they fit. The real positions are untouched.",
-              "shortcut": ""
-            },
-            {
               "id": "interference|Interference",
               "label": "Interference",
               "description": "Find where components overlap.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Measure",
+              "label": "Measure",
+              "description": "Measure distances and angles between components.",
               "shortcut": ""
             },
             {
@@ -5052,9 +5564,15 @@
               "shortcut": ""
             },
             {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure distances and angles between components.",
+              "id": "component|Parts List",
+              "label": "Parts List",
+              "description": "Count every part, with material, mass and cost from each part\u0027s info. Save it as a CSV.",
+              "shortcut": ""
+            },
+            {
+              "id": "explode|Exploded View",
+              "label": "Exploded View",
+              "description": "Pull the parts apart to see how they fit. The real positions are untouched.",
               "shortcut": ""
             }
           ]
@@ -5106,7 +5624,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -5128,9 +5646,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -5222,7 +5770,7 @@
             {
               "id": "animation|New Animation",
               "label": "New Animation",
-              "description": "Create an empty animation (5 seconds).",
+              "description": "Open a new five-second animation in the timeline.",
               "shortcut": ""
             },
             {
@@ -5274,30 +5822,12 @@
       "contextual": false,
       "groups": [
         {
-          "title": "Render",
+          "title": "Materials",
           "tools": [
             {
-              "id": "render|Render Image",
-              "label": "Render Image",
-              "description": "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install.",
-              "shortcut": ""
-            },
-            {
-              "id": "animation|Render Animation",
-              "label": "Render Animation",
-              "description": "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.",
-              "shortcut": ""
-            },
-            {
-              "id": "save|Save Picture",
-              "label": "Save Picture",
-              "description": "Save the last render as a PNG in Documents\\Prism\\Renders.",
-              "shortcut": ""
-            },
-            {
-              "id": "cancel|Close Picture",
-              "label": "Close Picture",
-              "description": "Hide the rendered picture and return to the model.",
+              "id": "materials|Materials",
+              "label": "Materials",
+              "description": "Colours and finishes: metals and glossy plastics reflect in the render.",
               "shortcut": ""
             }
           ]
@@ -5338,6 +5868,51 @@
           ]
         },
         {
+          "title": "Camera",
+          "tools": [
+            {
+              "id": "look-at|Look At",
+              "label": "Look At",
+              "description": "Look straight at the selected plane, face or sketch (N).",
+              "shortcut": "N"
+            }
+          ]
+        },
+        {
+          "title": "Render",
+          "tools": [
+            {
+              "id": "render|Render Image",
+              "label": "Render Image",
+              "description": "Make a realistic picture of what is on screen: soft shadows, reflections, studio or sky light. Built in, nothing to install.",
+              "shortcut": ""
+            },
+            {
+              "id": "animation|Render Animation",
+              "label": "Render Animation",
+              "description": "Render an animation (joint motion, exploded view) and/or a camera turntable as pictures, a GIF and, with ffmpeg installed, an MP4.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Output",
+          "tools": [
+            {
+              "id": "save|Save Picture",
+              "label": "Save Picture",
+              "description": "Save the last render as a PNG in Documents\\Prism\\Renders.",
+              "shortcut": ""
+            },
+            {
+              "id": "cancel|Close Picture",
+              "label": "Close Picture",
+              "description": "Hide the rendered picture and return to the model.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Share",
           "tools": [
             {
@@ -5350,46 +5925,6 @@
               "id": "cancel|Stop Sharing",
               "label": "Stop Sharing",
               "description": "Stop serving the AR page to phones.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
-              "shortcut": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "Tooling",
-      "contextual": false,
-      "groups": [
-        {
-          "title": "Mold inspection",
-          "tools": [
-            {
-              "id": "draft|Draft analysis",
-              "label": "Draft analysis",
-              "description": "Check pull-direction draft.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section analysis",
-              "label": "Section analysis",
-              "description": "Inspect cavities and walls.",
-              "shortcut": ""
-            },
-            {
-              "id": "check|Check geometry",
-              "label": "Check geometry",
-              "description": "Check tooling geometry.",
               "shortcut": ""
             }
           ]
@@ -5406,7 +5941,7 @@
             {
               "id": "mold-file|Import from file",
               "label": "Import from file",
-              "description": "Bring a part in from your hard drive (STEP, IGES or BREP) as a reference part, ready for a mold.",
+              "description": "Bring a part in from a Prism, STEP, IGES or BREP file as a reference part, ready for a mold.",
               "shortcut": ""
             },
             {
@@ -5424,6 +5959,29 @@
               "id": "mold|Create Mold",
               "label": "Create Mold",
               "description": "Cut a part out of a block, split the block and pull the halves apart.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Inspect",
+          "tools": [
+            {
+              "id": "draft|Draft analysis",
+              "label": "Draft analysis",
+              "description": "Check pull-direction draft.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Section analysis",
+              "label": "Section analysis",
+              "description": "Inspect cavities and walls.",
+              "shortcut": ""
+            },
+            {
+              "id": "check|Check geometry",
+              "label": "Check geometry",
+              "description": "Check tooling geometry.",
               "shortcut": ""
             }
           ]
@@ -5550,7 +6108,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -5572,9 +6130,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -5636,6 +6224,12 @@
               "shortcut": ""
             },
             {
+              "id": "spline|Spline",
+              "label": "Spline",
+              "description": "Draw splines through fit points or shaped by control points.",
+              "shortcut": ""
+            },
+            {
               "id": "polygon|Polygon",
               "label": "Polygon",
               "description": "Draw regular polygons. Choose inscribed or circumscribed and the number of sides in the options bar.",
@@ -5652,18 +6246,24 @@
               "label": "Text",
               "description": "Type words, pick a font and size, then click to place them as closed outlines you can extrude or emboss.",
               "shortcut": ""
-            },
-            {
-              "id": "spline|Spline",
-              "label": "Spline",
-              "description": "Draw splines through fit points or shaped by control points.",
-              "shortcut": ""
             }
           ]
         },
         {
           "title": "Modify",
           "tools": [
+            {
+              "id": "trim|Trim",
+              "label": "Trim",
+              "description": "Cut a line, arc or circle back to the curves that cross it. Click the part to remove.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset",
+              "label": "Offset",
+              "description": "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter.",
+              "shortcut": ""
+            },
             {
               "id": "move|Transform",
               "label": "Transform",
@@ -5677,21 +6277,9 @@
               "shortcut": ""
             },
             {
-              "id": "trim|Trim",
-              "label": "Trim",
-              "description": "Cut a line, arc or circle back to the curves that cross it. Click the part to remove.",
-              "shortcut": ""
-            },
-            {
               "id": "extend|Extend",
               "label": "Extend",
               "description": "Lengthen a line or arc until it meets the next curve. Click near the end you want to extend.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset",
-              "label": "Offset",
-              "description": "Copy a curve (or a whole connected chain) a set distance to one side. Select curves (Shift-click adds), press Enter to finish selecting, then move to a side and click, or type the distance and press Enter.",
               "shortcut": ""
             },
             {
@@ -6005,19 +6593,19 @@
             {
               "id": "visibility-off|Hide",
               "label": "Hide",
-              "description": "Hide the selected objects. Show All brings them back.",
+              "description": "Hide the selected objects. With faces selected, hide just those faces; this is saved with the document. Show All brings them back.",
               "shortcut": ""
             },
             {
               "id": "isolate|Isolate",
               "label": "Isolate",
-              "description": "Hide everything except the selected objects.",
+              "description": "Hide everything except the selected objects. With faces selected, show only those faces; Show All brings the rest back.",
               "shortcut": ""
             },
             {
               "id": "visibility-on|Show All",
               "label": "Show All",
-              "description": "Show every hidden object.",
+              "description": "Show every hidden object, every hidden face and every face hidden by Isolate.",
               "shortcut": ""
             },
             {

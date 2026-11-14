@@ -15,7 +15,7 @@ namespace Prism.HeadlessTests.Solid;
 [Trait("Layer", "Headless")]
 public class SelectionTests
 {
-    [AvaloniaFact(DisplayName = "SOL-H074 | Vertex selection opens cage editing only for a selected Freeform body")]
+    [AvaloniaFact(DisplayName = "SOL-H074 | Vertex picks corner points of bodies, and opens cage editing for a selected Freeform body")]
     [Trait("TestId", "SOL-H074")]
     public void VertexRequiresFreeformCage()
     {
@@ -25,9 +25,11 @@ public class SelectionTests
         var solid = CreateBoxBody(session, Vec3.Zero, 4, 6, 8);
         session.SelectItems([SelItem.Of(solid)]);
         vertex.Refresh();
-        Assert.False(vertex.IsEnabled);
+        Assert.True(vertex.IsEnabled);                       // owner direction 2026-11-13: bodies have a Vertex level too
         vertex.Invoke();
         Assert.Null(session.ActiveCommand);
+        Assert.Equal(SelMode.Vertex, session.Mode);
+        session.Mode = SelMode.Object;
 
         var form = session.AddObject(null, "Cage", ObjKind.Form, form: FormOps.Box(4, 6, 8, 1, 1, 1));
         session.SelectItems([SelItem.Of(form)]);

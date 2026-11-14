@@ -39,7 +39,7 @@ public class CurveToolTests
         var session = new CadSession();
         var source = LCurve(session);
         var command = Begin(session, () => new CurveFilletCommand(chamfer: false));
-        Pick(command, "Flat curve or sketch", source);
+        Pick(command, "Flat curve or sketch, or edges of a surface", source);
         SetNumber(command, "Fillet radius", 5);
         var curve = SingleCurve(BuildOutput(command));
         AssertClose(40 - 10 + Math.PI / 2 * 5, Length(curve), 1e-3, "Filleted length (mm)");
@@ -56,7 +56,7 @@ public class CurveToolTests
         var source = LCurve(session);
         var command = Begin(session, () => new CurveFilletCommand(chamfer: true));
         Assert.Equal("Chamfer (cut)", command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Corners").Selected);
-        Pick(command, "Flat curve or sketch", source);
+        Pick(command, "Flat curve or sketch, or edges of a surface", source);
         SetNumber(command, "Chamfer distance", 3);
         var curve = SingleCurve(BuildOutput(command));
         AssertClose(40 - 6 + 3 * Math.Sqrt(2), Length(curve), 1e-6, "Chamfered length (mm)");
@@ -86,7 +86,7 @@ public class CurveToolTests
         var session = new CadSession();
         var source = LCurve(session);
         var command = Begin(session, () => new CurveFilletCommand(chamfer: false));
-        Pick(command, "Flat curve or sketch", source);
+        Pick(command, "Flat curve or sketch, or edges of a surface", source);
         SetToggle(command, "Keep the original curve", keep);
         var output = BuildOutput(command);
         if (keep) Assert.Empty(output.Remove);

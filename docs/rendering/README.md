@@ -4,6 +4,8 @@ Canonical guide for the CPU renderer, HDR environment lighting, final denoising,
 
 ## Status and scope
 
+Owner approved materials-first organization and consistent progress on 2026-11-11 ([#126](https://github.com/chrizpro/prism/issues/126)). Render follows **Materials → Lighting → Camera → Render → Output**. Materials are directly accessible first; Save Picture and Close Picture are in Output. Rendering uses the shared [operation progress strip](../interface/operation-progress.md), including real sample/frame fractions and cooperative Stop. Render workspace also offers Solid, Direct Modeling and Analyze for geometry corrections and inspection.
+
 **Owner approved proceeding on 2026-11-05** after reviewing priorities: HDR lighting, denoising and better texture placement, then transmission/refraction and directional metal reflections. The approved scope is implemented and verified below. Further rendering features remain outside this delivery.
 
 ## Approved behavior

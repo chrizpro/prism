@@ -63,6 +63,39 @@ public abstract class ManufacturingCheckCommand : AnalysisCommand
     }
 }
 
+public sealed class PlaceOnBedCommand : Command
+{
+    readonly SelectionSlot _face;
+
+    public PlaceOnBedCommand() =>
+        _face = Slot(new SelectionSlot { Label = "Face to place on bed", Filter = SelFilter.Face });
+
+    public override string Title => "Place on bed";
+    public override string Icon => "rotate";
+    public override string OkText => "Place";
+    public override string Hint => "Pick a flat face of a CAD solid to preview placing it face-down on the XY plane.";
+
+    protected override CommandOutput? Build()
+    {
+        if (_face.Items.Count == 0) return null;
+        var item = _face.Items[0];
+        var body = S.Find(item.Obj);
+        using var face = body?.Kind == ObjKind.Solid ? S.ShapeOf(item) : null;
+        if (face == null || Occ.FaceInfoOf(face).Type != "Plane" || S.FaceFrame(item) is not { } frame)
+            throw new FormatException("Pick a flat face of a CAD solid.");
+
+        var (axis, angle) = MeshAnalysis.Align(frame.normal, -Vec3.UnitZ);
+        using var rotated = Occ.Rotate(body!.Shape, frame.point, axis, angle);
+        double bottom = rotated.Props().Min.Z;
+        if (bottom < frame.point.Z - 1e-4)
+            throw new FormatException("Other geometry would go below the bed. Choose a different face.");
+
+        var output = new CommandOutput();
+        output.Replace.Add((body, Occ.Translate(rotated, new Vec3(0, 0, -bottom))));
+        return output;
+    }
+}
+
 public sealed class FdmCheckCommand : ManufacturingCheckCommand
 {
     readonly NumberParam _nozzle,_walls,_angle,_x,_y,_z,_infill,_density;
@@ -71,7 +104,8 @@ public sealed class FdmCheckCommand : ManufacturingCheckCommand
         _nozzle=Num("Nozzle diameter",.4,.1,3,.05);_walls=Num("Minimum perimeter lines",2,1,10,1);
         _angle=Num("Overhang threshold",45,10,80,5,"°");
         _x=Num("Build width X",256,1,5000);_y=Num("Build depth Y",256,1,5000);_z=Num("Build height Z",256,1,5000);
-        _infill=Num("Infill for weight estimate",20,0,100,5,"%");_density=Num("Filament density",1.24,.1,10,.01,"g/ml");
+        _infill=Add(new NumberParam { Label="Infill for weight estimate", Value=20, Min=0, Max=100, Step=5, Unit="%", IsAdvanced=true });
+        _density=Add(new NumberParam { Label="Filament density", Value=1.24, Min=.1, Max=10, Step=.01, Unit="g/ml", IsAdvanced=true });
     }
     public override string Title=>"FDM Preparation";
     public override string Icon=>"print3d";

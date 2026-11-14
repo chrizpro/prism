@@ -2,7 +2,7 @@
  {
   "name": "animation",
   "title": "Animation",
-  "hint": "Scrub to a time, change the joint values or the exploded view, and press 'Key the changed values'. Play to see it move. Save animation stores the keys with the document. Render Animation (Render tab) turns it into pictures or a movie.",
+  "hint": "Set a pose and press Add Key. Select a key to edit its time and value in the right panel. Save animation stores the clip with the document.",
   "slots": [],
   "params": [],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -83,6 +83,36 @@
     "unit": "",
     "min": 0.1,
     "max": 4
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "board_clearance",
+  "title": "Check Clearance",
+  "hint": "Pick two solids and enter the minimum gap they need. Use Interference to identify actual overlap.",
+  "slots": [
+   {
+    "label": "Component or board",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Enclosure or obstacle",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Required clearance",
+    "type": "number",
+    "default": 1,
+    "unit": "mm",
+    "min": 0.01,
+    "max": 1000
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -256,6 +286,11 @@
     "unit": "mm"
    },
    {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
+   },
+   {
     "label": "Operation",
     "type": "choice",
     "default": "New body",
@@ -308,7 +343,7 @@
    {
     "label": "Output folder",
     "type": "text",
-    "default": "Prism/CAE"
+    "default": "Documents\\Prism\\CAE"
    },
    {
     "label": "Export static results",
@@ -429,7 +464,8 @@
     "options": [
      "Around the body (wind or water tunnel)",
      "Through the body (the body is the fluid)"
-    ]
+    ],
+    "help": "Through uses the volume occupied by the fluid. Pick a solid representing the inside of the duct."
    },
    {
     "label": "Flow direction",
@@ -534,7 +570,7 @@
  {
   "name": "cae_kinematics",
   "title": "Motion Study",
-  "hint": "Choose how each joint moves, press Run study, then scrub or play the motion. It reports every joint's position, speed and acceleration, the paths and speeds of the parts, and where they collide. Turn on masses and forces for motor torque, power, energy and joint reactions; springs, loads and gravity then act, and every part needs a material. Set a joint to Free to let it move under those forces. Set joints to Follow the tool path to make a point on the mechanism trace a curve. Parts are rigid and joints and gears ideal: no flexing, tooth contact, backlash or contact between moving parts.",
+  "hint": "Choose a joint and set how it moves, then Run study. Movement only checks the motion; Include forces also reports motor effort and joint reactions. Parts stay rigid; contact is not simulated.",
   "slots": [],
   "params": [],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -709,7 +745,7 @@
  {
   "name": "cae_motion",
   "title": "Motion Study",
-  "hint": "Choose how each joint moves, press Run study, then scrub or play the motion. It reports every joint's position, speed and acceleration, the paths and speeds of the parts, and where they collide. Turn on masses and forces for motor torque, power, energy and joint reactions; springs, loads and gravity then act, and every part needs a material. Set a joint to Free to let it move under those forces. Set joints to Follow the tool path to make a point on the mechanism trace a curve. Parts are rigid and joints and gears ideal: no flexing, tooth contact, backlash or contact between moving parts.",
+  "hint": "Choose a joint and set how it moves, then Run study. Movement only checks the motion; Include forces also reports motor effort and joint reactions. Parts stay rigid; contact is not simulated.",
   "slots": [],
   "params": [],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -867,7 +903,7 @@
  {
   "name": "cae_robot_path",
   "title": "Motion Study",
-  "hint": "Choose how each joint moves, press Run study, then scrub or play the motion. It reports every joint's position, speed and acceleration, the paths and speeds of the parts, and where they collide. Turn on masses and forces for motor torque, power, energy and joint reactions; springs, loads and gravity then act, and every part needs a material. Set a joint to Free to let it move under those forces. Set joints to Follow the tool path to make a point on the mechanism trace a curve. Parts are rigid and joints and gears ideal: no flexing, tooth contact, backlash or contact between moving parts.",
+  "hint": "Choose a joint and set how it moves, then Run study. Movement only checks the motion; Include forces also reports motor effort and joint reactions. Parts stay rigid; contact is not simulated.",
   "slots": [],
   "params": [],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -1161,7 +1197,7 @@
    {
     "label": "Setup sheet folder",
     "type": "text",
-    "default": "Prism/CAM"
+    "default": "Documents\\Prism\\CAM"
    },
    {
     "label": "Save setup sheet",
@@ -1565,6 +1601,118 @@
     "label": "Finish the walls with one pass",
     "type": "boolean",
     "default": true
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "cnc_constant_z",
+  "title": "CNC Constant-Z Finish",
+  "hint": "Finish steep walls with a flat end mill after roughing. Set the Z range and depth per pass. The tool follows a new horizontal contour at each height and retracts between contours. Review stock, entry moves and fixture clearance before posting.",
+  "slots": [
+   {
+    "label": "Model to finish",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Tool from the library",
+    "type": "choice",
+    "default": "Custom (my own values)",
+    "options": [
+     "Custom (my own values)",
+     "3 mm flat end mill, aluminium",
+     "6 mm flat end mill, aluminium",
+     "10 mm flat end mill, aluminium",
+     "6 mm flat end mill, wood / MDF",
+     "6 mm flat end mill, plastic",
+     "6 mm flat end mill, mild steel",
+     "3 mm ball nose, aluminium",
+     "6 mm ball nose, wood / MDF"
+    ]
+   },
+   {
+    "label": "Tool diameter",
+    "type": "number",
+    "default": 6,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100
+   },
+   {
+    "label": "Spindle speed",
+    "type": "number",
+    "default": 12000,
+    "unit": "rpm",
+    "min": 100,
+    "max": 60000
+   },
+   {
+    "label": "Cutting feed",
+    "type": "number",
+    "default": 800,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 20000
+   },
+   {
+    "label": "Plunge feed",
+    "type": "number",
+    "default": 300,
+    "unit": "mm/min",
+    "min": 1,
+    "max": 10000
+   },
+   {
+    "label": "Depth per pass",
+    "type": "number",
+    "default": 0.5,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Clearance above the material",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.5,
+    "max": 100
+   },
+   {
+    "label": "Top of the material (Z)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Total cutting depth",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 10000
+   },
+   {
+    "label": "Finish top Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Finish bottom Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -2923,6 +3071,11 @@
     "unit": "mm"
    },
    {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
+   },
+   {
     "label": "Operation",
     "type": "choice",
     "default": "New body",
@@ -3237,7 +3390,7 @@
  {
   "name": "create_part",
   "title": "Create Part",
-  "hint": "Make a new part for this assembly. It opens in the Design workspace on the right tab (Solid, Sheet Metal, Surface, Freeform, NURBS or Scan) with the rest of the assembly left behind. Press Back to assembly when you are done and the part is placed here. You can switch tabs later: all the modeling tabs stay available.",
+  "hint": "Model a new part in its own tab. Visible assembly components appear dimmed for reference. Press Finish part and return to insert the finished part.",
   "slots": [],
   "params": [
    {
@@ -3375,13 +3528,13 @@
  },
  {
   "name": "curve_chamfer",
-  "title": "Fillet / Chamfer Curve",
-  "hint": "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. An open curve keeps its two ends. The curve has to lie in one plane.",
+  "title": "Fillet / Chamfer",
+  "hint": "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. Or pick edges where two faces of a surface or body meet: those edges are rounded or cut on the surface itself. Sew separate surfaces first so they share the edge.",
   "slots": [
    {
-    "label": "Flat curve or sketch",
+    "label": "Flat curve or sketch, or edges of a surface",
     "accepts": "AnyCurve, Edge",
-    "multi": false,
+    "multi": true,
     "optional": false
    }
   ],
@@ -3748,13 +3901,13 @@
  },
  {
   "name": "curve_fillet",
-  "title": "Fillet / Chamfer Curve",
-  "hint": "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. An open curve keeps its two ends. The curve has to lie in one plane.",
+  "title": "Fillet / Chamfer",
+  "hint": "Pick a flat curve or sketch: every corner is rounded (or cut) by the size you set. Or pick edges where two faces of a surface or body meet: those edges are rounded or cut on the surface itself. Sew separate surfaces first so they share the edge.",
   "slots": [
    {
-    "label": "Flat curve or sketch",
+    "label": "Flat curve or sketch, or edges of a surface",
     "accepts": "AnyCurve, Edge",
-    "multi": false,
+    "multi": true,
     "optional": false
    }
   ],
@@ -3938,9 +4091,24 @@
  {
   "name": "curve_on_surface",
   "title": "Draw on Surface",
-  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes.",
+  "hint": "Click points on a surface, surface body, freeform form, NURBS surface or mesh. A smooth curve passes through them, even over the edge onto the next face. Click the first point again (or tick Closed loop) to join the curve into a closed loop. Drag a point to move it; Delete removes the selected point. Esc stops adding points so you can adjust them, then Enter or Make curve finishes. Under Result choose Split to divide the face along the curve instead of keeping the curve.",
   "slots": [],
   "params": [
+   {
+    "label": "Result",
+    "type": "choice",
+    "default": "Curve",
+    "options": [
+     "Curve",
+     "Split the face along the curve"
+    ],
+    "help": "Split divides the face you drew on into two faces along the curve. An end that stops short of an edge is run on to it."
+   },
+   {
+    "label": "Closed loop",
+    "type": "boolean",
+    "default": false
+   },
    {
     "label": "Add more points",
     "type": "action"
@@ -4315,6 +4483,11 @@
     "unit": "mm"
    },
    {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
+   },
+   {
     "label": "Operation",
     "type": "choice",
     "default": "New body",
@@ -4446,7 +4619,7 @@
  {
   "name": "direct_edit",
   "title": "Direct Edit",
-  "hint": "Click a face, hole, slot, pocket, boss or fillet. Drag a coloured arrow to move it, the orange handle to pull it out or in along its own normal, or the purple arc to tilt a flat face. Type a number while a handle is showing to set it exactly. Delete removes the feature.",
+  "hint": "Click a face, hole, slot, pocket, boss or fillet. Drag the gizmo to move it, the orange handle to pull it out or in along its own normal, or the purple arc to tilt a flat face. Type a number while a handle is showing to set it exactly. Delete removes the feature.",
   "slots": [
    {
     "label": "Click a face or feature (a hole, slot, pocket, boss or fillet)",
@@ -5886,7 +6059,8 @@
     "default": 20,
     "unit": "%",
     "min": 0,
-    "max": 100
+    "max": 100,
+    "advanced": true
    },
    {
     "label": "Filament density",
@@ -5894,7 +6068,8 @@
     "default": 1.24,
     "unit": "g/ml",
     "min": 0.1,
-    "max": 10
+    "max": 10,
+    "advanced": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7205,7 +7380,7 @@
  {
   "name": "hole",
   "title": "Hole",
-  "hint": "Select a body or an entry face. The hole starts at the face center (body selections use the top center). Click the face where you want the hole, click again for more holes, drag a dot to move it (Ctrl+click an extra dot removes it). Offsets are in U/V. Choose a plain hole or a modeled 60° thread; Diameter is the thread's nominal major diameter. Closed forms become exact bodies. Meshes must first be converted with Mesh to Solid.",
+  "hint": "Select a body or an entry face. The hole starts at the face center (body selections use the top center). Click the face where you want the hole, click again for more holes, drag a dot to move it (Ctrl+click an extra dot removes it), drag the circle to resize it. Offsets are in U/V. Choose a plain hole or a modeled 60° thread; Diameter is the thread's nominal major diameter. Closed forms become exact bodies. Meshes must first be converted with Mesh to Solid.",
   "slots": [
    {
     "label": "Body or entry face",
@@ -7369,7 +7544,20 @@
     "type": "choice",
     "default": "Untitled",
     "options": [
-     "Untitled"
+     "Untitled",
+     "Untitled 2",
+     "Untitled 3",
+     "Untitled 4",
+     "Untitled 5",
+     "Untitled 6",
+     "Untitled 7",
+     "Untitled 8",
+     "Untitled 9",
+     "Untitled 10",
+     "Untitled 11",
+     "Untitled 12",
+     "Untitled 13",
+     "wrench"
     ]
    },
    {
@@ -7394,6 +7582,11 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
    },
    {
     "label": "Ground it (fix it in place)",
@@ -7459,7 +7652,7 @@
  {
   "name": "intersect_curves",
   "title": "Intersection Curve",
-  "hint": "Pick two planes, flat or curved faces, or bodies: the curve where they cross is created. Two planes give a straight line, a plane through a body gives the outline of the cut. Or choose Two flat curves: each curve on its own plane is projected along that plane's normal and the shared 3D curve is created. Use it for sweep rails, loft guides and sketch references.",
+  "hint": "Pick two planes, flat or curved faces, or bodies: the curve where they cross is created. Two planes give a straight line, a plane through a body gives the outline of the cut. Or pick two flat curves (they are recognised on their own; Between can force either kind): each curve on its own plane is projected along that plane's normal and the shared 3D curve is created. Use it for sweep rails, loft guides and sketch references.",
   "slots": [
    {
     "label": "First",
@@ -7478,10 +7671,11 @@
    {
     "label": "Between",
     "type": "choice",
-    "default": "Planes, faces or bodies",
+    "default": "Automatic (from what you pick)",
     "options": [
-     "Planes, faces or bodies",
-     "Two flat curves (projected)"
+     "Automatic (from what you pick)",
+     "Two flat curves (projected)",
+     "Planes, faces or bodies"
     ]
    },
    {
@@ -7519,6 +7713,15 @@
      "Automatic",
      "Flip",
      "Do not flip"
+    ]
+   },
+   {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "Keep where it is"
     ]
    },
    {
@@ -7591,6 +7794,15 @@
     ]
    },
    {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "Keep where it is"
+    ]
+   },
+   {
     "label": "Limit the motion",
     "type": "boolean",
     "default": false
@@ -7657,6 +7869,15 @@
      "Automatic",
      "Flip",
      "Do not flip"
+    ]
+   },
+   {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "Keep where it is"
     ]
    },
    {
@@ -7729,6 +7950,15 @@
     ]
    },
    {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "Keep where it is"
+    ]
+   },
+   {
     "label": "Limit the motion",
     "type": "boolean",
     "default": false
@@ -7771,7 +8001,7 @@
  {
   "name": "joint_rigid",
   "title": "Rigid Joint",
-  "hint": "Pick a face or circle on each part (a plain body becomes a part when you pick it). The second part snaps so the two points coincide and then stays locked to the first.",
+  "hint": "Pick a face or circle on each part to snap them together. Choose As Positioned to lock two parts where they already sit.",
   "slots": [
    {
     "label": "On the first part (face, circle edge or round face)",
@@ -7795,6 +8025,15 @@
      "Automatic",
      "Flip",
      "Do not flip"
+    ]
+   },
+   {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "As Positioned"
     ]
    },
    {
@@ -7864,6 +8103,15 @@
      "Automatic",
      "Flip",
      "Do not flip"
+    ]
+   },
+   {
+    "label": "Placement",
+    "type": "choice",
+    "default": "Snap to picks",
+    "options": [
+     "Snap to picks",
+     "Keep where it is"
     ]
    },
    {
@@ -8350,7 +8598,7 @@
  {
   "name": "measure",
   "title": "Measure",
-  "hint": "Click a face, edge or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.",
+  "hint": "Click a face, edge, corner point or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.",
   "slots": [],
   "params": [
    {
@@ -8612,7 +8860,7 @@
  {
   "name": "mesh_fill_holes",
   "title": "Fill Holes",
-  "hint": "Fixes the usual scan and STL problems so the mesh can be printed or converted: merges split vertices, removes junk triangles, makes normals face outward and closes holes.",
+  "hint": "Repair the entire mesh or the region chosen with Select Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.",
   "slots": [
    {
     "label": "Meshes",
@@ -8622,6 +8870,16 @@
    }
   ],
   "params": [
+   {
+    "label": "Repair scope",
+    "type": "choice",
+    "default": "Entire mesh",
+    "options": [
+     "Entire mesh",
+     "Selected region"
+    ],
+    "help": "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Select Region. Shared vertices stay in place."
+   },
    {
     "label": "Merge duplicate vertices",
     "type": "boolean",
@@ -9155,7 +9413,7 @@
  {
   "name": "mesh_repair",
   "title": "Repair Mesh",
-  "hint": "Fixes the usual scan and STL problems so the mesh can be printed or converted: merges split vertices, removes junk triangles, makes normals face outward and closes holes.",
+  "hint": "Repair the entire mesh or the region chosen with Select Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.",
   "slots": [
    {
     "label": "Meshes",
@@ -9165,6 +9423,16 @@
    }
   ],
   "params": [
+   {
+    "label": "Repair scope",
+    "type": "choice",
+    "default": "Entire mesh",
+    "options": [
+     "Entire mesh",
+     "Selected region"
+    ],
+    "help": "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Select Region. Shared vertices stay in place."
+   },
    {
     "label": "Merge duplicate vertices",
     "type": "boolean",
@@ -9675,7 +9943,7 @@
  {
   "name": "mesh_to_solid",
   "title": "Mesh to Solid",
-  "hint": "Turns a mesh into a CAD body made of one flat face per triangle, so you can cut, combine and measure it. Large meshes are reduced first. For a clean parametric rebuild use Segment & Fit.",
+  "hint": "Fallback conversion: one flat CAD face per triangle, with no recovered feature history. Large meshes are reduced first. For a parametric rebuild, use Section Sketch, add dimensions and build your own features.",
   "slots": [
    {
     "label": "Mesh",
@@ -9724,7 +9992,7 @@
  {
   "name": "mirror",
   "title": "Mirror",
-  "hint": "Select the objects to transform, then pull the arrows in the viewport or type numbers.",
+  "hint": "Select the objects to mirror and choose the mirror plane.",
   "slots": [
    {
     "label": "Objects",
@@ -9868,9 +10136,21 @@
    {
     "label": "Open tab",
     "type": "choice",
-    "default": "(no other tab is open)",
+    "default": "Untitled",
     "options": [
-     "(no other tab is open)"
+     "Untitled",
+     "Untitled 2",
+     "Untitled 3",
+     "Untitled 4",
+     "Untitled 5",
+     "Untitled 6",
+     "Untitled 7",
+     "Untitled 8",
+     "Untitled 9",
+     "Untitled 10",
+     "Untitled 11",
+     "Untitled 12",
+     "Untitled 13"
     ]
    }
   ],
@@ -10134,7 +10414,7 @@
  {
   "name": "move",
   "title": "Move",
-  "hint": "Select the objects to transform, then pull the arrows in the viewport or type numbers.",
+  "hint": "Select the objects to transform, then drag the gizmo in the viewport or type numbers.",
   "slots": [
    {
     "label": "Objects",
@@ -10303,7 +10583,7 @@
  {
   "name": "move_face",
   "title": "Move Face",
-  "hint": "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.",
+  "hint": "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. On a surface any face, flat or curved, is carried by the move and walls join it back to its neighbours. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.",
   "slots": [
    {
     "label": "Flat faces to move",
@@ -10535,7 +10815,7 @@
  {
   "name": "offset_face",
   "title": "Offset Face",
-  "hint": "Edit existing geometry: pick faces and a distance, and every face moves along its own normal. Positive moves a face out of the part (the body grows), negative moves it in. Flat faces slide and their neighbours extend or trim to follow; a whole hole or boss changes radius (a hole gets smaller when offset out). Clicking any face of a hole, slot, pocket or boss picks the whole feature.",
+  "hint": "Edit existing geometry: pick faces and a distance, and every face moves along its own normal. Positive moves a face out of the part (the body grows), negative moves it in. On a surface the face is carried along its normal and walls join it back to its neighbours, like a raised or sunk panel. Flat faces slide and their neighbours extend or trim to follow; a whole hole or boss changes radius (a hole gets smaller when offset out). Clicking any face of a hole, slot, pocket or boss picks the whole feature.",
   "slots": [
    {
     "label": "Faces to offset",
@@ -11223,11 +11503,11 @@
  {
   "name": "pcb_hole",
   "title": "PCB Mounting Hole",
-  "hint": "Cut a mechanical through-hole along world Z at the specified XY position. Use on a board lying in XY; rotate the completed assembly afterward.",
+  "hint": "Click a flat board face where the hole should go. For a board in XY, you can also select its whole body and enter world X and Y.",
   "slots": [
    {
     "label": "Board body",
-    "accepts": "Solid",
+    "accepts": "Solid, Face",
     "multi": false,
     "optional": false
    }
@@ -11391,6 +11671,63 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "place_on_bed",
+  "title": "Place on bed",
+  "hint": "Pick a flat face of a CAD solid to preview placing it face-down on the XY plane.",
+  "slots": [
+   {
+    "label": "Face to place on bed",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "place_on_board",
+  "title": "Place on Board",
+  "hint": "Pick an upright component solid, then click its location on a flat board face. The bottom center of the component lands there. Use Rotation on board to aim the connector.",
+  "slots": [
+   {
+    "label": "Component body",
+    "accepts": "Solid",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Board face",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Board offset U",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Board offset V",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Rotation on board",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "planar_surface",
   "title": "Planar Surface",
   "hint": "Pick closed sketches or curves. Nested loops become holes.",
@@ -11414,7 +11751,7 @@
    {
     "label": "Folder",
     "type": "text",
-    "default": "Prism/Print"
+    "default": "Documents\\Prism\\Print"
    },
    {
     "label": "File name",
@@ -11474,6 +11811,10 @@
     "default": ""
    },
    {
+    "label": "Review export",
+    "type": "action"
+   },
+   {
     "label": "Export",
     "type": "action"
    },
@@ -11531,7 +11872,7 @@
  {
   "name": "push_pull",
   "title": "Push / Pull",
-  "hint": "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on flat surface faces (they sweep into a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.",
+  "hint": "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on surface faces (flat ones sweep, curved ones grow a slab along their normals; both make a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.",
   "slots": [
    {
     "label": "Faces to push or pull",
@@ -11571,7 +11912,7 @@
  {
   "name": "rebuild_surface",
   "title": "Rebuild Surface",
-  "hint": "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely.",
+  "hint": "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.",
   "slots": [
    {
     "label": "Surface or face",
@@ -12107,7 +12448,7 @@
    {
     "label": "Folder",
     "type": "text",
-    "default": "Prism/Print"
+    "default": "Documents\\Prism\\Print"
    },
    {
     "label": "File name",
@@ -12165,6 +12506,10 @@
     "label": "Program path (optional override)",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Review export",
+    "type": "action"
    },
    {
     "label": "Export",
@@ -12342,7 +12687,7 @@
  {
   "name": "rib",
   "title": "Rib",
-  "hint": "Select a planar sketch of open rib lines and a solid body. The lines grow in the sketch plane by the chosen height, then gain thickness across the plane. The rib must touch the body; reverse the height direction if needed.",
+  "hint": "Select a planar sketch of straight rib lines and a solid body. By default the rib fills the web between each line and the body, like a gusset in a corner, and gains thickness across the sketch plane; Reverse switches to the other side of the line. Choose Fixed height to grow the lines in the sketch plane by a set height instead. The rib must touch the body.",
   "slots": [
    {
     "label": "Rib sketch",
@@ -12358,6 +12703,15 @@
    }
   ],
   "params": [
+   {
+    "label": "Rib extends",
+    "type": "choice",
+    "default": "Up to the body (fills the web)",
+    "options": [
+     "Up to the body (fills the web)",
+     "Fixed height"
+    ]
+   },
    {
     "label": "Thickness",
     "type": "number",
@@ -12404,7 +12758,7 @@
  {
   "name": "rotate",
   "title": "Rotate",
-  "hint": "Select the objects to transform, then pull the arrows in the viewport or type numbers.",
+  "hint": "Select the objects to transform, then drag the gizmo in the viewport or type numbers.",
   "slots": [
    {
     "label": "Objects",
@@ -12525,7 +12879,7 @@
  {
   "name": "scale",
   "title": "Scale",
-  "hint": "Select the objects to transform, then pull the arrows in the viewport or type numbers.",
+  "hint": "Select the objects to scale. Uniform scales every dimension together (drag the block on the gizmo, or type a factor). Per axis stretches each of X, Y and Z by its own factor: drag the arrows on the object's faces, or type the factors. Stretching follows the world axes.",
   "slots": [
    {
     "label": "Objects",
@@ -12536,9 +12890,42 @@
   ],
   "params": [
    {
+    "label": "Scale type",
+    "type": "choice",
+    "default": "Uniform",
+    "options": [
+     "Uniform",
+     "Per axis (stretch)"
+    ]
+   },
+   {
     "label": "Factor",
     "type": "number",
     "default": 1.5,
+    "unit": "×",
+    "min": 0.001,
+    "max": 1000
+   },
+   {
+    "label": "Factor X",
+    "type": "number",
+    "default": 1.5,
+    "unit": "×",
+    "min": 0.001,
+    "max": 1000
+   },
+   {
+    "label": "Factor Y",
+    "type": "number",
+    "default": 1,
+    "unit": "×",
+    "min": 0.001,
+    "max": 1000
+   },
+   {
+    "label": "Factor Z",
+    "type": "number",
+    "default": 1,
     "unit": "×",
     "min": 0.001,
     "max": 1000
@@ -12618,7 +13005,7 @@
  {
   "name": "section",
   "title": "Section",
-  "hint": "Cut the model with a plane to look inside; the cut outline, area and perimeter are reported. Drag the offset to scan through the part.",
+  "hint": "Choose Movable plane for a cut centered on the model. Drag its arrow to move the cut and the grips on its rings to tilt it. The size handle changes the display footprint.",
   "slots": [
    {
     "label": "Bodies (none = all)",
@@ -12642,7 +13029,8 @@
      "XY (cut across Z)",
      "XZ (cut across Y)",
      "YZ (cut across X)",
-     "Custom plane or planar face"
+     "Custom plane or planar face",
+     "Movable plane"
     ]
    },
    {
@@ -12650,6 +13038,36 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Plane travel",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Tilt about X",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -180,
+    "max": 180
+   },
+   {
+    "label": "Tilt about Y",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -180,
+    "max": 180
+   },
+   {
+    "label": "Plane display size",
+    "type": "number",
+    "default": 100,
+    "unit": "%",
+    "min": 20,
+    "max": 300
    },
    {
     "label": "Flip side",
@@ -13301,6 +13719,11 @@
     "unit": "mm"
    },
    {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
+   },
+   {
     "label": "Operation",
     "type": "choice",
     "default": "New body",
@@ -13354,6 +13777,38 @@
    }
   ],
   "params": [],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "split_surface",
+  "title": "Split Surface",
+  "hint": "Pick the surface, then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.",
+  "slots": [
+   {
+    "label": "Surface to split",
+    "accepts": "SurfaceObj",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Splitting tool (plane, face, surface, sketch, curve or solid)",
+    "accepts": "Solid, SurfaceObj, AnyCurve, Face, Edge, Plane",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Result",
+    "type": "choice",
+    "default": "One surface, several faces",
+    "options": [
+     "One surface, several faces",
+     "Separate surfaces"
+    ],
+    "help": "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color."
+   }
+  ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
@@ -13667,6 +14122,11 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Move with gizmo",
+    "type": "boolean",
+    "default": false
    },
    {
     "label": "Operation",

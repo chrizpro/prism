@@ -192,7 +192,7 @@ public sealed class PushPullCommand : Command
     public override string Icon => "pushpull";
     public override string OkText => "Apply";
     public override HandleSpec? Handle => _faces.Items.Count == 0 ? null : SurfaceHandle(_faces.Items[0], _dist);
-    public override string Hint => "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on flat surface faces (they sweep into a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
+    public override string Hint => "Pick one or more faces, then pull the orange arrow or type a distance. Positive pulls the face out (the body grows), negative pushes it in (material is removed). Works on flat faces, on whole holes and bosses (the radius changes) and on surface faces (flat ones sweep, curved ones grow a slab along their normals; both make a solid). No history needed. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     protected override CommandOutput? Build()
     {
@@ -209,8 +209,9 @@ public sealed class PushPullCommand : Command
                 {
                     var face = S.ShapeOf(it) ?? throw new FormatException("That face is gone.");
                     var info = Occ.FaceInfoOf(face);
-                    if (info.Type != "Plane") throw new FormatException("Only flat surface faces can be pulled into a solid. For a curved surface use Thicken.");
-                    o.Add.Add(new NewObject(Occ.Extrude(face, info.Normal.Normalized() * _dist.Value), "Pulled face", ObjKind.Solid));
+                    // a flat face sweeps straight; a curved face grows a slab that follows its own normals
+                    var solid = info.Type == "Plane" ? Occ.Extrude(face, info.Normal.Normalized() * _dist.Value) : Occ.Thicken(face, _dist.Value);
+                    o.Add.Add(new NewObject(solid, "Pulled face", ObjKind.Solid));
                 }
                 Results.Add(new ResultLine("Surface faces pulled into solids", $"{grp.Count()}  by {_dist.Value:0.##} mm"));
                 continue;
@@ -275,15 +276,19 @@ public sealed class MoveHoleCommand : Command
             if (_faces.Items.Count == 0 || DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body
                 || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } feat || feat.Round is not { } r) return [];
             var (u, _) = SurfaceMath.Basis(feat.Dir.Normalized());
-            var list = new List<HandleSpec>
-            {
-                new(feat.Centre, Vec3.UnitX, _dx), new(feat.Centre, Vec3.UnitY, _dy), new(feat.Centre, Vec3.UnitZ, _dz),
-                new(r.Origin, u, _dia, 2),                      // the tip sits at the new radius (half the diameter)
-            };
-            return list;
+            return [new(r.Origin, u, _dia, 2)];                 // the tip sits at the new radius (half the diameter)
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_faces.Items.Count == 0 || DirectHelpers.BodyOf(S, _faces.Items[0]) is not { } body
+                || FeatureFinder.FeatureOf(body, _faces.Items[0].Index) is not { } feat || feat.Round == null) return null;
+            return GizmoSpec.At(feat.Centre + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
+        }
+    }
     public override string Hint => "Click the round face of a hole or boss, then type how far to move it (for example Move Z = -10 slides it down 10 mm). You can also give a new diameter. Every face of the same hole is picked up automatically, and its depth is kept. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     sealed record Feature(List<int> Faces, Vec3 Origin, Vec3 Dir, double Radius, bool IsHole, double T0, double T1);
@@ -519,10 +524,7 @@ public sealed class MoveFaceCommand : Command
         get
         {
             if (_faces.Items.Count == 0 || S.PlaneOf(_faces.Items[0]) is not { } pl) return [];
-            var list = new List<HandleSpec>
-            {
-                new(pl.Origin, Vec3.UnitX, _dx), new(pl.Origin, Vec3.UnitY, _dy), new(pl.Origin, Vec3.UnitZ, _dz),
-            };
+            var list = new List<HandleSpec>();
             var info = Occ.FaceInfoOf(S.ShapeOf(_faces.Items[0])!); var n = info.Normal.Normalized();
             Vec3 axis = _axis.Index switch { 0 => pl.U, 1 => pl.V, 2 => Vec3.UnitX, 3 => Vec3.UnitY, _ => Vec3.UnitZ };
             var n0 = n - axis * Vec3.Dot(n, axis);
@@ -535,7 +537,19 @@ public sealed class MoveFaceCommand : Command
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
-    public override string Hint => "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
+    /// <summary>The move is a position change: the shared gizmo at the face, world axes, riding on the typed offset.</summary>
+    public override GizmoSpec? Gizmo => _faces.Items.Count == 0 || Anchor() is not { } at ? null
+        : GizmoSpec.At(at + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz);
+
+    /// <summary>Where the gizmo sits: the middle of a flat face, or of a curved face of a surface.</summary>
+    Vec3? Anchor()
+    {
+        var item = _faces.Items[0];
+        if (S.PlaneOf(item) is { } pl) return pl.Origin;
+        if (S.Find(item.Obj) is not { Kind: ObjKind.Surface, HasBrep: true }) return null;
+        try { return S.ShapeOf(item) is { } face ? ToolShapes.Centroid(face) : null; } catch (KernelException) { return null; }
+    }
+    public override string Hint => "Pick flat faces, then type how far to move them and/or how far to tilt them about the middle of the face. On a surface any face, flat or curved, is carried by the move and walls join it back to its neighbours. Only the part of the move that is square to a flat face changes the shape (sliding along the face does nothing). The neighbouring faces stretch to follow. Clicking any face of a hole, slot, pocket or boss picks the whole feature; “Select by” can pick one face, a tangent chain, every feature of the same size, or the whole pattern.";
 
     protected override CommandOutput? Build()
     {
@@ -545,7 +559,17 @@ public sealed class MoveFaceCommand : Command
         var o = new CommandOutput { Label = "Move face", Icon = "moveface" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
-            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies.");
+            if (S.Find(grp.Key) is { Kind: ObjKind.Surface, HasBrep: true } sheet)
+            {
+                // a surface face (flat or curved) is carried by the move and joined back with walls along the step
+                if (Math.Abs(_tilt.Value) > 1e-9) throw new FormatException("Tilt works on flat faces of a solid. On a surface, move the face without a tilt.");
+                if (move.Length < 1e-9) return null;
+                var picked = grp.Select(i => i.Index).ToHashSet();
+                o.Replace.Add((sheet, SurfaceFaceEdit.Move(sheet.Shape, picked, move)));
+                Results.Add(new ResultLine("Surface faces moved", $"{picked.Count}  by {move.Length:0.###} mm"));
+                continue;
+            }
+            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies and on faces of a surface.");
             var result = body.Shape;
             var plan = new List<(Shape face, Vec3 n, Vec3 pt, Vec3 nt)>();
             foreach (var it in DirectHelpers.Scope(S, body, grp, _scope.Index, Results))

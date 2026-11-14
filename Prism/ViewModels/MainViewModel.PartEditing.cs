@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
         GoTo(workspace, tab);
         part.Session.SetContext(assembly.Session.ContextGhostsFor(null));
         EditingPart = new PartEdit(assembly, part, null, name, back);
-        Session.Say($"Model {name} here. When you are done, press Back to assembly.");
+        Session.Say($"Model {name} here. When you are done, press Finish part and return.");
     }
 
     /// <summary>Open the part behind the selected component for editing in the Design workspace.</summary>
@@ -67,17 +67,24 @@ public sealed partial class MainViewModel
         GoTo(workspace, tab);
         part.Session.SetContext(assembly.Session.ContextGhostsFor(ci.Key));
         EditingPart = new PartEdit(assembly, part, ci.Key, component.Name, back);
-        Session.Say($"Editing {component.Name}. Press Back to assembly to bring the changes in.");
+        Session.Say($"Editing {component.Name}. Press Finish part and return to bring the changes in.");
     }
 
     /// <summary>Finish the part and return to the assembly: a new part is placed in it, an edited one is brought up to date.</summary>
     public void BackToAssembly()
     {
         if (EditingPart is not { } edit) return;
+        var part = edit.PartTab.Session;
+        if (part.ActiveCommand != null) { part.CommitCommand(); if (part.ActiveCommand != null) return; }
+        if (part.Sketch != null) part.ExitSketch(true);
+        if (CadSession.PartGeometry(part) == null)
+        {
+            part.Say("Create a body or surface before finishing this part. Your part is still open for editing.", true);
+            return;
+        }
         EditingPart = null;
         edit.PartTab.Session.SetContext([]);
         if (!Documents.Contains(edit.AssemblyTab)) { Session.Say("The assembly was closed, so there is nothing to go back to."); return; }
-        var part = edit.PartTab.Session;
         ActivateDocument(edit.AssemblyTab);
         var assembly = edit.AssemblyTab.Session;
         if (edit.ComponentKey == null)
@@ -87,6 +94,6 @@ public sealed partial class MainViewModel
         }
         else if (assembly.RefreshComponentFromDocument(edit.ComponentKey, part)) assembly.Say($"{edit.Name} is up to date.");
         else assembly.Say($"{edit.Name} has no solid body to bring back.", true);
-        SetWorkspace(edit.ReturnWorkspace);
+        GoTo("assemble", "Assemble");
     }
 }

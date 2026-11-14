@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
         BrowserNode Folder(string title, string icon) => new() { Kind = NodeKind.Folder, Title = title, Icon = icon, ExpansionKey = title, IsExpanded = filtering || _folderOpen.GetValueOrDefault(title, true), VisibilityEdited = OnNodeVisibility };
 
         var roots = new List<BrowserNode>();
+        var connected = s.JointObjects.SelectMany(j => new[] { j.joint.ParentKey, j.joint.ChildKey }).ToHashSet();
         BrowserNode ConstructionNode(Guid id, Prism.Core.Sketching.SketchModel model)
         {
             var node = new BrowserNode { Kind = NodeKind.Construction, ObjectId = id, Title = "Construction", Icon = "construction", Badge = model.Entities.Count(e => e.Construction).ToString(), VisibilityEdited = OnNodeVisibility };
@@ -89,8 +90,11 @@ public sealed partial class MainViewModel
                 var n = new BrowserNode
                 {
                     Kind = NodeKind.Object, ObjectId = o.Id, ObjKind = o.Kind, Title = o.Name, Icon = IconFor(o.Kind), Color = o.Color,
+                    HasComponentStatus = o.Component != null,
                     ExpansionKey = o.Id.ToString(), IsExpanded = filtering || _folderOpen.GetValueOrDefault(o.Id.ToString(), true),
-                    Badge = o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
+                    Badge = o.Component is { } component ?
+                        (component.Grounded ? "Grounded" + (connected.Contains(component.Key) ? " · Jointed" : "") : connected.Contains(component.Key) ? "Jointed" : "Free") :
+                        o.Form is { } fm ? $"{fm.F.Count} faces" : o.Tri is { } tm ? $"{tm.TriCount / 1000.0:0.#}k tris" : "",
                     VisibilityEdited = OnNodeVisibility, RenameEdited = OnNodeRenamed,
                 };
                 n.SetVisibleSilently(s.PlaneShown(o));
@@ -100,7 +104,7 @@ public sealed partial class MainViewModel
                     foreach (var datumNode in DatumNodes(o.Id, saved.Datums)) n.Children.Add(datumNode);
                 f.Children.Add(n);
             }
-            f.SetVisibleSilently(f.Children.All(c => c.IsVisible));
+            f.SetVisibleSilently(kind == ObjKind.Joint ? f.Children.Any(c => c.IsVisible) : f.Children.All(c => c.IsVisible));
             roots.Add(f);
         }
         Group("Components", "component", ObjKind.Solid, o => o.Component != null);
@@ -145,10 +149,30 @@ public sealed partial class MainViewModel
                 }
             }
         }
+        // groups: a parent folder over its members, wherever the members would otherwise sit in the tree
+        var groupFolders = new List<BrowserNode>();
+        foreach (var name in s.GroupNames)
+        {
+            var members = s.GroupMembers(name).ToList();
+            var folder = new BrowserNode { Kind = NodeKind.Folder, IsGroup = true, Title = name, Icon = "group", ExpansionKey = "group:" + name,
+                IsExpanded = filtering || _folderOpen.GetValueOrDefault("group:" + name, true), VisibilityEdited = OnNodeVisibility, RenameEdited = OnGroupRenamed };
+            foreach (var member in members)
+            {
+                if (!nodesById.TryGetValue(member.Id, out var node)) continue;
+                bool moved = false;
+                foreach (var root in roots) moved |= root.Children.Remove(node);
+                if (moved) folder.Children.Add(node);
+            }
+            if (folder.Children.Count == 0) continue;
+            folder.Badge = folder.Children.Count.ToString();
+            folder.SetVisibleSilently(folder.Children.All(c => c.IsVisible));
+            groupFolders.Add(folder);
+        }
         foreach (var root in roots) if (root.IsFolder) root.Badge = root.Children.Count.ToString();
         roots.RemoveAll(r => r.IsFolder && r.Children.Count == 0);
         var document = new BrowserNode { Kind = NodeKind.Folder, Title = s.FilePath is { } path ? System.IO.Path.GetFileName(path) : "Untitled model", Icon = "component", ExpansionKey = "Document",
             IsExpanded = filtering || _folderOpen.GetValueOrDefault("Document", true), VisibilityEdited = OnNodeVisibility };
+        foreach (var folder in groupFolders) document.Children.Add(folder);
         foreach (var root in roots)
         {
             if (root.Title is "Bodies" or "Components") foreach (var body in root.Children) document.Children.Add(body);
@@ -178,6 +202,11 @@ public sealed partial class MainViewModel
     void OnNodeVisibility(BrowserNode node)
     {
         var s = Session;
+        if (node.IsFolder && node.ExpansionKey == "Joints")
+        {
+            s.SetJointVisibility(node.IsVisible);
+            return;
+        }
         void Apply(BrowserNode n, bool v)
         {
             if (n.Kind == NodeKind.Origin) s.SetOriginVisible(n.OriginIndex, v);
@@ -226,6 +255,13 @@ public sealed partial class MainViewModel
         Session.Update(node.ObjectId, o => o.WithName(text), label: "Rename");
     }
 
+    void OnGroupRenamed(BrowserNode node)
+    {
+        var text = node.EditText.Trim();
+        if (text.Length == 0 || text == node.Title) return;
+        Session.RenameGroup(node.Title, text);
+    }
+
     public IEnumerable<BrowserNode> AllBrowserNodes()
     {
         IEnumerable<BrowserNode> Walk(BrowserNode n) => new[] { n }.Concat(n.Children.SelectMany(Walk));
@@ -259,11 +295,15 @@ public sealed partial class MainViewModel
 
     public void HideSelected()
     {
+        // faces picked on a body that is not itself selected: hide those faces (kept in the document)
+        if (Session.AppearanceFaces().Count > 0) { Session.HideFaces(); return; }
         foreach (var o in Session.SelectedObjects.ToList()) Session.Update(o.Id, x => x.WithVisible(false), checkpoint: false);
     }
 
     public void IsolateSelected()
     {
+        // faces selected: show only those faces (a way of looking, nothing in the document changes)
+        if (Session.Selection.Any(i => i.Kind == Prism.Core.SelKind.Face)) { Session.IsolateFaces(Session.Selection); return; }
         var keep = Session.SelectedObjects.Select(o => o.Id).ToHashSet();
         if (keep.Count == 0) return;
         foreach (var o in Session.Objects.ToList()) Session.Update(o.Id, x => x.WithVisible(keep.Contains(x.Id)), checkpoint: false);
@@ -271,6 +311,8 @@ public sealed partial class MainViewModel
 
     public void ShowAll()
     {
+        Session.ClearFaceIsolation();
+        if (Session.AnyHiddenFaces) { var keep = Session.Selection.ToList(); Session.SelectItems([]); Session.ShowHiddenFaces(); Session.SelectItems(keep); }
         foreach (var o in Session.Objects.ToList()) if (!o.Visible) Session.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
     }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Media;
+using Prism.Core;
 
 namespace Prism.Controls;
 
@@ -26,25 +27,62 @@ public static class Icons
         ['p'] = "#B79CFF", ['P'] = "#5A4AA0",
     };
 
-    static readonly Dictionary<string, IconShape[]> Cache = [];
-    static readonly Dictionary<string, IconShape[]> CacheLight = [];
+    static readonly Dictionary<(string Name, string? Tab), IconShape[]> Cache = [];
+    static readonly Dictionary<(string Name, string? Tab), IconShape[]> CacheLight = [];
 
-    public static IconShape[]? Get(string? name)
+    sealed record RibbonPalette(string Ink, string Shade, string Fill, string Soft);
+
+    static readonly Dictionary<string, (RibbonPalette Light, RibbonPalette Dark)> ModelingPalettes = new()
     {
-        if (name == null) return null;
-        bool light = Light; var cache = light ? CacheLight : Cache;
-        if (cache.TryGetValue(name, out var c)) return c;
-        if (!Defs.TryGetValue(name, out var def)) return null;
-        return cache[name] = def.Select(s => Parse(s, light)).ToArray();
+        ["Solid"] = (new("#2F66C9", "#2656AD", "#4C86E0", "#9CC4FF"), new("#79A8F2", "#2F66C9", "#4C86E0", "#9CC4FF")),
+        ["Surface"] = (new("#16824A", "#15603A", "#39A669", "#9AD9B2"), new("#53D491", "#26764D", "#39A669", "#9AD9B2")),
+        ["NURBS"] = (new("#D13438", "#A5323C", "#DA5359", "#F7A8A8"), new("#FF8186", "#A83B47", "#DA5359", "#F7A8A8")),
+        ["Freeform"] = (new("#6846B4", "#52368F", "#8B68D2", "#C9B3F5"), new("#B79CFF", "#6548A9", "#9674DF", "#C9B3F5")),
+    };
+
+    public static IconShape[]? Get(string? name, string? ribbonTab = null)
+    {
+        if (name == null || !Defs.TryGetValue(name, out var def)) return null;
+        bool light = Light;
+        var cache = light ? CacheLight : Cache;
+        var palette = ribbonTab != null && ModelingPalettes.TryGetValue(ribbonTab, out var colors)
+            ? light ? colors.Light : colors.Dark : null;
+        var key = (name, palette == null ? null : ribbonTab);
+        if (cache.TryGetValue(key, out var shapes)) return shapes;
+
+        // Neutral-only glyphs still need a ribbon color. Keep dedicated axis colors and
+        // orange action marks independent of the base geometry palette.
+        bool hasGeometry = palette != null && def.Any(spec => IsGeometryInk(spec[0]) || IsGeometryInk(spec[spec.IndexOf('|') + 1]));
+        return cache[key] = def.Select(spec => Parse(spec, light, palette, hasGeometry)).ToArray();
     }
 
-    static IBrush? Brush(string s, bool light = false) => s == "-" ? null : new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var li) ? li : Pal[s[0]]) : s));
+    static bool IsGeometryInk(char ink) => ink is 'b' or 'B' or 'm' or 'd' or 'g' or 'G' or 't' or 'T' or 'p' or 'P';
 
-    static IconShape Parse(string spec, bool light)
+    static string RibbonInk(string ink, RibbonPalette palette, bool stroke, bool hasGeometry) => ink switch
+    {
+        "b" or "G" or "T" or "P" => stroke ? palette.Ink : palette.Shade,
+        "B" or "m" or "g" or "t" or "p" => stroke ? palette.Ink : palette.Fill,
+        "d" => palette.Soft,
+        "k" or "s" when !hasGeometry => palette.Ink,
+        "w" or "S" when !hasGeometry && !stroke => palette.Soft,
+        _ => ink,
+    };
+
+    static IBrush? Brush(string s, bool light)
+    {
+        if (s == "-") return null;
+        if (s is "x" or "y" or "z")
+            return new SolidColorBrush(Color.FromUInt32(GizmoVisual.AxisColors[s[0] - 'x']));
+        return new SolidColorBrush(Color.Parse(s.Length == 1 ? (light && LightInk.TryGetValue(s[0], out var ink) ? ink : Pal[s[0]]) : s));
+    }
+
+    static IconShape Parse(string spec, bool light, RibbonPalette? palette, bool hasGeometry)
     {
         var p = spec.Split('|');
-        var fill = Brush(p[0], light);
-        var stroke = p[1] == "-" ? null : new Pen(Brush(p[1], light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        string fillInk = palette == null ? p[0] : RibbonInk(p[0], palette, false, hasGeometry);
+        string strokeInk = palette == null ? p[1] : RibbonInk(p[1], palette, true, hasGeometry);
+        var fill = Brush(fillInk, light);
+        var stroke = strokeInk == "-" ? null : new Pen(Brush(strokeInk, light), double.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture), lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         return new IconShape(Geometry.Parse(p[3]), fill, stroke);
     }
 
@@ -83,6 +121,12 @@ public static class Icons
         ["sel-vertex"] = [.. Cube(), "o|k|1.4|M20 16.5 A4 4 0 1 1 12 16.5 A4 4 0 1 1 20 16.5Z"],
 
         // ------------------------------------------------ transforms
+        ["gizmo"] = [
+            "-|s|1.3|M5 20 C6 15 25 15 27 20 C29 25 12 29 6 25",
+            "-|z|2.4|M16 19 V5", Head("M16 2 L19.5 8 H12.5Z", 'z'),
+            "-|x|2.4|M16 19 L26 24", Head("M29.5 25.5 L22.5 26 L25.5 20Z", 'x'),
+            "-|y|2.4|M16 19 L7 24", Head("M3.5 26 L7 20 L10.5 25Z", 'y'),
+            "w|k|1|M16 16.5 L18.5 19 L16 21.5 L13.5 19Z"],
         ["move"] = ["-|k|2.2|M16 4 V28 M4 16 H28", Head("M16 2 L20.5 7.5 H11.5Z", 'b'), Head("M16 30 L20.5 24.5 H11.5Z", 'b'), Head("M2 16 L7.5 11.5 V20.5Z", 'b'), Head("M30 16 L24.5 11.5 V20.5Z", 'b')],
         ["rotate"] = ["-|b|2.8|M25 12 A10 10 0 1 0 25.5 19", Head("M28.5 5 L28 15 L19 11Z", 'b'), "o|k|1.2|M13 13 H19 V19 H13Z"],
         ["scale"] = ["B|k|1.4|M4 14 H18 V28 H4Z", "-|o|2.6|M14 18 L26 6", Head("M28 4 L28 13 L19 4Z", 'o'), "-|s|1.4|M18 28 H28 V18"],
@@ -182,11 +226,11 @@ public static class Icons
         ["finish-polished"] = ["m|k|1.2|M4 16 a12 12 0 1 0 24 0 a12 12 0 1 0 -24 0", "-|w|2.4|M9 11 C11 8 15 7 20 8 M22 20 C21 23 18 25 15 25"],
 
         // ------------------------------------------------ patterns
-        ["pattern-linear"] = ["B|b|1.3|M3 10 H11 V22 H3Z", "w|k|1.3|M13 10 H21 V22 H13Z", "w|k|1.3|M23 10 H30 V22 H23Z", "-|o|2|M5 27 H28 M25 24 L28 27 L25 30"],
-        ["pattern-circular"] = ["B|b|1.3|M13 3 H19 V10 H13Z", "w|k|1.3|M23.5 9.5 L28 14 L23 19 L18.5 14.5Z", "w|k|1.3|M13 22 H19 V29 H13Z", "w|k|1.3|M4 14 L9 9.5 L13.5 14 L9 19Z", "-|o|1.6|M16 16 m-4 0 a4 4 0 1 1 8 0"],
-        ["pattern-curve"] = ["-|k|1.4|M3 26 C8 8 22 28 29 8", "B|b|1.2|M3 22 H9 V28 H3Z", "w|o|1.2|M12 14 H17 V19 H12Z", "w|o|1.2|M22 15 H27 V20 H22Z"],
+        ["pattern-linear"] = ["B|b|1.3|M3 10 H11 V22 H3Z", "d|b|1.3|M13 10 H21 V22 H13Z", "d|b|1.3|M23 10 H30 V22 H23Z", "-|o|2|M5 27 H28 M25 24 L28 27 L25 30"],
+        ["pattern-circular"] = ["B|b|1.3|M13 3 H19 V10 H13Z", "d|b|1.3|M23.5 9.5 L28 14 L23 19 L18.5 14.5Z", "d|b|1.3|M13 22 H19 V29 H13Z", "d|b|1.3|M4 14 L9 9.5 L13.5 14 L9 19Z", "-|o|1.6|M16 16 m-4 0 a4 4 0 1 1 8 0"],
+        ["pattern-curve"] = ["-|k|1.4|M3 26 C8 8 22 28 29 8", "B|b|1.2|M3 22 H9 V28 H3Z", "d|b|1.2|M12 14 H17 V19 H12Z", "d|b|1.2|M22 15 H27 V20 H22Z"],
         ["pattern-fill"] = ["w|k|1.4|M3 4 H29 V28 H3Z", "B|b|1.2|M7 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M15 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M22 8 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M10 15 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M18 15 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M7 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M15 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "B|o|1.2|M22 22 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0"],
-        ["pattern-table"] = ["w|k|1.3|M3 5 H29 V27 H3Z", "-|k|1.2|M3 12 H29 M3 19 H29 M12 5 V27 M21 5 V27", "w|o|1.6|M14 14 H19 V19 H14Z"],
+        ["pattern-table"] = ["w|k|1.3|M3 5 H29 V27 H3Z", "-|k|1.2|M3 12 H29 M3 19 H29 M12 5 V27 M21 5 V27", "B|b|1.6|M14 14 H19 V19 H14Z"],
 
         // ------------------------------------------------ mesh tools
         ["mesh"] = ["-|k|1.2|M3 25 L11 7 L21 25Z M11 7 L28 11 L21 25 M28 11 L30 25 L21 25"],
@@ -256,6 +300,11 @@ public static class Icons
         ["sel-rect"] = ["B|b|2.4|M5 8 H27 V24 H5Z", "w|b|1.6|M3 6 H7 V10 H3Z M25 6 H29 V10 H25Z M3 22 H7 V26 H3Z M25 22 H29 V26 H25Z", "-|b|1.6|M9 12 H23 V20 H9Z"],
         ["sel-lasso"] = ["-|b|2.4|M7 21 C2 14 9 6 18 7 C27 8 28 17 20 20 C15 22 12 19 14 17", "w|b|1.8|M6 21 a2 2 0 1 0 4 0 a2 2 0 1 0 -4 0", "-|b|2.0|M10 23 C10 26 13 27 15 26"],
         ["sel-paint"] = ["-|b|2.6|M4 24 C10 14 18 8 28 6", "w|b|1.8|M8 20 a2.4 2.4 0 1 0 4.8 0 a2.4 2.4 0 1 0 -4.8 0", "-|b|1.4|M16 12 l3 -3 M21 10 l3 -3"],
+        ["sel-same-color"] = ["B|b|2.4|M5 5 H27 V27 H5Z", "-|b|2.4|M5 5 H27 V16 H5Z", "w|b|1.6|M9 21 H23"],
+        ["sel-same-adjacent"] = ["B|b|2.4|M4 10 H16 V22 H4Z", "-|b|2.4|M16 10 H28 V22 H16Z"],
+        ["sel-same-linked"] = ["B|b|2.4|M5 5 H27 V27 H5Z", "-|b|1.8|M5 16 H27 M16 5 V27"],
+        ["group"] = ["-|k|1.3|M3 3 H29 V29 H3Z", "B|k|1.3|M7 8 H17 V18 H7Z", "w|k|1.3|M14 14 H25 V25 H14Z", "-|b|1.6|M9.5 11 H14.5"],
+        ["ungroup"] = ["-|s|1.3|M3 3 H11 M21 3 H29 V11 M29 21 V29 H21 M11 29 H3 V21 M3 11 V3", "B|k|1.3|M6 7 H16 V17 H6Z", "w|k|1.3|M16 15 H26 V25 H16Z"],
         ["sel-invert"] = ["B|b|2.4|M5 5 H19 V19 H5Z", "-|b|2.4|M13 13 H27 V27 H13Z"],
         ["xray"] = [$"#3D4C86E0|k|1.2|{CubeLeft}", $"#3D2F66C9|k|1.2|{CubeRight}", $"#5979A8F2|k|1.2|{CubeTop}", "-|s|1.3|M16 16.5 V28.5 M5 10.5 L16 16.5 L27 10.5"],
         ["home"] = ["w|k|1.4|M4 15 L16 5 L28 15 V28 H4Z", "S|k|1.2|M13 28 V19 H19 V28", "-|o|2|M2.5 15.5 L16 4 L29.5 15.5"],
@@ -339,6 +388,7 @@ public static class Icons
         ["cnc-drill"] = ["B|b|1.6|M4 14 H28 V26 H4Z", "-|o|2.4|M16 3 V20", "-|s|1.4|M13 20 L16 25 L19 20"],
         ["cnc-image"] = ["B|b|1.6|M5 6 H27 V26 H5Z", "-|o|2.2|M8 21 Q12 9 16 16 T24 11", "-|s|1.4|M8 24 H24"],
         ["mold-file"] = ["B|b|1.6|M6 4 H20 L26 10 V28 H6Z", "-|o|2.2|M16 12 V24 M11 19 L16 24 L21 19"],
+        ["mold-import"] = ["B|b|1.6|M6 4 H20 L26 10 V28 H6Z", "-|o|2.2|M16 12 V24 M11 19 L16 24 L21 19"],
         ["mold-tab"] = ["B|b|1.6|M4 10 H28 V28 H4Z", "B|b|1.6|M4 6 H14 V10 H4Z", "-|o|2.2|M16 14 V24 M11 19 H21"],
         ["mold"] = ["B|b|1.6|M4 4 H28 V12 H4Z", "B|b|1.6|M4 20 H28 V28 H4Z", "-|o|2.4|M12 14 H20 V18 H12Z"],
         ["cnc-face"] = ["-|b|2.2|M5 8 H27 M27 14 H5 M5 20 H27 M27 26 H5", "-|s|1.4|M27 8 V14 M5 14 V20 M27 20 V26"],

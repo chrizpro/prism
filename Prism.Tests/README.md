@@ -1,5 +1,7 @@
 # Prism tests
 
+Pre-0.3.0 verification on 2026-11-13 (branch `codex/prism-work`, Windows): **203 Unit and 975 Headless cases passed, no failures or skips.** The Headless project was run one namespace at a time (`dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --no-build --filter "FullyQualifiedName~Prism.HeadlessTests.<Namespace>."`, about 5 minutes in all). Three attempts to run the whole project in one process stalled after about 930 tests on a machine with 1.8 GB of free memory, in a different test each time; every test passed when run in its namespace slice, so the stall was not tied to one test, but its cause is not established. Not run: Integration (deferred) and the older executable suites under `tests/`.
+
 Windows consolidation verification on 2026-11-07: `./tools/test.ps1` passed **142 Unit and 740 Headless cases**, with no failures or skips, at application revision `b5f34f58d47fbab01a27862ddf0472ff369f5466`. See the [develop audit](../docs/engineering/develop-audit-2026-11-07.md) for commands, native-runtime reuse and other verification limits. This is dated evidence, not a live test status.
 
 Start here to read, find or run the maintained tests. They live in the top-level `Prism.Tests/` directory and appear under **Prism.Tests → Unit / Headless / Integration** in `Prism.slnx`. Older standalone test programs remain separately under `tests/`.

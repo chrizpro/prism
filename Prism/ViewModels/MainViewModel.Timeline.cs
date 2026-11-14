@@ -17,15 +17,21 @@ public sealed partial class MainViewModel
 
     partial void OnActiveCommandChanged(Command? value)
     {
+        if (AnimationEditor != null) AnimationEditor.EditCurveRequested = null;
+        if (CurveEditor != null) { CurveEditor = null; CloseRightPanel("curve"); }
         if (AnimationEditor != null && _timelineHook != null) AnimationEditor.TimelineChanged -= _timelineHook;
         _timelineHook = null;
         AnimationEditor = value as AnimationCommand;
+        if (value is MotionStudyCommand motion)
+            motion.EditCurveRequested = (subject, curve, apply) => OpenCurveEditor(subject, curve, apply);
         if (AnimationEditor is { } editor)
         {
+            editor.EditCurveRequested = (curve, apply) => OpenCurveEditor("Timing to next key", curve, apply);
             _timelineHook = () =>
             {
-                TimelineTimeText = $"{editor.Time.ToString("0.00", CultureInfo.InvariantCulture)} / {editor.Duration.ToString("0.##", CultureInfo.InvariantCulture)} s";
-                TimelinePlayText = editor.IsPlaying ? "■  Stop" : "▶  Play";
+                if (CurveEditor != null && !editor.CanEditCurve) CurveEditor = null;
+                TimelineTimeText = $"{editor.Time.ToString("0.000", CultureInfo.InvariantCulture)} / {editor.Duration.ToString("0.###", CultureInfo.InvariantCulture)} s";
+                TimelinePlayText = editor.IsPlaying ? "Ⅱ  Pause" : "▶  Play";
             };
             editor.TimelineChanged += _timelineHook;
             _timelineHook();

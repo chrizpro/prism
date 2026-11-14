@@ -23,7 +23,7 @@ public sealed partial class MainViewModel
         foreach (var tab in Tabs)
         {
             // Look At lives in the viewport toolbar and the View tab.
-            if (tab.Title != "View")
+            if (tab.Title is not ("View" or "Render"))
                 foreach (var group in tab.Groups)
                     group.Items.RemoveAll(i => i is RibbonButton { Icon: "look-at" });
             // Shared sections come from fresh factories, never from a different tab's mutable buttons.
@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
                 if (group.Title == "Transform") tab.Groups[i] = transform();
                 else if (group.Title == "Appearance") tab.Groups[i] = appearance();
                 else if (group.Title == "Select" && !tab.IsContextual) tab.Groups[i] = select();
-                else if (group.Title == "Inspect")
+                else if (group.Title == "Inspect" && tab.Title != "Mold")
                     tab.Groups[i] = tab.Title == "View" ? G("Section", group.Items.ToArray()) : inspect();
                 else if (group.Title == "Components" && tab.Title == "Freeform")
                     tab.Groups[i] = G("Topology", group.Items.ToArray());
@@ -81,36 +81,43 @@ public sealed partial class MainViewModel
             if (tab.Title == "Sketch")
             {
                 var draw = tab.Groups.Single(g => g.Title == "Draw");
-                var drawTools = draw.Items.OfType<RibbonButton>().ToArray();
+                var drawing = draw.Items.OfType<RibbonButton>().ToArray();
+                var spline = drawing.Single(button => button.Label == "Spline");
                 draw.Items.Clear();
-                draw.Items.AddRange(drawTools.Take(4));
-                draw.Items.Add(ToolMenu("More drawing tools", "polygon", "Draw polygons, slots and splines.", drawTools.Skip(4).ToArray()));
+                draw.Items.AddRange(drawing.Take(4));
+                draw.Items.Add(spline);
+                draw.Items.Add(new RibbonButton
+                {
+                    Id = "menu:More drawing tools:polygon|Polygon,slot|Slot,text|Text,spline|Spline",
+                    Label = "More drawing tools",
+                    Icon = "polygon",
+                    Description = "Draw a polygon, slot or text.",
+                    Menu = [.. drawing.Skip(4).Where(button => button != spline)]
+                });
+
+                var modify = tab.Groups.Single(g => g.Title == "Modify");
+                var edits = modify.Items.OfType<RibbonButton>().ToArray();
+                var promoted = new[] { "Trim", "Offset", "Transform" }.Select(label => edits.Single(button => button.Label == label)).ToArray();
+                modify.Items.Clear();
+                modify.Items.AddRange(promoted);
+                modify.Items.Add(new RibbonButton
+                {
+                    Id = "menu:Sketch:Modify",
+                    Label = "More edits",
+                    Icon = "extend",
+                    Description = "Insert points, extend curves, edit corners, mirror or pattern.",
+                    Menu = [.. edits.Except(promoted)]
+                });
+
                 var reference = tab.Groups.Single(g => g.Title == "Reference");
                 tab.Groups.Single(g => g.Title == "References").Items.AddRange(reference.Items);
                 tab.Groups.Remove(reference);
-            }
-            if (tab.Title == "ECAD")
-            {
-                // Geometry placement uses the same transform commands as the modeling ribbons.
-                tab.Groups.Single(g => g.Title == "Components").Items.RemoveAll(i => i is RibbonButton { HasMenu: true });
-                tab.Groups.Add(transform());
             }
             if (tab.Title == "Analyze")
             {
                 var section = tab.Groups.Single(g => g.Title == "Section");
                 tab.Groups.Remove(section);
                 tab.Groups.Add(G("Bounds", section.Items.OfType<RibbonButton>().Where(b => b.Icon == "bbox").ToArray()));
-            }
-            if (tab.Title == "Render")
-            {
-                var look = tab.Groups.Single(g => g.Title == "Look");
-                tab.Groups.Remove(look);
-                tab.Groups.Add(appearance());
-            }
-            if (tab.Title is "Thermal" or "Dynamics" or "Static" or "Motion")
-            {
-                foreach (var group in tab.Groups) group.Items.RemoveAll(i => i is RibbonButton { Icon: "materials" });
-                tab.Groups.Add(appearance());
             }
             if (tab.Title is "Home" or "Solid")
             {
@@ -122,6 +129,19 @@ public sealed partial class MainViewModel
             foreach (var group in tab.Groups)
             {
                 var buttons = group.Items.OfType<RibbonButton>().ToArray();
+                if (tab.Title == "Static" && group.Title is "Supports" or "Loads")
+                {
+                    int primary = group.Title == "Supports" ? 1 : 2;
+                    group.Items.Clear();
+                    group.Items.AddRange(buttons.Take(primary));
+                    group.Items.Add(new RibbonButton
+                    {
+                        Label = "Other", Description = group.Title == "Supports" ? "Other support types." : "Other load types.",
+                        Icon = buttons[primary].Icon, Id = "menu:static-" + group.Title.ToLowerInvariant(),
+                        Menu = [.. buttons.Skip(primary)], Size = RibbonSize.Small,
+                    });
+                    continue;
+                }
                 if (group.Title == "Combine" && buttons.Length > 1)
                 {
                     group.Items.Clear();
@@ -143,9 +163,11 @@ public sealed partial class MainViewModel
                 }
                 // A primary action plus related variants. Existing menus stay flat and retain every command.
                 // Sketch constraints are used constantly and stack three to a column, so they stay one click away.
-                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
-                if (!compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
-                int keep = tab.Title == "Mesh" && group.Title == "Reshape" ? 3 : tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
+                bool compact = !(tab.Title == "Surface" && group.Title == "Create") && !(tab.Title == "Mesh" && group.Title == "Repair") && !(tab.Title == "NURBS" && group.Title == "Shape") && !(tab.Title == "Sketch" && group.Title == "Constrain") && !(tab.Title == "ECAD" && group.Title == "Fit check") && !(tab.Title == "Freeform" && group.Title == "Loops") && (group.Title is "Transform" or "Inspect" or "Finish" or "Fill" or "Detail" or "Shape" or "Continuity" || buttons.Length > 2 && group.Title is not ("Document" or "Select" or "Results" or "Orientation" or "Display"));
+                if (tab.Title is "Assemble" or "Animate" or "Static" or "Thermal" or "Dynamics" or "Motion" or "Render" || (tab.Title == "Joints" && group.Title == "Joint") || (tab.Title == "Mold" && group.Title == "Inspect") ||
+                    (tab.Title == "Mesh" && group.Title is "Reshape" or "Modify" or "Print analysis") ||
+                    !compact || buttons.Length < 2 || buttons.Any(b => b.HasMenu)) continue;
+                int keep = tab.Title == "Surface" && group.Title == "Modify" ? 2 : group.Title is "Inspect" or "Modify" or "Draw" or "Image" ? 1 : 0;
                 group.Items.Clear(); group.Items.AddRange(buttons.Take(keep));
                 string label = group.Title == "Inspect" ? "More inspection" : keep == 0 ? group.Title : "More";
                 var menu = ToolMenu(label, buttons[keep].Icon,
@@ -190,19 +212,20 @@ public sealed partial class MainViewModel
         foreach (var t in Tabs.Where(t => !t.IsFile))
             foreach (var b in t.Buttons)
                 if (_catalog.TryAdd(b.Id, b)) _catalogTab[b.Id] = t.Title;
-        // Edited layouts may still refer to the former single curve dropdowns. Keep those
-        // IDs as flat compatibility menus while new default layouts use the smaller families.
+        // Every curve tool is in one Curves dropdown. Edited layouts may still refer to the earlier per-tab
+        // "Curves" and "Edit curves" menus, so both IDs stay as flat menus of the same tools.
         foreach (var tab in Tabs.Where(t => !t.IsFile))
-            foreach (var group in tab.Groups.Where(g => g.Title is "Curves" or "Edit curves"))
+            foreach (var group in tab.Groups.Where(g => g.Title == "Curves"))
             {
                 var leaves = group.Items.OfType<RibbonButton>().SelectMany(b => b.Menu ?? [b]).ToList();
-                // Home used to combine creation and editing in its Curves dropdown.
-                if (tab.Title == "Home" && group.Title == "Curves")
-                    leaves.AddRange(tab.Groups.Single(g => g.Title == "Edit curves").Items.OfType<RibbonButton>().SelectMany(b => b.Menu ?? [b]));
-                string id = "menu:" + tab.Title + ":" + group.Title;
-                _catalog.TryAdd(id, new RibbonButton { Id = id, Label = group.Title, Icon = leaves[0].Icon, Menu = leaves,
-                    Description = "Curve tools from your customized layout. Reset this tab in Settings to use the new grouped menus." });
-                _catalogTab.TryAdd(id, tab.Title);
+                if (leaves.Count == 0) continue;
+                foreach (string title in new[] { "Curves", "Edit curves" })
+                {
+                    string id = "menu:" + tab.Title + ":" + title;
+                    _catalog.TryAdd(id, new RibbonButton { Id = id, Label = title, Icon = leaves[0].Icon, Menu = leaves,
+                        Description = "Curve tools from your customized layout. Reset this tab in Settings to use the single Curves menu." });
+                    _catalogTab.TryAdd(id, tab.Title);
+                }
             }
         foreach (var t in Tabs.Where(t => !t.IsFile && !t.IsContextual)) _defaultGroups[t.Title] = [.. t.Groups];
         ApplyRibbonLayout(initial: true);

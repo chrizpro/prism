@@ -209,13 +209,58 @@
 
 
 
-        <!-- ============ status bar ============ -->
+        <!-- ============ status bar (context text · running work, JetBrains-style · right-hand widgets) ============ -->
 
         <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
             <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
 
                 <TextBlock Name="BottomContext" Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                <!-- running work: one compact chip for the latest job; the count button lists every job -->
+                <ContentControl Grid.Column="1" IsVisible="{Binding Session.Work.HasTasks}" Content="{Binding Session.Work}" Margin="12,0" VerticalAlignment="Center">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="core:OperationTracker">
+                            <Border Name="WorkChip" Padding="8,2" CornerRadius="6" Background="{DynamicResource HoverBg}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <ContentControl Content="{Binding Current}" VerticalAlignment="Center">
+                                        <ContentControl.ContentTemplate>
+                                            <DataTemplate x:DataType="core:OperationProgress">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Status}" FontSize="12" Classes="faint" MaxWidth="260" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <ProgressBar Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Width="110" Height="4" MinHeight="4" VerticalAlignment="Center"/>
+                                                    <Button Classes="ghost" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="5,1" ToolTip.Tip="Stop this job" AutomationProperties.Name="Stop running work">
+                                                        <TextBlock Text="■" FontSize="9" VerticalAlignment="Center"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ContentControl.ContentTemplate>
+                                    </ContentControl>
+                                    <Button Classes="ghost" Padding="5,1" IsVisible="{Binding HasMore}" ToolTip.Tip="Show every running job" AutomationProperties.Name="Show all running work">
+                                        <TextBlock Text="{Binding MoreText}" FontSize="11" VerticalAlignment="Center"/>
+                                        <Button.Flyout>
+                                            <Flyout Placement="Top">
+                                                <ItemsControl ItemsSource="{Binding Items}" MinWidth="420">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="core:OperationProgress">
+                                                            <Grid ColumnDefinitions="150,*,140,Auto" Margin="0,4" ColumnSpacing="8">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                <ProgressBar Grid.Column="2" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}" Minimum="0" Maximum="100" Height="4" MinHeight="4" VerticalAlignment="Center"/>
+                                                                <Button Grid.Column="3" Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,2"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
 
                 <StackPanel Name="StatusRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
 
@@ -227,7 +272,13 @@
 
         <!-- ============ branching design history ============ -->
 
-        <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+            <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                    <Binding Path="!IsDrawingWorkspace"/>
+                    <Binding Path="!ShowAnimationTimeline"/>
+                </MultiBinding>
+            </Border.IsVisible>
 
             <StackPanel>
 
@@ -275,25 +326,27 @@
 
             <DockPanel>
 
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Height="38" Margin="12,0">
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" Height="38" Margin="12,0">
 
                     <TextBlock Text="Animation timeline" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,14,0"/>
 
                     <Button Grid.Column="1" Classes="ghost" Content="⏮" Click="OnTimelineStart" Padding="9,4" ToolTip.Tip="Back to the start (Home)"/>
 
-                    <Button Grid.Column="2" Classes="ghost" Content="{Binding TimelinePlayText}" Click="OnTimelinePlay" Padding="12,4" Margin="6,0" MinWidth="86" ToolTip.Tip="Play or stop (Space)"/>
+                    <Button Grid.Column="2" Classes="ghost" Content="{Binding TimelinePlayText}" Click="OnTimelinePlay" Padding="12,4" Margin="6,0" MinWidth="86" ToolTip.Tip="Play or pause (Space)"/>
 
                     <TextBlock Grid.Column="3" Text="{Binding TimelineTimeText}" Classes="faint" VerticalAlignment="Center" Margin="8,0"/>
 
-                    <Button Grid.Column="4" Classes="ghost" Content="Key changed values" Click="OnTimelineKey" Padding="10,4" Margin="0,0,6,0" ToolTip.Tip="Change joint values in the panel, then key them at the playhead. Double-click a row to add one key."/>
+                    <Button Grid.Column="4" Classes="ghost" Content="Add Key" Click="OnTimelineKey" Padding="10,4" Margin="0,0,6,0" ToolTip.Tip="Record changed values at the playhead. Double-click a track to add a key for just that track."/>
 
                     <Button Grid.Column="5" Classes="ghost" Content="Remove keys here" Click="OnTimelineRemoveKeys" Padding="10,4" ToolTip.Tip="Remove the keys at the playhead (or select a diamond and press Delete)"/>
+                    <Button Grid.Column="6" Classes="ghost" Content="−" Click="OnTimelineZoomOut" Padding="10,4" ToolTip.Tip="Zoom out" AutomationProperties.Name="Zoom timeline out"/>
+                    <Button Grid.Column="7" Classes="ghost" Content="+" Click="OnTimelineZoomIn" Padding="10,4" ToolTip.Tip="Zoom in" AutomationProperties.Name="Zoom timeline in"/>
 
                 </Grid>
 
-                <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer Name="AnimationTimelineScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
 
-                    <c:AnimationTimelineView Command="{Binding AnimationEditor}"/>
+                    <c:AnimationTimelineView Name="AnimationTracks" Command="{Binding AnimationEditor}" MinWidth="{Binding #AnimationTimelineScroll.Viewport.Width}"/>
 
                 </ScrollViewer>
 
@@ -355,7 +408,7 @@
 
                         <Panel>
 
-                            <TreeView Name="Tree" Classes="browser" ItemsSource="{Binding Browser}" SelectionMode="Multiple" SelectionChanged="OnTreeSelectionChanged"
+                            <TreeView Name="Tree" Classes="browser" ItemsSource="{Binding Browser}" SelectionMode="Multiple" SelectionChanged="OnTreeSelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
 
                                       ContextRequested="OnTreeContext" KeyDown="OnTreeKey" DoubleTapped="OnTreeDoubleTapped">
 
@@ -371,7 +424,7 @@
 
                                                     Background="{Binding Color, Converter={x:Static c:ArgbToBrush.Instance}}"/>
 
-                                            <Panel Grid.Column="2" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" ToolTip.Tip="{Binding Title}">
 
                                                 <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Classes.hidden="{Binding !IsVisible}" Classes.folder="{Binding IsFolder}" IsVisible="{Binding !IsEditing}"/>
 
@@ -379,9 +432,10 @@
 
                                                          Initialized="OnRenameBoxInit" KeyDown="OnRenameKey" LostFocus="OnRenameLost"/>
 
-                                            </Panel>
+                                                <TextBlock Text="{Binding Badge}" FontSize="10" Classes="faint" IsVisible="{Binding HasComponentStatus}"/>
+                                            </StackPanel>
 
-                                            <TextBlock Grid.Column="3" Text="{Binding Badge}" Classes="faint" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Badge}" Classes="faint" VerticalAlignment="Center" IsVisible="{Binding !HasComponentStatus}"/>
 
                                             <ToggleButton Grid.Column="4" IsChecked="{Binding IsVisible}" IsVisible="{Binding HasEye}" Classes="tool" Padding="4" Background="Transparent" BorderThickness="0"
 
@@ -542,7 +596,7 @@
 
                 <!-- the model view plus three locked standard views, arranged by the active layout -->
 
-                <Grid Name="ViewGrid" ColumnDefinitions="*,*" RowDefinitions="*,*">
+                <Grid Name="ViewGrid" ColumnDefinitions="*,*" RowDefinitions="*,*" Background="Transparent">
 
                     <Grid Name="Cell0" Background="Transparent" Grid.ColumnSpan="2" Grid.RowSpan="2" ClipToBounds="True">
 
@@ -789,7 +843,7 @@
 
                 <Border Name="PartEditBanner" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,46" Padding="6,5,16,5" CornerRadius="20" Background="{DynamicResource Accent}" IsVisible="{Binding ShowEditBanner}">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Name="BackToAssembly" Content="← Back to assembly" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,5" CornerRadius="15"/>
+                        <Button Name="BackToAssembly" Content="✓ Finish part &amp; return" Click="OnBackToAssembly" Background="{DynamicResource OnAccent}" Foreground="{DynamicResource Accent}" FontWeight="SemiBold" Padding="14,5" CornerRadius="15"/>
                         <TextBlock Text="{Binding EditBannerText}" Foreground="{DynamicResource OnAccent}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
@@ -827,6 +881,7 @@
                 <Panel>
 
                     <v:CommandPanel IsVisible="{Binding ShowCommandPanel}"/>
+                    <v:CurveEditorPanel IsVisible="{Binding ShowCurveEditor}"/>
                     <v:GizmoOptionsPanel IsVisible="{Binding ShowGizmoPanel}"/>
                     <v:DatumOptionsPanel IsVisible="{Binding ShowDatumPanel}"/>
 

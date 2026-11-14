@@ -232,7 +232,7 @@ public partial class RibbonView : UserControl
         {
             v.Refresh();
             var row = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10 };
-            row.Children.Add(new Prism.Controls.IconView { Icon = v.Icon, Width = 22, Height = 22 });
+            row.Children.Add(new Prism.Controls.IconView { Icon = v.Icon, RibbonTab = Vm?.SelectedTab?.Title, Width = 22, Height = 22 });
             row.Children.Add(new TextBlock { Text = v.Label.Replace("\n", " "), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
             // Keep the menu row pointer-accessible so unavailable commands can explain themselves.
             // The command remains disabled in the model and its click handler below enforces that.

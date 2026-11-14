@@ -12,8 +12,8 @@ public static class RibbonLayoutPolicy
         // what you pick and draw with
         "Document", "Select", "Datum", "References", "Curves", "Edit curves", "Setup", "Study", "Board", "Get a mesh", "Region", "Set up", "Sketch from scan", "Fit", "Write",
         // making things
-        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Mechanism", "Joint", "Couple",
-        "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "3D flow", "CNC", "Preparation", "Resin preparation", "Mesh preparation",
+        "Draw", "Create", "Primitives", "Features", "Sheet metal", "Components", "Add Parts", "Assemble", "Manage Parts", "Mechanism", "Joint", "Couple",
+        "Animation", "Render", "Lighting", "Conduction", "Vibration", "Pipe flow", "3D flow", "Toolpaths", "Prepare", "Troubleshoot", "Preparation", "Resin preparation", "Mesh preparation",
         // changing things
         "Modify", "Direct Edit", "Add", "Edit faces", "Edit features", "Direct", "Faces", "Edit", "Repair", "Reshape", "Cut-outs",
         "Curves from surfaces", "Surfaces", "Fill", "Shape", "Detail", "Loops", "Lock and align",
@@ -21,7 +21,7 @@ public static class RibbonLayoutPolicy
         // setting up and running analysis
         "Constrain", "Dimension", "Supports", "Loads", "Springs and loads", "Solve", "Simulate", "Generative", "Study workflow",
         // reading the results
-        "Saved workflow", "Results", "Review", "Motion", "Nozzle review", "Mechanical checks",
+        "Saved workflow", "Results", "Review", "Motion", "Nozzle review", "Mechanical checks", "Fit check",
         "Mold inspection", "Print analysis", "Orientation & inspection", "Select & trace", "Reverse engineering",
         "Bounds", "Check", "Surface quality", "Analyze",
         "Image", "Apply", "Library", "Orientation", "Navigate", "Layout", "Display",
@@ -38,7 +38,17 @@ public static class RibbonLayoutPolicy
 
     public static void Order(RibbonTab tab)
     {
-        var groups = tab.Groups.OrderBy(g => Rank(g.Title)).ToArray();
+        string[]? workflow = tab.Title == "Static"
+            ? ["Select", "Setup", "Supports", "Loads", "Solve", "Results", "Advanced", "Reuse & Export"]
+            : tab.Title is "Thermal" or "Dynamics" ? ["Setup", "Reuse", "Results"]
+            : tab.Title == "Motion" ? ["Setup", "Loads", "Results"]
+            : tab.Title == "Render" ? ["Materials", "Lighting", "Camera", "Render", "Output"]
+            : tab.Title == "Mold" ? ["Part", "Mold", "Inspect"]
+            : tab.Title == "Mesh" ? ["Select", "Datum", "Import & Convert", "Check", "Repair", "Reshape", "Modify", "Print analysis", "Transform", "Inspect", "Appearance"]
+            : tab.Title == "Reverse Engineer" ? ["Select", "Datum", "Prepare", "Sketch from Scan", "Fit Surfaces", "Rebuild", "Check", "Transform", "Inspect", "Appearance"]
+            : tab.Title == "Fluids" ? ["Pipe Calculations", "3D Flow"] : null;
+        var groups = tab.Groups.OrderBy(g => workflow == null ? Rank(g.Title) :
+            Array.IndexOf(workflow, g.Title) is var index && index >= 0 ? index : workflow.Length).ToArray();
         tab.Groups.Clear();
         tab.Groups.AddRange(groups);
     }

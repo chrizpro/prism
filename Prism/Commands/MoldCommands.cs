@@ -108,16 +108,13 @@ public sealed class MoldCommand : Command
         var up = Occ.Translate(upper, dir * (_gap.Value / 2));
         var downSolid = down.Count(SubKind.Solid) > 0 ? down.Sub(SubKind.Solid, 0) : down;
         string baseName = block?.Name ?? "Mold";
-        if (block != null) o.Replace.Add((block, downSolid)); else o.Add.Add(new NewObject(downSolid, baseName + " (lower half)", ObjKind.Solid));
-        o.Add.Add(new NewObject(up.Count(SubKind.Solid) > 0 ? up.Sub(SubKind.Solid, 0) : up, baseName + " (upper half)", ObjKind.Solid));
+        if (block != null) o.Replace.Add((block, downSolid)); else o.Add.Add(new NewObject(downSolid, baseName + " (lower half)", ObjKind.Solid, IsMoldHalf: true));
+        o.Add.Add(new NewObject(up.Count(SubKind.Solid) > 0 ? up.Sub(SubKind.Solid, 0) : up, baseName + " (upper half)", ObjKind.Solid, block?.Color, Look: block?.Look, IsMoldHalf: true));
         // the part gets its own colour and is shown see-through, so it reads as the thing being cast
         double clear = 1 - _opacity.Value / 100; Guid partId = part.Id;
-        var blockColor = block?.Color; var blockLook = block?.Look; string upperName = baseName + " (upper half)";
         o.After = session =>
         {
-            // the new half looks like the block it was cut from
-            if (blockColor is { } bc && blockLook is { } bl && session.Objects.LastOrDefault(x => x.Name.StartsWith(upperName, StringComparison.Ordinal)) is { } half)
-                session.Update(half.Id, x => x.WithColor(bc).WithLook(bl), checkpoint: false);
+            if (block != null) session.Update(block.Id, x => x.WithMoldHalf(), checkpoint: false);
             session.Update(partId, x => x.WithColor(0xFFE8873A).WithLook(x.Look with { Surface = (x.Look.Surface ?? new SurfaceStyle()) with { Transmission = (float)(clear * .9), Ior = 1.05f, Override = true } }), checkpoint: false);
         };
         Results.Add(new ResultLine("Parting at", $"{split:0.###} mm along {(a == 0 ? "Z" : a == 1 ? "X" : "Y")}"));
@@ -131,6 +128,15 @@ public sealed class MoldCommand : Command
 public static class MoldSources
 {
     public static Func<IReadOnlyList<(string Name, CadSession Session)>>? Documents { get; set; }
+
+    public static CommandOutput CopyReferenceBodies(CadSession source, string label)
+    {
+        var output = new CommandOutput { Label = label, Icon = "mold-tab" };
+        foreach (var body in source.Objects.Where(o => o.Visible && o.HasBrep && o.Kind is ObjKind.Solid or ObjKind.Surface))
+            output.Add.Add(new NewObject(Occ.Copy(body.Shape), body.Name, body.Kind, IsReference: true));
+        if (output.Add.Count == 0) throw new FormatException("The source has no visible solid or surface to bring in.");
+        return output;
+    }
 }
 
 /// <summary>Bring a part from another open document into this one as a reference part: it is shown and used for the mold, but not saved with this file.</summary>
@@ -155,14 +161,8 @@ public sealed class MoldPartFromTabCommand : Command
         Results.Clear();
         if (_docs.Count == 0) { Results.Add(new ResultLine("Open tabs", "Open the part in another tab first.")); return null; }
         var source = _docs[Math.Clamp(_tab.Index, 0, _docs.Count - 1)].Session;
-        var bodies = source.Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind is ObjKind.Solid or ObjKind.Surface).ToList();
-        if (bodies.Count == 0) throw new FormatException("That tab has no solid or surface to bring in.");
-        var o = new CommandOutput { Label = "Part from tab", Icon = "mold-tab" };
-        foreach (var b in bodies) o.Add.Add(new NewObject(Occ.Copy(b.Shape), b.Name, b.Kind));
-        var names = bodies.Select(b => b.Name).ToHashSet();
-        var before = S.Objects.Select(x => x.Id).ToHashSet();
-        o.After = session => { foreach (var x in session.Objects.Where(x => !before.Contains(x.Id))) session.Update(x.Id, y => y.WithReference(true), checkpoint: false); };
-        Results.Add(new ResultLine("Bodies", bodies.Count.ToString()));
-        return o;
+        var output = MoldSources.CopyReferenceBodies(source, "Part from tab");
+        Results.Add(new ResultLine("Bodies", output.Add.Count.ToString()));
+        return output;
     }
 }

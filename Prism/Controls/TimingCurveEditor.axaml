@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:c="using:Prism.Controls" x:Class="Prism.Controls.TimingCurveEditor">
+    <StackPanel Spacing="5">
+        <TextBlock Text="Custom timing curve" FontWeight="SemiBold"/>
+        <TextBlock Text="Time runs left to right. Progress runs bottom to top. Drag the handles or enter values from 0 to 1." TextWrapping="Wrap" Classes="soft" FontSize="11"/>
+        <c:TimingCurveView/>
+        <Grid ColumnDefinitions="*,90,90" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="5" RowSpacing="5">
+            <TextBlock Grid.Column="1" Text="Time" Classes="soft"/>
+            <TextBlock Grid.Column="2" Text="Progress" Classes="soft"/>
+            <TextBlock Grid.Row="1" Text="Start handle" VerticalAlignment="Center" Classes="soft"/>
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Classes="field" Value="{Binding X1}" Minimum="0" Maximum="1" Increment="0.01" FormatString="0.###"/>
+            <NumericUpDown Grid.Row="1" Grid.Column="2" Classes="field" Value="{Binding Y1}" Minimum="0" Maximum="1" Increment="0.01" FormatString="0.###"/>
+            <TextBlock Grid.Row="2" Text="End handle" VerticalAlignment="Center" Classes="soft"/>
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Classes="field" Value="{Binding X2}" Minimum="0" Maximum="1" Increment="0.01" FormatString="0.###"/>
+            <NumericUpDown Grid.Row="2" Grid.Column="2" Classes="field" Value="{Binding Y2}" Minimum="0" Maximum="1" Increment="0.01" FormatString="0.###"/>
+        </Grid>
+    </StackPanel>
+</UserControl>

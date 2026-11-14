@@ -12,11 +12,17 @@ These checks do not certify surface continuity, manufacturing readiness, or gene
 
 The panel reuses actual origin planes/axes/point, sketches, curves, construction planes and image-plane objects. It provides name search, visible-only filtering, visibility switches, selection/framing, reference origins/normals, and captured feature usage on the current branch. Editable sketches and construction features open their existing editors. Imported references without a recipe cannot be reconstructed into an editable feature. Origin references are fixed. Create construction plane opens the existing plane command.
 
+## Curve Editor
+
+**Panels → Curve Editor** opens the shared curve host. Features provide a curve, its editing context and an apply action. Animation uses the compact component for custom timing between keys. The component provides a two-handle graph and exact coordinate fields. See the [animation guide](../modeling/assembly/README.md#animation-timeline) and [panel lifecycle test ASM-H012](../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs).
+
 ## Parameters
 
 Document values support names, pinning, arithmetic, functions from the existing expression parser, and references such as `rib = wall * 0.75`. Length literals accept `mm`, `cm`, and `inch`; `deg` is accepted for angle literals. Names are case-insensitive. Cycles, missing names, non-finite results and duplicate/reserved names are rejected. Units are scalar conversions, not a full dimensional-analysis system.
 
 Edit document formulas in the draft, evaluate them, then apply. Removing a parameter used by a current-branch feature is blocked. Feature tab lists current-branch recipes and their dimensional numeric inputs. Enter a literal or a formula using saved document values, then update the feature. The full feature editor remains available for selections, integer counts, switches and other settings. A bound formula is shown in the standard numeric editor; typing a different literal detaches it.
+
+Select an applied numeric parameter and choose **Animate parameter** to open it in the [animation timeline](../modeling/assembly/README.md#animation-timeline). Parameters defined by formulas follow their inputs. Animate the numeric input to drive those dependencies. [ASM-H009 and ASM-H010](../../Prism.Tests/Headless/Assembly/AnimationTimelineTests.cs) check table access and animation persistence.
 
 Applying document changes validates all bound values against feature limits before touching the history. It rebuilds from the first affected feature, re-evaluating downstream bindings. Existing branches remain available. If native geometry rebuilding fails later, the session stops at the last successful result, reports the failed feature and preserves the complete original branch.
 

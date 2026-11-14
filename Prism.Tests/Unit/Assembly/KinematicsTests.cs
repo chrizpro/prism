@@ -1,5 +1,6 @@
 using Prism.Core.Assembly;
 using Prism.Kernel;
+using Prism.Simulation;
 using Xunit;
 
 namespace Prism.UnitTests.Assembly;
@@ -52,5 +53,55 @@ public class KinematicsTests
         new("joint", "Fixture joint", type, "parent", "child", JointInfo.Pack(Xform.Identity),
             JointInfo.Pack(Xform.Identity), false, 0, first, second, false, 0, 0, 0, 0);
 
+    [Fact(DisplayName = "ASM-U003 | A rigid loop rejects a half-turn mismatch even when the pin origins coincide")]
+    [Trait("TestId", "ASM-U003")]
+    public void RigidLoopChecksOrientationWithoutMovableJoints()
+    {
+        var poses = new Dictionary<string, Xform> { ["parent"] = Xform.Identity, ["child"] = Xform.Identity };
+        var first = Joint(JointType.Rigid, 0, 0);
+        var closing = first with { Key = "closure" };
+        _ = new MotionEngine(poses, new HashSet<string> { "parent" }, [first, closing], [], [], []);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            new MotionEngine(poses, new HashSet<string> { "parent" }, [first, closing with { ZeroAngle = 180 }], [], [], []));
+        Assert.Contains("cannot close", error.Message);
+    }
+
     static void Near(Vec3 expected, Vec3 actual) => Assert.InRange(actual.DistanceTo(expected), 0, 1e-10);
+
+    [Theory(DisplayName = "ASM-U004 | Segment timing changes the speed between keys and preserves full turns")]
+    [InlineData(AnimTiming.Linear, 450)]
+    [InlineData(AnimTiming.EaseIn, 112.5)]
+    [InlineData(AnimTiming.EaseOut, 787.5)]
+    [InlineData(AnimTiming.EaseBoth, 281.25)]
+    [InlineData(AnimTiming.Hold, 0)]
+    [Trait("TestId", "ASM-U004")]
+    public void SegmentTimingUsesTheOutgoingKey(AnimTiming timing, double expected)
+    {
+        var track = new AnimTrack("shaft", false, [new(0, 0, timing), new(4, 1800)]);
+        Assert.Equal(expected, track.ValueAt(1, true), 8);
+        Assert.Equal(1800, track.ValueAt(4, true));
+        var legacy = new AnimTrack("shaft", false, [new(0, 0), new(4, 1800)]);
+        Assert.Equal(450, legacy.ValueAt(1, false));
+        Assert.Equal(281.25, legacy.ValueAt(1, true));
+    }
+
+    [Fact(DisplayName = "ASM-U005 | A custom timing curve inverts time before evaluating progress")]
+    [Trait("TestId", "ASM-U005")]
+    public void CustomTimingUsesBothHandleCoordinates()
+    {
+        var curve = new AnimCurve(1.0 / 3, 0, 2.0 / 3, 0);
+        Assert.Equal(.125, curve.ValueAt(.5), 8);
+        var derivatives = curve.KinematicsAt(.5);
+        Assert.Equal(.125, derivatives.Value, 8);
+        Assert.Equal(.75, derivatives.Speed, 8);
+        Assert.Equal(3, derivatives.Acceleration, 8);
+        var track = new AnimTrack("shaft", false, [new(0, 0, AnimTiming.Custom, curve), new(4, 1800)]);
+        Assert.Equal(225, track.ValueAt(2, false), 6);
+        Assert.Equal(0, track.ValueAt(0, false));
+        Assert.Equal(1800, track.ValueAt(4, false));
+        var delayed = new AnimCurve(.8, 0, .9, 1);
+        Assert.True(delayed.ValueAt(.5) < .25);
+        Assert.Equal(AnimTiming.ClipDefault,
+            System.Text.Json.JsonSerializer.Deserialize<AnimKey>("{\"T\":0,\"V\":0}")!.Timing);
+    }
 }

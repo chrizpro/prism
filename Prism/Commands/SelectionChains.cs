@@ -61,8 +61,8 @@ public static class SelectionChains
             }
             return;
         }
-        var expanded = Expand(s, item, slot.EdgeRule == 2);
-        if (expanded.Count + slot.Items.Count(x => !expanded.Contains(x)) > slot.MaxCount)
+        var expanded = Expand(s, item, slot.EdgeRule == 2).Select(e => s.SketchEntityOf(e) ?? e).ToArray();
+        if (expanded.Length + slot.Items.Count(x => !expanded.Contains(x)) > slot.MaxCount)
             throw new KernelException($"This chain exceeds the selection limit of {slot.MaxCount}.");
         foreach (var edge in expanded) slot.TryAdd(edge);
     }
@@ -112,7 +112,7 @@ public static class SelectionChains
     public static void UpdatePartial(CadSession s, SelectionSlot slot)
     {
         if (slot.ChainStart is not { } start || slot.ChainEnd is not { } end) return;
-        var picks = PathItems(s, start, end.Index, slot.OtherPath, slot.MaxCount);
+        var picks = PathItems(s, start, end.Index, slot.OtherPath, slot.MaxCount).Select(p => s.SketchEntityOf(p) ?? p).ToArray();
         if (slot.Items.SequenceEqual(picks)) return;
         slot.Items.Clear(); foreach (var pick in picks) slot.TryAdd(pick);
     }

@@ -68,7 +68,7 @@ public static class GizmoVisual
         return true;
     }
     static bool PlaneUsable(GizmoSettings settings, int plane) => settings.AxisVisible((plane - PlaneBase + 1) % 3) && settings.AxisVisible((plane - PlaneBase + 2) % 3);
-    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false, bool planes = false)
+    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false, bool planes = false, Func<int, int, bool>? allow = null)
     {
         var settings = GizmoSettings.Current;
         if (!settings.Allows(operation, active)) return;
@@ -76,6 +76,7 @@ public static class GizmoVisual
         for (int axis = 0; axis < 3; axis++)
         {
             if(!settings.AxisVisible(axis))continue;
+            if (allow != null && !allow(operation, axis)) continue;
             if (planar && (operation == 1 ? axis != 2 : axis == 2) || operation == 2 && !axisScale) continue;
             uint color = hotAxis == axis ? Accent : AxisColors[axis];
             float stroke = hotAxis == axis ? width + 1.5f : width;
@@ -93,6 +94,7 @@ public static class GizmoVisual
             for (int k = 0; k < 3; k++)
             {
                 if (!PlaneUsable(settings, PlaneBase + k)) continue;
+                if (allow != null && !allow(operation, PlaneBase + k)) continue;
                 bool hot = hotAxis == PlaneBase + k;
                 uint color = hot ? Accent : 0xFFFFFFFF;
                 var q = PlaneCorners(c, axes, PlaneBase + k, length);
@@ -103,7 +105,7 @@ public static class GizmoVisual
         if (operation == 2) Square(o, s, UniformPoint(s, c, length), length * 2.2, hotCenter ? Accent : 0xFFFFFFFF);
         if (operation == active && operation != 2) { o.AddDot(c, 0xFFFFFFFF, operation == 0 ? 15 : 11); o.AddDot(c, hotCenter && operation == 0 ? Accent : Ink, operation == 0 ? 11 : 7); }
     }
-    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false, bool planar = false, bool axisScale = true)
+    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false, bool planar = false, bool axisScale = true, Func<int, int, bool>? allow = null)
     {
         var settings = GizmoSettings.Current; double best = settings.Tolerance;
         (int axis, bool center, int operation) hit = (-1, false, active);
@@ -125,17 +127,10 @@ public static class GizmoVisual
             var c = center(op); double length = Length(s, c);
             if (op == 0) Point(c, 0);
             if (op == 2) Point(UniformPoint(s, c, length), 2);
-            if (planes && op != 1)
-                for (int k = 0; k < 3; k++)
-                {
-                    if (!PlaneUsable(settings, PlaneBase + k)) continue;
-                    var q = PlaneCorners(c, axes, PlaneBase + k, length).Select(p => s.Camera.Project(p)).ToArray();
-                    if (q.Any(p => p == null)) continue;
-                    if (Inside(x, y, q.Select(p => (p!.Value.x, p.Value.y)).ToArray())) { best = 0; hit = (PlaneBase + k, false, op); }
-                }
             for (int axis = 0; axis < 3; axis++)
             {
                 if(!settings.AxisVisible(axis))continue;
+                if (allow != null && !allow(op, axis)) continue;
                 if (planar && (op == 1 ? axis != 2 : axis == 2) || op == 2 && !axisScale) continue;
                 if (op == 1)
                 {
@@ -153,6 +148,16 @@ public static class GizmoVisual
                     }
                 }
             }
+            // plane blocks are big targets: an arrow, ring or the centre within tolerance wins over a block they cross on screen
+            if (planes && op != 1 && hit.axis < 0 && !hit.center)
+                for (int k = 0; k < 3; k++)
+                {
+                    if (!PlaneUsable(settings, PlaneBase + k)) continue;
+                    if (allow != null && !allow(op, PlaneBase + k)) continue;
+                    var q = PlaneCorners(c, axes, PlaneBase + k, length).Select(p => s.Camera.Project(p)).ToArray();
+                    if (q.Any(p => p == null)) continue;
+                    if (Inside(x, y, q.Select(p => (p!.Value.x, p.Value.y)).ToArray())) { best = 0; hit = (PlaneBase + k, false, op); }
+                }
         }
         return hit;
     }

@@ -34,6 +34,8 @@ public sealed class PipeNetworkCommand : AnalysisCommand
         _density = Num("Fluid density", 998.2, .001, 100000, 10, "kg/m³");
         _viscosity = Num("Dynamic viscosity", .001002, 1e-9, 10000, .0001, "Pa·s");
         _roughness = Num("Absolute roughness", .0015, 0, 1000, .001);
+        _curves.Section = "Setup";
+        foreach (var parameter in Params) parameter.Section = "Setup";
     }
 
     public override string Title => "Pipe Network";
@@ -151,6 +153,12 @@ public sealed class FlowStudyCommand : AnalysisCommand
         _slice = Num("Slice position", 50, 0, 100, 5, "%");
         _lines = Check("Streamlines", true);
         _show.Changed = _sliceAxis.Changed = _slice.Changed = _lines.Changed = () => { Paint(); OnChanged(); };
+        foreach (var slot in Slots) slot.Section = "Setup";
+        foreach (var parameter in Params) parameter.Section = "Setup";
+        _detail.Section = "Solve";
+        foreach (var action in Params.OfType<ActionParam>()) action.Section = "Solve";
+        foreach (var parameter in new Param[] { _show, _sliceAxis, _slice, _lines }) parameter.Section = "Results";
+        _mode.HelpText = "Through uses the volume occupied by the fluid. Pick a solid representing the inside of the duct.";
     }
 
     public override string Title => "Flow Study";
@@ -197,16 +205,18 @@ public sealed class FlowStudyCommand : AnalysisCommand
         {
             _error = ""; var setup = Setup();
             _cancel?.Cancel(); var cancel = _cancel = new CancellationTokenSource();
+            var progress = S.Work.Begin("Flow study", cancel.Cancel);
             Result = null; _status = "Starting…"; Paint(); OnChanged();
             _ = Task.Run(() =>
             {
                 try
                 {
-                    var r = FlowSolver.Solve(setup, m => Dispatcher.UIThread.Post(() => { _status = m; if (ReferenceEquals(S.ActiveCommand, this)) OnChanged(); }), cancel.Token);
+                    var r = FlowSolver.Solve(setup, m => { progress.Report(m); Dispatcher.UIThread.Post(() => { _status = m; if (ReferenceEquals(S.ActiveCommand, this)) OnChanged(); }); }, cancel.Token);
                     Dispatcher.UIThread.Post(() => { Show(r); _status = ""; });
                 }
                 catch (OperationCanceledException) { Dispatcher.UIThread.Post(() => { _status = "Stopped."; OnChanged(); }); }
                 catch (Exception e) when (e is InvalidOperationException or ArgumentException) { Dispatcher.UIThread.Post(() => { _error = e.Message; _status = ""; OnChanged(); }); }
+                finally { progress.Dispose(); }
             });
         }
         catch (Exception e) when (e is InvalidOperationException or ArgumentException) { _error = e.Message; S.Say(e.Message, true); OnChanged(); }

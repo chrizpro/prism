@@ -18,9 +18,9 @@ public static partial class ToolHelp
         "xray" => Topic(icon, "X-ray", "See through faces to the geometry behind them.", "Start: solid faces hide the inside", "Result: hidden edges show through",
             "1. Turn on X-ray.\n2. Orbit to look through the model.\n3. Turn it off again.",
             "Use it to find internal holes and channels, or to pick geometry that is hidden behind a face."),
-        "isolate" => Topic(icon, "Isolate", "Hide everything except the selected objects.", "Start: several bodies", "Result: only the selected body",
-            "1. Select the objects to keep.\n2. Choose Isolate.\n3. Choose Show All to bring the rest back.",
-            "Hidden objects are only hidden, not deleted."),
+        "isolate" => Topic(icon, "Isolate", "Hide everything except the selected objects, or show only the faces you selected.", "Start: several bodies", "Result: only the selected body",
+            "1. Select the objects or faces to keep.\n2. Choose Isolate.\n3. Choose Show All to bring the rest back.",
+            "Hidden objects are only hidden, not deleted. With faces selected, the other faces of those bodies are hidden too; nothing in the document changes."),
         _ => null
     };
 

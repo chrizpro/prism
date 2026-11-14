@@ -169,6 +169,15 @@ public sealed class SketchModel
         _ => e.Pts,
     };
 
+    /// <summary>The points where an entity ends, where another curve may join it. Circles, ellipses and closed splines end where they start: no endpoints.</summary>
+    public IEnumerable<int> EndpointsOf(SkEntity e) => e.Type switch
+    {
+        EntType.Line => [e.A, e.B],
+        EntType.Arc => [e.B, e.C],
+        EntType.Spline => e.Closed || e.Pts.Count == 0 ? [] : [e.Pts[0], e.Pts[^1]],
+        _ => [],
+    };
+
     /// <summary>Delete an entity, every constraint that referenced it, and points nothing else uses.</summary>
     public void RemoveEntity(int entityId)
     {
@@ -352,46 +361,48 @@ public sealed class SketchModel
             foreach (var child in section.Model.DrawingModels(section.Plane)) yield return child;
     }
 
+    /// <summary>The kernel curve for one entity, or null for degenerate geometry.</summary>
+    public Shape? ShapeOf(SkEntity e, Plane3 pl)
+    {
+        var normal = pl.Normal;
+        Vec3 V(int pid) => To3(pl, P(pid));
+        switch (e.Type)
+        {
+            case EntType.Line:
+                return V(e.A).DistanceTo(V(e.B)) > 1e-9 ? Occ.Line(V(e.A), V(e.B)) : null;
+            case EntType.Circle: return e.R > 1e-9 ? Occ.Circle(V(e.A), normal, e.R) : null;
+            case EntType.Arc:
+            {
+                var (cx, cy, r, a0, sw) = ArcGeometry(e);
+                if (r < 1e-9) return null;
+                if (Math.Abs(sw - 2 * Math.PI) < 1e-6) return Occ.Circle(V(e.A), normal, r);
+                double am = a0 + sw / 2;
+                return Occ.Arc3(V(e.B), To3(pl, cx + r * Math.Cos(am), cy + r * Math.Sin(am)) + normal * P(e.A).Z, V(e.C));
+            }
+            case EntType.Ellipse:
+            {
+                var (cx, cy, a, b, rot) = EllipseGeometry(e);
+                if (a < 1e-9 || b < 1e-9) return null;
+                // the kernel wants the long semi-axis first
+                bool swap = b > a; double major = swap ? b : a, minor = swap ? a : b, ang = rot + (swap ? Math.PI / 2 : 0);
+                return Occ.Ellipse(V(e.A), normal, pl.U * Math.Cos(ang) + pl.V * Math.Sin(ang), major, minor);
+            }
+            case EntType.Spline:
+                if (e.Pts.Count >= 2)
+                {
+                    var pts = e.Pts.Select(V).ToList();
+                    return e.ControlPoints ? Occ.NurbsCurve(pts, 3) : Occ.Spline(pts, e.Closed && pts.Count > 2);
+                }
+                return null;
+            default: return null;
+        }
+    }
+
     public List<Shape> ToShapes(Plane3 pl, bool includeSections = true, bool includeConstruction = false)
     {
         var shapes = new List<Shape>();
-        var normal = pl.Normal;
-        Vec3 V(int pid) => To3(pl, P(pid));
         foreach (var e in Entities.Where(x => includeConstruction || !x.Construction))
-        {
-            switch (e.Type)
-            {
-                case EntType.Line:
-                    if (V(e.A).DistanceTo(V(e.B)) > 1e-9) shapes.Add(Occ.Line(V(e.A), V(e.B)));
-                    break;
-                case EntType.Circle: if (e.R > 1e-9) shapes.Add(Occ.Circle(V(e.A), normal, e.R)); break;
-                case EntType.Arc:
-                {
-                    var (cx, cy, r, a0, sw) = ArcGeometry(e);
-                    if (r < 1e-9) break;
-                    if (Math.Abs(sw - 2 * Math.PI) < 1e-6) { shapes.Add(Occ.Circle(V(e.A), normal, r)); break; }
-                    double am = a0 + sw / 2;
-                    shapes.Add(Occ.Arc3(V(e.B), To3(pl, cx + r * Math.Cos(am), cy + r * Math.Sin(am)) + normal * P(e.A).Z, V(e.C)));
-                    break;
-                }
-                case EntType.Ellipse:
-                {
-                    var (cx, cy, a, b, rot) = EllipseGeometry(e);
-                    if (a < 1e-9 || b < 1e-9) break;
-                    // the kernel wants the long semi-axis first
-                    bool swap = b > a; double major = swap ? b : a, minor = swap ? a : b, ang = rot + (swap ? Math.PI / 2 : 0);
-                    shapes.Add(Occ.Ellipse(V(e.A), normal, pl.U * Math.Cos(ang) + pl.V * Math.Sin(ang), major, minor));
-                    break;
-                }
-                case EntType.Spline:
-                    if (e.Pts.Count >= 2)
-                    {
-                        var pts = e.Pts.Select(V).ToList();
-                        shapes.Add(e.ControlPoints ? Occ.NurbsCurve(pts, 3) : Occ.Spline(pts, e.Closed && pts.Count > 2));
-                    }
-                    break;
-            }
-        }
+            if (ShapeOf(e, pl) is { } s) shapes.Add(s);
         if (includeSections) foreach (var section in Sections) shapes.AddRange(section.Model.ToShapes(section.Plane, true, includeConstruction));
         return shapes;
     }

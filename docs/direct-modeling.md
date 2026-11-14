@@ -4,7 +4,7 @@ Direct modeling edits the geometry you have, with no history needed. It works on
 
 The tab reads left to right: **Select, Datum, Edit, Repair, Transform, Inspect, Appearance, Exit.** Adding holes, fillets, chamfers, shells and drafts is on the Solid tab. Here you change what exists.
 
-- **The gizmo** is open whenever the tab is: click a face or feature and drag its handles. Coloured arrows move it, the orange handle pulls the faces along their normals, the purple arc tilts a flat face. **Delete** removes the picked feature.
+- **The gizmo** is open whenever the tab is: click a face or feature and drag its handles. The shared move gizmo moves it, the orange handle pulls the faces along their normals, the purple arc tilts a flat face. **Delete** removes the picked feature.
 - **Edit** has Edit Feature, Replace Face, Match Face, Extend / Trim Face, Split Face, Draft, Edit Pattern and Mirror Feature.
 - **Repair** checks and heals imported parts.
 - **History:** direct edits are plain undo steps. Right-click a body and choose **Track history** to make its direct edits editable later.

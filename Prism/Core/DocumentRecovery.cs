@@ -8,6 +8,35 @@ namespace Prism.Core;
 
 public static class NativeDocumentFile
 {
+    public const string Part = ".prism_prt";
+    public const string Assembly = ".prism_asm";
+    public const string Drawing = ".prism_dwg";
+    public const string Mold = ".prism_mld";
+    public static readonly string[] Extensions = [".prism", ".ourcad", Part, Assembly, Drawing, Mold];
+
+    public static bool IsNative(string path) => Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+    public static bool IsTyped(string extension) => extension.ToLowerInvariant() is Part or Assembly or Drawing or Mold;
+    public static bool IsMold(string? path) => string.Equals(Path.GetExtension(path), Mold, StringComparison.OrdinalIgnoreCase);
+
+    public static string Label(string extension) => extension.ToLowerInvariant() switch
+    {
+        Part => "Prism part",
+        Assembly => "Prism assembly",
+        Drawing => "Prism drawing",
+        Mold => "Prism mold",
+        _ => "Prism document",
+    };
+
+    internal static string? Classify(bool hasSheets, bool hasComponents, bool hasModel) =>
+        hasSheets ? Drawing : hasComponents ? Assembly : hasModel ? Part : null;
+
+    internal static void ValidateType(string path, string? actual)
+    {
+        string extension = Path.GetExtension(path).ToLowerInvariant();
+        if (IsTyped(extension) && extension != actual)
+            throw new InvalidDataException($"{extension} requires a {Label(extension)}. This file contains {(actual == null ? "no part, assembly or drawing" : Label(actual))}. Use .prism for a general document.");
+    }
+
     public static void WriteAtomic(string path, string contents)
     {
         path = Path.GetFullPath(path);

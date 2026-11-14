@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Top and side views show the same work zero at the lower-left corner of the stock top.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#1684ab"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="#d8e8ef" stroke="#132f43" stroke-width="2.5">
+<rect x="103" y="74" width="190" height="144"/><rect x="426" y="143" width="221" height="76"/>
+</g>
+<g fill="none" stroke="#1684ab" stroke-width="3" marker-end="url(#arrow)">
+<path d="M103 218 V54"/><path d="M103 218 H318"/><path d="M426 143 V54"/>
+</g>
+<path d="M426 88 H647" stroke="#698298" stroke-width="2" stroke-dasharray="6 5"/>
+<g fill="#b85524"><circle cx="103" cy="218" r="7"/><circle cx="426" cy="143" r="7"/></g>
+<g fill="#132f43" font-family="system-ui, sans-serif" font-size="21">
+<text x="114" y="63">Y</text><text x="303" y="208">X</text><text x="436" y="62">Z</text>
+<text x="489" y="80">Clearance</text><text x="448" y="135">Stock top · Z 0</text>
+<text x="97" y="265">Top · lower-left corner</text><text x="446" y="265">Side · top surface</text>
+</g>
+</svg>

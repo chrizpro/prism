@@ -318,6 +318,12 @@ public static unsafe class Occ
     public static Shape Compound(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_compound(p, shapes.Count)); }
     public static Shape Rotate(Shape s, Vec3 origin, Vec3 axis, double deg) { fixed (double* o = V(origin)) fixed (double* a = V(axis)) return Wrap(Native.ck_rotate(s.Handle, o, a, deg)); }
     public static Shape Scale(Shape s, Vec3 origin, double f) { fixed (double* o = V(origin)) return Wrap(Native.ck_scale(s.Handle, o, f)); }
+    /// <summary>Stretch by a different factor along each world axis about a point. Curved faces come out as NURBS.</summary>
+    public static Shape Scale(Shape s, Vec3 origin, Vec3 factors)
+    {
+        try { fixed (double* o = V(origin)) return Wrap(Native.ck_scale3(s.Handle, o, factors.X, factors.Y, factors.Z)); }
+        catch (EntryPointNotFoundException) { throw new KernelException("This build of the kernel cannot stretch per axis yet. Rebuild native/ (build.ps1) to add it, or scale uniformly."); }
+    }
     public static Shape Mirror(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_mirror(s.Handle, o, n)); }
 
     // ---- freeform

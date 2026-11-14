@@ -135,6 +135,7 @@ After that, these are the directions we plan to take:
 | --- | --- |
 | **Add-on support** | A way to extend Prism with add-ons, which could eventually let users expand CAE, modeling and other areas themselves |
 | **Large assemblies** | Work comfortably with assemblies of many parts: loading, display and editing that stay responsive as projects grow |
+| **Integrated engineering worksheets** | Bring equations, units, dependent parameters, plots and comparisons between study scenarios into Prism, connected to model parameters and CAE. This is a future direction after current-tool polish, with detailed scope still to be reviewed. [Roadmap discussion #121](https://github.com/chrizpro/prism/issues/121) |
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
 | **Drawings** | Improve engineering drawings: more views, annotations and dimensioning control, and editing after a drawing is made |
 | **Python API and MCP** | Grow today's `cadkit` library and MCP bridge into a stable, versioned API for scripts, integrations and AI assistants |
@@ -149,7 +150,7 @@ Prism is released under the [MIT License](LICENSE). It is built on open-source c
 
 ## Documents and preferences
 
-New documents use `.prism`. Older `.ourcad` documents still open and appear in file dialogs, the workspace and the parts library.
+New documents default to `.prism`. **Save As** also offers the matching native suffix for a part (`.prism_prt`), assembly (`.prism_asm`) or editable drawing (`.prism_dwg`). Prism checks the contents when opening or saving a typed file. Older `.ourcad` documents still open and appear in file dialogs, the workspace and the parts library. [Native document rules](docs/interface/document-safety/README.md#expected-behavior).
 
 Preferences and support files live in `%LOCALAPPDATA%\Prism` on Windows. On first launch, Prism imports files from a previous `%LOCALAPPDATA%\OurCAD` folder without overwriting existing Prism files or removing the originals. New workspaces default to `Documents\Prism`.
 
@@ -184,8 +185,8 @@ Preview locally with `npm ci` then `npm run dev` in `site` or `web`. See the [si
 Push a version tag to build installers for Windows, macOS (Apple silicon and Intel) and Linux, publish them as a GitHub pre-release and refresh the download page:
 
 ```bash
-git tag v0.2.0-alpha.1
-git push origin v0.2.0-alpha.1
+git tag v0.3.0-alpha.1
+git push origin v0.3.0-alpha.1
 ```
 
 A release is published only if every platform builds. Run **Build Prism installers** by hand from the Actions tab to build one platform without releasing. See [packaging](packaging/README.md) for local installer builds. Windows is the most tested platform; macOS and Linux packages are built and runtime-checked in CI. Code signing and notarization are not set up yet.

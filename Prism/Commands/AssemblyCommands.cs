@@ -16,7 +16,7 @@ public sealed class InsertComponentCommand : Command
     readonly ChoiceParam _doc;
     readonly TextParam _file;
     readonly NumberParam _x, _y, _z;
-    readonly BoolParam _ground, _link;
+    readonly BoolParam _ground, _link, _moveGizmo;
     readonly List<(string Title, CadSession Session)> _docs;
 
     LibraryPart? _library;
@@ -36,13 +36,19 @@ public sealed class InsertComponentCommand : Command
         _doc = Choice("Part from an open document", 0, names);
         _file = Text("…or from a part file", "", "full path of a .prism file");
         _x = Num("Place at X", 0); _y = Num("Place at Y", 0); _z = Num("Place at Z", 0);
+        _moveGizmo = Check("Move with gizmo", false);
         _ground = Check("Ground it (fix it in place)", false);
         _link = Check("Keep linked to the file (Refresh updates it)", true);
     }
 
+    // Files saved before "Move with gizmo" have no value for it, which would shift Ground and Keep linked by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_moveGizmo), false) : recipe;
+
     public override string Title => "Insert Component";
     public override string Icon => "component";
     public override string OkText => "Insert";
+    public override GizmoSpec? Gizmo => _moveGizmo.Value ? GizmoSpec.At(new Vec3(_x.Value, _y.Value, _z.Value), _x, _y, _z) : null;
     public override string Hint => "Bottom-up assembly: model each part in its own document, then insert it here. Choose an open document or a part file. The first component is grounded so the rest can be joined to it.";
     protected override void OnBegin()
     {
@@ -57,7 +63,7 @@ public sealed class InsertComponentCommand : Command
         if (_library != null)
         {
             var (libShape, libColor, libLook) = PartsLibrary.Load(_library);
-            string? linked = _library.Path != null && _link.Value && Path.GetExtension(_library.Path).ToLowerInvariant() is ".prism" or ".ourcad" ? _library.Path : null;
+            string? linked = _library.Path != null && _link.Value && NativeDocumentFile.IsNative(_library.Path) ? _library.Path : null;
             var libPlace = Xform.Translation(new Vec3(_x.Value, _y.Value, _z.Value));
             var libInfo = new ComponentInfo(CadSession.NewKey(), _library.Name, linked, libPlace.ToArray(), _ground.Value, _library.Info?.WithoutThumbnail());
             Results.Add(new ResultLine("Part", _library.Name));
@@ -101,16 +107,24 @@ public sealed class JointCommand : Command
 {
     readonly JointType _type;
     readonly SelectionSlot _a, _b;
+    readonly ChoiceParam _placement;
     readonly ChoiceParam _flip;
     readonly BoolParam _limits;
     readonly NumberParam _min, _max, _min2, _max2;
 
+    // Joints saved before "Placement" have no value for it, which would shift "Limit the motion" and every limit after it by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_placement), 0) : recipe;
+
     public JointCommand(JointType type)
     {
         _type = type;
-        _a = Slot(new SelectionSlot { Label = "On the first part (face, circle edge or round face)", Filter = SelFilter.Face | SelFilter.Edge });
-        _b = Slot(new SelectionSlot { Label = "On the part that moves", Filter = SelFilter.Face | SelFilter.Edge });
+        _a = Slot(new SelectionSlot { Label = "On the first part (face, circle edge or round face)", Caption = "First part (reference)", Filter = SelFilter.Face | SelFilter.Edge });
+        _b = Slot(new SelectionSlot { Label = "On the part that moves", Caption = "Second part", Filter = SelFilter.Face | SelFilter.Edge });
         _flip = Choice("Direction", 0, "Automatic", "Flip", "Do not flip");
+        // Snap moves the second part onto the first pick; Keep leaves both parts where they stand (the axis still comes from the first pick),
+        // so a part never jumps inside or away from the other one when the picks are not the mating faces
+        _placement = Choice("Placement", 0, "Snap to picks", type == JointType.Rigid ? "As Positioned" : "Keep where it is");
         _limits = Check("Limit the motion", false);
         bool ang = type is JointType.Revolute or JointType.Cylindrical or JointType.Ball;
         _min = Num(ang ? "Minimum angle" : "Minimum travel", ang ? -90 : 0, -1e6, 1e6, 5, ang ? "°" : "mm");
@@ -125,7 +139,9 @@ public sealed class JointCommand : Command
     public override string OkText => "Create joint";
     public override string Hint => _type switch
     {
-        JointType.Rigid => "Pick a face or circle on each part (a plain body becomes a part when you pick it). The second part snaps so the two points coincide and then stays locked to the first.",
+        JointType.Rigid when AsPositioned => "Pick two parts to lock their current relative positions.",
+        JointType.Rigid => "Pick a face or circle on each part to snap them together. Choose As Positioned to lock two parts where they already sit.",
+        _ when AsPositioned => "Pick the axis on the first part (a circle edge, round face or flat face), then anything on the part that moves. Both parts stay where they are.",
         JointType.Revolute => "Pick a circle edge or round face (a pin and its hole) on each part (a plain body becomes a part when you pick it). The second turns about that axis.",
         JointType.Slider => "Pick a face on each part (a plain body becomes a part when you pick it). The second slides along the direction of the picked face's normal (or a round feature's axis).",
         JointType.Ball => "Pick a point (a circle centre or a face) on each part (a plain body becomes a part when you pick it). The second pivots about that point: spin about the picked axis and tilt away from it.",
@@ -136,12 +152,18 @@ public sealed class JointCommand : Command
     protected override void UpdateVisibility()
     {
         if (_min == null) return;
+        _flip.IsVisible = !AsPositioned;
+        bool rigidInPlace = AsPositioned && _type == JointType.Rigid;
+        _a.Filter = rigidInPlace ? SelFilter.Solid : SelFilter.Face | SelFilter.Edge;
+        _b.Filter = rigidInPlace ? SelFilter.Solid : AsPositioned ? SelFilter.Face | SelFilter.Edge | SelFilter.Solid : SelFilter.Face | SelFilter.Edge;
         _min.IsVisible = _max.IsVisible = _limits.Value && _type != JointType.Rigid;
         _min2.IsVisible = _max2.IsVisible = _limits.Value && _type is JointType.Cylindrical or JointType.Ball or JointType.Planar;
     }
 
     // what Build worked out, shown in the viewport
-    Xform? _frameA, _frameB;
+    bool AsPositioned => _placement.Index == 1;
+    Xform? _frameA, _frameB, _axisFrame;
+    (Vec3 at, string label)? _labelA, _labelB;
 
     readonly List<Guid> _madeParts = [];
 
@@ -150,7 +172,7 @@ public sealed class JointCommand : Command
     {
         var o = S.Find(slot.Items[0].Obj);
         if (o?.Component != null) return o;
-        if (o?.Kind != ObjKind.Solid) throw new FormatException("Pick a face or edge on a solid body or a part.");
+        if (o?.Kind != ObjKind.Solid) throw new FormatException("Pick a solid body or an assembly component.");
         _madeParts.Add(o.Id);
         return S.MakePart(o.Id);
     }
@@ -167,11 +189,17 @@ public sealed class JointCommand : Command
         parent = child = null;
         if (_a.Items.Count == 0 || _b.Items.Count == 0) return null;
         parent = Owner(_a); child = Owner(_b);
-        if (parent.Component!.Key == child.Component!.Key) throw new FormatException("Pick the two faces on two different components.");
-        var fa = S.FrameOf(_a.Items[0]) ?? throw new FormatException("The first pick has no usable point or axis. Use a flat face, a circular edge or a round face.");
-        var fb = S.FrameOf(_b.Items[0]) ?? throw new FormatException("The second pick has no usable point or axis. Use a flat face, a circular edge or a round face.");
-        var Aw = WorldFrame(fa); var Bw = WorldFrame(fb);
-        bool flip = _flip.Index switch { 1 => true, 2 => false, _ => Vec3.Dot(Aw.AxisZ, Bw.AxisZ) < 0 };
+        if (parent.Component!.Key == child.Component!.Key) throw new FormatException("Pick two different components.");
+        Xform Frame(SelItem pick, string which)
+        {
+            if (pick.Kind == SelKind.Object || S.FrameOf(pick) is not { } frame)
+                throw new FormatException($"Pick a flat face, a circular edge or a round face on the {which} part.");
+            return WorldFrame(frame);
+        }
+        // Rigid in place: the parent's own frame. Any other joint in place: the axis from the first pick, and the child keeps its position (its frame is the same world frame).
+        var Aw = AsPositioned && _type == JointType.Rigid ? parent.Component.Placement : Frame(_a.Items[0], "first");
+        var Bw = AsPositioned ? Aw : Frame(_b.Items[0], "second");
+        bool flip = !AsPositioned && (_flip.Index switch { 1 => true, 2 => false, _ => Vec3.Dot(Aw.AxisZ, Bw.AxisZ) < 0 });
         // where the child frame sits relative to the parent frame right now: used to keep the part's turn about the axis
         var rel = Aw.Inverse() * Bw;
         var m = flip ? rel * Xform.RotX180 : rel;
@@ -186,29 +214,78 @@ public sealed class JointCommand : Command
 
     protected override CommandOutput? Build()
     {
-        Results.Clear(); _frameA = _frameB = null;
+        Results.Clear(); _frameA = _frameB = _axisFrame = null; _labelA = _labelB = null;
         var j = Plan(out var parent, out var child);
         if (j == null) return null;
-        var placements = S.SolvePlacements(null, out _, [j]);
+        var values = S.CloseLoops(new Dictionary<string, JointInfo>(), null, default, out var problem, added: j);
+        if (problem != null) throw new InvalidOperationException(problem);
+        var over = values == null ? null : S.JointObjects.Where(p => values.ContainsKey(p.joint.Key))
+            .ToDictionary(p => p.joint.Key, p => p.joint with { Value = values[p.joint.Key].v1, Value2 = values[p.joint.Key].v2 });
+        if (values != null && values.TryGetValue(j.Key, out var v)) j = j with { Value = v.v1, Value2 = v.v2 };
+        var placements = S.SolvePlacements(over, out var notes, [j]);
         var o = new CommandOutput { Label = j.Name, Icon = Icon, ReplaceIsMove = true };
+        var moved = new List<Guid>();
         // preview the snap, then let the real solver set the final positions
         foreach (var comp in S.Components)
         {
             var np = placements[comp.Component!.Key];
-            if (np.DistanceTo(comp.Component.Placement) > 1e-9) o.Replace.Add((comp, np.Apply(S.LocalShapeOf(comp))));
+            if (np.DistanceTo(comp.Component.Placement) <= 1e-9) continue;
+            o.Replace.Add((comp, np.Apply(S.LocalShapeOf(comp))));
+            moved.Add(comp.Id);
         }
         var marker = Occ.Line(_frameA!.Value.T, _frameA.Value.T + _frameA.Value.AxisZ * 0.01);
         o.Add.Add(new(marker, j.Type.ToString(), ObjKind.Joint, Asm: j));
-        o.After = s => s.SolveAssembly();
-        Results.Add(new ResultLine("Between", $"{parent!.Name}  →  {child!.Name}"));
-        Results.Add(new ResultLine("Direction", j.Flip ? "flipped (faces meet)" : "same direction"));
+        o.After = s => { if (values == null) s.SolveAssembly(); else s.SetJointValues(values); };
+        (Vec3 at, string label) ShowRole(SceneObject part, int number, string role)
+        {
+            string action = moved.Contains(part.Id) ? "moves" : "stays in place";
+            Results.Add(new ResultLine(role, $"{part.Name} · {action}"));
+            return ((part.Mesh.Min + part.Mesh.Max) * 0.5, $"{number} · {part.Name} · {action}");
+        }
+        _labelA = ShowRole(parent!, 1, "First part");
+        _labelB = ShowRole(child!, 2, "Second part");
+        if (AsPositioned) Results.Add(new ResultLine("Placement", "Both parts stay where they are"));
+        else Results.Add(new ResultLine("Direction", j.Flip ? "flipped (faces meet)" : "same direction"));
+        foreach (var note in notes) Results.Add(new ResultLine("Solver", note));
+        if (_type != JointType.Rigid)
+        {
+            var frame = placements[j.ParentKey] * j.A;
+            double azimuth = _type == JointType.Ball ? j.ZeroAngle + j.Clamped().v1 : j.ZeroAngle;
+            _axisFrame = _type is JointType.Planar or JointType.Ball ? frame * Xform.RotZ(azimuth * Math.PI / 180) : frame;
+        }
         return o;
     }
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
-        if (_frameA is { } a) Triad(o, a, 12, 0xFFFFC53D);
-        if (_frameB is { } b) Triad(o, b, 9, 0xFF35B6FF);
+        if (_type is JointType.Revolute or JointType.Cylindrical && s.Hover is { } pick &&
+            ActiveSlot is { } slot && s.Matches(pick, slot.PickFilter) &&
+            s.Find(pick.Obj)?.Kind == ObjKind.Solid && s.FrameOf(pick) is { } candidate)
+        {
+            double extent = s.Camera.PixelSizeAt(candidate.origin) * 55;
+            var end = candidate.origin + candidate.z * extent;
+            o.AddLine(candidate.origin - candidate.z * extent, end, 0xFF35B6FF, 3f);
+            o.AddLabel(end, "Pick axis");
+        }
+        if (!AsPositioned && _frameA is { } a) Triad(o, a, 12, 0xFFFFC53D);
+        if (!AsPositioned && _frameB is { } b) Triad(o, b, 9, 0xFF35B6FF);
+        if (_labelA is { } first) o.AddLabel(first.at, first.label);
+        if (_labelB is { } second) o.AddLabel(second.at, second.label);
+        if (_axisFrame is not { } axis) return;
+        double length = s.Camera.PixelSizeAt(axis.T) * 75;
+        void Axis(Vec3 dir, string label)
+        {
+            o.AddLine(axis.T - dir * length, axis.T + dir * length, 0xFFFFC53D, 3.5f);
+            o.AddLabel(axis.T + dir * length, label);
+        }
+        switch (_type)
+        {
+            case JointType.Planar: Axis(axis.AxisX, "Slide X"); Axis(axis.AxisY, "Slide Y"); break;
+            case JointType.Ball: Axis(axis.AxisZ, "Spin axis"); Axis(axis.AxisX, "Tilt axis"); o.AddLabel(axis.T, "Pivot point"); break;
+            case JointType.Slider: Axis(axis.AxisZ, "Slide axis"); break;
+            case JointType.Cylindrical: Axis(axis.AxisZ, "Turn and slide axis"); break;
+            case JointType.Revolute: Axis(axis.AxisZ, "Hinge axis"); break;
+        }
     }
 
     public static void Triad(Overlay o, Xform f, double len, uint z)
@@ -285,7 +362,13 @@ public sealed class DriveJointsCommand : Command
         var closed = S.CloseLoops(over, moved, moved == null ? default : _last[moved], out var problem);
         if (problem != null)
         {
-            foreach (var r in _rows) over[r.joint.Key] = r.joint with { Value = _last[r.joint.Key].v1, Value2 = _last[r.joint.Key].v2 };
+            foreach (var r in _rows)
+            {
+                var last = _last[r.joint.Key];
+                over[r.joint.Key] = r.joint with { Value = last.v1, Value2 = last.v2 };
+                SetQuietly(r.v1, last.v1);
+                if (r.v2 != null) SetQuietly(r.v2, last.v2);
+            }
             Results.Add(new ResultLine("Cannot go there", problem, 2));
         }
         else if (closed != null)
@@ -297,7 +380,6 @@ public sealed class DriveJointsCommand : Command
                 }
         foreach (var r in _rows) _last[r.joint.Key] = (over[r.joint.Key].Value, over[r.joint.Key].Value2);
         var placements = S.SolvePlacements(over, out var notes);
-        if (closed != null) notes.RemoveAll(n => n.Contains("closed loop"));
         var o = new CommandOutput { Label = "Drive joints", Icon = "joint-revolute", ReplaceIsMove = true };
         foreach (var comp in S.Components)
         {
@@ -337,22 +419,11 @@ public sealed class MoveComponentCommand : Command
         return (m.Min + m.Max) * 0.5;
     }
 
-    public override IReadOnlyList<HandleSpec> Handles
-    {
-        get
-        {
-            if (Centre(out var size) is not { } c) return [];
-            var rx = SurfaceMath.Basis(Vec3.UnitX);
-            var ry = SurfaceMath.Basis(Vec3.UnitY);
-            var rz = SurfaceMath.Basis(Vec3.UnitZ);
-            return
-            [
-                new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz),
-                new(c, Vec3.UnitX, _rx, 1, rx.u, size), new(c, Vec3.UnitY, _ry, 1, ry.u, size), new(c, Vec3.UnitZ, _rz, 1, rz.u, size),
-            ];
-        }
-    }
-    public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    public override IReadOnlyList<HandleSpec> Handles => [];
+    public override HandleSpec? Handle => null;
+    /// <summary>A component's place is a position and an orientation: the one shared gizmo, arrows and rings, riding on the typed move.</summary>
+    public override GizmoSpec? Gizmo => Centre(out _) is not { } c ? null
+        : GizmoSpec.At(c + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz, _rx, _ry, _rz);
 
     static Xform Rot(Vec3 axis, double deg)
     {
@@ -427,16 +498,29 @@ public sealed class ComponentPatternCommand : Command
         get
         {
             if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj) return [];
+            if (_kind.Index == 0) return [];
             var m = obj.Mesh; var c = (m.Min + m.Max) * 0.5;
-            if (_kind.Index == 0) return [new(c, Vec3.UnitX, _dx), new(c, Vec3.UnitY, _dy), new(c, Vec3.UnitZ, _dz)];
             var axis = _axis.Index switch { 0 => Vec3.UnitX, 1 => Vec3.UnitY, _ => Vec3.UnitZ };
             var through = new Vec3(_cx.Value, _cy.Value, _cz.Value);
             var foot = through + axis * Vec3.Dot(c - through, axis);
-            var rel = c - foot; if (rel.Length < 1e-6) return [new(c, Vec3.UnitX, _cx), new(c, Vec3.UnitY, _cy), new(c, Vec3.UnitZ, _cz)];
+            var rel = c - foot; if (rel.Length < 1e-6) return [];
             return [new(foot, axis, _angle, 1, rel.Normalized(), rel.Length)];
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
+    /// <summary>Linear: the gizmo sits where the first copy lands and sets the spacing. Circular: it sits on the point the axis passes through; the angle keeps its ring.</summary>
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_comp.Items.Count == 0 || S.Find(_comp.Items[0].Obj) is not { } obj) return null;
+            var m = obj.Mesh; var c = (m.Min + m.Max) * 0.5;
+            return _kind.Index == 0
+                ? GizmoSpec.At(c + new Vec3(_dx.Value, _dy.Value, _dz.Value), _dx, _dy, _dz)
+                : GizmoSpec.At(new Vec3(_cx.Value, _cy.Value, _cz.Value), _cx, _cy, _cz);
+        }
+    }
 
     protected override CommandOutput? Build()
     {
@@ -540,7 +624,7 @@ public sealed class CreatePartCommand : Command
     public override string Title => "Create Part";
     public override string Icon => "component";
     public override string OkText => "Create and model it";
-    public override string Hint => "Make a new part for this assembly. It opens in the Design workspace on the right tab (Solid, Sheet Metal, Surface, Freeform, NURBS or Scan) with the rest of the assembly left behind. Press Back to assembly when you are done and the part is placed here. You can switch tabs later: all the modeling tabs stay available.";
+    public override string Hint => "Model a new part in its own tab. Visible assembly components appear dimmed for reference. Press Finish part and return to insert the finished part.";
 
     protected override void OnBegin() { if (_name.Value.Length == 0) _name.Value = $"Part {S.Components.Count() + 1}"; }
 

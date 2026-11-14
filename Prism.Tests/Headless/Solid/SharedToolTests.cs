@@ -144,4 +144,29 @@ public class SharedToolTests
         Assert.Equal(4, curve.Count(SubKind.Edge));
         AssertBounds(curve, new Vec3(0, 0, 3), new Vec3(4, 5, 3));
     }
+
+    [AvaloniaFact(DisplayName = "SOL-H108 | Intersection Curve given two flat curves makes their shared 3D curve without a mode switch")]
+    [Trait("TestId", "SOL-H108")]
+    public void IntersectionCurveTakesTwoCurvesDirectly()
+    {
+        var session = new CadSession();
+        var front = session.AddObject(Occ.NurbsCurve([new(-60, -20, -35), new(-20, 45, -35), new(20, -45, -35), new(60, 20, -35)]), "Front profile", ObjKind.Curve, 0xFFF6B85B, new(new(0, 0, -35), Vec3.UnitX, Vec3.UnitY));
+        var side = session.AddObject(Occ.NurbsCurve([new(-60, -50, 0), new(-20, -50, 65), new(20, -50, -25), new(60, -50, 40)]), "Side profile", ObjKind.Curve, 0xFFB697FF, new(new(0, -50, 0), Vec3.UnitX, Vec3.UnitZ));
+        var command = StartCommand(session, front, () => new IntersectCurvesCommand());
+        // Automatic is the last option and the default, so steps saved with the two older choices keep their numbers
+        var between = command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Between");
+        Assert.Equal("Automatic (from what you pick)", between.Options[between.Index]);
+        Assert.Equal("Planes, faces or bodies", between.Options[0]);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "First", front);
+            SetSelection(command, "Second", side);
+        });
+        command.OnChanged();
+        Assert.True(command.Slots[1].Filter.HasFlag(SelFilter.AnyCurve) && !command.Slots[1].Filter.HasFlag(SelFilter.Solid), "the second pick is limited to curves once the first is a curve");
+        using var curve = BuildSingleAddedShape(command);
+        Assert.True(curve.IsValid);
+        Assert.Equal(0, curve.Count(SubKind.Face));
+        Assert.True(curve.Count(SubKind.Edge) >= 1);
+    }
 }

@@ -6,6 +6,23 @@ Owner authorized save prompts on application close and opt-in timed autosave on 
 
 ## Expected behavior
 
+**Owner approved native typed extensions on 2026-11-09 and typed defaults on 2026-11-10.** They use the same editable document contents as `.prism`, including source geometry and history. A first save and Save As default to the typed suffix matching the current contents, including when the working file was opened as `.prism` or `.ourcad`. The general format remains available in the picker and is the default when there is no matching typed suffix. Save continues updating the existing file. Open and save validate the suffix against the contents before replacing an existing file or loading into the current session. [Typed document issue #97](https://github.com/chrizpro/prism/issues/97).
+
+| Suffix | What the file contains |
+| --- | --- |
+| `.prism_dwg` | One or more editable drawing sheets. Source part or assembly geometry stays in the file. Desktop Open and drag-and-drop enter Drawing. |
+| `.prism_asm` | One or more assembly components, with any loose bodies retained. There are no drawing sheets. |
+| `.prism_prt` | Model geometry such as bodies, surfaces, sketches or curves, with no assembly components or drawing sheets. |
+| `.prism`, `.ourcad` | General native documents, including empty or older documents. |
+
+If the document changes kind, use Save As with the matching suffix or the general format. Recovery copies continue to use `.prism`. The Windows installer registers the three typed extensions for opening in Prism. [SAV-H014](../../../Prism.Tests/Headless/DocumentSafety/DocumentSafetyTests.cs) exercises the matching Save As choices, round trips, mismatch refusal, and drawing drag-and-drop.
+
+A mold project with two or more identified halves and no drawing sheets also qualifies for `.prism_asm`. **Save As → Prism mold (`.prism_mld`)** writes a mold-only copy and leaves the working document unsaved if it has changes. The Windows installer registers the mold suffix. [Mold file scope and tests](../../modeling/mold/README.md#saving-for-manufacturing).
+
+**Home → Document → Export As** offers the general editable Prism format (`.prism`) and the existing STEP, IGES, BREP, sketch DXF, GLB, 3MF, STL, OBJ and PLY exporters. Formats without eligible geometry stay visible and grayed out. Hover over an option to see what it needs. Exporting a general Prism copy keeps the working document's path and save state. Finish any edit and close the exploded view before exporting that copy. [SAV-H015](../../../Prism.Tests/Headless/DocumentSafety/DocumentSafetyTests.cs) covers the legacy Save As default, format availability, and reopening the exported copy.
+
+On 2026-11-10, 34 targeted Document Safety, ECAD and ribbon checks passed on Windows. The [File manual checklist](../../tabs/checklists/file-manual-test-checklist.md) covers the native save dialog and the disabled menu appearance.
+
 - Owner added file drag-and-drop to this delivery on 2026-11-05 ([#67](https://github.com/chrizpro/prism/issues/67)). Drop one or multiple supported local files anywhere on the desktop Home/workspace window. Native `.prism`/`.ourcad` documents open; STEP/STP, IGES/IGS, BREP, DXF, STL, OBJ, PLY and 3MF use the existing importers. Each successful file gets its own tab. Unsaved work is retained. Unsupported files, folders and text are rejected; invalid files are loaded privately and cannot replace an existing document. Unfinished edits or close reviews block drops. Imported files remain unsaved native documents; the dropped source is not moved or overwritten. In-app importing of dropped images, remote URLs, archive folders and arbitrary point-cloud tables is outside this initial scope.
 
 - A normal desktop close checks every open document, including inactive tabs. Changed documents and unfinished edits offer **Save**, **Don't save** and **Cancel**. Untouched documents do not prompt: a document is untouched until something is created or changed, and it becomes untouched again when undo (or an abandoned edit) returns it to the state it was last saved, opened or created in. An empty sketch, or a tool opened but never applied, creates nothing and does not prompt either; a sketch with something drawn still does. Bug fix 2026-11-09: closing used to ask after undoing everything, or after merely starting a sketch or tool. A change outside the timeline (lights, data sheets, studies) keeps the document marked changed even after undo to the start, as it should. SAV-H012 and SAV-H013 passed (Linux cloud container, .NET SDK 10.0.114, native libraries from release v0.1.0-alpha.2, 2026-11-09). Cancel, a canceled Save As, or a failed write keeps the application open. Previously completed saves remain saved if a later document cancels closing.
@@ -21,6 +38,8 @@ Owner authorized save prompts on application close and opt-in timed autosave on 
 
 - Native [save and recovery serialization](../../../Prism/Core/CadSession.cs), [atomic file and recovery scheduling](../../../Prism/Core/DocumentRecovery.cs), [save/close view-model flow](../../../Prism/ViewModels/MainViewModel.DocumentSafety.cs), [desktop lifetime](../../../Prism/Views/MainWindow.DocumentSafety.cs), [dialogs](../../../Prism/Views/DocumentSafetyDialogs.cs).
 - Maintained [Unit tests](../../../Prism.Tests/Unit/DocumentSafety/) and [Headless tests](../../../Prism.Tests/Headless/DocumentSafety/). [Desktop timer scenario](../../../Prism.Tests/Integration/DesktopDocumentSafetyTests.cs) and actual evidence are recorded below.
+
+Typed file verification on Windows, 2026-11-09, with the changes applied to `fb99758`. SAV-H014 passed in the 61-test Headless selection. The Release desktop build opened the gallery wrench via a `.prism_dwg` command-line path and reported one editable sheet in the Drawing workspace. NSIS 3.11 compiled the association changes against the installer fixture. Shell registration and the interactive native Save As dialog were not exercised.
 
 ## Verification — 2026-11-05
 

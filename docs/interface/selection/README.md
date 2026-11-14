@@ -1,6 +1,6 @@
 # Selection controls and region picking
 
-Object, Face and Edge choose the pick level. Vertex requires a selected Freeform cage or active cage editing. Rectangle dragged left to right requires containment, and the reverse drag accepts crossing geometry. Lasso uses the drawn polygon. Paint (proposed 2026-11) takes whatever the freehand stroke itself crosses — the trail does not need to enclose anything. Through includes occluded objects in region selection. Invert complements the current selection at its pick level.
+Object, Face, Edge and Vertex choose the pick level. Vertex picks corner points of solids, surfaces and curves; with a Freeform cage selected it opens cage editing on its vertices, and in a sketch it picks points. Rectangle dragged left to right requires containment, and the reverse drag accepts crossing geometry. Lasso uses the drawn polygon. Paint (proposed 2026-11) takes whatever the freehand stroke itself crosses — the trail does not need to enclose anything. Through includes occluded objects in region selection. Invert complements the current selection at its pick level.
 
 The same Select group ships on every modeling ribbon tab — Home, Solid, Direct Modeling, Surface, NURBS, Sheet Metal, Analyze, Static, Assemble and Joints — so the pick levels, drag methods, Invert and Through are one habit. The Sketch tab ships the same group: Object arms the sketch Select tool, the Rectangle / Lasso / Paint methods set how its drag selects (they have no right-panel section), and Face, Edge, Vertex, Invert and Through, which act on bodies, are unavailable while sketching. Edit Sketch sits at the start of the Sketch tab's Modify group.
 
@@ -13,6 +13,66 @@ In a multi-plane sketch everything visible is pickable: curves on inactive drawi
 **Sketch, Face/Edge levels and pictures (2026-11-07, bug fixes).** In a sketch, a lasso is closed by returning to where it began; it used to be mistaken for a click and selected nothing. At the Edge level, a small rectangle over just the end of a long edge now takes it (the edge used to be judged hidden because its midpoint lay outside the rectangle). At the Face level a drag gives a scanned mesh its one face and a Freeform cage its own faces, as a click does. A placed picture is a construction plane and is taken like one. Not drag-selectable: lights (one is selected at a time, in the Lights tool), sketch dimensions and constraint symbols (also one at a time), and a sketch's saved datums.
 
 **Selected datums show in the viewport (2026-11-07, bug fix).** A datum has no mesh, so the body highlight never reached it: a selected datum showed in the Browser but looked unchanged in the viewport, whether picked by click or by drag. Selected datums, and those picked into an open command's slots, are now drawn orange with heavier lines and a larger dot, and the hovered one blue ([SOL-H106](../../../Prism.Tests/Headless/Solid/RegionSelectionKindsTests.cs)).
+
+## Isolate faces
+
+**Status: owner direction 2026-11-12; implemented; checked in the running app on Windows the same day.**
+
+**Isolate** (View tab) with whole objects selected hides every other object, as before. With **faces** selected it shows only those faces: the other faces of the same bodies and every other solid, surface, form and mesh are hidden. Curves, sketches and planes stay visible as references. A whole object selected together with faces keeps all its faces. **Show All** brings everything back.
+
+- It is a way of looking, not an edit. Nothing in the document changes, it is not saved and it is not an undo step. Commands still work on the whole body.
+- A hidden face cannot be clicked, hovered or taken by a rectangle, lasso or paint stroke; the pick passes through to what is behind it. Only the edges that border a shown face are drawn and pickable.
+- When an isolated body changes shape its face numbers no longer mean the same faces, so that body is shown whole again.
+- Not covered: the photo render and exports ignore face isolation and use the whole body.
+
+[Face isolation checks](../../../Prism.Tests/Headless/Selection/FaceIsolationTests.cs) (`SEL-H013`-`SEL-H015`).
+
+## Selection levels on surfaces: review 2026-11-12
+
+Checked in the running app on a split NURBS surface, for the planned direct-modeling flow on surfaces. **Proposed items below await owner review.**
+
+- **Works:** Object, Face and Edge levels pick a surface, its faces and its border edges by click; Delete removes a selected surface face; Isolate takes faces.
+- **Fixed:** the edge made by splitting a smooth NURBS surface was neither drawn nor pickable, because smooth joins between freeform faces are hidden as patch seams. A cut through one and the same surface is now kept as a real edge (`SFC-H017`). Seams between different patches (a converted Freeform body) stay hidden.
+- **Closed 2026-11-13:** the Vertex level, Offset Face and Move Face on surface faces, and the right-click menu for a surface face. See the next section.
+- **Closed 2026-11-13:** Merge Faces works on surfaces too (`SEL-H022`), and Push / Pull takes curved surface faces (`SEL-H023`).
+- **Still open:** moving a corner point directly, and using a corner point as a pick inside other tools. Corner control points of a NURBS surface already move with Edit Points.
+- **Note:** the default Shaded display draws no edges, so a split is invisible until an edge is hovered or the display is set to shaded with edges.
+
+## Direct edits and the Vertex level on surfaces
+
+**Status: owner approved 2026-11-13 ("proceed with all 3"); implemented.**
+
+- **Vertex level** (`SEL-H016`, `SEL-H017`, `SOL-H074`). The Vertex button is available on every modeling tab. It shows a small dot on every corner point of the visible solids, surfaces and curves; a click selects the corner under the pointer (within 9 pixels, not hidden behind a face unless Through is on) and the status line gives its position. Measure takes corner points as exact points, so two corners give an exact distance. Delete with only corner points selected removes nothing. Dragging a box selects the corners inside it (`SEL-H021`; hidden ones are skipped unless Through is on). Not yet built: moving a corner, and using a corner as a pick in other tools.
+- **Move Face on a surface** (`SEL-H018`). Any face of a surface, flat or curved, is carried by the typed or dragged move. Walls are added along the edges it shared with faces that stay, so the result is one surface with a raised or sunk panel. Edges on the open border of the surface get no wall. Tilt is refused on surface faces.
+- **Offset Face on a surface** (`SEL-H019`). The face is carried along its own normals by the distance (a curved face becomes its offset) and joined back with walls in the same way.
+- **Right-click on a surface face** offers Offset face, Move face, Draw on surface, Delete face, Isolate, Measure and Thicken, in place of the solid-only Push / pull, Shell and Hole.
+
+[Checks](../../../Prism.Tests/Headless/Selection/VertexAndSurfaceFaceTests.cs).
+
+## Select all
+
+**Ctrl+A** selects everything at the current pick level (`SEL-H024`): every visible body in Object mode, every face in Face mode, every edge in Edge mode, every corner point in Vertex mode. In a command slot it fills the slot with everything the slot accepts. In an open sketch it selects all the sketch geometry, in Edit Freeform all cage components, and in Edit Points all control points. In a text box it selects the text as usual. The shortcut can be changed in the shortcut settings.
+
+## Groups
+
+**Status: owner requested 2026-11-13 ("a group select tool ... nested under a newly created parent in the browser tree"); implemented.**
+
+- **Make a group.** Select two or more objects and choose **Group** (Select group on the ribbon, Ctrl+G, or right-click in the browser). They get one shared name, "Group 1", "Group 2" and so on, and the browser shows them under a parent row of that name, in place of their kind folders. The status line says what was grouped (`SEL-H025`).
+- **Use the parent row.** Its eye hides or shows every member at once, clicking it selects every member (so a color, a move or a delete applies to the set), and double-click or F2 renames the group. Renaming to a name another group has merges the two (`SEL-H026`, `SEL-H027`).
+- **Take things out.** **Ungroup** (the arrow beside Group, Ctrl+Shift+G, or right-click) takes the selected objects out of their groups; Ungroup on a selected group row dissolves the whole group. The objects themselves are never deleted or changed.
+- **What it is.** A group is one level deep (no groups inside groups) and is a name carried by each member, so Undo restores it, editing a member keeps it, and it is saved with the file. Grouping is one undo step.
+- **Not built:** dragging a row into or out of a group, groups of groups, and picking a whole group by clicking one member in the viewport.
+
+[Checks](../../../Prism.Tests/Headless/Selection/GroupTests.cs).
+
+## Copy, paste and Alt-drag copy
+
+**Status: owner requested 2026-11-13; implemented.**
+
+- **Copy and paste (`SEL-H028`).** Ctrl+C remembers the selected objects (bodies, surfaces, curves, sketches, meshes and Freeform forms); Ctrl+V adds an independent copy of each in the same place, selects the copies, and names them like Duplicate does. The copy is taken at Ctrl+C, so editing or deleting the original afterwards changes nothing, and it can be pasted into another open document. Paste is one undo step. Components, joints, planes and reference parts are not copied. Ctrl+C and Ctrl+V do nothing while a tool or sketch is open.
+- **Alt-drag copy (`SEL-H029`).** With the Move tool, hold **Alt** when you press an arrow, plane block or the centre of the gizmo: the originals stay where they are and copies are dragged. The copies are selected afterwards. Alt also bypasses snapping on that drag, as it does elsewhere. Copy and Move are two undo steps.
+
+[Checks](../../../Prism.Tests/Headless/Selection/ClipboardTests.cs).
 
 ## Edge selection rules in command slots
 

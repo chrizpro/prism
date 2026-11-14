@@ -52,9 +52,9 @@ public sealed class MeasureCommand : AnalysisCommand
     }
 
     public override string Title => "Measure";
-    public override string Hint => "Click a face, edge or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.";
+    public override string Hint => "Click a face, edge, corner point or body to see its size. Click a second one for the distance and angle between them. Hold Alt to measure a point.";
 
-    public SelFilter Filter => PickMode.Index switch { 1 => SelFilter.AnyObject, 2 => SelFilter.Face | SelFilter.Edge, 3 => SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject, _ => SelFilter.Face | SelFilter.Edge };
+    public SelFilter Filter => PickMode.Index switch { 1 => SelFilter.AnyObject, 2 => SelFilter.Face | SelFilter.Edge | SelFilter.Vertex, 3 => SelFilter.Face | SelFilter.Edge | SelFilter.AnyObject, _ => SelFilter.Face | SelFilter.Edge | SelFilter.Vertex };
     public bool Multi => PickMode.Index == 3;
     public bool PointMode => PickMode.Index == 2;
 
@@ -62,7 +62,7 @@ public sealed class MeasureCommand : AnalysisCommand
     {
         if (Picks.Count >= 2 && !Multi || Picks.Count >= 60) Picks.Clear();
         MeasureItem item;
-        if (PointMode || forcePoint)
+        if (PointMode || forcePoint || r.Item.Kind == SelKind.Vertex)      // a corner point is measured as the exact point it is
             item = new MeasureItem($"Point ({r.Point.X:0.##}, {r.Point.Y:0.##}, {r.Point.Z:0.##})", null, r.Point, Occ.Vertex(r.Point), true);
         else
         {
@@ -305,18 +305,24 @@ public sealed class SectionCommand : AnalysisCommand
     readonly SelectionSlot _bodies;
     readonly SelectionSlot _customPlane;
     readonly ChoiceParam _plane;
-    readonly NumberParam _offset;
+    readonly NumberParam _offset, _move, _tiltX, _tiltY, _displaySize;
     readonly BoolParam _flip, _keep;
     readonly List<List<Vec3>> _curves = [];
     (Vec3 origin, Vec3 normal)? _cut; double _size = 60;
+    Vec3? _pivot;
+    const int Movable = 4;
     int _previousPlane = -1;
 
     public SectionCommand()
     {
         _bodies = Slot(new SelectionSlot { Label = "Bodies (none = all)", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.Form, Multi = true, Optional = true });
-        _plane = Choice("Section plane", 0, "XY (cut across Z)", "XZ (cut across Y)", "YZ (cut across X)", "Custom plane or planar face");
+        _plane = Choice("Section plane", 0, "XY (cut across Z)", "XZ (cut across Y)", "YZ (cut across X)", "Custom plane or planar face", "Movable plane");
         _customPlane = Slot(new SelectionSlot { Label = "Custom plane or planar face", Filter = SelFilter.Plane | SelFilter.Face, IsVisible = false, Optional = true });
         _offset = Num("Offset", 0);
+        _move = Num("Plane travel", 0);
+        _tiltX = Num("Tilt about X", 0, -180, 180, 1, "°");
+        _tiltY = Num("Tilt about Y", 0, -180, 180, 1, "°");
+        _displaySize = Num("Plane display size", 100, 20, 300, 5, "%");
         _flip = Check("Flip side", false);
         _keep = Check("Keep section view when done", true);
         _plane.Changed = () =>
@@ -328,7 +334,7 @@ public sealed class SectionCommand : AnalysisCommand
     }
 
     public override string Title => "Section";
-    public override string Hint => "Cut the model with a plane to look inside; the cut outline, area and perimeter are reported. Drag the offset to scan through the part.";
+    public override string Hint => "Choose Movable plane for a cut centered on the model. Drag its arrow to move the cut and the grips on its rings to tilt it. The size handle changes the display footprint.";
     public override string Icon => "section";
 
     protected override void OnBegin()
@@ -340,6 +346,8 @@ public sealed class SectionCommand : AnalysisCommand
     {
         if (_customPlane == null) return;
         _customPlane.IsVisible = _plane.Index == 3;
+        _offset.IsVisible = _plane.Index != Movable;
+        _move.IsVisible = _tiltX.IsVisible = _tiltY.IsVisible = _displaySize.IsVisible = _plane.Index == Movable;
         if (_previousPlane != _plane.Index)
         {
             _previousPlane = _plane.Index;
@@ -350,6 +358,31 @@ public sealed class SectionCommand : AnalysisCommand
 
     public override void OnEnd() { if (!_keep.Value) { S.Clip = null; S.Invalidate(); } }
     public override void OnCancel() { S.Clip = null; S.Invalidate(); }
+
+    Plane3 MovableFrame(Vec3 origin)
+    {
+        var u = DirectHelpers.RotateAbout(Vec3.UnitX, Vec3.UnitY, _tiltY.Value);
+        var v = DirectHelpers.RotateAbout(DirectHelpers.RotateAbout(Vec3.UnitY, Vec3.UnitX, _tiltX.Value), Vec3.UnitY, _tiltY.Value);
+        return new Plane3(origin, u, v);
+    }
+
+    public override IReadOnlyList<HandleSpec> Handles
+    {
+        get
+        {
+            if (_plane.Index != Movable) return base.Handles;
+            if (_pivot is not { } pivot || _cut is not { } cut) return [];
+            var frame = MovableFrame(cut.origin);
+            double radius = S.Camera.PixelSizeAt(cut.origin) * 65;
+            return
+            [
+                new HandleSpec(pivot + frame.V * radius * .6, frame.Normal, _move, Colour: 0xFF4C94FF),
+                new HandleSpec(pivot, frame.U, _tiltX, Ref: Vec3.UnitY, Radius: radius, ShowRange: true, Colour: 0xFFE5484D),
+                new HandleSpec(pivot, Vec3.UnitY, _tiltY, Ref: -Vec3.UnitX, Radius: radius * 1.25, ShowRange: true, Colour: 0xFF3FCF8E),
+                new HandleSpec(cut.origin, frame.U, _displaySize, Mul: 100 / (_size * .7), Colour: 0xFFFFC53D),
+            ];
+        }
+    }
 
     public override HandleSpec? Handle
     {
@@ -371,6 +404,7 @@ public sealed class SectionCommand : AnalysisCommand
         _curves.Clear(); _cut = null;
         var n = _plane.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX;
         var origin = n * _offset.Value;
+        var objs = Targets(_bodies, IsBody);
         if (_plane.Index == 3)
         {
             if (_customPlane.Items.Count == 0) { S.Clip = null; Row("Section", "Select a custom plane or planar face.", 2); S.Invalidate(); return; }
@@ -379,9 +413,23 @@ public sealed class SectionCommand : AnalysisCommand
             var plane = S.PlaneOf(item) ?? throw new FormatException("Select a planar face or construction plane.");
             n = plane.Normal; origin = plane.Origin + n * _offset.Value;
         }
+        if (_plane.Index == Movable)
+        {
+            if (_pivot == null)
+            {
+                if (objs.Count == 0) { S.Clip = null; Row("Section", "There are no bodies to section.", 2); S.Invalidate(); return; }
+                var meshes = objs.Select(o => o.Mesh).ToList();
+                var min = new Vec3(meshes.Min(m => m.Min.X), meshes.Min(m => m.Min.Y), meshes.Min(m => m.Min.Z));
+                var max = new Vec3(meshes.Max(m => m.Max.X), meshes.Max(m => m.Max.Y), meshes.Max(m => m.Max.Z));
+                _pivot = (min + max) * .5;
+                _size = Math.Max((max - min).Length, 1);
+            }
+            var frame = MovableFrame(_pivot.Value);
+            n = frame.Normal;
+            origin = frame.Origin + n * _move.Value;
+        }
         S.Clip = new CadSession.ClipPlane(origin, _flip.Value ? -n : n);
         _cut = (origin, n);
-        var objs = Targets(_bodies, IsBody);
         double area = 0, perim = 0; int cuts = 0;
         foreach (var o in objs)
         {
@@ -413,8 +461,11 @@ public sealed class SectionCommand : AnalysisCommand
         foreach (var seg in _curves) o.AddLine(seg[0], seg[1], 0xFFFFC53D, 3.2f);
         if (_cut is { } c)
         {
-            var pl = c.normal == Vec3.UnitZ ? Plane3.XY : c.normal == Vec3.UnitY ? Plane3.XZ : Plane3.YZ;
-            Vec3 P(double u, double v) => c.origin + pl.U * (u * _size * 0.7) + pl.V * (v * _size * 0.7);
+            var axis = Math.Abs(c.normal.Z) > .9 ? Vec3.UnitY : Vec3.UnitZ;
+            var uAxis = Vec3.Cross(axis, c.normal).Normalized();
+            var pl = _plane.Index == Movable ? MovableFrame(c.origin) : new Plane3(c.origin, uAxis, Vec3.Cross(c.normal, uAxis));
+            double footprint = _size * .7 * (_plane.Index == Movable ? _displaySize.Value / 100 : 1);
+            Vec3 P(double u, double v) => pl.PointAt(u * footprint, v * footprint);
             uint fill = 0x1AFFC53D;
             o.AddTri(P(-1, -1), P(1, -1), P(1, 1), fill); o.AddTri(P(-1, -1), P(1, 1), P(-1, 1), fill);
             o.AddPolyline([P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)], 0x90FFC53D, 1.4f, true);
@@ -444,11 +495,18 @@ public sealed class InterferenceCommand : AnalysisCommand
         var objs = Targets(_bodies, o => o.Kind is ObjKind.Solid or ObjKind.Form);
         var o2 = new CommandOutput { NoOp = !_create.Value, Label = "Interference bodies", Icon = "intersect" };
         if (objs.Count < 2) { Row("Need two bodies", "Pick at least two solids", 2); return o2; }
-        int pairs = 0, hits = 0;
+        int pairs = 0, hits = 0, failed = 0;
+        var valid = objs.Select(body => body.Shape.HasSolids && body.Shape.IsValid).ToArray();
         for (int i = 0; i < objs.Count; i++)
             for (int j = i + 1; j < objs.Count; j++)
             {
                 pairs++;
+                if (!valid[i] || !valid[j])
+                {
+                    failed++;
+                    Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked: invalid solid geometry", 2);
+                    continue;
+                }
                 try
                 {
                     var common = Occ.Common(objs[i].Shape, objs[j].Shape);
@@ -460,10 +518,11 @@ public sealed class InterferenceCommand : AnalysisCommand
                         o2.Add.Add(new(common, "Interference", ObjKind.Solid));
                     }
                 }
-                catch (KernelException) { Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked", 2); }
+                catch (KernelException) { failed++; Row($"{objs[i].Name} / {objs[j].Name}", "could not be checked", 2); }
             }
-        if (hits == 0) Row("Result", $"No interference between {objs.Count} bodies ({pairs} pair{(pairs == 1 ? "" : "s")} checked)", 1);
-        else Row("Overlapping pairs", $"{hits} of {pairs}", 3);
+        if (failed > 0) Row("Check incomplete", $"{failed} of {pairs} pairs could not be checked.", 2);
+        if (hits == 0 && failed == 0) Row("Result", $"No interference between {objs.Count} bodies ({pairs} pair{(pairs == 1 ? "" : "s")} checked)", 1);
+        else if (hits > 0) Row("Overlapping pairs", $"{hits} of {pairs}", 3);
         return o2;
     }
 

@@ -19,7 +19,7 @@ public class CurveRibbonTests
         return new MainViewModel();
     }
 
-    [AvaloniaTheory(DisplayName = "CRV-H034 | Curve menus keep editing, extraction and secondary tools reachable without nesting")]
+    [AvaloniaTheory(DisplayName = "CRV-H034 | One Curves dropdown keeps every curve tool reachable without nesting")]
     [InlineData("Home")]
     [InlineData("Surface")]
     [InlineData("NURBS")]
@@ -28,23 +28,21 @@ public class CurveRibbonTests
     {
         var vm = DefaultRibbon();
         var tab = vm.Tabs.Single(t => t.Title == title);
-        var edit = tab.Groups.Single(g => g.Title == "Edit curves").Items.OfType<RibbonButton>().ToList();
-        var join = Assert.Single(edit, b => b.Id == "split:curve-join");
-        Assert.Equal(new[] { "Join", "Explode", "Extract Edges" }, join.Menu!.Select(b => b.Label));
-        Assert.DoesNotContain(edit, b => b.Label is "Explode" or "Rebuild\nCurve" or "Divide");
-        var more = Assert.Single(edit, b => b.Label == "More Curve Tools");
-        Assert.False(more.IsSplit);
-        Assert.Equal(new[] { "Rebuild\nCurve", "Points Along\nCurve" }, more.Menu!.Select(b => b.Label));
-        var curves = tab.Groups.Single(g => g.Title == "Curves").Items.OfType<RibbonButton>().ToList();
-        var extract = Assert.Single(curves, b => b.Label == "Extract Curves");
-        Assert.Equal(new[] { "Isocurves", "Contour" }, extract.Menu!.Select(b => b.Label));
+        // owner direction 2026-11-13: the Curves and Edit curves groups became one dropdown to shorten the ribbons
+        Assert.DoesNotContain(tab.Groups, g => g.Title == "Edit curves");
+        var curves = Assert.Single(tab.Groups.Single(g => g.Title == "Curves").Items.OfType<RibbonButton>());
+        Assert.Equal("menu:curves", curves.Id);
+        Assert.False(curves.IsSplit);
+        var labels = curves.Menu!.Select(b => b.Label).ToList();
+        foreach (var tool in new[] { "Curve", "Isocurves", "Contour", "Blend\nCurve", "Join", "Explode", "Extract Edges", "Trim\nCurve", "Extend\nCurve", "Offset\nCurve", "Rebuild\nCurve", "Points Along\nCurve" })
+            Assert.Contains(tool, labels);
         Assert.All(tab.Buttons.Where(b => b.HasMenu), b => Assert.All(b.Menu!, child => Assert.False(child.HasMenu)));
         var hits = vm.AllCommandHits().Where(h => h.Tab == title).ToList();
         Assert.Contains(hits, h => h.Label == "Points Along Curve");
         Assert.Contains(hits, h => h.Label == "Rebuild Curve");
         Assert.Contains(hits, h => h.Label == "Explode");
         Assert.DoesNotContain(hits, h => h.Label is "Split Curve" or "Divide" or "Duplicate Edge");
-        join.Invoke();
+        curves.Menu!.Single(b => b.Label == "Join").Invoke();
         Assert.IsType<JoinCurvesCommand>(vm.Session.ActiveCommand);
     }
 

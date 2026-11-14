@@ -9,6 +9,7 @@ namespace Prism.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    public Func<string, string, string[], Task<string?>>? PickNativeSaveFile { get; set; }
     [ObservableProperty] public partial string RecoveryStatus { get; set; } = "Recovery copies are off.";
     /// <summary>Changed documents, or a sketch with something drawn. An empty sketch or a tool opened but not used creates nothing, so it never prompts.</summary>
     public static bool NeedsCloseDecision(DocumentTab tab) => tab.Session.Dirty || tab.Session.Sketch is { HasContent: true };
@@ -24,15 +25,22 @@ public sealed partial class MainViewModel
         try
         {
             string? path = session.FilePath;
-            if (path == null || saveAs)
+            if (path == null || saveAs || NativeDocumentFile.IsMold(path))
             {
-                if (PickSaveFile == null) return false;
-                path = await PickSaveFile("Save " + tab.Title, path == null ? NextPartName() : System.IO.Path.GetFileName(path), "prism");
+                string suggested = path == null ? NextPartName() : System.IO.Path.GetFileName(path);
+                string? typed = session.TypedDocumentExtension;
+                string[] extensions = typed == null ? [".prism"] : [typed, ".prism"];
+                if (session.CanExportMold) extensions = [.. extensions, NativeDocumentFile.Mold];
+                if (PickNativeSaveFile != null)
+                    path = await PickNativeSaveFile("Save " + tab.Title, System.IO.Path.ChangeExtension(suggested, extensions[0]), extensions);
+                else if (PickSaveFile != null)
+                    path = await PickSaveFile("Save " + tab.Title, System.IO.Path.ChangeExtension(suggested, extensions[0]), extensions[0][1..]);
+                else return false;
                 if (string.IsNullOrWhiteSpace(path)) return false;
             }
             session.Save(path);
             AddRecent(path);
-            return true;
+            return !NativeDocumentFile.IsMold(path);
         }
         catch (Exception e) { session.Say("Could not save " + tab.Title + ": " + e.Message, true); return false; }
     }

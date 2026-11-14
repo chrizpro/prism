@@ -17,7 +17,7 @@ public static class AppInfo
     /// <summary>The package version the build was made with (Version in the project, or -p:Version from packaging).</summary>
     public static string Version { get; } = ReadVersion();
 
-    public static string DisplayVersion => $"{Version} {Stage.ToLowerInvariant()}";
+    public static string DisplayVersion => Version.Contains('-') ? Version : $"{Version} {Stage.ToLowerInvariant()}";
 
     public static string StageTip =>
         $"Prism {DisplayVersion}. Prism is still in alpha: features can change and you may run into bugs. Keep backups of your work. Click to see known issues.";

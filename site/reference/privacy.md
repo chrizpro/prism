@@ -1,6 +1,6 @@
 # Privacy
 
-Prism is a desktop application. Your models stay on your computer unless you choose a feature that sends them somewhere. Prism has no accounts, no telemetry, no analytics and no automatic update checks.
+Prism is a desktop application. Your models stay on your computer unless you choose a feature that sends them somewhere. Prism has no accounts, no telemetry and no analytics. On Windows, macOS and Linux it checks once at startup whether a newer release exists, and you can turn that off.
 
 ## What can leave your computer
 
@@ -9,9 +9,10 @@ Prism is a desktop application. Your models stay on your computer unless you cho
 | **AI assistant** with an API key | Your messages and whatever the assistant reads from Prism to answer you, which can include object names, sizes, geometry details and screenshots | Anthropic (Claude) or OpenAI, whichever you choose | Only while you use the assistant |
 | **AI assistant** with your Codex login | The same, through the Codex program you installed | OpenAI, under Codex's terms | Only while you use the assistant |
 | **AR sharing** | The exported GLB and USDZ files of the visible model | Any device on your local network that opens the address Prism shows | Until you choose **Stop Sharing** |
+| **Update check** | A request for the list of Prism releases, which includes your IP address and the name `Prism-UpdateCheck`. No document, setting or system information is sent | GitHub (`api.github.com`) | Once at startup, and when you choose **Help → Check for updates…**. Off with **Turn off startup update checks** in the update window, or in **Settings** |
 | **Help and documentation links** | A normal web page request | This website, on GitHub Pages | When you open help |
 
-Each AI provider handles what you send under its own privacy policy and terms. Prism does not send anything to the Prism project.
+Each AI provider handles what you send under its own privacy policy and terms. Prism does not send anything to the Prism project. The update check only reads the public release list; nothing is installed without you downloading and running the installer.
 
 ### AI assistant keys
 

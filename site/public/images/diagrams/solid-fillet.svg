@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Side profiles show a square corner and the same corner rounded with a fillet.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<path d="M91 196 V80 H282 V196 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M430 196 V80 H559 Q621 80 621 142 V196 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M559 80 H621 V142" stroke="#698298" stroke-dasharray="6 5"/><path d="M351 136 H389" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="186" y="264" text-anchor="middle">Sharp edge</text><text fill="#132f43" stroke="none" x="525" y="264" text-anchor="middle">Rounded edge</text>
+</g>
+</svg>

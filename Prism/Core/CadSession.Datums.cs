@@ -122,6 +122,15 @@ public partial class CadSession
     }
 
     /// <summary>Moves an object selection target by a rigid transform; datums keep their sketch-data representation.</summary>
+    /// <summary>Why a part cannot be dragged freely: grounded, or positioned by a joint (Drive Joints moves it). Null when it is free.</summary>
+    public string? WhyPartIsHeld(SceneObject o)
+    {
+        if (o.Component is not { } ci) return null;
+        if (ci.Grounded) return $"{o.Name} is grounded (fixed). Unground it to move it.";
+        if (JointObjects.Any(j => j.joint.ChildKey == ci.Key || j.joint.ParentKey == ci.Key)) return $"{o.Name} is held by a joint. Use Drive Joints to move it, or delete the joint.";
+        return null;
+    }
+
     public void TransformTarget(SelItem item, Assembly.Xform delta, bool checkpoint = false)
     {
         if (item.Kind == SelKind.Datum)
@@ -139,6 +148,14 @@ public partial class CadSession
         }
         var o = Find(item.Obj);
         if (o == null || delta.IsIdentity) return;
+        if (o.Component is { } ci)
+        {
+            // an assembly part: its placement is the truth the joint solver reads, so it moves together with the shape
+            if (WhyPartIsHeld(o) is { } why) { Say(why, true); return; }
+            var np = delta * ci.Placement;
+            Update(item.Obj, obj => obj.WithAsm(ci.WithPlacement(np), np.Apply(LocalShapeOf(obj))), checkpoint: checkpoint, label: $"Move {o.Name}");
+            return;
+        }
         if (o.Tri is { } tri)
             Update(item.Obj, obj => obj.WithTri(tri.Transformed(delta.Apply)), checkpoint: checkpoint, label: "Move");
         else if (o.Form is { } form)

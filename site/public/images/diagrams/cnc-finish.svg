@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>A curved section with a cutter trace following the surface and a top view of evenly spaced parallel passes.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<path d="M57 81 Q187 244 315 81 V228 H57 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M57 78 Q187 241 315 78" stroke="#1684ab" stroke-width="4"/><path d="M113 135 Q145 160 174 159" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><rect x="401" y="61" width="256" height="170" rx="18" fill="#d8e8ef"/><path d="M424 91 H634 V124 H424 V157 H634 V190 H424" stroke="#1684ab" stroke-width="4"/><text fill="#132f43" stroke="none" x="186" y="265" text-anchor="middle">Side · Z follows the surface</text><text fill="#132f43" stroke="none" x="528" y="265" text-anchor="middle">Top · parallel passes</text>
+</g>
+</svg>

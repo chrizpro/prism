@@ -62,6 +62,8 @@
 #include <BRepBuilderAPI_NurbsConvert.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
+#include <BRepBuilderAPI_GTransform.hxx>
+#include <gp_GTrsf.hxx>
 #include <BRepBuilderAPI_Copy.hxx>
 #include <BRepCheck_Analyzer.hxx>
 #include <BRepClass_FaceClassifier.hxx>
@@ -802,6 +804,12 @@ CK_API void* ck_rotate(void* s, const double* o, const double* axis, double deg)
 CK_API void* ck_scale(void* s, const double* o, double f) {
     TRY gp_Trsf t; t.SetScale(gp_Pnt(o[0], o[1], o[2]), f); return wrap(transformed(get(s), t)); CATCH(nullptr)
 }
+// Stretch by a different factor along each world axis about a point. Curved faces come out as NURBS, so the shape stays exact but loses its analytic type.
+CK_API void* ck_scale3(void* s, const double* o, double fx, double fy, double fz) {
+    TRY gp_GTrsf g; g.SetValue(1, 1, fx); g.SetValue(2, 2, fy); g.SetValue(3, 3, fz);
+        g.SetTranslationPart(gp_XYZ(o[0] * (1 - fx), o[1] * (1 - fy), o[2] * (1 - fz)));
+        BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
+}
 CK_API void* ck_mirror(void* s, const double* o, const double* n) {
     TRY gp_Trsf t; t.SetMirror(gp_Ax2(gp_Pnt(o[0], o[1], o[2]), gp_Dir(n[0], n[1], n[2]))); return wrap(transformed(get(s), t)); CATCH(nullptr)
 }
@@ -899,8 +907,11 @@ CK_API void* ck_surface_fit(const double* xyz, int rows, int cols) {
         return wrap(BRepBuilderAPI_MakeFace(fit.Surface(), Precision::Confusion()).Face());
     CATCH(nullptr)
 }
+// Convert through a mesh-free copy: the NurbsConvert modifier rebuilds faces that carry triangulation or edge
+// polygons, but for faces already in BSpline form it reports no surface change, so the rebuilt TFace is left with
+// no surface at all. Stripping the cached mesh lets already-NURBS faces keep their surface through conversion.
 CK_API void* ck_nurbs_convert(void* s) {
-    TRY return wrap(BRepBuilderAPI_NurbsConvert(get(s), true).Shape()); CATCH(nullptr)
+    TRY return wrap(BRepBuilderAPI_NurbsConvert(BRepBuilderAPI_Copy(get(s), Standard_True, Standard_False).Shape(), true).Shape()); CATCH(nullptr)
 }
 // dims: [rows, cols, degU, degV]
 CK_API int ck_face_dims(void* f, int* d) {
@@ -1421,6 +1432,11 @@ CK_API void* ck_mesh_create(void* shape, double lin, double ang) {
                 if (f1.IsSame(f2)) return false;
                 auto freeform = [](const TopoDS_Face& f) { GeomAbs_SurfaceType t = BRepAdaptor_Surface(f).GetType(); return t == GeomAbs_BSplineSurface || t == GeomAbs_BezierSurface; };
                 if (!freeform(f1) || !freeform(f2)) return false;
+                // Two faces of one and the same surface were divided on purpose (Split Surface, Draw on Surface): that cut is a
+                // real edge the user must see and pick, however smooth the surface is across it.
+                TopLoc_Location l1, l2;
+                Handle(Geom_Surface) g1 = BRep_Tool::Surface(f1, l1), g2 = BRep_Tool::Surface(f2, l2);
+                if (g1 == g2 && l1 == l2) return false;
                 double f, l; Handle(Geom2d_Curve) c1 = BRep_Tool::CurveOnSurface(e, f1, f, l);
                 double g, m2; Handle(Geom2d_Curve) c2 = BRep_Tool::CurveOnSurface(e, f2, g, m2);
                 if (c1.IsNull() || c2.IsNull()) return false;

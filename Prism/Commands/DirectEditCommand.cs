@@ -9,13 +9,13 @@ namespace Prism.Commands;
 
 /// <summary>
 /// The Direct Modeling gizmo. It stays open while the Direct Modeling tab is open: click a face, hole, slot, pocket, boss or fillet (one click picks the
-/// whole feature) and handles appear on it. Coloured arrows move the selection, the orange handle pulls every picked face along its own normal, and the
+/// whole feature) and controls appear on it. The shared gizmo moves the selection, the orange handle pulls every picked face along its own normal, and the
 /// turning handle tilts a flat face. Each handle does the same job as one of the older tools (Move Face, Move Feature, Offset Face, Rotate Face), so this
 /// command hands the work to them. Edits made here are plain undo steps: they are not recorded as history unless the body is tracked.
 /// </summary>
 public sealed class DirectEditCommand : Command
 {
-    const uint AxisX = 0xFFE05252, AxisY = 0xFF4FBF6A, AxisZ = 0xFF4F8FE8, PullColour = 0xFFF0A030, TurnColour = 0xFFB070E0, SizeColour = 0xFF3FC6C6;
+    const uint PullColour = 0xFFF0A030, TurnColour = 0xFFB070E0, SizeColour = 0xFF3FC6C6;
 
     readonly SelectionSlot _faces;
     readonly NumberParam _dx, _dy, _dz, _offset, _rotate, _radius;
@@ -36,7 +36,7 @@ public sealed class DirectEditCommand : Command
     public override bool HasInputChanges => false;
     // A direct edit is a plain undo step; the Edit Feature command and the others keep their own recipes.
     public override bool CanEdit => false;
-    public override string Hint => "Click a face, hole, slot, pocket, boss or fillet. Drag a coloured arrow to move it, the orange handle to pull it out or in along its own normal, or the purple arc to tilt a flat face. Type a number while a handle is showing to set it exactly. Delete removes the feature.";
+    public override string Hint => "Click a face, hole, slot, pocket, boss or fillet. Drag the gizmo to move it, the orange handle to pull it out or in along its own normal, or the purple arc to tilt a flat face. Type a number while a handle is showing to set it exactly. Delete removes the feature.";
 
     // ------------------------------------------------------------ the picked geometry
     (SceneObject body, Feat? feature)? First()
@@ -67,6 +67,14 @@ public sealed class DirectEditCommand : Command
         return any;
     }
 
+    /// <summary>Where the controls sit on a picked face and which way it faces: the middle of a flat face, a point on a curved one.</summary>
+    (Vec3 point, Vec3 normal)? Anchor(SelItem it)
+    {
+        if (S.FaceFrame(it) is not { } frame) return null;
+        bool flat = S.ShapeOf(it) is { } face && Occ.FaceInfoOf(face).Type == "Plane";
+        return flat && S.FaceMiddle(it) is { } middle ? (middle, frame.normal) : frame;
+    }
+
     public override IReadOnlyList<HandleSpec> Handles
     {
         get
@@ -76,7 +84,7 @@ public sealed class DirectEditCommand : Command
             {
                 var (body, feature) = first; var it = _faces.Items[0];
                 var list = new List<HandleSpec>();
-                var frame = S.FaceFrame(it);
+                var frame = Anchor(it);
                 if (frame is { } fr && Math.Abs(_dx.Value) + Math.Abs(_dy.Value) + Math.Abs(_dz.Value) + Math.Abs(_rotate.Value) < 1e-9)
                     list.Add(new HandleSpec(fr.point, fr.normal, _offset, 1, Colour: PullColour));
                 var centre = feature?.Centre ?? frame?.point ?? CenterOf(body.Shape);
@@ -86,9 +94,6 @@ public sealed class DirectEditCommand : Command
                     var radial = Xform.AnyPerpendicular(feature.Dir).Normalized();
                     list.Add(new HandleSpec(round.Origin + feature.Dir.Normalized() * (round.T1), radial, _radius, 1, Colour: SizeColour));
                 }
-                list.Add(new HandleSpec(centre, Vec3.UnitX, _dx, 1, Colour: AxisX));
-                list.Add(new HandleSpec(centre, Vec3.UnitY, _dy, 1, Colour: AxisY));
-                list.Add(new HandleSpec(centre, Vec3.UnitZ, _dz, 1, Colour: AxisZ));
                 if (feature == null && _faces.Items.Count == 1 && S.PlaneOf(it) is { } pl && Occ.FaceInfoOf(S.ShapeOf(it)!).Type == "Plane")
                 {
                     var size = body.Mesh.Max - body.Mesh.Min;
@@ -97,6 +102,27 @@ public sealed class DirectEditCommand : Command
                 return list;
             }
             catch (Exception e) when (e is KernelException or InvalidOperationException) { return []; }
+        }
+    }
+
+    /// <summary>Moving the picked face or feature is a change of position, so the shared gizmo does it; the pull, radius and tilt handles stay as sizes.</summary>
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (First() is not { } first) return null;
+            try
+            {
+                var (body, feature) = first; var frame = Anchor(_faces.Items[0]);
+                var centre = feature?.Centre ?? frame?.point ?? CenterOf(body.Shape);
+                NumberParam?[] move = [_dx, _dy, _dz];
+                // one control per direction: while the pull arrow leaves the same spot along a world axis, it stands in for that axis's arrow
+                bool pullShowing = Math.Abs(_dx.Value) + Math.Abs(_dy.Value) + Math.Abs(_dz.Value) + Math.Abs(_rotate.Value) < 1e-9;
+                if (pullShowing && frame is { } fr && (fr.point - centre).Length < 1e-6)
+                    for (int i = 0; i < 3; i++) if (Vec3.Dot(fr.normal.Normalized(), GizmoVisual.WorldAxes[i]) > 0.999) move[i] = null;
+                return new GizmoSpec(centre + new Vec3(_dx.Value, _dy.Value, _dz.Value), move, GizmoSpec.None);
+            }
+            catch (Exception e) when (e is KernelException or InvalidOperationException) { return null; }
         }
     }
 

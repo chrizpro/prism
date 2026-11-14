@@ -148,33 +148,33 @@ public abstract class BodyCommand : Command
 public abstract class PrimitiveCommand : BodyCommand
 {
     protected NumberParam X = null!, Y = null!, Z = null!;
+    BoolParam? _moveGizmo;
     protected abstract string Prefix { get; }
     protected abstract Shape Make();
     public override string Hint => "Set the dimensions, then press OK. Use Operation to join or cut from an existing body.";
 
+    // Files saved before "Move with gizmo" existed have no value for it, which would shift Operation by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        _moveGizmo != null && recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_moveGizmo), false) : recipe;
+
     protected void AddPosition()
     {
         X = Num("Position X", 0); Y = Num("Position Y", 0); Z = Num("Position Z", 0);
+        _moveGizmo = Check("Move with gizmo", false);
         AddOperation();
     }
 
-    /// <summary>Dimension arrows anchored on the previewed shape; the base adds position arrows from the world origin.</summary>
+    /// <summary>Dimension arrows anchored on the previewed shape. They must not lie along the gizmo's arrows (which leave <see cref="Middle"/> towards +X, +Y and +Z), or the two controls would sit on top of each other.</summary>
     protected virtual IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield break; }
 
-    public override IReadOnlyList<HandleSpec> Handles
-    {
-        get
-        {
-            var pos = new Vec3(X.Value, Y.Value, Z.Value);
-            var list = new List<HandleSpec>(DimHandles(pos));
-            // the tips mark the X / Y / Z position components (the shape sits where the tips point)
-            list.Add(new(Vec3.Zero, Vec3.UnitX, X));
-            list.Add(new(Vec3.Zero, Vec3.UnitY, Y));
-            list.Add(new(Vec3.Zero, Vec3.UnitZ, Z));
-            return list;
-        }
-    }
+    /// <summary>The middle of the shape measured from its position: where the gizmo that moves it sits.</summary>
+    protected virtual Vec3 Middle => Vec3.Zero;
+
+    public override IReadOnlyList<HandleSpec> Handles => [.. DimHandles(new Vec3(X.Value, Y.Value, Z.Value))];
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+    /// <summary>Where the shape sits is a position: the shared gizmo moves it, from the middle of the shape.</summary>
+    /// <summary>The move gizmo is not wanted while a shape is being inserted; it appears only when "Move with gizmo" is on.</summary>
+    public override GizmoSpec? Gizmo => _moveGizmo?.Value == true ? GizmoSpec.At(new Vec3(X.Value, Y.Value, Z.Value) + Middle, X, Y, Z) : null;
 
     protected override CommandOutput? Build()
     {
@@ -192,6 +192,7 @@ public sealed class BoxCommand : PrimitiveCommand
     protected override string Prefix => "Box";
     public BoxCommand() { W = Num("Width (X)", 40, 0.001); D = Num("Depth (Y)", 30, 0.001); H = Num("Height (Z)", 20, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Box(W.Value, D.Value, H.Value);
+    protected override Vec3 Middle => new(W.Value / 2, D.Value / 2, H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, W);
@@ -207,10 +208,11 @@ public sealed class CylinderCommand : PrimitiveCommand
     protected override string Prefix => "Cylinder";
     public CylinderCommand() { R = Num("Radius", 12, 0.001); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cylinder(R.Value, H.Value);
+    protected override Vec3 Middle => Vec3.UnitZ * (H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, R);
-        yield return new(pos, Vec3.UnitZ, H);
+        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitZ, H);   // up the wall from the end of the radius arrow: the axis belongs to the gizmo
     }
 }
 
@@ -221,7 +223,7 @@ public sealed class SphereCommand : PrimitiveCommand
     protected override string Prefix => "Sphere";
     public SphereCommand() { R = Num("Radius", 18, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Sphere(R.Value);
-    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, Vec3.UnitX, R); }
+    protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos) { yield return new(pos, -Vec3.UnitX, R); }   // towards -X: the gizmo's own arrow leaves the centre towards +X
 }
 
 public sealed class ConeCommand : PrimitiveCommand
@@ -231,11 +233,12 @@ public sealed class ConeCommand : PrimitiveCommand
     protected override string Prefix => "Cone";
     public ConeCommand() { R1 = Num("Base radius", 16, 0); R2 = Num("Top radius", 4, 0); H = Num("Height", 30, 0.001); AddPosition(); }
     protected override Shape Make() => Occ.Cone(R1.Value, R2.Value, H.Value);
+    protected override Vec3 Middle => Vec3.UnitZ * (H.Value / 2);
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
         yield return new(pos, Vec3.UnitX, R1);
         yield return new(pos + Vec3.UnitZ * H.Value, Vec3.UnitX, R2);
-        yield return new(pos, Vec3.UnitZ, H);
+        yield return new(pos + Vec3.UnitX * Math.Max(R1.Value, R2.Value), Vec3.UnitZ, H);   // beside the cone, level with its widest end: the axis belongs to the gizmo
     }
 }
 
@@ -248,8 +251,9 @@ public sealed class TorusCommand : PrimitiveCommand
     protected override Shape Make() => Occ.Torus(R.Value, Math.Min(r.Value, R.Value * 0.99));
     protected override IEnumerable<HandleSpec> DimHandles(Vec3 pos)
     {
-        yield return new(pos, Vec3.UnitX, R);
-        yield return new(pos + Vec3.UnitX * R.Value, Vec3.UnitX, r);   // minor radius sits at the ring's centre line
+        // towards -X: the gizmo's own arrow leaves the centre towards +X
+        yield return new(pos, -Vec3.UnitX, R);
+        yield return new(pos - Vec3.UnitX * R.Value, -Vec3.UnitX, r);   // minor radius sits at the ring's centre line
     }
 }
 
@@ -341,7 +345,9 @@ public static class ProfileUtil
             var fr = s.FaceFrame(item);
             return (face, fr?.normal ?? Vec3.UnitZ);
         }
-        var sh = item.Kind == SelKind.Edge ? s.ShapeOf(item)! : obj.Shape;
+        var sh = item.Kind is SelKind.Edge or SelKind.Entity
+            ? s.ShapeOf(item) ?? throw new KernelException("A curve the profile used no longer exists.")
+            : obj.Shape;
         Shape prof;
         if (item.Kind == SelKind.Object && obj.SketchData is { Sections.Count: > 0 } document && obj.SketchPlane is { } root)
         {
@@ -377,11 +383,12 @@ public sealed class RibCommand : Command
 {
     readonly SelectionSlot _profile, _body;
     readonly NumberParam _thickness, _height;
-    readonly ChoiceParam _direction, _placement;
+    readonly ChoiceParam _direction, _placement, _extent;
     readonly BoolParam _reverse;
 
     public RibCommand()
     {
+        _extent = Choice("Rib extends", 0, "Up to the body (fills the web)", "Fixed height");
         _profile = Slot(new SelectionSlot { Label = "Rib sketch", Filter = SelFilter.SketchObj });
         _body = Slot(new SelectionSlot { Label = "Target body", Filter = SelFilter.Solid });
         _thickness = Num("Thickness", 2, 0.001, 1e5);
@@ -389,10 +396,90 @@ public sealed class RibCommand : Command
         _direction = Choice("Height direction", 0, "Sketch vertical", "Sketch horizontal");
         _placement = Choice("Thickness placement", 0, "Centered on sketch", "Positive side", "Negative side");
         _reverse = Check("Reverse height direction", false);
+        _extent.Changed = () => { UpdateVisibility(); OnChanged(); };
+        UpdateVisibility();
     }
+    // Ribs saved before "Rib extends" grew the lines by a fixed height, so they keep that.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_extent), 1) : recipe;
+
     public override string Title => "Rib";
     public override string Icon => "rib";
-    public override string Hint => "Select a planar sketch of open rib lines and a solid body. The lines grow in the sketch plane by the chosen height, then gain thickness across the plane. The rib must touch the body; reverse the height direction if needed.";
+    public override string Hint => "Select a planar sketch of straight rib lines and a solid body. By default the rib fills the web between each line and the body, like a gusset in a corner, and gains thickness across the sketch plane; Reverse switches to the other side of the line. Choose Fixed height to grow the lines in the sketch plane by a set height instead. The rib must touch the body.";
+
+    protected override void UpdateVisibility()
+    {
+        bool fixedHeight = _extent.Index == 1;
+        _height.IsVisible = _direction.IsVisible = fixedHeight;
+        _reverse.Caption = fixedHeight ? "Reverse height direction" : "Reverse side";
+        base.UpdateVisibility();
+    }
+
+    /// <summary>
+    /// True when a piece of the slab reaches the slab's far edge, so nothing closed it off: the line does not leave a gap against the body (it lies on a face, say),
+    /// and the "web" would be the whole oversized slab.
+    /// </summary>
+    static bool RunsOut(Shape piece, Vec3 a, Vec3 d, Vec3 side, double length, double reach)
+    {
+        var p = piece.Props();
+        foreach (double x in new[] { p.Min.X, p.Max.X }) foreach (double y in new[] { p.Min.Y, p.Max.Y }) foreach (double z in new[] { p.Min.Z, p.Max.Z })
+        {
+            var q = new Vec3(x, y, z) - a;
+            double across = Math.Abs(Vec3.Dot(q, side)), along = Vec3.Dot(q, d);
+            if (across > reach * 0.99 || along < -reach * 0.99 || along > length + reach * 0.99) return true;
+        }
+        return false;
+    }
+
+    /// <summary>The web between each straight line and the body: a slab beyond the line is cut by the body and the pieces that touch the drawn line are kept, on whichever side closes up against the body (the smaller one) unless reversed.</summary>
+    Shape? FillToBody(Shape profile, SceneObject body, Plane3 plane)
+    {
+        var bb = body.Mesh; double reach = (bb.Max - bb.Min).Length * 2 + 10;
+        var normal = plane.Normal;
+        double shift = _placement.Index == 0 ? -_thickness.Value / 2 : _placement.Index == 2 ? -_thickness.Value : 0;
+        Shape? total = null;
+        for (int e = 0; e < profile.Count(SubKind.Edge); e++)
+        {
+            using var edge = profile.Sub(SubKind.Edge, e);
+            var pts = edge.Tessellate().EdgePoints;
+            if (pts.Length < 6) continue;
+            var a = new Vec3(pts[0], pts[1], pts[2]); var b = new Vec3(pts[^3], pts[^2], pts[^1]);
+            var d = (b - a); if (d.Length < 1e-9) continue; d = d.Normalized();
+            for (int i = 0; i + 2 < pts.Length; i += 3)
+            {
+                var q = new Vec3(pts[i], pts[i + 1], pts[i + 2]) - a;
+                if ((q - d * Vec3.Dot(q, d)).Length > 1e-4) throw new KernelException("Up to the body needs straight rib lines. Use Fixed height for curved ones.");
+            }
+            var side = Vec3.Cross(normal, d).Normalized();
+            using var probe = Occ.Vertex((a + b) * 0.5 + normal * (shift + _thickness.Value / 2));
+            var options = new List<(Shape shape, double vol)>();
+            foreach (double sign in new[] { 1.0, -1.0 })
+            {
+                var o = side * sign * reach;
+                using var quad = Occ.Polyline([a - d * reach, b + d * reach, b + d * reach + o, a - d * reach + o], true);
+                using var face = Occ.Profile([quad], true);
+                using var moved = Occ.Translate(face, normal * shift);
+                using var slab = Occ.Extrude(moved, normal * _thickness.Value);
+                using var rest = Occ.Cut(slab, body.Shape);
+                Shape? kept = null; double vol = 0;
+                for (int i = 0; i < rest.Count(SubKind.Solid); i++)
+                {
+                    var piece = rest.Sub(SubKind.Solid, i);
+                    if (Occ.Distance(piece, probe).Distance > 1e-3 || RunsOut(piece, a, d, side, (b - a).Length, reach)) { piece.Dispose(); continue; }
+                    vol += piece.Props().Volume;
+                    if (kept == null) kept = piece; else { var fused = Occ.Fuse(kept, piece); kept.Dispose(); piece.Dispose(); kept = fused; }
+                }
+                if (kept != null) options.Add((kept, vol));
+            }
+            if (options.Count == 0) throw new KernelException("That line has no web to fill against the body. Draw it so both ends touch the body with a gap between the line and the body, like a gusset in a corner. For a wall standing on a face, use Fixed height.");
+            // the side that closes up against the body is the smaller piece; Reverse takes the other one
+            var chosen = options.Count == 1 ? options[0] : (_reverse.Value ? options.MaxBy(x => x.vol) : options.MinBy(x => x.vol));
+            foreach (var o in options) if (!ReferenceEquals(o.shape, chosen.shape)) o.shape.Dispose();
+            var best = chosen.shape;
+            total = total == null ? best : Occ.Fuse(total, best);
+        }
+        return total;
+    }
 
     protected override CommandOutput? Build()
     {
@@ -403,6 +490,19 @@ public sealed class RibCommand : Command
         var body = S.Find(_body.Items[0].Obj) ?? throw new KernelException("The target body no longer exists.");
         if (body.Kind != ObjKind.Solid) throw new KernelException("Choose a solid target body.");
         var (profile, _) = ProfileUtil.Resolve(S, _profile, false);
+        if (_extent.Index == 0)
+        {
+            using var web = FillToBody(profile, body, plane) ?? throw new KernelException("The sketch has no lines to build a rib from.");
+            var joined = Occ.Fuse(body.Shape, web);
+            if (!joined.IsValid || joined.Count(SubKind.Solid) != 1 || joined.Props().Volume <= body.Shape.Props().Volume + 1e-8)
+            {
+                joined.Dispose();
+                throw new KernelException("The rib must add material and join the target into one solid. Draw the line so it meets the body at both ends.");
+            }
+            var made = new CommandOutput { Label = "Rib", Icon = "rib" };
+            made.Replace.Add((body, joined));
+            return made;
+        }
         var dir = (_direction.Index == 0 ? plane.V : plane.U).Normalized() * (_reverse.Value ? -1 : 1);
         var normal = plane.Normal;
         double shift = _placement.Index == 0 ? -_thickness.Value / 2 : _placement.Index == 2 ? -_thickness.Value : 0;
@@ -1285,7 +1385,16 @@ public sealed class ShellCommand : Command
         {
             var obj = S.Find(g.Key)!;
             var faces = g.Where(i => i.Kind == SelKind.Face).Select(i => i.Index).ToArray();
-            o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+            if (faces.Length > 0)
+            {
+                o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+                continue;
+            }
+
+            // With no open faces the kernel returns the offset solid. The wall is the difference between the two solids.
+            using var offset = Occ.Shell(obj.Shape, faces, t);
+            var wall = t < 0 ? Occ.Cut(obj.Shape, offset) : Occ.Cut(offset, obj.Shape);
+            o.Replace.Add((obj, wall));
         }
         return o;
     }
@@ -1314,9 +1423,14 @@ public sealed class BooleanCommand : Command
         var target = S.Find(_target.Items[0].Obj)!;
         var tools = _tools.Items.Select(i => S.Find(i.Obj)!).Where(t => t.Id != target.Id).Distinct().ToList();
         if (tools.Count == 0) return null;
+        // an open surface has no inside: subtracting it removes nothing (and used to delete the tool and report success)
+        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface))
+            throw new FormatException("A surface has no inside to cut away. Subtract a solid, or cut with the surface using Trim, Split Surface or Split Body.");
         var res = target.Shape;
         foreach (var t in tools)
             res = _kind switch { Kind.Union => Occ.Fuse(res, t.Shape), Kind.Subtract => Occ.Cut(res, t.Shape), _ => Occ.Common(res, t.Shape) };
+        if (res.Count(SubKind.Face) == 0)
+            throw new FormatException(_kind == Kind.Intersect ? "Those bodies do not overlap, so nothing would be left." : "Nothing would be left of the body.");
         var o = new CommandOutput();
         o.Replace.Add((target, res));
         if (!_keep.Value) o.Remove.AddRange(tools);
@@ -1330,8 +1444,8 @@ public sealed class TransformCommand : Command
     public enum Kind { Move, Rotate, Scale, Mirror }
     readonly Kind _kind;
     readonly SelectionSlot _objs;
-    readonly NumberParam? _dx, _dy, _dz, _angle, _factor;
-    readonly ChoiceParam? _axis, _pivot, _plane;
+    readonly NumberParam? _dx, _dy, _dz, _angle, _factor, _fx, _fy, _fz;
+    readonly ChoiceParam? _axis, _pivot, _plane, _scaleType;
     readonly BoolParam _copy;
 
     public TransformCommand(Kind kind)
@@ -1342,19 +1456,44 @@ public sealed class TransformCommand : Command
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
             case Kind.Rotate: _axis = Choice("Axis", 2, "X", "Y", "Z"); _angle = Num("Angle", 45, -360, 360, 1, "°"); _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
-            case Kind.Scale: _factor = Num("Factor", 1.5, 0.001, 1000, 0.1, "×"); _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
+            case Kind.Scale:
+                _scaleType = Choice("Scale type", 0, "Uniform", "Per axis (stretch)");
+                _factor = Num("Factor", 1.5, 0.001, 1000, 0.1, "×");
+                _fx = Num("Factor X", 1.5, 0.001, 1000, 0.1, "×"); _fy = Num("Factor Y", 1, 0.001, 1000, 0.1, "×"); _fz = Num("Factor Z", 1, 0.001, 1000, 0.1, "×");
+                _pivot = Choice("Pivot", 0, "Object center", "World origin"); break;
             case Kind.Mirror: _plane = Choice("Mirror plane", 0, "XY (Z = 0)", "XZ (Y = 0)", "YZ (X = 0)"); break;
         }
         _copy = Check("Create copy", kind == Kind.Mirror);
     }
     public override string Title => _kind.ToString();
-    public override string Hint => "Select the objects to transform, then pull the arrows in the viewport or type numbers.";
+    // Scales saved before "Scale type" held [Factor, Pivot, Create copy]; the stretch factors were added after the type and the factor.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (_kind != Kind.Scale || recipe.Values.Count != Params.Count - 4) return recipe;
+        var v = recipe.Values;
+        return recipe with { Values = [0, v[0], 1.5, 1.0, 1.0, v[1], v[2]], Expressions = recipe.Expressions?.ToDictionary(p => p.Key == 0 ? 1 : p.Key, p => p.Value) };
+    }
 
+    public override string Hint => _kind == Kind.Mirror ? "Select the objects to mirror and choose the mirror plane."
+        : _kind == Kind.Scale ? "Select the objects to scale. Uniform scales every dimension together (drag the block on the gizmo, or type a factor). Per axis stretches each of X, Y and Z by its own factor: drag the arrows on the object's faces, or type the factors. Stretching follows the world axes."
+        : "Select the objects to transform, then drag the gizmo in the viewport or type numbers.";
+
+    bool PerAxis => _kind == Kind.Scale && _scaleType!.Index == 1;
+    Vec3 AxisFactors => new(_fx!.Value, _fy!.Value, _fz!.Value);
+
+    protected override void UpdateVisibility()
+    {
+        if (_kind != Kind.Scale) return;
+        _factor!.IsVisible = !PerAxis;
+        _fx!.IsVisible = _fy!.IsVisible = _fz!.IsVisible = PerAxis;
+    }
+
+    // Move, Rotate and uniform Scale are on the shared gizmo; a per-axis stretch has one arrow per axis on the object's faces
     public override IReadOnlyList<HandleSpec> Handles
     {
         get
         {
-            if (_objs.Items.Count == 0 || _kind == Kind.Mirror) return [];
+            if (!PerAxis || _objs.Items.Count == 0) return [];
             try
             {
                 var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
@@ -1365,26 +1504,57 @@ public sealed class TransformCommand : Command
                     hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
                 }
                 if (lo.X > hi.X) return [];
-                var center = (lo + hi) * 0.5; double size = Math.Max((hi - lo).Length * 0.5, 1);
-                switch (_kind)
-                {
-                    case Kind.Move: return [new(center, Vec3.UnitX, _dx!), new(center, Vec3.UnitY, _dy!), new(center, Vec3.UnitZ, _dz!)];
-                    case Kind.Rotate:
-                    {
-                        var ax = _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
-                        var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
-                        var refDir = Math.Abs(ax.Z) > 0.9 ? Vec3.UnitX : Vec3.UnitZ;
-                        refDir = (refDir - ax * Vec3.Dot(refDir, ax)).Normalized();
-                        return [new(pivot, ax, _angle!, 1, refDir, size * 1.3)];
-                    }
-                    default:
-                        return [new(_pivot!.Index == 0 ? center : Vec3.Zero, Vec3.UnitX, _factor!, 1 / size)];
-                }
+                var c = (lo + hi) * 0.5; var half = (hi - lo) * 0.5;
+                // the arrow's tip rides the object's face: the factor is the tip's distance from the centre divided by the half-size
+                double Mul(double h) => 1 / Math.Max(h, 1e-6);
+                return [new HandleSpec(c, Vec3.UnitX, _fx!, Mul(half.X)), new HandleSpec(c, Vec3.UnitY, _fy!, Mul(half.Y)), new HandleSpec(c, Vec3.UnitZ, _fz!, Mul(half.Z))];
             }
             catch (Exception e) when (e is not OutOfMemoryException) { return []; }
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
+
+    /// <summary>Centre of the objects before the transform (the preview replaces them, so the gizmo rides on the typed delta instead).</summary>
+    Vec3? SourceCenter()
+    {
+        var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+        foreach (var obj in ObjectsOf(_objs).Distinct())
+        {
+            var m = obj.Mesh; if (m.Positions.Length < 3) continue;
+            lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z));
+            hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z));
+        }
+        return lo.X > hi.X ? null : (lo + hi) * 0.5;
+    }
+
+    /// <summary>Move, Rotate and Scale are transforms, so the shared gizmo drives them: arrows for the offsets, the rings for the angle (grabbing a ring makes its axis the one turned about), the centre block for the factor.</summary>
+    public override GizmoSpec? Gizmo
+    {
+        get
+        {
+            if (_objs.Items.Count == 0 || _kind == Kind.Mirror || PerAxis) return null;
+            try
+            {
+                if (SourceCenter() is not { } center) return null;
+                switch (_kind)
+                {
+                    case Kind.Move: return GizmoSpec.At(center + new Vec3(_dx!.Value, _dy!.Value, _dz!.Value), _dx, _dy, _dz);
+                    case Kind.Rotate:
+                    {
+                        var pivot = _pivot!.Index == 0 ? center : Vec3.Zero;
+                        // one angle, three rings: the ring that is grabbed (or stepped to with Tab) becomes the axis, starting again from 0
+                        return GizmoSpec.At(pivot, null, null, null, _angle, _angle, _angle, engage: (op, axis) =>
+                        {
+                            if (op != 1 || axis is < 0 or > 2 || _axis!.Index == axis) return;
+                            _axis.Index = axis; _angle!.Value = 0;
+                        });
+                    }
+                    default: return GizmoSpec.At(_pivot!.Index == 0 ? center : Vec3.Zero, null, null, null, scale: _factor);
+                }
+            }
+            catch (Exception e) when (e is not OutOfMemoryException) { return null; }
+        }
+    }
 
     protected override CommandOutput? Build()
     {
@@ -1399,7 +1569,7 @@ public sealed class TransformCommand : Command
             {
                 Kind.Move => Occ.Translate(obj.Shape, new(_dx!.Value, _dy!.Value, _dz!.Value)),
                 Kind.Rotate => Occ.Rotate(obj.Shape, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
-                Kind.Scale => Occ.Scale(obj.Shape, center, _factor!.Value),
+                Kind.Scale => PerAxis ? Occ.Scale(obj.Shape, center, AxisFactors) : Occ.Scale(obj.Shape, center, _factor!.Value),
                 _ => Occ.Mirror(obj.Shape, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
             };
             if (_copy.Value) o.Add.Add(new(r, StripNumber(obj.Name), obj.Kind, obj.Color, obj.SketchPlane, null, obj.Look));
@@ -1417,7 +1587,7 @@ public sealed class TransformCommand : Command
         {
             Kind.Move => Meshing.MeshOps.Move(tri, new(_dx!.Value, _dy!.Value, _dz!.Value)),
             Kind.Rotate => Meshing.MeshOps.Rotate(tri, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
-            Kind.Scale => Meshing.MeshOps.Scale(tri, center, _factor!.Value),
+            Kind.Scale => PerAxis ? Meshing.MeshOps.Scale(tri, center, AxisFactors) : Meshing.MeshOps.Scale(tri, center, _factor!.Value),
             _ => Meshing.MeshOps.Mirror(tri, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
         };
         if (_copy.Value) o.Add.Add(new(null, StripNumber(obj.Name), ObjKind.Mesh, obj.Color, null, null, obj.Look, r));
@@ -1434,6 +1604,7 @@ public sealed class TransformCommand : Command
         switch (_kind)
         {
             case Kind.Move: { var d = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); t = p => p + d; break; }
+            case Kind.Scale when PerAxis: { var k = AxisFactors; t = p => { var v = p - center; return center + new Vec3(v.X * k.X, v.Y * k.Y, v.Z * k.Z); }; break; }
             case Kind.Scale: { double k = _factor!.Value; t = p => center + (p - center) * k; break; }
             case Kind.Rotate:
             {

@@ -23,6 +23,8 @@ public sealed class PreviewItem
     public PreviewItem(Meshing.TriMesh tri, uint? solidColor = null) { Tri = tri; Kind = ObjKind.Mesh; SolidColor = solidColor; }
     /// <summary>A see-through helper volume (the tool that is cutting), drawn faintly on top of the result.</summary>
     public bool Ghost { get; init; }
+    /// <summary>Suppress edge outlines: a context surface ghost keeps only its faint fill, so its tessellated edges do not look like stray curves.</summary>
+    public bool NoEdges { get; init; }
     public Meshing.TriMesh? Tri { get; }
     public Shape? Shape { get; }
     public Form.SubdMesh? FormCage { get; }
@@ -84,16 +86,20 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>The camera of the view being used right now (the one under the pointer); tools, picking and drawing all work through it.</summary>
     public Camera Camera { get => _activeCamera ??= Cameras[0]; set => _activeCamera = value; }
     public ViewLayout Layout { get; private set; }
+    /// <summary>When <see cref="Layout"/> is <see cref="ViewLayout.Quad"/>, the temporarily maximized pane index (0–3), or null when all four views are shown.</summary>
+    public int? MaximizedView { get; private set; }
     public bool LinkViews { get; set; } = true;
     public event Action? LayoutChanged;
-    public int VisibleViews => Layout switch { ViewLayout.Single => 1, ViewLayout.Dual => 2, _ => 4 };
-    public IEnumerable<Camera> VisibleCameras => Layout switch { ViewLayout.Single => [Cameras[0]], ViewLayout.Dual => [Cameras[0], Cameras[3]], _ => Cameras };
+    public event Action? MaximizedViewChanged;
+    public int VisibleViews => Layout == ViewLayout.Quad && MaximizedView != null ? 1 : Layout switch { ViewLayout.Single => 1, ViewLayout.Dual => 2, _ => 4 };
+    public IEnumerable<Camera> VisibleCameras => Layout == ViewLayout.Quad && MaximizedView is { } m ? [Cameras[m]] : Layout switch { ViewLayout.Single => [Cameras[0]], ViewLayout.Dual => [Cameras[0], Cameras[3]], _ => Cameras };
 
     static void Standard(Camera c, double yawDeg, double pitchDeg, bool ortho) { c.SetView(yawDeg, pitchDeg); c.Orthographic = ortho; c.Locked = true; }
 
     public void SetLayout(ViewLayout l)
     {
         Layout = l;
+        MaximizedView = null;
         var main = Cameras[0];
         Standard(Cameras[1], 0, 0, Ortho); Standard(Cameras[2], 90, 0, Ortho); Standard(Cameras[3], 0, 90, Ortho);
         foreach (var c in Cameras.Skip(1)) { c.Target = main.Target; c.Distance = main.Distance; }
@@ -102,11 +108,27 @@ public sealed partial class CadSession : ObservableObject
         LayoutChanged?.Invoke(); Invalidate();
     }
 
+    /// <summary>In the four-view layout, maximize the hovered pane (0–3) or restore all four views when a pane is already maximized.</summary>
+    public bool ToggleMaximizedView(int viewIndex)
+    {
+        if (Layout != ViewLayout.Quad || viewIndex is < 0 or > 3) return false;
+        if (MaximizedView != null) MaximizedView = null;
+        else
+        {
+            MaximizedView = viewIndex;
+            _activeCamera = Cameras[viewIndex];
+        }
+        MaximizedViewChanged?.Invoke();
+        Invalidate();
+        return true;
+    }
+
     /// <summary>Linked views follow each other: panning or zooming one moves the others to the same spot and scale.</summary>
     public void SyncViews(Camera src)
     {
         if (!LinkViews || Layout == ViewLayout.Single) return;
-        foreach (var c in VisibleCameras) if (!ReferenceEquals(c, src)) { c.Target = src.Target; c.Distance = src.Distance; }
+        Camera[] targets = Layout == ViewLayout.Dual ? [Cameras[0], Cameras[3]] : Cameras;
+        foreach (var c in targets) if (!ReferenceEquals(c, src)) { c.Target = src.Target; c.Distance = src.Distance; }
         Invalidate();
     }
     public ImmutableList<SceneObject> Objects { get; private set; } = [];
@@ -380,6 +402,9 @@ public sealed partial class CadSession : ObservableObject
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithShape(nu));
         }
+        foreach (var (old, nu) in output.Replace) if (!(output.ReplaceIsMove && old.Component != null)) CarryStudyFaces(old, list.FirstOrDefault(o => o.Id == old.Id));
+        int lostFaceStyles = list.Where(o => output.Replace.Any(r => r.Item1.Id == o.Id)).Sum(o => o.FaceStylesLost);
+        if (lostFaceStyles > 0) Say($"{lostFaceStyles} face setting{(lostFaceStyles == 1 ? "" : "s")} (color, finish or hidden) had no matching face after this edit and {(lostFaceStyles == 1 ? "was" : "were")} dropped.");
         foreach (var (old, form) in output.ReplaceForms)
         {
             int i = list.FindIndex(o => o.Id == old.Id);
@@ -397,6 +422,8 @@ public sealed partial class CadSession : ObservableObject
             var k = n.Tri != null ? ObjKind.Mesh : n.Kind ?? (n.Form != null ? ObjKind.Form : SceneObject.Classify(n.Shape!));
             uint c = n.Color ?? Palette.DefaultFor(k, list.Count(o => o.Kind == ObjKind.Solid));
             var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, null, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
+            if (n.IsReference) obj = obj.WithReference(true);
+            if (n.IsMoldHalf) obj = obj.WithMoldHalf();
             list = list.Add(obj); created.Add(obj);
         }
         Objects = list;
@@ -417,9 +444,10 @@ public sealed partial class CadSession : ObservableObject
 
     public void DeleteSelection()
     {
-        // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body
+        // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body.
+        // Faces of a surface: Delete removes just those faces and leaves the gap.
         var faces = _selection.Where(i => i.Kind == SelKind.Face).ToList();
-        if (faces.Count > 0 && ActiveCommand == null && Sketch == null && faces.All(f => Find(f.Obj) is { Kind: ObjKind.Solid, HasBrep: true }))
+        if (faces.Count > 0 && ActiveCommand == null && Sketch == null && faces.All(f => Find(f.Obj) is { Kind: ObjKind.Solid or ObjKind.Surface, HasBrep: true }))
         {
             var c = new DeleteFaceCommand { Factory = () => new DeleteFaceCommand() };
             StartCommand(c);
@@ -429,7 +457,9 @@ public sealed partial class CadSession : ObservableObject
             CommitCommand(); ClearSelection();
             return;
         }
-        var ids = _selection.Select(s => s.Obj).Distinct().ToHashSet();
+        // a corner point is not something Delete can take away, and it must never take the whole body with it
+        if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex)) { Say("A corner point cannot be deleted on its own. Select a face, an edge or the object.", true); return; }
+        var ids = _selection.Where(i => i.Kind != SelKind.Vertex).Select(s => s.Obj).Distinct().ToHashSet();
         if (ids.Count == 0) return;
         // Datum picks remove just that entry — deleting the host object would take every sibling datum with it.
         var datums = _selection.Where(i => i.Kind == SelKind.Datum).ToList();
@@ -469,17 +499,19 @@ public sealed partial class CadSession : ObservableObject
         var copies = new List<SceneObject>();
         foreach (var o in objs)
         {
-            var name = NextName(StripNumber(o!.Name));
-            var c = o.Tri != null
-                ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
-                : o.Form != null
-                ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
-                : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, null, o.Look);
+            var c = CloneObject(o!, NextName(StripNumber(o!.Name)));
             Objects = Objects.Add(c); copies.Add(c);
         }
         _selection.Clear(); foreach (var c in copies) _selection.Add(SelItem.Of(c));
         RaiseScene(); SelectionChanged?.Invoke(); Say($"Duplicated {copies.Count} object(s)");
     }
+
+    /// <summary>An independent copy of an object under a new identity: its own geometry, with the same colour and finish.</summary>
+    static SceneObject CloneObject(SceneObject o, string name) => o.Tri != null
+        ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
+        : o.Form != null
+        ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
+        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData, o.Look).WithFaceStyles(o.FaceStyles);
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
     // ------------------------------------------------------------ selection
@@ -522,6 +554,8 @@ public sealed partial class CadSession : ObservableObject
             case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
             case SelKind.Face: return f.HasFlag(SelFilter.Face);
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
+            case SelKind.Vertex: return f.HasFlag(SelFilter.Vertex);
+            case SelKind.Entity: return (f.HasFlag(SelFilter.Edge) || f.HasFlag(SelFilter.SketchObj)) && Find(it.Obj) is { Kind: ObjKind.Sketch };
             case SelKind.Origin: return it.Index < 3 ? f.HasFlag(SelFilter.Plane) : it.Index < 6 && f.HasFlag(SelFilter.Axis);
             default:
                 var o = Find(it.Obj);
@@ -549,8 +583,67 @@ public sealed partial class CadSession : ObservableObject
         {
             SelKind.Face => o.Shape.Sub(SubKind.Face, it.Index),
             SelKind.Edge => o.Shape.Sub(SubKind.Edge, it.Index),
+            SelKind.Vertex => o.Shape.Sub(SubKind.Vertex, it.Index),
+            SelKind.Entity => EntityShapeOf(o, it),
             _ => o.Shape,
         };
+    }
+
+    /// <summary>The curve of one sketch entity bound by an Entity pick (Index = entity id, Index2 = section, 0 for the root plane).</summary>
+    static Shape? EntityShapeOf(SceneObject o, SelItem it)
+    {
+        if (o.SketchData is not { } sd || o.SketchPlane is not { } root) return null;
+        Sketching.SketchModel model; Plane3 plane;
+        if (it.Index2 <= 0) { model = sd; plane = root; }
+        else if (it.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[it.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
+        else return null;
+        var e = model.EntityOrNull(it.Index);
+        return e == null || e.Construction ? null : model.ShapeOf(e, plane);
+    }
+
+    /// <summary>The sketch entity a baked edge index belongs to (emission order: root entities, then each section's), as an Entity pick. Null when not a sketch edge.</summary>
+    public SelItem? SketchEntityOf(SelItem edge)
+    {
+        if (edge.Kind != SelKind.Edge || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        int at = 0;
+        for (int sec = 0; sec <= sd.Sections.Count; sec++)
+        {
+            var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+            var plane = sec == 0 ? root : sd.Sections[sec - 1].Plane;
+            foreach (var e in model.Entities)
+            {
+                if (e.Construction) continue;
+                using var s = model.ShapeOf(e, plane);
+                if (s == null) continue;
+                at += s.Count(SubKind.Edge);
+                if (edge.Index < at) return new SelItem(edge.Obj, SelKind.Entity, e.Id, sec);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The Entity picks for the connected profile a clicked sketch edge belongs to: every non-construction entity joined end to end
+    /// (shared points, or endpoints that coincide after constraint solving), so clicking a rectangle side picks its four lines while
+    /// a loose spline picks just itself. Null when the item is not a sketch edge.
+    /// </summary>
+    public List<SelItem>? SketchComponentItems(SelItem edge)
+    {
+        if (SketchEntityOf(edge) is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        Sketching.SketchModel model; Plane3 plane;
+        if (first.Index2 <= 0) { model = sd; plane = root; }
+        else if (first.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[first.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
+        else return null;
+        var ents = model.Entities.Where(e => !e.Construction).ToList();
+        var ends = ents.ToDictionary(e => e.Id, e => model.EndpointsOf(e).Select(id => { var p = model.P(id); return (id, p.X, p.Y, p.Z); }).ToList());
+        static bool Touch(List<(int id, double x, double y, double z)> a, List<(int id, double x, double y, double z)> b) =>
+            a.Any(x => b.Any(y => x.id == y.id || (Math.Abs(x.x - y.x) < 1e-6 && Math.Abs(x.y - y.y) < 1e-6 && Math.Abs(x.z - y.z) < 1e-6)));
+        var comp = new List<int> { first.Index };
+        for (int i = 0; i < comp.Count; i++)
+            foreach (var e in ents)
+                if (!comp.Contains(e.Id) && Touch(ends[comp[i]], ends[e.Id])) comp.Add(e.Id);
+        return ents.Where(e => comp.Contains(e.Id) && Emits(e)).Select(e => new SelItem(edge.Obj, SelKind.Entity, e.Id, first.Index2)).ToList();
+        bool Emits(Sketching.SkEntity e) { using var s = model.ShapeOf(e, plane); return s != null; }
     }
 
     public string Describe(SelItem it)
@@ -559,7 +652,7 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return OriginNames[Math.Clamp(it.Index, 0, 6)];
         var o = Find(it.Obj);
         if (o == null) return "?";
-        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", _ => o.Name };
+        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
     }
 
     /// <summary>Polyline of a picked edge (from the tessellation), in order.</summary>
@@ -602,7 +695,7 @@ public sealed partial class CadSession : ObservableObject
                 var f = slot.PickFilter;
                 return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
             }
-            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
+            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
 
@@ -715,6 +808,8 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return it.Index < 3 ? OriginPlane(it.Index) : null;
         var o = Find(it.Obj); if (o == null) return null;
         if (it.Kind == SelKind.Object && o.Kind is ObjKind.Plane or ObjKind.Sketch) return o.SketchPlane;
+        if (it.Kind == SelKind.Entity && o.SketchData is { } sd && o.SketchPlane is { } root)
+            return it.Index2 <= 0 ? root : it.Index2 - 1 < sd.Sections.Count ? sd.Sections[it.Index2 - 1].Plane : null;
         if (it.Kind == SelKind.Edge || it.Kind == SelKind.Object && o.Kind == ObjKind.Curve)
         {
             var mesh = o.Mesh.EdgePoints;
@@ -791,9 +886,9 @@ public sealed partial class CadSession : ObservableObject
         bool wantFaces = filter.HasFlag(SelFilter.Face) || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
         // while a command is collecting picks its preview hides the original bodies; they stay pickable so more edges, faces or spots can be added
         bool picking = ActiveCommand?.ActiveSlot != null;
-        var vis = Objects.Where(o => picking || !HiddenIds.Contains(o.Id)).ToList();
+        var vis = Objects.Where(o => (picking || !HiddenIds.Contains(o.Id)) && ShownByIsolation(o)).ToList();
 
-        var face = wantFaces ? Picking.RayFace(cam, vis, px, py, o => FaceEligible(o, filter)) : null;
+        var face = wantFaces ? Picking.RayFace(cam, vis, px, py, o => FaceEligible(o, filter), ShownFaces) : null;
         PickResult? fr = null;
         if (face is { } f)
         {
@@ -804,16 +899,19 @@ public sealed partial class CadSession : ObservableObject
         PickResult? er = null;
         if (wantEdges)
         {
-            var e = Picking.NearestEdge(cam, vis, px, py, Picking.EdgeTolerancePx, o => EdgeEligible(o, filter));
+            var e = Picking.NearestEdge(cam, vis, px, py, Picking.EdgeTolerancePx, o => EdgeEligible(o, filter), ShownEdges);
             if (e is { } ee)
             {
-                bool curveObj = (ee.obj.Kind == ObjKind.Curve && filter.HasFlag(SelFilter.CurveObj)) || (ee.obj.Kind == ObjKind.Sketch && filter.HasFlag(SelFilter.SketchObj));
+                // Edge-flagged slots want per-curve granularity: a clicked sketch curve or curve object yields its edge, not the whole object.
+                bool curveObj = !filter.HasFlag(SelFilter.Edge) && ((ee.obj.Kind == ObjKind.Curve && filter.HasFlag(SelFilter.CurveObj)) || (ee.obj.Kind == ObjKind.Sketch && filter.HasFlag(SelFilter.SketchObj)));
                 var item = curveObj ? SelItem.Of(ee.obj) : new SelItem(ee.obj.Id, SelKind.Edge, ee.edge);
                 er = new PickResult(item, ee.point, Vec3.UnitZ, ee.depth);
             }
         }
         PickResult? best2 = fr;
         if (er != null && (fr == null || er.Value.Depth <= fr.Value.Depth + 2e-4)) best2 = er;
+        // a corner point wins over the edge or face it sits on
+        if (filter.HasFlag(SelFilter.Vertex) && PickVertex(cam, vis, px, py) is { } vr && (best2 == null || vr.Depth <= best2.Value.Depth + 2e-4)) best2 = vr;
         foreach(var obj in Objects.Where(o=>o.Visible&&!HiddenIds.Contains(o.Id)&&o.SketchData!=null))
         for(int i=0;i<obj.SketchData!.Datums.Count;i++)
         {
@@ -1220,6 +1318,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial bool SketchOk { get; set; } = true;
     public event Action? SketchChanged;
     HistoryNode? _sketchEditSource, _sketchReturnNode, _sketchRebuildEnd;
+    IReadOnlyList<PreviewItem>? _sketchSavedContext;
 
     public void NotifySketchChanged()
     {
@@ -1269,11 +1368,11 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>Re-open an existing sketch object for editing (geometry, constraints and dimensions are preserved).</summary>
-    public bool EditSketch(SceneObject obj, HistoryNode? source = null)
+    public bool EditSketch(SceneObject obj, HistoryNode? source = null, bool alignView = true)
     {
         if (obj.Kind != ObjKind.Sketch || obj.SketchData == null || obj.SketchPlane is not { } plane) { Say("This sketch has no editable definition (it was created before constraints existed, or was transformed).", true); return false; }
         if (Sketch != null) { Say("Finish the current sketch first.", true); return false; }
-        if(DeferToolChange("Edit "+obj.Name,()=>EditSketch(Find(obj.Id)??obj,source)))return false;
+        if(DeferToolChange("Edit "+obj.Name,()=>EditSketch(Find(obj.Id)??obj,source,alignView)))return false;
         CancelCommand();
         // Roll back before dependent features, keeping their original branch intact.
         // Visibility changes are folded into snapshots, so compare sketch definitions.
@@ -1289,8 +1388,24 @@ public sealed partial class CadSession : ObservableObject
         }
         _sketchRebuildEnd = _sketchEditSource == null ? null : RebuildEndFor(_sketchEditSource, Current);
         if (_sketchEditSource != null) { GoTo(_sketchEditSource); DocumentParameters = _sketchRebuildEnd!.Parameters; }
-        EnterSketch(plane, obj.SketchData.Clone(), obj.Id);
+        if (_sketchReturnNode is { } back)
+        {
+            // Rolling back drops dependent objects from the scene; show them faintly so the sketch is edited against the finished model, like editing a sketch in Fusion.
+            var present = Objects.Select(o => o.Id).ToHashSet();
+            var ghosts = back.After
+                .Where(o => o.Visible && !o.IsAnnotation && !present.Contains(o.Id) && o.Id != obj.Id)
+                .Select(ContextGhostOf).Where(g => g != null).ToList();
+            if (ghosts.Count > 0) { _sketchSavedContext = ContextItems; SetContext([.. _sketchSavedContext, .. ghosts!]); }
+        }
+        EnterSketch(plane, obj.SketchData.Clone(), obj.Id, alignView);
         return true;
+    }
+
+    static PreviewItem? ContextGhostOf(SceneObject o)
+    {
+        if (o.Tri is { } t) return new PreviewItem(t) { Context = true, NoEdges = true };
+        if (o.Form is { } f) return new PreviewItem(f) { Context = true, NoEdges = true };
+        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : null;
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
@@ -1302,6 +1417,7 @@ public sealed partial class CadSession : ObservableObject
         bool committed = false;
         sk.Tool?.Deactivate(this);
         Sketch = null;
+        if (_sketchSavedContext is { } savedCtx) { _sketchSavedContext = null; SetContext(savedCtx); }
         RestoreProjection();
         SketchStatus = "";
         if (keep && sk.HasContent)
@@ -1320,7 +1436,9 @@ public sealed partial class CadSession : ObservableObject
                     int i = Objects.FindIndex(o => o.Id == id);
                     Objects = Objects.SetItem(i, old.WithSketch(compound, model, sk.RootPlane));
                     RaiseScene();
-                    _selection.Clear(); _selection.Add(SelItem.Of(Find(id)!)); SelectionChanged?.Invoke();
+                    // The sketch stays unselected: a selected whole sketch seeds every curve it has into the next
+                    // profile tool, which made a freshly added curve extrude together with the old ones.
+                    _selection.Clear(); SelectionChanged?.Invoke();
                     Say($"{old.Name} updated");
                     committed = true;
                     if (source != null && end != null) ReplayAfterEdit(source, old.Name, end);
@@ -1375,7 +1493,10 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand != null)
         {
             if (ActiveCommand.GrabAt(this, p.X, p.Y, p.Ctrl)) { _cmdGrab = true; return true; }
-            var hl = ActiveCommand.Handles; for (int i = 0; i < hl.Count; i++) if (HandleHit(hl[i], p.X, p.Y)) { _handleDrag = true; _handleIdx = i; _typed = ""; return true; }
+            var hl = ActiveCommand.Handles; int grabbed = HandleAt(hl, p.X, p.Y, gripOnly: true);
+            if (grabbed < 0 && CommandGizmoDown(p)) return true;
+            if (grabbed < 0) grabbed = HandleAt(hl, p.X, p.Y, gripOnly: false);
+            if (grabbed >= 0) { _handleDrag = true; _handleIdx = grabbed; _typed = ""; _gizmoFocus = false; ClearGizmoHover(); BeginHandleDrag(hl[grabbed], p); return true; }
             if (TryBeginRegion(p)) return true;
             if (TryBeginClickDrag(p)) return true;
             ClickAt(p);
@@ -1393,18 +1514,20 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand == null && Sketch?.SpacePointerMove(this, p) == true) return;
         if (DatumVisible) Datum!.PointerMove(this, p);
         if (_cmdGrab && p.Left && ActiveCommand != null) { ActiveCommand.GrabMove(this, p.X, p.Y, p.Alt); Invalidate(); return; }
+        // hovering a size handle's grip keeps the gizmo under it quiet: the grip is what a press there would take
+        bool onGrip = !p.Left && !_handleDrag && _gizmoDrag == GizmoDrag.None && ActiveTool == null && ActiveCommand is { } gc && HandleAt(gc.Handles, p.X, p.Y, gripOnly: true) >= 0;
+        if (onGrip) ClearGizmoHover(); else if (CommandGizmoMove(p)) return;
         if (_handleDrag && p.Left && ActiveCommand?.Handles is { } hs0 && _handleIdx < hs0.Count) { DragHandle(hs0[_handleIdx], p); return; }
         if (ActiveCommand?.Handles is { Count: > 0 } hhs && ActiveTool == null)
         {
-            int hot = -1;
-            for (int i = 0; i < hhs.Count; i++) if (HandleHit(hhs[i], p.X, p.Y)) { hot = i; break; }
+            int hot = HandleAt(hhs, p.X, p.Y, gripOnly: false);
             if ((hot >= 0) != _handleHover) { _handleHover = hot >= 0; Invalidate(); }
-            if (hot >= 0 && hot != _handleIdx) { _handleIdx = hot; Invalidate(); }
+            if (hot >= 0 && (hot != _handleIdx || _gizmoFocus)) { _handleIdx = hot; if (_gizmoFocus) _typed = ""; _gizmoFocus = false; Invalidate(); }
         }
         ActiveTool?.PointerMove(this, p);
     }
     bool _cmdGrab;
-    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (RegionUp(p)) return; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
+    public void PointerUp(PointerInfo p) { _handleDrag = false; _cmdGrab = false; if (CommandGizmoUp()) return; if (RegionUp(p)) return; if (DatumVisible) Datum!.PointerUp(this, p); if (Sketch?.EndGizmoDrag(this,p) != true) ActiveTool?.PointerUp(this, p); Invalidate(); }
 
     // ------------------------------------------------------------ grab handle (pull an arrow to set a distance)
     bool _handleDrag, _handleHover;
@@ -1413,37 +1536,114 @@ public sealed partial class CadSession : ObservableObject
 
     public static Vec3 HandleTip(HandleSpec h) => h.Ref is { } r ? h.Origin + Assembly.JointVisuals.Rotate(r.Normalized(), h.Dir, h.Param.Value) * h.Radius : h.Origin + h.Dir.Normalized() * (h.Param.Value / h.Mul);
 
+    /// <summary>Shortest arrow drawn for a sliding handle, in pixels: a value of 0 (Move X/Y/Z, offsets) must still show a grabbable stub along its axis instead of collapsing onto the origin dot.</summary>
+    public const double HandleStubPixels = 36;
+
+    /// <summary>Where the handle's grip is drawn and hit-tested: the value's position, or a short stub along the axis when the value is near zero.</summary>
+    public Vec3 HandleGrip(HandleSpec h)
+    {
+        if (h.Ref != null) return HandleTip(h);
+        double along = h.Param.Value / h.Mul, stub = Camera.PixelSizeAt(h.Origin) * HandleStubPixels;
+        if (!double.IsFinite(along) || Math.Abs(along) >= stub) return HandleTip(h);
+        return h.Origin + h.Dir.Normalized() * (along < 0 ? -stub : stub);
+    }
+
+    /// <summary>The handle under the pointer: one whose grip (the cone or dot at its value) is there first, then one whose shaft or ring is. -1 for none.</summary>
+    int HandleAt(IReadOnlyList<HandleSpec> hs, double px, double py, bool gripOnly)
+    {
+        if (!GizmoSettings.Current.Allows(0,0)) return -1;
+        // the nearest grip, not the first: two grips that sit close together (a pull arrow and a tilt ring on one face) both stay reachable
+        int nearest = -1; double reach = GizmoSettings.Current.Tolerance * 2;
+        for (int i = 0; i < hs.Count; i++)
+            if (Camera.Project(HandleGrip(hs[i])) is { } g && Math.Sqrt((g.x - px) * (g.x - px) + (g.y - py) * (g.y - py)) is var d && d < reach) { reach = d; nearest = i; }
+        if (nearest >= 0 || gripOnly) return nearest;
+        for (int i = 0; i < hs.Count; i++) if (HandleHit(hs[i], px, py)) return i;
+        return -1;
+    }
+
     bool HandleHit(HandleSpec h, double px, double py)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return false;
-        var a = Camera.Project(h.Origin); var b = Camera.Project(HandleTip(h)); if (a == null || b == null) return false;
+        var a = Camera.Project(h.Origin); var b = Camera.Project(HandleGrip(h)); if (a == null || b == null) return false;
         var (_, d) = Picking.SegDist(px, py, a.Value.x, a.Value.y, b.Value.x, b.Value.y);
         double dt = Math.Sqrt((b.Value.x - px) * (b.Value.x - px) + (b.Value.y - py) * (b.Value.y - py));
-        return dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8;
+        if (dt < GizmoSettings.Current.Tolerance * 2 || d < GizmoSettings.Current.Tolerance * .8) return true;
+        if (h.Ref == null || HandleShowsLimits(h)) return false;
+        var (from, to) = TurnTrack(h); var ring = TurnArc(h, from, to);
+        for (int i = 0; i + 1 < ring.Count; i++)
+        {
+            if (Camera.Project(ring[i]) is not { } r0 || Camera.Project(ring[i + 1]) is not { } r1) continue;
+            if (Picking.SegDist(px, py, r0.x, r0.y, r1.x, r1.y).Item2 < GizmoSettings.Current.Tolerance * .8) return true;
+        }
+        return false;
+    }
+
+    /// <summary>A turning handle that draws its allowed arc with a tick at each stop (a joint, a tilt with limits). Others draw the gizmo's ring.</summary>
+    static bool HandleShowsLimits(HandleSpec h) => h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max));
+
+    /// <summary>The angles a turning handle's ring covers: the whole circle, or just the stretch its number may take when that is less than a turn.</summary>
+    public static (double from, double to) TurnTrack(HandleSpec h)
+    {
+        double lo = h.Param.Min, hi = h.Param.Max;
+        return Assembly.JointVisuals.IsLimit(lo) && Assembly.JointVisuals.IsLimit(hi) && hi - lo < 360 ? (lo, hi) : (0, 360);
+    }
+
+    static List<Vec3> TurnArc(HandleSpec h, double from, double to)
+    {
+        var zero = h.Ref!.Value.Normalized(); var axis = h.Dir.Normalized();
+        int n = Math.Clamp((int)Math.Ceiling(Math.Abs(to - from) / 5), 2, 288);
+        var pts = new List<Vec3>(n + 1);
+        for (int i = 0; i <= n; i++) pts.Add(h.Origin + Assembly.JointVisuals.Rotate(zero, axis, from + (to - from) * i / n) * h.Radius);
+        return pts;
+    }
+
+    double _handleGrabOffset;     // value minus the pointer's position along the arrow at press, so a drag moves the value by exactly how far the pointer moved
+
+    /// <summary>The pointer's position along a sliding handle's axis (in the parameter's units), or null when the view looks straight along it.</summary>
+    double? HandleParamAt(HandleSpec h, PointerInfo p)
+    {
+        var (o, d) = Camera.Ray(p.X, p.Y);
+        var A = h.Dir.Normalized(); var w0 = h.Origin - o;
+        double b = Vec3.Dot(A, d), dd = Vec3.Dot(A, w0), e = Vec3.Dot(d, w0), den = 1 - b * b;
+        if (Math.Abs(den) < 1e-4) return null;                       // looking straight along the arrow: no way to tell how far
+        return (b * e - dd) / den * h.Mul;
+    }
+
+    /// <summary>The pointer's angle on the plane a turning handle turns in, in degrees from its zero direction, or null when the view is edge-on to it.</summary>
+    double? HandleAngleAt(HandleSpec h, PointerInfo p)
+    {
+        if (h.Ref is not { } refDir) return null;
+        var (o, d) = Camera.Ray(p.X, p.Y);
+        var n = h.Dir.Normalized(); double dn = Vec3.Dot(d, n);
+        if (Math.Abs(dn) < 1e-4) return null;                   // looking edge-on to the turn: no way to tell the angle
+        var hit = o + d * (Vec3.Dot(h.Origin - o, n) / dn) - h.Origin;
+        var r0 = refDir.Normalized(); var r90 = Vec3.Cross(n, r0);
+        return Math.Atan2(Vec3.Dot(hit, r90), Vec3.Dot(hit, r0)) * 180 / Math.PI;
+    }
+
+    static double ShortWay(double degrees) => (degrees % 360 + 540) % 360 - 180;
+
+    void BeginHandleDrag(HandleSpec h, PointerInfo p)
+    {
+        _handleGrabOffset = 0;
+        if (h.Ref != null) { if (HandleAngleAt(h, p) is { } angle) _handleGrabOffset = ShortWay(h.Param.Value - angle); return; }
+        if (HandleParamAt(h, p) is { } at) _handleGrabOffset = h.Param.Value - at;
     }
 
     void DragHandle(HandleSpec h, PointerInfo p)
     {
-        var (o, d) = Camera.Ray(p.X, p.Y);
-        if (h.Ref is { } refDir)
+        if (h.Ref != null)
         {
-            // a turning handle: where the pointer is on the plane the joint turns in, as an angle from the zero direction
-            var n = h.Dir.Normalized(); double dn = Vec3.Dot(d, n);
-            if (Math.Abs(dn) < 1e-4) return;                    // looking edge-on to the turn: no way to tell the angle
-            var hit = o + d * (Vec3.Dot(h.Origin - o, n) / dn) - h.Origin;
-            var r0 = refDir.Normalized(); var r90 = Vec3.Cross(n, r0);
-            double target = Math.Atan2(Vec3.Dot(hit, r90), Vec3.Dot(hit, r0)) * 180 / Math.PI;
-            double now = h.Param.Value, delta = ((target - now) % 360 + 540) % 360 - 180;       // the short way round, so the value does not jump by a full turn
+            // a turning handle: the pointer's angle on the plane it turns in, kept the same distance from the value as at the press
+            if (HandleAngleAt(h, p) is not { } angle) return;
+            double now = h.Param.Value, delta = ShortWay(angle + _handleGrabOffset - now);       // the short way round, so the value does not jump by a full turn
             double asked = now + delta, aStep = p.Ctrl ? 0.1 : GizmoSettings.Current.Snap ? GizmoSettings.Current.AngleStep : 1;
             if (!double.IsFinite(aStep) || aStep <= 0) aStep = 1;
             h.Param.Value = p.Alt ? asked : Math.Round(asked / aStep) * aStep;           // the value stops at the joint's limits by itself
             Invalidate(); return;
         }
-        var A = h.Dir.Normalized(); var w0 = h.Origin - o;
-        double b = Vec3.Dot(A, d), dd = Vec3.Dot(A, w0), e = Vec3.Dot(d, w0), den = 1 - b * b;
-        if (Math.Abs(den) < 1e-4) return;                       // looking straight along the arrow: no way to tell how far
-        double t = (b * e - dd) / den;                          // distance along the arrow axis nearest the pointer
-        double v = t * h.Mul, step = Camera.PixelSizeAt(HandleTip(h)) * 4;
+        if (HandleParamAt(h, p) is not { } at) return;
+        double v = at + _handleGrabOffset, step = Camera.PixelSizeAt(HandleGrip(h)) * 4;
         double snap = step > 5 ? 5 : step > 1 ? 1 : step > 0.2 ? 0.5 : 0.1;       // coarse when zoomed out, fine when zoomed in
         if (p.Ctrl) snap = 0.01;
         if (GizmoSettings.Current.Snap) snap = h.Param.Unit == "°" ? GizmoSettings.Current.AngleStep : GizmoSettings.Current.MoveStep;
@@ -1492,7 +1692,7 @@ public sealed partial class CadSession : ObservableObject
     }
 
     Command? _handleCmd;
-    void ResetTypingFor(Command? c) { if (!ReferenceEquals(_handleCmd, c)) { _handleCmd = c; _typed = ""; _handleIdx = 0; } }
+    void ResetTypingFor(Command? c) { if (!ReferenceEquals(_handleCmd, c)) { _handleCmd = c; _typed = ""; _handleIdx = 0; _gizmoFocus = false; } }
 
     void BuildHandleOverlay(Overlay o)
     {
@@ -1504,45 +1704,63 @@ public sealed partial class CadSession : ObservableObject
     void BuildOneHandle(Overlay o, HandleSpec h, bool active)
     {
         if (!GizmoSettings.Current.Allows(0,0)) return;
+        // only the engaged handle lights up and reads its value: the others stay quiet in their own colour
+        bool hot = active && (_handleDrag || _handleHover);
+        bool typing = active && _typed.Length > 0 && !(CurrentGizmo != null && GizmoHasFocus);
+        uint rest = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
+        uint col = !hot ? rest : h.Colour != 0 ? GizmoVisual.Accent : GizmoVisual.Ink;
+        float stroke = GizmoSettings.Current.Stroke + (hot ? 1.5f : 0);
         if (h.Ref != null)
         {
-            // a turning handle: the allowed arc, the current angle and a grip at its end
-            var grip = HandleTip(h); double cur = h.Param.Value;
-            double lo = h.ShowRange ? h.Param.Min : double.NegativeInfinity, hi = h.ShowRange ? h.Param.Max : double.PositiveInfinity;
-            Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
-            bool hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
-            uint colour = hit ? Assembly.JointVisuals.HitColor : _handleDrag || _handleHover ? 0xFFFFFFFF : h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
-            o.AddDot(grip, colour, _handleDrag ? 13 : 11);
-            if (active && (_handleDrag || _handleHover || _typed.Length > 0))
-                o.AddLabel(grip, _typed.Length > 0 ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}", true, 4);
+            var grip = HandleTip(h); double cur = h.Param.Value; bool hit = false;
+            if (HandleShowsLimits(h))
+            {
+                // a turn with stops: the allowed arc with a tick at each end, red at a limit
+                double lo = h.Param.Min, hi = h.Param.Max;
+                Assembly.JointVisuals.Range(o, h.Origin, h.Dir, h.Ref, h.Radius, lo, hi, cur);
+                hit = Assembly.JointVisuals.IsLimit(lo) && cur <= lo + 1e-6 || Assembly.JointVisuals.IsLimit(hi) && cur >= hi - 1e-6;
+                if (hot) col = 0xFFFFFFFF;
+            }
+            else
+            {
+                // the gizmo's ring: a quiet track where the number may go, the swept angle and a spoke out to the grip
+                var (from, to) = TurnTrack(h);
+                o.AddPolyline(TurnArc(h, from, to), (rest & 0x00FFFFFF) | 0x70000000, GizmoSettings.Current.Stroke);
+                if (Math.Abs(cur) > 1e-9) o.AddPolyline(TurnArc(h, 0, cur), col, stroke);
+                o.AddLine(h.Origin, grip, col, stroke);
+            }
+            o.AddDot(grip, hit ? Assembly.JointVisuals.HitColor : col, hot && _handleDrag ? 13 : 11);
+            if (hot || typing)
+                o.AddLabel(grip, typing ? $"{_typed}_ °  -  Enter to apply" : $"{cur:0.#}°{(hit ? "  (limit)" : "")}", true, 4);
             return;
         }
-        if (h.ShowRange && (Assembly.JointVisuals.IsLimit(h.Param.Min) || Assembly.JointVisuals.IsLimit(h.Param.Max)))
+        if (HandleShowsLimits(h))
         {
             // a sliding handle with limits: the ruler of where it may go
             double hs = Camera.PixelSizeAt(h.Origin) * 70;
             Assembly.JointVisuals.Range(o, h.Origin, h.Dir, null, hs, h.Param.Min / h.Mul, h.Param.Max / h.Mul, h.Param.Value / h.Mul);
         }
-        var tip = HandleTip(h); var A = h.Dir.Normalized();
-        uint col = h.Colour != 0 ? h.Colour : GizmoVisual.Accent;
+        var tip = HandleGrip(h); var A = h.Dir.Normalized();
         double ps = Camera.PixelSizeAt(tip);
+        bool stub = (tip - HandleTip(h)).Length > 1e-9;
         o.AddDot(h.Origin, col, 7);
-        o.AddLine(h.Origin, tip, col, GizmoSettings.Current.Stroke + (_handleDrag || _handleHover ? 1.5f : 0));
-        // arrow head: a small cone at the tip pointing the way the value grows
+        o.AddLine(h.Origin, tip, col, stroke);
+        if (stub) o.AddLine(h.Origin, tip, (col & 0x00FFFFFF) | 0x60000000, GizmoSettings.Current.Stroke + 3);   // a value of zero: the stub is tinted so it reads as "nothing yet, pull me"
+        // the head is the gizmo's cone (same proportions as GizmoVisual.Arrow): it ends exactly at the value, pointing the way the value grows
         double factor = GizmoSettings.Current.Pixels / 96;
         double len = ps * 14 * factor * (h.Param.Value >= 0 ? 1 : -1), rad = ps * 5 * factor;
         var u = Math.Abs(A.Z) < 0.9 ? Vec3.Cross(A, Vec3.UnitZ).Normalized() : Vec3.Cross(A, Vec3.UnitX).Normalized();
-        var v = Vec3.Cross(A, u); var apex = tip + A * len; const int n = 14;
+        var v = Vec3.Cross(A, u); var apex = tip; var back = tip - A * len; const int n = 14;
         for (int i = 0; i < n; i++)
         {
             double a0 = 2 * Math.PI * i / n, a1 = 2 * Math.PI * (i + 1) / n;
-            var p0 = tip + (u * Math.Cos(a0) + v * Math.Sin(a0)) * rad; var p1 = tip + (u * Math.Cos(a1) + v * Math.Sin(a1)) * rad;
-            o.AddTri(apex, p0, p1, col); o.AddTri(tip, p1, p0, col);
+            var p0 = back + (u * Math.Cos(a0) + v * Math.Sin(a0)) * rad; var p1 = back + (u * Math.Cos(a1) + v * Math.Sin(a1)) * rad;
+            o.AddTri(apex, p0, p1, col); o.AddTri(back, p1, p0, col);
         }
         string unit = h.Param.Unit.Length > 0 ? " " + h.Param.Unit : "";
         bool atEnd = Assembly.JointVisuals.IsLimit(h.Param.Min) && h.Param.Value <= h.Param.Min + 1e-6 || Assembly.JointVisuals.IsLimit(h.Param.Max) && h.Param.Value >= h.Param.Max - 1e-6;
-        if (active && (_handleDrag || _handleHover || _typed.Length > 0))
-            o.AddLabel(apex + A * (ps * 12), _typed.Length > 0 ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}", true, 4);
+        if (hot || typing)
+            o.AddLabel(apex + A * (ps * 12), typing ? $"{_typed}_{unit}  -  Enter to apply" : $"{h.Param.Value:0.##}{unit}{(atEnd ? "  (limit)" : "")}", true, 4);
     }
 
     /// <summary>Typing a number while a grab handle is showing sets its value (Tab switches handle, Enter applies, Esc cancels).</summary>
@@ -1551,23 +1769,23 @@ public sealed partial class CadSession : ObservableObject
         ResetTypingFor(ActiveCommand);
         if (ActiveCommand?.Handles is not { Count: > 0 } hs || ActiveTool != null) return false;
         if (_handleIdx >= hs.Count) _handleIdx = 0;
-        var h = hs[_handleIdx];
+        var h = hs[_handleIdx].Param;
         bool digit = key.StartsWith("Char:") && key.Length == 6 && (char.IsDigit(key[5]) || key[5] == '.' || key[5] == ',');
         if (digit) { _typed += key[5] == ',' ? "." : key[5].ToString(); ApplyTyped(h); return true; }
         switch (key)
         {
             case "Minus": _typed = _typed.StartsWith('-') ? _typed[1..] : "-" + _typed; ApplyTyped(h); return true;
             case "Back": if (_typed.Length == 0) return false; _typed = _typed[..^1]; ApplyTyped(h); return true;
-            case "Tab": if (hs.Count < 2) return false; _handleIdx = (_handleIdx + 1) % hs.Count; _typed = ""; Invalidate(); return true;
+            case "Tab": if (hs.Count < 2) return false; _handleIdx = (_handleIdx + 1) % hs.Count; _typed = ""; _gizmoFocus = false; Invalidate(); return true;
             case "Enter": if (_typed.Length == 0) return false; ApplyTyped(h); _typed = ""; return true;
             case "Escape": if (_typed.Length == 0) return false; _typed = ""; Invalidate(); return true;
         }
         return false;
     }
 
-    void ApplyTyped(HandleSpec h)
+    void ApplyTyped(NumberParam param)
     {
-        if (double.TryParse(_typed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) { h.Param.Value = v; ActiveCommand?.OnChanged(); }
+        if (double.TryParse(_typed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) { param.Value = v; ActiveCommand?.OnChanged(); }
         Invalidate();
     }
 
@@ -1591,6 +1809,7 @@ public sealed partial class CadSession : ObservableObject
         if (DatumVisible && Datum!.Key(this, key)) return true;
         if (ActiveTool?.Key(this, key) == true) return true;
         if (ActiveCommand == null && Sketch?.DrawingKey(this, key) == true) return true;
+        if (CommandGizmoKey(key)) return true;
         if (TypeIntoHandle(key)) return true;
         switch (key)
         {
@@ -1717,7 +1936,9 @@ public sealed partial class CadSession : ObservableObject
         DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
         BuildHandleOverlay(o);
+        BuildCommandGizmoOverlay(o);
         BuildRegionOverlay(o);
+        BuildVertexOverlay(o);
         int toolLines = o.Lines.Count;
         ActiveTool?.BuildOverlay(this, o);
         // while construction mode is on, what is being drawn previews as a dashed reference line from the first moment, as it will look once placed
@@ -1752,7 +1973,12 @@ public sealed partial class CadSession : ObservableObject
     // ------------------------------------------------------------ files
     sealed record FormDto(double[] V, int[][] F, long[] CreaseKeys, double[] CreaseVals, int Level, long[]? Frozen = null, string? Sym = null);
     sealed record ObjDto(string Name, string Kind, uint Color, bool Visible, double[]? Plane, string? Brep, FormDto? Form = null, Sketching.SketchModel? Sketch = null, string? Material = null, float Metal = 0f, float Gloss = 0.35f, string? Mesh = null, Assembly.AssemblyData? Asm = null,
-        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null);
+        SurfacePattern Pattern = SurfacePattern.Automatic, float PatternScale = 12, float PatternAngle = 0, Material? PhysicalMaterial = null, Guid? Id = null, FlatPatternMap? FlatMap = null, SurfaceStyle? Surface = null,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool IsMoldHalf = false,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] List<FaceDto>? Faces = null,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Group = null);
+    /// <summary>One face's own color, finish and hidden state, saved by face number.</summary>
+    sealed record FaceDto(int Face, uint? Color = null, Appearance? Look = null, bool Hidden = false);
     /// <summary>Title of the ribbon tab the document was last worked in; saved so the file reopens on that tab (for example CAE with its study ready to run).</summary>
     public string? OpeningTab { get; set; }
     /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
@@ -1797,10 +2023,51 @@ public sealed partial class CadSession : ObservableObject
             o.Form == null && o.Tri == null ? o.Shape.ToBrep() : null,
             o.Form is { } f ? new FormDto(f.V.SelectMany(v => new[] { v.X, v.Y, v.Z }).ToArray(), f.F.ToArray(), f.Crease.Keys.ToArray(), f.Crease.Values.ToArray(), f.Level, f.Frozen.SelectMany(p => new[] { p.Item1, p.Item2, p.Item3 }).ToArray(), f.Sym == "off" ? null : f.Sym) : null,
             o.SketchData, o.Look.MaterialId, o.Look.Metal, o.Look.Gloss, o.Tri != null ? Meshing.MeshIO.ToBase64(o.Tri) : null, o.Asm,
-            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface);
+            o.Look.Pattern,o.Look.PatternScale,o.Look.PatternAngle,o.Material,o.Id,o.FlatMap,o.Look.Surface,o.IsMoldHalf,FacesToDto(o),o.Group);
+
+    static List<FaceDto>? FacesToDto(SceneObject o) => o.FaceStyles == null ? null
+        : Enumerable.Range(0, o.FaceStyles.Length).Where(f => o.FaceStyles[f] is { IsEmpty: false }).Select(f => new FaceDto(f, o.FaceStyles[f]!.Color, o.FaceStyles[f]!.Look, o.FaceStyles[f]!.Hidden)).ToList() is { Count: > 0 } l ? l : null;
+
+    static FaceStyle?[]? FacesFromDto(ObjDto d, SceneObject o)
+    {
+        if (d.Faces is not { Count: > 0 } faces || !o.HasBrep) return null;
+        int count = o.Mesh.FaceCount; var a = new FaceStyle?[count];
+        foreach (var f in faces) if (f.Face >= 0 && f.Face < count) a[f.Face] = new FaceStyle(f.Color, f.Look == null ? null : f.Look with { Surface = f.Look.Surface?.Validated() }, f.Hidden);
+        return a.Any(x => x != null) ? a : null;
+    }
+
+    static bool IsPartGeometry(ObjKind kind) => kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Form or ObjKind.Mesh or ObjKind.Sketch or ObjKind.Curve;
+
+    IEnumerable<SceneObject> MoldHalves => Objects.Where(o => o.IsMoldHalf && o.Kind == ObjKind.Solid && Persisted(o));
+    public bool CanExportMold => MoldHalves.Any();
+    public string? TypedDocumentExtension => NativeDocumentFile.Classify(Drawings.Sheets.Count > 0,
+        Components.Any(Persisted) || MoldHalves.Skip(1).Any(), Objects.Any(o => Persisted(o) && IsPartGeometry(o.Kind)));
+
+    public void ImportMold(string path)
+    {
+        if (ActiveCommand != null || Sketch != null) throw new InvalidOperationException("Finish the current edit before importing a mold.");
+        if (!NativeDocumentFile.IsMold(path)) throw new InvalidDataException("Choose a .prism_mld file.");
+        var source = new CadSession();
+        source.Open(path);
+        var output = new CommandOutput { Label = "Import mold", Icon = "mold" };
+        foreach (var half in source.MoldHalves)
+            output.Add.Add(new NewObject(half.Shape, half.Name, ObjKind.Solid, half.Color, Look: half.Look, IsMoldHalf: true));
+        Apply(output);
+        ZoomExtents();
+        Say($"Imported {output.Add.Count} mold solid(s).");
+    }
 
     public void Save(string path)
     {
+        if (NativeDocumentFile.IsMold(path))
+        {
+            var halves = MoldHalves.Select(o => ToDto(o) with { Visible = true, Asm = null, FlatMap = null }).ToList();
+            if (halves.Count == 0) throw new InvalidDataException("Create a mold before saving a mold-only file.");
+            NativeDocumentFile.WriteAtomic(path, JsonSerializer.Serialize(new FileDto(2, halves)));
+            Say($"Saved mold-only copy {Path.GetFileName(path)}");
+            return;
+        }
+        NativeDocumentFile.ValidateType(path, TypedDocumentExtension);
         RefreshPartThumbnail();
         if (ExplodeFactor > 1e-9) SetExplode(0);        // the file stores the assembled positions
         NativeDocumentFile.WriteAtomic(path, SerializeDocument());
@@ -1814,6 +2081,19 @@ public sealed partial class CadSession : ObservableObject
         NativeDocumentFile.WriteAtomic(path, SerializeDocument());
         return true;
     }
+
+    public void ExportPrismCopy(string path)
+    {
+        if (!CanExportPrismCopy) throw new InvalidOperationException("Finish the current edit and close the exploded view before exporting a Prism copy.");
+        if (!Path.GetExtension(path).Equals(".prism", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Use the .prism extension for a general Prism copy.");
+        if (FilePath is { } current && Path.GetFullPath(path).Equals(Path.GetFullPath(current), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Choose a different file for the Prism copy.");
+        NativeDocumentFile.WriteAtomic(path, SerializeDocument());
+        Say($"Exported Prism copy {Path.GetFileName(path)}");
+    }
+
+    public bool CanExportPrismCopy => Sketch == null && ActiveCommand == null && ExplodeFactor <= 1e-9;
 
     string SerializeDocument()
     {
@@ -1829,7 +2109,7 @@ public sealed partial class CadSession : ObservableObject
     static SceneObject FromDto(ObjDto d)
     {
         Plane3? plane = d.Plane is { Length: 9 } q ? new(new(q[0], q[1], q[2]), new(q[3], q[4], q[5]), new(q[6], q[7], q[8])) : null;
-        if (d.Mesh is { } mb) return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb));
+        if (d.Mesh is { } mb) return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Mesh, d.Color, d.Visible, null, null, null, Look(d), Meshing.MeshIO.FromBase64(mb)) { Group = d.Group };
         if (d.Form is { } fd)
         {
             var sm = new Form.SubdMesh { Level = fd.Level, Sym = fd.Sym ?? "off" };
@@ -1837,7 +2117,7 @@ public sealed partial class CadSession : ObservableObject
             foreach (var face in fd.F) sm.F.Add(face);
             for (int i = 0; i < fd.CreaseKeys.Length; i++) sm.Crease[fd.CreaseKeys[i]] = fd.CreaseVals[i];
             if (fd.Frozen is { } fz) for (int i = 0; i + 2 < fz.Length; i += 3) sm.Frozen.Add((fz[i], fz[i + 1], fz[i + 2]));
-            return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d));
+            return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, null, ObjKind.Form, d.Color, d.Visible, null, sm, null, Look(d)) { Group = d.Group };
         }
         var shape = Occ.FromBrep(d.Brep!);
         // older files stored construction curves inside the sketch's shape, where they showed as solid lines and joined the profile
@@ -1845,7 +2125,8 @@ public sealed partial class CadSession : ObservableObject
         {
             try { var shapes = d.Sketch.ToShapes(root); shape = shapes.Count > 0 ? Occ.Profile(shapes, faces: false) : Occ.Vertex(root.Origin); } catch (KernelException) { }
         }
-        return new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap };
+        var loaded = new SceneObject(d.Id ?? Guid.NewGuid(), d.Name, shape, Enum.Parse<ObjKind>(d.Kind), d.Color, d.Visible, plane, null, d.Sketch, Look(d), null, d.Asm) { FlatMap = d.FlatMap, IsMoldHalf = d.IsMoldHalf, Group = d.Group };
+        return d.Faces == null ? loaded : loaded.WithFaceStyles(FacesFromDto(d, loaded));
     }
 
     public void Open(string path)
@@ -1855,21 +2136,31 @@ public sealed partial class CadSession : ObservableObject
         var ids=dto.Objects.Where(o=>o.Id.HasValue).Select(o=>o.Id!.Value).ToList();
         if(ids.Any(i=>i==Guid.Empty)||ids.Distinct().Count()!=ids.Count)throw new InvalidDataException("Duplicate or empty object identities in document.");
         if (dto.Parameters != null) ParameterValues.Evaluate(dto.Parameters);
+        var drawing = Drawing.DrawingDocument.Deserialize(dto.Drawing);
+        if (NativeDocumentFile.IsTyped(Path.GetExtension(path)) && !NativeDocumentFile.IsMold(path))
+        {
+            var kind = NativeDocumentFile.Classify(drawing.Sheets.Count > 0,
+                dto.Objects.Any(o => o.Asm is Assembly.ComponentInfo) || dto.Objects.Count(o => o.IsMoldHalf && o.Kind == nameof(ObjKind.Solid)) >= 2,
+                dto.Objects.Any(o => Enum.TryParse<ObjKind>(o.Kind, out var objectKind) && IsPartGeometry(objectKind)));
+            NativeDocumentFile.ValidateType(path, kind);
+        }
+        var list = dto.Objects.Select(FromDto).ToImmutableList();
+        if (NativeDocumentFile.IsMold(path) && (dto != new FileDto(dto.Version, dto.Objects) || list.Count == 0
+            || list.Any(o => !o.IsMoldHalf || o.Kind != ObjKind.Solid || !o.HasBrep || !o.Shape.HasSolids || o.Asm != null)))
+            throw new InvalidDataException("A .prism_mld file must contain only mold solids.");
         NewDocument();
         DocumentParameters = dto.Parameters?.ToImmutableList() ?? [];
-        var list = ImmutableList.CreateBuilder<SceneObject>();
         foreach (var d in dto.Objects)
         {
-            list.Add(FromDto(d));
             _counters[StripNumber(d.Name)] = Math.Max(_counters.GetValueOrDefault(StripNumber(d.Name)), int.TryParse(d.Name[(d.Name.LastIndexOf(' ') + 1)..], out var n) ? n : 0);
         }
-        Objects = list.ToImmutable();
+        Objects = list;
         if (dto.History is { Steps.Count: > 0 } saved) { try { LoadHistory(saved); } catch (Exception) { Root.After = []; Current = Root; } }
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
-        Drawings = DrawingDocumentFromFile(dto.Drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;
+        Drawings = DrawingDocumentFromFile(drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;
         ActiveStudy=Studies.FirstOrDefault(st=>st.Id==dto.ActiveStudy)??Studies.FirstOrDefault();
         CamSetup=dto.CamSetup; if(dto.CamSetups!=null)CamSetups.AddRange(dto.CamSetups); RaiseStudy();
         LoadRenderState(dto.Lights, dto.RenderSetup);
@@ -1915,10 +2206,10 @@ public sealed partial class CadSession : ObservableObject
         return new PreparedImport(root, parts) { Invalid = invalid };
     }
 
-    public void AddPrepared(PreparedImport prepared, string path) => AddImported(prepared.Root, path, prepared);
+    public void AddPrepared(PreparedImport prepared, string path, bool asMoldReference = false) => AddImported(prepared.Root, path, prepared, asMoldReference);
 
     /// <summary>Add every solid, surface and curve of an imported shape as its own object.</summary>
-    void AddImported(Shape root, string path, PreparedImport? prepared = null)
+    void AddImported(Shape root, string path, PreparedImport? prepared = null, bool asMoldReference = false)
     {
         Checkpoint();
         int count = 0;
@@ -1927,6 +2218,7 @@ public sealed partial class CadSession : ObservableObject
             var name = NextName(k == ObjKind.Solid ? "Body" : k == ObjKind.Surface ? "Surface" : "Curve");
             uint col = k == ObjKind.Solid ? Palette.ForIndex(count) : k == ObjKind.Surface ? Palette.Surface : Palette.Curve;
             var o = new SceneObject(Guid.NewGuid(), name, s, k, col);
+            if (asMoldReference && k is ObjKind.Solid or ObjKind.Surface) o = o.WithReference(true);
             if (mesh != null) o.PrimeMesh(mesh);
             Objects = Objects.Add(o);
             count++;
@@ -1942,7 +2234,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void ExportStep(string path)
     {
-        var shapes = Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind != ObjKind.Sketch).Select(o => o.Shape).ToList();
+        var shapes = ExactExportObjects.Select(o => o.Shape).ToList();
         if (shapes.Count == 0) throw new InvalidOperationException("Nothing to export (meshes can be exported as STL / 3MF).");
         Occ.ExportStep(shapes, path); Say($"Exported {Path.GetFileName(path)}");
     }
@@ -1958,8 +2250,7 @@ public sealed partial class CadSession : ObservableObject
     /// <summary>Export to STL, 3MF, OBJ or PLY. Selected objects if any are selected, otherwise everything visible. 3MF keeps bodies separate and named.</summary>
     public void ExportMesh(string path)
     {
-        var src = SelectedObjects.Any() ? SelectedObjects.ToList() : Objects.Where(o => o.Visible).ToList();
-        var parts = src.Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
+        var parts = MeshExportObjects.Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
         if (parts.Count == 0) throw new InvalidOperationException("Nothing to export.");
         if (Path.GetExtension(path).Equals(".3mf", StringComparison.OrdinalIgnoreCase)) Meshing.MeshIO.Save3mf(parts.Select(p => p.m!).ToList(), path, parts.Select(p => p.o.Name).ToList());
         else Meshing.MeshIO.Save(Meshing.TriMesh.Merge(parts.Select(p => p.m!)), path);
@@ -2113,6 +2404,7 @@ public sealed partial class CadSession : ObservableObject
             double d = VisibleCameras.Max(c => c.Distance);
             foreach (var c in VisibleCameras) c.Distance = d;
         }
+        else if (Layout == ViewLayout.Quad && MaximizedView is { } m && LinkViews) SyncViews(Cameras[m]);
         Invalidate();
     }
 

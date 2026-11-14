@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Prism.Core.Export;
@@ -32,9 +33,24 @@ public sealed partial class CadSession
 
     public void ImportBrep(string path) => AddImported(Occ.FromBrep(File.ReadAllText(path)), path);
 
+    internal IEnumerable<SceneObject> ExactExportObjects =>
+        Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind != ObjKind.Sketch);
+
+    internal IEnumerable<SceneObject> MeshExportObjects =>
+        SelectedObjects.Any() ? SelectedObjects : Objects.Where(o => o.Visible);
+
+    internal IEnumerable<SceneObject> SketchExportObjects
+    {
+        get
+        {
+            var selected = SelectedObjects.Where(o => o.SketchData != null).ToList();
+            return selected.Count > 0 ? selected : Objects.Where(o => o.Visible && o.SketchData != null);
+        }
+    }
+
     public void ExportBrep(string path)
     {
-        var shapes = Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind != ObjKind.Sketch).Select(o => o.Shape).ToList();
+        var shapes = ExactExportObjects.Select(o => o.Shape).ToList();
         if (shapes.Count == 0) throw new InvalidOperationException("Nothing to export.");
         File.WriteAllText(path, (shapes.Count == 1 ? shapes[0] : Occ.Compound(shapes)).ToBrep());
         Say($"Exported {Path.GetFileName(path)}");
@@ -42,7 +58,7 @@ public sealed partial class CadSession
 
     public void ExportIges(string path)
     {
-        var shapes = Objects.Where(o => o.Visible && o.HasBrep && !o.IsAnnotation && o.Kind != ObjKind.Sketch).Select(o => o.Shape).ToList();
+        var shapes = ExactExportObjects.Select(o => o.Shape).ToList();
         if (shapes.Count == 0) throw new InvalidOperationException("Nothing to export (meshes can be exported as STL / 3MF).");
         Occ.ExportIges(shapes, path); Say($"Exported {Path.GetFileName(path)}");
     }
@@ -50,8 +66,7 @@ public sealed partial class CadSession
     /// <summary>Binary glTF of the selection (or every visible body): Y-up, metres, one flat-colour material per body.</summary>
     public void ExportGlb(string path)
     {
-        var src = SelectedObjects.Any() ? SelectedObjects.ToList() : Objects.Where(o => o.Visible).ToList();
-        var parts = src.Where(o => !o.IsAnnotation).Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
+        var parts = MeshExportObjects.Where(o => !o.IsAnnotation).Select(o => (o, m: PrintMesh(o))).Where(x => x.m != null && x.m.TriCount > 0).ToList();
         if (parts.Count == 0) throw new InvalidOperationException("Nothing to export.");
         Gltf.SaveGlb(path, parts.Select(p => (p.o.Name, p.m!, p.o.Color)).ToList());
         Say($"Exported {parts.Count} object(s) to {Path.GetFileName(path)}");
@@ -60,8 +75,7 @@ public sealed partial class CadSession
     /// <summary>The selected sketches (or every visible one) as DXF LINE / CIRCLE / ARC entities in millimetres, each drawing plane on its own layer.</summary>
     public void ExportDxf(string path)
     {
-        var src = SelectedObjects.Where(o => o.SketchData != null).ToList();
-        if (src.Count == 0) src = Objects.Where(o => o.Visible && o.SketchData != null).ToList();
+        var src = SketchExportObjects.ToList();
         if (src.Count == 0) throw new InvalidOperationException("DXF export needs a sketch. Draw one (or select it) first.");
         var layers = new System.Collections.Generic.List<(string, SketchModel)>();
         foreach (var o in src)

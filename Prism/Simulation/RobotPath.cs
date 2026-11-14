@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Prism.Kernel;
 
 namespace Prism.Simulation;
@@ -60,7 +61,7 @@ public static class RobotPath
     /// Joint values come out in degrees or mm, one row per active joint, for the output times.
     /// </summary>
     public static Plan Follow(MotionEngine engine, IReadOnlyList<int> active, string bodyKey, Vec3 local, IReadOnlyList<Vec3> path, double speed, double accel, double interval,
-        bool holdOrientation, double orientationWeight = 100)
+        bool holdOrientation, double orientationWeight = 100, CancellationToken cancellationToken = default)
     {
         var notes = new List<string>();
         var q = engine.StartVector();
@@ -80,6 +81,7 @@ public static class RobotPath
         double maxPos = 0, maxRot = 0; int unreached = 0;
         for (int i = 0; i <= steps; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var target = PointAt(pts, cum, dist(times[i]));
             var r = engine.InverseKinematics(q, active, bodyKey, local, target, holdOrientation ? rot : null, orientationWeight);
             q = r.Q; maxPos = Math.Max(maxPos, r.PositionError); maxRot = Math.Max(maxRot, r.OrientationError);

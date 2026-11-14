@@ -48,6 +48,7 @@ public sealed partial class CadSession
         if (!tracer.LoadScene(this)) throw new InvalidOperationException("There is nothing visible to render yet.");
         var cam = Cameras[0];
         var job = new RenderJob { Width = settings.Width, Height = settings.Height, TotalSamples = settings.Samples, Running = true, Pixels = new byte[settings.Width * settings.Height * 4] };
+        var progress = Work.Begin("Render image", job.Cts.Cancel);
         Render = job; RenderChanged?.Invoke();
         // the camera the render sees is a snapshot: orbiting afterwards must not change a picture that is being made
         var snap = new Camera { Target = cam.Target, Distance = cam.Distance, Yaw = cam.Yaw, Pitch = cam.Pitch, Roll = cam.Roll, FovY = cam.FovY, Orthographic = cam.Orthographic, Width = settings.Width, Height = settings.Height };
@@ -61,11 +62,12 @@ public sealed partial class CadSession
                     if (job.Cts.IsCancellationRequested) return;
                     job.Pixels = (byte[])pix.Clone(); job.Samples = samples; job.Seconds = (DateTime.UtcNow - started).TotalSeconds;
                     job.Finished = done; job.Running = !done; RenderChanged?.Invoke();
+                    progress.Report(job.Status, (double)samples / Math.Max(1, job.TotalSamples));
                 }, job.Cts.Token);
             }
             catch (OperationCanceledException) { }
             catch (Exception e) { job.Error = e.Message; if (ReferenceEquals(Render, job)) Say(job.Status, true); }
-            finally { job.Running = false; job.Seconds = (DateTime.UtcNow - started).TotalSeconds; RenderChanged?.Invoke(); }
+            finally { progress.Dispose(); job.Running = false; job.Seconds = (DateTime.UtcNow - started).TotalSeconds; RenderChanged?.Invoke(); }
         });
         // sample counts come from the tracer's passes; mirror them for the status line
         return job;
@@ -92,6 +94,7 @@ public sealed partial class CadSession
         var settings = o.Settings;
         settings.Lights ??= [.. Lights.Select(l => l.Clone())];
         var job = new RenderJob { Width = settings.Width, Height = settings.Height, TotalSamples = settings.Samples, Running = true, Pixels = new byte[settings.Width * settings.Height * 4] };
+        using var progress = Work.Begin("Render animation", job.Cts.Cancel);
         Render = job; RenderChanged?.Invoke();
         // remember how things were, so the document is put back afterwards
         var original = JointObjects.ToDictionary(j => j.joint.Key, j => (j.joint.Value, j.joint.Value2));
@@ -110,10 +113,9 @@ public sealed partial class CadSession
                     foreach (var (k, v) in original) rest[k] = (v.Item1, v.Item2);
                     rest["@explode"] = (originalExplode, 0);
                     var pose = anim.Sample(t, rest);
-                    var values = new Dictionary<string, (double v1, double v2)>();
-                    foreach (var (k, v) in original) values[k] = (v.Item1, v.Item2);
-                    foreach (var (k, v) in pose) if (k != "@explode") values[k] = v;
-                    SetJointValues(values);
+                    var joints = ResolveAnimationJoints(JointObjects.Select(p => p.joint).ToDictionary(j => j.Key, j =>
+                        pose.TryGetValue(j.Key, out var v) ? j with { Value = v.v1, Value2 = v.v2 } : j), anim);
+                    SetJointValues(joints.ToDictionary(p => p.Key, p => (p.Value.Value, p.Value.Value2)));
                     SetExplode(pose.TryGetValue("@explode", out var ex) ? ex.v1 : originalExplode);
                     SetPartPose(PartPoseFrom(pose));
                     ApplyParameterShapes(pose);
@@ -125,7 +127,11 @@ public sealed partial class CadSession
                 byte[] last = [];
                 int frameNo = i + 1;
                 job.StatusOverride = $"Animation frame {frameNo}/{frames}  ({(DateTime.UtcNow - started).TotalSeconds:0}s)";
-                await System.Threading.Tasks.Task.Run(() => tracer.Render(snap, (pix, w, h, samples, fin) => { if (fin) last = (byte[])pix.Clone(); }, job.Cts.Token));
+                await System.Threading.Tasks.Task.Run(() => tracer.Render(snap, (pix, w, h, samples, fin) =>
+                {
+                    progress.Report($"Frame {frameNo}/{frames} · {samples}/{settings.Samples} samples", (i + (double)samples / Math.Max(1, settings.Samples)) / frames);
+                    if (fin) last = (byte[])pix.Clone();
+                }, job.Cts.Token));
                 if (last.Length == 0) break;
                 job.Pixels = last; job.Samples = settings.Samples; RenderChanged?.Invoke();
                 PngWriter.Save(System.IO.Path.Combine(o.Folder, $"frame_{frameNo:0000}.png"), last, settings.Width, settings.Height);
@@ -135,22 +141,26 @@ public sealed partial class CadSession
             string msg = $"{done} frame(s) in {o.Folder}";
             if (done == frames && o.Gif && gifFrames.Count > 0)
             {
+                progress.Report("Writing GIF…");
                 var gif = System.IO.Path.Combine(o.Folder, "animation.gif");
                 GifWriter.Save(gif, gifFrames, gw, gh, Math.Max(2, (int)Math.Round(100 / o.Fps)), true); msg += ", animation.gif";
             }
             if (done == frames && o.Mp4 && FindFfmpeg() is { } ff)
             {
+                progress.Report("Encoding MP4…");
                 string inPattern = System.IO.Path.Combine(o.Folder, "frame_%04d.png"), outFile = System.IO.Path.Combine(o.Folder, "animation.mp4");
                 string fps = o.Fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 var psi = new System.Diagnostics.ProcessStartInfo(ff, "-y -loglevel error -nostats -framerate " + fps + " -i \"" + inPattern + "\" -c:v libx264 -pix_fmt yuv420p -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" \"" + outFile + "\"") { CreateNoWindow = true, UseShellExecute = false };
                 using var p = System.Diagnostics.Process.Start(psi)!;
-                await p.WaitForExitAsync();
+                try { await p.WaitForExitAsync(job.Cts.Token); }
+                catch (OperationCanceledException) { if (!p.HasExited) p.Kill(entireProcessTree: true); throw; }
                 msg += p.ExitCode == 0 ? ", animation.mp4" : " (ffmpeg could not make the movie)";
             }
             else if (done == frames && o.Mp4) msg += ". Install ffmpeg to also get an MP4";
             job.StatusOverride = job.Cts.IsCancellationRequested ? $"Stopped after {done}/{frames} frames. {msg}" : $"Done: {msg}";
             Say(job.StatusOverride);
         }
+        catch (OperationCanceledException) { job.StatusOverride = $"Stopped after {done}/{frames} frames. Completed frames remain in {o.Folder}"; Say(job.StatusOverride); }
         catch (Exception e) { job.StatusOverride = $"Animation render failed: {e.Message}"; Say(job.StatusOverride, true); }
         finally
         {

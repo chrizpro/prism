@@ -27,11 +27,43 @@ public static class PrintExport
     {
         if (string.IsNullOrWhiteSpace(o.Folder)) throw new InvalidOperationException("Choose a folder to export to.");
         if (!Enum.IsDefined(o.Format) || !double.IsFinite(o.Tolerance) || o.Tolerance <= 0) throw new InvalidOperationException("Choose a valid format and positive tessellation quality.");
-        // Only things that have a body count: a selected toolpath or sketch must not hide the model (or make the export empty).
-        List<(string name, TriMesh? mesh)> Printable(IEnumerable<SceneObject> objects) =>
-            objects.Select(x => (name: x.Name, mesh: s.PrintMesh(x, o.Tolerance))).Where(p => p.mesh != null && p.mesh.TriCount > 0).ToList();
-        var parts = o.OnlySelection ? Printable(s.SelectedObjects) : [];
-        if (parts.Count == 0) parts = Printable(s.Objects.Where(x => x.Visible));
+        return WriteFiles(o, Prepare(s, o).Parts);
+    }
+
+    internal sealed record Part(string Name, TriMesh Mesh);
+    internal sealed record Review(List<Part> Parts, List<string> Skipped, bool UsedVisibleFallback);
+
+    internal static Review Prepare(CadSession session, PrintExportOptions options)
+    {
+        var parts = new List<Part>();
+        var skipped = new List<string>();
+        void Collect(IEnumerable<SceneObject> objects)
+        {
+            foreach (var body in objects)
+            {
+                if (body.Tri == null && body.Kind is not (ObjKind.Solid or ObjKind.Surface or ObjKind.Form))
+                    continue;
+                if (session.PrintMesh(body, options.Tolerance) is { TriCount: > 0 } mesh)
+                    parts.Add(new Part(body.Name, mesh));
+                else
+                    skipped.Add(body.Name);
+            }
+        }
+
+        var selected = session.SelectedObjects.ToList();
+        if (options.OnlySelection) Collect(selected);
+        bool fallback = options.OnlySelection && selected.Count > 0 && parts.Count == 0;
+        if (parts.Count == 0)
+        {
+            skipped.Clear();
+            Collect(session.Objects.Where(x => x.Visible));
+        }
+
+        return new Review(parts, skipped, fallback);
+    }
+
+    internal static List<string> WriteFiles(PrintExportOptions o, IReadOnlyList<Part> parts)
+    {
         if (parts.Count == 0) throw new InvalidOperationException("Nothing to export.");
         Directory.CreateDirectory(o.Folder);
         var ext = Extension(o.Format);
@@ -42,16 +74,16 @@ public static class PrintExport
             var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var p in parts)
             {
-                var stem = Safe(p.name); var unique = stem; int n = 2;
+                var stem = Safe(p.Name); var unique = stem; int n = 2;
                 while (!used.Add(unique)) unique = stem + "-" + n++;
                 var path = Path.Combine(o.Folder, unique + ext);
-                Write([p.mesh!], [p.name], path); written.Add(path);
+                Write([p.Mesh], [p.Name], path); written.Add(path);
             }
         }
         else
         {
             var path = Path.Combine(o.Folder, baseName + ext);
-            Write(parts.Select(p => p.mesh!).ToList(), parts.Select(p => p.name).ToList(), path); written.Add(path);
+            Write(parts.Select(p => p.Mesh).ToList(), parts.Select(p => p.Name).ToList(), path); written.Add(path);
         }
         return written;
     }

@@ -154,15 +154,17 @@ public sealed partial class CadSession
     /// The joint values that close the assembly's loops for these joint values, keeping the joint just moved where it was put; null when there is no loop.
     /// The moved joint walks there from where it was, so a big step stays on the linkage's branch. Nothing needs masses, so it is quick enough to run during a drag.
     /// </summary>
-    public Dictionary<string, (double v1, double v2)>? CloseLoops(IReadOnlyDictionary<string, JointInfo> overrides, string? moved, (double v1, double v2) from, out string? problem)
+    public Dictionary<string, (double v1, double v2)>? CloseLoops(IReadOnlyDictionary<string, JointInfo> overrides, string? moved, (double v1, double v2) from, out string? problem, JointInfo? added = null, ISet<string>? driven = null)
     {
         problem = null;
         var current = JointObjects.Select(j => overrides.TryGetValue(j.joint.Key, out var ov) ? ov : j.joint).ToList();
+        if (added != null) current.Add(added);
         var start = Components.ToDictionary(o => o.Component!.Key, o => o.Component!.Placement);
         var grounded = Components.Where(o => o.Component!.Grounded).Select(o => o.Component!.Key).ToHashSet();
         var closing = new List<JointInfo>();
-        AssemblyKinematics.Solve(start, grounded, current, Couplings, [], null, closing);
-        if (closing.Count == 0 || MotionEngine.DofsOf(current, Couplings).All(d => d.Follower)) return null;
+        var requested = AssemblyKinematics.Solve(start, grounded, current, Couplings, [], null, closing);
+        if (closing.Count == 0) return null;
+        if (moved == null && closing.All(j => AssemblyKinematics.IsClosed(requested, j))) return [];
         int at = moved == null ? -1 : current.FindIndex(j => j.Key == moved);
         var target = at < 0 ? null : current[at];
         int steps = 1;
@@ -177,7 +179,8 @@ public sealed partial class CadSession
         {
             if (target != null) { double f = (double)step / steps; current[at] = target with { Value = from.v1 + (target.Value - from.v1) * f, Value2 = from.v2 + (target.Value2 - from.v2) * f }; }
             var dofs = MotionEngine.DofsOf(current, Couplings);
-            foreach (var d in dofs) if (d.JointKey == moved && !d.Follower) d.Mode = DriveMode.Constant;
+            foreach (var d in dofs)
+                if (!d.Follower && (d.JointKey == moved || driven?.Contains(d.JointKey) == true)) d.Mode = DriveMode.Constant;
             try { _ = new MotionEngine(start, grounded, current, Couplings, [], dofs); }
             catch (InvalidOperationException e) { problem = e.Message; return null; }
             foreach (var d in dofs.Where(d => d.Dependent))
@@ -189,6 +192,22 @@ public sealed partial class CadSession
             }
         }
         return res;
+    }
+
+    /// <summary>Close a sampled animation pose while keeping its keyed joints as the inputs.</summary>
+    internal Dictionary<string, JointInfo> ResolveAnimationJoints(Dictionary<string, JointInfo> pose, AnimInfo animation, IEnumerable<string>? edited = null)
+    {
+        var driven = animation.Tracks.Where(t => t.Keys.Count > 0 && pose.ContainsKey(t.JointKey))
+            .Select(t => t.JointKey).ToHashSet();
+        if (edited != null) driven.UnionWith(edited);
+        string? moved = driven.Count == 1 ? driven.Single() : null;
+        var original = moved == null ? null : JointObjects.Select(p => p.joint).FirstOrDefault(j => j.Key == moved);
+        var values = CloseLoops(pose, moved, original?.Clamped() ?? default, out var problem, driven: driven);
+        if (problem != null) throw new InvalidOperationException(problem);
+        if (values == null) return pose;
+        foreach (var (key, v) in values)
+            pose[key] = pose[key] with { Value = v.v1, Value2 = v.v2 };
+        return pose;
     }
 
     /// <summary>The assembly as the motion engine sees it: every component with its mass, the joints and couplings that connect them, and the springs and loads acting on it.</summary>

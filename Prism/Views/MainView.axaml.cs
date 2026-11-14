@@ -17,15 +17,24 @@ namespace Prism.Views;
 public partial class MainView : UserControl
 {
     bool _syncing, _syncQueued;
+    bool _manualUpdateRequested;
     MainViewModel? _vm;
     HistoryItem? _pinTarget;
     Flyout? _pinFlyout;
     TextBox? _pinBox;
+    Point? _lastGridPointer;
+    readonly HashSet<Key> _heldQuadMaximizeKeys = [];
+    Window? _deactivatedWindow;
 
     public MainView()
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnToolHelpKey, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnViewportHotkeyTunnel, RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, OnViewportHotkeyKeyUpTunnel, RoutingStrategies.Tunnel);
+        ViewGrid.PointerEntered += (_, e) => _lastGridPointer = e.GetPosition(ViewGrid);
+        ViewGrid.AddHandler(PointerMovedEvent, (_, e) => _lastGridPointer = e.GetPosition(ViewGrid), RoutingStrategies.Tunnel, handledEventsToo: true);
+        ViewGrid.PointerExited += (_, _) => _lastGridPointer = null;
         HistoryGraph.Navigate += item => Vm?.GoToHistory(item);
         HistoryGraph.Edit += item => EditHistoryStep(item);
         HistoryGraph.Hover += item => Vm?.HoverHistory(item);
@@ -35,8 +44,29 @@ public partial class MainView : UserControl
         CompactHistory.Hover += item => Vm?.HoverHistory(item);
         CompactHistory.StepContext += OnHistoryContext;
         DataContextChanged += (_, _) => Attach();
-        AttachedToVisualTree += (_, _) => { Attach(); WindowControls.IsVisible = TopLevel.GetTopLevel(this) is MainWindow; };
+        AttachedToVisualTree += (_, _) =>
+        {
+            Attach();
+            var top = TopLevel.GetTopLevel(this);
+            WindowControls.IsVisible = top is MainWindow;
+            HookWindowDeactivated(top as Window);
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _heldQuadMaximizeKeys.Clear();
+            HookWindowDeactivated(null);
+        };
         SearchContainer.LayoutUpdated += (_, _) => CenterSearch();
+    }
+
+    void OnWindowDeactivated(object? sender, EventArgs e) => _heldQuadMaximizeKeys.Clear();
+
+    void HookWindowDeactivated(Window? w)
+    {
+        if (ReferenceEquals(_deactivatedWindow, w)) return;
+        if (_deactivatedWindow != null) _deactivatedWindow.Deactivated -= OnWindowDeactivated;
+        _deactivatedWindow = w;
+        if (_deactivatedWindow != null) _deactivatedWindow.Deactivated += OnWindowDeactivated;
     }
 
     void UpdateContextLocation()
@@ -87,12 +117,72 @@ public partial class MainView : UserControl
             : vm.HoveredToolHelpIcon ?? Help.ToolHelp.ForCommand(vm.ActiveCommand)?.Icon;
         if (ribbon?.ShowExample(e.Source as Control ?? ribbon, icon) == true) e.Handled = true;
     }
+
+    internal int? HoveredQuadViewIndex()
+    {
+        if (Vm is not { } vm || vm.HomeOpen || vm.IsDrawingWorkspace || vm.RenderVisible || Marking.IsOpen) return null;
+        if (vm.Session.Layout != ViewLayout.Quad) return null;
+        Grid[] cells = [Cell0, Cell1, Cell2, Cell3];
+        if (ViewGrid.IsPointerOver && _lastGridPointer is { } pt)
+        {
+            for (int i = 0; i < cells.Length; i++)
+                if (cells[i].IsVisible && cells[i].Bounds.Contains(pt))
+                    return i;
+        }
+        for (int i = 0; i < cells.Length; i++)
+            if (cells[i].IsVisible && cells[i].IsPointerOver)
+                return i;
+        return null;
+    }
+
+    internal bool TryToggleQuadMaximize() =>
+        Vm is { } vm && HoveredQuadViewIndex() is { } index && vm.Session.ToggleMaximizedView(index);
+
+    void OnViewportHotkeyTunnel(object? sender, KeyEventArgs e)
+    {
+        if (e.Handled || Vm is not { } vm) return;
+        if (e.Source is TextBox or ComboBox or MenuItem || (e.Source as Visual)?.FindAncestorOfType<TextBox>() != null || (e.Source as Visual)?.FindAncestorOfType<ComboBox>() != null) return;
+        var s = vm.Session;
+        if (s.Sketch?.Tool is Prism.Core.SketchTextTool { Editing: true }) return;
+        if (HotkeyInput.Gesture(e) is not { } gesture) return;
+        var scopes = Hotkeys.ActiveScopes(s.ActiveCommand != null, s.Sketch != null, vm.WorkspaceId, s.ActiveCommand is Prism.Commands.EditFormCommand);
+        foreach (var action in Hotkeys.Resolve(gesture, scopes))
+        {
+            if (action.Id == "animation.play")
+            {
+                if (vm.AnimationEditor != null) return;
+                continue;
+            }
+            if (action.Id == "view.quad.maximize")
+            {
+                if (_heldQuadMaximizeKeys.Contains(e.Key))
+                {
+                    e.Handled = true;
+                    return;
+                }
+                if (TryToggleQuadMaximize())
+                {
+                    _heldQuadMaximizeKeys.Add(e.Key);
+                    e.Handled = true;
+                }
+                return;
+            }
+            return;
+        }
+    }
+
+    void OnViewportHotkeyKeyUpTunnel(object? sender, KeyEventArgs e)
+    {
+        if (_heldQuadMaximizeKeys.Remove(e.Key))
+            e.Handled = true;
+    }
+
     void OnOpenStudio(object? sender, RoutedEventArgs e) => Vm?.OpenStudio((sender as Control)?.Tag is string panel && panel.Length > 0 ? panel : null);
     void OnPanelPickerClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Control anchor || Vm is not { } vm) return;
         var choices = new List<object>();
-        foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "script" })
+        foreach (string id in new[] { "properties", "appearance", "diagnostics", "references", "parameters", "curve", "script" })
         {
             var choice = new MenuItem { Header = (vm.IsRightPanelOpen(id) ? "✓  " : "     ") + MainViewModel.PanelTitle(id), IsEnabled = id != "properties" && vm.ContextPanelId != id };
             choice.Click += (_, _) => vm.SetRightPanelEnabled(id, !vm.IsRightPanelOpen(id));
@@ -113,15 +203,18 @@ public partial class MainView : UserControl
 
     void HookSession(CadSession? old, CadSession s)
     {
-        if (old != null) { old.SelectionChanged -= QueueSync; old.LayoutChanged -= ApplyLayout; old.StateChanged-=UpdateModeButtons; if (_modeHandler != null) old.PropertyChanged -= _modeHandler; }
+        if (old != null) { old.SelectionChanged -= QueueSync; old.LayoutChanged -= OnLayoutChanged; old.MaximizedViewChanged -= OnMaximizedViewChanged; old.StateChanged-=UpdateModeButtons; if (_modeHandler != null) old.PropertyChanged -= _modeHandler; }
         _modeHandler = (_, e) => { if (e.PropertyName is nameof(CadSession.Mode) or nameof(CadSession.Display) or nameof(CadSession.XRay)) UpdateModeButtons(); };
-        s.SelectionChanged += QueueSync; s.LayoutChanged += ApplyLayout; s.PropertyChanged += _modeHandler;
+        s.SelectionChanged += QueueSync; s.LayoutChanged += OnLayoutChanged; s.MaximizedViewChanged += OnMaximizedViewChanged; s.PropertyChanged += _modeHandler;
         s.StateChanged+=UpdateModeButtons;
-        ApplyLayout();
+        ApplyLayout(fit: s.Layout != ViewLayout.Single && s.MaximizedView == null);
     }
 
+    void OnLayoutChanged() => ApplyLayout(fit: true);
+    void OnMaximizedViewChanged() => ApplyLayout(fit: false);
+
     /// <summary>Place the four view cells for the document's layout: Single, Dual (model | top) or Quad (front, right / top, model).</summary>
-    void ApplyLayout()
+    void ApplyLayout(bool fit = true)
     {
         var s = Vm?.Session; if (s == null) return;
         Grid[] cells = [Cell0, Cell1, Cell2, Cell3];
@@ -130,23 +223,40 @@ public partial class MainView : UserControl
             Grid.SetColumn(cells[i], col); Grid.SetRow(cells[i], row); Grid.SetColumnSpan(cells[i], cs); Grid.SetRowSpan(cells[i], rs);
             cells[i].IsVisible = on;
         }
-        switch (s.Layout)
+        bool quadMaximized = s.Layout == ViewLayout.Quad && s.MaximizedView is >= 0 and <= 3;
+        if (quadMaximized)
         {
-            case ViewLayout.Single: Put(0, 0, 0, 2, 2, true); Put(1, 0, 0, 1, 1, false); Put(2, 1, 0, 1, 1, false); Put(3, 0, 1, 1, 1, false); break;
-            case ViewLayout.Dual: Put(0, 0, 0, 1, 2, true); Put(3, 1, 0, 1, 2, true); Put(1, 0, 0, 1, 1, false); Put(2, 1, 0, 1, 1, false); break;
-            default: Put(1, 0, 0, 1, 1, true); Put(2, 1, 0, 1, 1, true); Put(3, 0, 1, 1, 1, true); Put(0, 1, 1, 1, 1, true); break;
+            int max = s.MaximizedView!.Value;
+            for (int i = 0; i < 4; i++) Put(i, 0, 0, i == max ? 2 : 1, i == max ? 2 : 1, i == max);
+        }
+        else
+        {
+            switch (s.Layout)
+            {
+                case ViewLayout.Single: Put(0, 0, 0, 2, 2, true); Put(1, 0, 0, 1, 1, false); Put(2, 1, 0, 1, 1, false); Put(3, 0, 1, 1, 1, false); break;
+                case ViewLayout.Dual: Put(0, 0, 0, 1, 2, true); Put(3, 1, 0, 1, 2, true); Put(1, 0, 0, 1, 1, false); Put(2, 1, 0, 1, 1, false); break;
+                default: Put(1, 0, 0, 1, 1, true); Put(2, 1, 0, 1, 1, true); Put(3, 0, 1, 1, 1, true); Put(0, 1, 1, 1, 1, true); break;
+            }
         }
         bool multi = s.Layout != ViewLayout.Single;
         Label0.IsVisible = multi;
-        SepV.IsVisible = multi; Grid.SetColumn(SepV, 1);
-        SepH.IsVisible = s.Layout == ViewLayout.Quad; Grid.SetRow(SepH, 1);
+        SepV.IsVisible = multi && !quadMaximized; Grid.SetColumn(SepV, 1);
+        SepH.IsVisible = s.Layout == ViewLayout.Quad && !quadMaximized; Grid.SetRow(SepH, 1);
         Vm!.RefreshRibbon();
-        // once the cells have their real sizes, fit the model to them
+        // once the cells have their real sizes, sync camera bounds (and fit the model when switching to a multi-view layout)
         if (multi) Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             if (!ReferenceEquals(Vm?.Session, s)) return;
-            for (int i = 0; i < 4; i++) { s.Cameras[i].Width = cells[i].Bounds.Width; s.Cameras[i].Height = cells[i].Bounds.Height; }
-            s.ZoomExtents();
+            for (int i = 0; i < 4; i++)
+            {
+                if (cells[i].IsVisible && cells[i].Bounds.Width > 0 && cells[i].Bounds.Height > 0)
+                {
+                    s.Cameras[i].Width = cells[i].Bounds.Width;
+                    s.Cameras[i].Height = cells[i].Bounds.Height;
+                }
+            }
+            if (fit) s.ZoomExtents();
+            else s.Invalidate();
         }, Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
@@ -178,6 +288,8 @@ public partial class MainView : UserControl
     void OnTimelinePlay(object? s, RoutedEventArgs e) => Vm?.TimelineTogglePlay();
     void OnTimelineKey(object? s, RoutedEventArgs e) => Vm?.TimelineKeyChanged();
     void OnTimelineRemoveKeys(object? s, RoutedEventArgs e) => Vm?.TimelineRemoveKeys();
+    void OnTimelineZoomIn(object? s, RoutedEventArgs e) => AnimationTracks.ZoomBy(2, AnimationTimelineScroll.Viewport.Width);
+    void OnTimelineZoomOut(object? s, RoutedEventArgs e) => AnimationTracks.ZoomBy(.5, AnimationTimelineScroll.Viewport.Width);
 
     void OnDocTabPressed(object? s, Avalonia.Input.PointerPressedEventArgs e)
     {
@@ -287,6 +399,18 @@ public partial class MainView : UserControl
             });
             return f?.TryGetLocalPath();
         };
+        vm.PickNativeSaveFile = async (title, suggested, extensions) =>
+        {
+            var top = TopLevel.GetTopLevel(this); if (top == null) return null;
+            var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title, SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(suggested), DefaultExtension = extensions[0][1..],
+                SuggestedStartLocation = await StartFolder(top),
+                FileTypeChoices = extensions.Select(ext => new FilePickerFileType(NativeDocumentFile.Label(ext)) { Patterns = ["*" + ext] }).ToArray(),
+                ShowOverwritePrompt = true,
+            });
+            return file?.TryGetLocalPath();
+        };
     }
 
     /// <summary>File dialogs open in the workspace folder (when one is set and still there).</summary>
@@ -325,6 +449,9 @@ public partial class MainView : UserControl
         var selectedNodes = SelectedNodes();
         if (selectedNodes.Count == 1 && selectedNodes[0].IsActiveSketchDatum) { vm.UseDatumNode(selectedNodes[0]); return; }
         var items = selectedNodes.Select(n => n.SelectionItem).Where(i => i != null).Select(i => i!.Value).ToList();
+        // a group row stands for everything in the group
+        foreach (var group in selectedNodes.Where(n => n.IsGroup))
+            foreach (var member in vm.Session.GroupMembers(group.Title)) { var it = Prism.Core.SelItem.Of(member); if (!items.Contains(it)) items.Add(it); }
         if (vm.Session.ActiveCommand is { } cmd && cmd.ActiveSlot != null)
         {
             foreach (var it in items) if (!cmd.ActiveSlot.Items.Contains(it)) cmd.Pick(it, true);
@@ -364,6 +491,11 @@ public partial class MainView : UserControl
             bool on = tracking.All(o => o.TrackHistory);
             items.Add(Mi(on ? "Stop tracking history" : "Track history", () => vm.SetTrackHistory(tracking.Select(o => o.Id), !on)));
         }
+        var groups = nodes.Where(n => n.IsGroup).ToList();
+        if (objs.Count >= 2 && groups.Count == 0) items.Add(Mi("Group            Ctrl+G", () => vm.Session.GroupSelection(), vm.Session.CanGroup));
+        if (groups.Count > 0 || objs.Any(o => vm.Session.Find(o.ObjectId)?.Group != null))
+            items.Add(Mi("Ungroup            Ctrl+Shift+G", () => { if (groups.Count > 0) vm.Session.Ungroup(groups.Select(g => g.Title)); else vm.Session.Ungroup(); }));
+        if (groups.Count == 1 && objs.Count == 0) items.Add(Mi("Rename            F2", () => groups[0].BeginRename()));
         if (objs.Count == 1) items.Add(Mi("Rename            F2", () => objs[0].BeginRename()));
         if (objs.Count > 0)
         {
@@ -386,6 +518,7 @@ public partial class MainView : UserControl
         if (e.Source is TextBox || Vm is not { } vm) return;
         var objs = SelectedNodes().Where(n => n.IsObject).ToList();
         if (e.Key == Key.F2 && objs.Count == 1) { objs[0].BeginRename(); e.Handled = true; }
+        else if (e.Key == Key.F2 && SelectedNodes() is [{ IsGroup: true } group]) { group.BeginRename(); e.Handled = true; }
         else if (e.Key == Key.Delete && objs.Count > 0) { vm.DeleteNodes(objs); e.Handled = true; }
     }
 
@@ -714,12 +847,44 @@ public partial class MainView : UserControl
             item.Click += (_, _) => OpenLink(url(), header);
             return item;
         }
+        var items = new List<object> { version };
+        if (TopLevel.GetTopLevel(this) is Window owner && ReleaseUpdates.DesktopInstaller is { } installer)
+        {
+            var updates = new MenuItem { Header = "Check for updates…" };
+            updates.Click += async (_, _) =>
+            {
+                _manualUpdateRequested = true;
+                await ShowUpdateWindow(owner, installer);
+            };
+            items.Add(updates);
+        }
+        items.AddRange([new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl), Link("Give feedback", AppInfo.FeedbackUrl)]);
         new MenuFlyout
         {
-            ItemsSource = new object[] { version, new Separator(), Link("Open Prism guide", () => AppInfo.DocsUrl), Link("Known issues", () => AppInfo.KnownIssuesUrl), Link("Report a bug", AppInfo.BugReportUrl), Link("Give feedback", AppInfo.FeedbackUrl) },
+            ItemsSource = items,
             Placement = PlacementMode.BottomEdgeAlignedRight,
         }.ShowAt(anchor);
     }
+
+    internal async System.Threading.Tasks.Task CheckForStartupUpdateAsync(Window owner)
+    {
+        if (!AppSettings.Current.CheckForUpdatesOnStartup || ReleaseUpdates.DesktopInstaller is not { } installer) return;
+        using var cancellation = new System.Threading.CancellationTokenSource();
+        EventHandler cancel = (_, _) => cancellation.Cancel();
+        owner.Closed += cancel;
+        try
+        {
+            ReleaseUpdates.Update? update;
+            try { update = await ReleaseUpdates.Official.FindAsync(AppInfo.Version, installer, cancellation.Token); }
+            catch (Exception) { return; } // Startup checks should never interrupt offline work.
+            if (update != null && !cancellation.IsCancellationRequested && !_manualUpdateRequested && AppSettings.Current.CheckForUpdatesOnStartup)
+                await ShowUpdateWindow(owner, installer, update);
+        }
+        finally { owner.Closed -= cancel; }
+    }
+
+    System.Threading.Tasks.Task ShowUpdateWindow(Window owner, string installer, ReleaseUpdates.Update? update = null) =>
+        new ReleaseUpdateWindow(installer, url => OpenLink(url, "the Prism update"), update).ShowDialog(owner);
 
     void OnStage(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.KnownIssuesUrl, "known issues");
 

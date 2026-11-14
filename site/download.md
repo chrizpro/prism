@@ -41,7 +41,11 @@ The installers contain a self-contained app with the .NET runtime, the native ge
 
 ## Update
 
-Close Prism before installing a newer build, and install to the same location.
+Prism checks for updates when it opens and prompts if a newer installer is available for your desktop. Choose **Download update** to open the official download in your browser, or **Not now** to keep working. You can also check from **Help (?) → Check for updates**.
+
+To stop startup prompts, choose **Turn off startup update checks**. You can turn them back on in **Settings → Workspace → Check for updates at startup**.
+
+Save your work and close Prism before running the installer. On Windows, setup can remove your previous Prism installation first while keeping your documents and preferences.
 
 ## Build from source
 

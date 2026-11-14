@@ -162,12 +162,13 @@ public static class MeshOps
 
     // ================================================================= holes
     /// <summary>Close boundary loops of up to maxEdges edges by triangulating them.</summary>
-    public static (TriMesh mesh, int filled, int skipped) FillHoles(TriMesh m, int maxEdges)
+    public static (TriMesh mesh, int filled, int skipped) FillHoles(TriMesh m, int maxEdges, Func<int[], bool>? include = null, Action<int[]>? onFilled = null)
     {
         var topo = m.Topology();
         var tris = new List<int>(m.T); int filled = 0, skipped = 0;
         foreach (var loop in topo.HoleLoops)
         {
+            if (include != null && !include(loop)) continue;
             if (loop.Length > maxEdges) { skipped++; continue; }
             var order = loop.Reverse().ToArray();                      // new triangles traverse each boundary edge backwards
             var P = order.Select(i => m.P(i)).ToArray();
@@ -178,8 +179,11 @@ public static class MeshOps
             var href = Math.Abs(n.X) < 0.9 ? Vec3.UnitX : Vec3.UnitY;
             var u = Vec3.Cross(n, href).Normalized(); var w = Vec3.Cross(n, u);
             var poly = P.Select(p => (Vec3.Dot(p, u), Vec3.Dot(p, w))).ToList();
-            foreach (var (a, b, c) in Triangulator.Polygon(poly)) { tris.Add(order[a]); tris.Add(order[b]); tris.Add(order[c]); }
+            var patch = Triangulator.Polygon(poly).ToList();
+            if (patch.Count != order.Length - 2) { skipped++; continue; }
+            foreach (var (a, b, c) in patch) { tris.Add(order[a]); tris.Add(order[b]); tris.Add(order[c]); }
             filled++;
+            onFilled?.Invoke(loop);
         }
         uint[]? fcol = null;
         if (m.FaceColors != null) { fcol = new uint[tris.Count / 3]; m.FaceColors.CopyTo(fcol, 0); Array.Fill(fcol, 0xFFC8D0DAu, m.TriCount, fcol.Length - m.TriCount); }
@@ -545,6 +549,9 @@ public static class MeshOps
         var k = axis.Normalized(); double a = deg * Math.PI / 180, c = Math.Cos(a), s = Math.Sin(a); var v = p - origin;
         return origin + v * c + Vec3.Cross(k, v) * s + k * (Vec3.Dot(k, v) * (1 - c));
     }
+
+    /// <summary>Stretch by a different factor along each world axis; a negative factor mirrors, so the winding follows.</summary>
+    public static TriMesh Scale(TriMesh m, Vec3 origin, Vec3 f) => m.Transformed(p => { var v = p - origin; return origin + new Vec3(v.X * f.X, v.Y * f.Y, v.Z * f.Z); }, flipWinding: f.X * f.Y * f.Z < 0);
 
     public static TriMesh Scale(TriMesh m, Vec3 origin, double f) => m.Transformed(p => origin + (p - origin) * f, flipWinding: f < 0);
 

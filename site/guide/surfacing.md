@@ -8,7 +8,7 @@ Surfaces describe shape without thickness. Use them for flowing product forms, t
 
 ## Curves first
 
-Good surfaces come from good curves. The Curves section on both ribbons has **Curve** (through points or control points), **Curve from Data** (formulas or tables), **Project**, **Isocurves**, **Contour** and **Duplicate Edge**. Edit them with Fillet / Chamfer, Offset, Blend (G0, G1 or G2 to another curve), Join, Explode, Trim, Extend, Rebuild and Divide.
+Good surfaces come from good curves. The Curves section on both ribbons has **Curve** (through points or control points), **Curve from Data** (formulas or tables), **Project**, **Isocurves**, **Contour** and **Duplicate Edge**. Edit them with Fillet / Chamfer (which also rounds or bevels the edge where two faces of a surface or solid meet), Offset, Blend (G0, G1 or G2 to another curve), Join, Explode, Trim, Extend, Rebuild and Divide.
 
 On NURBS, press <kbd>K</kbd> to resume drawing in the shared NURBS curves sketch.
 
@@ -38,11 +38,21 @@ On NURBS, press <kbd>K</kbd> to resume drawing in the shared NURBS curves sketch
 
 Two curves can also span a ruled surface. To make an enclosure on Surface, build the surfaces, then use **Enclosed Body**.
 
+### Split a surface into faces
+
+**Split Surface** (Surface **Modify**, NURBS **Finish**) divides a surface along a plane, surface, solid, sketch or curve and keeps every piece, where **Trim** keeps one side. A whole sketch splits along every curve in it; a single picked curve splits along just that one.
+
+1. Start **Split Surface**, pick the surface, then the tool that cuts it. In **Face** pick mode the first pick can be a single face, and only that face is split.
+2. Under **Result** keep **one surface with several faces** (the default, so Thicken and Sew keep them joined) or choose **Separate surfaces**, which you can color and delete independently.
+3. Check the preview, then confirm.
+
+With faces of a surface selected and no tool open, <kbd>Delete</kbd> removes those faces and leaves the rest. The cut of a split NURBS surface is a real edge, so you can see and pick it (set the display to shaded with edges to see it). **Draw on Surface** has the same choice under **Result**: keep the curve, or split the faces it was drawn on. Click the first point again to close the curve into a loop. Each end of an open curve is run on to the nearest edge when one is close.
+
 ## Shape and refine (NURBS)
 
-- **Edit Points** shows control points with the gizmo: arrows move, rings rotate, blocks scale. Shift-click adds points to the selection; a soft influence radius moves neighbours with a falloff.
+- **Edit Points** shows control points with the gizmo: arrows move, rings rotate, blocks scale. A drag in empty space box-selects the points inside it (the Rectangle or Lasso armed on the ribbon is honoured); Shift-click adds points to the selection; a soft influence radius moves neighbours with a falloff.
 - **Sculpt** brushes the surface: pull, push, move or smooth.
-- **Rebuild Surface** fits one patch through an even grid and reports the deviation. **Add Detail** and **Raise Degree** give more control where you need it.
+- **Rebuild Surface** fits one patch through an even grid and reports the deviation. The grid of points it fits through is drawn on the surface and redrawn as you change **Points in U** and **V**. **Add Detail** and **Raise Degree** give more control where you need it.
 - **Warp** bends, twists, tapers or stretches along an axis.
 
 <GuideImage image="nurbs-control-grid" />
@@ -57,6 +67,10 @@ Two curves can also span a ruled surface. To make an enclosure on Surface, build
 
 ## Finish
 
-**Trim** and **Untrim**, **Extend**, **Offset** and **Reverse Normal** tidy individual surfaces. **Sew** joins surfaces along shared edges and can make a solid when they close; **Thicken** gives a surface a wall. **Enclosed Body** builds a solid from surfaces that enclose a volume. **Flatten / Refold** lays out a surface flat and wraps geometry back onto it.
+**Trim** and **Untrim**, **Extend**, **Offset** and **Reverse Normal** tidy individual surfaces. **Sew** joins surfaces along shared edges and can make a solid when they close; **Thicken** gives a surface a wall. **Enclosed Body** (also on NURBS) builds a solid from surfaces that enclose a volume. **Union**, **Subtract** and **Intersect** are on the Surface and NURBS ribbons too; Trim is the subtractive route for surfaces and a surface used as the tool in Subtract is refused with a message. Freeform has no Combine: convert to NURBS first. **Flatten / Refold** lays out a surface flat and wraps geometry back onto it.
 
 <GuideImage image="surface-thicken-preview" />
+
+## Faces of a surface
+
+The Vertex pick level shows a dot on every corner point of surfaces and curves; Measure takes corners as exact points. **Offset Face** and **Move Face** work on any face of a surface, flat or curved, adding walls along the edges it shared with faces that stay. **Merge Faces** and **Push / Pull** also work on surfaces, with Push / Pull taking curved faces. Right-click a surface face for Offset face, Move face, Draw on surface, Delete face, Isolate, Measure and Thicken. **Intersection Curve** recognises two picked curves on their own and makes the shared 3D curve.

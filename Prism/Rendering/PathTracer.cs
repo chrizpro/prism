@@ -86,21 +86,35 @@ public sealed class PathTracer
             MeshData md;
             try { md = o.Mesh; } catch { continue; }
             if (md.Indices.Length == 0) continue;
-            var (r, g, b) = Palette.Unpack(o.Color);
-            // sRGB colour to linear light
-            Vector3 albedo = new((float)Math.Pow(r, 2.2), (float)Math.Pow(g, 2.2), (float)Math.Pow(b, 2.2));
-            int mid = _mats.Count;
-            _mats.Add(new Mat { Albedo = albedo, Metal = Math.Clamp(o.Look.Metal, 0f, 1f), Rough = Math.Clamp(1f - o.Look.Gloss, 0.06f, 1f),
-                Color=o.Color,Origin=new((float)md.Min.X,(float)md.Min.Y,(float)md.Min.Z),Pattern=MaterialSurface.Pattern(o.Look),Scale=o.Look.PatternScale,Angle=o.Look.PatternAngle, Layers = new SurfaceLayers(o.Look.Surface) });
+            int AddMaterial(uint color, Appearance look)
+            {
+                var (r, g, b) = Palette.Unpack(color);
+                // sRGB colour to linear light
+                Vector3 albedo = new((float)Math.Pow(r, 2.2), (float)Math.Pow(g, 2.2), (float)Math.Pow(b, 2.2));
+                _mats.Add(new Mat { Albedo = albedo, Metal = Math.Clamp(look.Metal, 0f, 1f), Rough = Math.Clamp(1f - look.Gloss, 0.06f, 1f),
+                    Color=color,Origin=new((float)md.Min.X,(float)md.Min.Y,(float)md.Min.Z),Pattern=MaterialSurface.Pattern(look),Scale=look.PatternScale,Angle=look.PatternAngle, Layers = new SurfaceLayers(look.Surface) });
+                return _mats.Count - 1;
+            }
+            int mid = AddMaterial(o.Color, o.Look);
+            var faceMaterials = new Dictionary<FaceStyle, int>(ReferenceEqualityComparer.Instance);   // a face with its own color or finish gets its own material
             for (int t = 0; t + 2 < md.Indices.Length; t += 3)
             {
+                int triMaterial = mid;
+                if (o.HasFaceStyles && o.HasBrep && t / 3 < md.TriFace.Length && o.FaceStyleOf(md.TriFace[t / 3]) is { } style)
+                {
+                    if (style.Hidden) continue;
+                    if (style.Color != null || style.Look != null)
+                    {
+                        if (!faceMaterials.TryGetValue(style, out triMaterial)) faceMaterials[style] = triMaterial = AddMaterial(style.Color ?? o.Color, style.Look ?? o.Look);
+                    }
+                }
                 for (int k = 0; k < 3; k++)
                 {
                     int vi = md.Indices[t + k] * 3;
                     P.Add(md.Positions[vi]); P.Add(md.Positions[vi + 1]); P.Add(md.Positions[vi + 2]);
                     N.Add(md.Normals[vi]); N.Add(md.Normals[vi + 1]); N.Add(md.Normals[vi + 2]);
                 }
-                M.Add(mid);
+                M.Add(triMaterial);
             }
             _sceneMin = Vector3.Min(_sceneMin, new Vector3((float)md.Min.X, (float)md.Min.Y, (float)md.Min.Z));
             _sceneMax = Vector3.Max(_sceneMax, new Vector3((float)md.Max.X, (float)md.Max.Y, (float)md.Max.Z));

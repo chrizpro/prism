@@ -71,6 +71,7 @@ public sealed partial class MainViewModel
         var others = s.SelectedObjects.Where(o => o.Kind == ObjKind.Solid && o.Id != body.Id).ToList();
         study.OtherBodies.AddRange(others.Select(o => o.Id));
         s.Say(others.Count == 0 ? $"Created {study.Name} for {body.Name}. Add a Fixed Support and a load, then Run Study." : $"Created {study.Name} for {others.Count + 1} bodies, bonded where they touch. Give each a material, add a Fixed Support and a load, then Run Study.");
+        SelectedRightPanel = "context";       // the study's own panel, even when Properties or another tab was in front
         UpdatePanels();
     }
 
@@ -176,6 +177,8 @@ public sealed partial class MainViewModel
     {
         var st = Session.ActiveStudy; if (st == null || SimBusy) return;
         SimBusy = true; SimStatus = "Meshing…";
+        using var progress = Session.Work.Begin("Create simulation mesh");
+        progress.Report(SimStatus);
         try
         {
             var data = await Task.Run(() => StudyRunner.Mesh(Session, st));
@@ -217,7 +220,8 @@ public sealed partial class MainViewModel
     {
         var st = Session.ActiveStudy; if (st == null || SimBusy) { if (st == null) Session.Say("Create a study first (Simulate > New Study).", true); return; }
         SimBusy = true; SimStatus = "Starting…";
-        void Status(string m) => Dispatcher.UIThread.Post(() => SimStatus = m);
+        using var progress = Session.Work.Begin("Simulation study");
+        void Status(string m) => Dispatcher.UIThread.Post(() => { SimStatus = m; progress.Report(m); });
         try
         {
             var runSession=Session;

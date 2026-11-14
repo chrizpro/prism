@@ -26,6 +26,8 @@ public sealed partial class GalleryCard(GalleryEntry entry) : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CanOpen))] public partial bool Busy { get; set; }
     [ObservableProperty] public partial Bitmap? Preview { get; set; }
     [ObservableProperty] public partial string ActionLabel { get; set; } = "Download & open";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDownloadStatus))] public partial string? DownloadStatus { get; set; }
+    public bool HasDownloadStatus => DownloadStatus != null;
 }
 
 /// <summary>One titled group of gallery cards; shows its first few until expanded (always all while searching).</summary>
@@ -147,14 +149,14 @@ public sealed partial class MainViewModel
     {
         if (GalleryBusy) return;
         GalleryBusy = true;
-        GalleryStatus = "Downloading " + extra.Label + "…";
+        card.DownloadStatus = "Downloading " + extra.Label + "…";
         try
         {
             string folder = Path.Combine(HasWorkspace ? WorkspaceFolder : DefaultWorkspacePath, "Gallery");
             string path = await GallerySource.SaveExtra(extra, folder);
-            GalleryStatus = "Saved " + extra.Label + " of " + card.Name + " to " + path;
+            card.DownloadStatus = "Saved " + extra.Label + " to " + path;
         }
-        catch (Exception e) { GalleryStatus = "Could not download " + extra.Label + ": " + e.Message; }
+        catch (Exception e) { card.DownloadStatus = "Could not download " + extra.Label + ": " + e.Message; }
         finally { GalleryBusy = false; }
     }
     public async Task OpenGalleryCard(GalleryCard card)

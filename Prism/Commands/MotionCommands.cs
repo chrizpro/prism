@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using Prism.Core;
 using Prism.Core.Assembly;
@@ -24,6 +26,11 @@ public sealed class MotionStudyCommand : Command
         public required MotionDof Dof;
         public ChoiceParam? Mode; public NumberParam? Start, Rate, StartSpeed, Amplitude, Frequency, Effort, Damping, Target, RampStart, RampTime, MotorStall, MotorNoLoad;
         public TextParam? Table; public BoolParam? Repeat;
+        public ChoiceParam? Timing;
+        public TimingCurveParam? Curve;
+        public AnimCurve? AppliedCurve;
+        public ActionParam? EditCurve;
+        public List<Param> Inputs = [];
     }
 
     static readonly string[] ModeNames = ["Hold", "Constant speed", "Oscillate", "Free (moves under load and gravity)", "Move to a position (smooth)", "Follow a table", "Follow the tool path"];
@@ -38,6 +45,12 @@ public sealed class MotionStudyCommand : Command
     static bool OnPath(Row r) => r.Mode?.Index == PathMode;
     bool _dynamic => _forces.Value || _rows.Any(IsFree);       // a free joint only moves because of forces
     readonly List<Row> _rows = [];
+    ChoiceParam _drivePicker = null!, _studyMode = null!;
+    ActionParam _run = null!, _stop = null!;
+    CancellationTokenSource? _cancel;
+    bool _running;
+    string _progress = "";
+    public Action<string, TimingCurveParam, Action>? EditCurveRequested { get; set; }
     NumberParam _duration = null!, _interval = null!, _time = null!;
     ChoiceParam _gravity = null!;
     BoolParam _collide = null!, _paths = null!, _loop = null!;
@@ -60,30 +73,38 @@ public sealed class MotionStudyCommand : Command
     public override string Title => "Motion Study";
     public override string Icon => "motion-dynamics";
     public override string OkText => "Done";
-    public override string Hint => "Choose how each joint moves, press Run study, then scrub or play the motion. It reports every joint's position, speed and acceleration, the paths and speeds of the parts, and where they collide. Turn on masses and forces for motor torque, power, energy and joint reactions; springs, loads and gravity then act, and every part needs a material. Set a joint to Free to let it move under those forces. Set joints to Follow the tool path to make a point on the mechanism trace a curve. Parts are rigid and joints and gears ideal: no flexing, tooth contact, backlash or contact between moving parts.";
+    public override string Hint => "Choose a joint and set how it moves, then Run study. Movement only checks the motion; Include forces also reports motor effort and joint reactions. Parts stay rigid; contact is not simulated.";
+    protected override IReadOnlyList<string> WorkflowSectionOrder =>
+        new[] { "Setup", "Drives" }.Concat(_rows.Select(r => r.Dof.Follower ? r.Dof.Name + " (follows a coupling)" : r.Dof.Name)).Concat(["Loads", "Solve", "Results"]).ToArray();
 
     protected override void OnBegin()
     {
         var joints = S.JointObjects.Select(j => j.joint).ToList();
         var couplings = S.Couplings.ToList();
         var dofs = MotionEngine.DofsOf(joints, couplings);
-        T Run<T>(T p) where T : Param { p.Section = "Run and review"; return p; }
+        T Run<T>(T p) where T : Param { p.Section = "Results"; return p; }
         _tool = Slot(new SelectionSlot { Label = "Tool point (a face, circle or edge on the part that follows the path)", Filter = SelFilter.Face | SelFilter.Edge });
         _pathSlot = Slot(new SelectionSlot { Label = "Path to follow (a curve, sketch or edges, in order)", Filter = SelFilter.Edge | SelFilter.CurveObj | SelFilter.SketchObj, Multi = true, Ordered = true });
         _duration = Add(new NumberParam { Label = "Duration", Value = 5, Min = 0.01, Max = 3600, Step = 0.5, Unit = "s" });
         _interval = Add(new NumberParam { Label = "Output interval", Value = 0.02, Min = 0.0005, Max = 60, Step = 0.01, Unit = "s" });
         bool ready = S.Components.Any() && S.Components.All(c => c.Material != null) || S.Springs.Any() || S.Loads.Any();
         _forces = Check("Include masses and forces (every part needs a material)", _preset switch { MotionKind.Kinematics => false, null => ready, _ => true });
+        _forces.IsVisible = false;
+        _studyMode = Choice("Study mode", _forces.Value ? 1 : 0, "Movement only", "Include forces");
+        _studyMode.HelpText = "Free joints require masses and forces, even when Movement only is selected.";
+        _studyMode.Changed = () => { _forces.Value = _studyMode.Index == 1; OnChanged(); };
+        _forces.Changed = () => { _studyMode.SetSilently(_forces.Value ? 1 : 0); OnChanged(); };
         _gravity = Choice("Gravity", 1, GravityNames);
         _speed = Add(new NumberParam { Label = "Tool speed", Value = 100, Min = 0.01, Max = 1e6, Step = 10, Unit = "mm/s" });
         _accel = Add(new NumberParam { Label = "Acceleration along the path", Value = 500, Min = 0.01, Max = 1e7, Step = 50, Unit = "mm/s²" });
         _hold = Check("Keep the tool pointing the same way (needs six joints)", true);
         _payload = Add(new NumberParam { Label = "Payload carried at the tool", Value = 0, Min = 0, Max = 1e6, Step = 0.5, Unit = "kg" });
+        _drivePicker = Add(new ChoiceParam { Section = "Drives", Label = "Joint drive", Options = dofs.Count == 0 ? ["No movable joints"] : dofs.Select(d => d.Name).ToArray() });
         foreach (var d in dofs)
         {
             var row = new Row { Dof = d };
             string sect = d.Follower ? d.Name + " (follows a coupling)" : d.Name;
-            T Sec<T>(T p) where T : Param { p.Section = sect; return p; }
+            T Sec<T>(T p) where T : Param { p.Section = sect; row.Inputs.Add(p); return p; }
             if (!d.Follower)
             {
                 row.Mode = Sec(Add(new ChoiceParam { Label = d.Name + " — motion", Options = ModeNames, Index = _preset == MotionKind.Robot ? PathMode : 0 }));
@@ -95,6 +116,12 @@ public sealed class MotionStudyCommand : Command
                 row.Target = Sec(Add(new NumberParam { Label = "Move to", Value = Math.Round(d.Start + (d.Angular ? 90 : 50), 4), Min = -1e6, Max = 1e6, Step = d.Angular ? 5 : 1, Unit = d.Unit }));
                 row.RampStart = Sec(Add(new NumberParam { Label = "Move starts at", Value = 0, Min = 0, Max = 1e6, Step = 0.1, Unit = "s" }));
                 row.RampTime = Sec(Add(new NumberParam { Label = "Move takes", Value = 1, Min = 0.001, Max = 1e6, Step = 0.1, Unit = "s" }));
+                row.Timing = Sec(Choice("Move timing", 0, "Smooth start/stop", "Custom curve"));
+                row.Curve = Add(new TimingCurveParam { Label = d.Name + " timing curve", IsVisible = false });
+                row.Curve.Load(new AnimCurve(.3, 0, .7, 1));
+                row.AppliedCurve = row.Curve.Curve;
+                row.EditCurve = Sec(Add(new ActionParam { Label = "Open Curve Editor", Run = () =>
+                    EditCurveRequested?.Invoke(d.Name + " — move timing", row.Curve, () => { row.AppliedCurve = row.Curve.Curve; OnChanged(); }) }));
                 row.Table = Sec(Text($"Time (s), position ({d.Unit})", $"0, {Math.Round(d.Start, 4).ToString(CultureInfo.InvariantCulture)}; 1, {Math.Round(d.Start + (d.Angular ? 90 : 50), 4).ToString(CultureInfo.InvariantCulture)}; 2, {Math.Round(d.Start, 4).ToString(CultureInfo.InvariantCulture)}", "time, position per row, separated by ; or new lines, or the path of a .csv, .txt or .xlsx, or @ and the name of a sheet in the Data panel"));
                 row.Repeat = Sec(Check("Repeat until the end of the study", false));
                 row.MotorStall = Sec(Add(new NumberParam { Label = d.Angular ? "Motor stall torque (0 = no motor)" : "Motor stall force (0 = no motor)", Value = 0, Min = 0, Max = 1e9, Step = 0.1, Unit = d.EffortUnit }));
@@ -107,23 +134,44 @@ public sealed class MotionStudyCommand : Command
         _collide = Check("Look for collisions along the motion", false);
         _paths = Check("Show the paths the parts take", S.ShowMotionPaths);
         _paths.Changed = () => { S.ShowMotionPaths = _paths.Value; OnChanged(); };
-        Run(Add(new ActionParam { Label = "Run study", Run = RunStudy }));
-        _time = Run(Add(new NumberParam { Label = "Show the motion at", Value = 0, Min = 0, Max = 100, Step = 1, Unit = "%" }));
-        _time.Changed = () => { if (_result != null) S.SetMotionSample(_result.SampleAt(Seconds)); OnChanged(); };
+        _run = Add(new ActionParam { Section = "Solve", Label = "Run study", Run = RunStudy });
+        _stop = Add(new ActionParam { Section = "Solve", Label = "Stop study", Run = () => _cancel?.Cancel() });
+        _time = Run(Add(new NumberParam { Label = "Show the motion at", Caption = "Time", Value = 0, Min = 0, Max = 1e9, Step = .001, Unit = "s" }));
+        _time.HelpText = "Displays the nearest stored output sample.";
+        _time.Changed = () =>
+        {
+            if (_result != null)
+            {
+                if (_time.Value > _result.Time[^1]) { _time.Value = _result.Time[^1]; return; }
+                S.SetMotionSample(_result.SampleAt(Seconds));
+            }
+            OnChanged();
+        };
         _loop = Run(Check("Loop the playback", true));
         Run(Add(new ActionParam { Label = "Play  /  Stop", Run = TogglePlay }));
         _file = Run(Text("Save results as CSV", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "Motion", "motion-study.csv")));
         Run(Add(new ActionParam { Label = "Save results", Run = SaveCsv }));
+        foreach (var parameter in new Param[] { _duration, _interval, _forces, _studyMode }) parameter.Section = "Setup";
+        foreach (var parameter in new Param[] { _gravity, _payload }) parameter.Section = "Loads";
+        foreach (var parameter in new Param[] { _speed, _accel, _hold }) parameter.Section = "Drives";
+        foreach (var slot in Slots) slot.Section = "Drives";
+        _collide.Section = "Solve";
+        _paths.Section = "Results";
         UpdateVisibility();
     }
 
     protected override void UpdateVisibility()
     {
         if (_file == null) return;
+        if (_rows.Any(IsFree) && !_forces.Value)
+            ConfigureInputs(() => { _studyMode.SetSilently(1); _forces.Value = true; });
         bool dynamic = _dynamic, path = _rows.Any(OnPath);
-        foreach (var r in _rows)
+        for (int index = 0; index < _rows.Count; index++)
         {
-            if (r.Mode == null) { r.Effort!.IsVisible = r.Damping!.IsVisible = dynamic; continue; }
+            var r = _rows[index];
+            bool selected = index == _drivePicker.Index;
+            if (r.Mode == null) { r.Effort!.IsVisible = r.Damping!.IsVisible = dynamic && selected; continue; }
+            r.Mode.IsVisible = selected;
             var mode = ModeMap[Math.Clamp(r.Mode.Index, 0, ModeMap.Length - 1)];
             bool table = r.Mode.Index == TableMode;
             r.Start!.IsVisible = !table;
@@ -133,23 +181,30 @@ public sealed class MotionStudyCommand : Command
             r.Table!.IsVisible = r.Repeat!.IsVisible = table;
             r.Effort!.IsVisible = r.MotorStall!.IsVisible = r.MotorNoLoad!.IsVisible = mode == DriveMode.Free;
             r.Damping!.IsVisible = dynamic && mode != DriveMode.Hold;
+            r.Timing!.IsVisible = mode == DriveMode.Ramp;
+            r.EditCurve!.IsVisible = mode == DriveMode.Ramp && r.Timing.Index == 1;
+            foreach (var parameter in r.Inputs) parameter.IsVisible &= selected;
         }
         _gravity.IsVisible = dynamic;
         _duration.IsVisible = !path;
         _tool.IsVisible = _pathSlot.IsVisible = _speed.IsVisible = _accel.IsVisible = _hold.IsVisible = path;
         _payload.IsVisible = path && dynamic;
         _time.IsVisible = _result != null;
+        _loop.IsVisible = _file.IsVisible = _result != null;
+        foreach (var action in Params.OfType<ActionParam>().Where(p => p.Label is "Play  /  Stop" or "Save results")) action.IsVisible = _result != null;
+        _run.IsVisible = !_running;
+        _stop.IsVisible = _running;
     }
-    /// <summary>The time the viewport shows: the slider is a share of the run, so it always fits whatever the duration.</summary>
-    double Seconds => _result == null ? 0 : _time.Value / 100 * _result.Time[^1];
+    /// <summary>The requested viewport time in seconds.</summary>
+    double Seconds => _result == null ? 0 : _time.Value;
 
-    public override void OnEnd() { StopPlay(); S.ShowMotion(null); }
+    public override void OnEnd() { _cancel?.Cancel(); EditCurveRequested = null; StopPlay(); S.ShowMotion(null); }
 
     // ------------------------------------------------------------------ running
-    string Fingerprint() => string.Join(",", Slots.Select(x => string.Join(";", x.Items.Select(i => $"{i.Obj}{i.Kind}{i.Index}")))) + "|" + string.Join("|", Params.Where(p => p != _time && p != _loop && p != _paths && p != _file).Select(p => p switch
+    string Fingerprint() => string.Join(",", Slots.Select(x => string.Join(";", x.Items.Select(i => $"{i.Obj}{i.Kind}{i.Index}")))) + "|" + string.Join("|", Params.Where(p => p != _drivePicker && p != _time && p != _loop && p != _paths && p != _file).Select(p => p switch
     {
         NumberParam n => n.Label + n.Section + n.Value.ToString("R", CultureInfo.InvariantCulture), ChoiceParam c => c.Label + c.Index, BoolParam b => b.Label + b.Value, TextParam t => t.Label + t.Value, _ => "",
-    }));
+    })) + "|" + string.Join("|", _rows.Select(r => r.AppliedCurve));
 
     void Apply()
     {
@@ -161,22 +216,36 @@ public sealed class MotionStudyCommand : Command
                 d.Mode = ModeMap[Math.Clamp(r.Mode.Index, 0, ModeMap.Length - 1)];
                 d.Start = r.Start!.Value; d.Rate = d.Mode == DriveMode.Free ? r.StartSpeed!.Value : r.Rate!.Value; d.Amplitude = r.Amplitude!.Value; d.Frequency = r.Frequency!.Value;
                 d.Target = r.Target!.Value; d.RampStart = r.RampStart!.Value; d.RampTime = r.RampTime!.Value;
+                d.RampCurve = r.Timing!.Index == 1 ? r.AppliedCurve : null;
+                if (d.Mode == DriveMode.Ramp && d.RampCurve is { } curve &&
+                    !(curve.X1 > 0 && curve.X1 <= curve.X2 && curve.X2 < 1 &&
+                      curve.Y1 >= 0 && curve.Y1 <= 1 && curve.Y2 >= 0 && curve.Y2 <= 1))
+                    throw new InvalidOperationException("Move timing needs start-handle time above 0, end-handle time below 1, and start time no later than end time.");
                 if (r.Mode.Index == TableMode)
                 {
                     var (times, values) = MotionTable.Read(Prism.Core.Data.DataSource.Expand(S, r.Table!.Value), r.Repeat!.Value, _duration.Value);
                     d.SetTable(times, values); d.Start = d.Table!.At(0).q;
                 }
             }
-            d.Effort = r.Effort!.IsVisible ? r.Effort.Value : 0; d.Damping = r.Damping!.IsVisible ? r.Damping.Value : 0;
-            d.MotorStall = r.MotorStall is { IsVisible: true } ? r.MotorStall.Value : 0; d.MotorNoLoad = r.MotorStall is { IsVisible: true } ? r.MotorNoLoad!.Value : 0;
+            d.Effort = _dynamic && (d.Follower || d.Mode == DriveMode.Free) ? r.Effort!.Value : 0;
+            d.Damping = _dynamic && (d.Follower || d.Mode != DriveMode.Hold) ? r.Damping!.Value : 0;
+            d.MotorStall = !d.Follower && d.Mode == DriveMode.Free ? r.MotorStall!.Value : 0;
+            d.MotorNoLoad = !d.Follower && d.Mode == DriveMode.Free ? r.MotorNoLoad!.Value : 0;
         }
     }
 
-    void RunStudy()
+    async void RunStudy()
     {
+        if (_running) return;
+        var cancel = new CancellationTokenSource();
+        using var progress = S.Work.Begin("Motion study", cancel.Cancel);
+        _cancel = cancel;
+        _running = true;
+        _progress = "Preparing study";
+        OnChanged();
         try
         {
-            StopPlay(); _error = ""; _collisions.Clear();
+            StopPlay(); _error = ""; _result = null; _summary = []; _collisions.Clear(); S.ShowMotion(null);
             if (_rows.Count == 0) throw new InvalidOperationException("There are no joints that can move. Add a joint between two parts first; picking plain bodies with a joint tool makes them parts.");
             Apply();
             bool dynamic = _dynamic;
@@ -195,29 +264,61 @@ public sealed class MotionStudyCommand : Command
                 if (active.Count == 0) throw new InvalidOperationException("The joints set to follow the path are all fixed by closed loops; choose one that is free to move.");
                 bool hold = _hold.Value && active.Count >= 6;
                 if (_hold.Value && !hold) extra.Add($"{active.Count} joints follow the path; keeping the tool's direction needs six, so only its position follows it.");
-                var plan = RobotPath.Follow(planner, active, tool, local, pts, _speed.Value, _accel.Value, _interval.Value, hold);
+                _progress = "Planning tool path";
+                var requested = Fingerprint(); var source = S.Objects;
+                double speed = _speed.Value, acceleration = _accel.Value, interval = _interval.Value;
+                var plan = await Task.Run(() => RobotPath.Follow(planner, active, tool, local, pts, speed, acceleration, interval, hold, cancellationToken: cancel.Token));
+                if (!CanPublish(requested, source)) return;
                 int ai = 0;
                 foreach (int k in active) planner.IndependentDof(k).SetTable(plan.Times, plan.JointValues[ai++]);
                 engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), dynamic, out notes, out bodies, points);
-                result = engine.Run(new MotionSettings(plan.Times[^1], plan.Times[1] - plan.Times[0], dynamic, gravity));
+                var settings = new MotionSettings(plan.Times[^1], plan.Times[1] - plan.Times[0], dynamic, gravity);
+                result = await Task.Run(() => engine.Run(settings, cancel.Token, Report));
+                if (!CanPublish(requested, source)) return;
                 extra.Add(plan.Unreached == 0 ? $"Reached all {plan.Times.Length} points of the {plan.PathLength:0.#} mm path (worst miss {plan.MaxPositionError:G2} mm) in {plan.Times[^1]:0.###} s." : $"{plan.Unreached} of {plan.Times.Length} points could not be reached.");
                 foreach (var n in plan.Notes) extra.Add(n);
             }
             else
             {
                 engine = S.BuildMotionEngine(_rows.Select(r => r.Dof), dynamic, out notes, out bodies);
-                result = engine.Run(new MotionSettings(_duration.Value, _interval.Value, dynamic, gravity));
+                var settings = new MotionSettings(_duration.Value, _interval.Value, dynamic, gravity);
+                var requested = Fingerprint(); var source = S.Objects;
+                result = await Task.Run(() => engine.Run(settings, cancel.Token, Report));
+                if (!CanPublish(requested, source)) return;
             }
             _reach = extra;
+            var collisionRequest = Fingerprint(); var collisionSource = S.Objects;
+            if (_collide.Value) await CheckCollisions(result, cancel.Token);
+            if (!CanPublish(collisionRequest, collisionSource)) return;
             _result = result; S.RememberMotion(result);
-            if (_collide.Value) CheckCollisions(result);
             _summary = Summarize(result, bodies, notes, clock.Elapsed.TotalSeconds);
             _fingerprint = Fingerprint();
             _time.Value = 0;
             S.ShowMotion(result, 0);
         }
-        catch (Exception e) when (e is not OutOfMemoryException) { _error = e.Message; _result = null; _summary = []; S.ShowMotion(null); S.Say(e.Message, true); }
-        OnChanged();
+        catch (OperationCanceledException) { _progress = "Study stopped."; }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            if (ReferenceEquals(S.ActiveCommand, this)) { _error = e.Message; _result = null; _summary = []; S.ShowMotion(null); S.Say(e.Message, true); }
+        }
+        finally
+        {
+            _running = false;
+            _cancel = null;
+            cancel.Dispose();
+            if (ReferenceEquals(S.ActiveCommand, this)) OnChanged();
+        }
+        void Report(string message) => Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(_cancel, cancel) && ReferenceEquals(S.ActiveCommand, this)) { progress.Report(message); _progress = message; OnChanged(); }
+        });
+        bool CanPublish(string requested, object source)
+        {
+            if (cancel.IsCancellationRequested || !ReferenceEquals(S.ActiveCommand, this)) return false;
+            if (requested == Fingerprint() && ReferenceEquals(source, S.Objects)) return true;
+            _progress = "The setup or model changed. Run the study again.";
+            return false;
+        }
     }
 
     List<string> _reach = [];
@@ -300,7 +401,7 @@ public sealed class MotionStudyCommand : Command
     }
 
     // ------------------------------------------------------------------ collisions along the motion
-    void CheckCollisions(MotionResult r)
+    async Task CheckCollisions(MotionResult r, CancellationToken token)
     {
         var comps = S.Components.ToList();
         if (comps.Count < 2) return;
@@ -315,6 +416,8 @@ public sealed class MotionStudyCommand : Command
         var found = new Dictionary<(string, string), double>();
         for (int f = 0; f < frames; f++)
         {
+            await Task.Yield();
+            token.ThrowIfCancellationRequested();
             int sample = frames == 1 ? 0 : (int)Math.Round(f * (r.Samples - 1) / (double)(frames - 1));
             var pose = r.PoseAt(sample);
             var overrides = S.JointObjects.ToDictionary(j => j.joint.Key, j => pose.TryGetValue(j.joint.Key, out var v) ? j.joint with { Value = v.v1, Value2 = v.v2 } : j.joint);
@@ -345,14 +448,14 @@ public sealed class MotionStudyCommand : Command
         if (_playing) { StopPlay(); OnChanged(); return; }
         if (_result == null) { S.Say("Run the study first, then play it.", true); return; }
         _playing = true; _last = DateTime.UtcNow;
-        if (_time.Value >= 100 - 1e-9) _time.Value = 0;
+        if (_time.Value >= _result.Time[^1] - 1e-9) _time.Value = 0;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _timer.Tick += (_, _) =>
         {
             var now = DateTime.UtcNow; double dt = (now - _last).TotalSeconds; _last = now;
             double end = Math.Max(_result!.Time[^1], 1e-6); double t = Seconds + dt;
-            if (t >= end) { if (_loop.Value) t %= end; else { _time.Value = 100; StopPlay(); return; } }
-            _time.Value = t / end * 100;
+            if (t >= end) { if (_loop.Value) t %= end; else { _time.Value = end; StopPlay(); return; } }
+            _time.Value = t;
         };
         _timer.Start();
     }
@@ -404,11 +507,15 @@ public sealed class MotionStudyCommand : Command
     protected override CommandOutput? Build()
     {
         Results.Clear();
+        Results.Add(new ResultLine("Study mode", _dynamic ? "Includes masses and forces" : "Movement only"));
+        foreach (var row in _rows)
+            Results.Add(new ResultLine("Drive", row.Dof.Name + " · " + (row.Mode?.Selected ?? "Follows coupling")));
+        if (_running || (_progress.Length > 0 && _result == null)) Results.Add(new ResultLine("Status", _progress));
         if (_rows.Count == 0) { Results.Add(new ResultLine("Mechanism", "no joints that can move. Add a joint between two parts first; picking plain bodies with a joint tool makes them parts.", 2)); return new CommandOutput { NoOp = true }; }
         if (_error.Length > 0) Results.Add(new ResultLine("Could not run", _error, 3));
         if (_result == null) { if (_error.Length == 0) Results.Add(new ResultLine("Setup", _rows.Any(OnPath) ? "Pick the tool point and the path, then press Run study." : "Set how each joint moves, then press Run study.")); return new CommandOutput { NoOp = true }; }
         if (_fingerprint != Fingerprint()) Results.Add(new ResultLine("Settings changed", "These results are from the earlier settings. Press Run study again.", 2));
-        Results.Add(new ResultLine("Showing", $"{Seconds:0.###} s of {_result.Time[^1]:0.###} s"));
+        Results.Add(new ResultLine("Showing", $"{_result.Time[_result.SampleAt(Seconds)]:0.###} s of {_result.Time[^1]:0.###} s"));
         foreach (var l in _summary) Results.Add(l);
         var o = new CommandOutput { NoOp = true, ReplaceIsMove = true, Label = Title, Icon = Icon };
         int sample = _result.SampleAt(Seconds);

@@ -67,7 +67,7 @@ public sealed class HoleCommand : Command
 
     public override string Title => "Hole";
     public override string Icon => "pcb-hole";
-    public override string Hint => "Select a body or an entry face. The hole starts at the face center (body selections use the top center). Click the face where you want the hole, click again for more holes, drag a dot to move it (Ctrl+click an extra dot removes it). Offsets are in U/V. Choose a plain hole or a modeled 60° thread; Diameter is the thread's nominal major diameter. Closed forms become exact bodies. Meshes must first be converted with Mesh to Solid.";
+    public override string Hint => "Select a body or an entry face. The hole starts at the face center (body selections use the top center). Click the face where you want the hole, click again for more holes, drag a dot to move it (Ctrl+click an extra dot removes it), drag the circle to resize it. Offsets are in U/V. Choose a plain hole or a modeled 60° thread; Diameter is the thread's nominal major diameter. Closed forms become exact bodies. Meshes must first be converted with Mesh to Solid.";
 
     protected override void UpdateVisibility()
     {
@@ -197,7 +197,7 @@ public sealed class HoleCommand : Command
     public override bool GrabAt(CadSession s, double px, double py, bool ctrl)
     {
         _grab = -1;
-        if (!TryFrame(out var body, out var item, out _)) return false;
+        if (!TryFrame(out var body, out var item, out var f)) return false;
         List<Vec3> origins;
         try { origins = Origins(body, item, Frame(body, item).origin); } catch (Exception e) when (e is not OutOfMemoryException) { return false; }
         int best = -1; double bestD = 12;
@@ -207,18 +207,54 @@ public sealed class HoleCommand : Command
             double d = Math.Sqrt((a.x - px) * (a.x - px) + (a.y - py) * (a.y - py));
             if (d < bestD) { bestD = d; best = i; }
         }
+        // the edge of the hole is a handle too: grab the circle anywhere and pull it to the size wanted.
+        // On a small hole the circle and the centre dot are close together, so whichever the pointer is nearer to wins.
+        var (rim, rimD) = RimAt(s, origins, f, px, py);
+        if (rim >= 0 && (best < 0 || rimD < bestD)) { _grab = RimGrab + rim; return true; }
         if (best < 0) return false;
         if (ctrl && best > 0) { var ex = Extras(); if (best - 1 < ex.Count) { ex.RemoveAt(best - 1); SetExtras(ex); } return true; }
         _grab = best;
         return true;
     }
 
+    const int RimGrab = 1000;
+
+    /// <summary>The hole whose circle passes within a few pixels of the pointer, or -1.</summary>
+    (int hole, double distance) RimAt(CadSession s, List<Vec3> origins, (Vec3 center, Vec3 x, Vec3 y, Vec3 outward) f, double px, double py)
+    {
+        double radius = _diameter.Value / 2;
+        int best = -1; double bestD = 8;
+        for (int i = 0; i < origins.Count; i++)
+            for (int k = 0; k < 48; k++)
+            {
+                double a = k * Math.PI / 24;
+                if (s.Camera.Project(origins[i] + (f.x * Math.Cos(a) + f.y * Math.Sin(a)) * radius) is not { } q) continue;
+                double d = Math.Sqrt((q.x - px) * (q.x - px) + (q.y - py) * (q.y - py));
+                if (d < bestD) { bestD = d; best = i; }
+            }
+        return (best, bestD);
+    }
+
     public override void GrabMove(CadSession s, double px, double py, bool alt)
     {
-        if (_grab < 0 || !TryFrame(out _, out _, out var f)) return;
+        if (_grab < 0 || !TryFrame(out var rimBody, out var rimItem, out var f)) return;
         var (o, d) = s.Camera.Ray(px, py);
         double dn = Vec3.Dot(d, f.outward);
         if (Math.Abs(dn) < 1e-4) return;
+        if (_grab >= RimGrab)
+        {
+            // the pointer's distance from the centre of the hole it grabbed is the new radius
+            List<Vec3> centres;
+            try { centres = Origins(rimBody, rimItem, Frame(rimBody, rimItem).origin); } catch (Exception e) when (e is not OutOfMemoryException) { return; }
+            if (_grab - RimGrab >= centres.Count) return;
+            var centre = centres[_grab - RimGrab];
+            var onPlane = o + d * (Vec3.Dot(centre - o, f.outward) / dn);
+            double diameter = 2 * (onPlane - centre).Length;
+            diameter = alt ? Math.Round(diameter, 2) : Math.Round(diameter * 2) / 2;
+            diameter = Math.Max(diameter, _diameter.Min);
+            if (Math.Abs(diameter - _diameter.Value) > 1e-9) { ConfigureInputs(() => _diameter.Value = diameter); OnChanged(); }
+            return;
+        }
         var p = o + d * (Vec3.Dot(f.center - o, f.outward) / dn);
         var (u, v) = UV(p, f);
         if (!alt) { u = Math.Round(u * 10) / 10; v = Math.Round(v * 10) / 10; }
@@ -245,8 +281,14 @@ public sealed class HoleCommand : Command
         try
         {
             var origins = Origins(body, item, Frame(body, item).origin);
+            var (_, fx, fy, _) = Base(body, item);
+            double radius = _diameter.Value / 2;
             for (int i = 0; i < origins.Count; i++)
             {
+                // the circle drawn here is also a handle: dragging it resizes the hole
+                var ring = new List<Vec3>();
+                for (int k = 0; k <= 48; k++) ring.Add(origins[i] + (fx * Math.Cos(k * Math.PI / 24) + fy * Math.Sin(k * Math.PI / 24)) * radius);
+                o.AddPolyline(ring, 0xFFFF8A1F, 2);
                 o.AddDot(origins[i], 0xFFFF8A1F, 8);
                 if (origins.Count > 1) o.AddLabel(origins[i], (i + 1).ToString(), false, 1);
             }

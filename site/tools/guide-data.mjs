@@ -91,6 +91,7 @@ export const commandMap = {
   'Subtractive:Face': 'cnc_face',
   'Subtractive:3D Rough': 'cnc_rough',
   'Subtractive:3D Finish': 'cnc_finish',
+  'Subtractive:Constant-Z Finish': 'cnc_constant_z',
   'Subtractive:Playback': 'cam_playback',
   'Subtractive:Operation order': 'cam_operation_order',
   'Subtractive:Stock review': 'cnc_stock_review',

@@ -60,12 +60,20 @@ public abstract class MeshCommand : Command
 // ================================================================= Repair
 public sealed class MeshRepairCommand : MeshCommand
 {
+    readonly ChoiceParam _scope;
+    readonly List<Vec3[]> _filledRims = [];
     readonly BoolParam _weld, _clean, _shells, _orient, _holes;
     readonly NumberParam _weldTol;
     readonly IntParam _minShell, _maxHole;
 
+    // Steps saved before "Repair scope" was added have no value for it, which would shift every later value by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_scope), 0) : recipe;
+
     public MeshRepairCommand(bool holesOnly = false) : base("Meshes", true)
     {
+        _scope = Choice("Repair scope", 0, "Entire mesh", "Selected region");
+        _scope.HelpText = "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Select Region. Shared vertices stay in place.";
         _weld = Check("Merge duplicate vertices", !holesOnly);
         _weldTol = Num("Merge distance", 0.001, 0, 10, 0.001);
         _clean = Check("Remove degenerate and duplicate triangles", !holesOnly);
@@ -74,42 +82,89 @@ public sealed class MeshRepairCommand : MeshCommand
         _orient = Check("Fix flipped and inconsistent normals", !holesOnly);
         _holes = Check("Fill holes", true);
         _maxHole = Add(new IntParam { Label = "Largest hole to fill (edges)", Value = 250, Min = 3, Max = 100000 });
+        Src.Section = _scope.Section = "Scope";
+        foreach (var parameter in new Param[] { _weld, _weldTol, _clean, _shells, _minShell, _orient }) parameter.Section = "Cleanup";
+        _holes.Section = _maxHole.Section = "Hole filling";
         _title = holesOnly ? "Fill Holes" : "Repair Mesh";
     }
 
     readonly string _title;
     public override string Title => _title;
-    public override string Hint => "Fixes the usual scan and STL problems so the mesh can be printed or converted: merges split vertices, removes junk triangles, makes normals face outward and closes holes.";
+    public override string Hint => "Repair the entire mesh or the region chosen with Select Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.";
     public override string Icon => "mesh-repair";
     public override string OkText => "Repair";
+
+    protected override void OnBegin()
+    {
+        base.OnBegin();
+        if (S.RegionSel is { IsEmpty: false } region && S.Find(region.ObjectId) is { } obj && ReferenceEquals(obj.Tri, region.Mesh))
+        {
+            Src.Items.Clear(); Src.Items.Add(SelItem.Of(obj));
+            _scope.Index = 1;
+        }
+    }
 
     protected override void UpdateVisibility() { _weldTol.IsVisible = _weld.Value; _minShell.IsVisible = _shells.Value; _maxHole.IsVisible = _holes.Value; }
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
+        _filledRims.Clear();
         var objs = Meshes();
         if (objs.Count == 0) return null;
+        var region = S.RegionSel;
+        if (_scope.Index == 1 && (objs.Count != 1 || region == null || region.IsEmpty ||
+            region.ObjectId != objs[0].Id || !ReferenceEquals(region.Mesh, objs[0].Tri) ||
+            region.Tris.Any(t => t < 0 || t >= region.Mesh.TriCount)))
+            throw new InvalidOperationException("Use Select Region on this mesh first, then return to Repair. The region must still match the current mesh.");
         var o = new CommandOutput { Label = "Repair mesh", Icon = "mesh-repair" };
         foreach (var obj in objs)
         {
             var m = obj.Tri!; var before = MeshAnalysis.Report(m);
-            if (_weld.Value) m = MeshOps.Weld(m, Math.Max(_weldTol.Value, 1e-9));
-            if (_clean.Value) m = MeshOps.Clean(m).mesh;
-            if (_shells.Value) m = MeshOps.RemoveSmallShells(m, _minShell.Value, 0).mesh;
-            int flipped = 0; if (_orient.Value) { var r = MeshOps.FixOrientation(m); m = r.mesh; flipped = r.flipped; }
-            int filled = 0, skipped = 0; if (_holes.Value) { var r = MeshOps.FillHoles(m, _maxHole.Value); m = r.mesh; filled = r.filled; skipped = r.skipped; }
-            if (_holes.Value && filled > 0 && _orient.Value) m = MeshOps.FixOrientation(m).mesh;
+            int flipped = 0, protectedHoles = 0;
+            Func<int[], bool>? include = null;
+            if (_scope.Index == 1)
+            {
+                var prepared = MeshRegionRepair.Prepare(m, region!.Tris,
+                    new(_weld.Value, _weldTol.Value, _clean.Value, _shells.Value, _minShell.Value, _orient.Value));
+                m = prepared.Mesh;
+                var edges = MeshRegionRepair.SelectedBoundaryEdges(m, prepared.Selected);
+                include = loop => MeshRegionRepair.ContainsRim(m, edges, loop);
+                protectedHoles = m.Topology().HoleLoops.Count(loop => !include(loop));
+                Row("Scope", $"Selected region: {Count(region.Tris.Count)} of {Count(obj.Tri!.TriCount)} triangles; outside geometry preserved");
+            }
+            else
+            {
+                if (_weld.Value) m = MeshOps.Weld(m, Math.Max(_weldTol.Value, 1e-9));
+                if (_clean.Value) m = MeshOps.Clean(m).mesh;
+                if (_shells.Value) m = MeshOps.RemoveSmallShells(m, _minShell.Value, 0).mesh;
+                if (_orient.Value) { var r = MeshOps.FixOrientation(m); m = r.mesh; flipped = r.flipped; }
+            }
+            int filled = 0, skipped = 0;
+            if (_holes.Value)
+            {
+                var source = m;
+                var r = MeshOps.FillHoles(m, _maxHole.Value, include, loop => _filledRims.Add(loop.Select(source.P).ToArray()));
+                m = r.mesh; filled = r.filled; skipped = r.skipped;
+            }
+            if (_scope.Index == 0 && _holes.Value && filled > 0 && _orient.Value) m = MeshOps.FixOrientation(m).mesh;
+            if (_scope.Index == 1) m = MeshOps.Compact(m.V, m.T, m.VertexColors, m.FaceColors);
             var after = MeshAnalysis.Report(m);
             string p = objs.Count > 1 ? obj.Name + ": " : "";
             Row(p + "Triangles", $"{Count(before.Triangles)} → {Count(after.Triangles)}");
-            Row(p + "Holes", $"{before.HoleLoops} → {after.HoleLoops}" + (skipped > 0 ? $"  ({skipped} too large)" : ""), after.HoleLoops == 0 ? 1 : 2);
+            Row(p + "Holes", $"{before.HoleLoops} → {after.HoleLoops}" + (skipped > 0 ? $"  ({skipped} too large or could not be patched)" : ""), after.HoleLoops == 0 ? 1 : 2);
+            if (_holes.Value) Row(p + "Hole preview", $"{filled} to fill (green rims)" + (_scope.Index == 1 ? $"; {protectedHoles} outside the selected region left open" : ""));
             if (before.NonManifoldEdges + after.NonManifoldEdges > 0) Row(p + "Non-manifold edges", $"{before.NonManifoldEdges} → {after.NonManifoldEdges}", after.NonManifoldEdges == 0 ? 1 : 3);
             if (flipped > 0) Row(p + "Triangles re-oriented", Count(flipped));
             Row(p + "Result", after.Printable ? "Watertight and printable" : after.Closed ? "Closed, but check normals / non-manifold edges" : "Still open", after.Printable ? 1 : 2);
             o.ReplaceMeshes.Add((obj, m));
         }
         return o;
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        foreach (var rim in _filledRims) o.AddPolyline(rim, 0xFF28BF78, 4.5f, true);
     }
 }
 
@@ -698,6 +753,7 @@ public sealed class MeshSegmentCommand : MeshCommand
         for (int i = 0; i < Math.Min(found.Count, 40); i++)
             Row($"{i + 1}.  {found[i].Describe()}", $"{found[i].Area:#,0} mm²   rms {found[i].Rms:0.###}");
         Row("Gray areas", "free-form surface that is not a simple shape");
+        Row("Output", _create.Index == 0 ? "Analysis only; no CAD geometry is created" : "Separate fitted CAD surfaces; original sketches and feature history are not recovered");
 
         if (_create.Index == 0) return Report();
         var o = new CommandOutput { Label = "Fit geometry", Icon = Icon };
@@ -886,7 +942,7 @@ public sealed class MeshToSolidCommand : MeshCommand
         PreviewButton();
     }
     public override string Title => "Mesh to Solid";
-    public override string Hint => "Turns a mesh into a CAD body made of one flat face per triangle, so you can cut, combine and measure it. Large meshes are reduced first. For a clean parametric rebuild use Segment & Fit.";
+    public override string Hint => "Fallback conversion: one flat CAD face per triangle, with no recovered feature history. Large meshes are reduced first. For a parametric rebuild, use Section Sketch, add dimensions and build your own features.";
     public override string Icon => "mesh-solid";
     public override string OkText => "Convert";
 
@@ -902,6 +958,7 @@ public sealed class MeshToSolidCommand : MeshCommand
         });
         if (shape == null) { Row("Triangles", $"{Count(m.TriCount)} (limit {Count(_limit.Value)})"); return null; }
         Row("Triangles used", Count(shape.Mesh.TriCount));
+        Row("Output", "Triangle-based CAD body; original sketches and feature history are not recovered");
         Row("Result", shape.Shape.HasSolids ? "Solid" : "Shell (not closed)", shape.Shape.HasSolids || _result.Index == 1 ? 1 : 2);
         var o = new CommandOutput { Label = "Mesh to solid", Icon = Icon };
         o.Add.Add(new(shape.Shape, obj.Name + " body", shape.Shape.HasSolids ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));

@@ -2,7 +2,7 @@
 
 **Review state:** Owner-requested 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)); implemented as the owner described, details open to review.
 
-The **Mold** tab has one button, **Create Mold**. Pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
+The **Mold** tab has Part, Mold and Inspect sections. Inspect contains Draft analysis, Section analysis and Check geometry, moved from the removed Tooling tab under owner approval on 2026-11-11 (#126). **Part** contains **Import from file** and **From open tab**. **Mold** contains **Create Mold**. To create a mold, pick a **mold block** (a solid, usually a box) and the **part to cast** (a solid, or a closed surface that encloses a volume) sitting inside it. Prism cuts the part's shape out of the block, splits the block into two halves and pulls them apart so the cavity is visible. The part stays where it is between the halves.
 
 ## Where the block splits
 
@@ -26,15 +26,25 @@ The part must lie completely inside the block, otherwise the tool says so and ch
 
 The **Part** group has two buttons, both bringing the part in as a **reference part**:
 
-- **Import from file**: STEP, IGES or BREP from your hard drive.
+- **Import from file**: STEP, IGES, BREP or native Prism files, including typed files. Native imports copy visible solids and surfaces into the current mold document. The source document stays separate. [MOLD-H006](../../../Prism.Tests/Headless/Mold/MoldTests.cs) · [Bug #98](https://github.com/chrizpro/prism/issues/98).
 - **From open tab**: copies the visible solids and surfaces of another open tab (pick the tab in the panel).
 
 A reference part stays in the session, is shown and works with Create Mold, but is **not saved with the file** and cannot be a drawing source, so a saved mold opens (and imports into CAM) as the casing only. Bodies that were already in the document are not reference parts and are saved as usual. Tests: MOLD-H004, MOLD-H005. Files such as STL that import through the mesh dialog are not marked as reference parts yet.
 
+## Saving for manufacturing
+
+Owner direction on 2026-11-09 added **Prism mold (`.prism_mld`)** to Save As. It writes the solid halves created by Create Mold at their current positions. It excludes the cast part, other bodies, sketches, joints, studies and feature history. Saving this copy keeps the full working document and its unsaved state. Use `.prism` for the full project or `.prism_asm` for a full mold with two or more halves and no drawing sheets. A reopened mold-only file can be edited, then saved as a full project or saved as another geometry-only copy. Older files without mold-body identification can still be opened. Recreate the mold to make its halves identifiable for export.
+
+Use **Import mold** in CAM → **Subtractive** or **3D Resin**. It adds exact solids to the active document in one undo step. The mold-specific import is offered in those two tabs. [MOLD-H007](../../../Prism.Tests/Headless/Mold/MoldTests.cs) · [Issue #100](https://github.com/chrizpro/prism/issues/100).
+
 ## Not included yet
 
-Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, shrinkage allowance and more than two parts. The existing **Tooling** tab keeps draft and section analysis for checking the part. The mold is an illustration of the process, not a validated mold design.
+Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, shrinkage allowance and more than two parts. The **Mold > Inspect** section provides draft, section and geometry checks. The mold is an illustration of the process, not a validated mold design.
 
 ## Tests
 
 [MOLD-H001 and MOLD-H002](../../../Prism.Tests/Headless/Mold/MoldTests.cs): the halves sit where the split is, the volumes add up to the block minus the part, a part outside the block is refused. Help picture and hover card are covered by the ribbon help tests.
+
+Windows verification on 2026-11-09 with the fix applied to `fb99758`. MOLD-H006 passed in the 61-test Headless selection. It checked the file-picker filter and verified the native source's visible 8 mm cube arrived as a separate 512 mm³ reference body.
+
+MOLD-H007 passed in the 89-test Windows Headless selection for Mold, Section, DocumentSafety and CAM. A 20 mm block with a 4 mm cubic casting produced two tooling solids totaling 7,936 mm³. The test checked the full assembly save, mold-only Save As, and import into an existing document.

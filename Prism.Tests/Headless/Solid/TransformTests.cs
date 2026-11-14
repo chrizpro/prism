@@ -74,6 +74,47 @@ public class TransformTests
         AssertNear(384, shape.Props().Volume, "Transformed volume (mm³)");
     }
 
+    [AvaloniaFact(DisplayName = "SOL-H110 | Scale per axis stretches each direction by its own factor, and a sphere becomes an ellipsoid")]
+    [Trait("TestId", "SOL-H110")]
+    public void ScalePerAxisStretches()
+    {
+        var session = new CadSession();
+        var source = CreateBoxBody(session, new Vec3(1, 2, 3), 2, 4, 6);
+        var command = StartCommand(session, source, () => new TransformCommand(TransformCommand.Kind.Scale));
+        command.ConfigureInputs(() => { SetChoice(command, "Scale type", "Per axis (stretch)"); SetNumber(command, "Factor X", 2); SetNumber(command, "Factor Y", 1); SetNumber(command, "Factor Z", 0.5); });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var shape = Assert.Single(output.Replace).New;
+        AssertValidSolid(shape);
+        AssertBounds(shape, new Vec3(0, 2, 4.5), new Vec3(4, 6, 7.5));       // each side grows or shrinks about the box centre
+        AssertNear(48, shape.Props().Volume, "Stretched volume (mm³)");
+
+        var ball = session.AddObject(Occ.Sphere(5), "Ball", ObjKind.Solid);
+        var stretch = StartCommand(session, ball, () => new TransformCommand(TransformCommand.Kind.Scale));
+        stretch.ConfigureInputs(() => { SetChoice(stretch, "Scale type", "Per axis (stretch)"); SetNumber(stretch, "Factor X", 2); SetNumber(stretch, "Factor Y", 1); SetNumber(stretch, "Factor Z", 1); });
+        var ellipsoid = Assert.Single(stretch.TryBuild()!.Replace).New;
+        AssertValidSolid(ellipsoid);
+        AssertNear(4.0 / 3 * Math.PI * 10 * 5 * 5, ellipsoid.Props().Volume, "Ellipsoid volume (mm³)");
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H111 | Per-axis scale puts an arrow on each face of the objects, and uniform scale keeps the gizmo block")]
+    [Trait("TestId", "SOL-H111")]
+    public void ScalePerAxisHasFaceArrows()
+    {
+        var session = new CadSession();
+        var source = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        var command = StartCommand(session, source, () => new TransformCommand(TransformCommand.Kind.Scale));
+        command.ConfigureInputs(() => SetSelection(command, command.Slots[0].Label, source));
+        Assert.Empty(command.Handles);
+        Assert.NotNull(command.Gizmo);                                       // uniform: the block on the gizmo
+        command.ConfigureInputs(() => { SetChoice(command, "Scale type", "Per axis (stretch)"); SetNumber(command, "Factor X", 1); SetNumber(command, "Factor Y", 1); SetNumber(command, "Factor Z", 1); }); command.OnChanged();
+        Assert.Null(command.Gizmo);
+        Assert.Equal(3, command.Handles.Count);
+        var x = command.Handles.Single(h => h.Param.Label == "Factor X");
+        AssertPoint(new Vec3(10, 5, 5), CadSession.HandleTip(x), 1e-9, "The X arrow's tip sits on the face the factor stretches");
+        Assert.False(command.Params.OfType<NumberParam>().Single(p => p.Label == "Factor").IsVisible);
+    }
+
     [AvaloniaFact(DisplayName = "SOL-H023 | Default XY mirror makes a reflected copy")]
     [Trait("TestId", "SOL-H023")]
     public void MirrorCreatesReflectedCopy()

@@ -5,7 +5,21 @@ using System.Linq;
 namespace Prism.Meshing;
 
 /// <summary>A fitted sketch element: a straight line or a circular arc (start, mid, end are all on it; sweep is signed degrees, positive = counter-clockwise).</summary>
-public sealed record SketchSeg(bool IsArc, (double x, double y) P0, (double x, double y) Mid, (double x, double y) P1, (double x, double y) Center, double Radius, double SweepDeg);
+public sealed record SketchSeg(bool IsArc, (double x, double y) P0, (double x, double y) Mid, (double x, double y) P1, (double x, double y) Center, double Radius, double SweepDeg)
+{
+    /// <summary>Display the fitted curve as short chords rather than a start/mid/end triangle.</summary>
+    public IEnumerable<(double x, double y)> Polyline()
+    {
+        if (!IsArc) { yield return P0; yield return P1; yield break; }
+        int steps = Math.Max(2, (int)Math.Ceiling(Math.Abs(SweepDeg) / 5));
+        double start = Math.Atan2(P0.y - Center.y, P0.x - Center.x);
+        for (int i = 0; i <= steps; i++)
+        {
+            double angle = start + SweepDeg * Math.PI / 180 * i / steps;
+            yield return (Center.x + Radius * Math.Cos(angle), Center.y + Radius * Math.Sin(angle));
+        }
+    }
+}
 
 /// <summary>Tolerance-driven conversion of a polyline (e.g. a mesh section) into lines and arcs.</summary>
 public static class LineArcFit
@@ -34,6 +48,12 @@ public static class LineArcFit
             var pts = new List<(double x, double y)>(); for (int k = i; k <= j; k++) pts.Add(P[k]);
             if (FitCircleFast(pts) is not { } c) return null;
             double dev = 0; foreach (var p in pts) dev = Math.Max(dev, Math.Abs(Math.Sqrt((p.x - c.cx) * (p.x - c.cx) + (p.y - c.cy) * (p.y - c.cy)) - c.r));
+            // The section is a polyline, not just isolated samples. A sparse rectangle's
+            // corners lie on a circle too; its long straight edges must rule that arc out.
+            for (int k = i; k < j; k++)
+            {
+                dev = Math.Max(dev, EdgeCircleDeviation(P[k], P[k + 1], c.cx, c.cy, c.r));
+            }
             double sweep = 0, prev = Math.Atan2(pts[0].y - c.cy, pts[0].x - c.cx);
             for (int k = 1; k < pts.Count; k++)
             {
@@ -92,7 +112,8 @@ public static class LineArcFit
         if (closed)
         {
             f.P = pts.ToArray();
-            if (pts.Count >= 8 && f.Circle(0, pts.Count - 1) is { } wc && wc.dev <= tol && Math.Abs(wc.sweep) > 340 * Math.PI / 180)
+            if (pts.Count >= 8 && f.Circle(0, pts.Count - 1) is { } wc && wc.dev <= tol &&
+                EdgeCircleDeviation(pts[^1], pts[0], wc.cx, wc.cy, wc.r) <= tol && Math.Abs(wc.sweep) > 340 * Math.PI / 180)
             {
                 var c = (wc.cx, wc.cy); double a0 = Math.Atan2(pts[0].y - c.cy, pts[0].x - c.cx), sg = Math.Sign(wc.sweep);
                 (double, double) At(double a) => (c.cx + wc.r * Math.Cos(a), c.cy + wc.r * Math.Sin(a));
@@ -209,6 +230,14 @@ public static class LineArcFit
             worst = Math.Max(worst, best);
         }
         return worst;
+    }
+
+    static double EdgeCircleDeviation((double x, double y) a, (double x, double y) b, double cx, double cy, double radius)
+    {
+        double x = a.x - cx, y = a.y - cy, dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
+        double t = length2 == 0 ? 0 : Math.Clamp(-(x * dx + y * dy) / length2, 0, 1);
+        // The radial distance is smallest at the closest point on the segment; endpoints are checked separately.
+        return Math.Abs(Math.Sqrt((x + t * dx) * (x + t * dx) + (y + t * dy) * (y + t * dy)) - radius);
     }
 
     static double Dist((double x, double y) a, (double x, double y) b) => Math.Sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));

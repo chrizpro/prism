@@ -6,7 +6,7 @@ The **Render** workspace makes realistic pictures of what is on screen: soft sha
 
 ## Materials
 
-Open **Materials** from the Appearance section. The **Materials** ribbon appears while the studio is open.
+On Render, start with the first **Materials** section; other modeling tabs offer it under Appearance. The Render ribbon follows Materials, Lighting, Camera, Render and Output. The **Materials** ribbon appears while the studio is open.
 
 1. Select a body.
 2. Pick a library material and **Apply Material**, or choose a finish: Matte, Satin, Glossy, Brushed metal or Polished metal.
@@ -14,6 +14,8 @@ Open **Materials** from the Appearance section. The **Materials** ribbon appears
 4. **Done** closes the studio.
 
 Library materials carry physical data too, so the same assignment is used by simulation and mass properties.
+
+Long-running renders show the shared progress strip along the bottom of the window. It reports sample/frame progress, uses an indeterminate bar for stages without a fraction, and offers Stop. Save Picture and Close Picture are under Output.
 
 ### Make and save your own look
 

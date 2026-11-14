@@ -119,9 +119,10 @@ public static class CaeSolver
     internal static double Run(string folder, CancellationToken token)
     {
         var clock = Stopwatch.StartNew();
-        var info = new ProcessStartInfo(Executable) { WorkingDirectory=folder, UseShellExecute=false, CreateNoWindow=true, RedirectStandardOutput=true, RedirectStandardError=true };
+        var info = new ProcessStartInfo(Executable) { WorkingDirectory=folder, UseShellExecute=false, CreateNoWindow=true, RedirectStandardInput=true, RedirectStandardOutput=true, RedirectStandardError=true };
         info.ArgumentList.Add("-i"); info.ArgumentList.Add("analysis"); info.Environment["OMP_NUM_THREADS"]="2";
         using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start CalculiX.");
+        process.StandardInput.Close();      // the solver must not wait on a console handle it inherited from whatever started Prism
         using var cancel = token.Register(()=> { try { if(!process.HasExited) process.Kill(true); } catch(InvalidOperationException) { } });
         var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(600000)) { process.Kill(true); throw new TimeoutException("CalculiX exceeded the 10 minute run limit. Try a coarser mesh."); }

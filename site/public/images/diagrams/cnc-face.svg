@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>A top-view stock rectangle crossed by zigzag cutter passes.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="109" y="54" width="501" height="177" rx="12" fill="#d8e8ef"/><path d="M126 79 H593 V110 H126 V141 H593 V172 H126 V203 H593" stroke="#1684ab" stroke-width="4"/><path d="M224 79 H327" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M479 110 H380" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="265" text-anchor="middle">Top · zigzag across the stock</text>
+</g>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Top view of a part outline with a toolpath offset outside it, and a side view with a holding tab.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="79" y="66" width="230" height="151" rx="14" fill="#d8e8ef"/><rect x="64" y="51" width="260" height="181" rx="27" fill="none" stroke="#1684ab" stroke-width="4"/><path d="M167 51 H236" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="195" y="268" text-anchor="middle">Top · outside cut</text><path d="M400 95 H675 V217 H400 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M400 205 H506 V171 H556 V205 H675" stroke="#1684ab" stroke-width="5"/><path d="M532 116 V161" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="534" y="268" text-anchor="middle">Side · tab left in stock</text>
+</g>
+</svg>

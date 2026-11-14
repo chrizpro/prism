@@ -3,6 +3,7 @@ using Prism.Commands;
 using Prism.Core;
 using Prism.Core.Assembly;
 using Prism.Kernel;
+using Prism.ViewModels;
 using Xunit;
 using static Prism.HeadlessTests.Support.ModelingScenario;
 
@@ -17,6 +18,38 @@ namespace Prism.HeadlessTests.Assembly;
 [Trait("Layer", "Headless")]
 public class AssemblyToolTests
 {
+    [AvaloniaFact(DisplayName = "ASM-H122 | The gallery orrery's Joints eye hides and shows every joint without changing the mechanism")]
+    [Trait("TestId", "ASM-H122")]
+    public void OrreryJointFolderToggleControlsMarkersAndDriveHandles()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        var vm = new MainViewModel();
+        var session = vm.Session;
+        session.Open(Path.Combine(root.FullName, "gallery", "models", "meridian-orrery.prism"));
+        var joints = session.JointObjects.Select(j => j.joint).ToArray();
+        Assert.Equal(18, joints.Length);
+        var drive = Begin(session, () => new DriveJointsCommand());
+        Assert.NotEmpty(drive.Handles);
+        vm.BrowserFilter = "revolute";
+        BrowserNode Folder() => Assert.Single(vm.AllBrowserNodes(), row => row.IsFolder && row.Title == "Joints");
+        Assert.True(Folder().IsVisible);
+        int rebuilds = 0;
+        vm.BrowserRebuilt += () => rebuilds++;
+
+        Folder().IsVisible = false;
+        Assert.Equal(1, rebuilds);
+        Assert.All(session.Objects.Where(obj => obj.Kind == ObjKind.Joint), joint => Assert.False(joint.Visible));
+        Assert.False(Folder().IsVisible);
+        Assert.Empty(drive.Handles);
+        Assert.Equal(joints, session.JointObjects.Select(j => j.joint));
+        Folder().IsVisible = true;
+        Assert.Equal(2, rebuilds);
+        Assert.All(session.Objects.Where(obj => obj.Kind == ObjKind.Joint), joint => Assert.True(joint.Visible));
+        Assert.NotEmpty(drive.Handles);
+    }
+
     /// <summary>Two parts: the first is grounded, the second is free and starts 10 mm along X.</summary>
     static (CadSession Session, SceneObject Fixed, SceneObject Free) TwoParts()
     {
@@ -107,6 +140,47 @@ public class AssemblyToolTests
         Pick(command, "Component", session.Find(free.Id)!);
         SetNumber(command, "Move X", 1);
         AssertBuildFails(command, "held by a joint");
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H123 | The Move gizmo moves a free part's placement with its shape and refuses held parts")]
+    [Trait("TestId", "ASM-H123")]
+    public void MoveGizmoMovesPlacementAndRefusesHeldParts()
+    {
+        var (session, fixedPart, free) = TwoParts();
+        Assert.Contains("grounded", session.WhyPartIsHeld(fixedPart)!);
+        Assert.Null(session.WhyPartIsHeld(free));
+        session.TransformTarget(SelItem.Of(free), Xform.Translation(new Vec3(0, 5, 0)), checkpoint: true);
+        var moved = session.Find(free.Id)!;
+        AssertBounds(moved.Shape, new(10, 5, 0), new(12, 8, 4));
+        AssertPoint(new Vec3(0, 5, 0), moved.Component!.Placement.T, 1e-9, "Placement follows the shape");
+        // the solver reads placements: re-solving must leave the part where the gizmo put it
+        session.SolveAssembly();
+        AssertBounds(session.Find(free.Id)!.Shape, new(10, 5, 0), new(12, 8, 4));
+        // a grounded part does not move at all
+        session.TransformTarget(SelItem.Of(fixedPart), Xform.Translation(new Vec3(0, 5, 0)), checkpoint: true);
+        AssertBounds(session.Find(fixedPart.Id)!.Shape, new(0, 0, 0), new(2, 3, 4));
+        Assert.True(session.StatusIsError);
+    }
+
+    [AvaloniaFact(DisplayName = "ASM-H124 | A revolute joint placed Keep where it is leaves both parts put and turns about the first pick's axis")]
+    [Trait("TestId", "ASM-H124")]
+    public void RevoluteKeepWhereItIs()
+    {
+        var (session, fixedPart, free) = TwoParts();
+        var joint = Begin(session, () => new JointCommand(JointType.Revolute));
+        SetChoice(joint, "Placement", "Keep where it is");
+        Pick(joint, "On the first part (face, circle edge or round face)", FaceFacing(fixedPart, Vec3.UnitZ));   // axis: Z through (1, 1.5, 4)
+        Pick(joint, "On the part that moves", FaceFacing(free, -Vec3.UnitX));
+        BuildOutput(joint);
+        Assert.Equal("Both parts stay where they are", Result(joint, "Placement"));
+        Commit(session);
+        AssertBounds(session.Find(free.Id)!.Shape, new(10, 0, 0), new(12, 3, 4));
+        var drive = Begin(session, () => new DriveJointsCommand());
+        SetNumber(drive, $"{session.JointObjects.Single().joint.Name}  (angle)", 90);
+        BuildOutput(drive);
+        Commit(session);
+        // a quarter turn about the vertical axis through the fixed part's top-face centre (1, 1.5): x 10..12 becomes y 10.5..12.5
+        AssertBounds(session.Find(free.Id)!.Shape, new(-0.5, 10.5, 0), new(2.5, 12.5, 4));
     }
 
     // ------------------------------------------------------------------ Component Pattern

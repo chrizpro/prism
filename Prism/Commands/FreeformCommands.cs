@@ -184,6 +184,14 @@ public sealed class CurveByPointsCommand : Command
 // ---------------------------------------------------------------- edit control points
 public sealed class EditPointsCommand : Command
 {
+    /// <summary>Select every control point.</summary>
+    public void SelectAllPoints()
+    {
+        if (Model == null) return;
+        _tool.Selected.Clear(); foreach (int i in Enumerable.Range(0, Model.Points.Length)) _tool.Selected.Add(i);
+        SelectionChanged(); S.Invalidate();
+    }
+
     /// <summary>Select every control point that is not selected.</summary>
     public void InvertPoints()
     {

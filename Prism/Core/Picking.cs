@@ -13,7 +13,7 @@ public static class Picking
     public const double EdgeTolerancePx = 7;
 
     public static (SceneObject obj, int face, Vec3 point, Vec3 normal, double t)? RayFace(
-        Camera cam, IEnumerable<SceneObject> objects, double px, double py, Func<SceneObject, bool>? include = null)
+        Camera cam, IEnumerable<SceneObject> objects, double px, double py, Func<SceneObject, bool>? include = null, Func<SceneObject, IReadOnlySet<int>?>? shownFaces = null)
     {
         var (o, d) = cam.Ray(px, py);
         (SceneObject, int, Vec3, Vec3, double)? best = null;
@@ -29,9 +29,10 @@ public static class Picking
                     best = (obj, 0, o + d * hit0.t, tri.FaceNormal(hit0.tri), hit0.t);
                 continue;
             }
-            var P = m.Positions; var I = m.Indices;
+            var P = m.Positions; var I = m.Indices; var only = shownFaces?.Invoke(obj);
             for (int t = 0; t < I.Length; t += 3)
             {
+                if (only != null && !only.Contains(m.TriFace[t / 3])) continue;      // a face hidden by Isolate cannot be clicked: the pick goes through to what is behind
                 int a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
                 double? hit = RayTri(o, d,
                     P[a], P[a + 1], P[a + 2], P[b], P[b + 1], P[b + 2], P[c], P[c + 1], P[c + 2]);
@@ -64,7 +65,7 @@ public static class Picking
 
     /// <summary>Nearest edge segment (in pixels) among visible objects. For curve/sketch objects every edge counts.</summary>
     public static (SceneObject obj, int edge, Vec3 point, double distPx, double depth)? NearestEdge(
-        Camera cam, IEnumerable<SceneObject> objects, double px, double py, double maxPx, Func<SceneObject, bool>? include = null)
+        Camera cam, IEnumerable<SceneObject> objects, double px, double py, double maxPx, Func<SceneObject, bool>? include = null, Func<SceneObject, IReadOnlySet<int>?>? shownEdges = null)
     {
         var vp = cam.ViewProjection;
         (SceneObject, int, Vec3, double, double)? best = null;
@@ -73,9 +74,10 @@ public static class Picking
         {
             if (!obj.Visible) continue;
             if (include != null && !include(obj)) continue;
-            var m = obj.Mesh; var E = m.EdgePoints;
+            var m = obj.Mesh; var E = m.EdgePoints; var only = shownEdges?.Invoke(obj);
             for (int s = 0; s < m.SegEdge.Length; s++)
             {
+                if (only != null && !only.Contains(m.SegEdge[s])) continue;
                 var a = cam.Project(new(E[6 * s], E[6 * s + 1], E[6 * s + 2]), vp);
                 var b = cam.Project(new(E[6 * s + 3], E[6 * s + 4], E[6 * s + 5]), vp);
                 if (a == null || b == null) continue;

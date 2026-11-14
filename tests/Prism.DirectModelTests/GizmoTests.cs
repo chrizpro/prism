@@ -24,11 +24,12 @@ static class GizmoTests
         check(gizmo != null && s.DirectEditing, "Direct Edit opens the gizmo, ready for a click");
         check(gizmo!.Handles.Count == 0, "…with no handles until something is picked");
 
-        // a flat face: pull, three move arrows and a tilt arc
+        // a flat face: a pull handle and a tilt arc; moving it is the shared gizmo's job (the pull arrow stands in for the gizmo arrow along the normal)
         int top = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).First(f => { var i = Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, f)); return i.Type == "Plane" && i.Normal.Z > 0.99 && FeatureFinder.FeatureOf(body, f)?.Kind == FeatureKind.Face; });
         gizmo.Pick(new SelItem(body.Id, SelKind.Face, top), false);
         var h = gizmo.Handles;
-        check(h.Count == 5 && h.Count(x => x.Ref != null) == 1 && h.Select(x => x.Colour).Distinct().Count() == 5, "a flat face gets a pull handle, three move arrows and a tilt arc, each its own colour");
+        check(h.Count == 2 && h.Count(x => x.Ref != null) == 1 && h.Select(x => x.Colour).Distinct().Count() == 2, "a flat face gets a pull handle and a tilt arc, each its own colour");
+        check(gizmo.Gizmo is { } moveGizmo && moveGizmo.Move.Count(m => m != null) == 2 && moveGizmo.Move[2] == null && !moveGizmo.Supports(1), "the shared gizmo moves the face: two arrows across it, with the pull handle along its normal");
 
         // pulling a boss moves every wall along its own normal
         gizmo.Pick(new SelItem(body.Id, SelKind.Face, boss.Faces[0]), false);

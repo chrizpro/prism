@@ -25,7 +25,7 @@ public sealed class OffsetFaceCommand : Command
     public override string Icon => "pushpull";
     public override string OkText => "Apply";
     public override HandleSpec? Handle => _faces.Items.Count == 0 ? null : SurfaceHandle(_faces.Items[0], _dist);
-    public override string Hint => "Edit existing geometry: pick faces and a distance, and every face moves along its own normal. Positive moves a face out of the part (the body grows), negative moves it in. Flat faces slide and their neighbours extend or trim to follow; a whole hole or boss changes radius (a hole gets smaller when offset out). Clicking any face of a hole, slot, pocket or boss picks the whole feature.";
+    public override string Hint => "Edit existing geometry: pick faces and a distance, and every face moves along its own normal. Positive moves a face out of the part (the body grows), negative moves it in. On a surface the face is carried along its normal and walls join it back to its neighbours, like a raised or sunk panel. Flat faces slide and their neighbours extend or trim to follow; a whole hole or boss changes radius (a hole gets smaller when offset out). Clicking any face of a hole, slot, pocket or boss picks the whole feature.";
 
     protected override CommandOutput? Build()
     {
@@ -34,7 +34,15 @@ public sealed class OffsetFaceCommand : Command
         var o = new CommandOutput { Label = "Offset face", Icon = "pushpull" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
-            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Offset Face works on solid bodies.");
+            if (S.Find(grp.Key) is { Kind: ObjKind.Surface, HasBrep: true } sheet)
+            {
+                // a surface face is carried along its normal and joined back with walls along the step
+                var picked = grp.Select(i => i.Index).ToHashSet();
+                o.Replace.Add((sheet, SurfaceFaceEdit.Offset(sheet.Shape, picked, _dist.Value)));
+                Results.Add(new ResultLine("Surface faces offset", $"{picked.Count}  by {_dist.Value:0.###} mm"));
+                continue;
+            }
+            var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Offset Face works on solid bodies and on faces of a surface.");
             var flats = new List<(Shape face, Vec3 n, Vec3 origin)>(); var rounds = new List<SelItem>();
             foreach (var it in DirectHelpers.Scope(S, body, grp, _scope.Index, Results))
             {

@@ -44,6 +44,26 @@ public sealed class CaeSolveCommand : AnalysisCommand
             if(S.Find(result.Prepared.Body.Id)!=result.Prepared.Body){S.Say("The source body changed; run the analysis again.",true);return;}
             S.ShowResult(ResultView.Field(result,_showMode.Value-1));
         }});
+        if (thermal)
+        {
+            _body.Section = _type.Section = _initial.Section = _duration.Section = "Setup";
+            foreach (var slot in new[] { _first, _second, _heated, _cooled }) slot.Section = "Heating & Cooling";
+            foreach (var parameter in new Param[] { _hot, _cold, _power, _coolant, _film, _ambient, _emissivity }) parameter.Section = "Heating & Cooling";
+            _size.Section = "Mesh";
+            _name.Section = "Reuse";
+            foreach (var action in Params.OfType<ActionParam>()) action.Section = action.Label == "Save setup" ? "Reuse" : "Solve";
+        }
+        else
+        {
+            _body.Section = "Setup";
+            _first.Section = "Supports";
+            _size.Section = "Mesh";
+            _modes.Section = "Solve";
+            _showMode.Section = "Results";
+            _name.Section = "Reuse";
+            foreach (var action in Params.OfType<ActionParam>())
+                action.Section = action.Label switch { "Save setup" => "Reuse", "Show mode" => "Results", _ => "Solve" };
+        }
     }
     public override string Title=>_thermal?"Thermal Analysis":"Natural Frequencies";
     public override string Icon=>_thermal?"cae-thermal":"cae-modal";
@@ -144,6 +164,7 @@ public sealed class PipeFlowCommand : AnalysisCommand
         _flow=Num("Volume flow",.5,.000001,1e9,.1,"L/min");_density=Num("Fluid density",998.2,.001,100000,10,"kg/m³");
         _viscosity=Num("Dynamic viscosity",.001002,1e-9,10000,.0001,"Pa·s");
         _roughness=Num("Absolute roughness",.0015,0,1000,.001);_minor=Num("Total minor-loss coefficient",0,0,100000,.1,"");
+        foreach (var parameter in Params) parameter.Section = "Setup";
     }
     public override string Title=>"Pipe Flow";
     public override string Icon=>"cae-fluid";

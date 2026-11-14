@@ -138,6 +138,319 @@ public class SurfaceOptionTests
         AssertNear(7, Vec3.Dot(patch.Props().Center, plane.Normal), "Patch offset (mm)");
     }
 
+    // NURBS exposes the same finishing and boolean tools as the other modeling tabs; Freeform stays out because
+    // Catmull-Clark cages do not survive exact booleans (they convert to NURBS first).
+    [AvaloniaFact(DisplayName = "SFC-H005 | Enclosed Body launches from the NURBS Finish group")]
+    [Trait("TestId", "SFC-H005")]
+    public void EnclosedBodyFromNurbsRibbon()
+    {
+        var vm = new MainViewModel();
+        Assert.IsType<BoundaryFillCommand>(Start<BoundaryFillCommand>(vm, "NURBS"));
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H006 | Union, Subtract and Intersect run from every modeling tab")]
+    [InlineData("Home")]
+    [InlineData("Solid")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [InlineData("Sheet Metal")]
+    [Trait("TestId", "SFC-H006")]
+    public void CombineOnModelingTabs(string tab)
+    {
+        var vm = new MainViewModel();
+        var buttons = vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct().ToList();
+        var labels = buttons.Select(b => b.Label.Replace('\n', ' ')).ToList();
+        Assert.Contains("Union", labels);
+        Assert.Contains("Subtract", labels);
+        Assert.Contains("Intersect", labels);
+        buttons.Single(b => b.Menu == null && b.Label.Replace('\n', ' ') == "Union").Invoke();
+        var command = Assert.IsType<BooleanCommand>(vm.Session.ActiveCommand);
+        Assert.Equal("Union", command.Title);
+        vm.Session.CancelCommand();
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H007 | Freeform omits CAD booleans: Catmull-Clark cages convert to NURBS first")]
+    [Trait("TestId", "SFC-H007")]
+    public void FreeformOmitsCombine()
+    {
+        var vm = new MainViewModel();
+        var labels = vm.Tabs.Single(t => t.Title == "Freeform").Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct()
+            .Select(b => b.Label.Replace('\n', ' ')).ToList();
+        Assert.DoesNotContain(labels, label => label is "Union" or "Subtract" or "Intersect");
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H008 | Split Surface cuts a sheet into separate surfaces from Surface and NURBS")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [Trait("TestId", "SFC-H008")]
+    public void SplitSurfaceFromRibbon(string tab)
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var wallEdge = Occ.Polyline([new(5, -5, -5), new(5, 15, -5), new(5, 15, 15), new(5, -5, 15)], true);
+        var wall = vm.Session.AddObject(Occ.Profile([wallEdge], true), "Wall", ObjKind.Surface);
+        var command = Start<SplitSurfaceCommand>(vm, tab);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", wall);
+            SetChoice(command, "Result", "Separate surfaces");
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var kept = Assert.Single(output.Replace);
+        var added = Assert.Single(output.Add);
+        using var a = kept.New; using var b = added.Shape!;
+        Assert.True(a.IsValid && b.IsValid);
+        AssertNear(50, a.Props().Area, "First piece area (mm²)");       // halves of the 10×10 sheet
+        AssertNear(50, b.Props().Area, "Second piece area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H010 | Split Surface splits along a curve's projection; pieces are separate objects")]
+    [Trait("TestId", "SFC-H010")]
+    public void SplitSurfaceByCurve()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        // A curve crossing the sheet in its own plane: the split follows the curve's projection on the surface.
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "Surface");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+            SetChoice(command, "Result", "Separate surfaces");
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var kept = Assert.Single(output.Replace);
+        var added = Assert.Single(output.Add);
+        using var a = kept.New; using var b = added.Shape!;
+        Assert.True(a.IsValid && b.IsValid);
+        AssertNear(50, a.Props().Area, "First piece area (mm²)");
+        AssertNear(50, b.Props().Area, "Second piece area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H011 | Split Surface cuts along every curve of the tool when the curves cross")]
+    [Trait("TestId", "SFC-H011")]
+    public void SplitSurfaceByCrossingCurves()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var across = Occ.Polyline([new(-5, 5, 0), new(15, 5, 0)], false);
+        using var along = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var cross = vm.Session.AddObject(Occ.Compound([across, along]), "Cross", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", cross);
+            SetChoice(command, "Result", "Separate surfaces");
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var pieces = output.Add.Select(a => a.Shape!).Append(Assert.Single(output.Replace).New).ToList();
+        Assert.Equal(4, pieces.Count);
+        foreach (var piece in pieces)
+        {
+            Assert.True(piece.IsValid);
+            AssertNear(25, piece.Props().Area, "Quarter area (mm²)");
+            piece.Dispose();
+        }
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H012 | Split Surface keeps one surface with a face per piece by default")]
+    [Trait("TestId", "SFC-H012")]
+    public void SplitSurfaceIntoFaces()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        Assert.Empty(output.Add);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.True(result.IsValid);
+        Assert.Equal(2, result.Count(SubKind.Face));
+        Assert.Equal(7, result.Count(SubKind.Edge));       // the cut is one edge shared by both faces, not two coincident ones
+        AssertNear(100, result.Props().Area, "Whole area (mm²)");
+        using var half = result.Sub(SubKind.Face, 0);
+        AssertNear(50, half.Props().Area, "Face area (mm²)");
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H013 | Delete on a selected face of a split surface removes that face only")]
+    [Trait("TestId", "SFC-H013")]
+    public void DeleteKeyRemovesSurfaceFace()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", sheet);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        Assert.True(command.TryBuild() != null, command.Error);
+        vm.Session.CommitCommand();
+        vm.Session.CancelCommand();
+        Assert.Equal(2, vm.Session.Find(sheet.Id)!.Shape.Count(SubKind.Face));
+
+        vm.Session.SetSelection(new SelItem(sheet.Id, SelKind.Face, 0), false);
+        vm.Session.DeleteSelection();
+
+        var left = vm.Session.Find(sheet.Id);
+        Assert.NotNull(left);
+        Assert.Equal(ObjKind.Surface, left.Kind);
+        Assert.Equal(1, left.Shape.Count(SubKind.Face));
+        AssertNear(50, left.Shape.Props().Area, "Remaining area (mm²)");
+        Assert.NotNull(vm.Session.Find(line.Id));
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses an open surface as the tool and leaves both objects")]
+    [Trait("TestId", "SFC-H014")]
+    public void SubtractRefusesSurfaceTool()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var wallEdge = Occ.Polyline([new(5, -5, -5), new(5, 15, -5), new(5, 15, 15), new(5, -5, 15)], true);
+        var wall = vm.Session.AddObject(Occ.Profile([wallEdge], true), "Wall", ObjKind.Surface);
+        var command = new BooleanCommand(BooleanCommand.Kind.Subtract);
+        vm.Session.StartCommand(command);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Body to cut from", sheet);
+            SetSelection(command, "Tool bodies", wall);
+        });
+        Assert.Null(command.TryBuild());
+        Assert.Contains("no inside", command.Error);
+        vm.Session.CancelCommand();
+        Assert.NotNull(vm.Session.Find(wall.Id));
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H015 | Intersect of surfaces that do not meet fails instead of leaving an empty object")]
+    [Trait("TestId", "SFC-H015")]
+    public void IntersectRefusesEmptyResult()
+    {
+        var vm = new MainViewModel();
+        var sheet = Sheet(vm.Session);
+        using var boundary = Occ.Polyline([new(0, 0, 20), new(10, 0, 20), new(10, 10, 20), new(0, 10, 20)], true);
+        var above = vm.Session.AddObject(Occ.Profile([boundary], true), "Above", ObjKind.Surface);
+        var command = new BooleanCommand(BooleanCommand.Kind.Intersect);
+        vm.Session.StartCommand(command);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Base body", sheet);
+            SetSelection(command, "Other bodies", above);
+        });
+        Assert.Null(command.TryBuild());
+        Assert.Contains("do not overlap", command.Error);
+        vm.Session.CancelCommand();
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H016 | Fillet / Chamfer rounds or cuts the edge where two faces of a surface meet")]
+    [InlineData("Surface", false)]
+    [InlineData("NURBS", true)]
+    [Trait("TestId", "SFC-H016")]
+    public void FilletChamferSurfaceEdge(string tab, bool chamfer)
+    {
+        var vm = new MainViewModel();
+        var (wall, corner, border) = CornerWall(vm.Session);
+        var command = StartFillet(vm, tab);
+        command.ConfigureInputs(() =>
+        {
+            command.Slots[0].TryAdd(new SelItem(wall.Id, SelKind.Edge, corner));
+            SetChoice(command, "Corners", chamfer ? "Chamfer (cut)" : "Fillet (round)");
+            SetNumber(command, chamfer ? "Chamfer distance" : "Fillet radius", chamfer ? 4 : 5);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        Assert.Empty(output.Add);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.True(result.IsValid);
+        Assert.Equal(3, result.Count(SubKind.Face));
+        // two 25 mm tall walls of 40 and 30 mm: the corner strip replaces 2 x size of wall with an arc or a diagonal
+        double expected = chamfer ? 1750 - (8 - 4 * Math.Sqrt(2)) * 25 : 1750 - (10 - Math.PI * 2.5) * 25;
+        AssertNear(expected, result.Props().Area, "Area after the edge is dressed (mm²)");
+        vm.Session.CancelCommand();
+
+        var open = StartFillet(vm, tab);
+        open.ConfigureInputs(() => open.Slots[0].TryAdd(new SelItem(wall.Id, SelKind.Edge, border)));
+        Assert.Null(open.TryBuild());
+        Assert.Contains("open border", open.Error);
+    }
+
+    /// <summary>Two flat walls meeting at a right angle, sewn as one surface; the indices of the shared edge and of one border edge.</summary>
+    static (SceneObject wall, int corner, int border) CornerWall(CadSession session)
+    {
+        using var path = Occ.Polyline([Vec3.Zero, new(40, 0, 0), new(40, 30, 0)], false);
+        var wall = session.AddObject(Occ.Extrude(path, new Vec3(0, 0, 25)), "Corner wall", ObjKind.Surface);
+        int corner = -1, border = -1;
+        for (int i = 0; i < wall.Shape.Count(SubKind.Edge); i++)
+        {
+            using var edge = wall.Shape.Sub(SubKind.Edge, i);
+            var info = Occ.EdgeInfoOf(edge);
+            bool atCorner = Math.Abs(info.Start.X - 40) < 1e-6 && Math.Abs(info.End.X - 40) < 1e-6 && Math.Abs(info.Start.Y) < 1e-6 && Math.Abs(info.End.Y) < 1e-6;
+            if (atCorner) corner = i; else if (border < 0) border = i;
+        }
+        Assert.True(corner >= 0, "The walls share an edge");
+        return (wall, corner, border);
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H017 | The cut made by splitting a smooth NURBS surface is an edge that is drawn and can be picked")]
+    [Trait("TestId", "SFC-H017")]
+    public void SplitEdgeOfSmoothSurfaceIsDrawn()
+    {
+        var vm = new MainViewModel();
+        var grid = Occ.NurbsSurface([Vec3.Zero, new(10, 0, 0), new(0, 10, 0), new(10, 10, 0)], 2, 2, 1, 1);
+        var patch = vm.Session.AddObject(grid, "Patch", ObjKind.Surface);
+        using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+        var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Surface to split", patch);
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+        });
+        Assert.True(command.TryBuild() != null, command.Error);
+        vm.Session.CommitCommand();
+        var mesh = vm.Session.Find(patch.Id)!.Mesh;
+        Assert.Equal(2, mesh.FaceCount);
+        Assert.Equal(7, mesh.EdgeCount);
+        // smooth joins between different patches are hidden as seams; a cut through one surface must not be
+        for (int e = 0; e < mesh.EdgeCount; e++)
+            Assert.True(mesh.EdgeSegStart[e + 1] > mesh.EdgeSegStart[e], $"Edge {e + 1} has no drawn segments");
+    }
+
+    [AvaloniaTheory(DisplayName = "SFC-H009 | Mirror launches from the shared Transform group on modeling tabs")]
+    [InlineData("Solid")]
+    [InlineData("Surface")]
+    [InlineData("NURBS")]
+    [InlineData("Freeform")]
+    [Trait("TestId", "SFC-H009")]
+    public void MirrorOnModelingTabs(string tab)
+    {
+        var vm = new MainViewModel();
+        var buttons = vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct().ToList();
+        var button = buttons.Single(b => b.Menu == null && b.Label.Replace('\n', ' ') == "Mirror");
+        button.Invoke();
+        var command = Assert.IsType<TransformCommand>(vm.Session.ActiveCommand);
+        Assert.Equal("Mirror", command.Title);
+        vm.Session.CancelCommand();
+    }
+
     static SceneObject Sheet(CadSession session)
     {
         using var boundary = Occ.Polyline([Vec3.Zero, new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)], true);
@@ -152,5 +465,13 @@ public class SurfaceOptionTests
             .Single(b => b.Label.Replace('\n', ' ') == title || (title == "Offset Surface" && b.Label == "Offset"));
         button.Invoke();
         return Assert.IsType<T>(vm.Session.ActiveCommand);
+    }
+
+    static CurveFilletCommand StartFillet(MainViewModel vm, string tab)
+    {
+        vm.Tabs.Single(t => t.Title == tab).Buttons
+            .SelectMany(b => (IEnumerable<RibbonButton>?)b.Menu ?? [b]).Distinct()
+            .Single(b => b.Label.Replace('\n', ' ') == "Fillet / Chamfer").Invoke();
+        return Assert.IsType<CurveFilletCommand>(vm.Session.ActiveCommand);
     }
 }

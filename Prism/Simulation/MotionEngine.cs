@@ -42,6 +42,7 @@ public sealed class MotionDof
     public double Target { get; set; }
     public double RampStart { get; set; }
     public double RampTime { get; set; } = 1;
+    public AnimCurve? RampCurve { get; set; }
     /// <summary>A motor on a free joint: stall torque or force (N·m or N) and the speed (°/s or mm/s) it reaches with no load. The push falls linearly from stall to zero.</summary>
     public double MotorStall { get; set; }
     public double MotorNoLoad { get; set; }
@@ -181,6 +182,7 @@ public sealed class MotionEngine
     Dictionary<string, Xform> Tree(List<JointInfo> js, IReadOnlyDictionary<string, Xform>? extra) => AssemblyKinematics.Solve(_start, _grounded, js, null, [], extra);
 
     const double RotationWeight = 100;          // mm per radian when a loop's position and angle errors are added
+    const string CannotClose = "The linkage cannot close at this position. Check the joint picks, link lengths and limits, or try a smaller move.";
 
     double[] Phi(List<JointInfo> js, Dictionary<string, Xform> pl, IReadOnlyDictionary<string, Xform>? extra)
     {
@@ -198,7 +200,14 @@ public sealed class MotionEngine
     /// <summary>The joint values and part placements for these coordinates, with the loops closed (the dependent joints solved by damped Newton from where they last were).</summary>
     (List<JointInfo> Joints, Dictionary<string, Xform> Placement) Solved(double[] q, IReadOnlyDictionary<string, Xform>? extra = null)
     {
-        if (_dep.Length == 0) { var j0 = JointsFor(q, []); return (j0, Tree(j0, extra)); }
+        if (_dep.Length == 0)
+        {
+            var j0 = JointsFor(q, []);
+            var p0 = Tree(j0, extra);
+            if (extra == null && _closing.Any(key => !AssemblyKinematics.IsClosed(p0, j0[_jointIndex[key]])))
+                throw new InvalidOperationException(CannotClose);
+            return (j0, p0);
+        }
         int nd = _dep.Length; var u = (double[])_u.Clone();
         var sc = _dep.Select(i => _dofs[i].Angular ? 1.0 : 0.3).ToArray();
         var js = JointsFor(q, u); var pl = Tree(js, extra); var r = Phi(js, pl, extra); double err = Norm(r), lambda = 1e-6;
@@ -228,7 +237,8 @@ public sealed class MotionEngine
             if (!accepted) break;
         }
         // releasing a locked direction (to measure a joint's reaction) may leave a loop with no exact solution; the best fit is what the measurement needs
-        if (err > 1e-6 && extra == null) throw new InvalidOperationException("The linkage cannot close at this position: its parts cannot be joined up for these joint values. Check that the link lengths allow the motion you asked for, and that the loop was assembled so that its joints meet.");
+        if (extra == null && (err > 1e-6 || _closing.Any(key => !AssemblyKinematics.IsClosed(pl, js[_jointIndex[key]]))))
+            throw new InvalidOperationException(CannotClose);
         _u = u; return (js, pl);
     }
 
@@ -269,7 +279,7 @@ public sealed class MotionEngine
             var up = (double[])qm.Clone(); var um = (double[])qm.Clone(); up[c] += h * sc[c]; um[c] -= h * sc[c];
             var rp = PhiAt(up); var rm = PhiAt(um); cols[c] = rp.Zip(rm, (a, b) => (a - b) / (2 * h)).ToArray();
         }
-        double maxNorm = cols.Max(Norm); var basis = new List<double[]>(); var chosen = new List<int>();
+        double maxNorm = cols.Select(Norm).DefaultIfEmpty(0).Max(); var basis = new List<double[]>(); var chosen = new List<int>();
         while (chosen.Count < nm)
         {
             int best = -1; double bestScore = 0; double[]? bestRes = null;
@@ -515,6 +525,11 @@ public sealed class MotionEngine
                 double T = Math.Max(d.RampTime, 1e-9), u = (t - d.RampStart) / T, span = (d.Target - d.Start) * s;
                 if (u <= 0) return (q0, 0, 0);
                 if (u >= 1) return (q0 + span, 0, 0);
+                if (d.RampCurve is { } curve)
+                {
+                    var sample = curve.KinematicsAt(u);
+                    return (q0 + span * sample.Value, span * sample.Speed / T, span * sample.Acceleration / (T * T));
+                }
                 double u2 = u * u, u3 = u2 * u;             // minimum-jerk blend: zero speed and acceleration at both ends
                 return (q0 + span * (10 * u3 - 15 * u3 * u + 6 * u3 * u2), span * (30 * u2 - 60 * u3 + 30 * u3 * u) / T, span * (60 * u - 180 * u2 + 120 * u3) / (T * T));
             }

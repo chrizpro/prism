@@ -39,12 +39,14 @@ public sealed partial class CadSession
     }
 
     Action<RegionSelect.Region, PointerInfo>? _regionDone;
-    /// <summary>A tool with its own kind of selection (control points) borrows the rectangle or lasso chosen on the ribbon and gets the finished shape back.</summary>
+    /// <summary>
+    /// A tool with its own kind of selection (control points) borrows the rectangle or lasso chosen on the ribbon and gets the finished shape back.
+    /// Such a tool is always in selection mode: with no drag method armed, a drag in empty space draws a rectangle.
+    /// </summary>
     public void BeginToolRegion(PointerInfo p, Action<RegionSelect.Region, PointerInfo> done)
     {
-        if (Method == SelectMethod.Click) return;
         _regionDone = done; _regionDown = p; _regionStart = (p.X, p.Y); _regionMoved = false;
-        _region = new RegionSelect.Region { IsBox = Method == SelectMethod.Rectangle };   // a borrowed region keeps box/lasso shape; Stroke only belongs to session picking
+        _region = new RegionSelect.Region { IsBox = Method is SelectMethod.Click or SelectMethod.Rectangle };   // a borrowed region keeps box/lasso shape; Stroke only belongs to session picking
         _region.Points.Add((p.X, p.Y));
     }
 
@@ -84,7 +86,7 @@ public sealed partial class CadSession
         var slot = ActiveCommand?.ActiveSlot;
         var filter = ActiveFilter;
         var mode = slot != null ? (filter.HasFlag(SelFilter.Face) ? SelMode.Face : filter.HasFlag(SelFilter.Edge) ? SelMode.Edge : SelMode.Object) : Mode;
-        var items = RegionSelect.Collect(this, region, mode, XRay).Where(i => Matches(i, filter)).ToList();
+        var items = (mode == SelMode.Vertex ? VertexRegionItems(region) : RegionSelect.Collect(this, region, mode, XRay)).Where(i => Matches(i, filter) && ShownByIsolation(i)).ToList();
         if (items.Count == 0) { if (!mods.Shift && !mods.Ctrl && slot == null) ClearSelection(); Say("Nothing there."); return; }
         if (slot != null && ActiveCommand is { } cmd)
         {
@@ -149,6 +151,31 @@ public sealed partial class CadSession
     }
     static readonly (int a, int b)[] Box = [(0, 1), (1, 2), (2, 3), (3, 0)];
 
+    // ------------------------------------------------------------ select all
+    /// <summary>Ctrl+A: everything at the current pick level (bodies, faces, edges or corner points), or all the geometry of the open sketch, cage or point set.</summary>
+    public void SelectAll()
+    {
+        if (ActiveCommand is Commands.EditFormCommand form) { form.SelectOp("all"); return; }
+        if (ActiveCommand is Commands.EditPointsCommand points) { points.SelectAllPoints(); return; }
+        if (ActiveCommand == null && Sketch is { } sk)
+        {
+            sk.SelEntities.Clear(); foreach (var e in sk.Model.Entities) sk.SelEntities.Add(e.Id);
+            NotifySketchChanged(); Say($"{sk.SelEntities.Count} selected"); return;
+        }
+        var slot = ActiveCommand?.ActiveSlot;
+        if (slot != null && ActiveCommand is { } cmd) { cmd.ConfigureInputs(() => slot.Items.Clear()); }
+        else _selection.Clear();
+        var filter = ActiveFilter;
+        if (slot == null && Mode == SelMode.Vertex)
+        {
+            foreach (var o in Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && !o.IsAnnotation && HasVertices(o)))
+                for (int i = 0; i < VertexPoints(o).Count; i++) _selection.Add(new SelItem(o.Id, SelKind.Vertex, i));
+            SelectionChanged?.Invoke(); Say($"{_selection.Count} selected"); Invalidate(); return;
+        }
+        InvertSelection();                     // with nothing selected, Invert takes everything at the current level
+        Say($"{(slot != null ? slot.Items.Count : _selection.Count)} selected");
+    }
+
     // ------------------------------------------------------------ invert
     /// <summary>
     /// Select what is not selected. Faces and edges invert within the bodies they belong to (so you can pick a few faces to leave out, invert,
@@ -209,6 +236,7 @@ public sealed partial class CadSession
                 double? hit = Ray(o, d, P, I[t] * 3, I[t + 1] * 3, I[t + 2] * 3);
                 if (hit is not { } h || h <= 0) continue;
                 int face = m.TriFace[t / 3];
+                if (!ShownByIsolation(new SelItem(obj.Id, SelKind.Face, face))) continue;
                 if (Mode == SelMode.Face || ActiveFilter.HasFlag(SelFilter.Face)) { if (seen.Add(face)) hits.Add((h, new SelItem(obj.Id, SelKind.Face, face))); }
                 else if (seen.Add(-1)) hits.Add((h, SelItem.Of(obj)));
             }
@@ -250,5 +278,7 @@ public sealed partial class CadSession
         }
         if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return; }
         SetSelection(hit.Value.Item, p.Ctrl || p.Shift);
+        if (hit.Value.Item.Kind == SelKind.Vertex && VertexPoint(hit.Value.Item) is { } corner)
+            Say($"{Describe(hit.Value.Item)} at X {corner.X:0.###}, Y {corner.Y:0.###}, Z {corner.Z:0.###} mm");
     }
 }

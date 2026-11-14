@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 720 300">
+<title>Side view of a drill descending in three short pecks with small retracts.</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4 0 8Z" fill="#b85524"/></marker></defs>
+<rect width="720" height="300" fill="#f2f7fa"/>
+<g fill="none" stroke="#132f43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" font-family="system-ui, sans-serif" font-size="21">
+<rect x="181" y="109" width="359" height="114" rx="8" fill="#d8e8ef"/><path d="M315 48 H405 V115 L360 146 L315 115 Z" fill="#d8e8ef" stroke="#132f43"/><path d="M360 30 V235" stroke="#698298" stroke-dasharray="6 5"/><path d="M309 125 V153" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M309 147 V137" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M360 155 V182" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M360 175 V164" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><path d="M411 184 V207" stroke="#b85524" stroke-width="3" marker-end="url(#arrow)"/><text fill="#132f43" stroke="none" x="360" y="263" text-anchor="middle">Side · advance, retract, repeat</text>
+</g>
+</svg>

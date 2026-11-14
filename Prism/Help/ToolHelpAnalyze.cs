@@ -61,15 +61,24 @@ public static partial class ToolHelp
         "sel-invert" => Topic(icon, "Invert Selection", "Select everything that is not selected.", "Start: a few faces selected", "Result: all the other faces selected",
             "1. Select the faces you want to leave out.\n2. Choose Invert.\n3. The rest of the body is selected instead.",
             "With nothing selected, Invert selects everything. Faces and edges invert within the bodies you picked from."),
+        "sel-same-color" => Topic(icon, "Select Same Color", "Add every face that looks like a selected face.", "Start: one colored face selected", "Result: all faces of the body with the same color and finish selected",
+            "1. Select a face.\n2. Choose Same Color.\n3. Every face of that body with the same color and finish joins the selection.",
+            "Colors are those set per face in the Appearance studio; faces that follow the body color match each other."),
+        "sel-same-adjacent" => Topic(icon, "Select Adjacent Faces", "Add the faces that share an edge with the selected faces.", "Start: one face selected", "Result: the faces around it selected too",
+            "1. Select a face or several.\n2. Choose Adjacent.\n3. Faces touching the selection along an edge join it. Repeat to grow further.",
+            "Hidden faces are skipped."),
+        "sel-same-linked" => Topic(icon, "Select Linked Faces", "Add every face of the body a selected face belongs to.", "Start: one face selected", "Result: all faces of that body selected",
+            "1. Select a face.\n2. Choose Linked.\n3. Every face of the same body or surface is selected.",
+            "Hidden faces are skipped."),
         "move" => Topic(icon, "Move", "Slide objects to a new position.", "Start: a gap beside the post", "Result: moved to touch the post",
             "1. Select the objects.\n2. Drag an arrow, or type a distance.\n3. Check the preview, then accept.",
-            "Type exact distances for precise placement. Snaps help line faces up."),
+            "Type exact distances for precise placement. Snaps help line faces up. Hold Alt as you press an arrow or block to drag a copy and leave the original where it is."),
         "rotate" => Topic(icon, "Rotate", "Turn objects around an axis.", "Start: the part's orientation", "Result: the part turned",
             "1. Select the objects.\n2. Choose the axis and angle.\n3. Check the preview, then accept.",
             "Use it to lay a part flat for printing, or to turn it into the setup you need."),
-        "scale" => Topic(icon, "Scale", "Resize objects uniformly.", "Start: the original size", "Result: scaled",
-            "1. Select the objects.\n2. Enter the scale factor.\n3. Check the preview, then accept.",
-            "Scaling changes every dimension. Use it for tabletop models, not to fix a single measurement."),
+        "scale" => Topic(icon, "Scale", "Resize objects evenly, or stretch them along each axis.", "Start: the original size", "Result: scaled",
+            "1. Select the objects.\n2. Enter the scale factor, or choose Per axis and set X, Y and Z separately.\n3. Check the preview, then accept.",
+            "Uniform scaling changes every dimension. Per axis stretches along the world axes, so a part turned off-axis is sheared; curved faces become freeform surfaces."),
         "mesh-cut" => Topic(icon, "Split Mesh", "Cut a mesh with a plane and cap the halves.", "Start: a part too big for the bed", "Result: two pieces that fit",
             "1. Select the mesh.\n2. Position the cutting plane.\n3. Check the preview, then accept.",
             "Cut where the pieces are easy to glue, and keep each half inside your build volume."),
@@ -184,6 +193,19 @@ public static partial class ToolHelp
                     "sel-rect" => Src(mesh, topic.AfterLabel, null, AllFaces(mesh), Blue),
                     _ => Src(mesh, topic.AfterLabel, null, some, Blue)
                 });
+            }
+            case "sel-same-color" or "sel-same-adjacent" or "sel-same-linked":
+            {
+                using var body = Occ.Box(30, 20, 14);
+                var mesh = body.Tessellate();
+                var one = FacesAt(mesh, 2, 14);
+                var after = key switch
+                {
+                    "sel-same-linked" => AllFaces(mesh),
+                    "sel-same-adjacent" => Enumerable.Range(0, mesh.FaceCount).Where(f => !FacesAt(mesh, 2, 0).Contains(f)).ToArray(),
+                    _ => one.Concat(FacesAt(mesh, 2, 0)).ToArray()
+                };
+                return new(Src(mesh, topic.BeforeLabel, null, one, Blue), Src(mesh, topic.AfterLabel, null, after, Blue));
             }
             case "sel-object" or "sel-face" or "sel-edge" or "sel-vertex":
             {

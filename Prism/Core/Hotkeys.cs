@@ -40,6 +40,11 @@ public static class Hotkeys
         new("edit.undo", "Undo", "Edit", Global, "Ctrl+Z"),
         new("edit.redo", "Redo", "Edit", Global, "Ctrl+Y"),
         new("edit.duplicate", "Duplicate selection", "Edit", Global, "Ctrl+D"),
+        new("edit.selectall", "Select all", "Edit", Global, "Ctrl+A"),
+        new("edit.copy", "Copy selection", "Edit", Global, "Ctrl+C"),
+        new("edit.paste", "Paste", "Edit", Global, "Ctrl+V"),
+        new("edit.group", "Group selection", "Edit", Global, "Ctrl+G"),
+        new("edit.ungroup", "Ungroup selection", "Edit", Global, "Ctrl+Shift+G"),
         new("edit.delete", "Delete selection", "Edit", Global, "Delete"),
         new("edit.cancel", "Cancel / end the current step", "Edit", Global, "Escape"),
         new("edit.accept", "Accept / finish", "Edit", Global, "Enter"),
@@ -47,6 +52,7 @@ public static class Hotkeys
         new("view.lookat", "Look at the selected plane, face or sketch", "View", Global, "N"),
         new("view.extents", "Zoom to fit everything (Zoom Extents)", "View", Global, "F", "F for Fit; the same key fits the view in the drawing editor"),
         new("view.extents.home", "Zoom to fit everything (Home key)", "View", Global, "Home", "A second key for Zoom Extents; while the animation timeline is open Home goes to the start instead"),
+        new("view.quad.maximize", "Maximize or restore hovered view (Four Views)", "View", Global, "Space", "Hover a pane in Four Views and press Space to maximize it, or press Space again to return; while the animation timeline is open Space plays or pauses"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
         new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
         new("datum.gizmo", "Edit Gizmo", "Modeling", Global, "G", "At the viewport cursor (origin if the pointer is outside it)"),
@@ -161,7 +167,7 @@ public static class Hotkeys
     static readonly Dictionary<string, (string[] Tabs, string Label)> ButtonOf = new()
     {
         ["sketch.start"] = (["NURBS"], "Create Sketch"), ["file.new"] = ([], "New"), ["file.open"] = ([], "Open"), ["file.save"] = ([], "Save"), ["file.saveas"] = ([], "Save As"),
-        ["edit.duplicate"] = ([], "Duplicate"), ["view.lookat"] = ([], "Look At"), ["view.extents"] = ([], "Zoom Extents"), ["view.extents.home"] = ([], "Zoom Extents"),
+        ["edit.duplicate"] = ([], "Duplicate"), ["edit.group"] = ([], "Group"), ["edit.ungroup"] = ([], "Ungroup"), ["view.lookat"] = ([], "Look At"), ["view.extents"] = ([], "Zoom Extents"), ["view.extents.home"] = ([], "Zoom Extents"),
         ["model.extrude"] = (["Home", "Solid", "Sheet Metal"], "Extrude"), ["datum.gizmo"] = ([], "Gizmo"), ["form.edit"] = ([], "Edit Freeform"),
         ["sketch.line"] = (["Sketch"], "Line"), ["sketch.rect"] = (["Sketch"], "Rectangle"), ["sketch.ellipse"] = (["Sketch"], "Ellipse"),
         ["sketch.spline"] = (["Sketch"], "Spline"), ["sketch.arc"] = (["Sketch"], "Arc"),

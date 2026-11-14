@@ -1,6 +1,6 @@
 # Solid feature details and body edits
 
-Rib thickens open sketch lines and joins the result to a target. Emboss joins a raised planar profile or cuts an engraving. Hole drills from a face or body with extent and thread options. Fillet and Chamfer dress selected edges. Shell offsets walls and can open selected faces. Draft tilts walls about a neutral plane. Split Body keeps the pieces as separate bodies.
+Rib fills the web between a straight sketch line and the body it meets (a gusset in a corner, `SOL-H109`), with thickness across the sketch plane; Reverse switches to the other side of the line, and "Fixed height" grows the lines by a set height instead (`SOL-H036`). Emboss joins a raised planar profile or cuts an engraving. Hole drills from a face or body with extent and thread options; the circle drawn for the hole can be dragged in the viewport to set its diameter (`HDL-H033`, owner report 2026-11-13). Fillet and Chamfer dress selected edges. Shell offsets walls and can open selected faces. Draft tilts walls about a neutral plane. Split Body keeps the pieces as separate bodies.
 
 ## Review and verification
 
@@ -10,6 +10,10 @@ This guide describes observed behavior. Additional requirements are proposed and
 
 The headless cases cover a raised Emboss, a joined Rib, a plain through-hole, single-edge Fillet and Chamfer, open-face Shell, single-face Draft and an equal-volume Split Body.
 
+## Design history saved by earlier builds (2026-11-13)
+
+A saved design-history step lists its command's numbers by position, so a command that gains a parameter in the middle of its list would read an older file wrongly. Three changes did exactly that, found in a branch review before the 0.3.0 alpha: **Move with gizmo** on the primitives and Insert Component, **Rib extends** on Rib, and **Scale type** with the X, Y and Z factors on Scale. Each command now upgrades an older step on load: a primitive keeps its Join, Cut or Intersect operation, an older Rib keeps **Fixed height** (its only behavior then), and an older Scale stays a uniform scale with its factor, pivot and copy choice (`SOL-H112` to `SOL-H114`, [saved-history upgrade checks](../../../Prism.Tests/Headless/Solid/SavedHistoryUpgradeTests.cs)). A command that adds a parameter later should append it at the end of its list, or override `UpgradeRecipe` with `InsertValue`. Joints (all six types) had the same problem with **Placement** and are covered by `SOL-H117`. A comparison of every command's parameter order before and after this branch (the committed API snapshot against the current one) found nothing else that replays: Section, Motion study and Draw on Surface never make a history step, and the print and resin exports only gained an empty action button before their Export button.
+
 ## Coverage gaps
 
-Whole-body inward Shell returned the inner core in the closed-hollow trial. [Bug #32](https://github.com/chrizpro/prism/issues/32). Engraving, threads and blind extents, multi-edge blends, outside shells, multi-face drafts and split misses still need maintained coverage.
+Whole-body Shell subtracts the inner solid from the outer solid to keep a closed wall. The [resin hollow-and-drain case](../../../Prism.Tests/Headless/Cam/ResinPreparationTests.cs) verifies an inward wall, a blind drain through one wall, and the cavity of an outward shell. [Bug #32](https://github.com/chrizpro/prism/issues/32). Engraving, threads, multi-edge blends, open-face outside shells, multi-face drafts and split misses still need maintained coverage.

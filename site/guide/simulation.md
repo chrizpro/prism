@@ -2,6 +2,8 @@
 
 The **CAE** workspace analyzes the model you designed, without exporting it. Reference: [Static](/tools/static), [Thermal](/tools/thermal), [Dynamics](/tools/dynamics), [Motion](/tools/motion), [Fluids](/tools/fluids).
 
+Static follows Setup, Supports, Loads, Solve and Results, with secondary tools under Advanced and Reuse & Export. Thermal and Dynamics keep their analysis tool and Materials together under Setup, followed by Reuse and Results. Their panels group setup inputs and solve actions. Fluids distinguishes Pipe Calculations from 3D Flow. Its Flow Study panel follows Setup, Solve and Results.
+
 ## A static study
 
 <GuideImage image="simulation-static-loads" />
@@ -36,8 +38,10 @@ Not sure which joint to use? The [illustrated joint guide](/guide/assembly#see-w
 1. **Make Part** or **Insert Component**, then **Ground** one part.
 2. Connect parts with Rigid, Revolute, Slider, Cylindrical, Ball or Planar joints.
 3. **Couple** joints that turn together: gears, belts, racks, screws or levers, by ratio.
-4. Add **Spring / Actuator** and **Force / Torque**, then run a **Motion Study**.
-5. **Load from Motion** carries the forces at a chosen moment into a static study.
+4. Open **Motion → Setup → Motion Study**. Choose **Movement only** to check movement, or **Include forces** to include weight and motor effort. Add **Spring / Actuator** and **Force / Torque** from **Loads** when needed.
+5. Choose a **Joint drive**, set how that joint moves, and repeat for other joints. Their settings stay active when you select another joint. **Move to Position** can use the shared **Curve Editor** for custom timing.
+6. Set the duration and output interval, then **Run study**. You can stop a running study. Review a precise time in seconds, play the stored samples, or save the results as CSV.
+7. **Results → Load from Motion** carries the forces at a chosen moment into a static study.
 
 Use **Drive Joints** to check the connections first. A motion study can run without masses and forces to inspect movement alone; adding them lets it report motor effort and joint reactions. The moving parts remain rigid, and contact is not calculated during the study. Use a separate interference check when reviewing possible collisions.
 

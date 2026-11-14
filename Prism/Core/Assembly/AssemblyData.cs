@@ -107,9 +107,54 @@ public sealed record AnimTrack(string JointKey, bool SecondValue, List<AnimKey> 
         if (t >= k[^1].T) return k[^1].V;
         int i = k.FindLastIndex(x => x.T <= t);
         double u = (t - k[i].T) / Math.Max(k[i + 1].T - k[i].T, 1e-9);
-        if (ease) u = u * u * (3 - 2 * u);
+        u = k[i].Timing switch
+        {
+            AnimTiming.Linear => u,
+            AnimTiming.EaseIn => u * u,
+            AnimTiming.EaseOut => 1 - (1 - u) * (1 - u),
+            AnimTiming.EaseBoth => u * u * (3 - 2 * u),
+            AnimTiming.Hold => 0,
+            AnimTiming.Custom => (k[i].Curve ?? new AnimCurve()).ValueAt(u),
+            _ => ease ? u * u * (3 - 2 * u) : u,
+        };
         return k[i].V + (k[i + 1].V - k[i].V) * u;
     }
 }
 
-public sealed record AnimKey(double T, double V);
+public enum AnimTiming { ClipDefault, Linear, EaseIn, EaseOut, EaseBoth, Hold, Custom }
+
+public sealed record AnimKey(double T, double V, AnimTiming Timing = AnimTiming.ClipDefault, AnimCurve? Curve = null);
+
+/// <summary>A cubic timing curve from (0,0) to (1,1). X is elapsed time and Y is progress.</summary>
+public sealed record AnimCurve(double X1 = .25, double Y1 = .1, double X2 = .25, double Y2 = 1)
+{
+    public double ValueAt(double time)
+    {
+        if (!double.IsFinite(X1) || !double.IsFinite(Y1) || !double.IsFinite(X2) || !double.IsFinite(Y2)) return time;
+        return Bezier(ParameterAt(time), Y1, Y2);
+    }
+
+    static double Bezier(double t, double a, double b)
+        => 3 * (1 - t) * (1 - t) * t * Math.Clamp(a, 0, 1) + 3 * (1 - t) * t * t * Math.Clamp(b, 0, 1) + t * t * t;
+
+    double ParameterAt(double time)
+    {
+        double low = 0, high = 1;
+        for (int i = 0; i < 40; i++)
+        {
+            double mid = (low + high) * .5;
+            if (Bezier(mid, X1, X2) < time) low = mid;
+            else high = mid;
+        }
+        return (low + high) * .5;
+    }
+
+    public (double Value, double Speed, double Acceleration) KinematicsAt(double time)
+    {
+        double t = ParameterAt(time), remaining = 1 - t;
+        double First(double a, double b) => 3 * (remaining * remaining * a + 2 * remaining * t * (b - a) + t * t * (1 - b));
+        double Second(double a, double b) => 6 * (remaining * (b - 2 * a) + t * (1 - 2 * b + a));
+        double dx = First(X1, X2), dy = First(Y1, Y2);
+        return (Bezier(t, Y1, Y2), dy / dx, (Second(Y1, Y2) * dx - dy * Second(X1, X2)) / (dx * dx * dx));
+    }
+}

@@ -1,5 +1,5 @@
 name: Build Prism installers
-# Push a tag like v0.2.0-alpha.1 to build every platform and publish a GitHub release (marked pre-release).
+# Push a tag like v0.3.0-alpha.1 to build every platform and publish a GitHub release (marked pre-release).
 # Run it by hand to build one platform; tick "publish" to release that run as well.
 on:
   push:
@@ -8,7 +8,7 @@ on:
     inputs:
       version:
         description: Release version (major.minor.patch, optionally -alpha.N)
-        default: '0.2.0-alpha.1'
+        default: '0.3.0-alpha.1'
         required: true
       platform:
         type: choice
@@ -48,10 +48,11 @@ jobs:
       - name: Version
         if: env.SELECTED == 'true'
         run: |
-          # Installers need a plain major.minor.patch; the pre-release label (alpha) stays on the tag and release.
+          # Installer metadata needs a numeric version; the desktop also needs the full release identity.
           $version = $env:PRISM_PACKAGE_VERSION.TrimStart('v')
-          if ($version -notmatch '^(\d+\.\d+\.\d+)(-[0-9A-Za-z.]+)?$') { throw "Version '$version' must be major.minor.patch, optionally with a label such as -alpha.1" }
+          if ($version -notmatch '^(\d+\.\d+\.\d+)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$') { throw "Version '$version' must be major.minor.patch, optionally with a label such as -alpha.1" }
           "PRISM_PACKAGE_VERSION=$($Matches[1])" >> $env:GITHUB_ENV
+          "PRISM_RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - name: Linux build prerequisites
         if: env.SELECTED == 'true' && matrix.platform == 'linux'
         run: sudo apt-get update; sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config ninja-build libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libgl1-mesa-dev dpkg-dev
@@ -81,7 +82,7 @@ jobs:
           "C:/Program Files (x86)/NSIS" >> $env:GITHUB_PATH
       - name: Publish and package
         if: env.SELECTED == 'true'
-        run: ./packaging/Build-Installer.ps1 -Runtime '${{ matrix.runtime }}' -Version $env:PRISM_PACKAGE_VERSION
+        run: ./packaging/Build-Installer.ps1 -Runtime '${{ matrix.runtime }}' -Version $env:PRISM_PACKAGE_VERSION -ReleaseVersion $env:PRISM_RELEASE_VERSION
       - name: Verify native runtime in published app
         if: env.SELECTED == 'true'
         run: |
@@ -155,7 +156,7 @@ jobs:
         run: |
           ls -l release
           [ -n "$(ls release)" ] || { echo "No installers were built"; exit 1; }
-          # v0.2.0-alpha.1 -> "Prism 0.2.0 Alpha 1"
+          # v0.3.0-alpha.1 -> "Prism 0.3.0 Alpha 1"
           title="Prism $(echo "${VERSION#v}" | sed -E 's/-([a-z]+)\.?([0-9]*)$/ \u\1 \2/; s/ +$//')"
           gh release create "$VERSION" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "$title" --prerelease --notes-file .github/release-notes.md --generate-notes

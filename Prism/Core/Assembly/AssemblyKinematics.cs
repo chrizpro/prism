@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,6 +7,16 @@ namespace Prism.Core.Assembly;
 /// <summary>The joint solver on its own, away from the document: it positions every component outwards from the grounded ones.</summary>
 public static class AssemblyKinematics
 {
+    internal static bool IsClosed(IReadOnlyDictionary<string, Xform> placement, JointInfo j)
+    {
+        var wanted = placement[j.ParentKey] * j.A * j.Motion();
+        var actual = placement[j.ChildKey] * j.B;
+        if (wanted.T.DistanceTo(actual.T) > 1e-6) return false;
+        for (int i = 0; i < wanted.R.Length; i++)
+            if (Math.Abs(wanted.R[i] - actual.R[i]) > 1e-8) return false;
+        return true;
+    }
+
     /// <summary>How far a loop-closing joint is from being satisfied: translation (mm) then rotation (radians) of where the child is against where the joint says it should be.</summary>
     public static double[] ClosureError(IReadOnlyDictionary<string, Xform> placement, JointInfo j, IReadOnlyDictionary<string, Xform>? extra = null)
     {
@@ -28,6 +39,7 @@ public static class AssemblyKinematics
         var jl = CouplingSolver.Apply(joints, couplings ?? [], log).Where(j => placement.ContainsKey(j.ParentKey) && placement.ContainsKey(j.ChildKey)).ToList();
         var placed = new HashSet<string>(grounded.Where(placement.ContainsKey));
         var used = new HashSet<string>();
+        var loopJoints = new List<JointInfo>();
 
         bool Step()
         {
@@ -35,7 +47,7 @@ public static class AssemblyKinematics
             {
                 if (used.Contains(j.Key)) continue;
                 bool p = placed.Contains(j.ParentKey), c = placed.Contains(j.ChildKey);
-                if (p && c) { used.Add(j.Key); closing?.Add(j); log.Add($"{j.Name}: both parts are already positioned by other joints (a closed loop), so this joint is not enforced."); continue; }
+                if (p && c) { used.Add(j.Key); loopJoints.Add(j); continue; }
                 if (!p && !c) continue;
                 var jm = j.Motion();
                 if (extra != null && extra.TryGetValue(j.Key, out var small)) jm = small * jm;          // a tiny extra relative motion in the joint's parent frame
@@ -54,6 +66,10 @@ public static class AssemblyKinematics
             if (seed == null) break;
             placed.Add(seed.ParentKey);
         }
+        if (closing != null) closing.AddRange(loopJoints);
+        else if (extra == null)
+            foreach (var j in loopJoints.Where(j => !IsClosed(placement, j)))
+                log.Add($"{j.Name}: the linkage does not close at this position.");
         return placement;
     }
 }

@@ -45,6 +45,7 @@ public sealed class MeshRebuildCommand : MeshCommand
     protected override CommandOutput? Build()
     {
         Results.Clear();
+        Row("Output", _create.Index == 0 ? "Analysis only; no CAD geometry is created" : "Fitted CAD faces or a direct-edit shell/solid; original sketches and feature history are not recovered");
         var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
         var m = obj.Tri!;
         var an = Cached(Key(obj.Id, m.TriCount, _tol.Value, _angle.Value, _minTris.Value, _extended.Value, _merge.Value, _devTol.Value), () =>
@@ -390,7 +391,7 @@ public sealed class MeshSectionSketchCommand : MeshCommand
                 if (segs.Count == 0) continue;
                 loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, LineArcFit.MaxDeviation(p2, segs));
                 lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
-                _overlay.Add(segs.SelectMany(s => (s.IsArc ? new[] { s.P0, s.Mid, s.P1 } : new[] { s.P0, s.P1 }).Select(q => plane.PointAt(q.x, q.y))).ToList());
+                _overlay.Add(segs.SelectMany(s => s.Polyline().Select(q => plane.PointAt(q.x, q.y))).ToList());
                 AddToSketch(model, segs, l.Closed);
             }
             if (found == 0) continue;
@@ -401,6 +402,8 @@ public sealed class MeshSectionSketchCommand : MeshCommand
         Row("Outlines", loops.ToString());
         Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
         Row("Largest deviation", N(worst, "mm"), worst <= _tol.Value * 1.5 ? 1 : 2);
+        Row("Output", "Editable sketch geometry; dimensions and geometric constraints are not added automatically");
+        Row("Next", "Edit the sketch, add dimensions and constraints, then extrude or revolve. Use Deviation to compare the rebuilt part with the scan.");
         return new CommandOutput
         {
             Label = Title, Icon = Icon,
@@ -455,7 +458,7 @@ public sealed class MeshSectionFitCommand : MeshCommand
                 if (segs.Count == 0) continue;
                 loops++; rawPts += l.Points.Count; worst = Math.Max(worst, LineArcFit.MaxDeviation(p2, segs));
                 Vec3 P3((double x, double y) q) => u * q.x + v * q.y + n * h;
-                _overlay.Add(segs.SelectMany(s => s.IsArc ? new[] { P3(s.P0), P3(s.Mid), P3(s.P1) } : new[] { P3(s.P0), P3(s.P1) }).ToList());
+                _overlay.Add(segs.SelectMany(s => s.Polyline().Select(P3)).ToList());
                 lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
                 if (!_create.Value) continue;
                 var edges = new List<Shape>();

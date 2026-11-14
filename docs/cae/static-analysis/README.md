@@ -12,6 +12,8 @@ Thermal, modal, topology optimization, fatigue, contact/nonlinear analysis and m
 
 ## Current implementation
 
+Owner approved ribbon organization. The Static ribbon follows Select, Setup, Supports, Loads, Solve, Results, Advanced, and Reuse & Export. Setup keeps study selection and Materials together. Fixed Support, Force and Pressure stay visible. Other support/load types use menus. Mesh Refinement follows Run Study. Fatigue and Generative Design are under Advanced. [CAE ribbon checks](../../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs) verify the workflow and retained tools.
+
 Source: [study definitions](../../../Prism/Simulation/Study.cs), [setup references](../../../Prism/Simulation/StudySetup.cs), [StudyRunner](../../../Prism/Simulation/StudyRunner.cs), [native interface](../../../Prism.Kernel/Sim.cs) and [native solver](../../../native/sim.cpp). Ribbon entry points are in [MainViewModel.cs](../../../Prism/ViewModels/MainViewModel.cs).
 
 | Area | Source-observed behavior |
@@ -26,6 +28,8 @@ Source: [study definitions](../../../Prism/Simulation/Study.cs), [setup referenc
 | Validation | Missing body/material/fixture/load and invalid/stale face references have explicit validation paths |
 
 The single-body path uses `prism_sim`; multi-body work uses a separate CalculiX-backed path. Neither should silently substitute for the other in test reporting.
+
+**New Study brings its panel forward (2026-11-12):** creating a study selects the context tab on the right so the Simulation panel is what the user sees, even when Properties or another tab had been selected by hand (the owner reported staring at Properties after New Study). The Simulation context behaves like a command or sketch: it takes the front while a study is active and gives the previous tab back afterwards. Maintained check: UX-H006 in [UsabilityWorkflowTests](../../../Prism.Tests/Headless/Interface/UsabilityWorkflowTests.cs).
 
 ## Independent axial-bar benchmark
 

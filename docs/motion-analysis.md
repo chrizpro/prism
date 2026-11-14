@@ -2,7 +2,7 @@
 
 The CAE workspace has a **Motion** tab for mechanisms. The same tools cover gears, pistons, robot arms, suspensions, linkages, lifts, presses and more: there is nothing specific to any one of them. A mechanism is parts, joints, couplings between joints, a drive on each joint, and forces.
 
-The Motion tab has the assembly tools it needs, and they are the same parts and joints as the Assemble workspace.
+The Motion ribbon has Setup, Loads and Results sections. Assemble and Joints provide the parts and joints used by the study. Owner approved this workflow in [#122](https://github.com/chrizpro/prism/issues/122).
 
 ## The workflow
 
@@ -24,6 +24,14 @@ The Motion tab has the assembly tools it needs, and they are the same parts and 
 
 A study runs with or without **masses and forces**. Without them it needs no materials and gives the motion alone. With them it also gives motor torque, power, energy and joint reactions, and gravity, springs and loads act. It starts with them on when every part has a material, or when the assembly has springs or loads. A joint set to Free turns them on, because a free joint only moves under forces.
 
+Use **Study mode** to choose Movement only or Include forces. **Joint drive** selects the one drive whose controls are shown. The summary lists the other drives. Hidden controls keep their values and still participate in the solve. The panel separates Setup, Drives, Loads, Solve and Results. **Run study** runs in the background, reports progress and offers **Stop study**. Results are discarded if inputs or model geometry change during the run.
+
+**Time** in Results uses seconds, with the viewport showing the nearest stored output sample. The displayed Showing result reports the actual sample time. The scripting input retains the label **Show the motion at**, with units now seconds.
+
+For **Move to a position**, choose Smooth start/stop for the existing minimum-jerk profile, or Custom curve to open the shared Curve Editor. Apply curve stores the profile on that drive for the next run. Position, speed and acceleration use the curve and its derivatives. For a finite, forward-moving time mapping, the start handle's Time must be above zero, the end handle's Time below one, and the start handle no later than the end handle. Nonzero endpoint slopes introduce a speed change when the move starts or ends. Study inputs remain session state.
+
+[Maintained workflow tests](../Prism.Tests/Headless/Assembly/MotionWorkflowTests.cs) verify selection changes preserve drive and force settings, cancellation, discarding stale results, custom curve derivatives and sample-time controls.
+
 Every joint gets one drive:
 
 | Drive | Meaning |
@@ -31,7 +39,7 @@ Every joint gets one drive:
 | Hold | Stays at its starting position |
 | Constant speed | A steady speed in °/s or mm/s |
 | Oscillate | A sine of a given amplitude and frequency about the start |
-| Move to a position | A smooth minimum-jerk move: it waits, moves, and stops at rest |
+| Move to a position | Waits, moves to the target, then holds. Smooth start/stop uses minimum jerk; Custom curve lets you shape its timing. |
 | Follow a table | Rows of time and position, typed or from a file |
 | Follow the tool path | The joint moves so a point on the mechanism traces a curve |
 | Free | Moves under gravity, loads and friction from a starting position and speed. It can carry a motor with a torque–speed curve: stall torque (or force) and no-load speed, with the push falling linearly between them |
@@ -61,7 +69,7 @@ A piston, a slider-crank, a four-bar or any linkage whose joints form a loop wor
 
 The equations of motion are written in the coordinates that remain, so a piston's motor torque, speed, acceleration and the energy balance are exact for the rigid model: they match the textbook slider-crank formulas to better than 0.01 %. A joint inside a loop cannot be driven if the loop already fixes it; drive one of the loop's free joints. A loop closed in a different position than the model starts in is closed from the start (the dependent joints are solved to meet), so make the parts meet where the joints are.
 
-Drive Joints closes loops the same way: the joint you move stays where you put it and the rest of the loop follows. Positions a linkage cannot reach are refused. Animations still solve joints outwards from the grounded part and do not enforce loops.
+Drive Joints closes loops the same way: the joint you move stays where you put it and the rest of the loop follows. Positions a linkage cannot reach are refused. Animation poses also close loops while keeping keyed joints as the inputs.
 
 ## Joint reactions
 
@@ -71,7 +79,7 @@ The largest are listed in the study's results with the time they peak; arrows at
 
 ### From motion to a Static study
 
-**Motion → Review → Load from Motion** turns a joint's force from the last Motion Study into a load: choose the joint, a moment (when the force is largest, or a time you choose), whether it acts on the joint's child or its parent (equal and opposite), and the faces of the part that take it. The assembly is moved to that moment so the part sits as it did, and a new Static study is created on that part with the force on those faces. Add supports where the part is held and run it. The force alone is not balanced: the part needs supports, or the loads of its other joints, to be in equilibrium.
+**Motion → Results → Load from Motion** turns a joint's force from the last Motion Study into a load: choose the joint, a moment (when the force is largest, or a time you choose), whether it acts on the joint's child or its parent (equal and opposite), and the faces of the part that take it. The assembly is moved to that moment so the part sits as it did, and a new Static study is created on that part with the force on those faces. Add supports where the part is held and run it. The force alone is not balanced: the part needs supports, or the loads of its other joints, to be in equilibrium.
 
 ## Reading the results
 
@@ -98,7 +106,7 @@ The engine tests also cover a full piston (position, speed and acceleration agai
 - **Rigid bodies only.** No flexing, vibration or stress. Use the Static and Dynamics tabs for those, with loads read from this study.
 - **Ideal joints and gears.** No clearance, backlash, tooth contact or friction beyond the viscous friction you enter, and no efficiency loss in gears.
 - **Contact is not computed.** Parts are not tested against each other while a study runs; the collision check is a separate sweep. Reactions are rigid-body values: they do not include flexing, clearance or tooth-contact effects. So a cam needs its lift as a table, and a Geneva wheel, a ratchet or a drop test cannot be simulated.
-- **Animations do not close loops** (see above). A free joint inside a loop whose neighbour is also free keeps only one of them as a coordinate; its initial speed is then set by the loop. At a dead point (a piston at top dead centre with no flywheel) the effective inertia is zero and a free crank has no defined acceleration; give the crank a flywheel or drive it.
+- A free joint inside a loop whose neighbour is also free keeps only one of them as a coordinate; its initial speed is then set by the loop. At a dead point (a piston at top dead centre with no flywheel) the effective inertia is zero and a free crank has no defined acceleration; give the crank a flywheel or drive it.
 - Inverse kinematics is position-only unless six joints follow the path; paths are followed at a given speed, not a given time, and there is no collision avoidance or singularity check beyond reporting unreachable points.
 - Joint limits are inelastic stops.
 - A motor curve applies only to a free joint. A driven joint moves as told, so its torque is reported and not limited.

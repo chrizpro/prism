@@ -63,4 +63,16 @@ public class ShortcutTests
         }
         Assert.Equal("", Hotkeys.ShortcutFor("Solid", "Fillet"));
     }
+
+    [Fact(DisplayName = "KEY-U005 | Space maximizes the hovered quad view globally while Animation Play/Pause keeps Space when the timeline is open")]
+    [Trait("TestId", "KEY-U005")]
+    public void SpaceYieldsToAnimationTimeline()
+    {
+        var max = Hotkeys.Actions.Single(a => a.Id == "view.quad.maximize");
+        Assert.Equal(("Space", Hotkeys.Global), (max.Default, max.Scope));
+        var play = Hotkeys.Actions.Single(a => a.Id == "animation.play");
+        Assert.Equal(("Space", Hotkeys.Command), (play.Default, play.Scope));
+        Assert.Equal(["view.quad.maximize"], Hotkeys.Resolve("Space", Hotkeys.ActiveScopes(false, false, "design")).Select(a => a.Id));
+        Assert.Equal(["animation.play", "view.quad.maximize"], Hotkeys.Resolve("Space", Hotkeys.ActiveScopes(true, false, "design")).Select(a => a.Id));
+    }
 }

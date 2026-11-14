@@ -12,6 +12,8 @@ pictures differ (mean absolute pixel difference, 0-255). A path-traced render is
 Prism's renderer does not draw toolpaths, reference pictures or analysis colours, so CAM scenarios plot the toolpath from the posted G-code and CAE
 scenarios print their numbers into the sheet.
 """
+import sys
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # check lines hold characters such as arrows and the intersection sign; a Windows console cannot print them by default
 import argparse
 import json
 import sys
@@ -177,6 +179,22 @@ def difference(a, b):
     return sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3
 
 
+def process_alive(pid):
+    """Whether a process with this id is running. os.kill(pid, 0) must not be used on Windows: there it ends the process instead of testing it."""
+    import os
+    import subprocess
+    if os.name == "nt":
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
+        return str(pid) in out.split()
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def main():
     global OUT, FAST
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -203,11 +221,12 @@ def main():
     lock = OUT / ".running"
     if lock.exists():
         try:
-            import os
-            os.kill(int(lock.read_text()), 0)
+            alive = process_alive(int(lock.read_text()))
+        except ValueError:
+            alive = False      # a damaged lock
+        if alive:
             parser.error(f"another visual run (pid {lock.read_text()}) is using Prism: two runs on one app mix up their pictures. Wait for it, or delete {lock}.")
-        except (ProcessLookupError, ValueError):
-            pass      # a stale lock from a run that was stopped
+        # otherwise a stale lock from a run that was stopped
     import os
     lock.write_text(str(os.getpid()))
     bridge, log = study.connect_mcp(args.discovery)

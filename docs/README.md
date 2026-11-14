@@ -7,6 +7,7 @@
 - [Interface](interface/README.md) covers controls and panels used across workspaces.
 - [Drawing](drawing/README.md) covers editable engineering drawing sheets, annotations and export.
 - [Engineering](engineering/requirements-and-testing.md) covers requirements, testing and maintenance.
+- [NURBS, Freeform and viewport-interaction plan](engineering/nurbs-freeform-viewport-plan.md) is the proposed next batch, awaiting owner decisions.
 
 Use the [ribbon and workspace index](tabs/README.md) to find guides by their location in the app.
 

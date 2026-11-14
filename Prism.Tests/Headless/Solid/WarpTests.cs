@@ -149,4 +149,30 @@ public class WarpTests
         AssertClose(30 * 10 * 10, shape.Props().Volume, 1, "Stretched solid volume (mm³)");
         AssertClose(30, shape.Props().Max.X, 1e-3, "Stretched solid length (mm)");
     }
+
+    // The build meshes the stored shape for its bounds before the NURBS convert step, and that used to leave the
+    // converted faces with no surface at all (the command reported "Face has no surface."). A flat patch rolled
+    // 90° along its 80 mm span becomes a quarter cylinder of radius 80/(π/2) ≈ 50.9 mm.
+    [AvaloniaFact(DisplayName = "WRP-H008 | Bend rolls a NURBS surface patch into a cylindrical sheet")]
+    [Trait("TestId", "WRP-H008")]
+    public void BendNurbsSurface()
+    {
+        var session = new CadSession();
+        var poles = new Vec3[16];
+        for (int r = 0; r < 4; r++) for (int c = 0; c < 4; c++)
+            poles[r * 4 + c] = new Vec3(-40 + c * (80.0 / 3), -30 + r * 20, 0);
+        var sheet = session.AddObject(Occ.NurbsSurface(poles, 4, 4, 3, 3), "Sheet", ObjKind.Surface);
+        var command = Warp(session, sheet, "Bend", "X");
+        SetChoice(command, "Bend toward", "+Z");
+        SetNumber(command, "Angle", 90);
+        var (_, bent) = Assert.Single(BuildOutput(command).Replace);
+        Assert.Equal(ShapeKind.Face, bent.Kind);
+        double radius = 80 / (Math.PI / 2);
+        var bounds = bent.Props();
+        AssertClose(-40, bounds.Min.X, 0.1, "Bend start edge stays (mm)");
+        AssertClose(-40 + radius, bounds.Max.X, 2, "Rolled edge X (mm)");
+        AssertClose(radius, bounds.Max.Z, 2, "Rolled height (mm)");
+        AssertClose(-30, bounds.Min.Y, 0.1, "Width minimum (mm)");
+        AssertClose(30, bounds.Max.Y, 0.1, "Width maximum (mm)");
+    }
 }
