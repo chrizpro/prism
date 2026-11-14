@@ -95,12 +95,49 @@ public sealed class CurveFilletCommand : Command
         _keep.IsVisible = S == null || !_curve.Items.Any(IsBodyEdge);
     }
 
+    /// <summary>How close two separate surfaces' edges must be to count as one shared edge (mm).</summary>
+    const double MeetTolerance = 0.05;
+
+    /// <summary>
+    /// Edges picked on two or more separate surfaces: sew the surfaces where they meet, find the shared edges and round or cut them.
+    /// The surfaces become one. Edges that do not meet within <see cref="MeetTolerance"/> are refused, because there is nothing to round between them.
+    /// </summary>
+    void FilletAcrossSurfaces(CommandOutput o, List<SelItem> picked, double size)
+    {
+        var objs = picked.Select(i => S.Find(i.Obj)!).Distinct().ToList();
+        if (objs.Any(x => x.Kind != ObjKind.Surface)) throw new FormatException("Rounding between separate pieces works on surfaces. Pick the edges of one body, or of surfaces that meet.");
+        Shape sewn;
+        try { sewn = Occ.Sew(objs.Select(x => x.Shape).ToList(), MeetTolerance, false); }
+        catch (KernelException) { throw new FormatException($"Those surfaces could not be joined where they meet (within {MeetTolerance} mm). Move them together, or Sew them first."); }
+        var targets = new List<int>();
+        foreach (var item in picked)
+        {
+            var box = (S.ShapeOf(item) ?? throw new FormatException("That edge is gone.")).Props();
+            for (int i = 0; i < sewn.Count(SubKind.Edge); i++)
+            {
+                var e = sewn.Sub(SubKind.Edge, i).Props();
+                if (e.Min.DistanceTo(box.Min) < MeetTolerance && e.Max.DistanceTo(box.Max) < MeetTolerance) { targets.Add(i); break; }
+            }
+        }
+        // only edges the two surfaces share can be rounded: an edge used by one face is an open border
+        var open = Occ.FreeEdges(sewn).ToHashSet();
+        var shared = targets.Distinct().Where(i => !open.Contains(i)).ToArray();
+        if (shared.Length == 0) throw new FormatException($"Those edges do not meet within {MeetTolerance} mm, so there is nothing to round between them. Pick the two edges where the surfaces touch, or move the surfaces together.");
+        Shape result;
+        try { result = Chamfer ? Occ.Chamfer(sewn, shared, size) : Occ.Fillet(sewn, shared, size); }
+        catch (KernelException e) { throw new FormatException(e.Message + " The surfaces were joined where they meet; try a smaller size."); }
+        o.Remove.AddRange(objs);
+        o.Add.Add(new(result, Chamfer ? "Chamfered surface" : "Filleted surface", ObjKind.Surface));
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         double size = Chamfer ? _distance.Value : _radius.Value;
         var o = new CommandOutput();
-        foreach (var body in _curve.Items.Where(IsBodyEdge).GroupBy(i => i.Obj))
+        var bodyEdges = _curve.Items.Where(IsBodyEdge).ToList();
+        if (bodyEdges.Select(i => i.Obj).Distinct().Count() > 1) FilletAcrossSurfaces(o, bodyEdges, size);
+        else foreach (var body in bodyEdges.GroupBy(i => i.Obj))
         {
             var obj = S.Find(body.Key)!; var edges = body.Select(i => i.Index).Distinct().ToArray();
             try { o.Replace.Add((obj, Chamfer ? Occ.Chamfer(obj.Shape, edges, size) : Occ.Fillet(obj.Shape, edges, size))); }
