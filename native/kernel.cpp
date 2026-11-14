@@ -504,6 +504,41 @@ CK_API void* ck_thread_groove(double diameter, double pitch, double depth, int l
         return wrap(clip.Shape());
     CATCH(nullptr)
 }
+// A truncated 60-degree external-thread groove, along local +Z: the space between two turns of a bolt thread, to be cut from a plain cylinder
+// whose radius is the thread's major radius. Root radius is major - 0.6134 pitch; a flat of 1/8 pitch is left at the crest.
+CK_API void* ck_thread_groove_external(double diameter, double pitch, double depth, int leftHand) {
+    TRY
+        if (!std::isfinite(diameter) || !std::isfinite(pitch) || !std::isfinite(depth) ||
+            pitch <= 0 || diameter <= 1.2269 * pitch || depth <= 0 || depth / pitch > 200) {
+            fail("Invalid thread dimensions (maximum 200 turns)."); return nullptr;
+        }
+        const double pi = 3.14159265358979323846, tan30 = 0.5773502691896257;
+        double major = diameter / 2, root = major - .613435 * pitch, over = .01 * pitch;
+        double z0 = -pitch, hand = leftHand ? -1.0 : 1.0;
+        Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(gp::XOY()), root);
+        gp_Dir2d slope(hand * 2 * pi, pitch);
+        Handle(Geom2d_Line) line = new Geom2d_Line(gp_Pnt2d(0, z0), slope);
+        double length = (depth + 2 * pitch) * std::sqrt(4 * pi * pi + pitch * pitch) / pitch;
+        TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(line, surface, 0, length).Edge();
+        BRepLib::BuildCurves3d(edge);
+        TopoDS_Wire spine = BRepBuilderAPI_MakeWire(edge).Wire();
+        double halfCrest = .4375 * pitch, halfRoot = halfCrest - tan30 * .613435 * pitch, halfOuter = halfCrest + over * tan30;
+        BRepBuilderAPI_MakePolygon polygon;
+        polygon.Add(gp_Pnt(root, 0, z0 - halfRoot));
+        polygon.Add(gp_Pnt(major + over, 0, z0 - halfOuter));
+        polygon.Add(gp_Pnt(major + over, 0, z0 + halfOuter));
+        polygon.Add(gp_Pnt(root, 0, z0 + halfRoot));
+        polygon.Close();
+        BRepOffsetAPI_MakePipeShell pipe(spine);
+        pipe.SetMode(true);
+        pipe.Add(polygon.Wire()); pipe.Build();
+        if (!pipe.IsDone() || !pipe.MakeSolid()) { fail("Thread sweep failed."); return nullptr; }
+        BRepAlgoAPI_Common clip(pipe.Shape(), BRepPrimAPI_MakeCylinder(major + pitch, depth).Shape());
+        clip.Build();
+        if (!clip.IsDone() || !BRepCheck_Analyzer(clip.Shape()).IsValid()) { fail("Thread groove is invalid."); return nullptr; }
+        return wrap(clip.Shape());
+    CATCH(nullptr)
+}
 CK_API void* ck_loft(void** sections, int n, int solid, int ruled) {
     TRY
         BRepOffsetAPI_ThruSections ts(solid != 0, ruled != 0);

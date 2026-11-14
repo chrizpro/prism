@@ -151,6 +151,9 @@ public static unsafe class Occ
     public static Shape Sphere(double r) => Wrap(Native.ck_sphere(r));
     public static Shape Cone(double r1, double r2, double h) => Wrap(Native.ck_cone(r1, r2, h));
     public static Shape Torus(double major, double minor) => Wrap(Native.ck_torus(major, minor));
+    /// <summary>The space between two turns of an external (bolt) thread along local +Z, to cut from a plain cylinder of the major diameter.</summary>
+    public static Shape ThreadGrooveExternal(double diameter, double pitch, double depth, bool leftHand = false)
+        => Wrap(Native.ck_thread_groove_external(diameter, pitch, depth, leftHand ? 1 : 0));
     public static Shape ThreadGroove(double diameter, double pitch, double depth, bool leftHand = false)
         => Wrap(Native.ck_thread_groove(diameter, pitch, depth, leftHand ? 1 : 0));
 

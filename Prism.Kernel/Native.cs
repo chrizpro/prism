@@ -16,6 +16,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_sphere(double r);
     [DllImport(Lib)] public static extern IntPtr ck_cone(double r1, double r2, double h);
     [DllImport(Lib)] public static extern IntPtr ck_torus(double R, double r);
+    [DllImport(Lib)] public static extern IntPtr ck_thread_groove_external(double diameter, double pitch, double depth, int leftHand);
     [DllImport(Lib)] public static extern IntPtr ck_thread_groove(double diameter, double pitch, double depth, int leftHand);
 
     [DllImport(Lib)] public static extern IntPtr ck_line(double* a, double* b);
