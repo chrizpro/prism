@@ -598,6 +598,7 @@ public sealed class CurveCurvatureCommand : Command
 
 // =================================================================== surfaces
 /// <summary>A surface spanning two to four boundary curves.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class EdgeSurfaceCommand : Command
 {
     readonly SelectionSlot _edges;
@@ -614,6 +615,7 @@ public sealed class EdgeSurfaceCommand : Command
 }
 
 /// <summary>A surface joining an edge of one surface to an edge of another with controlled continuity.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class BlendSurfaceCommand : Command
 {
     /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
@@ -775,6 +777,7 @@ public sealed class RebuildSurfaceCommand : Command
 
 // =================================================================== network surface and deformers
 /// <summary>A smooth surface inside a closed outline that is also pinned to curves running across it.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class NetworkSurfaceCommand : Command
 {
     readonly SelectionSlot _outline, _across;
