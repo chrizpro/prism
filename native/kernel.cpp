@@ -1270,6 +1270,67 @@ CK_API void* ck_surface_match_edge(void* source, int side, void* reference, int 
         return wrap(face);
     CATCH(nullptr)
 }
+// ---- Wrap: lay flat 2D coordinates onto a face by distance ----
+// Each point (x, y) is reached by walking from the start point over the face in direction atan2(y, x), by the distance sqrt(x^2 + y^2),
+// keeping the walking direction in the tangent plane as it goes. That keeps lengths true on planes, cylinders and cones, and is a close
+// approximation near the start on other surfaces. xdir is the direction (3D) that the plane's +X maps to at the start.
+CK_API int ck_wrap_points(void* target, const double* start, const double* xdir, const double* xy, int n, double* out) {
+    TRY
+        const TopoDS_Shape& sh = get(target);
+        gp_Pnt s0(start[0], start[1], start[2]);
+        TopoDS_Face face; double best = 1e300;
+        TopTools_IndexedMapOfShape faces; TopExp::MapShapes(sh, TopAbs_FACE, faces);
+        if (faces.Extent() == 0) throw Standard_Failure("There is no face to wrap onto.");
+        TopoDS_Vertex sv = BRepBuilderAPI_MakeVertex(s0).Vertex();
+        for (int i = 1; i <= faces.Extent(); i++) {
+            BRepExtrema_DistShapeShape d(sv, faces(i));
+            if (d.IsDone() && d.NbSolution() > 0 && d.Value() < best) { best = d.Value(); face = TopoDS::Face(faces(i)); }
+        }
+        if (face.IsNull()) throw Standard_Failure("There is no face to wrap onto.");
+        TopLoc_Location loc; Handle(Geom_Surface) gs = BRep_Tool::Surface(face, loc);
+        if (gs.IsNull()) throw Standard_Failure("The face has no surface.");
+        double u, v; GeomAPI_ProjectPointOnSurf pr(s0.Transformed(loc.Transformation().Inverted()), gs);
+        if (pr.NbPoints() < 1) throw Standard_Failure("The start point cannot be placed on the face.");
+        pr.LowerDistanceParameters(u, v);
+        BRepAdaptor_Surface su(face);
+        double u0 = u, v0 = v;
+        gp_Pnt P; gp_Vec Su, Sv; su.D1(u0, v0, P, Su, Sv);
+        gp_Vec N = Su.Crossed(Sv); if (N.Magnitude() < 1e-12) throw Standard_Failure("The face is singular at the start point.");
+        N.Normalize();
+        gp_Vec e1(xdir[0], xdir[1], xdir[2]); e1 = e1 - N * e1.Dot(N);
+        if (e1.Magnitude() < 1e-9) e1 = Su - N * Su.Dot(N);
+        e1.Normalize(); gp_Vec e2 = N.Crossed(e1);
+        Bnd_Box bb; BRepBndLib::Add(face, bb); double x0, y0, z0, x1, y1, z1; bb.Get(x0, y0, z0, x1, y1, z1);
+        double stepLen = std::max(std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0)) / 300.0, 1e-3);
+        bool periodicU = su.IsUPeriodic(), periodicV = su.IsVPeriodic();
+        double ua = su.FirstUParameter(), ub = su.LastUParameter(), va = su.FirstVParameter(), vb = su.LastVParameter();
+        double tu = 1e-6 * std::max(ub - ua, 1.0), tv = 1e-6 * std::max(vb - va, 1.0);
+        for (int k = 0; k < n; k++) {
+            double x = xy[2 * k], y = xy[2 * k + 1], r = std::hypot(x, y);
+            gp_Pnt Q = P;
+            if (r > 1e-12) {
+                double th = std::atan2(y, x), cu = u0, cv = v0;
+                gp_Vec d = e1 * std::cos(th) + e2 * std::sin(th);
+                int steps = std::clamp((int)std::ceil(r / stepLen), 1, 600); double h = r / steps;
+                for (int i = 0; i < steps; i++) {
+                    gp_Pnt p; gp_Vec a, b; su.D1(cu, cv, p, a, b);
+                    gp_Vec nn = a.Crossed(b); if (nn.Magnitude() < 1e-12) throw Standard_Failure("The curve crosses a singular point of the face.");
+                    nn.Normalize(); d = d - nn * d.Dot(nn); if (d.Magnitude() < 1e-12) throw Standard_Failure("The curve cannot be wrapped there.");
+                    d.Normalize();
+                    gp_Vec delta = d * h;
+                    double E = a.Dot(a), F = a.Dot(b), G = b.Dot(b), det = E * G - F * F, r1 = delta.Dot(a), r2 = delta.Dot(b);
+                    if (std::abs(det) < 1e-18) throw Standard_Failure("The curve crosses a singular point of the face.");
+                    cu += (r1 * G - r2 * F) / det; cv += (E * r2 - F * r1) / det;
+                    if ((!periodicU && (cu < ua - tu || cu > ub + tu)) || (!periodicV && (cv < va - tv || cv > vb + tv)))
+                        throw Standard_Failure("The curve runs off the face. Move it, make it smaller, or wrap onto a larger face.");
+                }
+                Q = su.Value(cu, cv);
+            }
+            out[3 * k] = Q.X(); out[3 * k + 1] = Q.Y(); out[3 * k + 2] = Q.Z();
+        }
+        return 1;
+    CATCH(0)
+}
 CK_API int ck_curve_get_poles(void* e, double* xyz) {
     TRY auto c = edgeCurve(get(e));
         for (int i = 1; i <= c->NbPoles(); ++i) { gp_Pnt p = c->Pole(i); xyz[3*(i-1)] = p.X(); xyz[3*(i-1)+1] = p.Y(); xyz[3*(i-1)+2] = p.Z(); }

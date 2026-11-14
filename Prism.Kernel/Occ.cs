@@ -306,6 +306,18 @@ public static unsafe class Occ
     public static Shape Chamfer(Shape s, int[] edges, double d) { fixed (int* p = edges) return Wrap(Native.ck_chamfer(s.Handle, p, edges.Length, d)); }
     public static Shape Shell(Shape s, int[] openFaces, double t) { fixed (int* p = openFaces) return Wrap(Native.ck_shell(s.Handle, p, openFaces.Length, t)); }
     public static Shape Offset(Shape s, double d) => Wrap(Native.ck_offset(s.Handle, d));
+    /// <summary>Lay flat (x, y) coordinates onto the face nearest <paramref name="start"/> by walking that distance and direction over it. <paramref name="xDirection"/> is where +X points on the face at the start.</summary>
+    public static Vec3[] WrapPoints(Shape target, Vec3 start, Vec3 xDirection, IReadOnlyList<(double x, double y)> flat)
+    {
+        var xy = new double[flat.Count * 2];
+        for (int i = 0; i < flat.Count; i++) { xy[2 * i] = flat[i].x; xy[2 * i + 1] = flat[i].y; }
+        var result = new double[flat.Count * 3];
+        double* s = stackalloc double[3] { start.X, start.Y, start.Z };
+        double* d = stackalloc double[3] { xDirection.X, xDirection.Y, xDirection.Z };
+        fixed (double* p = xy) fixed (double* o = result)
+            if (Native.ck_wrap_points(target.Handle, s, d, p, flat.Count, o) == 0) throw new KernelException(LastError);
+        return [.. Enumerable.Range(0, flat.Count).Select(i => new Vec3(result[3 * i], result[3 * i + 1], result[3 * i + 2]))];
+    }
     /// <summary>Shell with a different wall thickness on some faces (signed like <paramref name="t"/>: negative for walls inside).</summary>
     public static Shape ShellVariable(Shape s, int[] openFaces, double t, int[] ownFaces, double[] ownThickness)
     {

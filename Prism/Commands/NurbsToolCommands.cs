@@ -502,6 +502,76 @@ public sealed class ProjectCurveCommand : Command
     }
 }
 
+/// <summary>Lay flat curves onto a surface by distance, so lengths along the curve stay true (a circle wrapped on a cylinder stays as long around).</summary>
+public sealed class WrapCurveCommand : Command
+{
+    readonly SelectionSlot _curves, _target;
+    readonly NumberParam _shiftX, _shiftY, _turn;
+    readonly BoolParam _keep;
+    public WrapCurveCommand()
+    {
+        _curves = Slot(new SelectionSlot { Label = "Flat curves to wrap", Filter = NurbsUtil.CurveIn, Multi = true });
+        _target = Slot(new SelectionSlot { Label = "Surface to wrap onto", Filter = NurbsUtil.SurfaceIn });
+        _shiftX = Num("Slide across", 0);
+        _shiftY = Num("Slide along", 0);
+        _turn = Num("Rotate", 0, -360, 360, 5, "°");
+        _keep = Check("Keep the original curves", false);
+    }
+    public override string Title => "Wrap Curve";
+    public override string Icon => "section";
+    public override string Hint => "Lay flat curves onto a surface by distance: the curve is placed where the surface is nearest to it, then every point is reached by walking that far over the surface. Lengths stay true on planes, cylinders and cones. Slide and rotate move the pattern on the face.";
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        Results.Clear();
+        var target = NurbsUtil.OfItem(S, _target.Items[0]);
+        var edges = new List<List<Vec3>>();
+        foreach (var item in _curves.Items)
+            foreach (var samples in Occ.CurveSamples(NurbsUtil.Curve(S, item), 120, 64))
+                edges.Add([.. samples.Select(s => s.p)]);
+        var all = edges.SelectMany(e => e).ToList();
+        if (all.Count < 2) throw new FormatException("Pick curves to wrap.");
+
+        // The flat frame: the plane the curves lie in, with X as close to the world X as that plane allows.
+        var centre = all.Aggregate(Vec3.Zero, (a, p) => a + p) * (1.0 / all.Count);
+        var normal = Vec3.Zero;
+        foreach (var e in edges) for (int i = 1; i < e.Count; i++) normal += Vec3.Cross(e[i - 1] - centre, e[i] - centre);
+        if (normal.Length < 1e-9)
+        {
+            // a straight line has no plane of its own: use the one that holds it and the world Z
+            var along = (all[^1] - all[0]).Normalized();
+            normal = Vec3.Cross(along, Math.Abs(along.Z) < 0.9 ? Vec3.UnitZ : Vec3.UnitX);
+        }
+        normal = normal.Normalized();
+        foreach (var e in edges) foreach (var p in e) if (Math.Abs(Vec3.Dot(p - centre, normal)) > 1e-3 * Math.Max(1, (all.Max(q => q.DistanceTo(centre)))))
+            throw new FormatException("These curves are not flat. Wrap works on curves that lie in one plane; project a curve onto a plane first.");
+        var xAxis = Vec3.UnitX - normal * Vec3.Dot(Vec3.UnitX, normal);
+        if (xAxis.Length < 1e-6) xAxis = Vec3.UnitY - normal * Vec3.Dot(Vec3.UnitY, normal);
+        xAxis = xAxis.Normalized(); var yAxis = Vec3.Cross(normal, xAxis);
+        double a = _turn.Value * Math.PI / 180, ca = Math.Cos(a), sa = Math.Sin(a);
+
+        var wrapped = new List<Shape>(); double flatLength = 0, wrappedLength = 0;
+        foreach (var e in edges)
+        {
+            var flat = e.Select(p =>
+            {
+                double x = Vec3.Dot(p - centre, xAxis), y = Vec3.Dot(p - centre, yAxis);
+                return (x: x * ca - y * sa + _shiftX.Value, y: x * sa + y * ca + _shiftY.Value);
+            }).ToList();
+            var pts = Occ.WrapPoints(target, centre, xAxis, flat);
+            for (int i = 1; i < pts.Length; i++) { flatLength += e[i].DistanceTo(e[i - 1]); wrappedLength += pts[i].DistanceTo(pts[i - 1]); }
+            bool closed = pts[0].DistanceTo(pts[^1]) < 1e-6 && pts.Length > 3;
+            wrapped.Add(Occ.Spline(closed ? pts[..^1] : pts, closed));
+        }
+        Results.Add(new ResultLine("Length before", $"{flatLength:G6} mm"));
+        Results.Add(new ResultLine("Length after", $"{wrappedLength:G6} mm"));
+        var output = NurbsUtil.Curves([Occ.Compound(wrapped)], "Wrapped curve");
+        if (!_keep.Value) NurbsUtil.RemoveSources(S, output, _curves.Items);
+        return output;
+    }
+}
+
 /// <summary>Curves of constant U or V on a surface.</summary>
 public sealed class IsoCurveCommand : Command
 {
