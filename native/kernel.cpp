@@ -1372,6 +1372,40 @@ CK_API int ck_wrap_points(void* target, const double* start, const double* xdir,
         return 1;
     CATCH(0)
 }
+// For points lying along an edge of a face (a profile that starts where the face ends), the direction leaving the face across that edge,
+// in the face's tangent plane. out holds 3 numbers per point. Picks the edge of the face that runs along all the points.
+CK_API int ck_face_exit_dirs(void* reference, int n, const double* pts, double* out) {
+    TRY
+        if (n < 1) throw Standard_Failure("No points to read directions for.");
+        TopTools_IndexedMapOfShape faces; TopExp::MapShapes(get(reference), TopAbs_FACE, faces);
+        if (faces.Extent() == 0) throw Standard_Failure("The reference has no face.");
+        double extent = 0;
+        for (int i = 1; i < n; i++) extent = std::max(extent, gp_Pnt(pts[0], pts[1], pts[2]).Distance(gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2])));
+        TopoDS_Face bestFace; TopoDS_Edge bestEdge; double bestScore = 1e300;
+        for (int fi = 1; fi <= faces.Extent(); fi++) {
+            TopoDS_Face face = TopoDS::Face(faces(fi));
+            TopTools_IndexedMapOfShape edges; TopExp::MapShapes(face, TopAbs_EDGE, edges);
+            for (int ei = 1; ei <= edges.Extent(); ei++) {
+                TopoDS_Edge edge = TopoDS::Edge(edges(ei));
+                if (BRep_Tool::Degenerated(edge)) continue;
+                try {
+                    BRepAdaptor_Curve ec(edge); double score = 0;
+                    for (int i = 0; i < n; i++) { double d; seam::nearest(ec, gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]), d); score = std::max(score, d); }
+                    if (score < bestScore) { bestScore = score; bestFace = face; bestEdge = edge; }
+                } catch (Standard_Failure&) { continue; }
+            }
+        }
+        if (bestEdge.IsNull() || bestScore > std::max(0.5 * extent, 1e-3))
+            throw Standard_Failure("No edge of that face runs along the profile. Pick the face the profile starts from.");
+        BRepAdaptor_Curve ec(bestEdge); int sign = seam::inward(bestFace, bestEdge);
+        for (int i = 0; i < n; i++) {
+            double d; double t = seam::nearest(ec, gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]), d);
+            seam::Frame fr = seam::frameAt(bestFace, bestEdge, ec, t, sign);
+            out[3 * i] = -fr.T.X(); out[3 * i + 1] = -fr.T.Y(); out[3 * i + 2] = -fr.T.Z();
+        }
+        return 1;
+    CATCH(0)
+}
 CK_API int ck_curve_get_poles(void* e, double* xyz) {
     TRY auto c = edgeCurve(get(e));
         for (int i = 1; i <= c->NbPoles(); ++i) { gp_Pnt p = c->Pole(i); xyz[3*(i-1)] = p.X(); xyz[3*(i-1)+1] = p.Y(); xyz[3*(i-1)+2] = p.Z(); }

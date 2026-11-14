@@ -80,6 +80,13 @@ Open decisions: alignment and starting-point rules, resampling corners, cap wind
 
 The NURBS ribbon invokes the same exact Surface Loft command without an additional conversion step. Shared surface-command checks do not certify the NURBS ribbon, subsequent point editing, knot/degree structure, or continuity. Define any such promises through owner review.
 
+## End tangency
+
+- **LFT-P1 delivered 2026-11-14 (owner request: fix shallow tools).** Loft and Loft Surface have **Start tangency** and **End tangency**: *Free* (as before), *Square to the profile*, or *Match a face*. They shape how the loft leaves or arrives at an end profile, with a **Tangent strength** (how far the direction is held, as a fraction of the distance to the next profile; default 0.25).
+- *Square to the profile* holds the loft along the normal of a flat end profile before it turns toward the next one. *Match a face* leaves the profile in the tangent plane of a face you pick (the face the profile starts from): each point moves the way the face leaves its edge. Both work by adding a helper profile a short way along the chosen direction, which the loft passes through, so the tangency is held in direction rather than as a certified G1 match; check it with Zebra Stripes or Surface Continuity.
+- Tangency needs an open loft that ends on profiles: it is refused with a message together with guide rails, a closed loft or an end point, for a profile that is not flat when *Square* is chosen, or when *Match a face* has no face picked.
+- **Acceptance.** Lofting a 10 mm square at z = 0 to the same square at z = 20 shifted 10 mm in X: the free loft's section 1 mm up is 0.5 mm off the axis; with *Square to the profile* at the start it stays within 0.15 mm. Matching the flat top face of a box along its edge keeps a loft within 0.35 mm of that plane 1 mm out, where the free loft is 1 mm above it. Tests: [LFT-H030 to LFT-H033](../../../Prism.Tests/Headless/Loft/LoftTangencyTests.cs), Loft slice 19 of 19 passed on Windows; not tried by hand. With tangency at both ends the middle swings past the ends by up to about 4% of the offset, which is the nature of a smooth curve through four points.
+
 ## Tests and evidence
 
 - [Unit supporting math](../../../Prism.Tests/Unit/Loft/).

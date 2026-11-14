@@ -1137,9 +1137,11 @@ public sealed class LoftCommand : BodyCommand
                     _pointPositions.Add(Core.Sketching.SketchModel.To3(plane, model.P(entity.A)));
                 }
     }
-    readonly SelectionSlot _sections, _rails;
+    readonly SelectionSlot _sections, _rails, _startFace, _endFace;
     readonly BoolParam _ruled, _closed;
     readonly IntParam _railSteps;
+    readonly ChoiceParam _startTan, _endTan;
+    readonly NumberParam _tanStrength;
     public LoftCommand(bool surface = false)
     {
         _surface = surface;
@@ -1153,6 +1155,13 @@ public sealed class LoftCommand : BodyCommand
         _closed.HelpText = "Connect the last profile back to the first.";
         _railSteps = Add(new IntParam { Label = "Guide rail accuracy (sections along the rail)", Caption = "Rail accuracy", Min = 4, Max = 40, Value = 12, IsAdvanced = true, HelpText = "Number of intermediate sections used to follow the rails." });
         if (!surface) AddOperation();
+        // added after the operation so a saved loft keeps its settings
+        _startTan = Choice("Start tangency", 0, "Free", "Square to the profile", "Match a face");
+        _endTan = Choice("End tangency", 0, "Free", "Square to the profile", "Match a face");
+        _startFace = Slot(new SelectionSlot { Label = "Face to match at the start", Filter = SelFilter.Face | SelFilter.SurfaceObj, Optional = true });
+        _endFace = Slot(new SelectionSlot { Label = "Face to match at the end", Filter = SelFilter.Face | SelFilter.SurfaceObj, Optional = true });
+        _tanStrength = Num("Tangent strength", 0.25, 0.05, 1, 0.05, "");
+        _tanStrength.HelpText = "How far the loft keeps to the chosen direction before turning toward the next profile, as a fraction of the distance to that profile. Larger holds the direction longer.";
     }
     public override string Title => _surface ? "Loft Surface" : "Loft";
     public override string Hint => "Click a curve to take its whole connected chain as one profile (blue, numbered in pick order). Switch to Guide rails to pick one or two rails (orange). The rule list under each slot changes this (Single edges, Connected chain, Tangent chain, Partial loop); Ctrl or Shift always takes one edge; click a picked curve again to remove it. A sketch holding several curves is never taken as a whole.";
@@ -1160,7 +1169,51 @@ public sealed class LoftCommand : BodyCommand
     protected override void UpdateVisibility()
     {
         _railSteps.IsVisible = _rails.Items.Count > 0;
+        _startFace.IsVisible = _startTan.Index == 2; _endFace.IsVisible = _endTan.Index == 2;
+        _tanStrength.IsVisible = _startTan.Index > 0 || _endTan.Index > 0;
         base.UpdateVisibility();
+    }
+
+    /// <summary>
+    /// Make the loft leave (or arrive at) an end profile in a chosen direction by adding a helper profile a short way along it, which the loft then passes through.
+    /// Square to the profile moves a copy of a flat profile along its normal; Match a face moves each point of the profile along the way the face leaves its edge.
+    /// </summary>
+    Shape TangencyHelper(Shape profile, Shape neighbour, int mode, SelectionSlot faceSlot, string where)
+    {
+        var toward = neighbour.Props().Center - profile.Props().Center;
+        double distance = toward.Length * _tanStrength.Value;
+        if (mode == 1)
+        {
+            if (GuidedLoft.SectionNormal(profile) is not { } normal) throw new FormatException($"The {where} profile is not flat, so it has no square direction. Choose Match a face or Free.");
+            if (Vec3.Dot(normal, toward) < 0) normal = -normal;
+            return Occ.Translate(profile, normal * distance);
+        }
+        if (faceSlot.Items.Count == 0) throw new FormatException($"Pick the face to match at the {where}.");
+        var face = NurbsUtil.OfItem(S, faceSlot.Items[0]);
+        var edges = Occ.CurveSamples(profile, 24, 64);
+        var all = edges.SelectMany(e => e.Select(x => x.p)).ToList();
+        var directions = Occ.FaceExitDirections(face, all);
+        var moved = new List<Shape>(); int k = 0;
+        foreach (var edge in edges)
+        {
+            var pts = new List<Vec3>();
+            foreach (var sample in edge) pts.Add(sample.p + directions[k++] * distance);
+            var a = pts[0]; var b = pts[^1]; double chord = (b - a).Length;
+            if (chord > 1e-9 && pts.All(q => Vec3.Cross(q - a, (b - a) / chord).Length < 1e-4 * chord + 1e-7)) moved.Add(Occ.Line(a, b));
+            else if (chord < 1e-9) moved.Add(Occ.Spline(pts.Take(pts.Count - 1).ToList(), true));
+            else moved.Add(Occ.Spline(pts));
+        }
+        return Occ.Profile(moved, false);
+    }
+
+    void AddTangency(List<Shape> sections)
+    {
+        if (_startTan.Index == 0 && _endTan.Index == 0) return;
+        if (_rails.Items.Count > 0) throw new FormatException("Tangency works without guide rails. Clear the rails or set both tangencies to Free.");
+        if (_closed.Value || _endPoint.Index > 0) throw new FormatException("Tangency works on an open loft that ends on a profile. Turn off Close the loft and the end point, or set both tangencies to Free.");
+        Shape first = sections[0], second = sections[1], last = sections[^1], before = sections[^2];
+        if (_endTan.Index > 0) sections.Insert(sections.Count - 1, TangencyHelper(last, before, _endTan.Index, _endFace, "end"));
+        if (_startTan.Index > 0) sections.Insert(1, TangencyHelper(first, second, _startTan.Index, _startFace, "start"));
     }
 
     public override bool PickPoint(PickResult hit, bool additive)
@@ -1283,7 +1336,12 @@ public sealed class LoftCommand : BodyCommand
             shape = GuidedLoft.Build(secs, rails, !_surface, _ruled.Value, _railSteps.Value);
             Results.Add(new ResultLine("Guide rails", $"{rails.Count} rail(s) steer the shape through {_railSteps.Value} sections"));
         }
-        else shape = Occ.Loft(secs, !_surface, _ruled.Value);
+        else
+        {
+            AddTangency(secs);
+            shape = Occ.Loft(secs, !_surface, _ruled.Value);
+            if (_startTan.Index > 0 || _endTan.Index > 0) Results.Add(new ResultLine("Tangency", $"start {_startTan.Options[_startTan.Index].ToLowerInvariant()}, end {_endTan.Options[_endTan.Index].ToLowerInvariant()}"));
+        }
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Loft");
     }
@@ -1368,7 +1426,7 @@ static class GuidedLoft
     }
 
     /// <summary>The normal of a flat section, or null when it is not flat (found from the point farthest from the middle and the one farthest from that line).</summary>
-    static Vec3? SectionNormal(Shape w)
+    internal static Vec3? SectionNormal(Shape w)
     {
         var pts = Occ.CurveSamples(w, 17, 64).SelectMany(e => e.Select(s => s.p)).ToList();
         if (pts.Count < 3) return null;

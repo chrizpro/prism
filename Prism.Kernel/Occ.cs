@@ -360,6 +360,14 @@ public static unsafe class Occ
     public static Shape ToNurbs(Shape s) => Wrap(Native.ck_nurbs_convert(s.Handle));
     public static Shape MatchSurface(Shape source, int side, Shape reference, int refSide, int continuity, bool reverse = false, double scale = 1)
         => Wrap(Native.ck_surface_match(source.Handle, side, reference.Handle, refSide, continuity, reverse ? 1 : 0, scale));
+    /// <summary>For points along an edge of a face, the direction leaving the face across that edge (unit, in the face's tangent plane).</summary>
+    public static Vec3[] FaceExitDirections(Shape face, IReadOnlyList<Vec3> points)
+    {
+        var flat = Flat(points); var result = new double[flat.Length];
+        fixed (double* p = flat) fixed (double* o = result)
+            if (Native.ck_face_exit_dirs(face.Handle, points.Count, p, o) == 0) throw new KernelException(LastError);
+        return [.. Enumerable.Range(0, points.Count).Select(i => new Vec3(result[3 * i], result[3 * i + 1], result[3 * i + 2]))];
+    }
     /// <summary>Match a boundary of a patch to the nearest edge of any reference face (trimmed faces and faces of solids included); the patch's control rows along that boundary are refitted.</summary>
     public static (Shape Result, double Gap, double RmsGap, double NormalAngle, double CurvatureDifference, int Rows) MatchSurfaceToEdge(Shape source, int side, Shape reference, int continuity, double scale = 1, bool refine = true)
     {
