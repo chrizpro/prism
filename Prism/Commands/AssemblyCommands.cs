@@ -112,6 +112,10 @@ public sealed class JointCommand : Command
     readonly BoolParam _limits;
     readonly NumberParam _min, _max, _min2, _max2;
 
+    // Joints saved before "Placement" have no value for it, which would shift "Limit the motion" and every limit after it by one.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_placement), 0) : recipe;
+
     public JointCommand(JointType type)
     {
         _type = type;

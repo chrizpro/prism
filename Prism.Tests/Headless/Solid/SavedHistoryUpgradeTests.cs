@@ -78,4 +78,26 @@ public class SavedHistoryUpgradeTests
         var scope = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Repair scope");
         Assert.Equal("Entire mesh", scope.Options[scope.Index]);
     }
+
+    [AvaloniaFact(DisplayName = "SOL-H117 | A joint saved before Placement keeps its motion limits")]
+    [Trait("TestId", "SOL-H117")]
+    public void JointRecipeKeepsLimits()
+    {
+        var session = new CadSession();
+        var joint = Begin(session, () => new JointCommand(Prism.Core.Assembly.JointType.Revolute));
+        joint.Params.OfType<BoolParam>().Single(p => p.Label == "Limit the motion").Value = true;
+        SetNumber(joint, "Minimum angle", -30);
+        SetNumber(joint, "Maximum angle", 75);
+        var saved = joint.Capture()!;
+        int placement = joint.Params.IndexOf(joint.Params.OfType<ChoiceParam>().Single(p => p.Label == "Placement"));
+        // a step saved before the placement choice existed: the same list without that value
+        var values = saved.Values.ToList(); values.RemoveAt(placement);
+        var again = Begin(new CadSession(), () => new JointCommand(Prism.Core.Assembly.JointType.Revolute));
+        again.Restore(saved with { Values = values });
+        Assert.True(again.Params.OfType<BoolParam>().Single(p => p.Label == "Limit the motion").Value);
+        Assert.Equal(-30, Number(again, "Minimum angle"));
+        Assert.Equal(75, Number(again, "Maximum angle"));
+        var choice = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Placement");
+        Assert.Equal("Snap to picks", choice.Options[choice.Index]);
+    }
 }
