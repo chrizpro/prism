@@ -17,6 +17,7 @@ public sealed class ConstructionPlaneCommand : Command
 
     readonly ChoiceParam _method;
     readonly SelectionSlot _base, _second, _hinge, _curve, _tanFace, _edge1, _edge2, _flat;
+    readonly SelectionSlot[] _picked = new SelectionSlot[3];
     readonly NumberParam _distance, _angle, _size, _pos;
     readonly IntParam _count;
     readonly TextParam _list;
@@ -34,6 +35,9 @@ public sealed class ConstructionPlaneCommand : Command
         _edge1 = Slot(new SelectionSlot { Label = "First straight edge", Filter = SelFilter.Edge | SelFilter.CurveObj, IsVisible = false });
         _edge2 = Slot(new SelectionSlot { Label = "Second straight edge", Filter = SelFilter.Edge | SelFilter.CurveObj, IsVisible = false });
         _flat = Slot(new SelectionSlot { Label = "Flat curve or sketch", Filter = SelFilter.AnyCurve | SelFilter.Edge, IsVisible = false });
+        string[] ordinal = ["First", "Second", "Third"];
+        for (int i = 0; i < 3; i++)
+            _picked[i] = Slot(new SelectionSlot { Label = $"{ordinal[i]} point (a corner or a point)", Filter = SelFilter.Vertex | SelFilter.Datum, Optional = true, IsVisible = false });
         _distance = Num("Distance", 10);
         _angle = Num("Angle", 45, -360, 360, 5, "°");
         _count = Add(new IntParam { Label = "Number of planes", Min = 1, Max = 100, Value = 1 });
@@ -44,6 +48,14 @@ public sealed class ConstructionPlaneCommand : Command
         string[] names = ["Point 1 X", "Point 1 Y", "Point 1 Z", "Point 2 X", "Point 2 Y", "Point 2 Z", "Point 3 X", "Point 3 Y", "Point 3 Z"];
         double[] def = [0, 0, 0, 50, 0, 0, 0, 50, 30];
         for (int i = 0; i < 9; i++) { _pt[i] = Num(names[i], def[i]); _pt[i].IsVisible = false; }
+    }
+
+    /// <summary>Where a picked corner or point is.</summary>
+    Vec3 PickedPoint(SelItem item, int number)
+    {
+        if (item.Kind == SelKind.Vertex && S.VertexPoint(item) is { } corner) return corner;
+        if (item.Kind == SelKind.Datum && S.Find(item.Obj)?.SketchData is { } model && item.Index >= 0 && item.Index < model.Datums.Count) return model.Datums[item.Index].Frame.Origin;
+        throw new InvalidOperationException($"Point {number} is gone or is not a point. Pick it again.");
     }
 
     public override string Title => "Construction Plane";
@@ -58,7 +70,7 @@ public sealed class ConstructionPlaneCommand : Command
         Method.TwoEdges => "Pick two straight edges that lie in one flat sheet (parallel, or crossing). The plane contains both.",
         Method.FlatCurve => "Pick a flat curve or sketch: the plane is the one it lies in.",
         Method.NormalToCurve => "Pick a curve or edge. Planes are placed across it, square to the curve, spread evenly along its length (or at the percentages you list). Ideal sections for a loft.",
-        _ => "Type the coordinates of three points; the plane passes through all of them.",
+        _ => "Click three points: corners of a body, or points you made. The plane passes through all of them. To use a point that is not on the model, leave its pick empty and type its coordinates.",
     };
 
     protected override void UpdateVisibility()
@@ -69,6 +81,7 @@ public sealed class ConstructionPlaneCommand : Command
         _hinge.IsVisible = m == Method.Angle;
         _curve.IsVisible = m == Method.NormalToCurve;
         _tanFace.IsVisible = m == Method.TangentFace; _edge1.IsVisible = _edge2.IsVisible = m == Method.TwoEdges; _flat.IsVisible = m == Method.FlatCurve;
+        foreach (var slot in _picked) slot.IsVisible = m == Method.ThreePoints;
         _distance.IsVisible = m == Method.Offset;
         _angle.IsVisible = m is Method.Angle or Method.TangentFace;
         _count.IsVisible = m is Method.Offset or Method.Angle or Method.NormalToCurve or Method.TangentFace;
@@ -301,7 +314,7 @@ public sealed class ConstructionPlaneCommand : Command
             }
             case Method.ThreePoints:
             {
-                var P = Enumerable.Range(0, 3).Select(i => new Vec3(_pt[3 * i].Value, _pt[3 * i + 1].Value, _pt[3 * i + 2].Value)).ToArray();
+                var P = Enumerable.Range(0, 3).Select(i => _picked[i].Items.Count > 0 ? PickedPoint(_picked[i].Items[0], i + 1) : new Vec3(_pt[3 * i].Value, _pt[3 * i + 1].Value, _pt[3 * i + 2].Value)).ToArray();
                 var n = Vec3.Cross(P[1] - P[0], P[2] - P[0]);
                 if (n.Length < 1e-9) throw new InvalidOperationException("The three points are in a line, so they do not define a plane.");
                 var u = (P[1] - P[0]).Normalized();

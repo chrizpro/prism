@@ -63,6 +63,12 @@ Windows verification passed 32 targeted Assembly and ribbon Headless checks and 
 
 Desktop scenario ASM-I003 opened a new clip on the gallery orrery, keyed a joint at 2.125 s and 5 s, and scrubbed back to verify 65° at 2.125 s. [Desktop capture](evidence/ASM-I003-animation-timeline.png).
 
+## Joint placement
+
+- **Found with the app's scripting interface and fixed 2026-11-14 (owner report: the moving part disappears).** A joint snaps the second part so its picked frame meets the first part's. For a round face (a hole wall or a pin) the frame's position along the axis came from where the face's surface was built, not from the face: a hole made with a long cutter put it at the cutter's base, so a pin snapped 500 mm away and looked as if it had vanished (parts from imported files can do the same). The frame is now level with the middle of the face; picking the circle edge was already exact. Tests: [JNT-H001](../../../Prism.Tests/Headless/Assembly/JointPlacementTests.cs) with cutters starting at 0, 500 mm below and 300 mm above the plate.
+- **Warnings added:** the panel now says when the second part ends up inside the first (two faces that point the same way, for example, put it inside; the message says by how much and suggests Flip or a facing face), and when the part picked to move is the grounded one, so the first part moves instead ([JNT-H002, JNT-H003](../../../Prism.Tests/Headless/Assembly/JointPlacementTests.cs)). Nothing was changed about how Direction is chosen or who is grounded.
+- **Checked and found working** in the app: all six joint types on flat faces, Revolute with edges and faces, Keep where it is, limits (a driven angle clamps at the limit), Drive Joints, undo and redo of a joint, and saving and reopening a document with a joint.
+
 ## Verification
 
 In the model browser, collapse the **Joints** folder to shorten the tree. Its eye hides or shows every joint's viewport frame, label and drive handle, including joints omitted by the browser search. If any row in the folder is visible, the next click hides all. Use an individual joint's eye to control it separately. Joint and coupling definitions, limits and motion remain active. [ASM-H122](../../../Prism.Tests/Headless/Assembly/AssemblyToolTests.cs) exercises the gallery orrery. [Bug #99](https://github.com/chrizpro/prism/issues/99).

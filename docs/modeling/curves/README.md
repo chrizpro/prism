@@ -26,6 +26,10 @@ Curve tools share the primary icon color of the visible modeling ribbon. See the
 
 Old Split history and the `curve_split` scripting name use a compatibility adapter that delegates cutting to Trim, retaining the old parameter schema. Old Divide Curve and Duplicate Edge saved identities resolve to the renamed commands. Existing scripting names (`curve_divide`, `curve_duplicate_edge`) remain valid. Old configurable button IDs and shortcut targets are retained, as are former Curves/Edit curves dropdown IDs in customized layouts. Reset a tab in Settings to adopt the shipped grouping.
 
+## Curve from a table
+
+- **Checked and improved 2026-11-14 (owner report).** *Curve from Data* in its table mode read typed text or a file, and a sheet of the Data panel only through the panel's *Make curve* button or by typing `@` and the sheet's name. It now lists the document's sheets in **Use a table from the Data panel**, with **Open the Data panel** and **New table for this curve** (which adds a sheet, points the curve at it and opens the panel to type or paste into). A curve step saved before the choice existed reopens with its values in place. Tests: [CRV-H050 to CRV-H052](../../../Prism.Tests/Headless/Curves/CurveFromTableTests.cs).
+
 ## Verification
 
 [Curve command checks](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) and [expression unit checks](../../../Prism.Tests/Unit/Solid/CurveExpressionTests.cs). [Tracking issue #36](https://github.com/chrizpro/prism/issues/36).

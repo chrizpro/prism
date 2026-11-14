@@ -24,6 +24,9 @@ public sealed class EquationCurveCommand : Command
     readonly IntParam _count = null!;
     // table mode
     readonly TextParam _rows = null!, _file = null!;
+    readonly ChoiceParam _sheet = null!;
+    readonly List<string> _sheetNames = [NoSheet];
+    const string NoSheet = "None: type or paste the points below";
     readonly NumberParam _scale = null!;
     // shared
     readonly ChoiceParam _kind;
@@ -34,7 +37,28 @@ public sealed class EquationCurveCommand : Command
     readonly ChoiceParam _hand = null!, _axis = null!;
 
     /// <summary>Read the points from a sheet of the Data panel.</summary>
-    public void UseSheet(string name) { _source.Index = 1; _rows.Value = "@" + name; OnChanged(); }
+    public void UseSheet(string name) { _source.Index = 1; _file.Value = ""; _rows.Value = "@" + name; RefreshSheets(); OnChanged(); }
+
+    /// <summary>List the document's sheets in the table choice, keeping the one in use selected.</summary>
+    void RefreshSheets()
+    {
+        _sheetNames.Clear(); _sheetNames.Add(NoSheet);
+        _sheetNames.AddRange(S.DataSheets.Select(s => s.Name));
+        string used = _rows.Value.StartsWith('@') ? _rows.Value[1..].Trim() : "";
+        int at = _sheetNames.FindIndex(1, n => n.Equals(used, StringComparison.OrdinalIgnoreCase));
+        _sheet.SetSilently(at < 0 ? 0 : at);
+    }
+
+    protected override void OnBegin() { RefreshSheets(); }
+
+    // The table choice sits after the file box; a saved step from before it existed has three fewer values (the choice and two buttons).
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (recipe.Values.Count != Params.Count - 3) return recipe;
+        int at = Params.IndexOf(_sheet);
+        recipe = InsertValue(recipe, at, 0); recipe = InsertValue(recipe, at + 1, null);
+        return InsertValue(recipe, at + 2, null);
+    }
 
     public EquationCurveCommand(bool table)
     {
@@ -49,6 +73,10 @@ public sealed class EquationCurveCommand : Command
         _angles = Choice("Angles in", 0, "Degrees", "Radians");
         _rows = Text("Points", "0,0,0; 20,10,5; 40,0,10; 60,-10,15", "x,y,z per point, separated by ; or new lines (x,y works too)");
         _file = Text("…or read a file or sheet", "", "a .csv, .txt or .xlsx file, or @ and the name of a sheet in the Data panel");
+        _sheet = Add(new ChoiceParam { Label = "Use a table from the Data panel", Options = _sheetNames, HelpText = "The sheets of the Data panel, which saves with the document. Pick one to take the points from its first numeric columns (x, y, z). Open the panel to type, paste from Excel or open a CSV." });
+        _sheet.Changed = () => { if (_sheet.Index > 0 && _sheet.Index < _sheetNames.Count) { _file.Value = ""; _rows.Value = "@" + _sheetNames[_sheet.Index]; } OnChanged(); };
+        Add(new ActionParam { Label = "Open the Data panel", Run = () => S.RequestDataPanel() });
+        Add(new ActionParam { Label = "New table for this curve", Run = () => { var sheet = S.NewSheet(); RefreshSheets(); UseSheet(sheet.Name); S.RequestDataPanel(); } });
         _scale = Num("Scale", 1, 1e-6, 1e6, 0.1, "×");
         _kind = Choice("Curve", 0, "Smooth through the points", "NURBS control points", "Straight segments");
         _closed = Check("Closed", false);
@@ -65,7 +93,7 @@ public sealed class EquationCurveCommand : Command
     protected override void UpdateVisibility()
     {
         _system.IsVisible = _e1.IsVisible = _e2.IsVisible = _e3.IsVisible = _t0.IsVisible = _t1.IsVisible = _count.IsVisible = _angles.IsVisible = !Table;
-        _rows.IsVisible = _file.IsVisible = _scale.IsVisible = Table;
+        _rows.IsVisible = _file.IsVisible = _scale.IsVisible = _sheet.IsVisible = Table;
         _system.IsVisible = _e1.IsVisible = _e2.IsVisible = _e3.IsVisible = _t0.IsVisible = _t1.IsVisible = _count.IsVisible = _angles.IsVisible = _source.Index == 0;
         _radius.IsVisible = _endRadius.IsVisible = _pitch.IsVisible = _turns.IsVisible = _hand.IsVisible = _axis.IsVisible = Helix;
     }

@@ -670,6 +670,8 @@ public abstract partial class Command : ObservableObject
             foreach (var parameter in Params) parameter.IsVisible = step.parameters.Contains(parameter);
             foreach (var slot in Slots) slot.IsVisible = false;
         }
+        // A setting that hides the slot picks were going into (a different Method, say) must not leave clicks in the viewport going to the hidden one.
+        else if (ActiveSlot is { IsVisible: false }) ActivateFirstOpenSlot();
         ConfigureInputs(() =>
         {
             foreach (var slot in Slots.Where(s => s.IsPartialLoop && s.PathNeedsUpdate))
