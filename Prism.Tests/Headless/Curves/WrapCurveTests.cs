@@ -64,4 +64,26 @@ public class WrapCurveTests
         var (command, _) = Wrap(session, bent, box, build: false);
         AssertBuildFails(command, "not flat");
     }
+
+    static void WrapsOntoTheSphere(Vec3 from, Vec3 to)
+    {
+        var session = new CadSession();
+        var ball = session.AddObject(Occ.Sphere(20), "Ball", ObjKind.Solid);
+        var line = session.AddObject(Occ.Polyline([from, to], false), "Line", ObjKind.Curve);
+        var (command, output) = Wrap(session, line, ball);
+        AssertClose(20, Mm(Result(command, "Length before")), 1e-3, "Length before (mm)");
+        // walked over the sphere, a 20 mm line is a 20 mm great-circle arc, 1 radian of it
+        AssertClose(20, Mm(Result(command, "Length after")), 0.1, "Length after (mm)");
+        var wrapped = Assert.Single(output.Add).Shape!;
+        foreach (var point in Occ.CurveSamples(wrapped, 9, 1)[0].Select(s => s.p))
+            AssertClose(20, point.Length, 0.02, "Distance of a wrapped point from the centre (mm)");
+    }
+
+    [AvaloniaFact(DisplayName = "CRV-H046 | Wrap onto a sphere keeps the walked distance and lands every point on the sphere")]
+    [Trait("TestId", "CRV-H046")]
+    public void WrapsOntoASphereByDistance() => WrapsOntoTheSphere(new(26, -10, 0), new(26, 10, 0));
+
+    [AvaloniaFact(DisplayName = "CRV-H047 | Wrap onto a sphere works right over its pole too")]
+    [Trait("TestId", "CRV-H047")]
+    public void WrapsOverASpherePole() => WrapsOntoTheSphere(new(-10, 0, 26), new(10, 0, 26));
 }

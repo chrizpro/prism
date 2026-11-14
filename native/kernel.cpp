@@ -1335,8 +1335,12 @@ CK_API int ck_wrap_points(void* target, const double* start, const double* xdir,
         pr.LowerDistanceParameters(u, v);
         BRepAdaptor_Surface su(face);
         double u0 = u, v0 = v;
+        double ua = su.FirstUParameter(), ub = su.LastUParameter(), va = su.FirstVParameter(), vb = su.LastVParameter();
         gp_Pnt P; gp_Vec Su, Sv; su.D1(u0, v0, P, Su, Sv);
-        gp_Vec N = Su.Crossed(Sv); if (N.Magnitude() < 1e-12) throw Standard_Failure("The face is singular at the start point.");
+        gp_Vec N = Su.Crossed(Sv);
+        // a pole of a sphere or cone tip has no normal: start a hair to the side of it
+        for (int nudge = 1; N.Magnitude() < 1e-9 && nudge <= 4; nudge++) { v0 = v + (v < 0.5 * (va + vb) ? 1 : -1) * nudge * 1e-4 * (vb - va); su.D1(u0, v0, P, Su, Sv); N = Su.Crossed(Sv); }
+        if (N.Magnitude() < 1e-12) throw Standard_Failure("The face is singular at the start point.");
         N.Normalize();
         gp_Vec e1(xdir[0], xdir[1], xdir[2]); e1 = e1 - N * e1.Dot(N);
         if (e1.Magnitude() < 1e-9) e1 = Su - N * Su.Dot(N);
@@ -1344,7 +1348,6 @@ CK_API int ck_wrap_points(void* target, const double* start, const double* xdir,
         Bnd_Box bb; BRepBndLib::Add(face, bb); double x0, y0, z0, x1, y1, z1; bb.Get(x0, y0, z0, x1, y1, z1);
         double stepLen = std::max(std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0)) / 300.0, 1e-3);
         bool periodicU = su.IsUPeriodic(), periodicV = su.IsVPeriodic();
-        double ua = su.FirstUParameter(), ub = su.LastUParameter(), va = su.FirstVParameter(), vb = su.LastVParameter();
         double tu = 1e-6 * std::max(ub - ua, 1.0), tv = 1e-6 * std::max(vb - va, 1.0);
         for (int k = 0; k < n; k++) {
             double x = xy[2 * k], y = xy[2 * k + 1], r = std::hypot(x, y);
@@ -1355,13 +1358,20 @@ CK_API int ck_wrap_points(void* target, const double* start, const double* xdir,
                 int steps = std::clamp((int)std::ceil(r / stepLen), 1, 600); double h = r / steps;
                 for (int i = 0; i < steps; i++) {
                     gp_Pnt p; gp_Vec a, b; su.D1(cu, cv, p, a, b);
-                    gp_Vec nn = a.Crossed(b); if (nn.Magnitude() < 1e-12) throw Standard_Failure("The curve crosses a singular point of the face.");
+                    gp_Vec nn = a.Crossed(b);
+                    if (nn.Magnitude() < 1e-9) { cv += (cv < 0.5 * (va + vb) ? 1 : -1) * 1e-5 * (vb - va); su.D1(cu, cv, p, a, b); nn = a.Crossed(b); }      // stepping over a pole: nudge off it
+                    if (nn.Magnitude() < 1e-12) throw Standard_Failure("The curve crosses a singular point of the face.");
                     nn.Normalize(); d = d - nn * d.Dot(nn); if (d.Magnitude() < 1e-12) throw Standard_Failure("The curve cannot be wrapped there.");
                     d.Normalize();
                     gp_Vec delta = d * h;
                     double E = a.Dot(a), F = a.Dot(b), G = b.Dot(b), det = E * G - F * F, r1 = delta.Dot(a), r2 = delta.Dot(b);
                     if (std::abs(det) < 1e-18) throw Standard_Failure("The curve crosses a singular point of the face.");
                     cu += (r1 * G - r2 * F) / det; cv += (E * r2 - F * r1) / det;
+                    // walking over a pole (a sphere's, say): carry on down the far side, half a turn round
+                    if (periodicU && !periodicV && (cv > vb + tv || cv < va - tv)) {
+                        double edgeV = cv > vb ? vb : va; gp_Pnt pp; gp_Vec pa, pb; su.D1(cu, edgeV, pp, pa, pb);
+                        if (pa.Crossed(pb).Magnitude() < 1e-9) { cv = 2 * edgeV - cv; cu += su.UPeriod() / 2; }
+                    }
                     if ((!periodicU && (cu < ua - tu || cu > ub + tu)) || (!periodicV && (cv < va - tv || cv > vb + tv)))
                         throw Standard_Failure("The curve runs off the face. Move it, make it smaller, or wrap onto a larger face.");
                 }

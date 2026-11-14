@@ -116,4 +116,52 @@ public class BoundaryModeTests
         Assert.Equal(0, reopened.Params.OfType<ChoiceParam>().Single(p => p.Label == "Mode").Index);
         Assert.False(reopened.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Join the patch")).Value);
     }
+
+    static double DistanceTo(Shape surface, Vec3 point) { using var vertex = Occ.Vertex(point); return Occ.Distance(vertex, surface).Distance; }
+
+    [AvaloniaFact(DisplayName = "BND-H011 | Edge mode on the four straight edges of a saddle gives the exact ruled surface")]
+    [Trait("TestId", "BND-H011")]
+    public void EdgeModeSaddleIsExact()
+    {
+        var session = new CadSession();
+        // corners (0,0,0) (10,0,0) (10,10,10) (0,10,0): the surface z = x*y/10 (a hyperbolic paraboloid), every edge a straight line
+        var edges = new[]
+        {
+            Line(session, new(0, 0, 0), new(10, 0, 0)), Line(session, new(10, 0, 0), new(10, 10, 10)),
+            Line(session, new(10, 10, 10), new(0, 10, 0)), Line(session, new(0, 10, 0), new(0, 0, 0)),
+        };
+        var command = Start(session, "Edge: span two to four curves");
+        Pick(command, "Boundary", edges);
+        KeepSeparate(command);
+        var surface = Assert.Single(BuildOutput(command).Add).Shape!;
+        Assert.True(surface.IsValid);
+        foreach (var (x, y) in new[] { (5.0, 5.0), (2.5, 7.5), (8.0, 3.0), (6.0, 9.0) })
+            Assert.True(DistanceTo(surface, new(x, y, x * y / 10)) < 0.02, $"({x}, {y}) should lie on z = xy/10, was {DistanceTo(surface, new(x, y, x * y / 10)):G3} mm off");
+        Assert.True(DistanceTo(surface, new(5, 5, 3.5)) > 0.3, "a point off the saddle is not on it");
+    }
+
+    [AvaloniaFact(DisplayName = "BND-H012 | Network mode follows the outline exactly and passes close to a curve across it")]
+    [Trait("TestId", "BND-H012")]
+    public void NetworkModeFollowsInsideCurve()
+    {
+        var session = new CadSession();
+        var outline = new[]
+        {
+            Line(session, new(0, 0, 0), new(10, 0, 0)), Line(session, new(10, 0, 0), new(10, 10, 0)),
+            Line(session, new(10, 10, 0), new(0, 10, 0)), Line(session, new(0, 10, 0), new(0, 0, 0)),
+        };
+        var across = session.AddObject(Occ.Spline([new(0, 5, 0), new(5, 5, 3), new(10, 5, 0)]), "Across", ObjKind.Curve);
+        var command = Start(session, "Network: outline and curves across");
+        Pick(command, "Boundary", outline);
+        Pick(command, "Guide curves", across);
+        KeepSeparate(command);
+        var surface = Assert.Single(BuildOutput(command).Add).Shape!;
+        Assert.True(surface.IsValid);
+        double worstAcross = 0;
+        foreach (var p in Occ.CurveSamples(across.Shape, 15, 1)[0].Select(s => s.p)) worstAcross = Math.Max(worstAcross, DistanceTo(surface, p));
+        Assert.True(worstAcross < 0.25, $"the surface should pass within 0.25 mm of the curve across it, worst {worstAcross:G3} mm");
+        double worstOutline = 0;
+        foreach (var t in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 }) worstOutline = Math.Max(worstOutline, Math.Max(DistanceTo(surface, new(10 * t, 0, 0)), DistanceTo(surface, new(0, 10 * t, 0))));
+        Assert.True(worstOutline < 0.05, $"the outline should be on the surface, worst {worstOutline:G3} mm off");
+    }
 }
