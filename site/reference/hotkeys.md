@@ -47,6 +47,11 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Undo | <kbd>Ctrl</kbd> + <kbd>Z</kbd> | Everywhere |  |
 | Redo | <kbd>Ctrl</kbd> + <kbd>Y</kbd> | Everywhere |  |
 | Duplicate selection | <kbd>Ctrl</kbd> + <kbd>D</kbd> | Everywhere |  |
+| Select all | <kbd>Ctrl</kbd> + <kbd>A</kbd> | Everywhere | Selects everything at the current pick level: objects, faces, edges or corner points. While you edit a Freeform, it selects all cage components |
+| Copy selection | <kbd>Ctrl</kbd> + <kbd>C</kbd> | Everywhere | Remembers the selected objects |
+| Paste | <kbd>Ctrl</kbd> + <kbd>V</kbd> | Everywhere | Pastes independent copies in the same place, selected and ready to move. Works in another open document too |
+| Group selection | <kbd>Ctrl</kbd> + <kbd>G</kbd> | Everywhere | Puts the selected objects under one parent row in the browser |
+| Ungroup selection | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Everywhere | Takes the objects out of their group |
 | Delete selection | <kbd>Delete</kbd> | Everywhere |  |
 | Cancel / end the current step | <kbd>Escape</kbd> | Everywhere |  |
 | Accept / finish | <kbd>Enter</kbd> | Everywhere |  |

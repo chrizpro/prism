@@ -20,7 +20,7 @@ The same presentation also covers lines, arcs, circles, polygons, slots, splines
 
 Choose **Move**, **Rotate**, or **Scale** in the editor. By default, the gizmo shows handles for that operation. Expand **Gizmo display and snapping** to choose **Combined handles** or **Custom visibility**, adjust screen size and pick tolerance, and show or hide labels and sketch plane controls. Combined handles let you switch operations by picking a different handle.
 
-Enable **Snap gizmo transforms** to set move, angle and scale increments. Hold Alt during a drag to bypass snapping. Scale uses square handles, including the diagonal square for uniform scale. Gizmo preferences are shared across sketch, freeform and control-point editing and are remembered between sessions. Axis colors identify directions; active highlights follow the theme accent.
+Enable **Snap gizmo transforms** to set move, angle and scale increments. Hold Alt during a drag to bypass snapping (with the Move tool, Alt also drags a copy; see [Pick levels, select all and groups](#pick-levels-select-all-and-groups)). Tools that place or position something, such as primitives, Move Face, Move Hole and Insert Component, use the same gizmo for their position, rotation and scale numbers; sizes such as a hole's diameter keep their own drag handles. Scale uses square handles, including the diagonal square for uniform scale. Gizmo preferences are shared across sketch, freeform and control-point editing and are remembered between sessions. Axis colors identify directions; active highlights follow the theme accent.
 
 ## Build solid features
 
@@ -42,6 +42,19 @@ Extrude and Revolve offer **Selection intent** in the profile picker:
 
 To extrude three sides of a rectangle, use **Extrude Surface**, choose **Single edges**, and pick three sides. A solid extrusion needs a closed profile; selecting an open chain does not create a solid. Chain selection is also available in other tools whose pickers accept multiple edges. The expanded edge selections are stored with editable features.
 
+### Pick levels, select all and groups
+
+The **Select** group on every modeling ribbon sets what a click takes: **Object**, **Face**, **Edge** or **Vertex** (the corner points of solids, surfaces and curves). Drag a rectangle or lasso to take several; a drag from left to right takes only what lies inside it, and a drag from right to left takes whatever it touches. **Through** includes what is hidden behind other geometry, and **Invert** swaps the selection.
+
+- **Select all:** <kbd>Ctrl</kbd>+<kbd>A</kbd> selects everything at the current pick level. In a tool's pick slot it fills the slot with everything the slot accepts.
+- **Same Color, Adjacent, Linked:** with a face selected, add every face of that body with the same color, the faces that touch the selection along an edge, or every face of the body.
+- **Isolate faces:** with faces selected, **Isolate** (View) shows only those faces and hides the rest of their bodies and every other body. It is only a way of looking: nothing in the document changes, and **Show All** brings everything back.
+- **Group:** select two or more objects and press <kbd>Ctrl</kbd>+<kbd>G</kbd> (or use **Group** on the ribbon, or right-click in the browser). The browser shows them under one parent row whose eye hides or shows them together and whose click selects them all. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> takes them out; the objects are never deleted.
+- **Copy and paste:** <kbd>Ctrl</kbd>+<kbd>C</kbd> remembers the selected objects and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes independent copies in the same place, selected and ready to move, in this or another open document. To copy while you move, hold <kbd>Alt</kbd> as you press an arrow, plane block or the centre of the **Move** gizmo: the originals stay and the copies move.
+- **Four Views:** hover a pane and press <kbd>Space</kbd> to maximize it, and again to return.
+
+See [Keyboard shortcuts](/reference/hotkeys) for every key.
+
 ### Navigate the object tree
 
 The browser shows a collapsible document tree with source sketches nested below the body that uses them. Imported or unassociated geometry remains in type folders. Searching a nested object retains its ancestors. The branch lines follow the accent color selected in **Preferences**, including changes made while the app is open.
@@ -62,6 +75,6 @@ SEC-H001 passed in the Windows Headless runner. It checked a 600 mm² cut throug
 
 ## Position and inspect
 
-**Transform** is one dropdown with Move, Rotate, Scale, Mirror, and Duplicate. It shows the tool you used last. **Inspect** keeps Measure visible, with Properties and Section Analysis under **More inspection**.
+**Transform** is one dropdown with Move, Rotate, Scale, Mirror, and Duplicate. It shows the tool you used last. **Scale** takes one factor for an even resize, or **Scale type: Per axis (stretch)** for separate X, Y and Z factors, with an arrow on each face of the selection to drag them. The stretch follows the world axes, so a part turned off-axis is sheared, and curved faces become freeform surfaces. **Inspect** keeps Measure visible, with Properties and Section Analysis under **More inspection**.
 
 Assembly component positioning and sketch editing retain their own semantics. They are not interchangeable with transforming a standalone body.

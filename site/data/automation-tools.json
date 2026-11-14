@@ -1189,8 +1189,29 @@
   }
  },
  {
+  "name": "pick_at",
+  "description": "What a viewport click at this world point would pick through the given filter (or the active slot's filter): item, kind, index and a readable name. Diagnostic for pick wiring.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "at": {
+     "description": "World point [x,y,z] to project and pick.",
+     "type": "array",
+     "items": {}
+    },
+    "filter": {
+     "description": "Optional filter like 'Edge' or 'SketchObj|CurveObj|Face|Edge' (default: the active filter).",
+     "type": "string"
+    }
+   },
+   "required": [
+    "at"
+   ]
+  }
+ },
+ {
   "name": "pointer",
-  "description": "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'drag', x,y,z, x2,y2,z2 (drag end)}]. Returns the active command's grab handle (origin, tip, value) and the camera.",
+  "description": "Send mouse events to the 3D viewport at world positions: events [{type:'move'|'down'|'up'|'click'|'dclick'|'drag', x,y,z, x2,y2,z2 (drag end)}]. A {type:'key', key:'Char:E'|'Tab'|'Enter'|...} event sends a viewport key. Returns the active command's first grab handle (origin, tip, value), every handle (label, origin, grip, value), the command gizmo (mode, center, arrow length, a grab point per axis, values) and the camera.",
   "inputSchema": {
    "type": "object",
    "properties": {

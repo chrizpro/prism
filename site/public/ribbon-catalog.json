@@ -1,5 +1,5 @@
 {
-  "sourceHash": "3E5C3157F8044497A304793C5A808300A2FEC6E27C4887894EF5A7DC5F3D3D8D",
+  "sourceHash": "684A250F4AA7D6727651B5AFB187DBC1B6B7E1E7D47218C175311F92F04AF49A",
   "workspaces": [
     {
       "Id": "design",
@@ -368,7 +368,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -390,9 +390,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -479,7 +509,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -492,23 +522,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -545,6 +558,18 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
               "shortcut": ""
             },
             {
@@ -741,7 +766,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -753,7 +778,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -834,7 +859,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -856,9 +881,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -934,6 +989,66 @@
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves that touch end to end into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "unstitch|Explode",
+              "label": "Explode",
+              "description": "Break a curve or sketch into its segments.",
+              "shortcut": ""
+            },
+            {
+              "id": "curve-through|Duplicate Edge",
+              "label": "Extract Edges",
+              "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Trim Curve",
+              "label": "Trim Curve",
+              "description": "Keep part of a curve, or cut it into pieces.",
+              "shortcut": ""
+            },
+            {
+              "id": "extend-surface|Extend Curve",
+              "label": "Extend Curve",
+              "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
+              "shortcut": ""
+            },
+            {
+              "id": "raise-degree|Rebuild Curve",
+              "label": "Rebuild Curve",
+              "description": "Redraw a curve with a chosen number of points.",
+              "shortcut": ""
+            },
+            {
+              "id": "origin-point|Divide",
+              "label": "Points Along Curve",
+              "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
               "shortcut": ""
             }
           ]
@@ -1113,7 +1228,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -1125,7 +1240,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -1206,7 +1321,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -1228,9 +1343,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -1317,7 +1462,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -1330,23 +1475,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1383,6 +1511,12 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1447,6 +1581,18 @@
               "id": "trim|Trim",
               "label": "Trim",
               "description": "Cut a surface with a plane, another surface or a solid and keep the side you want.",
+              "shortcut": ""
+            },
+            {
+              "id": "splitbody|Split Surface",
+              "label": "Split Surface",
+              "description": "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch.",
               "shortcut": ""
             },
             {
@@ -1523,12 +1669,35 @@
           ]
         },
         {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies and surfaces into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body or surface out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Transform",
           "tools": [
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -1540,7 +1709,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -1639,7 +1808,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -1661,9 +1830,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -1740,12 +1939,13 @@
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
               "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
+            },
+            {
+              "id": "curve-through|Blend Curve",
+              "label": "Blend Curve",
+              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "shortcut": ""
+            },
             {
               "id": "knit|Join",
               "label": "Join",
@@ -1777,9 +1977,15 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the corners of a flat curve or sketch, or the edges where the faces of a surface meet.",
               "shortcut": ""
             },
             {
@@ -2087,7 +2293,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2099,7 +2305,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2186,7 +2392,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2208,9 +2414,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -2297,7 +2533,7 @@
             {
               "id": "curve-through|Draw on Surface",
               "label": "Draw on Surface",
-              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces.",
+              "description": "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.",
               "shortcut": ""
             },
             {
@@ -2310,23 +2546,6 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Edit curves",
-          "tools": [
-            {
-              "id": "fillet|Fillet / Chamfer",
-              "label": "Fillet / Chamfer",
-              "description": "Round or cut the corners of a flat curve or sketch.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2363,6 +2582,12 @@
               "id": "extend-surface|Extend Curve",
               "label": "Extend Curve",
               "description": "Grow a curve past its end, keeping it smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "offset|Offset Curve",
+              "label": "Offset Curve",
+              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2517,6 +2742,18 @@
               "shortcut": ""
             },
             {
+              "id": "splitbody|Split Surface",
+              "label": "Split Surface",
+              "description": "Divide a surface into faces with a plane, face, surface, solid or a sketch/curve (split along its projection). The faces stay one surface, or each piece becomes its own surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "fillet|Fillet / Chamfer",
+              "label": "Fillet / Chamfer",
+              "description": "Round or cut the edges where the faces of a surface meet, or the corners of a flat curve or sketch.",
+              "shortcut": ""
+            },
+            {
               "id": "untrim|Untrim",
               "label": "Untrim",
               "description": "Undo a trim: restore the whole natural surface, or just fill the holes in a face.",
@@ -2539,16 +2776,34 @@
               "label": "Offset",
               "description": "Create a parallel copy of a surface or face.",
               "shortcut": ""
+            },
+            {
+              "id": "fill|Enclosed Body",
+              "label": "Enclosed Body",
+              "description": "Make solids from the spaces enclosed by surfaces, planes and bodies.",
+              "shortcut": ""
             }
           ]
         },
         {
-          "title": "Convert",
+          "title": "Combine",
           "tools": [
             {
-              "id": "to-nurbs|Convert to NURBS",
-              "label": "Convert to NURBS",
-              "description": "Convert the selection to editable NURBS geometry.",
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies and surfaces into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body or surface out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
               "shortcut": ""
             }
           ]
@@ -2559,7 +2814,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2571,7 +2826,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2670,7 +2925,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2692,9 +2947,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -2822,7 +3107,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -2834,7 +3119,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -2926,7 +3211,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -2948,9 +3233,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3066,12 +3381,35 @@
           ]
         },
         {
+          "title": "Combine",
+          "tools": [
+            {
+              "id": "union|Union",
+              "label": "Union",
+              "description": "Merge bodies into one.",
+              "shortcut": ""
+            },
+            {
+              "id": "subtract|Subtract",
+              "label": "Subtract",
+              "description": "Cut one body out of another.",
+              "shortcut": ""
+            },
+            {
+              "id": "intersect|Intersect",
+              "label": "Intersect",
+              "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
           "title": "Transform",
           "tools": [
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -3083,7 +3421,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -3164,7 +3502,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3186,9 +3524,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3292,7 +3660,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -3767,7 +4135,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3789,9 +4157,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -3928,7 +4326,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -3950,9 +4348,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4130,7 +4558,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -4142,7 +4570,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -4223,7 +4651,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4245,9 +4673,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4378,7 +4836,7 @@
             {
               "id": "move|Move",
               "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel.",
+              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
               "shortcut": ""
             },
             {
@@ -4390,7 +4848,7 @@
             {
               "id": "scale|Scale",
               "label": "Scale",
-              "description": "Resize objects uniformly.",
+              "description": "Resize objects evenly, or stretch them along each axis.",
               "shortcut": ""
             },
             {
@@ -4471,7 +4929,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4493,9 +4951,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -4914,7 +5402,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -4936,9 +5424,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -5106,7 +5624,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -5128,9 +5646,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -5560,7 +6108,7 @@
             {
               "id": "sel-vertex|Vertex",
               "label": "Vertex",
-              "description": "Select cage vertices (1 while editing Freeform).",
+              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
               "shortcut": ""
             },
             {
@@ -5582,9 +6130,39 @@
               "shortcut": ""
             },
             {
+              "id": "group|Group",
+              "label": "Group",
+              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
+              "shortcut": ""
+            },
+            {
+              "id": "ungroup|Ungroup",
+              "label": "Ungroup",
+              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-invert|Invert",
               "label": "Invert",
               "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-color|Same Color",
+              "label": "Same Color",
+              "description": "Add every face of the same body that has the same color and finish as a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-adjacent|Adjacent",
+              "label": "Adjacent",
+              "description": "Add the faces that share an edge with a selected face.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
             },
             {
@@ -6015,19 +6593,19 @@
             {
               "id": "visibility-off|Hide",
               "label": "Hide",
-              "description": "Hide the selected objects. Show All brings them back.",
+              "description": "Hide the selected objects. With faces selected, hide just those faces; this is saved with the document. Show All brings them back.",
               "shortcut": ""
             },
             {
               "id": "isolate|Isolate",
               "label": "Isolate",
-              "description": "Hide everything except the selected objects.",
+              "description": "Hide everything except the selected objects. With faces selected, show only those faces; Show All brings the rest back.",
               "shortcut": ""
             },
             {
               "id": "visibility-on|Show All",
               "label": "Show All",
-              "description": "Show every hidden object.",
+              "description": "Show every hidden object, every hidden face and every face hidden by Isolate.",
               "shortcut": ""
             },
             {

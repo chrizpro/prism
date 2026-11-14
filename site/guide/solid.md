@@ -22,7 +22,7 @@ Hover a ribbon button to see what it does. Extrude, Revolve, Loft, Sweep, Fillet
 - **Primitives:** Box, Cylinder, Sphere, Cone and Torus share one split button that remembers the last one used.
 - **Extrude** gives a profile depth. **Extent** can be a distance, two sides, symmetric, up to an object, or through all. Add a taper angle, and choose whether the result is a new body or joins, cuts or intersects the target.
 - **Revolve** turns a profile about an axis: **Profile → Axis → Extent → Result**. Choose a world axis or pick an axis line.
-- **Rib** and **Emboss** add material from a sketched line or text.
+- **Rib** fills the web between a straight sketch line and the body it meets (a gusset in a corner), with thickness across the sketch plane; **Reverse** takes the other side of the line, and **Fixed height** grows the line by a set height instead. **Emboss** adds raised or engraved text or a sketched shape.
 
 Extrude and Revolve offer **Selection intent** in the profile picker: the whole profile, single edges, connected or tangent chains, or a partial loop. A solid extrusion needs a closed profile; open chains can be extruded as surfaces with **Surface › Extrude**.
 
@@ -35,7 +35,7 @@ To try the difference, sketch a closed rectangle and preview **Extrude → Symme
 ## Modify
 
 - **Fillet** rounds edges; give an end radius to vary it along each edge. **Chamfer** bevels them.
-- **Hole** drills plain or modeled threaded holes (M3 to M12 presets or custom pitch), blind or through all, from a face or the top of a body.
+- **Hole** drills plain or modeled threaded holes (M3 to M12 presets or custom pitch), blind or through all, from a face or the top of a body. Drag the circle drawn in the viewport, anywhere on its edge, to set the diameter by hand.
 - **Shell** hollows a body, removing the faces you pick. **Draft** tilts faces for molding. **Split Body** cuts a body with a plane, face or another body.
 
 <GuideImage image="solid-fillet-edges" />
@@ -46,7 +46,7 @@ To try the difference, sketch a closed rectangle and preview **Extrude → Symme
 
 ## Combine, pattern and transform
 
-**Union**, **Subtract** and **Intersect** combine bodies. Patterns copy features or bodies **Linear**, **Circular**, **Along Curve**, to **Fill** a region, or from a **Table** of positions. **Move** stays visible; Rotate, Scale, Mirror and Duplicate share one menu.
+**Union**, **Subtract** and **Intersect** combine bodies. Patterns copy features or bodies **Linear**, **Circular**, **Along Curve**, to **Fill** a region, or from a **Table** of positions. **Move** stays visible; Rotate, Scale, Mirror and Duplicate share one menu. **Scale** can stretch each axis by its own factor, and holding <kbd>Alt</kbd> while you drag the Move gizmo drags a copy. Union, Subtract and Intersect are also on the Surface, NURBS and Sheet Metal ribbons. <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste whole objects, and <kbd>Ctrl</kbd>+<kbd>G</kbd> groups them; see [Pick levels, select all and groups](/guide/modeling#pick-levels-select-all-and-groups).
 
 <GuideImage image="solid-linear-pattern" />
 
