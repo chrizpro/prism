@@ -333,6 +333,13 @@ public static unsafe class Occ
     public static Shape ToNurbs(Shape s) => Wrap(Native.ck_nurbs_convert(s.Handle));
     public static Shape MatchSurface(Shape source, int side, Shape reference, int refSide, int continuity, bool reverse = false, double scale = 1)
         => Wrap(Native.ck_surface_match(source.Handle, side, reference.Handle, refSide, continuity, reverse ? 1 : 0, scale));
+    /// <summary>Match a boundary of a patch to the nearest edge of any reference face (trimmed faces and faces of solids included); the patch's control rows along that boundary are refitted.</summary>
+    public static (Shape Result, double Gap, double RmsGap, double NormalAngle, double CurvatureDifference, int Rows) MatchSurfaceToEdge(Shape source, int side, Shape reference, int continuity, double scale = 1, bool refine = true)
+    {
+        double* values = stackalloc double[5];
+        var result = Wrap(Native.ck_surface_match_edge(source.Handle, side, reference.Handle, continuity, scale, refine ? 1 : 0, values));
+        return (result, values[0], values[1], values[2], values[3], (int)values[4]);
+    }
     public static (double Gap, double RmsGap, double NormalAngle, double CurvatureDifference) SurfaceContinuity(Shape source, int side, Shape reference, int refSide, bool reverse = false, int samples = 51)
     {
         double* values = stackalloc double[4];
