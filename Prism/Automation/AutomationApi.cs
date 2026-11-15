@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -352,8 +353,9 @@ public sealed partial class AutomationApi
         {
             j["wires"] = o.Shape.Count(SubKind.Wire);
             if (o.SketchPlane is { } p) j["sketchPlane"] = new JsonObject { ["origin"] = Arr(p.Origin), ["u"] = Arr(p.U), ["v"] = Arr(p.V), ["normal"] = Arr(p.Normal) };
-            var pr = o.Shape.Props();
-            if (o.Shape.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
+            var measured = Measure(o.Shape);
+            var pr = measured.Props;
+            if (measured.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
             j["area"] = Math.Round(pr.Area, 4); j["size"] = Arr(pr.Size); j["center"] = Arr(pr.Center);
             j["valid"] = o.Shape.IsValid;
             j["appearance"] = AppearanceJson(o);
@@ -640,13 +642,21 @@ public sealed partial class AutomationApi
 
     sealed record BodySnap(string Name, Shape? Shape, double Volume, double Area, int Faces, int Edges, Vec3 Size);
 
+    // Shapes are immutable. Measuring an unchanged loft before every command
+    // can dominate a scripted build; weak keys retain neither deleted shapes
+    // nor a document after it closes. Names/visibility remain live object data.
+    sealed record ShapeMeasure(ShapeProps Props, bool HasSolids, int Faces, int Edges);
+    readonly ConditionalWeakTable<Shape, ShapeMeasure> _measurements = new();
+    ShapeMeasure Measure(Shape shape) => _measurements.GetValue(shape,
+        s => new(s.Props(), s.HasSolids, s.Count(SubKind.Face), s.Count(SubKind.Edge)));
+
     Dictionary<Guid, BodySnap> Snapshot()
     {
         var d = new Dictionary<Guid, BodySnap>();
         foreach (var o in S.Objects)
         {
             if (!IsBody(o)) { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); continue; }
-            try { var sh = o.Shape; var p = sh.Props(); d[o.Id] = new(o.Name, sh, sh.HasSolids ? p.Volume : 0, p.Area, sh.Count(SubKind.Face), sh.Count(SubKind.Edge), p.Size); }
+            try { var sh = o.Shape; var m = Measure(sh); var p = m.Props; d[o.Id] = new(o.Name, sh, m.HasSolids ? p.Volume : 0, p.Area, m.Faces, m.Edges, p.Size); }
             catch { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); }
         }
         return d;
@@ -662,7 +672,8 @@ public sealed partial class AutomationApi
             if (!before.TryGetValue(o.Id, out var b) || b.Shape == null || !IsBody(o)) continue;
             Shape sh; try { sh = o.Shape; } catch { continue; }
             if (ReferenceEquals(sh, b.Shape)) continue;
-            var p = sh.Props(); double vol = sh.HasSolids ? p.Volume : 0; int nf = sh.Count(SubKind.Face), ne = sh.Count(SubKind.Edge);
+            var measured = Measure(sh);
+            var p = measured.Props; double vol = measured.HasSolids ? p.Volume : 0; int nf = measured.Faces, ne = measured.Edges;
             var c = new JsonObject
             {
                 ["name"] = o.Name, ["volume"] = Math.Round(vol, 4), ["volumeDelta"] = Math.Round(vol - b.Volume, 4),
