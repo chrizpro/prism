@@ -31,7 +31,9 @@ public sealed class FormKnifeCommand : Command
         _path = Add(new TextParam { Label = "Points of the cut (set by clicking)", Value = "", IsAdvanced = true, HelpText = "One point per line: where you clicked, then where the camera was. Clear the text to start the line again." });
         _through = Check("Cut through (also the faces turned away)", false);
         _extend = Check("Run the cut on to the edges at both ends", true);
+        _extend.HelpText = "Carries the cut from each end of your line on to the edge of the face that end is in. It does not go on into other faces: end the line on a point or an edge of the cage to cut exactly the faces you drew across. \"Cut through\" is a different setting: it also cuts the faces turned away from you.";
         _snap = Check("Snap to points and edge midpoints", true);
+        _snap.HelpText = "Clicks near a cage point, an edge midpoint or an edge take it exactly, even where the smooth surface is not under the pointer (the cage corners stand outside it). The point a click would take shows as a white dot.";
         _angle = Check("Constrain the angle (45° steps)", false);
         _plane = Slot(new SelectionSlot { Label = "Cutting plane or flat face (optional)", Filter = SelFilter.Plane | SelFilter.Face, Optional = true });
         _across = Choice("Or cut across", 0, "Left to right (X)", "Front to back (Y)", "Bottom to top (Z)");
@@ -87,20 +89,67 @@ public sealed class FormKnifeCommand : Command
     void Store(List<(Vec3 point, KnifeView view)> points) =>
         ConfigureInputs(() => _path.Value = string.Join("\n", points.Select(p => Format(p.point, p.view))));
 
+    // how close (screen pixels) the pointer must be to a point, a midpoint or an edge of the cage to snap to it; points win over midpoints, midpoints over edges
+    const double PointReach = 16, MidpointReach = 13, EdgeReach = 7;
+
+    /// <summary>The cage point, edge midpoint or point along an edge nearest the screen position, when one is close enough. The cage is on show and its corners stand outside the smooth surface, so this is how they are picked.</summary>
+    Vec3? SnapTarget(SceneObject form, double px, double py)
+    {
+        if (!_snap.Value || form.Form is not { } cage) return null;
+        Vec3? best = null; double bestScore = double.MaxValue;
+        double Dist(Vec3 p) => S.Camera.Project(p) is { } q ? Math.Sqrt((q.x - px) * (q.x - px) + (q.y - py) * (q.y - py)) : double.MaxValue;
+        // a smaller score is better: reach is subtracted so a point beats a midpoint beats an edge when they are about as close
+        void Try(Vec3 p, double reach, double bonus)
+        {
+            double d = Dist(p);
+            if (d > reach) return;
+            double score = d - bonus;
+            if (score < bestScore) { bestScore = score; best = p; }
+        }
+        foreach (var v in cage.V) Try(v, PointReach, 6);
+        foreach (var (a, b) in cage.Edges())
+        {
+            Try((cage.V[a] + cage.V[b]) * .5, MidpointReach, 3);
+            if (S.Camera.Project(cage.V[a]) is not { } pa || S.Camera.Project(cage.V[b]) is not { } pb) continue;
+            double dx = pb.x - pa.x, dy = pb.y - pa.y, l2 = dx * dx + dy * dy; if (l2 < 1e-9) continue;
+            double t = Math.Clamp(((px - pa.x) * dx + (py - pa.y) * dy) / l2, 0, 1);
+            Try(cage.V[a] + (cage.V[b] - cage.V[a]) * t, EdgeReach, 0);
+        }
+        return best;
+    }
+
     /// <summary>The clicked spot pulled to a nearby point or edge midpoint of the cage, when that is close on screen.</summary>
     Vec3 Snapped(SceneObject form, Vec3 clicked)
     {
-        if (!_snap.Value || form.Form is not { } cage || S.Camera.Project(clicked) is not { } at) return clicked;
-        Vec3 best = clicked; double bestDistance = 10;
-        void Try(Vec3 p)
-        {
-            if (S.Camera.Project(p) is not { } q) return;
-            double d = Math.Sqrt((q.x - at.x) * (q.x - at.x) + (q.y - at.y) * (q.y - at.y));
-            if (d < bestDistance) { bestDistance = d; best = p; }
-        }
-        foreach (var v in cage.V) Try(v);
-        foreach (var (a, b) in cage.Edges()) Try((cage.V[a] + cage.V[b]) * .5);
-        return best;
+        if (!_snap.Value || S.Camera.Project(clicked) is not { } at) return clicked;
+        return SnapTarget(form, at.x, at.y) ?? clicked;
+    }
+
+    Vec3? _hover;
+
+    public override void HoverScreen(CadSession s, double px, double py)
+    {
+        Vec3? target = null;
+        if (LineMode && _form.Items.Count > 0 && ObjectsOf(_form).FirstOrDefault(o => o.Form != null) is { } form) target = SnapTarget(form, px, py);
+        if (target == _hover) return;
+        _hover = target; s.Invalidate();
+    }
+
+    /// <summary>A click near a cage point or edge counts even where the smooth surface is not under the pointer (the cage corners stand outside it).</summary>
+    public override bool ClickScreen(CadSession s, double px, double py)
+    {
+        if (!LineMode || _form.Items.Count == 0 || ObjectsOf(_form).FirstOrDefault(o => o.Form != null) is not { } form || SnapTarget(form, px, py) is not { } p) return false;
+        AddPoint(form, p);
+        return true;
+    }
+
+    void AddPoint(SceneObject form, Vec3 p)
+    {
+        var points = Points();
+        if (points.Count > 0) p = Constrained(points[^1].point, p, form);
+        var cam = S.Camera;
+        points.Add((p, new KnifeView(cam.Eye, -cam.EyeDirection, cam.Orthographic)));
+        Store(points); OnChanged();
     }
 
     /// <summary>With the angle constraint, a new point is moved around the last one to the nearest 45° direction on screen and put back on the form.</summary>
@@ -119,12 +168,7 @@ public sealed class FormKnifeCommand : Command
         if (!LineMode) return false;
         if (_form.Items.Count == 0 && !Pick(hit.Item, false)) return false;
         if (_form.Items.Count == 0 || hit.Item.Obj != _form.Items[0].Obj || S.Find(hit.Item.Obj) is not { Form: not null } form) return false;
-        var points = Points();
-        var p = Snapped(form, hit.Point);
-        if (points.Count > 0) p = Constrained(points[^1].point, p, form);
-        var cam = S.Camera;
-        points.Add((p, new KnifeView(cam.Eye, -cam.EyeDirection, cam.Orthographic)));
-        Store(points); OnChanged();
+        AddPoint(form, Snapped(form, hit.Point));
         return true;
     }
 
@@ -162,6 +206,7 @@ public sealed class FormKnifeCommand : Command
                 if (points.Count > 0) o.AddPolyline([.. points.Select(p => p.point)], 0xFFFF8A1F, 2.5f);
                 foreach (var (p, _) in points) o.AddDot(p, 0xFFFF8A1F, 8);
                 foreach (var p in _preview) o.AddDot(p, 0xFF4FC3F7, 6);
+                if (_hover is { } snap) o.AddDot(snap, 0xFFFFFFFF, 13);         // what a click here would take
                 return;
             }
             var (origin, normal) = CutPlane();

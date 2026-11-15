@@ -596,6 +596,10 @@ public abstract partial class Command : ObservableObject
 
     /// <summary>A viewport click with its 3D hit point, offered before the normal slot pick. Return true to consume it.</summary>
     public virtual bool PickPoint(PickResult hit, bool additive) => false;
+    /// <summary>A plain click at a screen position, offered before the normal pick: a command that snaps to things the pick does not reach (a cage point outside the smooth surface) uses it. True when the click was used.</summary>
+    public virtual bool ClickScreen(CadSession s, double px, double py) => false;
+    /// <summary>The pointer moved over the viewport with this command open, so it can show what a click would take.</summary>
+    public virtual void HoverScreen(CadSession s, double px, double py) { }
     /// <summary>Pointer pressed: return true to start dragging something of this command's (a placed point, say).</summary>
     public virtual bool GrabAt(CadSession s, double px, double py, bool ctrl) => false;
     /// <summary>The pointer moved while a grab started by GrabAt is held.</summary>

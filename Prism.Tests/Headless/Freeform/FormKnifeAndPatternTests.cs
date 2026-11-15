@@ -189,4 +189,48 @@ public class FormKnifeAndPatternTests
         Click(miss.knife, miss.form, new Vec3(-40, 30, 10)); Click(miss.knife, miss.form, new Vec3(40, 30, 10));
         AssertBuildFails(miss.knife, "does not cross");
     }
+
+    // ---- a 60 mm form cube with two faces along each side, seen from the front
+    static (CadSession session, SceneObject form, FormKnifeCommand knife) FrontCube()
+    {
+        var session = new CadSession();
+        var make = Begin(session, () => new FormBoxCommand());
+        SetNumber(make, "Width (X)", 60); SetNumber(make, "Depth (Y)", 60); SetNumber(make, "Height (Z)", 60);
+        SetInteger(make, "Faces X", 2); SetInteger(make, "Faces Y", 2); SetInteger(make, "Faces Z", 2);
+        session.CommitCommand();
+        var form = session.Objects.Last(o => o.Kind == ObjKind.Form);
+        session.Camera.Width = 800; session.Camera.Height = 600; session.Camera.SetView(0, 0);
+        session.Camera.Fit(new Vec3(-30, -30, 0), new Vec3(30, 30, 60));
+        var knife = Begin(session, () => new FormKnifeCommand());
+        Pick(knife, "Freeform to cut", form);
+        knife.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Snap")).Value = false;
+        return (session, form, knife);
+    }
+
+    [AvaloniaFact(DisplayName = "FRM-H120 | Knife: running the cut on to the edges stays within the faces the drawn line crosses, not every face beyond its ends")]
+    [Trait("TestId", "FRM-H120")]
+    public void KnifeExtensionStaysOnTheDrawnFaces()
+    {
+        var (_, form, knife) = FrontCube();
+        // from the middle of the front wall to its lower right corner: the diagonal of one face; the sheet carried on beyond the middle would have split a second face
+        Click(knife, form, new Vec3(0, -30, 30)); Click(knife, form, new Vec3(30, -30, 0));
+        var before = form.Form!;
+        var (_, cut) = Assert.Single(BuildOutput(knife).ReplaceForms);
+        Assert.True(cut.IsClosed());
+        Assert.Equal(before.F.Count + 1, cut.F.Count);
+    }
+
+    [AvaloniaFact(DisplayName = "FRM-H121 | Knife: a click near a cage point takes it even where the smooth surface is not under the pointer, and the cut starts there")]
+    [Trait("TestId", "FRM-H121")]
+    public void KnifeClickTakesCagePointOffTheSurface()
+    {
+        var (session, form, knife) = FrontCube();
+        knife.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Snap")).Value = true;
+        var corner = new Vec3(-30, -30, 60);
+        var at = session.Camera.Project(corner)!.Value;
+        Assert.True(knife.ClickScreen(session, at.x + 4, at.y - 3));                    // a few pixels off the corner
+        var path = knife.Params.OfType<TextParam>().Single(p => p.Label.StartsWith("Points of the cut"));
+        Assert.StartsWith("-30 -30 60 |", path.Value);
+        Assert.False(knife.ClickScreen(session, at.x + 300, at.y + 300));               // far from any point or edge: left to the normal pick
+    }
 }

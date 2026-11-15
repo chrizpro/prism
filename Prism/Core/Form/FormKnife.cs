@@ -96,17 +96,25 @@ public static class FormKnife
                     if (Vec3.Dot(c1.P - c0.P, st.B - st.A) < 0) (c0, c1) = (c1, c0);      // run each chord the way the line was drawn
                     if (c0.Vertex >= 0 && c1.Vertex >= 0 && Adjacent(face, c0.Vertex, c1.Vertex)) continue;          // the sheet runs along an edge
                     // keep the part of the chord between the two ends of this stretch of the line
-                    double u0 = 0, u1 = 1; bool ok = true;
-                    void Clip(Func<Vec3, double> g, bool free)
+                    (double u0, double u1, bool ok) Range(bool useFreeEnds)
                     {
-                        if (free || !ok) return;
-                        double g0 = g(c0.P), g1 = g(c1.P), tol = eps * scale;
-                        if (Math.Abs(g1 - g0) < 1e-15) { if (g0 < -tol) ok = false; return; }
-                        double root = -g0 / (g1 - g0);
-                        if (g1 > g0) u0 = Math.Max(u0, root); else u1 = Math.Min(u1, root);
+                        double a0 = 0, a1 = 1; bool good = true;
+                        void Clip(Func<Vec3, double> g, bool free)
+                        {
+                            if (free || !good) return;
+                            double g0 = g(c0.P), g1 = g(c1.P), tol = eps * scale;
+                            if (Math.Abs(g1 - g0) < 1e-15) { if (g0 < -tol) good = false; return; }
+                            double root = -g0 / (g1 - g0);
+                            if (g1 > g0) a0 = Math.Max(a0, root); else a1 = Math.Min(a1, root);
+                        }
+                        Clip(st.Lower, useFreeEnds && st.LowerFree); Clip(st.Upper, useFreeEnds && st.UpperFree);
+                        return (a0, a1, good && a1 - a0 >= 1e-9);
                     }
-                    Clip(st.Lower, st.LowerFree); Clip(st.Upper, st.UpperFree);
-                    if (!ok || u1 - u0 < 1e-9) continue;
+                    // Running the cut on to the edges only carries it across the faces the drawn line itself reaches. Without this the
+                    // extended sheet also cut every other face it happened to pass through, beyond the ends of the line.
+                    if ((st.LowerFree || st.UpperFree) && !Range(false).ok) continue;
+                    var (u0, u1, ok) = Range(true);
+                    if (!ok) continue;
                     var p0 = c0.P + (c1.P - c0.P) * u0; var p1 = c0.P + (c1.P - c0.P) * u1;
                     chords.Add(new Chord(index, p0, p1, u0 <= 1e-9 ? c0 : null, u1 >= 1 - 1e-9 ? c1 : null));
                 }

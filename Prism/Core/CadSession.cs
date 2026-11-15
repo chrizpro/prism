@@ -969,6 +969,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void UpdateHover(double px, double py)
     {
+        ActiveCommand?.HoverScreen(this, px, py);
         if (ActiveTool != null && ActiveTool is not null && ToolOwnsPointer) { if (Hover != null) { Hover = null; Invalidate(); } return; }
         var r = Pick(px, py, ActiveFilter);
         var h = r?.Item;
