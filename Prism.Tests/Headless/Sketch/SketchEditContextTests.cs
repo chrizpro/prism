@@ -57,6 +57,24 @@ public class SketchEditContextTests
         Assert.Contains(session.Objects, o => o.Kind == ObjKind.Surface);      // the rebuilt feature keeps the model, with a fresh id
     }
 
+    [AvaloniaFact(DisplayName = "SKT-H062 | With the see-through preference off, downstream objects keep their own colour while a sketch is edited")]
+    [Trait("TestId", "SKT-H062")]
+    public void DownstreamObjectsKeepOriginalLookWhenAsked()
+    {
+        var (session, sketch, surface) = SketchWithSurface();
+        bool before = AppSettings.Current.SketchContextTranslucent;
+        AppSettings.Current.SketchContextTranslucent = false;
+        try
+        {
+            Assert.True(session.EditSketch(session.Find(sketch.Id)!));
+            var item = Assert.Single(session.ContextItems);
+            Assert.False(item.Context);
+            Assert.Equal(surface.Color, item.SolidColor);
+            session.ExitSketch(true);
+        }
+        finally { AppSettings.Current.SketchContextTranslucent = before; }
+    }
+
     [AvaloniaFact(DisplayName = "SKT-H049 | Curves added while editing do not join the feature that consumed the sketch")]
     [Trait("TestId", "SKT-H049")]
     public void NewSketchCurvesDoNotJoinCapturedProfile()

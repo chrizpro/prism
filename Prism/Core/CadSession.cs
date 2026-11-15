@@ -1426,9 +1426,12 @@ public sealed partial class CadSession : ObservableObject
 
     static PreviewItem? ContextGhostOf(SceneObject o)
     {
-        if (o.Tri is { } t) return new PreviewItem(t) { Context = true, NoEdges = true };
-        if (o.Form is { } f) return new PreviewItem(f) { Context = true, NoEdges = true };
-        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : null;
+        // by preference the later objects keep their own colour instead of the faint see-through look
+        bool faint = AppSettings.Current.SketchContextTranslucent;
+        if (o.Tri is { } t) return faint ? new PreviewItem(t) { Context = true, NoEdges = true } : new PreviewItem(t, o.Color);
+        if (o.Form is { } f) return faint ? new PreviewItem(f) { Context = true, NoEdges = true } : new PreviewItem(f, o.Color);
+        if (!o.HasBrep) return null;
+        return faint ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : new PreviewItem(o.Shape, o.Kind, o.Color);
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
