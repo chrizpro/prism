@@ -86,6 +86,47 @@ public class CombineSurfaceTests
         vm.Session.CancelCommand();
     }
 
+    static Shape Combine(MainViewModel vm, BooleanCommand.Kind kind, SceneObject target, SceneObject tool, bool? option = null)
+    {
+        var command = new BooleanCommand(kind);
+        vm.Session.StartCommand(command);
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Base body", target);
+            SetSelection(command, "Other bodies", tool);
+            if (option is { } value) command.Params.OfType<BoolParam>().Single(param => param.Label.StartsWith("Keep the tools")).Value = value;
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        return output.Replace.Single().Item2;
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H022 | Union of two surface tubes keeps only the outer skin: the walls inside each other are gone")]
+    [Trait("TestId", "SFC-H022")]
+    public void UnionKeepsOuterSkin()
+    {
+        var vm = new MainViewModel();
+        var (b, a) = Tubes(vm.Session);
+        using var result = Combine(vm, BooleanCommand.Kind.Union, b, a);
+        // each tube is 800 mm²; 200 mm² of each lies inside the other: 2 x 600
+        AssertNear(1200, result.Props().Area, "Merged skin wall area (mm²)");
+        Assert.Equal(0, result.Count(SubKind.Solid));
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H023 | Intersect of two surface tubes keeps the walls inside each other, or only the base's when asked")]
+    [Trait("TestId", "SFC-H023")]
+    public void IntersectKeepsSharedWalls()
+    {
+        var vm = new MainViewModel();
+        var (b, a) = Tubes(vm.Session);
+        using var both = Combine(vm, BooleanCommand.Kind.Intersect, b, a, option: true);
+        AssertNear(400, both.Props().Area, "Walls of both tubes inside each other (mm²)");
+        vm.Session.CancelCommand();
+        var (b2, a2) = Tubes(vm.Session);
+        using var baseOnly = Combine(vm, BooleanCommand.Kind.Intersect, b2, a2, option: false);
+        AssertNear(200, baseOnly.Props().Area, "Base tube walls inside the tool (mm²)");
+    }
+
     /// <summary>An edge that is open and lies between the top and bottom rims would mean the cut was left open.</summary>
     static bool AtMidHeight(Shape shape, int edge)
     {

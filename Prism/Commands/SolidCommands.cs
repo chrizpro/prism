@@ -1745,7 +1745,7 @@ public sealed class BooleanCommand : Command
         _target = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Body to cut from" : "Base body", Filter = SelFilter.Solid | SelFilter.SurfaceObj });
         _tools = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Tool bodies" : "Other bodies", Filter = SelFilter.Solid | SelFilter.SurfaceObj, Multi = true });
         _keep = Check("Keep tool bodies", false);
-        _fill = Check("Fill the cut with the tool's walls", true);
+        _fill = Check(kind == Kind.Intersect ? "Keep the tools' parts inside too" : "Fill the cut with the tool's walls", true);
         _fill.HelpText = "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open.";
     }
     public override string Title => _kind.ToString();
@@ -1758,7 +1758,8 @@ public sealed class BooleanCommand : Command
 
     protected override void UpdateVisibility()
     {
-        _fill.IsVisible = _kind == Kind.Subtract && _tools.Items.Any(i => S.Find(i.Obj)?.Kind == ObjKind.Surface);
+        bool toolSurface = _tools.Items.Any(i => S.Find(i.Obj)?.Kind == ObjKind.Surface);
+        _fill.IsVisible = _kind == Kind.Subtract ? toolSurface : _kind == Kind.Intersect && AllSurfaces(_target.Items.Concat(_tools.Items));
     }
 
     /// <summary>
@@ -1786,6 +1787,42 @@ public sealed class BooleanCommand : Command
         var solid = Occ.Sew(all, 1e-3, true);
         // a flat sheet capped over its own outline is two faces with no space between them
         return solid.HasSolids && Math.Abs(Occ.Mass(solid).Volume) > 1e-6 ? solid : throw new FormatException($"The {what} surface does not enclose a space, even with its open ends capped.");
+    }
+
+    bool AllSurfaces(IEnumerable<SelItem> items) { var l = items.ToList(); return l.Count > 0 && l.All(i => S.Find(i.Obj)?.Kind == ObjKind.Surface); }
+
+    /// <summary>
+    /// Union or Intersect when every object is a surface. Each surface is closed in memory only to tell inside from outside; then
+    /// Union keeps, of every surface, the part outside all the others (the merged outer skin, with no walls left inside), and
+    /// Intersect keeps the part of the base inside all the tools, plus (when asked) the part of each tool inside the others.
+    /// </summary>
+    CommandOutput? CombineSurfaces(SceneObject target, List<SceneObject> tools)
+    {
+        var all = new List<SceneObject> { target }; all.AddRange(tools);
+        List<Shape> volumes;
+        // flat sheets and the like enclose no space: they keep the plain fuse / common below
+        try { volumes = all.Select((o, i) => ClosedVolume(o.Shape, i == 0 ? "base" : "other")).ToList(); }
+        catch (FormatException) { return null; }
+        Results.Clear();
+        var pieces = new List<Shape>();
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (i > 0 && _kind == Kind.Intersect && !_fill.Value) break;
+            var part = all[i].Shape;
+            for (int j = 0; j < all.Count && part.Count(SubKind.Face) > 0; j++)
+            {
+                if (j == i) continue;
+                part = _kind == Kind.Union ? Occ.Cut(part, volumes[j]) : Occ.Common(part, volumes[j]);
+            }
+            if (part.Count(SubKind.Face) > 0) pieces.Add(part);
+        }
+        if (pieces.Count == 0) throw new FormatException(_kind == Kind.Union ? "Nothing would be left of the surfaces." : "The surfaces do not overlap, so nothing is shared.");
+        var res = pieces.Count == 1 ? pieces[0] : Occ.Sew(pieces, 1e-3, false);
+        Results.Add(new ResultLine(_kind == Kind.Union ? "Joined" : "Shared", $"{res.Count(SubKind.Face)} face(s)"));
+        var o = new CommandOutput();
+        o.Replace.Add((target, res));
+        if (!_keep.Value) o.Remove.AddRange(tools);
+        return o;
     }
 
     /// <summary>Cut with a surface: the target loses whatever lies inside the tool's space, and (when asked) gains the tool's walls that lie inside the target, so the cut is closed.</summary>
@@ -1827,6 +1864,7 @@ public sealed class BooleanCommand : Command
         var tools = _tools.Items.Select(i => S.Find(i.Obj)!).Where(t => t.Id != target.Id).Distinct().ToList();
         if (tools.Count == 0) return null;
         if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface)) return SubtractWithSurfaces(target, tools);
+        if (_kind != Kind.Subtract && target.Kind == ObjKind.Surface && tools.All(t => t.Kind == ObjKind.Surface) && CombineSurfaces(target, tools) is { } surfaces) return surfaces;
         var res = target.Shape;
         foreach (var t in tools)
             res = _kind switch { Kind.Union => Occ.Fuse(res, t.Shape), Kind.Subtract => Occ.Cut(res, t.Shape), _ => Occ.Common(res, t.Shape) };
