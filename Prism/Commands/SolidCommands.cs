@@ -1738,16 +1738,87 @@ public sealed class BooleanCommand : Command
     public enum Kind { Union, Subtract, Intersect }
     readonly Kind _kind;
     readonly SelectionSlot _target, _tools;
-    readonly BoolParam _keep;
+    readonly BoolParam _keep, _fill;
     public BooleanCommand(Kind kind)
     {
         _kind = kind;
         _target = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Body to cut from" : "Base body", Filter = SelFilter.Solid | SelFilter.SurfaceObj });
         _tools = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Tool bodies" : "Other bodies", Filter = SelFilter.Solid | SelFilter.SurfaceObj, Multi = true });
         _keep = Check("Keep tool bodies", false);
+        _fill = Check("Fill the cut with the tool's walls", true);
+        _fill.HelpText = "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open.";
     }
     public override string Title => _kind.ToString();
-    public override string Hint => "Pick the base body, then the bodies to combine with it.";
+    public override string Hint => _kind == Kind.Subtract
+        ? "Pick the body to cut from, then the bodies to cut with. A surface can cut a surface too: an open tube or sheet is closed off in your mind's eye, whatever part of the target lies inside it is removed, and the cut is filled with the tool's walls (or left open by turning that off)."
+        : "Pick the base body, then the bodies to combine with it.";
+
+    /// <summary>Steps saved before the fill option existed have one value (keep tools).</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, true] } : recipe;
+
+    protected override void UpdateVisibility()
+    {
+        _fill.IsVisible = _kind == Kind.Subtract && _tools.Items.Any(i => S.Find(i.Obj)?.Kind == ObjKind.Surface);
+    }
+
+    /// <summary>
+    /// The space an open surface stands for: a closed surface already is one; an open tube or sheet gets a cap over each of its open loops (flat when the loop is flat),
+    /// so what lies "inside" it can be told from what lies outside.
+    /// </summary>
+    static Shape ClosedVolume(Shape shape, string what)
+    {
+        if (shape.HasSolids) return shape;
+        var attempt = Occ.Sew([shape], 1e-3, true);
+        if (attempt.HasSolids && Math.Abs(Occ.Mass(attempt).Volume) > 1e-6) return attempt;
+        List<List<int>> loops;
+        try { loops = SurfaceUtil.OpeningLoops(shape); }
+        catch (FormatException) { throw new FormatException($"The {what} surface cannot be closed into a space (it has no clear open ends to cap)."); }
+        var all = new List<Shape> { shape };
+        foreach (var loop in loops)
+        {
+            var edges = loop.Select(i => shape.Sub(SubKind.Edge, i)).ToList();
+            Shape? cap = null;
+            try { var f = Occ.Profile(edges, true); if (f.HasFaces) cap = f.Sub(SubKind.Face, 0); } catch (KernelException) { }
+            if (cap == null) { try { cap = Occ.Patch(edges); } catch (KernelException) { } }
+            if (cap == null) throw new FormatException($"One open end of the {what} surface cannot be capped, so it does not enclose a space.");
+            all.Add(cap);
+        }
+        var solid = Occ.Sew(all, 1e-3, true);
+        // a flat sheet capped over its own outline is two faces with no space between them
+        return solid.HasSolids && Math.Abs(Occ.Mass(solid).Volume) > 1e-6 ? solid : throw new FormatException($"The {what} surface does not enclose a space, even with its open ends capped.");
+    }
+
+    /// <summary>Cut with a surface: the target loses whatever lies inside the tool's space, and (when asked) gains the tool's walls that lie inside the target, so the cut is closed.</summary>
+    CommandOutput SubtractWithSurfaces(SceneObject target, List<SceneObject> tools)
+    {
+        Results.Clear();
+        var res = target.Shape; var fills = new List<Shape>();
+        foreach (var t in tools)
+        {
+            var volume = t.Kind == ObjKind.Surface ? ClosedVolume(t.Shape, "tool") : t.Shape;
+            if (_fill.Value && target.Kind == ObjKind.Surface && t.Kind == ObjKind.Surface)
+            {
+                try
+                {
+                    var inside = Occ.Common(t.Shape, ClosedVolume(target.Shape, "target"));
+                    if (inside.Count(SubKind.Face) > 0) fills.Add(inside);
+                }
+                catch (KernelException) { Results.Add(new ResultLine("Fill", "the tool's walls inside the target could not be found, so the cut is left open", 2)); }
+            }
+            res = Occ.Cut(res, volume);
+        }
+        if (res.Count(SubKind.Face) == 0) throw new FormatException("Nothing would be left of the body.");
+        if (fills.Count > 0)
+        {
+            var joined = new List<Shape> { res }; joined.AddRange(fills);
+            res = Occ.Sew(joined, 1e-3, false);
+            Results.Add(new ResultLine("Cut filled with", $"{fills.Sum(f => f.Count(SubKind.Face))} wall piece(s) of the tool"));
+        }
+        var o = new CommandOutput();
+        o.Replace.Add((target, res));
+        if (!_keep.Value) o.Remove.AddRange(tools);
+        return o;
+    }
 
     protected override CommandOutput? Build()
     {
@@ -1755,9 +1826,7 @@ public sealed class BooleanCommand : Command
         var target = S.Find(_target.Items[0].Obj)!;
         var tools = _tools.Items.Select(i => S.Find(i.Obj)!).Where(t => t.Id != target.Id).Distinct().ToList();
         if (tools.Count == 0) return null;
-        // an open surface has no inside: subtracting it removes nothing (and used to delete the tool and report success)
-        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface))
-            throw new FormatException("A surface has no inside to cut away. Subtract a solid, or cut with the surface using Trim, Split Surface or Split Body.");
+        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface)) return SubtractWithSurfaces(target, tools);
         var res = target.Shape;
         foreach (var t in tools)
             res = _kind switch { Kind.Union => Occ.Fuse(res, t.Shape), Kind.Subtract => Occ.Cut(res, t.Shape), _ => Occ.Common(res, t.Shape) };
