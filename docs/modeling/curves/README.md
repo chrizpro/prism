@@ -30,6 +30,12 @@ Old Split history and the `curve_split` scripting name use a compatibility adapt
 
 - **Checked and improved 2026-11-14 (owner report).** *Curve from Data* in its table mode read typed text or a file, and a sheet of the Data panel only through the panel's *Make curve* button or by typing `@` and the sheet's name. It now lists the document's sheets in **Use a table from the Data panel**, with **Open the Data panel** and **New table for this curve** (which adds a sheet, points the curve at it and opens the panel to type or paste into). A curve step saved before the choice existed reopens with its values in place. Tests: [CRV-H050 to CRV-H052](../../../Prism.Tests/Headless/Curves/CurveFromTableTests.cs).
 
+## Intersection Curve, Project and Wrap, and the Data panel button (owner requests 2026-11-14)
+
+- **Intersection Curve** keeps the two curves or deletes them (*Keep the original curves*, off by default) when it is given flat curves, as before. Given surfaces, planes or bodies it now also offers **Delete the two originals afterwards** (off by default): whole objects are removed, faces of a body stay. Steps saved before the option existed keep their sources ([SOL-H165](../../../Prism.Tests/Headless/Solid/PlaneAndIntersectionTests.cs)).
+- **Project and Wrap are one tool.** The ribbon button is **Project / Wrap**; Wrap is the third *Method* of Project Curve (*Wrap (lay on by distance)*) with its Slide across, Slide along, Rotate and Keep options appearing only for that method. The separate Wrap command stays for saved files and scripts (`wrap_curve`). Steps saved by Project before the merge reopen unchanged ([SFC-H022, SFC-H023](../../../Prism.Tests/Headless/Surfacing/ProjectWrapMergeTests.cs)).
+- **Open the Data panel** in Curve from Data did nothing: the request was wired to the first document only, through the Home button. It is now attached to whichever document is in front, including one opened later in a new tab ([CRV-H053](../../../Prism.Tests/Headless/Curves/DataPanelOpenTests.cs)). The panel itself was rebuilt as a real grid; see [the Data panel](../../interface/data/README.md).
+
 ## Verification
 
 [Curve command checks](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) and [expression unit checks](../../../Prism.Tests/Unit/Solid/CurveExpressionTests.cs). [Tracking issue #36](https://github.com/chrizpro/prism/issues/36).

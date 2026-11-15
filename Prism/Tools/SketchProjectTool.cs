@@ -15,7 +15,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
 {
     int _mode = variant;
     public override string Name => "Project";
-    public override string Mode => _mode switch { 0 => "Project", 1 => "Project body", 2 => "Intersect", 3 => "Pierce point", _ => "Pierce point(s)" };
+    public override string Mode => _mode switch { 0 => "Project", 1 => "Project body", 2 => "Intersect", 3 => "Pierce point", 5 => "Whole curve or text", _ => "Pierce point(s)" };
     bool _construction;
     public override void Activate(CadSession s) => _construction = Sk(s).Construction;
     public override string PanelTitle => "Project / Include";
@@ -38,6 +38,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         new("Intersect", "Click a sketch curve, edge or body to include its intersections with the sketch plane", "project-section"),
         new("Pierce Points", "Click a curve to include every point where it crosses this plane", "point", "Pierce Point"),
         new("Pierce Point(s)", "Click an individual crossing point to include; repeat for more", "point", "Pierce Point"),
+        new("Whole curve or text", "Click any curve of a text, sketch or curve outside this sketch to include all of it at once", "project-body"),
     ];
     public override IReadOnlyList<ToolOption> Options => Opts;
     public override int OptionIndex => _mode;
@@ -47,6 +48,7 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         0 => "Project (edges): click an edge, curve or sketch curve outside this sketch to copy it onto the sketch plane.",
         1 => "Project (body): click a body to copy all of its edges onto the sketch plane.",
         2 => "Intersect: click a curve on another sketch plane, an outside edge or a body for its intersection with this plane.",
+        5 => "Whole curve or text: click any letter or curve of a text, sketch or curve outside this sketch to copy all of it onto the sketch plane at once.",
         3 => "Pierce point: click a curve, including one on another plane in this sketch, to include every point where it crosses this plane.",
         _ => "Pierce point(s): click a point where a curve crosses this plane to include just that point; repeat for more.",
     };
@@ -282,7 +284,14 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         int n = 0;
         try
         {
-            if (_mode != 1 && InternalAt(s,p.X,p.Y) is { } source)
+            if (_mode == 5)
+            {
+                // the whole sketch or curve object under the pointer, text included: every one of its edges is brought in
+                var whole = WholeAt(s, p.X, p.Y);
+                if (whole == null) { s.Say("Click on a curve, a text or a sketch outside this one.", true); return true; }
+                n = Bring(s, Sk(s), AllEdges(whole.Mesh), "That projection", _construction);
+            }
+            else if (_mode != 1 && InternalAt(s,p.X,p.Y) is { } source)
             {
                 if (_mode >= 3)
                 {
@@ -326,6 +335,10 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
         return true;
     }
 
+    /// <summary>The sketch or curve object whose edge is nearest the pointer.</summary>
+    static SceneObject? WholeAt(CadSession s, double x, double y) =>
+        Picking.NearestEdge(s.Camera, Candidates(s).Where(o => o.Kind is ObjKind.Sketch or ObjKind.Curve), x, y, 10)?.obj;
+
     SceneObject? BodyAt(CadSession s, PointerInfo p)
     {
         var hit = Picking.RayFace(s.Camera, Candidates(s), p.X, p.Y, o => o.HasBrep);
@@ -336,6 +349,14 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
 
     public override void PointerMove(CadSession s, PointerInfo p)
     {
+        if (_mode == 5)
+        {
+            _hoverEdge = null; _hoverSection = null; _hoverBody = WholeAt(s, p.X, p.Y);
+            Sk(s).Cursor = null;
+            if (Sk(s).PlanePoint(s, p.X, p.Y) is { } at) s.Cursor3 = Sk(s).Plane.PointAt(at.u, at.v);
+            s.Invalidate();
+            return;
+        }
         _hoverEdge = null; _hoverBody = null; _hoverSection=_mode==1?null:InternalAt(s,p.X,p.Y);
         if (_mode != 1) { if (Picking.NearestEdge(s.Camera, Candidates(s), p.X, p.Y, 10, o => o.HasBrep) is { } h) _hoverEdge = (h.obj, h.edge); else if (_mode == 2) _hoverBody = BodyAt(s, p); }
         else _hoverBody = BodyAt(s, p);
@@ -356,6 +377,16 @@ public sealed class ProjectTool(int variant = 0) : SketchTool
     {
         var sk = Sk(s);
         const uint hot = 0xFF35B6FF;
+        if (_mode == 5)
+        {
+            if (_hoverBody is { } whole)
+                foreach (var poly in AllEdges(whole.Mesh))
+                {
+                    o.AddPolyline(poly, hot, 3f);
+                    o.AddPolyline(poly.Select(q => { var (u, v) = sk.Plane.Project(q); return sk.Plane.PointAt(u, v); }).ToList(), 0xFF7AA7E8, 2f);
+                }
+            return;
+        }
         if(_hoverSection is { } source)
         {
             foreach(var (_,poly) in source.section.Model.Polylines(source.section.Plane).Where(poly=>poly.ent.Id==source.entity))

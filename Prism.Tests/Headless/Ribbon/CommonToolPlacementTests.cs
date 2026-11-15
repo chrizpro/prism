@@ -23,7 +23,7 @@ public sealed class CommonToolPlacementTests
         Flatten(vm.Tabs.Single(t => t.Title == tab).Buttons).Select(b => b.Label.Replace("\n", " ")).ToHashSet();
 
     [AvaloniaTheory(DisplayName = "RIB-H003 | Tools that work on solids, surfaces and curves alike are on every modeling tab that makes them")]
-    [InlineData("Wrap", "Home,Solid,Surface,NURBS")]
+    [InlineData("Project / Wrap", "Home,Solid,Surface,NURBS")]
     [InlineData("Match Surface", "Surface,NURBS")]
     [InlineData("Linear", "Home,Solid,Surface,NURBS,Freeform")]
     [InlineData("Circular", "Home,Solid,Surface,NURBS,Freeform")]

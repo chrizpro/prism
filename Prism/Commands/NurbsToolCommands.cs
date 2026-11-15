@@ -481,20 +481,33 @@ public sealed class ProjectCurveCommand : Command
 {
     readonly SelectionSlot _curves, _target;
     readonly ChoiceParam _method, _dir;
+    readonly NumberParam _shiftX, _shiftY, _turn;
+    readonly BoolParam _keep;
     public ProjectCurveCommand()
     {
         _curves = Slot(new SelectionSlot { Label = "Curves to project", Filter = NurbsUtil.CurveIn, Multi = true });
         _target = Slot(new SelectionSlot { Label = "Surface to project onto", Filter = NurbsUtil.SurfaceIn });
-        _method = Choice("Method", 0, "Along a direction", "Pull normal to the surface");
+        _method = Choice("Method", 0, "Along a direction", "Pull normal to the surface", "Wrap (lay on by distance)");
         _dir = Choice("Direction", 0, NurbsUtil.DirectionNames);
+        // appended after the others, so a step saved before Wrap joined this tool keeps its values
+        _shiftX = Num("Slide across", 0); _shiftY = Num("Slide along", 0); _turn = Num("Rotate", 0, -360, 360, 5, "°");
+        _keep = Check("Keep the original curves", true);
+        _keep.IsVisible = _shiftX.IsVisible = _shiftY.IsVisible = _turn.IsVisible = false;
     }
-    public override string Title => "Project Curve";
+    public override string Title => "Project / Wrap Curve";
     public override string Icon => "section";
-    public override string Hint => "Project curves onto a surface or face: straight along a direction, or by pulling each point to the nearest spot on the surface.";
-    protected override void UpdateVisibility() { if (_dir != null && _method != null) _dir.IsVisible = _method.Index == 0; }
+    public override string Hint => "Put curves onto a surface or face. Along a direction projects straight, like a shadow; Pull normal drops each point to the nearest spot on the surface; Wrap lays a flat curve (a logo, a label, text) on by distance, the way a label wraps a bottle, so its lengths stay true on planes, cylinders and cones, with Slide and Rotate to place it.";
+    protected override void UpdateVisibility()
+    {
+        if (_dir == null || _method == null) return;
+        bool wrap = _method.Index == 2;
+        _dir.IsVisible = _method.Index == 0;
+        _shiftX.IsVisible = _shiftY.IsVisible = _turn.IsVisible = _keep.IsVisible = wrap;
+    }
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
+        if (_method.Index == 2) { Results.Clear(); return WrapCurveCommand.Wrap(S, _curves.Items, _target.Items[0], _shiftX.Value, _shiftY.Value, _turn.Value, _keep.Value, Results); }
         var curves = Occ.Compound(_curves.Items.Select(i => NurbsUtil.Curve(S, i)).ToList());
         var projected = Occ.ProjectCurve(curves, NurbsUtil.OfItem(S, _target.Items[0]), NurbsUtil.DirectionOf(_dir.Index), _method.Index == 1);
         Results.Clear(); Results.Add(new ResultLine("Projected segments", projected.Count(SubKind.Edge).ToString()));
@@ -503,6 +516,7 @@ public sealed class ProjectCurveCommand : Command
 }
 
 /// <summary>Lay flat curves onto a surface by distance, so lengths along the curve stay true (a circle wrapped on a cylinder stays as long around).</summary>
+[Legacy("Now the Wrap method of Project / Wrap Curve. Kept for saved files and scripts.")]
 public sealed class WrapCurveCommand : Command
 {
     readonly SelectionSlot _curves, _target;
@@ -525,9 +539,15 @@ public sealed class WrapCurveCommand : Command
     {
         if (!Complete) return null;
         Results.Clear();
-        var target = NurbsUtil.OfItem(S, _target.Items[0]);
+        return Wrap(S, _curves.Items, _target.Items[0], _shiftX.Value, _shiftY.Value, _turn.Value, _keep.Value, Results);
+    }
+
+    /// <summary>The wrapping itself, shared with Project Curve's Wrap method.</summary>
+    internal static CommandOutput Wrap(CadSession S, IReadOnlyList<SelItem> curveItems, SelItem targetItem, double shiftX, double shiftY, double turnDegrees, bool keepOriginals, System.Collections.Generic.ICollection<ResultLine> Results)
+    {
+        var target = NurbsUtil.OfItem(S, targetItem);
         var edges = new List<List<Vec3>>();
-        foreach (var item in _curves.Items)
+        foreach (var item in curveItems)
             foreach (var samples in Occ.CurveSamples(NurbsUtil.Curve(S, item), 120, 64))
                 edges.Add([.. samples.Select(s => s.p)]);
         var all = edges.SelectMany(e => e).ToList();
@@ -549,7 +569,7 @@ public sealed class WrapCurveCommand : Command
         var xAxis = Vec3.UnitX - normal * Vec3.Dot(Vec3.UnitX, normal);
         if (xAxis.Length < 1e-6) xAxis = Vec3.UnitY - normal * Vec3.Dot(Vec3.UnitY, normal);
         xAxis = xAxis.Normalized(); var yAxis = Vec3.Cross(normal, xAxis);
-        double a = _turn.Value * Math.PI / 180, ca = Math.Cos(a), sa = Math.Sin(a);
+        double a = turnDegrees * Math.PI / 180, ca = Math.Cos(a), sa = Math.Sin(a);
 
         var wrapped = new List<Shape>(); double flatLength = 0, wrappedLength = 0;
         foreach (var e in edges)
@@ -557,7 +577,7 @@ public sealed class WrapCurveCommand : Command
             var flat = e.Select(p =>
             {
                 double x = Vec3.Dot(p - centre, xAxis), y = Vec3.Dot(p - centre, yAxis);
-                return (x: x * ca - y * sa + _shiftX.Value, y: x * sa + y * ca + _shiftY.Value);
+                return (x: x * ca - y * sa + shiftX, y: x * sa + y * ca + shiftY);
             }).ToList();
             var pts = Occ.WrapPoints(target, centre, xAxis, flat);
             for (int i = 1; i < pts.Length; i++) { flatLength += e[i].DistanceTo(e[i - 1]); wrappedLength += pts[i].DistanceTo(pts[i - 1]); }
@@ -567,7 +587,7 @@ public sealed class WrapCurveCommand : Command
         Results.Add(new ResultLine("Length before", $"{flatLength:G6} mm"));
         Results.Add(new ResultLine("Length after", $"{wrappedLength:G6} mm"));
         var output = NurbsUtil.Curves([Occ.Compound(wrapped)], "Wrapped curve");
-        if (!_keep.Value) NurbsUtil.RemoveSources(S, output, _curves.Items);
+        if (!keepOriginals) NurbsUtil.RemoveSources(S, output, curveItems);
         return output;
     }
 }
