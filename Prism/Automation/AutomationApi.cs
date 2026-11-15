@@ -847,7 +847,9 @@ public sealed partial class AutomationApi
                 var before = Snapshot();
                 var cmd = make(); cmd.Factory = make;
                 _vm.CloseHome();
-                S.StartCommand(cmd);
+                // Begin may build a preview (analysis tools with empty picks
+                // examine the whole document). Wait for the requested inputs.
+                cmd.ConfigureInputs(() => S.StartCommand(cmd));
                 if (S.ActiveCommand != cmd) throw new InvalidOperationException(S.Status);
                 try
                 {

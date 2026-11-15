@@ -11,6 +11,27 @@ namespace Prism.HeadlessTests.Automation;
 [Trait("Layer", "Headless")]
 public class CommandReportTests
 {
+    [AvaloniaFact(DisplayName = "API-H002 | A scoped Interference call never converts an unrelated Freeform cage during startup")]
+    [Trait("TestId", "API-H002")]
+    public async Task ExplicitAnalysisPicksAreAppliedBeforeFirstPreview()
+    {
+        var vm = new MainViewModel();
+        var api = new AutomationApi(vm, null);
+        async Task<JsonNode> Call(string tool, object args) => (await api.CallAsync(tool, JsonSerializer(args)))!;
+        var a = await Call("run_command", new { name = "box", @params = new { Width = 10, Depth = 10, Height = 10 } });
+        var b = await Call("run_command", new { name = "box", @params = new Dictionary<string, object> { ["Width"] = 10, ["Depth"] = 10, ["Height"] = 10, ["Position X"] = 40 } });
+        var formResult = await Call("run_command", new { name = "form_box", @params = new Dictionary<string, object> { ["Width"] = 10, ["Depth"] = 10, ["Height"] = 10, ["Position X"] = 100, ["Faces X"] = 1, ["Faces Y"] = 1, ["Faces Z"] = 1 } });
+        string formName = (string)formResult["created"]![0]!["name"]!;
+        var form = vm.Session.Objects.Single(o => o.Name == formName);
+        Assert.False(form.HasCachedShape);
+        await Call("select", new { items = Array.Empty<string>() });
+        var result = await Call("run_command", new { name = "interference", commit = false,
+            slots = new Dictionary<string, object> { ["Bodies to check (none = all solids)"] = new[] { (string)a["created"]![0]!["name"]!, (string)b["created"]![0]!["name"]! } } });
+        Assert.Contains("No interference between 2 bodies (1 pair checked)", result["activeCommand"]!["results"]!.ToJsonString());
+        Assert.False(form.HasCachedShape); // Initial empty picks must not analyze the whole document.
+        await Call("command_cancel", new { });
+    }
+
     [AvaloniaFact(DisplayName = "API-H001 | Command reports keep exact measurements across hidden bodies, renames, shape replacement and undo/redo")]
     [Trait("TestId", "API-H001")]
     public async Task ShapeMeasurementsFollowGeometryRatherThanObjectNameOrVisibility()
