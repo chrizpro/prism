@@ -2,32 +2,6 @@
   "SchemaVersion": 1,
   "Items": [
     {
-      "Id": "folded-enclosure",
-      "Name": "Folded Enclosure",
-      "Description": "A silver folded enclosure with a lid, lip, handle slots and its flat blank.",
-      "Workflow": "Sheet Metal",
-      "Author": "Prism / Codex",
-      "License": "MIT",
-      "MinimumVersion": "0.3.0",
-      "Bytes": 168219,
-      "Sha256": "120d8e8a216f703b4a7c7c61a34b3d427806015ab6275e276deb654dd94c8782",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/folded-enclosure.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/folded-enclosure.png?v=4dd857340db77fdd"
-    },
-    {
-      "Id": "radiant-fold",
-      "Name": "Radiant Fold",
-      "Description": "A decorative multi-angle folded sculpture with a perforated center, slotted arms and a flat blank.",
-      "Workflow": "Sheet Metal",
-      "Author": "Prism / Codex",
-      "License": "MIT",
-      "MinimumVersion": "0.3.0",
-      "Bytes": 304731,
-      "Sha256": "3a1c82d4a59c9aeed85388c0f29c941aad41b8d2388f688e2c00dc9e8b7d4f0a",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/radiant-fold.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/radiant-fold.png?v=ae4964a2f0ac8f4c"
-    },
-    {
       "Id": "bellavista-1964",
       "Name": "Bellavista 1964 GT",
       "Description": "An original 1960s grand tourer with sculpted red coachwork, chrome trim, detailed wheels, glazing and a furnished tan cabin.",
