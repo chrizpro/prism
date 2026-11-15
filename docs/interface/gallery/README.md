@@ -2,6 +2,8 @@
 
 ## Status and scope
 
+The owner requested different sheet-metal demonstrations on 2026-11-15 after rejecting two studies similar to existing examples ([#130](https://github.com/chrizpro/prism/issues/130)). Cascade Ribbon has a repeated sloped-bend profile; Zigzag Channel has a stepped bridge profile. Each has 16 punched holes and its own flat pattern. The [gallery integration tests](../../../Prism.Tests/Integration/DesktopGalleryTests.cs) check native geometry and retained holes. These are modeling studies, not manufacturing designs. Windows verification on 2026-11-15: GAL-I012 passed (one test, no skips), reopening both models and checking the 16 holes and blank widths. The build checked the removed volume against 16 × π × 3² × 1.5 mm³ for each model. Actual viewport evidence: [Cascade Ribbon](evidence/GAL-I012-cascade-ribbon.png), [Zigzag Channel](evidence/GAL-I012-zigzag-channel.png). Catalog sizes and hashes passed; native binaries were reused. TRX: `artifacts/gallery/tests/GAL-I012-ribbons.trx`.
+
 Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal: use existing Prism studies and Claude's camera lens, represent Solid, Surface/NURBS and Freeform, and add three new finished examples to exercise modeling, Appearance and API/MCP. [Delivery issue #61](https://github.com/chrizpro/prism/issues/61).
 
 ## Bellavista 1964 — owner-authorized study, 2026-11-15

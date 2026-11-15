@@ -2,6 +2,32 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "zigzag-channel",
+      "Name": "Zigzag Channel",
+      "Description": "A stepped sheet-metal bridge with multiple bends, sixteen holes and its flat pattern.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 3183478,
+      "Sha256": "c6f240d2ea45dc2841f77e72b056f9fd926156b60d4fd67348f4bf9f8feb09a5",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/zigzag-channel.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/zigzag-channel.png?v=fe9d0ad329850901"
+    },
+    {
+      "Id": "cascade-ribbon",
+      "Name": "Cascade Ribbon",
+      "Description": "A perforated sheet-metal ribbon with repeated sloping bends and a flat pattern.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 3258083,
+      "Sha256": "4c0be46c865d505e756ff69601ce50a4e0a07d027b77455fe85c709c1a5b02e7",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/cascade-ribbon.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cascade-ribbon.png?v=ec0a1c9eb3ba6f18"
+    },
+    {
       "Id": "bellavista-1964",
       "Name": "Bellavista 1964 GT",
       "Description": "An original 1960s grand tourer with sculpted red coachwork, chrome trim, detailed wheels, glazing and a furnished tan cabin.",
