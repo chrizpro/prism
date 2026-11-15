@@ -16,7 +16,7 @@ public class RibbonHelpTests
     /// <summary>Buttons whose label and help title differ on purpose: the help names the same tool in other words.</summary>
     static readonly HashSet<(string Label, string Title)> Aliases =
     [
-        ("Through", "X-ray"), ("Orient part", "Rotate"), ("Tilt part", "Rotate"), ("Hollow body", "Shell"),
+        ("Orient part", "Rotate"), ("Tilt part", "Rotate"), ("Hollow body", "Shell"),
         ("Export for resin", "Export for Printing"), ("Clear Analysis", "Clear Results"), ("Clear Section", "Clear Results"),
         ("Displace- ment", "Displacement"), ("Recall faces", "Recall Face Selection"), ("Section View", "Section Analysis"),
     ];

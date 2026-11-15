@@ -15,7 +15,7 @@ public class SelectionRibbonTests
         .SelectMany(b => b.Menu == null ? [b] : b.Menu.Prepend(b))
         .Select(b => b.Label.Replace("\n", " ")).ToArray();
 
-    [AvaloniaFact(DisplayName = "SEL-H009 | Every modeling tab's Select group offers the same pick levels, drag methods, Invert and Through")]
+    [AvaloniaFact(DisplayName = "SEL-H009 | Every modeling tab's Select group offers the same pick levels, drag methods and Invert (selecting through the part is the X-ray toggle)")]
     [Trait("TestId", "SEL-H009")]
     public void ModelingTabsShareTheSelectGroup()
     {
@@ -27,8 +27,9 @@ public class SelectionRibbonTests
             Assert.Equal(FlatLabels(reference), FlatLabels(group));
         }
         var labels = FlatLabels(reference);
-        foreach (var expected in new[] { "Object", "Face", "Edge", "Vertex", "Rectangle", "Lasso", "Paint", "Invert", "Through" })
+        foreach (var expected in new[] { "Object", "Face", "Edge", "Vertex", "Rectangle", "Lasso", "Paint", "Invert" })
             Assert.Contains(expected, labels);
+        Assert.DoesNotContain("Through", labels);       // X-ray does the same job, so Select does not repeat it
     }
 
     [AvaloniaFact(DisplayName = "SEL-H010 | The Sketch tab's Select group is the same as the modeling tabs'; Edit sits in Modify")]
