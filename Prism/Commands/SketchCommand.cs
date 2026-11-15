@@ -39,6 +39,50 @@ public class CreateSketchCommand : Command
         if (nearAxis) S.AnimateView(-35 * Math.PI / 180, 28 * Math.PI / 180);
     }
 
+    /// <summary>The grid stays on the plane before the offset, so raising the offset does not make the grid cells swell towards the camera.</summary>
+    public override Plane3? GridPlane
+    {
+        get
+        {
+            var p = ResolveBase();
+            return new Plane3(p.Origin, p.U, p.V);
+        }
+    }
+
+    Plane3 ResolveBase()
+    {
+        if (_face.Items.Count > 0 && S.PlaneOf(_face.Items[0]) is { } picked) return picked;
+        return _plane.Index == 0 ? Plane3.XY : _plane.Index == 1 ? Plane3.XZ : Plane3.YZ;
+    }
+
+    /// <summary>The plane under the pointer (an origin or construction plane) with the offset applied, as a preview of where the sketch would start; else the plane the options name.</summary>
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_face.Items.Count > 0 && _face.Items[0].Kind == SelKind.Face) return;      // a flat face is used exactly: nothing to preview
+        Plane3 basePlane; double hu, hv; string name;
+        if (s.Hover is { Kind: SelKind.Origin or SelKind.Object } hov && hov.Kind == SelKind.Origin ? hov.Index < 3 : s.Hover is { Kind: SelKind.Object } && s.Find(s.Hover!.Value.Obj) is { Kind: ObjKind.Plane })
+        {
+            var item = s.Hover!.Value;
+            if (s.PlaneOf(item) is not { } hp) return;
+            basePlane = hp;
+            double scale = Prism.Core.AppSettings.Current.PlaneScale;
+            if (item.Kind == SelKind.Origin) { hu = hv = s.OriginSize() * scale; name = new[] { "XY", "XZ", "YZ" }[item.Index]; }
+            else { var obj = s.Find(item.Obj)!; (hu, hv) = CadSession.PlaneHalfSize(obj); hu *= scale; hv *= scale; name = obj.Name; }
+        }
+        else
+        {
+            basePlane = ResolveBase(); hu = hv = s.OriginSize() * Prism.Core.AppSettings.Current.PlaneScale;
+            name = _face.Items.Count > 0 ? "plane" : new[] { "XY", "XZ", "YZ" }[_plane.Index];
+        }
+        var pl = new Plane3(basePlane.Origin + basePlane.Normal * _offset.Value, basePlane.U, basePlane.V);
+        Vec3 P(double u, double v) => pl.PointAt(u * hu, v * hv);
+        const uint tint = 0xFFC53D;
+        uint fill = (0x40u << 24) | tint;
+        o.AddTri(P(-1, -1), P(1, -1), P(1, 1), fill); o.AddTri(P(-1, -1), P(1, 1), P(-1, 1), fill);
+        o.AddPolyline([P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)], (0xFFu << 24) | tint, 2.4f, true);
+        o.AddLabel(P(0.9, 0.9), _offset.Value == 0 ? name : $"{name} + {_offset.Value:0.##} mm", true);
+    }
+
     Plane3 ResolvePlane()
     {
         if (_face.Items.Count > 0 && S.PlaneOf(_face.Items[0]) is { } picked)

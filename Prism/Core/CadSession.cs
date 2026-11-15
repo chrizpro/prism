@@ -1893,7 +1893,7 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public Plane3 DisplayGridPlane() =>
         (Ortho || Camera.Orthographic) && Camera.AxisFacingPlane() is { } facing ? facing
-        : Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+        : Sketch?.GridPlane ?? ActiveCommand?.GridPlane ?? ViewPlane();
 
     /// <summary>In orthographic mode, and while sketching, both axes of the grid plane being looked at are drawn: X red, Y green, Z blue.</summary>
     void BuildPlaneAxesOverlay(Overlay o)

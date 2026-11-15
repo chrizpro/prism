@@ -468,6 +468,8 @@ public abstract partial class Command : ObservableObject
     public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && (Handles.Count > 0 || Gizmo != null));
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
+    /// <summary>The plane the reference grid is drawn on while this command runs. Defaults to the work plane; a command whose work plane slides about (an offset) can keep the grid still.</summary>
+    public virtual Plane3? GridPlane => WorkPlane;
     public CadSession S { get; private set; } = null!;
     int _inputUpdateDepth;
 
