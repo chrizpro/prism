@@ -519,7 +519,6 @@ public sealed partial class MainViewModel : ViewModelBase
         void Sync() { button.Label = Session.HomeIsOriginal ? "Set\nHome" : "Reset\nHome"; button.Icon = Session.HomeIsOriginal ? "home-set" : "home-reset"; }
         Sync();
         Session.HomeChanged += Sync;
-        Session.DataPanelRequested += ShowDataPanelForCommand;
         return button;
     }
 
