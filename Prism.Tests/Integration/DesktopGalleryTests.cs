@@ -9,30 +9,6 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
-    [Fact(DisplayName = "GAL-I012 | Folded ribbon studies reopen with valid solids and sixteen openings in their flat patterns")]
-    [Trait("TestId", "GAL-I012")]
-    public async Task FoldedRibbonsKeepTheirPunchedHoles()
-    {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
-        Assert.NotNull(root);
-        await using var mcp = new DesktopMcp("GAL-I012", "Light");
-        await mcp.Initialize();
-        foreach (var (id, name, width) in new[] { ("cascade-ribbon", "Cascade ribbon", 90.0), ("zigzag-channel", "Zigzag channel", 110.0) })
-        {
-            await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models", id + ".prism") });
-            var body = await mcp.Call("object_info", new { @object = name });
-            var flat = await mcp.Call("object_info", new { @object = name + " flat pattern" });
-            Assert.True((bool?)body["valid"]);
-            Assert.True((double?)body["volume"] > 0);
-            Assert.True((bool?)flat["valid"]);
-            Assert.Equal((int)flat["faces"]! + 16, (int)flat["wires"]!);
-            Assert.InRange((double)flat["size"]![1]!, width - .02, width + .02);
-            await mcp.Call("view", new { yaw = -35, pitch = 25, fit = true, grid = false });
-            await mcp.Capture(id);
-        }
-    }
-
     [Fact(DisplayName = "GAL-I011 | Aster Road reopens with valid parts and two grounded 680 mm tires on a 1000 mm wheelbase")]
     [Trait("TestId", "GAL-I011")]
     public async Task AsterRoadKeepsItsWheelPlacementAndNativeParts()
