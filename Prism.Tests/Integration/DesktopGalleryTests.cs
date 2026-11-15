@@ -9,6 +9,31 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I012 | Decorative folded studies reopen with valid solids and their cutouts in the flat patterns")]
+    [Trait("TestId", "GAL-I012")]
+    public async Task DecorativeSheetMetalStudiesKeepTheirBlanks()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        await using var mcp = new DesktopMcp("GAL-I012", "Light");
+        await mcp.Initialize();
+        foreach (var (id, solid, flat, holes) in new[] { ("radiant-fold", "Radiant folded sculpture", "Radiant flat pattern", 17), ("folded-enclosure", "Folded metal enclosure", "Enclosure flat pattern", 2) })
+        {
+            await mcp.Call("file", new { action = "open", path = Path.Combine(root.FullName, "gallery/models", id + ".prism") });
+            var body = await mcp.Call("object_info", new { @object = solid });
+            var blank = await mcp.Call("object_info", new { @object = flat });
+            Assert.True((bool?)body["valid"]);
+            Assert.True((double?)body["volume"] > 0);
+            Assert.True((bool?)blank["valid"]);
+            Assert.Equal((int)blank["faces"]! + holes, (int)blank["wires"]!);
+            if (id == "folded-enclosure")
+                for (int i = 0; i < 3; i++) Assert.InRange((double)body["size"]![i]!, new[] { 167.0, 120.5, 57.0 }[i] - .02, new[] { 167.0, 120.5, 57.0 }[i] + .02);
+            await mcp.Call("view", new { yaw = -38, pitch = 30, fit = true, grid = false });
+            await mcp.Capture(id);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I011 | Aster Road reopens with valid parts and two grounded 680 mm tires on a 1000 mm wheelbase")]
     [Trait("TestId", "GAL-I011")]
     public async Task AsterRoadKeepsItsWheelPlacementAndNativeParts()

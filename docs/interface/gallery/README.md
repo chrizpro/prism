@@ -2,6 +2,8 @@
 
 ## Status and scope
 
+The owner requested two further sheet-metal demonstrations on 2026-11-15 ([#130](https://github.com/chrizpro/prism/issues/130)). Radiant Fold is a four-arm decorative form with eight bends at two angles, holes, slots and its flat blank. Folded Enclosure is a six-bend silver-metal form with a lid, lip, two slots and its blank. They are visual studies, not manufacturing designs. [Maintained gallery tests](../../../Prism.Tests/Integration/DesktopGalleryTests.cs) check the saved solids, blank openings and enclosure dimensions. On 2026-11-15, Windows desktop test GAL-I012 passed (one test, no skips), reopening both solids and flat patterns and checking the 17 and two openings and the enclosure’s 167 × 120.5 × 57 mm size. The native model scripts also checked the radial form’s volume against bend-sector calculations and saved/reopened both studies. Actual Prism evidence: [radial form](evidence/GAL-I012-radiant-fold.png), [enclosure](evidence/GAL-I012-folded-enclosure.png); [render previews](../../../gallery/previews/). Native binaries were reused. The catalog hash check passed. TRX remains at `artifacts/gallery/tests/GAL-I012.trx`.
+
 Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal: use existing Prism studies and Claude's camera lens, represent Solid, Surface/NURBS and Freeform, and add three new finished examples to exercise modeling, Appearance and API/MCP. [Delivery issue #61](https://github.com/chrizpro/prism/issues/61).
 
 ## Bellavista 1964 — owner-authorized study, 2026-11-15
