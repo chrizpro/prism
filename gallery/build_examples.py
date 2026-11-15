@@ -23,6 +23,8 @@ def connect_mcp(discovery):
     env = dict(os.environ, PRISM_AUTOMATION_DISCOVERY=str(Path(discovery).resolve()))
     candidates = [ROOT / f"Prism.Mcp/bin/{config}/net10.0/Prism.Mcp.dll" for config in ("Release", "Debug")]
     candidates.append(ROOT / "artifacts/gallery/bin/Prism.Mcp.dll")
+    if os.environ.get("PRISM_MCP"):
+        candidates.insert(0, Path(os.environ["PRISM_MCP"]))
     binary = next((path for path in candidates if path.is_file()), None)
     if binary is None:
         raise FileNotFoundError("Build the bridge first: dotnet build Prism.Mcp -c Release")

@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "arc-desk-lamp",
+      "Name": "Arc desk lamp",
+      "Description": "A rolled, slotted and hemmed shade on a stepped support and folded plinth. Four sheet-metal developments are retained.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 11214617,
+      "Sha256": "255c612bbab982e1015191371af21ffa68bfe7c91dbe29045ab85ed3e58a278b",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/arc-desk-lamp.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/arc-desk-lamp.png?v=a04a8f4195f94c62"
+    },
+    {
       "Id": "bellavista-1964",
       "Name": "Bellavista 1964 GT",
       "Description": "An original 1960s grand tourer with sculpted red coachwork, chrome trim, detailed wheels, glazing and a furnished tan cabin.",

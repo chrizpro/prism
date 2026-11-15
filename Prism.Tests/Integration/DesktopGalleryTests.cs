@@ -9,6 +9,65 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I013 | Arc lamp retains its rolled shade, eighteen developed slots, ground contact and valid sheet-metal parts")]
+    [Trait("TestId", "GAL-I013")]
+    public async Task ArcLampRetainsItsRolledSheetDevelopments()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        string path = Path.Combine(root.FullName, "gallery/models/arc-desk-lamp.prism");
+        var saved = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        Assert.Equal(3, saved["Lights"]!.AsArray().Count);
+        await using var mcp = new DesktopMcp("GAL-I013", "Light");
+        await mcp.Initialize();
+        var open = await mcp.Call("file", new { action = "open", path });
+        Assert.Equal(saved["Objects"]!.AsArray().Count, (int)open["objects"]!);
+        var objects = saved["Objects"]!.AsArray().Where(o => (string?)o!["Kind"] is "Solid" or "Surface").ToArray();
+        var reports = (await mcp.Call("batch", new { calls = objects.Select(o => new { tool = "object_info", args = new Dictionary<string, object> { ["object"] = (string)o!["Name"]! } }).ToArray() })).AsArray();
+        var info = reports.ToDictionary(r => (string)r!["result"]!["name"]!, r => r!["result"]!);
+        Assert.Equal(15, objects.Count(o => (string?)o!["Kind"] == "Solid"));
+        foreach (var obj in objects)
+        {
+            string name = (string)obj!["Name"]!;
+            Assert.True((bool?)info[name]["valid"], name);
+            if ((string?)obj["Kind"] == "Solid") Assert.True((double?)info[name]["volume"] > 0, name);
+            uint color = (uint)obj["Color"]!;
+            Assert.Equal($"#{color & 0xFFFFFF:X6}", (string?)info[name]["color"]);
+        }
+        var flat = info["Shade development"];
+        Assert.Equal((int)flat["faces"]! + 18, (int)flat["wires"]!);
+        Assert.InRange((double)flat["size"]![1]!, 239.99, 240.01);
+        // Independent cylindrical development of a stadium-shaped radial punch.
+        const double neutral = 68 + .44 * 1.5, outer = 69.5, radius = 2.5;
+        double angleMax = Math.Asin(radius / outer), sum = 0;
+        const int steps = 2000;
+        for (int i = 0; i <= steps; i++)
+        {
+            double angle = angleMax * i / steps;
+            sum += Math.Sqrt(Math.Max(0, radius * radius - outer * outer * Math.Sin(angle) * Math.Sin(angle))) *
+                (i == 0 || i == steps ? 1 : i % 2 == 0 ? 2 : 4);
+        }
+        double holeArea = 20 * 2 * neutral * angleMax + 4 * neutral * sum * angleMax / (3 * steps);
+        double blankArea = 240 * (20 + Math.PI * neutral + 2 * (7 + Math.PI * (.25 + .44 * 1.5)));
+        Assert.InRange((double)flat["area"]!, blankArea - 18 * holeArea - 3, blankArea - 18 * holeArea + 3);
+        Assert.Equal((int)info["Plinth development"]["faces"]! + 5, (int)info["Plinth development"]["wires"]!);
+        Assert.InRange((double)info["Folded plinth"]["min"]![2]!, -.01, .01);
+        foreach (double radiusCheck in new[] { 68.0, 69.5 })
+        {
+            var hits = await mcp.Call("solid_find", new { @object = "Rolled shade", kind = "faces", type = "Cylinder", radius = radiusCheck, radius_tol = .01 });
+            Assert.True((int)hits["total"]! > 0);
+        }
+        await mcp.Call("view", new { yaw = -38, pitch = 18, fit = true, grid = false });
+        await mcp.Capture("arc-lamp-assembled");
+        await mcp.Call("batch", new { calls = objects.Select(o => new { tool = "object_update", args = new { @object = (string)o!["Name"]!, visible = (string?)o["Kind"] == "Surface" } }).ToArray() });
+        var bendNames = saved["Objects"]!.AsArray().Where(o => (string?)o!["Kind"] == "Curve" && ((string?)o["Name"])!.Contains("bend lines", StringComparison.OrdinalIgnoreCase)).Select(o => (string)o!["Name"]!).ToArray();
+        await mcp.Call("batch", new { calls = bendNames.Select(name => new { tool = "object_update", args = new { @object = name, visible = true } }).ToArray() });
+        await mcp.Call("view", new { preset = "top", fit = true, grid = false });
+        await mcp.Capture("arc-lamp-developments");
+        await mcp.Call("file", new { action = "save_as", path = Path.Combine(mcp.OutputDirectory, "developments-review.prism") });
+    }
+
     [Fact(DisplayName = "GAL-I011 | Aster Road reopens with valid parts and two grounded 680 mm tires on a 1000 mm wheelbase")]
     [Trait("TestId", "GAL-I011")]
     public async Task AsterRoadKeepsItsWheelPlacementAndNativeParts()

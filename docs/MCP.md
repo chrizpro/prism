@@ -2,6 +2,8 @@
 
 `app_close` requests a normal desktop close and respects unsaved-document prompts. If Prism remains open, complete or cancel its save review; the bridge never force-kills it. See [saving, closing and recovery](interface/document-safety/README.md).
 
+During the approved lamp build on 2026-11-15, a busy renderer delayed the bridge's 1.5-second ping. The bridge treated that as a missing app and launched an empty instance over its discovery file. Discovery now respects a live recorded PID and lets normal API requests wait for the busy endpoint instead. [MCP-I001](../Prism.Tests/Integration/McpDiscoveryTests.cs) uses a delayed local endpoint to verify session preservation without rendering or launching a desktop app. Windows verification on 2026-11-15: both MCP-I001 cases passed (call_api and app_status, no skips) against the rebuilt Release bridge. The final lamp save/reopen integration also passed. Existing native binaries were reused. Local TRX evidence is under `artifacts/arc-lamp/tests/`; [delivery issue #130](https://github.com/chrizpro/prism/issues/130) records the source revision.
+
 Prism can be driven by an AI assistant (or any script) through the Model Context Protocol.
 
 ```
