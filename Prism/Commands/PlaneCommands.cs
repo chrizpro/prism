@@ -174,6 +174,14 @@ public sealed class ConstructionPlaneCommand : Command
                     var tan = (pts[Math.Min(2, pts.Count - 1)] - pts[0]).Normalized();
                     return [new HandleSpec(pts[0], tan, _pos, 100.0 / Math.Max(cum, 1e-9))];
                 }
+                if (m == Method.TangentFace)
+                {
+                    // turn the touching plane round the axis of the round face
+                    if (_tanFace.Items.Count == 0 || S.ShapeOf(_tanFace.Items[0]) is not { } rs || Occ.Cylinders(rs) is not { Count: > 0 } cyl) return [];
+                    var c = cyl[0]; var ax = c.Axis.Normalized();
+                    var refd = Math.Abs(ax.Z) < 0.9 ? Vec3.Cross(Vec3.UnitZ, ax).Normalized() : Vec3.Cross(Vec3.UnitX, ax).Normalized();
+                    return [new HandleSpec(c.Origin + ax * ((c.V0 + c.V1) / 2), ax, _angle, 1, refd, Math.Max(c.Radius * 1.5, 10))];
+                }
                 if (m is not (Method.Offset or Method.Angle) || _base.Items.Count == 0 || S.PlaneOf(_base.Items[0]) is not { } b) return [];
                 var it = _base.Items[0];
                 var at = b.Origin;
@@ -198,6 +206,7 @@ public sealed class ConstructionPlaneCommand : Command
         Results.Clear(); _preview.Clear();
         var m = (Method)_method.Index;
         var planes = new List<(Plane3 plane, string label)>();
+        double coverHalf = 0;
         Plane3 Need(SelectionSlot slot) => slot.Items.Count > 0 && S.PlaneOf(slot.Items[0]) is { } p ? p : throw new InvalidOperationException("Pick a plane or a flat face.");
 
         switch (m)
@@ -318,14 +327,17 @@ public sealed class ConstructionPlaneCommand : Command
                 var n = Vec3.Cross(P[1] - P[0], P[2] - P[0]);
                 if (n.Length < 1e-9) throw new InvalidOperationException("The three points are in a line, so they do not define a plane.");
                 var u = (P[1] - P[0]).Normalized();
-                var pl = new Plane3(P[0], u, Vec3.Cross(n.Normalized(), u));
+                // centred on the points and sized to cover them, so the drawn plane visibly passes through all three
+                var centre = (P[0] + P[1] + P[2]) / 3;
+                var pl = new Plane3(centre, u, Vec3.Cross(n.Normalized(), u));
                 planes.Add((pl, "3 points"));
+                coverHalf = P.Max(q => (q - centre).Length) * 1.5;
                 break;
             }
         }
         if (planes.Count == 0) { _preview.Clear(); return null; }
 
-        double half = _size.Value > 0 ? _size.Value / 2 : Math.Max(S.OriginSize() * 0.6, 40);
+        double half = _size.Value > 0 ? _size.Value / 2 : coverHalf > 0 ? Math.Max(coverHalf, 5) : Math.Max(S.OriginSize() * 0.6, 40);
         _preview.Clear(); _preview.AddRange(planes.Select(p => p.plane)); _previewHalf = half;
         var o = new CommandOutput { Label = planes.Count == 1 ? "Construction plane" : $"{planes.Count} construction planes", Icon = "origin-plane" };
         foreach (var (pl, label) in planes)
@@ -370,11 +382,16 @@ public sealed class IntersectCurvesCommand : Command
         _between = Choice("Between", 2, "Planes, faces or bodies", "Two flat curves (projected)", "Automatic (from what you pick)");
         _separate = Check("Make each curve its own object", false);
         _keep = Check("Keep the original curves", false);
+        _delete = Check("Delete the two originals afterwards", false);
+        _delete.HelpText = "Removes the surfaces, planes or bodies you picked once the curve exists. Faces of a body cannot be removed on their own, so they stay.";
     }
 
-    /// <summary>Steps saved before the option existed always kept their curves, so they keep doing so.</summary>
+    readonly BoolParam _delete;
+
+    /// <summary>Steps saved before the options existed always kept their sources, so they keep doing so.</summary>
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
-        recipe.Values.Count == 2 ? recipe with { Values = [.. recipe.Values, true] } : recipe;
+        recipe.Values.Count == 2 ? recipe with { Values = [.. recipe.Values, true, false] }
+        : recipe.Values.Count == 3 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
 
     public override string Title => "Intersection Curve";
     public override string Icon => "section";
@@ -395,7 +412,9 @@ public sealed class IntersectCurvesCommand : Command
         if (_lastBetween != _between.Index) { _lastBetween = _between.Index; _a.Items.Clear(); _b.Items.Clear(); }
         _b.Filter = filter;
         _a.Filter = _between.Index == 2 ? Solids | Curves : filter;
-        _keep.IsVisible = CurveMode;   // planes, faces and bodies are references and always stay
+        _keep.IsVisible = CurveMode;
+        // surfaces, planes and bodies stay unless asked; offered when a whole object (not just a face of one) is picked
+        _delete.IsVisible = !CurveMode && _a.Items.Concat(_b.Items).Any(i => i.Kind == SelKind.Object);
     }
 
     public override void BuildOverlay(CadSession s, Overlay o) { if (CurveMode) _curves?.BuildOverlay(s, o); }
@@ -439,6 +458,7 @@ public sealed class IntersectCurvesCommand : Command
         var o = new CommandOutput { Label = "Intersection curve", Icon = "section" };
         if (_separate.Value && edges > 1) { for (int i = 0; i < edges; i++) o.Add.Add(new(cut.Sub(SubKind.Edge, i), "Intersection", ObjKind.Curve)); }
         else o.Add.Add(new(cut, "Intersection", ObjKind.Curve));
+        if (_delete.Value) NurbsUtil.RemoveSources(S, o, [_a.Items[0], _b.Items[0]]);
         return o;
     }
 }
