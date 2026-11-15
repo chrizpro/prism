@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-15",
+  "application_source": "65502ca",
+  "environment": "Windows workstation",
+  "native_kernel_sha256": "064ad745b8610d26e6e66e307cbdcf9f709e49480acf46e2764ca7ab927b772e",
+  "native_rebuilt": false,
+  "integration": {
+    "total": "2",
+    "executed": "2",
+    "passed": "2",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "headless_passed": 6,
+  "car": {
+    "solids": 169,
+    "forms": 12,
+    "construction_curves": 1,
+    "wheelbase_mm": 2600,
+    "track_mm": 1510
+  },
+  "bicycle": {
+    "components": 242,
+    "grounded": 1,
+    "wheelbase_mm": 1000,
+    "spokes_per_wheel": 28
+  }
+}

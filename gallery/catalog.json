@@ -2,6 +2,32 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "bellavista-1964",
+      "Name": "Bellavista 1964 GT",
+      "Description": "An original 1960s grand tourer with sculpted red coachwork, chrome trim, detailed wheels, glazing and a furnished tan cabin.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 35775944,
+      "Sha256": "9c3f1c658d8373585fcb492736ece5b8a7d84d3e2324dab8c7a374585b5a392f",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/bellavista-1964.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/bellavista-1964.png?v=5619c5c4aae43d76"
+    },
+    {
+      "Id": "aster-road",
+      "Name": "Aster Road bicycle",
+      "Description": "A teal road bicycle with 28-spoke wheels, disc brakes, drop bars and a detailed static drivetrain.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 17256271,
+      "Sha256": "61f12a240766645f9efda88c8d456504d2314bafa0607db7067307458d6b65ba",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/aster-road.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/aster-road.png?v=49f7278d9b881d64"
+    },
+    {
       "Id": "kestrel-r07",
       "Name": "Kestrel R-07",
       "Description": "A sci-fi sensor pod with layered armor, recessed vents, and a detailed optical head.",

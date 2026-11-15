@@ -4,6 +4,32 @@
 
 Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal: use existing Prism studies and Claude's camera lens, represent Solid, Surface/NURBS and Freeform, and add three new finished examples to exercise modeling, Appearance and API/MCP. [Delivery issue #61](https://github.com/chrizpro/prism/issues/61).
 
+## Bellavista 1964 — owner-authorized study, 2026-11-15
+
+The owner requested a polished 1960s-style car for the demo library, allowing assembly construction and fixes/API extensions as needed. [Delivery #129](https://github.com/chrizpro/prism/issues/129) tracks **Bellavista 1964**, an original period-inspired grand tourer: red sculpted coachwork with real wheel openings, chrome trim, four detailed wheels, separate glazing and a furnished cabin. [Reproduction script](../../../gallery/build_bellavista.py).
+
+Content acceptance: review front/side/rear views and an actual Prism render; save/reopen with valid exact solids and closed consistent upholstery cages; four 680 mm tires touch Z=0 at a 2600 mm wheelbase and 1510 mm track; tire solids do not intersect the coachwork. Retain saved appearances and update catalog hashes. Maintained verification belongs in [DesktopGalleryTests](../../../Prism.Tests/Integration/DesktopGalleryTests.cs) (GAL-I010). The criteria are verified below with actual workstation evidence.
+
+This is a visual concept, with simplified hardware and cabin construction, rather than a replica or manufacturing/vehicle-safety design. Joint animation is optional. This content authorization does not approve unrelated product behavior changes.
+
+The same demo-library instruction covers **Aster Road**, the bicycle built in the preceding session. [Source](../../../gallery/build_bicycle.py). GAL-I011 checks its native solids and appearances, two 680 × 28 mm tires at ground level with a 1000 mm wheelbase, and 28 spokes per wheel. It is a static assembly with 242 named solid components, one grounded, and a continuous swept chain envelope; the frame members and drivetrain are simplified.
+
+Windows workstation verification, 2026-11-15: GAL-I011 passed (one test, no skips), reopening all 242 solids and checking validity, positive volume, saved colors/material references, wheel placement and spoke counts. The first run exposed a test-harness 60-second timeout and a cleanup read that obscured it. DesktopMcp now cancels the read itself, waits up to the bridge’s six-minute limit, and avoids protocol reuse after a failed read. The rerun passed in 67 seconds; local TRX files are under `artifacts/bellavista/tests/`. No application/native behavior changed for this correction.
+
+
+### Vehicle verification — 2026-11-15
+
+Windows workstation, application source `65502ca` plus this gallery delivery; native kernel SHA-256 `064ad745b8610d26e6e66e307cbdcf9f709e49480acf46e2764ca7ab927b772e` (reused, not rebuilt). The final gallery tests used a separate Release desktop under `artifacts/bellavista/final-bin`; the owner's original app and documents were preserved.
+
+- `dotnet test Prism.Tests/Integration/Prism.IntegrationTests.csproj -c Release --filter "TestId=GAL-I010|TestId=GAL-I011"` with `PRISM_INTEGRATION_BIN=artifacts/bellavista/final-bin`: **2 passed, no failures/skips**. GAL-I010 reopened Bellavista's 169 exact solids, 12 closed editable cages and one construction curve, checked geometry and saved appearances, wheel ground placement/symmetry, tire/coachwork interference, and conservative dashboard-cage clearance from the inner windscreen plane. GAL-I011 reopened Aster Road's 242 component solids, checked native assembly roles/grounding, appearances, tire dimensions and spoke counts.
+- `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter "TestId=API-H001|TestId=API-H002|FullyQualifiedName~CurveApiTests|FullyQualifiedName~SketchApiTests"`: **6 passed, no failures/skips**. [API performance/startup findings](../../MCP.md#measurement-reuse-during-scripted-builds) and the read-cancellation harness correction were discovered during this work. The earlier all-pairs gallery attempt was stopped and replaced by the final successful run.
+- Release Desktop builds succeeded with pre-existing compiler/package warnings; no native rebuild. `python gallery/update_catalog.py --check`, Python compilation of the three affected build scripts, and `git diff --check` passed. The catalog has 26 entries, including both vehicles. Raw TRX/timing files remain local under `artifacts/bellavista/`.
+
+Reviewed actual Prism views (GAL-I010, same source/content): [front quarter](evidence/bellavista-front-quarter.png), [side](evidence/bellavista-side.png), [rear quarter](evidence/bellavista-rear-quarter.png), and [cabin with roof/glass temporarily hidden](evidence/bellavista-cabin.png). Reviewed native renders: [Bellavista](../../../gallery/previews/bellavista-1964.png), [Aster Road](../../../gallery/previews/aster-road.png). The car render used 1280 × 720, 128 samples, seven bounces and final denoising; the catalog image is reduced to 810 pixels wide. Geometry was created through actual MCP/cadkit, not imported meshes or generated illustrations. Staged native checkpoints and the full render remain in `artifacts/bellavista/`.
+
+The library assets and evidence are prepared locally. The GitHub issue records the delivery commit; browser image attachment was unavailable because no browser was connected. Publishing the committed assets remains a separate step.
+
+
 ## Behavior
 
 - Home shows **Made with Prism** with image cards, workflow/category, description, and a credit line noting the example was made with Prism MCP alongside its author and license. The section text links the examples to the same MCP toolkit configurable in Settings → AI Assistant. Search matches names, descriptions and workflow. Existing workspace, recent files and new/open actions remain available.
