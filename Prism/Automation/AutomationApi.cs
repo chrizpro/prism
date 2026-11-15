@@ -1353,7 +1353,7 @@ public sealed partial class AutomationApi
         Add("sketch_add", "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: " +
             "line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); " +
             "circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; " +
-            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}. Add \"construction\":true for reference geometry.",
+            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}; text {text, at:[u,v] (lower-left of the first line, default [0,0]), height? (mm, default 10), font? (an installed font, default Arial), bold?, spacing? (extra letter spacing, mm); line breaks start a new line}. Add \"construction\":true for reference geometry.",
             Schema(["entities"], ("entities", "array", "List of entity objects.")), a =>
             {
                 var sk = S.Sketch ?? throw new InvalidOperationException("No sketch is open. Call sketch_begin first.");
@@ -1367,6 +1367,13 @@ public sealed partial class AutomationApi
                     try
                     {
                         var pts = o["points"]?.AsArray().Select(p => P(p!)).ToList() ?? [];
+                        if (type == "text")
+                        {
+                            // letters become lines and splines at the given spot, the same as the Text tool's Place button
+                            var at = o["at"] != null ? P(o["at"]!) : (0.0, 0.0);
+                            SketchTextTool.PlaceText(S, Str(o, "text"), at.Item1, at.Item2, Dbl(o, "height", 10), o["font"]?.ToString(), Bool(o, "bold", false), Dbl(o, "spacing", 0));
+                            continue;
+                        }
                         ClickTool tool; List<(double, double)> feed; bool closed = Bool(o, "closed", false);
                         switch (type)
                         {
