@@ -335,10 +335,58 @@ public sealed class ConstraintTool(CType type) : SketchTool
         CType.Tangent => "Tangent: pick the reference first (a line or circle/arc), then the one to change - the second moves to touch the first. Works for line + circle/arc or two circles/arcs.",
         CType.Concentric => "Concentric: pick the reference circle/arc first, then the circle to move - the second takes the first one's center.",
         CType.Midpoint => "Midpoint: pick a point and a line (either order). The line stays put and the point moves to its middle.",
-        CType.Symmetric => "Symmetric: pick the reference point, then the point to change, then the mirror line - the second point moves to the mirror image of the first.",
+        CType.Symmetric => "Symmetric: pick two points, or two whole shapes of the same kind (line, circle, arc, ellipse, curve), then the mirror line - the second moves to the mirror image of the first.",
         CType.Fixed => "Fix: pick a point or a curve to lock it where it is. Fixed geometry never moves when you add other constraints - everything else moves around it.",
         _ => type.ToString(),
     };
+
+    /// <summary>The picks in order, so the panel can show what to click and in what order (the first is always the reference that stays put).</summary>
+    static readonly Dictionary<CType, string[]> Steps = new()
+    {
+        [CType.Symmetric] = ["Click the first point or whole shape", "Click the second point or shape, of the same kind (it moves to mirror the first)", "Click the symmetry line (a normal or construction line)"],
+        [CType.Parallel] = ["Click the reference line (it stays put)", "Click the line to turn parallel to it"],
+        [CType.Perpendicular] = ["Click the reference line (it stays put)", "Click the line to turn square to it"],
+        [CType.Collinear] = ["Click the reference line (it stays put)", "Click the line to slide onto it"],
+        [CType.Equal] = ["Click the reference line or circle (it stays put)", "Click the one that takes the same length or radius"],
+        [CType.Tangent] = ["Click the reference line, circle or arc (it stays put)", "Click the one that moves to touch it"],
+        [CType.Concentric] = ["Click the reference circle or arc (it stays put)", "Click the circle that takes its center"],
+        [CType.Midpoint] = ["Click a point and a line, either order (the point moves to the line's middle)"],
+        [CType.Coincident] = ["Click the reference point (it stays put)", "Click the point that moves onto it, or a curve to put the point on"],
+        [CType.Horizontal] = ["Click one line, or two points (the second moves level with the first)"],
+        [CType.Vertical] = ["Click one line, or two points (the second moves in line with the first)"],
+        [CType.Fixed] = ["Click a point or a curve to lock where it is"],
+    };
+
+    SketchModel? _model;      // kept so the panel can name what was picked
+
+    static string DescribePick(SketchModel? m, (bool pt, int id) pick)
+    {
+        if (m is null) return "picked";
+        if (pick.pt) return m.PointOrNull(pick.id) is { } p ? $"point {pick.id} at ({p.X:0.##}, {p.Y:0.##})" : "point";
+        return m.EntityOrNull(pick.id) is { } e ? $"{e.Type.ToString().ToLowerInvariant()}{(e.Construction ? " (construction)" : "")} {pick.id}" : "curve";
+    }
+
+    public override IReadOnlyList<ToolControl>? Panel
+    {
+        get
+        {
+            var list = new List<ToolControl>();
+            if (!Steps.TryGetValue(type, out var steps)) return [new(ToolControlKind.Info, "step", Prompt)];
+            for (int i = 0; i < steps.Length; i++)
+            {
+                string mark = steps.Length == 1 ? "" : i < _picks.Count ? "Done: " : i == _picks.Count ? "Next: " : "Then: ";
+                string picked = i < _picks.Count ? " - " + DescribePick(_model, _picks[i]) : "";
+                list.Add(new(ToolControlKind.Info, "step" + i, (steps.Length == 1 ? "" : $"{i + 1}. ") + mark + steps[i] + picked));
+            }
+            list.Add(new(ToolControlKind.Button, "restart", "Start over", Enabled: _picks.Count > 0, Section: PanelInputTitle));
+            return list;
+        }
+    }
+
+    public override void PanelSet(CadSession s, string id, object? value)
+    {
+        if (id == "restart") { _picks.Clear(); s.RaiseState(); s.Invalidate(); }
+    }
 
     // allowed pick sequences (true = point, false = curve)
     static readonly Dictionary<CType, bool[][]> Patterns = new()
@@ -348,7 +396,7 @@ public sealed class ConstraintTool(CType type) : SketchTool
         [CType.Parallel] = [[false, false]], [CType.Perpendicular] = [[false, false]], [CType.Collinear] = [[false, false]],
         [CType.Equal] = [[false, false]], [CType.Tangent] = [[false, false]], [CType.Concentric] = [[false, false]],
         [CType.Midpoint] = [[true, false], [false, true]],
-        [CType.Symmetric] = [[true, true, false]],
+        [CType.Symmetric] = [[true, true, false], [false, false, false]],
         [CType.Fixed] = [[true], [false]],
     };
 
@@ -375,6 +423,7 @@ public sealed class ConstraintTool(CType type) : SketchTool
     public override void Activate(CadSession s)
     {
         var sk = Sk(s);
+        _model = sk.Model;
         _picks.Clear();
         // geometry that is already selected is used right away
         var pre = sk.SelPoints.Select(p => (true, p)).Concat(sk.SelEntities.Select(e => (false, e))).ToList();
@@ -396,7 +445,7 @@ public sealed class ConstraintTool(CType type) : SketchTool
         if (Complete()) { if (Apply(s)) s.Say($"{SketchModel.Describe(type)} applied. Pick more, or press Esc to finish."); _picks.Clear(); }
         else s.Say($"{type}: {_picks.Count} picked - choose the next one.");
         sk.SelEntities.Clear(); sk.SelPoints.Clear();
-        s.Invalidate();
+        s.RaiseState(); s.Invalidate();
         return true;
     }
 
@@ -496,9 +545,16 @@ public sealed class ConstraintTool(CType type) : SketchTool
             {
                 var ax = E(2); if (ax.Type != EntType.Line) break;
                 var a = m.P(ax.A); var (ux, uy, ul) = Dir(ax); ux /= ul; uy /= ul;
-                var p1 = PT(0); var p2 = PT(1);
-                double t = (p1.X - a.X) * ux + (p1.Y - a.Y) * uy, fx = a.X + ux * t, fy = a.Y + uy * t;
-                p2.X = 2 * fx - p1.X; p2.Y = 2 * fy - p1.Y; break;
+                var pairs = SymmetricPairs(m);
+                if (pairs is null) break;
+                foreach (var (i1, i2) in pairs)
+                {
+                    var p1 = m.P(i1); var p2 = m.P(i2);
+                    double t = (p1.X - a.X) * ux + (p1.Y - a.Y) * uy, fx = a.X + ux * t, fy = a.Y + uy * t;
+                    p2.X = 2 * fx - p1.X; p2.Y = 2 * fy - p1.Y;
+                }
+                if (!_picks[0].pt && E(0).Type is EntType.Circle or EntType.Ellipse && E(1).Type == E(0).Type) E(1).R = E(0).R;
+                break;
             }
             case CType.Concentric when _picks.Count == 2 && !_picks[0].pt:
             {
@@ -507,6 +563,28 @@ public sealed class ConstraintTool(CType type) : SketchTool
                 break;
             }
         }
+    }
+
+    /// <summary>The point pairs that must mirror each other: the two points, or the matching points of two shapes of the same kind (ends are paired whichever way round is nearer the mirror image). Null when the picks do not fit.</summary>
+    List<(int, int)>? SymmetricPairs(SketchModel m)
+    {
+        if (_picks.Count < 3 || m.E(_picks[2].id) is not { Type: EntType.Line } ax) return null;
+        if (_picks[0].pt) return _picks[1].pt ? [(_picks[0].id, _picks[1].id)] : null;
+        if (_picks[1].pt) return null;
+        var e1 = m.E(_picks[0].id); var e2 = m.E(_picks[1].id);
+        if (e1.Type != e2.Type || e1.Id == e2.Id || e1.Id == ax.Id || e2.Id == ax.Id) return null;
+        var l1 = m.PointsOf(e1).ToList(); var l2 = m.PointsOf(e2).ToList();
+        if (l1.Count != l2.Count || l1.Count == 0) return null;
+        var a = m.P(ax.A); var b = m.P(ax.B); double dx = b.X - a.X, dy = b.Y - a.Y, len = Math.Max(Math.Sqrt(dx * dx + dy * dy), 1e-12); dx /= len; dy /= len;
+        (double, double) Refl(SkPoint q) { double al = (q.X - a.X) * dx + (q.Y - a.Y) * dy; return (2 * (a.X + dx * al) - q.X, 2 * (a.Y + dy * al) - q.Y); }
+        double Cost(List<int> x, List<int> y) { double c = 0; for (int i = 0; i < x.Count; i++) { var (rx, ry) = Refl(m.P(x[i])); var q = m.P(y[i]); c += Math.Abs(rx - q.X) + Math.Abs(ry - q.Y); } return c; }
+        // keep the centre first for round shapes; the other points may run in either direction
+        int keep = e1.Type is EntType.Circle or EntType.Arc or EntType.Ellipse or EntType.Point ? 1 : 0;
+        var rest2 = l2.Skip(keep).Reverse().ToList();
+        var fwd = l2.Take(keep).Concat(l2.Skip(keep)).ToList(); var rev = l2.Take(keep).Concat(rest2).ToList();
+        if (e1.Type == EntType.Ellipse) rev = fwd;                       // the axis point has no mirror-image order
+        var use = Cost(l1, rev) < Cost(l1, fwd) ? rev : fwd;
+        return l1.Select((p1, i) => (p1, use[i])).Where(x => x.p1 != x.Item2).ToList();
     }
 
     bool Apply(CadSession s)
@@ -563,8 +641,17 @@ public sealed class ConstraintTool(CType type) : SketchTool
                 return sk.Edit(s, name, () => m.Add(CType.Midpoint, refs: [pt, ln]));
             }
             case CType.Symmetric:
+            {
                 if (m.E(_picks[2].id).Type != EntType.Line) { Fail("Symmetric needs a line as the mirror axis."); return false; }
-                return sk.Edit(s, name, () => m.Add(CType.Symmetric, refs: [_picks[0].id, _picks[1].id, _picks[2].id]));
+                var pairs = SymmetricPairs(m);
+                if (pairs is null) { Fail("Symmetric needs two points, or two shapes of the same kind, and a line that is not one of them."); return false; }
+                int axis = _picks[2].id; bool round = !_picks[0].pt && E(0).Type == EntType.Circle;
+                return sk.Edit(s, name, () =>
+                {
+                    foreach (var (p1, p2) in pairs) m.Add(CType.Symmetric, refs: [p1, p2, axis]);
+                    if (round) m.Add(CType.Equal, refs: [_picks[0].id, _picks[1].id]);
+                });
+            }
             case CType.Fixed:
                 return sk.Edit(s, name, () =>
                 {
