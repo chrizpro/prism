@@ -652,7 +652,9 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public List<SelItem>? SketchComponentItems(SelItem edge)
     {
-        if (SketchEntityOf(edge) is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        // a sketch curve that is already an Entity pick is its own starting point
+        SelItem? start = edge.Kind == SelKind.Entity ? edge : SketchEntityOf(edge);
+        if (start is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
         Sketching.SketchModel model; Plane3 plane;
         if (first.Index2 <= 0) { model = sd; plane = root; }
         else if (first.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[first.Index2 - 1]; model = sec.Model; plane = sec.Plane; }

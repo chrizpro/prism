@@ -556,10 +556,18 @@ public abstract partial class Command : ObservableObject
                 ?? inputs.FirstOrDefault(slot => slot.Optional && selected.Any(item => s.Matches(item, slot.Filter)));
             if (seed != null)
             {
-                if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
+                // Sketch edges selected beforehand take their whole connected chain (a rectangle's four sides) and leave the intent on "Connected chain";
+                // edges of a body keep the single-edge rule.
+                // (a sketch curve selected as a curve rather than an edge counts the same)
+                bool IsSketchCurve(SelItem it) => it.Kind == SelKind.Entity || it.Kind == SelKind.Edge && s.SketchEntityOf(it) != null;
+                bool anyEdges = selected.Any(it => it.Kind is SelKind.Edge or SelKind.Entity);
+                bool sketchEdges = seed.ProfileSelection && anyEdges && selected.Where(it => it.Kind is SelKind.Edge or SelKind.Entity).All(IsSketchCurve);
+                if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = sketchEdges ? 2 : 1;
+                else if (sketchEdges) seed.SelectionRuleIndex = 2;
                 foreach (var item in selected)
                 {
                     if (!s.Matches(item, seed.Filter)) continue;
+                    if (sketchEdges && item.Kind is SelKind.Edge or SelKind.Entity && s.SketchComponentItems(item) is { Count: > 0 } chain) { foreach (var link in chain) seed.TryAdd(link); continue; }
                     if (seed.ProfileSelection && s.UnusedSketchCurves(item) is { } unused) foreach (var curve in unused) seed.TryAdd(curve);
                     else seed.TryAdd(s.SketchEntityOf(item) ?? item);
                 }
