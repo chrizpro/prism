@@ -17,10 +17,14 @@ public sealed partial class MainViewModel
         if (Session.ActiveCommand != null) return;
         if (Session.Sketch == null)
         {
-            var existing = nurbs ? Session.Objects.LastOrDefault(o => o.Kind == ObjKind.Sketch && (o.SketchData?.SharedNurbsCurves == true || o.Name.StartsWith("NURBS Curves", StringComparison.Ordinal)) && o.SketchData != null) : null;
-            if (existing != null) { if (!Session.EditSketch(existing)) return; }
-            else { Session.EnterSketch(Plane3.XY); if (nurbs && Session.Sketch is { } created) { created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true; } }
-            if (existing == null && nurbs) Session.Sketch?.SetDrawingMode(Session, flat: true);   // NURBS curves start with 3D sketch on, drawing flat
+            // Every visit makes a sketch of its own, so a surface made from an earlier one is never rolled back or re-raised with it. On the NURBS tab the sketches
+            // are marked as NURBS curves (spatial editing, flat to start with) and the browser gathers them under one "NURBS Curves" folder.
+            Session.EnterSketch(Plane3.XY);
+            if (nurbs && Session.Sketch is { } created)
+            {
+                created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true;
+                created.SetDrawingMode(Session, flat: true);   // NURBS curves start with 3D sketch on, drawing flat
+            }
         }
         if (Session.Sketch is { } sketch) { sketch.SetTool(Session, new SplineTool(false)); }
     }

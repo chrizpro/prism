@@ -113,6 +113,19 @@ public sealed partial class MainViewModel
         Group("Meshes", "mesh", ObjKind.Mesh);
         Group("Surfaces", "nurbs-patch", ObjKind.Surface);
         Group("Sketches", "sketch", ObjKind.Sketch);
+        // each visit to a NURBS sketch is its own sketch; the browser shows them as one folder so the list stays short
+        if (roots.FirstOrDefault(r => r.Title == "Sketches") is { } sketchFolder)
+        {
+            var nurbsSketches = sketchFolder.Children.Where(n => n.IsObject && s.Find(n.ObjectId)?.SketchData?.SharedNurbsCurves == true).ToList();
+            if (nurbsSketches.Count > 1)
+            {
+                var folder = new BrowserNode { Kind = NodeKind.Folder, Title = "NURBS Curves", Icon = "curve-through", ExpansionKey = "nurbs-sketches", IsExpanded = filtering || _folderOpen.GetValueOrDefault("nurbs-sketches", true), VisibilityEdited = OnNodeVisibility };
+                foreach (var n in nurbsSketches) { sketchFolder.Children.Remove(n); folder.Children.Add(n); }
+                folder.Badge = folder.Children.Count.ToString();
+                folder.SetVisibleSilently(folder.Children.All(c => c.IsVisible));
+                sketchFolder.Children.Insert(0, folder);
+            }
+        }
         Group("Curves", "curve-through", ObjKind.Curve);
         Group("Construction Planes", "origin-plane", ObjKind.Plane);
         Group("Joints", "joint-revolute", ObjKind.Joint);
