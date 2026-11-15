@@ -150,6 +150,9 @@ public sealed class FormKnifeCommand : Command
 
     public override void BuildOverlay(CadSession s, Overlay o)
     {
+        // the cage is always on show while the knife is open (before a form is picked, every form's), because the cut snaps to its points and edges
+        var shown = _form.Items.Count > 0 ? ObjectsOf(_form).Where(f => f.Form != null) : s.Objects.Where(f => f.Form != null && f.Visible);
+        foreach (var f in shown) FormOverlay.Cage(o, f.Form!, LineMode && _snap.Value);
         if (_form.Items.Count == 0) return;
         try
         {
