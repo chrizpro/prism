@@ -602,6 +602,29 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>The sketch entity a baked edge index belongs to (emission order: root entities, then each section's), as an Entity pick. Null when not a sketch edge.</summary>
+    /// <summary>
+    /// The curves of a shared NURBS sketch that no earlier feature uses, as entity picks. A whole-sketch pick of that sketch means these only, so
+    /// a new surface never takes the curves an earlier one was made from. Null for any other pick, or when every curve is already used.
+    /// </summary>
+    public List<SelItem>? UnusedSketchCurves(SelItem sketchPick)
+    {
+        if (sketchPick.Kind != SelKind.Object || Find(sketchPick.Obj) is not { Kind: ObjKind.Sketch, SketchData: { SharedNurbsCurves: true } sd }) return null;
+        var used = new HashSet<(int id, int sec)>();
+        for (var n = Current; n != null; n = n.Parent)
+            if (n.Recipe != null)
+                foreach (var slot in n.Recipe.Slots)
+                    foreach (var it in slot)
+                        if (it.Obj == sketchPick.Obj && it.Kind == SelKind.Entity) used.Add((it.Index, it.Index2));
+        var items = new List<SelItem>();
+        for (int sec = 0; sec <= sd.Sections.Count; sec++)
+        {
+            var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+            foreach (var e in model.Entities)
+                if (!e.Construction && !used.Contains((e.Id, sec))) items.Add(new SelItem(sketchPick.Obj, SelKind.Entity, e.Id, sec));
+        }
+        return items.Count > 0 ? items : null;
+    }
+
     public SelItem? SketchEntityOf(SelItem edge)
     {
         if (edge.Kind != SelKind.Edge || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;

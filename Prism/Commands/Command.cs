@@ -558,7 +558,11 @@ public abstract partial class Command : ObservableObject
             {
                 if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
                 foreach (var item in selected)
-                    if (s.Matches(item, seed.Filter)) seed.TryAdd(s.SketchEntityOf(item) ?? item);
+                {
+                    if (!s.Matches(item, seed.Filter)) continue;
+                    if (seed.ProfileSelection && s.UnusedSketchCurves(item) is { } unused) foreach (var curve in unused) seed.TryAdd(curve);
+                    else seed.TryAdd(s.SketchEntityOf(item) ?? item);
+                }
             }
             ActivateFirstOpenSlot();
         });
@@ -603,6 +607,7 @@ public abstract partial class Command : ObservableObject
             slot.Items.Clear();
             if (item.Kind == SelKind.Edge && S.SketchComponentItems(item) is { Count: > 0 } comp) foreach (var c in comp) slot.Items.Add(c);
             else if (item.Kind == SelKind.Edge && S.Find(item.Obj) is { Kind: ObjKind.Curve } curve) slot.Items.Add(SelItem.Of(curve));
+            else if (S.UnusedSketchCurves(item) is { } unused) foreach (var free in unused) slot.Items.Add(free);
             else slot.Items.Add(item);
             AdvanceSlot(slot); return true;
         }

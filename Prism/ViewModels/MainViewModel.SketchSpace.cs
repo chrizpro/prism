@@ -17,13 +17,18 @@ public sealed partial class MainViewModel
         if (Session.ActiveCommand != null) return;
         if (Session.Sketch == null)
         {
-            // Every visit makes a sketch of its own, so a surface made from an earlier one is never rolled back or re-raised with it. On the NURBS tab the sketches
-            // are marked as NURBS curves (spatial editing, flat to start with) and the browser gathers them under one "NURBS Curves" folder.
-            Session.EnterSketch(Plane3.XY);
-            if (nurbs && Session.Sketch is { } created)
+            // On the NURBS tab Draw opens the one shared 3D sketch ("NURBS Curves"): every curve is in it and editable without switching sketches.
+            // Features bind the curves they were made from, and a whole-sketch pick takes only the curves no feature uses yet, so the curves stay independent.
+            var existing = nurbs ? Session.Objects.LastOrDefault(o => o.Kind == ObjKind.Sketch && o.SketchData?.SharedNurbsCurves == true) : null;
+            if (existing != null) { if (!Session.EditSketch(existing)) return; }
+            else
             {
-                created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true;
-                created.SetDrawingMode(Session, flat: true);   // NURBS curves start with 3D sketch on, drawing flat
+                Session.EnterSketch(Plane3.XY);
+                if (nurbs && Session.Sketch is { } created)
+                {
+                    created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true;
+                    created.SetDrawingMode(Session, flat: true);   // NURBS curves start with 3D sketch on, drawing flat
+                }
             }
         }
         if (Session.Sketch is { } sketch) { sketch.SetTool(Session, new SplineTool(false)); }
@@ -64,10 +69,47 @@ public sealed partial class MainViewModel
     {
         OnPropertyChanged(nameof(SketchNoPlaneNote));
         if (_refreshSketchSpace || Session.Sketch is not { } sk) return;
+        if (SwitchNurbsSketchKind(sk, value)) return;
         // 3D sketch opens in No plane: the camera stays where it is and points go where they are clicked.
         if (value) { sk.Set3DEnabled(Session, true); sk.SetDrawingMode(Session, flat: true, adjustView: false); }
         else sk.Set3DEnabled(Session, false, adjustView: true);
     }
+    Prism.Core.SketchContext? _nurbsPlain2D;      // the independent 2D sketch started from the NURBS tab by switching 3D sketch off
+
+    /// <summary>
+    /// NURBS tab: switching 3D sketch off moves to an independent 2D sketch, like the ones on the Solid, Surface and Freeform tabs; the shared 3D sketch keeps what it had.
+    /// Switching 3D sketch on again (any 3D work) folds that 2D sketch into the shared 3D sketch, so all 3D curves stay in the one sketch. Returns true when it handled the change.
+    /// </summary>
+    bool SwitchNurbsSketchKind(Prism.Core.SketchContext current, bool to3D)
+    {
+        if (!to3D && current.Model.SharedNurbsCurves)
+        {
+            // an unchanged sketch is closed without a history step: a no-change step would be replayed over later edits when it is reopened
+            bool changed = current.EditingId is not { } editing || Session.Find(editing)?.SketchData is not { } saved || !saved.SameDefinition(current.ExportModel());
+            Session.ExitSketch(changed);
+            Session.EnterSketch(Plane3.XY);
+            if (Session.Sketch is { } plain) { _nurbsPlain2D = plain; Session.Say("2D sketch: saved on its own, apart from the NURBS curves. Switch 3D sketch on to move this work into the 3D curves."); }
+            return true;
+        }
+        if (to3D && ReferenceEquals(current, _nurbsPlain2D))
+        {
+            var work = current.Model.Clone();
+            _nurbsPlain2D = null;
+            Session.ExitSketch(false);
+            var existing = Session.Objects.LastOrDefault(o => o.Kind == ObjKind.Sketch && o.SketchData?.SharedNurbsCurves == true);
+            if (existing != null) { if (!Session.EditSketch(existing)) return true; }
+            else
+            {
+                Session.EnterSketch(Plane3.XY);
+                if (Session.Sketch is { } created) { created.SuggestedName = "NURBS Curves"; created.Model.SharedNurbsCurves = true; created.FreeEditing = true; created.SetDrawingMode(Session, flat: true); }
+            }
+            if (Session.Sketch is { } shared) shared.Edit(Session, "Move 2D work into the 3D curves", () => shared.Model.Absorb(work));
+            Session.Say("3D sketch: this work is now part of the NURBS curves.");
+            return true;
+        }
+        return false;
+    }
+
     /// <summary>Draw in space (rather than flat). Only meaningful while 3D sketch is on.</summary>
     [ObservableProperty] public partial bool Sketch3DEnabled { get; set; }
     public bool SketchDrawFlat { get => !Sketch3DEnabled; set { if (value) Sketch3DEnabled = false; } }
