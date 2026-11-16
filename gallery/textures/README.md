@@ -8,3 +8,5 @@ Generation prompt (built-in imagegen):
 
 
 The gallery preview is an actual Prism render of native geometry, not the concept image. Appearance is a visual study; grain placement uses blended box projection rather than topology-aware wood fibers or separate end-grain mapping.
+
+`walnut-pavilion-512.jpg` is a 512-pixel JPEG derivative of that same original bitmap. It is embedded in the observatory roofs, Art Deco clock case and guitar back to retain visible wood grain without repeating a multi-megabyte image in each modeling-history snapshot. These three wood studies are tracked in [#132](https://github.com/chrizpro/prism/issues/132); their scope is native modeling without rendering or CAM setup.
