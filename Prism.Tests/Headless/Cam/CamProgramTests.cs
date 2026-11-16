@@ -238,6 +238,8 @@ public class CamProgramTests
     {
         var (session, block) = BlockWithSetup();
         FaceOperation(session);
+        var pathsBefore = session.ActiveMillingProgram().Select(o => o.Id).ToArray();
+        var before = new Overlay(); session.BuildOverlay(before);
         var command = Begin(session, () => new CncStockCommand());
         Pick(command, "Model", block);
         BuildOutput(command);
@@ -246,6 +248,31 @@ public class CamProgramTests
         BuildOutput(command);
         Assert.NotEqual("0 cm³", Result(command, "Removed stock"));
         Assert.Contains(command.Results, r => r.Label == "Possible gouges");
+        var stock = new Overlay(); session.BuildOverlay(stock);
+        Assert.NotEmpty(stock.Tris);
+        Assert.True(stock.Lines.Count < before.Lines.Count, "Stock surface remains readable without full-program line clutter.");
+        Assert.Equal(pathsBefore, session.ActiveMillingProgram().Select(o => o.Id));
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H118 | Stock removal steps advance the same ordered program and Play restarts a completed review")]
+    [Trait("TestId", "CAM-H118")]
+    public void StockRemovalStepsAndRestart()
+    {
+        var (session, block) = BlockWithSetup(); FaceOperation(session);
+        var command = Begin(session, () => new CncStockCommand()); Pick(command, "Model", block);
+        SetNumber(command, "Program position", 0); Run(command, "Run checks");
+        Assert.Equal("0 cm³", Result(command, "Removed stock"));
+        Run(command, "Next removal step");
+        Assert.Contains("5%", Result(command, "Sampling"));
+        // Early time can still be approach travel before the tool reaches stock.
+        for (int i = 0; i < 9; i++) Run(command, "Next removal step");
+        Assert.Contains("50%", Result(command, "Sampling"));
+        Assert.NotEqual("0 cm³", Result(command, "Removed stock"));
+        SetNumber(command, "Program position", 100); Run(command, "Play removal");
+        Run(command, "Pause removal");
+        Assert.Contains("0%", Result(command, "Sampling"));
+        Assert.Equal("0 cm³", Result(command, "Removed stock"));
+        session.CancelCommand();
     }
 
     [AvaloniaFact(DisplayName = "CAM-H113 | CNC Design Check finds only the underside hidden and the pocket floor beyond reach")]

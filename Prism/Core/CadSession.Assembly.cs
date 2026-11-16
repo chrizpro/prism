@@ -209,6 +209,9 @@ public sealed partial class CadSession
     void BuildCamOverlay(Overlay o)
     {
         DrawCamSetup(o);DrawCamTool(o);
+        // Dense complete-program lines obscure the material-removal surface.
+        // Keep the paths visible/active for simulation, only suppress their ink.
+        if (ActiveCommand is Commands.CncStockCommand) return;
         foreach (var obj in Objects)
         {
             if (obj.Asm is not Cam.ToolpathInfo tp || !obj.Visible || HiddenIds.Contains(obj.Id)) continue;

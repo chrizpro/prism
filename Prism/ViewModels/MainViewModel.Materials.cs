@@ -228,6 +228,9 @@ public sealed partial class MainViewModel
         UpdateMassNote(m);
     }
 
+    sealed record MaterialVolume(double Value);
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Kernel.Shape, MaterialVolume> _materialVolumes = new();
+
     /// <summary>Mass of the selected body if it were made of the shown material: the number an engineer usually wants first.</summary>
     void UpdateMassNote(Material? m)
     {
@@ -237,7 +240,8 @@ public sealed partial class MainViewModel
         if (solids.Count == 0) return;
         try
         {
-            double vol = solids.Sum(o => Kernel.Occ.Mass(o.Shape) is { Solid: true } mp ? mp.Volume : 0);
+            double vol = solids.Sum(o => _materialVolumes.GetValue(o.Shape,
+                shape => new(Kernel.Occ.Mass(shape) is { Solid: true } mp ? mp.Volume : 0)).Value);
             if (vol <= 0) return;
             double g = vol * m.Density / 1000.0;
             string who = solids.Count == 1 ? solids[0].Name : $"{solids.Count} bodies";

@@ -447,7 +447,15 @@ public sealed class ParallelFinishCommand : CncOperationCommand
             var run = new List<Vec3>(); var found = new List<List<Vec3>>();
             for (int k = 0; k < samples; k++)
             {
-                double t = dmin + k * sample; var pos = d * t + p * off; double tip = map.Tip(pos.X, pos.Y);
+                double t = dmin + k * sample; var pos = d * t + p * off; double tip = double.NaN;
+                // Nearest-grid lookup can choose the low side of a steep wall.
+                // Use the highest adjacent sample to retain clearance through
+                // cell rounding and the linear links between path points.
+                for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                {
+                    double height = map.Tip(pos.X + dx * sample, pos.Y + dy * sample);
+                    if (double.IsFinite(height)) tip = double.IsNaN(tip) ? height : Math.Max(tip, height);
+                }
                 if (double.IsNaN(tip)) { if (run.Count > 0) { found.Add(run); run = []; } continue; }
                 run.Add(new Vec3(pos.X, pos.Y, Math.Max(tip, floor)));
             }

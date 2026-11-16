@@ -326,6 +326,41 @@ public class CncOperationTests
         AssertBuildFails(command, "Raise 'Top of the material'");
     }
 
+    [AvaloniaTheory(DisplayName = "CNC-H020 | 3D Finish keeps the cutter above a steep step between grid samples")]
+    [InlineData("Ball nose")]
+    [InlineData("Flat end mill")]
+    [Trait("TestId", "CNC-H020")]
+    public void ParallelFinishClearsAnOffGridStep(string cutter)
+    {
+        var session = new CadSession();
+        using var low = BoxAt(Vec3.Zero, 20, 20, 2);
+        using var high = BoxAt(new Vec3(10.23, 0, 0), 9.77, 20, 10);
+        var block = session.AddObject(Occ.Fuse(low, high), "Off-grid step", ObjKind.Solid);
+        var command = Begin(session, () => new ParallelFinishCommand());
+        Pick(command, "Model to finish", block);
+        SetChoice(command, "Cutter", cutter);
+        SetNumber(command, "Tool diameter", 6);
+        SetNumber(command, "Stepover", 50);
+        var path = Toolpath(command);
+        bool testedTransition = false;
+        for (int i = 1; i < path.MoveCount; i++)
+        {
+            var b = path.Move(i); var a = path.Move(i - 1);
+            if (b.kind != MoveKind.Cut) continue;
+            for (int j = 0; j <= 4; j++)
+            {
+                double t = j / 4.0, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, z = a.z + (b.z - a.z) * t;
+                if (y < 4 || y > 16) continue;
+                double gap = Math.Max(0, 10.23 - x);
+                if (gap >= 3) continue;
+                double required = cutter == "Flat end mill" ? 10 : 7 + Math.Sqrt(9 - gap * gap);
+                Assert.True(z >= required - .01, $"{cutter} at X={x}: Z={z} below analytic clearance {required}");
+                testedTransition |= gap > .1 && gap < 2.9;
+            }
+        }
+        Assert.True(testedTransition);
+    }
+
     // ------------------------------------------------------------------ Turning
 
     static SceneObject StepShaftProfile(CadSession session)
