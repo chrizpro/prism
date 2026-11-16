@@ -1,0 +1,1689 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "parts": 27,
+  "valid": true,
+  "saveReopened": true,
+  "method": "Actual Windows MCP/API solid primitives, fillets, extrusions, Boolean slots/pockets and Make Part assembly. Native validity, positive volume, component records and save/reopen checked. No Freeform, renderer or test suite.",
+  "bytes": 4121193,
+  "sha256": "f0d848e35bd9a15d51a4932ed961af30f2144bd5fd0a9c8ca2df88367f00759c",
+  "objects": [
+    {
+      "id": "8ccdd7a6",
+      "name": "01 Ivory enamel casing",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#EDE2CD",
+      "min": [
+        -135,
+        -85,
+        20
+      ],
+      "max": [
+        135,
+        85,
+        195
+      ],
+      "faces": 43,
+      "edges": 95,
+      "wires": 47,
+      "volume": 6801678.7924,
+      "area": 292054.1509,
+      "size": [
+        270,
+        170,
+        175
+      ],
+      "center": [
+        0,
+        0,
+        107.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.08,
+        "gloss": 0.68,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "376d930c",
+      "name": "Brushed stainless top deck",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -119,
+        -67,
+        190
+      ],
+      "max": [
+        119,
+        67,
+        196
+      ],
+      "faces": 34,
+      "edges": 80,
+      "wires": 38,
+      "volume": 128554.7149,
+      "area": 51603.1875,
+      "size": [
+        238,
+        134,
+        6
+      ],
+      "center": [
+        0,
+        0,
+        193
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "ba554049",
+      "name": "Front dark toasting-well liner",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#202225",
+      "min": [
+        -95,
+        -45,
+        110
+      ],
+      "max": [
+        95,
+        -19,
+        195.5
+      ],
+      "faces": 11,
+      "edges": 24,
+      "wires": 12,
+      "volume": 124230.7815,
+      "area": 75688.7511,
+      "size": [
+        190,
+        26,
+        85.5
+      ],
+      "center": [
+        0,
+        -32,
+        152.75
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.18,
+        "gloss": 0.38,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "101634be",
+      "name": "Front polished slot rim",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -99.5,
+        -49.5,
+        196
+      ],
+      "max": [
+        99.5,
+        -14.5,
+        198.2
+      ],
+      "faces": 18,
+      "edges": 40,
+      "wires": 20,
+      "volume": 3657.2851,
+      "area": 5050.5596,
+      "size": [
+        199,
+        35,
+        2.2
+      ],
+      "center": [
+        0,
+        -32,
+        197.1
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "f3398b4d",
+      "name": "Front bread-lift support",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -73.5,
+        -40.5,
+        165
+      ],
+      "max": [
+        73.5,
+        -23.5,
+        166.8
+      ],
+      "faces": 10,
+      "edges": 24,
+      "wires": 12,
+      "volume": 833.4757,
+      "area": 2037.3849,
+      "size": [
+        147,
+        17,
+        1.8
+      ],
+      "center": [
+        0,
+        -32,
+        165.9
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "ab1daeb0",
+      "name": "Rear dark toasting-well liner",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#202225",
+      "min": [
+        -95,
+        19,
+        110
+      ],
+      "max": [
+        95,
+        45,
+        195.5
+      ],
+      "faces": 11,
+      "edges": 24,
+      "wires": 12,
+      "volume": 124230.7815,
+      "area": 75688.7511,
+      "size": [
+        190,
+        26,
+        85.5
+      ],
+      "center": [
+        0,
+        32,
+        152.75
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.18,
+        "gloss": 0.38,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "450704c5",
+      "name": "Rear polished slot rim",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -99.5,
+        14.5,
+        196
+      ],
+      "max": [
+        99.5,
+        49.5,
+        198.2
+      ],
+      "faces": 18,
+      "edges": 40,
+      "wires": 20,
+      "volume": 3657.2851,
+      "area": 5050.5596,
+      "size": [
+        199,
+        35,
+        2.2
+      ],
+      "center": [
+        0,
+        32,
+        197.1
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "872d16f0",
+      "name": "Rear bread-lift support",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -73.5,
+        23.5,
+        165
+      ],
+      "max": [
+        73.5,
+        40.5,
+        166.8
+      ],
+      "faces": 10,
+      "edges": 24,
+      "wires": 12,
+      "volume": 833.4757,
+      "area": 2037.3849,
+      "size": [
+        147,
+        17,
+        1.8
+      ],
+      "center": [
+        0,
+        32,
+        165.9
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "9f1b2ecc",
+      "name": "Graphite lower plinth",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        -132,
+        -82,
+        12
+      ],
+      "max": [
+        132,
+        82,
+        26
+      ],
+      "faces": 31,
+      "edges": 68,
+      "wires": 32,
+      "volume": 590399.1011,
+      "area": 97923.069,
+      "size": [
+        264,
+        164,
+        14
+      ],
+      "center": [
+        0,
+        0,
+        19
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "ceb109fd",
+      "name": "Polished lower waist trim",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -134.5,
+        -84.5,
+        25
+      ],
+      "max": [
+        134.5,
+        84.5,
+        29
+      ],
+      "faces": 18,
+      "edges": 48,
+      "wires": 20,
+      "volume": 21327.4334,
+      "area": 17154.69,
+      "size": [
+        269,
+        169,
+        4
+      ],
+      "center": [
+        0,
+        0,
+        27
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "bae0b310",
+      "name": "Stainless crumb-tray face and pull",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        -84,
+        -90,
+        16
+      ],
+      "max": [
+        84,
+        -81.5,
+        22.5
+      ],
+      "faces": 51,
+      "edges": 114,
+      "wires": 52,
+      "volume": 3580.5506,
+      "area": 3217.3022,
+      "size": [
+        168,
+        8.5,
+        6.5
+      ],
+      "center": [
+        0,
+        -85.75,
+        19.25
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "da57d18c",
+      "name": "Rubber foot 1",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#191B1D",
+      "min": [
+        -105,
+        -62,
+        0
+      ],
+      "max": [
+        -85,
+        -42,
+        14
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 4339.5855,
+      "area": 1425.0598,
+      "size": [
+        20,
+        20,
+        14
+      ],
+      "center": [
+        -95,
+        -52,
+        7
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "silicone",
+        "material": "Silicone Rubber",
+        "metal": 0,
+        "gloss": 0.19999999,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.15,
+          "youngs_GPa": 0.005,
+          "poisson": 0.48,
+          "yield_MPa": null,
+          "strength_MPa": 8,
+          "strengthBasis": "Nominal tensile estimate",
+          "conductivity_W_mK": 0.2,
+          "expansion_um_mK": 250,
+          "specificHeat_J_kgK": 1250,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic elastomer estimates. Linear isotropic structural analysis is not an appropriate constitutive model.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "4607c835",
+      "name": "Rubber foot 2",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#191B1D",
+      "min": [
+        -105,
+        42,
+        0
+      ],
+      "max": [
+        -85,
+        62,
+        14
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 4339.5855,
+      "area": 1425.0598,
+      "size": [
+        20,
+        20,
+        14
+      ],
+      "center": [
+        -95,
+        52,
+        7
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "silicone",
+        "material": "Silicone Rubber",
+        "metal": 0,
+        "gloss": 0.19999999,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.15,
+          "youngs_GPa": 0.005,
+          "poisson": 0.48,
+          "yield_MPa": null,
+          "strength_MPa": 8,
+          "strengthBasis": "Nominal tensile estimate",
+          "conductivity_W_mK": 0.2,
+          "expansion_um_mK": 250,
+          "specificHeat_J_kgK": 1250,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic elastomer estimates. Linear isotropic structural analysis is not an appropriate constitutive model.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "a72e5830",
+      "name": "Rubber foot 3",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#191B1D",
+      "min": [
+        85,
+        -62,
+        0
+      ],
+      "max": [
+        105,
+        -42,
+        14
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 4339.5855,
+      "area": 1425.0598,
+      "size": [
+        20,
+        20,
+        14
+      ],
+      "center": [
+        95,
+        -52,
+        7
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "silicone",
+        "material": "Silicone Rubber",
+        "metal": 0,
+        "gloss": 0.19999999,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.15,
+          "youngs_GPa": 0.005,
+          "poisson": 0.48,
+          "yield_MPa": null,
+          "strength_MPa": 8,
+          "strengthBasis": "Nominal tensile estimate",
+          "conductivity_W_mK": 0.2,
+          "expansion_um_mK": 250,
+          "specificHeat_J_kgK": 1250,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic elastomer estimates. Linear isotropic structural analysis is not an appropriate constitutive model.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "c5a6e161",
+      "name": "Rubber foot 4",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#191B1D",
+      "min": [
+        85,
+        42,
+        0
+      ],
+      "max": [
+        105,
+        62,
+        14
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 4339.5855,
+      "area": 1425.0598,
+      "size": [
+        20,
+        20,
+        14
+      ],
+      "center": [
+        95,
+        52,
+        7
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "silicone",
+        "material": "Silicone Rubber",
+        "metal": 0,
+        "gloss": 0.19999999,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.15,
+          "youngs_GPa": 0.005,
+          "poisson": 0.48,
+          "yield_MPa": null,
+          "strength_MPa": 8,
+          "strengthBasis": "Nominal tensile estimate",
+          "conductivity_W_mK": 0.2,
+          "expansion_um_mK": 250,
+          "specificHeat_J_kgK": 1250,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic elastomer estimates. Linear isotropic structural analysis is not an appropriate constitutive model.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "343cdfba",
+      "name": "Recessed carriage-lever track",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        130.3,
+        -2.85,
+        115.15
+      ],
+      "max": [
+        131.3,
+        2.85,
+        162.85
+      ],
+      "faces": 6,
+      "edges": 12,
+      "wires": 6,
+      "volume": 264.9176,
+      "area": 631.7423,
+      "size": [
+        1,
+        5.7,
+        47.7
+      ],
+      "center": [
+        130.8,
+        0,
+        139
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "f430d959",
+      "name": "Stainless carriage-lever stem",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        129,
+        -2.5,
+        143.5
+      ],
+      "max": [
+        149,
+        2.5,
+        148.5
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 392.6991,
+      "area": 353.4292,
+      "size": [
+        20,
+        5,
+        5
+      ],
+      "center": [
+        139,
+        0,
+        146
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "fbe66799",
+      "name": "Graphite lift-lever paddle",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        140,
+        -14,
+        141
+      ],
+      "max": [
+        153,
+        14,
+        151
+      ],
+      "faces": 26,
+      "edges": 56,
+      "wires": 26,
+      "volume": 3025.2506,
+      "area": 1179.6459,
+      "size": [
+        13,
+        28,
+        10
+      ],
+      "center": [
+        146.5,
+        0,
+        146
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "61a6be2d",
+      "name": "Browning-dial shadow seat",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        132.8,
+        -24.7,
+        50.3
+      ],
+      "max": [
+        134.3,
+        24.7,
+        99.7
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 2874.9814,
+      "area": 4066.1005,
+      "size": [
+        1.5,
+        49.4,
+        49.4
+      ],
+      "center": [
+        133.55,
+        0,
+        75
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "56c2a2c6",
+      "name": "Polished dial bezel",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#CDD4D5",
+      "min": [
+        135.4,
+        -27,
+        48
+      ],
+      "max": [
+        137.6,
+        27,
+        102
+      ],
+      "faces": 4,
+      "edges": 6,
+      "wires": 6,
+      "volume": 1382.3008,
+      "area": 1947.7874,
+      "size": [
+        2.2,
+        54,
+        54
+      ],
+      "center": [
+        136.5,
+        0,
+        75
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.75,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "a054658b",
+      "name": "Graphite browning selector",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        134,
+        -22.5,
+        52.5
+      ],
+      "max": [
+        144.8,
+        22.5,
+        97.5
+      ],
+      "faces": 10,
+      "edges": 19,
+      "wires": 11,
+      "volume": 17096.5841,
+      "area": 4607.4223,
+      "size": [
+        10.8,
+        45,
+        45
+      ],
+      "center": [
+        139.4,
+        0,
+        75
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "91a28b18",
+      "name": "Ivory dial index",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#EDE2CD",
+      "min": [
+        144.3,
+        -0.65,
+        86.2
+      ],
+      "max": [
+        144.8,
+        0.65,
+        94.8
+      ],
+      "faces": 6,
+      "edges": 12,
+      "wires": 6,
+      "volume": 5.59,
+      "area": 32.26,
+      "size": [
+        0.5,
+        1.3,
+        8.6
+      ],
+      "center": [
+        144.55,
+        0,
+        90.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.08,
+        "gloss": 0.68,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "98c7179f",
+      "name": "Cancel push button",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        135,
+        -46.5,
+        121.5
+      ],
+      "max": [
+        138.8,
+        -33.5,
+        134.5
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 494.4343,
+      "area": 396.0847,
+      "size": [
+        3.8,
+        13,
+        13
+      ],
+      "center": [
+        136.9,
+        -40,
+        128
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "3125607b",
+      "name": "Warm push button",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#25282A",
+      "min": [
+        135,
+        33.5,
+        121.5
+      ],
+      "max": [
+        138.8,
+        46.5,
+        134.5
+      ],
+      "faces": 5,
+      "edges": 7,
+      "wires": 5,
+      "volume": 494.4343,
+      "area": 396.0847,
+      "size": [
+        3.8,
+        13,
+        13
+      ],
+      "center": [
+        136.9,
+        40,
+        128
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0.05,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "dfa8e013",
+      "name": "Amber status lens",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E6A144",
+      "min": [
+        134.4,
+        38.2,
+        141.2
+      ],
+      "max": [
+        138,
+        41.8,
+        144.8
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 24.429,
+      "area": 40.715,
+      "size": [
+        3.6,
+        3.6,
+        3.6
+      ],
+      "center": [
+        136.2,
+        40,
+        143
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0,
+        "gloss": 0.78,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "a7ebf843",
+      "name": "Control-panel printed legends",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#4B4842",
+      "min": [
+        135.15,
+        -45.749,
+        55.9147
+      ],
+      "max": [
+        135.45,
+        50.2688,
+        117.0709
+      ],
+      "faces": 161,
+      "edges": 399,
+      "wires": 173,
+      "volume": 24.9284,
+      "area": 260.8654,
+      "size": [
+        0.3,
+        96.0177,
+        61.1562
+      ],
+      "center": [
+        135.3,
+        2.2599,
+        86.4928
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.45,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "003e3406",
+      "name": "Front PRISM wordmark",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#4B4842",
+      "min": [
+        -24.9222,
+        -85.4,
+        110.829
+      ],
+      "max": [
+        19.9855,
+        -85.05,
+        121.1706
+      ],
+      "faces": 58,
+      "edges": 144,
+      "wires": 62,
+      "volume": 56.4911,
+      "area": 416.9373,
+      "size": [
+        44.9078,
+        0.35,
+        10.3415
+      ],
+      "center": [
+        -2.4683,
+        -85.225,
+        115.9998
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.45,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "01 Ivory enamel casing",
+      "grounded": true
+    },
+    {
+      "name": "Brushed stainless top deck",
+      "grounded": false
+    },
+    {
+      "name": "Front dark toasting-well liner",
+      "grounded": false
+    },
+    {
+      "name": "Front polished slot rim",
+      "grounded": false
+    },
+    {
+      "name": "Front bread-lift support",
+      "grounded": false
+    },
+    {
+      "name": "Rear dark toasting-well liner",
+      "grounded": false
+    },
+    {
+      "name": "Rear polished slot rim",
+      "grounded": false
+    },
+    {
+      "name": "Rear bread-lift support",
+      "grounded": false
+    },
+    {
+      "name": "Graphite lower plinth",
+      "grounded": false
+    },
+    {
+      "name": "Polished lower waist trim",
+      "grounded": false
+    },
+    {
+      "name": "Stainless crumb-tray face and pull",
+      "grounded": false
+    },
+    {
+      "name": "Rubber foot 1",
+      "grounded": false
+    },
+    {
+      "name": "Rubber foot 2",
+      "grounded": false
+    },
+    {
+      "name": "Rubber foot 3",
+      "grounded": false
+    },
+    {
+      "name": "Rubber foot 4",
+      "grounded": false
+    },
+    {
+      "name": "Recessed carriage-lever track",
+      "grounded": false
+    },
+    {
+      "name": "Stainless carriage-lever stem",
+      "grounded": false
+    },
+    {
+      "name": "Browning-dial shadow seat",
+      "grounded": false
+    },
+    {
+      "name": "Polished dial bezel",
+      "grounded": false
+    },
+    {
+      "name": "Graphite browning selector",
+      "grounded": false
+    },
+    {
+      "name": "Ivory dial index",
+      "grounded": false
+    },
+    {
+      "name": "Cancel push button",
+      "grounded": false
+    },
+    {
+      "name": "Warm push button",
+      "grounded": false
+    },
+    {
+      "name": "Amber status lens",
+      "grounded": false
+    },
+    {
+      "name": "Control-panel printed legends",
+      "grounded": false
+    },
+    {
+      "name": "Front PRISM wordmark",
+      "grounded": false
+    },
+    {
+      "name": "Graphite lift-lever paddle",
+      "grounded": false
+    }
+  ],
+  "grounded": 1
+}

@@ -173,6 +173,12 @@ Manual desktop review checked the [Light gallery](evidence/gallery-home-light.pn
 
 Actual new-study viewport evidence: [Atelier table](evidence/atelier-table-viewport.png), [Halo pendant](evidence/halo-pendant-viewport.png), [Cove chair](evidence/cove-chair-viewport.png). Each was built via MCP, saved/reopened and rendered at 960 × 540, 96 samples, six bounces, with final denoising. [Full model renders](../../../gallery/previews/) and [reproducible scripts](../../../gallery/README.md) are hosted with the examples. These sample settings are preview evidence, not a renderer benchmark. Local TRX and MCP transcripts remain under `artifacts/gallery/`; [machine-readable evidence summary](evidence/verification.json) records the scope without embedding images or private endpoint tokens.
 
+## Linen T2 toaster — November 16 native study
+
+Owner authorized a toaster built with solid modeling rather than Freeform ([#135](https://github.com/chrizpro/prism/issues/135)). **Linen T2** has an ivory filleted casing, a stainless deck and two actual cut slots with separate dark liners and bread-lift supports. A side lever, numbered browning dial, STOP/WARM buttons, amber indicator, crumb-tray pull and four feet complete the exterior. The [native document](../../../gallery/models/linen-t2-toaster.prism) contains 27 separate assembly components with one grounded casing. This is a static visual appliance study with simplified internals.
+
+Built through actual Windows MCP/cadkit using primitives, fillets, chamfers, planar extrusions and Boolean cuts; no Freeform was used. Saved and reopened in the desktop built from `c9a5773`: all 27 components have valid positive-volume solid geometry and unique assembly identities. Reviewed actual Prism screenshots: [overview](evidence/linen-t2-prism.png), [slots and controls](evidence/linen-t2-top.png). [Recorded verification](evidence/toaster-verification.json) includes model hash and component details. [Reproduction source](../../../gallery/build_toaster.py) saves staged native checkpoints. No renderer or test suite was run, as requested; catalog publication is deferred.
+
 ## Open decisions and limits
 
 Community submissions, ratings, accounts and assembly insertion from online cards are future proposals. No automatic replacement of a user's working copy. GitHub availability is needed for uncached downloads; a separate library repository or release assets can be adopted as the collection grows.
