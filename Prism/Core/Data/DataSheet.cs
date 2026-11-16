@@ -33,6 +33,73 @@ public sealed class DataSheet
         r[column] = value;
     }
 
+    // ------------------------------------------------------------------ editing helpers the panel uses
+    /// <summary>A copy of every cell, for undo.</summary>
+    public List<List<string>> Snapshot() => Rows.Select(r => new List<string>(r)).ToList();
+
+    /// <summary>
+    /// A formula moved by some rows and columns, the way a spreadsheet copies one: =A1*2 copied one row down becomes =A2*2.
+    /// Text that is not a formula is returned as it is. A reference with a $ in front of its column or row stays put.
+    /// </summary>
+    public static string MoveFormula(string raw, int rows, int columns)
+    {
+        if (!raw.StartsWith('=') || (rows == 0 && columns == 0)) return raw;
+        return System.Text.RegularExpressions.Regex.Replace(raw, @"(\$?)([A-Za-z]{1,3})(\$?)(\d+)\b(?!\()", m =>
+        {
+            int col = ColumnIndex(m.Groups[2].Value), row = int.Parse(m.Groups[4].Value, Ci) - 1;
+            if (col < 0) return m.Value;
+            if (m.Groups[1].Value.Length == 0) col += columns;
+            if (m.Groups[3].Value.Length == 0) row += rows;
+            if (col < 0 || row < 0) return "#REF!";
+            return m.Groups[1].Value + ColumnName(col) + m.Groups[3].Value + (row + 1);
+        });
+    }
+
+    /// <summary>Sort the rows from <paramref name="firstRow"/> down by one column. Numbers sort as numbers (and come before text); empty cells go last.</summary>
+    public void SortBy(int column, bool ascending, int firstRow = 0)
+    {
+        if (firstRow >= Rows.Count) return;
+        var keyed = Enumerable.Range(firstRow, Rows.Count - firstRow).Select(r => (row: Rows[r], n: Number(r, column), text: Display(r, column))).ToList();
+        int Compare((List<string> row, double? n, string text) a, (List<string> row, double? n, string text) b)
+        {
+            bool ea = a.text.Length == 0, eb = b.text.Length == 0;
+            if (ea || eb) return ea == eb ? 0 : ea ? 1 : -1;                 // empty cells stay at the bottom either way
+            int c = a.n != null && b.n != null ? a.n.Value.CompareTo(b.n.Value) : a.n != null ? -1 : b.n != null ? 1 : string.Compare(a.text, b.text, StringComparison.OrdinalIgnoreCase);
+            return ascending ? c : -c;
+        }
+        var sorted = keyed.Select((k, i) => (k, i)).OrderBy(x => x, Comparer<((List<string> row, double? n, string text) k, int i)>.Create((x, y) => { int c = Compare(x.k, y.k); return c != 0 ? c : x.i.CompareTo(y.i); })).Select(x => x.k.row).ToList();
+        Rows.RemoveRange(firstRow, Rows.Count - firstRow);
+        Rows.AddRange(sorted);
+    }
+
+    /// <summary>The count, sum, average, smallest and largest of the numbers in a block of cells. Null when the block holds no number.</summary>
+    public (int count, double sum, double min, double max)? Stats(int r0, int c0, int r1, int c1)
+    {
+        int n = 0; double sum = 0, lo = double.MaxValue, hi = double.MinValue;
+        for (int r = Math.Min(r0, r1); r <= Math.Max(r0, r1); r++)
+            for (int c = Math.Min(c0, c1); c <= Math.Max(c0, c1); c++)
+                if (Number(r, c) is { } v) { n++; sum += v; lo = Math.Min(lo, v); hi = Math.Max(hi, v); }
+        return n == 0 ? null : (n, sum, lo, hi);
+    }
+
+    /// <summary>Fill the rows below the first row of a block with what the first rows hold: a pair of numbers continues as a series (1, 2 gives 3, 4...), anything else repeats, and formulas move with their rows.</summary>
+    public void FillDown(int r0, int c0, int r1, int c1)
+    {
+        int top = Math.Min(r0, r1), bottom = Math.Max(r0, r1);
+        if (bottom <= top) return;
+        for (int c = Math.Min(c0, c1); c <= Math.Max(c0, c1); c++)
+        {
+            string first = Raw(top, c);
+            double? a = Number(top, c), b = bottom > top + 1 && !Raw(top + 1, c).StartsWith('=') ? Number(top + 1, c) : null;
+            bool series = a != null && !first.StartsWith('=') && b != null && !Raw(top + 1, c).StartsWith('=') && bottom >= top + 2;
+            double step = series ? b!.Value - a!.Value : 0;
+            // a column of numbers, with the second one typed in as well, carries on from that step; otherwise the first cell repeats
+            int from = series ? top + 2 : top + 1;
+            for (int r = from; r <= bottom; r++)
+                Set(r, c, series ? Format(a!.Value + step * (r - top), true) : MoveFormula(first, r - top, 0));
+        }
+    }
+
     public void InsertRow(int at) { at = Math.Clamp(at, 0, Rows.Count); Rows.Insert(at, []); }
     public void DeleteRow(int at) { if (at >= 0 && at < Rows.Count) Rows.RemoveAt(at); }
     public void InsertColumn(int at) { foreach (var r in Rows) if (at < r.Count) r.Insert(at, ""); }

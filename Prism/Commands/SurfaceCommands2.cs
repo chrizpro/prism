@@ -95,7 +95,7 @@ public sealed class SplitSurfaceCommand : Command
 
     public SplitSurfaceCommand()
     {
-        _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj | SelFilter.Face });
+        _target = Slot(new SelectionSlot { Label = "Surface to split", Filter = SelFilter.SurfaceObj | SelFilter.Face, Multi = true });
         _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, sketch, curve or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge });
         _result = Choice("Result", 0, "One surface, several faces", "Separate surfaces");
         _result.HelpText = "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color.";
@@ -112,11 +112,13 @@ public sealed class SplitSurfaceCommand : Command
         if (_target.Items.Count == 0 || _tool.Items.Count == 0) return null;
         var obj = S.Find(_target.Items[0].Obj) ?? throw new FormatException("That surface is gone.");
         if (obj.Kind != ObjKind.Surface || !obj.HasBrep) throw new FormatException("Split Surface works on surfaces.");
-        // at the Face pick level a picked face is split on its own and the rest of the surface is kept as it is
-        var picked = _target.Items[0];
-        int only = picked.Kind == SelKind.Face && S.Mode == SelMode.Face ? picked.Index : -1;
-        if (only >= obj.Shape.Count(SubKind.Face)) throw new FormatException("That face is gone.");
-        var pieces = only < 0 ? Cut(obj.Shape, _tool.Items[0]) : CutFace(obj.Shape, only, _tool.Items[0]);
+        if (_target.Items.Any(i => i.Obj != obj.Id)) throw new FormatException("Pick faces of one surface at a time.");
+        // at the Face pick level the picked faces (one or several) are split on their own and the rest of the surface is kept as it is;
+        // picking the surface itself splits all of it
+        bool wholeSurface = _target.Items.Any(i => i.Kind != SelKind.Face || S.Mode != SelMode.Face);
+        var only = wholeSurface ? [] : _target.Items.Select(i => i.Index).Distinct().OrderBy(i => i).ToList();
+        if (only.Any(i => i >= obj.Shape.Count(SubKind.Face))) throw new FormatException("That face is gone.");
+        var pieces = only.Count == 0 ? Cut(obj.Shape, _tool.Items[0]) : CutFaces(obj.Shape, only, _tool.Items[0]);
         int n = pieces.Count(SubKind.Face);
         if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not split the surface. A plane, face, surface or solid must cross it completely; a sketch or curve splits along its projection on the surface.");
         var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
@@ -134,14 +136,17 @@ public sealed class SplitSurfaceCommand : Command
         return o;
     }
 
-    /// <summary>Split one face by the tool and gather it with every other face of the surface, ready to sew.</summary>
-    Shape CutFace(Shape surface, int index, SelItem tool)
+    /// <summary>Split the chosen faces by the tool and gather them with every other face of the surface, ready to sew.</summary>
+    Shape CutFaces(Shape surface, List<int> indices, SelItem tool)
     {
-        using var face = surface.Sub(SubKind.Face, index);
-        var cut = Cut(face, tool);
         var all = new List<Shape>();
-        for (int i = 0; i < surface.Count(SubKind.Face); i++) if (i != index) all.Add(surface.Sub(SubKind.Face, i));
-        for (int i = 0; i < cut.Count(SubKind.Face); i++) all.Add(cut.Sub(SubKind.Face, i));
+        for (int i = 0; i < surface.Count(SubKind.Face); i++) if (!indices.Contains(i)) all.Add(surface.Sub(SubKind.Face, i));
+        foreach (int index in indices)
+        {
+            using var face = surface.Sub(SubKind.Face, index);
+            var cut = Cut(face, tool);
+            for (int i = 0; i < cut.Count(SubKind.Face); i++) all.Add(cut.Sub(SubKind.Face, i));
+        }
         return Occ.Compound(all);
     }
 

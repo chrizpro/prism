@@ -2,6 +2,8 @@
 
 `app_close` requests a normal desktop close and respects unsaved-document prompts. If Prism remains open, complete or cancel its save review; the bridge never force-kills it. See [saving, closing and recovery](interface/document-safety/README.md).
 
+During the approved lamp build on 2026-11-15, a busy renderer delayed the bridge's 1.5-second ping. The bridge treated that as a missing app and launched an empty instance over its discovery file. Discovery now respects a live recorded PID and lets normal API requests wait for the busy endpoint instead. [MCP-I001](../Prism.Tests/Integration/McpDiscoveryTests.cs) uses a delayed local endpoint to verify session preservation without rendering or launching a desktop app. Windows verification on 2026-11-15: both MCP-I001 cases passed (call_api and app_status, no skips) against the rebuilt Release bridge. The final lamp save/reopen integration also passed. Existing native binaries were reused. Local TRX evidence is under `artifacts/arc-lamp/tests/`; [delivery issue #130](https://github.com/chrizpro/prism/issues/130) records the source revision.
+
 Prism can be driven by an AI assistant (or any script) through the Model Context Protocol.
 
 ```
@@ -16,6 +18,12 @@ Claude Code  <--stdio MCP-->  Prism.Mcp (bridge)  <--HTTP 127.0.0.1 + token-->  
   and auto-launches the app on the first call if it is not running. Override the exe with `PRISM_EXE`.
 
 The [desktop integration project](../Prism.Tests/Integration/README.md) exercises this bridge and the application API together and saves viewport evidence.
+
+## Measurement reuse during scripted builds
+
+The same large-model verification exposed an initial-preview problem: `run_command` started analysis before applying its explicit picks, so Interference first checked every visible pair. Startup is now inside the existing input-configuration guard, so the first preview uses the supplied slots/parameters. Native UI startup is unchanged. API-H002 in the same [maintained test class](../Prism.Tests/Headless/Automation/CommandReportTests.cs) verifies that a scoped two-body check never converts an unrelated Freeform cage. Windows verification on 2026-11-15 passed API-H001, API-H002 and four existing curve/sketch API checks (six tests, no skips). The initial gallery validation run was stopped after tracing its long all-pairs calculation to this startup path; a fresh Release desktop build and the final GAL-I010/GAL-I011 gallery rerun subsequently passed (two tests, no skips).
+
+Found while building the owner-requested Bellavista gallery car on 2026-11-15 ([#129](https://github.com/chrizpro/prism/issues/129)): command reports measured every existing solid before every command, including hidden, unchanged spline lofts. Native mass-property integration repeatedly dominated even unrelated curve creation. The API now reuses measurements by immutable `Shape` identity through weak keys. Replacing geometry gets a fresh measurement; renamed/hidden objects and undo/redo retain correct names, dimensions and volume/area deltas. No response schema or modeling semantics change. [API-H001](../Prism.Tests/Headless/Automation/CommandReportTests.cs) checks those existing numerical/reporting behaviors. Windows verification on 2026-11-15: API-H001 passed (one test, no skips), and a separate Release Desktop build succeeded with existing compiler/package warnings. Native binaries were reused. On the actual 24-object car checkpoint, unrelated two-point curve commands took 19.16, 18.58 and 18.56 s before caching. The updated app took 20.99 s cold, then 0.222 and 0.330 s with measurements cached. These are observed command timings for this model, not general performance guarantees. Local TRX and timing JSON files are under `artifacts/bellavista/`.
 
 The bridge's compact catalogue exposes `describe_api`, `call_api` and `run_script`. Use `describe_api(names=["solid_check"])` for a tool's schema, then pass its name and arguments to `call_api`. Discover modeling command IDs with `list_commands` and inspect their slots and parameter choices with `run_command` and `commit:false`.
 
@@ -38,7 +46,7 @@ For end users, **Settings → AI Assistant → MCP** generates the same configur
 | `command_set`, `command_commit`, `command_cancel` | Work with a command left open for preview. A parameter that is a button (for example `"Run checks": true`, `"Save G-code": true`) is pressed after the other values are applied and the preview has refreshed |
 | `solid_find` | Find faces or edges of a solid by geometry rather than by index: `type` (Plane, Cylinder, Line, Circle…), `facing`+`angle`, `direction`+`angle`, `radius`, `box`, `near`+`distance`, `of_face` (edges bounding a face), `min_size`/`max_size`, `sort` (`size`, `x`, `y`, `z`, prefix `-` for descending), `limit`. `select:true` selects the hits; `summary:true` returns only counts per type. Hits are 1-based and can be used directly in `run_command` slots. |
 | `solid_check` | With `object` alone, check validity, volume, area, bounds, centre of mass and topology. With `a` and `b`, measure minimum distance and closest points between objects, faces or edges. Use `object` as a shorthand for the first body when only `b` is given. Whole solid pairs can also report overlap volume. |
-| `sketch_begin`, `sketch_add`, `sketch_finish` | Programmatic sketching (line, polyline, rect, circle, arc, spline) on XY/XZ/YZ or a planar face |
+| `sketch_begin`, `sketch_add`, `sketch_finish` | Programmatic sketching (line, polyline, rect, circle, ellipse, arc, polygon, slot, spline, point and **text**) on XY/XZ/YZ or a planar face; `construction:true` on any entity makes it reference geometry. In Python: `with cad.sketch("XY") as s: s.text("PRISM", at=(0, 0), height=12, bold=True)` (font, spacing and line breaks are options; the letters are curves you then extrude, emboss or cut) |
 | `get_control_points`, `set_control_points` | Read/write NURBS control nets for freeform edits |
 | `select`, `object_update`, `delete_objects` | Selection, rename/recolor/hide, delete |
 | `view`, `history`, `file`, `batch` | Camera/display, undo/redo, new/open/save/import/export, multi-step calls in one round trip |

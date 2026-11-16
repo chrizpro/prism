@@ -42,6 +42,7 @@ public partial class SettingsWindow : Window
         MarkingOn.IsChecked = s.MarkingMenu; HoldMs.Value = s.MarkingHoldMs; HoldLabel.Text = $"Hold time: {s.MarkingHoldMs} ms";
         PlaneScale.Value = s.PlaneScale * 100; PlaneScaleLabel.Text = $"Plane size: {(int)PlaneScale.Value} %";
         ReverseScrollZoom.IsChecked = s.ReverseScrollZoom;
+        SketchContextTranslucent.IsChecked = s.SketchContextTranslucent;
         ShowGridOnStart.IsChecked = s.ShowGridOnStart;
         BuildGridSwatches();
         ShowWorkspace(); WsHome.IsChecked = s.ShowHomeOnStart;
@@ -459,6 +460,7 @@ public partial class SettingsWindow : Window
         new("3D view backdrop and grid look", 0, "grid backdrop view colors preset swatch scene", "ShowGridOnStart"),
         new("Show the grid when Prism starts", 0, "grid show start startup", "ShowGridOnStart"),
         new("Help context location", 1, "help context hints status bar viewport tips", "HelpContextLocation"),
+        new("Show later objects see-through while editing a sketch", 1, "sketch edit translucent transparent ghost context faint objects original look colour", "SketchContextTranslucent"),
         new("Reverse scroll-wheel zoom", 1, "scroll wheel zoom reverse navigation mouse direction", "ReverseScrollZoom"),
         new("Use the right-click menu (marking menu)", 1, "right click marking menu ring radial pie gesture", "MarkingOn"),
         new("Hold time for the right-click menu", 1, "hold time marking menu delay milliseconds", "HoldMs"),
@@ -545,6 +547,11 @@ public partial class SettingsWindow : Window
         AppSettings.Save();
     }
 
+    void OnSketchContextTranslucent(object? sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        AppSettings.Current.SketchContextTranslucent = SketchContextTranslucent.IsChecked == true; AppSettings.Save();
+    }
     void OnReverseScrollZoom(object? sender, RoutedEventArgs e)
     {
         if (_loading) return;

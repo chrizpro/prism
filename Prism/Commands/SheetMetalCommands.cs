@@ -324,7 +324,25 @@ public sealed class FlatPatternCommand : Command
             if (nd.IsArc)
             {
                 double y0 = all.SelectMany(l => l.pts).Min(Yof), y1 = all.SelectMany(l => l.pts).Max(Yof);
-                loopsFlat.Add([[(nd.SStart, y0), (nd.SStart + nd.SLen, y0), (nd.SStart + nd.SLen, y1), (nd.SStart, y1)]]);
+                // Develop the actual cylindrical-face wires, not just their
+                // rectangular envelope: that envelope silently filled bend holes.
+                var center = P2(cyl[nd.Face]!.Value.Origin);
+                double enterAngle = Math.Atan2(nd.Enter.y - center.y, nd.Enter.x - center.x);
+                double sign = Dist(nd.Enter, nd.E0) < tol ? 1 : -1;
+                var mapped = new List<List<(double x, double y)>>();
+                foreach (var (pts, closed) in all)
+                {
+                    if (!closed || pts.Count < 3) continue;
+                    mapped.Add(pts.Select(p =>
+                    {
+                        var q = P2(p);
+                        double angle = sign * (Math.Atan2(q.y - center.y, q.x - center.x) - enterAngle);
+                        angle = (angle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                        if (angle > 2 * Math.PI - 1e-4) angle = 0;
+                        return (nd.SStart + Math.Clamp(angle / nd.Span, 0, 1) * nd.SLen, Yof(p));
+                    }).ToList());
+                }
+                loopsFlat.Add(mapped);
                 _bendLines.Add(((nd.SStart + nd.SLen / 2, y0), (nd.SStart + nd.SLen / 2, y1)));
                 yMin = Math.Min(yMin, y0); yMax = Math.Max(yMax, y1);
                 var ang = nd.Span * 180 / Math.PI; Results.Add(new ResultLine("Bend", $"{ang:0.#}°, allowance {nd.SLen:0.##} mm"));

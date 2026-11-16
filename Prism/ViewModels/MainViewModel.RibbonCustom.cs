@@ -125,6 +125,13 @@ public sealed partial class MainViewModel
                 var edgeTools = modify.Items.OfType<RibbonButton>().Where(b => b.Icon is "chamfer" or "fillet").OrderBy(b => b.Icon == "chamfer" ? 0 : 1).ToArray();
                 modify.Items.RemoveAll(i => i is RibbonButton { Icon: "chamfer" or "fillet" });
                 modify.Items.Insert(0, Split("split:solid-edge", "Chamfer or fillet edges. Click the icon to run the shown tool; click the name to choose another.", edgeTools));
+                // Hole and Thread share one dropdown, to save room: both cut into a body, a new hole or a thread in a round face
+                var holeTools = modify.Items.OfType<RibbonButton>().Where(b => b.Label is "Hole" or "Thread").OrderBy(b => b.Label == "Hole" ? 0 : 1).ToArray();
+                if (holeTools.Length == 2)
+                {
+                    modify.Items.RemoveAll(i => i is RibbonButton { Label: "Hole" or "Thread" });
+                    modify.Items.Insert(1, Split("split:hole-thread", "Cut a hole or a thread. Click the icon to run the shown tool; click the name (or right-click) to choose the other: Hole drills a new plain or threaded hole, Thread cuts a thread into a pin or a hole that already exists.", holeTools));
+                }
             }
             foreach (var group in tab.Groups)
             {

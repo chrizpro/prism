@@ -95,34 +95,45 @@ public sealed class SketchTextTool : SketchTool
 
     void Place(CadSession s)
     {
-        var sk = Sk(s);
         if (_text.Trim().Length == 0) { _phase = Phase.Idle; return; }
-        try
-        {
-            var contours = TextOutline.BuildClean(_text, _font, _bold, _height, _spacing);
-            if (contours.Count == 0) { s.Say("None of those characters exist in this font.", true); return; }
-            double ou = _origin.u, ov = _origin.v;
-            sk.Edit(s, "That text", () =>
-            {
-                var m = sk.Model; var ids = new List<int>();
-                foreach (var c in contours)
-                {
-                    var pts = c.Nodes.Select(n => m.AddPoint(ou + n.u, ov + n.v)).ToList();
-                    foreach (var r in c.Runs)
-                    {
-                        if (!r.Curve) { ids.Add(m.AddLine(pts[r.Start], pts[r.End], sk.Construction)); continue; }
-                        var fit = new List<int>();
-                        if (r.Closed) { fit.Add(pts[r.Start]); foreach (var q in r.Inner) fit.Add(m.AddPoint(ou + q.u, ov + q.v)); }
-                        else { fit.Add(pts[r.Start]); foreach (var q in r.Inner) fit.Add(m.AddPoint(ou + q.u, ov + q.v)); fit.Add(pts[r.End]); }
-                        ids.Add(m.AddSpline(fit, r.Closed, false, sk.Construction));
-                    }
-                }
-                m.NewGroup("Text", ids);
-            });
-        }
+        try { PlaceText(s, _text, _origin.u, _origin.v, _height, _font, _bold, _spacing); }
         catch (Exception ex) when (ex is not OutOfMemoryException) { s.Say(ex.Message, true); return; }
         _phase = Phase.Idle; _text = "";
         s.Say(Prompt); s.RaiseState(); s.Invalidate();
+    }
+
+    /// <summary>
+    /// Put text into the open sketch without the pointer (the automation API and scripts use this; the tool's Place button does the same).
+    /// The lower-left of the first line goes at (u, v); a new line starts at each line break. Returns the number of curves added.
+    /// </summary>
+    public static int PlaceText(CadSession s, string text, double u, double v, double height = 10, string? font = null, bool bold = false, double spacing = 0)
+    {
+        var sk = Sk(s);
+        if (string.IsNullOrWhiteSpace(text)) throw new FormatException("There is no text to place.");
+        if (!(height > 0)) throw new FormatException("The letter height must be above zero.");
+        font = string.IsNullOrWhiteSpace(font) ? TextOutline.Fonts[0] : font;
+        var contours = TextOutline.BuildClean(text.Replace("\r", ""), font, bold, height, spacing);
+        if (contours.Count == 0) throw new FormatException("None of those characters exist in this font.");
+        int added = 0;
+        sk.Edit(s, "That text", () =>
+        {
+            var m = sk.Model; var ids = new List<int>();
+            foreach (var c in contours)
+            {
+                var pts = c.Nodes.Select(n => m.AddPoint(u + n.u, v + n.v)).ToList();
+                foreach (var r in c.Runs)
+                {
+                    if (!r.Curve) { ids.Add(m.AddLine(pts[r.Start], pts[r.End], sk.Construction)); continue; }
+                    var fit = new List<int>();
+                    if (r.Closed) { fit.Add(pts[r.Start]); foreach (var q in r.Inner) fit.Add(m.AddPoint(u + q.u, v + q.v)); }
+                    else { fit.Add(pts[r.Start]); foreach (var q in r.Inner) fit.Add(m.AddPoint(u + q.u, v + q.v)); fit.Add(pts[r.End]); }
+                    ids.Add(m.AddSpline(fit, r.Closed, false, sk.Construction));
+                }
+            }
+            m.NewGroup("Text", ids);
+            added = ids.Count;
+        });
+        return added;
     }
 
     // ---------------------------------------------------------------- pointer

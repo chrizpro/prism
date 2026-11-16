@@ -2,7 +2,18 @@
 
 Union merges the selected bodies, Subtract cuts the tools out of a base body, and Intersect keeps their shared geometry. Keep tool bodies preserves the tools. The base receives the result.
 
-The Combine group sits on every modeling tab — Home, Solid, Surface, NURBS and Sheet Metal. Base and tool picks accept solids and surfaces: surfaces fuse or intersect, and a surface can be cut by a solid. Subtract refuses a surface as the tool, because an open surface has no inside to remove (SFC-H014); use Trim, Split Surface or Split Body to cut with a surface. Intersect and Subtract fail with a message when nothing would be left (SFC-H015). Until 2026-11-12, subtracting a surface from a surface reported success, changed nothing and deleted the tool, and intersecting bodies that do not meet left an empty object. Freeform omits Combine on purpose — subdivision (Catmull-Clark) cages do not survive exact booleans; Convert to NURBS first. Verified 2026-11-12 by SFC-H006/SFC-H007 in [SurfaceOptionTests](../../../Prism.Tests/Headless/Surfacing/SurfaceOptionTests.cs).
+The Combine group sits on every modeling tab — Home, Solid, Surface, NURBS and Sheet Metal. Base and tool picks accept solids and surfaces: surfaces fuse or intersect, and a surface can be cut by a solid. Subtract with a surface as the tool is described in the next section; a lone flat sheet, which encloses no space, is still refused (SFC-H014). Intersect and Subtract fail with a message when nothing would be left (SFC-H015). Until 2026-11-12, subtracting a surface from a surface reported success, changed nothing and deleted the tool, and intersecting bodies that do not meet left an empty object. Freeform omits Combine on purpose — subdivision (Catmull-Clark) cages do not survive exact booleans; Convert to NURBS first. Verified 2026-11-12 by SFC-H006/SFC-H007 in [SurfaceOptionTests](../../../Prism.Tests/Headless/Surfacing/SurfaceOptionTests.cs).
+
+## Cutting a surface with a surface (owner request 2026-11-14)
+
+An open surface does not need to be closed by hand to cut with. Two extruded rectangles, say, are open tubes (walls only); using one to cut the other just works.
+
+- The tool is closed in memory (a flat cap over each open end, or the surface as it is when it already encloses space) only to tell what is inside it. Whatever part of the target lies inside is removed.
+- **Fill the cut with the tool's walls** (shown when a surface is a tool; **on by default**): the tool's walls that lie inside the target are kept and joined on, so the result is closed along the cut, a notched tube. Off leaves the cut open, the walls simply missing.
+- A solid cut by a surface that encloses space works the same way. A surface that cannot enclose space (one flat sheet, or ends that cannot be capped) is refused with a message and both objects are left alone.
+- **Acceptance.** Target tube B (20 x 20 mm, 10 mm tall, wall area 800 mm²) overlapping tool tube A on one corner by 10 x 10 mm: with fill off the result's walls are 800 - 2 x 100 = **600 mm²**; with fill on the tool's two walls inside B add 2 x 100 mm², giving **800 mm²** and no open edge along the cut. Tests: [SFC-H019 to SFC-H021](../../../Prism.Tests/Headless/Surfacing/CombineSurfaceTests.cs) and SFC-H014. Old steps saved without the option reopen with fill on.
+- **Union and Intersect of surfaces work the same way (owner request 2026-11-15, following Subtract; proposed, pending review).** When the base and every other object are surfaces (NURBS surfaces included), each is closed in memory only to tell inside from outside. **Union** keeps, of every surface, the part outside all the others, so the walls inside each other disappear and one outer skin remains. **Intersect** keeps the base's part inside all the others and, with **Keep the tools' parts inside too** (on by default), each tool's part inside the others. Surfaces that enclose no space (flat sheets) keep the plain fuse and common.
+- **Acceptance.** For the two 20 x 20 x 10 mm tubes above (800 mm² each, overlapping 10 x 10 mm): Union = 2 x (800 - 200) = **1200 mm²**; Intersect = **400 mm²**, or **200 mm²** with the option off. Tests: SFC-H022 and SFC-H023 in the same file.
 
 ## Review and verification
 
@@ -19,3 +30,6 @@ The Windows verification run passed all 175 Headless tests selected by `Feature=
 ## Coverage gaps
 
 Disjoint and tangent inputs, multiple tools, empty intersections and regeneration still need coverage.
+
+
+**Approved 2026-11-14:** a consistent *Keep the originals* option across tools that consume curves or bodies (Combine already has *Keep tool bodies*). See [0.4 modeling gaps, item 6](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14).

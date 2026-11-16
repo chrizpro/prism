@@ -407,7 +407,7 @@ public sealed class DraftFaceCommand : Command
     readonly SelectionSlot _faces, _neutral;
     readonly NumberParam _angle;
     readonly BoolParam _flip;
-    readonly ChoiceParam _scope;
+    readonly ChoiceParam _scope, _parting;
 
     public DraftFaceCommand()
     {
@@ -416,6 +416,7 @@ public sealed class DraftFaceCommand : Command
         _angle = Num("Draft angle", 3, -45, 45, 0.5, "°");
         _flip = Check("Reverse pull direction", false);
         _scope = Choice("Also edit", 0, DirectHelpers.ScopeOptions); _scope.IsVisible = false;   // for scripts: people choose with "Select by"
+        _parting = Choice("Parting line", 0, "None (all walls lean one way)", "At the neutral plane (walls lean opposite ways)");
     }
 
     public override string Title => "Draft";
@@ -448,7 +449,25 @@ public sealed class DraftFaceCommand : Command
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
             var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Draft works on solid bodies.");
-            o.Replace.Add((body, Occ.Draft(body.Shape, DirectHelpers.Scope(S, body, grp, _scope.Index, Results).Select(i => i.Index).Distinct().ToArray(), pull, -_angle.Value, pl.Origin, pl.Normal)));
+            var items = DirectHelpers.Scope(S, body, grp, _scope.Index, Results).GroupBy(i => i.Index).Select(g => g.First()).ToList();
+            if (_parting.Index == 1)
+            {
+                // Walls above the neutral plane lean one way and walls below it the other, so both halves of a two-piece mould release (a positive angle narrows the part toward each end).
+                // A face on the plane itself, or one that crosses it, cannot say which side it belongs to: ask for it to be split there first.
+                var angles = new double[items.Count];
+                for (int k = 0; k < items.Count; k++)
+                {
+                    var bounds = (S.ShapeOf(items[k]) ?? throw new FormatException("That face is gone.")).Props();
+                    double side = Vec3.Dot(bounds.Center - pl.Origin, pl.Normal);
+                    double span = Math.Max(Math.Abs(bounds.Max.X - bounds.Min.X), Math.Max(Math.Abs(bounds.Max.Y - bounds.Min.Y), Math.Abs(bounds.Max.Z - bounds.Min.Z)));
+                    if (Math.Abs(side) < 1e-6 * Math.Max(1, span)) throw new FormatException("A picked wall lies on the parting line. Split it there with Split Face first, or pick walls either side of it.");
+                    angles[k] = side > 0 ? _angle.Value : -_angle.Value;   // with a positive angle both ends of the part shrink away from the parting line
+                }
+                o.Replace.Add((body, Occ.DraftSigned(body.Shape, items.Select(i => i.Index).ToArray(), angles, pull, pl.Origin, pl.Normal)));
+                Results.Add(new ResultLine("Faces drafted", $"{items.Count}  by ±{_angle.Value:0.##}° either side of the parting line"));
+                continue;
+            }
+            o.Replace.Add((body, Occ.Draft(body.Shape, items.Select(i => i.Index).ToArray(), pull, -_angle.Value, pl.Origin, pl.Normal)));
             Results.Add(new ResultLine("Faces drafted", $"{grp.Count()}  by {_angle.Value:0.##}°"));
         }
         return o;

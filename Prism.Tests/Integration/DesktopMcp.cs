@@ -10,6 +10,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
     readonly string discovery;
     readonly string output;
     int requestId;
+    bool protocolFaulted;
     public string OutputDirectory => output;
 
     public DesktopMcp(string scenario, string? drawingTheme = null, int? recoveryIntervalMinutes = null)
@@ -120,7 +121,20 @@ internal sealed class DesktopMcp : IAsyncDisposable
         string request = System.Text.Json.JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = parameters });
         await bridge.StandardInput.WriteLineAsync(request);
         await bridge.StandardInput.FlushAsync();
-        string? line = await bridge.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(60));
+        // The bridge permits six-minute native operations (large model opens,
+        // tessellation and batched geometry inspection). Cancel the read itself,
+        // rather than abandoning a pending read that Dispose would read over.
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(6));
+        string? line;
+        try
+        {
+            line = await bridge.StandardOutput.ReadLineAsync(timeout.Token);
+        }
+        catch
+        {
+            protocolFaulted = true;
+            throw;
+        }
         if (line == null)
             throw new InvalidOperationException("Prism.Mcp closed its output: " + await stderr);
         var envelope = JsonNode.Parse(line)!;
@@ -133,7 +147,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
     {
         try
         {
-            if (!bridge.HasExited && File.Exists(discovery))
+            if (!protocolFaulted && !bridge.HasExited && File.Exists(discovery))
                 await Tool("app_close", new { });
         }
         finally

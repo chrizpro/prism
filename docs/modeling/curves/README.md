@@ -8,6 +8,8 @@ Approved by the owner on 2026-11-08; implemented on `cleanup/curve-tools`, branc
 
 Since 2026-11-13 (owner direction) Home, Solid, Surface, NURBS and Freeform each show one **Curves** dropdown that holds every curve creation and editing tool; the separate Edit curves group is gone. See the [Curves dropdown](../surface-and-nurbs/README.md#curves-dropdown).
 
+> **Proposed, awaiting owner review (2026-11-14):** Curve, Blend Curve, Join, Explode, Trim Curve, Extend Curve and Offset Curve are retired from the Curves dropdown, search and ribbon customization. Their commands are marked `[Legacy]` in code, so they are hidden from the GUI but still load from saved files and run from scripts; search for `[Legacy` to list them when deciding whether to delete them. Sketch's own Trim, Extend and Offset tools are unchanged. The descriptions of those tools below describe the retired behavior.
+
 - **Curve dropdown:** Curve and Curve from Data. Interactive Curve still offers through-points and control-points modes.
 - **Join dropdown:** Join, Explode and Extract Edges (formerly Duplicate Edge). Join assembles touching segments without bridging gaps. Explode separates existing segments. Extract Edges copies selected body/surface edges into independent curves, joining touching edges and keeping the source body. Join and extraction share the same joining operation.
 - **Trim Curve:** Keep one part using a percentage range, or choose **Cut into pieces** and enter split percentages. There is no separate Split ribbon entry. Trim and Extend currently require a single segment; use Join > Explode for a multi-segment curve first.
@@ -23,6 +25,16 @@ Curve tools share the primary icon color of the visible modeling ribbon. See the
 ### Existing documents and customization
 
 Old Split history and the `curve_split` scripting name use a compatibility adapter that delegates cutting to Trim, retaining the old parameter schema. Old Divide Curve and Duplicate Edge saved identities resolve to the renamed commands. Existing scripting names (`curve_divide`, `curve_duplicate_edge`) remain valid. Old configurable button IDs and shortcut targets are retained, as are former Curves/Edit curves dropdown IDs in customized layouts. Reset a tab in Settings to adopt the shipped grouping.
+
+## Curve from a table
+
+- **Checked and improved 2026-11-14 (owner report).** *Curve from Data* in its table mode read typed text or a file, and a sheet of the Data panel only through the panel's *Make curve* button or by typing `@` and the sheet's name. It now lists the document's sheets in **Use a table from the Data panel**, with **Open the Data panel** and **New table for this curve** (which adds a sheet, points the curve at it and opens the panel to type or paste into). A curve step saved before the choice existed reopens with its values in place. Tests: [CRV-H050 to CRV-H052](../../../Prism.Tests/Headless/Curves/CurveFromTableTests.cs).
+
+## Intersection Curve, Project and Wrap, and the Data panel button (owner requests 2026-11-14)
+
+- **Intersection Curve** keeps the two curves or deletes them (*Keep the original curves*, off by default) when it is given flat curves, as before. Given surfaces, planes or bodies it now also offers **Delete the two originals afterwards** (off by default): whole objects are removed, faces of a body stay. Steps saved before the option existed keep their sources ([SOL-H165](../../../Prism.Tests/Headless/Solid/PlaneAndIntersectionTests.cs)).
+- **Project and Wrap are one tool.** The ribbon button is **Project / Wrap**; Wrap is the third *Method* of Project Curve (*Wrap (lay on by distance)*) with its Slide across, Slide along, Rotate and Keep options appearing only for that method. The separate Wrap command stays for saved files and scripts (`wrap_curve`). Steps saved by Project before the merge reopen unchanged ([SFC-H022, SFC-H023](../../../Prism.Tests/Headless/Surfacing/ProjectWrapMergeTests.cs)).
+- **Open the Data panel** in Curve from Data did nothing: the request was wired to the first document only, through the Home button. It is now attached to whichever document is in front, including one opened later in a new tab ([CRV-H053](../../../Prism.Tests/Headless/Curves/DataPanelOpenTests.cs)). The panel itself was rebuilt as a real grid; see [the Data panel](../../interface/data/README.md).
 
 ## Verification
 
@@ -44,3 +56,10 @@ Old Split history and the `curve_split` scripting name use a compatibility adapt
 Closed and control-point curves, import variants, projected intersections and viewport picking need more coverage. New requirements need owner review.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+
+## 0.4 illustrated documentation
+
+**Delivered on v0.4-work:** Curve from Data adds Points from → Helix with radius, end radius (0 keeps the start radius), pitch, turns, handedness, X/Y/Z axis and position. It creates a curve for a later Sweep, not a thread feature. [Helix checks](../../../Prism.Tests/Headless/Curves/HelixTests.cs). Intersection Curve defaults to replacing two flat source curves unless Keep the original curves is on; reference planes, faces and bodies remain. Old saved steps retain curves. [Retention checks](../../../Prism.Tests/Headless/Curves/KeepOriginalsTests.cs).
+
+The [0.4 visual guide](../../../site/guide/modeling-04.md) explains the delivered subset on `v0.4-work` with labeled concept diagrams. It separates development features from released installers and names unfinished options. Diagrams explain geometry; they are not viewport verification. See the [approved scope and delivery record](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) for remaining decisions.

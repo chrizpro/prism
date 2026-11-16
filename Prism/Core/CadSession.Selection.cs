@@ -270,6 +270,7 @@ public sealed partial class CadSession
             else SetSelection(behind, p.Ctrl || p.Shift);
             return;
         }
+        if (ActiveCommand != null && Method == SelectMethod.Click && ActiveCommand.ClickScreen(this, p.X, p.Y)) return;
         var hit = Pick(p.X, p.Y, ActiveFilter);
         if (ActiveCommand != null)
         {

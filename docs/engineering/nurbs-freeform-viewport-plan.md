@@ -47,6 +47,21 @@ The NURBS tab is the styling workflow in the spirit of Creo Style, Plasticity an
 
 **Proposal N6 — Keyboard loop.** K draw, S surface, P points on/off, M match, Z zebra, Tab toggles the panel. All reachable without the ribbon; documented in [sketch hotkeys](../sketch-hotkeys.md).
 
+**Proposal N7 — Every NURBS curve is independent and always editable (owner request 2026-11-15; superseded by the owner's direction the same day: keep sketches, one shared 3D sketch, 2D switch gives an independent sketch; see [sketches](../modeling/sketches/README.md)).** Today each visit to Draw on the NURBS tab makes a sketch of its own, so changing a curve drawn earlier means leaving the current sketch and re-opening the other one from the browser (which also rolls the history back). The owner wants the Plasticity / Creo Style feel: one flowing workspace where **everything is independent**. Requirements, in the owner's words reduced to behavior:
+
+* **N7a. Draw anywhere.** Draw flat (on the view-facing or a chosen plane) or in space, switchable on the fly, as in [sketch mode](../unified-sketch.md). No plane picker, no Finish step.
+* **N7b. See everything.** Every other object (bodies, surfaces, forms, other curves) stays visible and solid while drawing, not only the other sketches.
+* **N7c. Connect to anything.** A curve end or point snaps to the ends, points, edges, curves and faces of any visible object; snapping is a pick, not a sketch constraint. A snapped end can optionally stay joined (G0, then G1 by the N3 tangent handle).
+* **N7d. Edit any curve at any time.** With Draw active, clicking any NURBS curve (from any earlier drawing) selects it and shows its control points and tangent handles; dragging a point edits it in place. No exit, no right-click in the browser. Surfaces built from the curve follow.
+* **N7e. Independent.** Moving, deleting or reshaping one curve never touches another; there are no sketch constraints between curves (constraints stay in the Sketch tab).
+
+Two ways to build it; recommendation is **B**:
+
+* **A. Keep sketches, hot-switch between them.** Each Draw visit stays a sketch (parametric, constrained). Clicking a curve of another NURBS sketch while drawing saves the current sketch and opens that one, without leaving the tool or moving the camera. *Pros:* least new code, constraints keep working. *Cons:* each switch rolls the history back and replays it (slow once surfaces depend on the curves); the curve list still lives in many sketches, so "independent" is only the feel.
+* **B. A NURBS curve workspace (separate algorithm).** Drawing on the NURBS tab creates ordinary **curve objects** (`ObjKind.Curve`, one NURBS curve each), not sketch entries; Edit Points and the gizmo already work on them ([N1](#3-nurbs-make-it-the-fast-low-friction-workflow), [N3](#3-nurbs-make-it-the-fast-low-friction-workflow)). Draw is a viewport tool that stays on across curves (the K loop); picking an existing curve edits it in place as one undoable step. *Pros:* truly independent, no history roll-back, matches Plasticity. *Cons:* NURBS curves lose sketch constraints and dimensions (use the Sketch tab for those); old "NURBS Curves" sketches stay as they are and open as sketches.
+
+*Not decided:* whether old NURBS sketches should be convertible to curve objects (an Explode-to-curves step), and the undo grouping of a drag. *Acceptance (draft, B):* drawing three splines leaves three curve objects and no sketch; dragging a point of the first changes only it and needs no other action; a surface lofted from two of them updates; a curve end clicked near a body edge lands exactly on it.
+
 Order: N1 (largest friction drop, self-contained) → N2 → N3 → N4 → N6 → N5. N1 and N2 together make the tab "special" in the owner's sense: draw, press S, drag points.
 
 ## 4. Freeform: close the open items from the usability review
@@ -73,6 +88,7 @@ Order: F1 → F2 → F3 → F4 → F5.
 4. N1–N6: approve the NURBS batch and its order? Any of the hotkeys to change?
 5. F1–F5: approve the Freeform batch and its order?
 6. Joint **Keep where it is** on every joint type and **click-to-apply materials** were implemented today as fixes for reported confusion; confirm or ask for changes.
+7. N7: NURBS curves as independent objects (B, recommended) or hot-switching sketches (A)?
 
 ## Decisions
 

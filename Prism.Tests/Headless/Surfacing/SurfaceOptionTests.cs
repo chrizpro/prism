@@ -318,7 +318,7 @@ public class SurfaceOptionTests
         Assert.NotNull(vm.Session.Find(line.Id));
     }
 
-    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses an open surface as the tool and leaves both objects")]
+    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses a flat sheet as the tool (it encloses no space) and leaves both objects")]
     [Trait("TestId", "SFC-H014")]
     public void SubtractRefusesSurfaceTool()
     {
@@ -334,7 +334,7 @@ public class SurfaceOptionTests
             SetSelection(command, "Tool bodies", wall);
         });
         Assert.Null(command.TryBuild());
-        Assert.Contains("no inside", command.Error);
+        Assert.Contains("enclose", command.Error);
         vm.Session.CancelCommand();
         Assert.NotNull(vm.Session.Find(wall.Id));
     }

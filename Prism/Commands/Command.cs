@@ -124,6 +124,8 @@ public sealed partial class SelectionSlot : ObservableObject
     [ObservableProperty] public partial int IntentIndex { get; set; }
     public PickIntent Intent => (PickIntent)Math.Clamp(IntentIndex, 0, IntentNames.Length - 1);
     public bool Optional { get; init; }
+    /// <summary>An optional slot that picking still moves on to once the one before it is filled (the second and third of three points, say).</summary>
+    public bool ChainNext { get; init; }
     public bool Ordered { get; init; }
     public bool IsResult { get; init; }
     public int MaxCount { get; init; } = int.MaxValue;
@@ -372,7 +374,11 @@ public abstract partial class Command : ObservableObject
     protected static Vec3 CenterOf(Shape sh)
     {
         var m = sh.Tessellate(); var p = m.Positions;
-        if (p.Length < 3) return Vec3.Zero;
+        if (p.Length < 3)
+        {
+            // curves have no surface to measure: use the box around them, so an arrow or gizmo still stands on an open outline or a chain of edges
+            try { var pr = sh.Props(); return (pr.Min + pr.Max) * 0.5; } catch (Exception e) when (e is not OutOfMemoryException) { return Vec3.Zero; }
+        }
         double x0 = double.MaxValue, y0 = x0, z0 = x0, x1 = double.MinValue, y1 = x1, z1 = x1;
         for (int i = 0; i + 2 < p.Length; i += 3) { x0 = Math.Min(x0, p[i]); x1 = Math.Max(x1, p[i]); y0 = Math.Min(y0, p[i + 1]); y1 = Math.Max(y1, p[i + 1]); z0 = Math.Min(z0, p[i + 2]); z1 = Math.Max(z1, p[i + 2]); }
         return new Vec3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
@@ -466,6 +472,8 @@ public abstract partial class Command : ObservableObject
     public bool HasGizmoOptions => !HasPanelStep && (Tool is FormEditTool or EditPointsTool or ImageGizmoTool || S != null && (Handles.Count > 0 || Gizmo != null));
     /// <summary>Plane the grid and point placement use while this command runs.</summary>
     public virtual Plane3? WorkPlane => null;
+    /// <summary>The plane the reference grid is drawn on while this command runs. Defaults to the work plane; a command whose work plane slides about (an offset) can keep the grid still.</summary>
+    public virtual Plane3? GridPlane => WorkPlane;
     public CadSession S { get; private set; } = null!;
     int _inputUpdateDepth;
 
@@ -552,9 +560,21 @@ public abstract partial class Command : ObservableObject
                 ?? inputs.FirstOrDefault(slot => slot.Optional && selected.Any(item => s.Matches(item, slot.Filter)));
             if (seed != null)
             {
-                if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = 1;
+                // Sketch edges selected beforehand take their whole connected chain (a rectangle's four sides) and leave the intent on "Connected chain";
+                // edges of a body keep the single-edge rule.
+                // (a sketch curve selected as a curve rather than an edge counts the same)
+                bool IsSketchCurve(SelItem it) => it.Kind == SelKind.Entity || it.Kind == SelKind.Edge && s.SketchEntityOf(it) != null;
+                bool anyEdges = selected.Any(it => it.Kind is SelKind.Edge or SelKind.Entity);
+                bool sketchEdges = seed.ProfileSelection && anyEdges && selected.Where(it => it.Kind is SelKind.Edge or SelKind.Entity).All(IsSketchCurve);
+                if (seed.ProfileSelection && selected.Any(it => it.Kind == SelKind.Edge)) seed.SelectionRuleIndex = sketchEdges ? 2 : 1;
+                else if (sketchEdges) seed.SelectionRuleIndex = 2;
                 foreach (var item in selected)
-                    if (s.Matches(item, seed.Filter)) seed.TryAdd(s.SketchEntityOf(item) ?? item);
+                {
+                    if (!s.Matches(item, seed.Filter)) continue;
+                    if (sketchEdges && item.Kind is SelKind.Edge or SelKind.Entity && s.SketchComponentItems(item) is { Count: > 0 } chain) { foreach (var link in chain) seed.TryAdd(link); continue; }
+                    if (seed.ProfileSelection && s.UnusedSketchCurves(item) is { } unused) foreach (var curve in unused) seed.TryAdd(curve);
+                    else seed.TryAdd(s.SketchEntityOf(item) ?? item);
+                }
             }
             ActivateFirstOpenSlot();
         });
@@ -580,6 +600,10 @@ public abstract partial class Command : ObservableObject
 
     /// <summary>A viewport click with its 3D hit point, offered before the normal slot pick. Return true to consume it.</summary>
     public virtual bool PickPoint(PickResult hit, bool additive) => false;
+    /// <summary>A plain click at a screen position, offered before the normal pick: a command that snaps to things the pick does not reach (a cage point outside the smooth surface) uses it. True when the click was used.</summary>
+    public virtual bool ClickScreen(CadSession s, double px, double py) => false;
+    /// <summary>The pointer moved over the viewport with this command open, so it can show what a click would take.</summary>
+    public virtual void HoverScreen(CadSession s, double px, double py) { }
     /// <summary>Pointer pressed: return true to start dragging something of this command's (a placed point, say).</summary>
     public virtual bool GrabAt(CadSession s, double px, double py, bool ctrl) => false;
     /// <summary>The pointer moved while a grab started by GrabAt is held.</summary>
@@ -599,6 +623,7 @@ public abstract partial class Command : ObservableObject
             slot.Items.Clear();
             if (item.Kind == SelKind.Edge && S.SketchComponentItems(item) is { Count: > 0 } comp) foreach (var c in comp) slot.Items.Add(c);
             else if (item.Kind == SelKind.Edge && S.Find(item.Obj) is { Kind: ObjKind.Curve } curve) slot.Items.Add(SelItem.Of(curve));
+            else if (S.UnusedSketchCurves(item) is { } unused) foreach (var free in unused) slot.Items.Add(free);
             else slot.Items.Add(item);
             AdvanceSlot(slot); return true;
         }
@@ -653,7 +678,7 @@ public abstract partial class Command : ObservableObject
     void UpdateSlots() { foreach (var s in Slots) s.Update(S.Describe); }
     void AdvanceSlot(SelectionSlot slot)
     {
-        var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && !x.Optional && x.Items.Count == 0);
+        var next = Slots.SkipWhile(x => x != slot).Skip(1).FirstOrDefault(x => x.IsVisible && (!x.Optional || x.ChainNext) && x.Items.Count == 0);
         if (next != null) { slot.IsActive = false; next.IsActive = true; }
     }
 
@@ -670,6 +695,8 @@ public abstract partial class Command : ObservableObject
             foreach (var parameter in Params) parameter.IsVisible = step.parameters.Contains(parameter);
             foreach (var slot in Slots) slot.IsVisible = false;
         }
+        // A setting that hides the slot picks were going into (a different Method, say) must not leave clicks in the viewport going to the hidden one.
+        else if (ActiveSlot is { IsVisible: false }) ActivateFirstOpenSlot();
         ConfigureInputs(() =>
         {
             foreach (var slot in Slots.Where(s => s.IsPartialLoop && s.PathNeedsUpdate))

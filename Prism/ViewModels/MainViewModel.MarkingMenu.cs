@@ -194,6 +194,7 @@ public sealed partial class MainViewModel
                 new("Whole objects", () => s.Mode = SelMode.Object), new("Faces", () => s.Mode = SelMode.Face), new("Edges", () => s.Mode = SelMode.Edge),
             ]));
         list.Add(new("Zoom to fit", () => s.ZoomExtents()));
+        if (s.Sketch == null && s.Selection.Count > 0) list.Add(new("Zoom to selection", () => s.ZoomSelection()));
         list.Add(MenuSpec.Sep);
         list.Add(new("Settings…", () => RequestSettings?.Invoke(null)));
         return list;

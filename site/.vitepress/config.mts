@@ -34,6 +34,7 @@ const guideSidebar = [
   { text: 'Design', items: [
     { text: 'Sketching', link: '/guide/sketching' },
     { text: 'Solid modeling', link: '/guide/solid' },
+    { text: '0.4 visual guide', link: '/guide/modeling-04' },
     { text: 'Surfaces and NURBS', link: '/guide/surfacing' },
     { text: 'Freeform', link: '/guide/freeform' },
     { text: 'Sketches, solids and surfaces', link: '/guide/modeling' },
@@ -78,8 +79,11 @@ const apiSidebar = [
 const base = process.env.PRISM_SITE_BASE || '/'
 const origin = process.env.PRISM_SITE_ORIGIN || 'https://chrizpro.github.io'
 const repo = 'https://github.com/chrizpro/prism'
+const buildRoot = process.env.PRISM_DOCS_BUILD_ROOT
 
 export default defineConfig({
+  outDir: buildRoot ? `${buildRoot}/vitepress` : undefined,
+  cacheDir: buildRoot ? `${buildRoot}/cache` : undefined,
   title: 'Prism',
   description: 'Prism CAD documentation for 3D modeling, simulation, manufacturing and Python scripting.',
   cleanUrls: true,

@@ -25,7 +25,7 @@ Drag a handle, or type a number while it is showing; the number goes to the cont
 
 ## History
 
-Direct edits are plain undo steps by default. Right-click a body (in the viewport or the Browser) and choose **Track history** to record its direct edits as editable steps. Features made with the Solid tab (Extrude, Revolve and the rest) keep recording history as before.
+Direct edits are plain undo steps by default. Right-click a body (in the viewport or the Browser) and choose **Track history** to record its direct edits as editable steps. Features made with the Solid tab (Extrude, Revolve and the rest) keep recording history as before. Moving, turning or scaling whole bodies is the exception: it is always recorded, so editing an earlier feature of a part (for example a component's size) does not send the parts back to where they were first made (HDL-H045). Face-level edits on a body that is not tracking history are still dropped when an earlier feature is edited, and the status bar says which steps stayed on the old branch.
 
 ## Sections
 

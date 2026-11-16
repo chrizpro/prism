@@ -18,13 +18,14 @@ public abstract class ManufacturingCheckCommand : AnalysisCommand
     protected ManufacturingCheckCommand()
     {
         Model=Slot(new(){Label="Model",Filter=SelFilter.Solid|SelFilter.SurfaceObj|SelFilter.MeshObj|SelFilter.Form});
-        Add(new ActionParam{Label="Run checks",Run=()=>{_run=true;try{OnChanged();}finally{_run=false;}}});
+        Add(new ActionParam{Label="Run checks",Run=RunNow});
     }
+    protected void RunNow(){_run=true;try{OnChanged();}finally{_run=false;}}
     protected override void OnBegin()
     {
         var picked=S.SelectedObjects.Where(Printable).ToArray();var visible=S.Objects.Where(o=>o.Visible&&Printable(o)).ToArray();
         if(Model.Items.Count==0){if(picked.Length==1)Model.Items.Add(SelItem.Of(picked[0]));else if(visible.Length==1)Model.Items.Add(SelItem.Of(visible[0]));}
-        var run=Params.OfType<ActionParam>().Single();Params.Move(Params.IndexOf(run),Params.Count-1);PanelSettings.Move(PanelSettings.IndexOf(run),PanelSettings.Count-1);
+        var run=Params.OfType<ActionParam>().Single(p=>p.Label=="Run checks");Params.Move(Params.IndexOf(run),Params.Count-1);PanelSettings.Move(PanelSettings.IndexOf(run),PanelSettings.Count-1);
     }
     protected SceneObject? Body => ObjectsOf(Model).FirstOrDefault();
     static bool Printable(SceneObject o)=>o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Mesh or ObjKind.Form;
@@ -165,14 +166,34 @@ public sealed class ResinCheckCommand : ManufacturingCheckCommand
 public sealed class CncStockCommand : ManufacturingCheckCommand
 {
     readonly NumberParam _cell,_flute,_holder,_tolerance,_position;
+    Avalonia.Threading.DispatcherTimer? _timer;
     public CncStockCommand()
     {
         _cell=Num("Grid size",1,.1,10,.1);_flute=Num("Flute / holder clearance length",25,.1,500,1);
         _holder=Num("Holder diameter",20,.1,200,1);_tolerance=Num("Comparison tolerance",.1,0,5,.05);
         _position=Num("Program position",100,0,100,5,"%");
+        Add(new ActionParam{Label="Play removal",Run=Play});
+        Add(new ActionParam{Label="Pause removal",Run=Pause});
+        Add(new ActionParam{Label="Next removal step",Run=Advance});
     }
+    void Pause(){_timer?.Stop();_timer=null;}
+    void Play()
+    {
+        Pause();
+        if(_position.Value>=100)_position.Value=0;
+        RunNow();
+        if(S.StatusIsError)return;
+        _timer=new Avalonia.Threading.DispatcherTimer{Interval=TimeSpan.FromMilliseconds(200)};
+        _timer.Tick+=(_,_)=>Advance();_timer.Start();
+    }
+    void Advance()
+    {
+        _position.Value=Math.Min(100,_position.Value+5);RunNow();
+        if(_position.Value>=100||S.StatusIsError)Pause();
+    }
+    public override void OnEnd()=>Pause();
     public override string Title=>"CNC Stock Review";public override string Icon=>"cnc";
-    public override string Hint=>"Sample stock removal in visible milling operation order. Compare the result with the selected setup model: orange is remaining material, red is a possible gouge, blue is cut stock. Grid sampling excludes undercuts, fixtures, machine kinematics and exact cutter geometry. Tool dimensions apply to all operations.";
+    public override string Hint=>"Play removal to step through the stock in 5% increments of feed-based program time, or set Program position and Run checks. Orange is remaining material, red is a possible gouge, blue is cut stock. This is sampled 3-axis screening, not machine or fixture simulation.";
     protected override string ExtraKey=>System.Text.Json.JsonSerializer.Serialize(S.CamSetup)+string.Join("|",S.Objects.Where(o=>o.Visible&&o.Asm is ToolpathInfo).Select(o=>o.Id.ToString()+System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(o.Asm!)));
     protected override void RunChecks(SceneObject body,TriMesh mesh)
     {
@@ -180,6 +201,13 @@ public sealed class CncStockCommand : ManufacturingCheckCommand
         var paths=S.ActiveMillingProgram().Select(o=>(ToolpathInfo)o.Asm!).ToArray();
         foreach(var path in paths)CamValidation.Validate(S,path);
         var r=StockSimulation.Run(setup,mesh,paths,_cell.Value,_flute.Value,_holder.Value,_tolerance.Value,_position.Value/100);
+        var timelines=paths.Select(p=>new PathTimeline(p)).ToArray();
+        double seconds=timelines.Sum(t=>t.Duration)*_position.Value/100;
+        foreach(var timeline in timelines)
+        {
+            if(seconds<=timeline.Duration){Markers.Add((timeline.At(seconds).tip,timeline.Path.Tool));break;}
+            seconds-=timeline.Duration;
+        }
         Row("Sampling",$"{r.Cell:0.###} mm grid; {_position.Value:0.#}% of feed-based program time",2);
         Row("Removed stock",$"{r.RemovedVolume/1000:0.###} cm³");Row("Remaining material",$"{r.RemainingVolume/1000:0.###} cm³",r.RemainingVolume>0?2:1);
         Row("Possible gouges",$"{r.GougeMoves} moves; {r.GougeVolume/1000:0.###} cm³",r.GougeMoves>0?3:1);

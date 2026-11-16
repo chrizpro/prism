@@ -113,6 +113,7 @@ public sealed partial class MainViewModel
         };
         s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory; s.OriginChanged += RebuildBrowser;
         s.LogChanged += RefreshStudioActivity;
+        s.DataPanelRequested += ShowDataPanelForCommand;
         HookRender(s);
         _onPartInfo = SyncPartInfo; s.PartInfoChanged += _onPartInfo;
         s.ViewChanged += _onView; s.StudyChanged += _onStudy; s.InputRequested += _onInput; s.SketchChanged += RebuildSketchPanel; s.PropertyChanged += _onProp;
@@ -121,6 +122,7 @@ public sealed partial class MainViewModel
     void DetachSession(CadSession s)
     {
         s.LogChanged -= RefreshStudioActivity;
+        s.DataPanelRequested -= ShowDataPanelForCommand;
         if (_onScene != null) s.SceneChanged -= _onScene;
         if (_onSelection != null) s.SelectionChanged -= _onSelection;
         if (_onView != null) s.ViewChanged -= _onView;

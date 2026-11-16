@@ -57,6 +57,24 @@ public class SketchEditContextTests
         Assert.Contains(session.Objects, o => o.Kind == ObjKind.Surface);      // the rebuilt feature keeps the model, with a fresh id
     }
 
+    [AvaloniaFact(DisplayName = "SKT-H062 | With the see-through preference off, downstream objects keep their own colour while a sketch is edited")]
+    [Trait("TestId", "SKT-H062")]
+    public void DownstreamObjectsKeepOriginalLookWhenAsked()
+    {
+        var (session, sketch, surface) = SketchWithSurface();
+        bool before = AppSettings.Current.SketchContextTranslucent;
+        AppSettings.Current.SketchContextTranslucent = false;
+        try
+        {
+            Assert.True(session.EditSketch(session.Find(sketch.Id)!));
+            var item = Assert.Single(session.ContextItems);
+            Assert.False(item.Context);
+            Assert.Equal(surface.Color, item.SolidColor);
+            session.ExitSketch(true);
+        }
+        finally { AppSettings.Current.SketchContextTranslucent = before; }
+    }
+
     [AvaloniaFact(DisplayName = "SKT-H049 | Curves added while editing do not join the feature that consumed the sketch")]
     [Trait("TestId", "SKT-H049")]
     public void NewSketchCurvesDoNotJoinCapturedProfile()
@@ -176,6 +194,39 @@ public class SketchEditContextTests
         var command = Assert.IsType<ExtrudeCommand>(session.ActiveCommand);
         var item = Assert.Single(command.Slots[0].Items);
         Assert.Equal(SelKind.Entity, item.Kind);
+        session.CancelCommand();
+    }
+
+    [AvaloniaFact(DisplayName = "SKT-H063 | One sketch edge selected before Extrude seeds its whole connected chain, with the intent on Connected chain")]
+    [Trait("TestId", "SKT-H063")]
+    public void EdgeSelectionSeedsConnectedChain()
+    {
+        var session = new CadSession();
+        var sketch = CreateRectangleSketch(session, Plane3.XY, 40, 30);
+
+        session.SelectItems([new SelItem(sketch.Id, SelKind.Edge, 0)]);
+        session.StartCommand(() => new ExtrudeCommand(surface: true));
+        var command = Assert.IsType<ExtrudeCommand>(session.ActiveCommand);
+        var slot = command.Slots[0];
+        Assert.Equal(4, slot.Items.Count);
+        Assert.All(slot.Items, i => Assert.Equal(SelKind.Entity, i.Kind));
+        Assert.Equal("Connected chain", slot.SelectionRules[slot.SelectionRuleIndex]);
+        session.CancelCommand();
+    }
+
+    [AvaloniaFact(DisplayName = "SKT-H064 | One sketch curve selected as a curve before Extrude also seeds its whole connected chain")]
+    [Trait("TestId", "SKT-H064")]
+    public void CurveSelectionSeedsConnectedChain()
+    {
+        var session = new CadSession();
+        var sketch = CreateRectangleSketch(session, Plane3.XY, 40, 30);
+        var first = sketch.SketchData!.Entities.First(e => !e.Construction);
+
+        session.SelectItems([new SelItem(sketch.Id, SelKind.Entity, first.Id, 0)]);
+        session.StartCommand(() => new ExtrudeCommand(surface: true));
+        var slot = Assert.IsType<ExtrudeCommand>(session.ActiveCommand).Slots[0];
+        Assert.Equal(4, slot.Items.Count);
+        Assert.Equal("Connected chain", slot.SelectionRules[slot.SelectionRuleIndex]);
         session.CancelCommand();
     }
 

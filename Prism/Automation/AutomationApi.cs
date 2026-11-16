@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -352,8 +353,9 @@ public sealed partial class AutomationApi
         {
             j["wires"] = o.Shape.Count(SubKind.Wire);
             if (o.SketchPlane is { } p) j["sketchPlane"] = new JsonObject { ["origin"] = Arr(p.Origin), ["u"] = Arr(p.U), ["v"] = Arr(p.V), ["normal"] = Arr(p.Normal) };
-            var pr = o.Shape.Props();
-            if (o.Shape.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
+            var measured = Measure(o.Shape);
+            var pr = measured.Props;
+            if (measured.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
             j["area"] = Math.Round(pr.Area, 4); j["size"] = Arr(pr.Size); j["center"] = Arr(pr.Center);
             j["valid"] = o.Shape.IsValid;
             j["appearance"] = AppearanceJson(o);
@@ -531,7 +533,7 @@ public sealed partial class AutomationApi
         ["cnc_rough"] = () => new Rough3DCommand(), ["cnc_adaptive"] = () => new AdaptiveClearCommand(), ["cnc_finish"] = () => new ParallelFinishCommand(), ["cnc_constant_z"] = () => new ConstantZFinishCommand(), ["cnc_turn"] = () => new TurnCommand(),
         ["cae_pipe_network"] = () => new PipeNetworkCommand(), ["cae_flow"] = () => new FlowStudyCommand(), ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(), ["cae_fatigue"] = () => new FatigueCommand(), ["cae_kinematics"] = () => new MotionStudyCommand(false), ["cae_motion"] = () => new MotionStudyCommand(true), ["cae_robot_path"] = () => new MotionStudyCommand(MotionKind.Robot), ["motion_spring"] = () => new MotionSpringCommand(), ["motion_load_to_static"] = () => new MotionLoadToStaticCommand(), ["motion_force"] = () => new MotionLoadCommand(false), ["motion_torque"] = () => new MotionLoadCommand(true), ["gear_pair"] = () => new CouplingCommand(), ["rack_pinion"] = () => new CouplingCommand(),
         ["pcb_board"] = () => new PcbBoardCommand(), ["pcb_from_outline"] = () => new PcbOutlineCommand(), ["component_envelope"] = () => new ComponentEnvelopeCommand(), ["pcb_hole"] = () => new PcbHoleCommand(),
-        ["match_surface"] = () => new MatchSurfaceCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
+        ["match_surface"] = () => new MatchSurfaceCommand(), ["wrap_curve"] = () => new WrapCurveCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
         ["pattern_linear"] = () => new LinearPatternCommand(), ["pattern_circular"] = () => new CircularPatternCommand(), ["pattern_curve"] = () => new CurvePatternCommand(),
         ["pattern_fill"] = () => new FillPatternCommand(), ["pattern_table"] = () => new TablePatternCommand(),
         ["mesh_select"] = () => new MeshRegionCommand(), ["mesh_section_sketch"] = () => new MeshSectionSketchCommand(), ["mesh_fit_surface"] = () => new MeshFitSurfaceCommand(), ["form_from_scan"] = () => new FormFromScanCommand(),
@@ -548,6 +550,8 @@ public sealed partial class AutomationApi
         ["box"] = () => new BoxCommand(), ["cylinder"] = () => new CylinderCommand(), ["sphere"] = () => new SphereCommand(),
         ["cone"] = () => new ConeCommand(), ["torus"] = () => new TorusCommand(),
         ["hole"] = () => new HoleCommand(),
+        ["thread"] = () => new ThreadCommand(),
+        ["form_knife"] = () => new FormKnifeCommand(),
         ["extrude"] = () => new ExtrudeCommand(), ["extrude_surface"] = () => new ExtrudeCommand(true), ["rib"] = () => new RibCommand(), ["emboss"] = () => new EmbossCommand(),
         ["revolve"] = () => new RevolveCommand(), ["revolve_surface"] = () => new RevolveCommand(true),
         ["sweep"] = () => new SweepCommand(), ["sweep_surface"] = () => new SweepCommand(true),
@@ -638,13 +642,21 @@ public sealed partial class AutomationApi
 
     sealed record BodySnap(string Name, Shape? Shape, double Volume, double Area, int Faces, int Edges, Vec3 Size);
 
+    // Shapes are immutable. Measuring an unchanged loft before every command
+    // can dominate a scripted build; weak keys retain neither deleted shapes
+    // nor a document after it closes. Names/visibility remain live object data.
+    sealed record ShapeMeasure(ShapeProps Props, bool HasSolids, int Faces, int Edges);
+    readonly ConditionalWeakTable<Shape, ShapeMeasure> _measurements = new();
+    ShapeMeasure Measure(Shape shape) => _measurements.GetValue(shape,
+        s => new(s.Props(), s.HasSolids, s.Count(SubKind.Face), s.Count(SubKind.Edge)));
+
     Dictionary<Guid, BodySnap> Snapshot()
     {
         var d = new Dictionary<Guid, BodySnap>();
         foreach (var o in S.Objects)
         {
             if (!IsBody(o)) { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); continue; }
-            try { var sh = o.Shape; var p = sh.Props(); d[o.Id] = new(o.Name, sh, sh.HasSolids ? p.Volume : 0, p.Area, sh.Count(SubKind.Face), sh.Count(SubKind.Edge), p.Size); }
+            try { var sh = o.Shape; var m = Measure(sh); var p = m.Props; d[o.Id] = new(o.Name, sh, m.HasSolids ? p.Volume : 0, p.Area, m.Faces, m.Edges, p.Size); }
             catch { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); }
         }
         return d;
@@ -660,7 +672,8 @@ public sealed partial class AutomationApi
             if (!before.TryGetValue(o.Id, out var b) || b.Shape == null || !IsBody(o)) continue;
             Shape sh; try { sh = o.Shape; } catch { continue; }
             if (ReferenceEquals(sh, b.Shape)) continue;
-            var p = sh.Props(); double vol = sh.HasSolids ? p.Volume : 0; int nf = sh.Count(SubKind.Face), ne = sh.Count(SubKind.Edge);
+            var measured = Measure(sh);
+            var p = measured.Props; double vol = measured.HasSolids ? p.Volume : 0; int nf = measured.Faces, ne = measured.Edges;
             var c = new JsonObject
             {
                 ["name"] = o.Name, ["volume"] = Math.Round(vol, 4), ["volumeDelta"] = Math.Round(vol - b.Volume, 4),
@@ -834,7 +847,9 @@ public sealed partial class AutomationApi
                 var before = Snapshot();
                 var cmd = make(); cmd.Factory = make;
                 _vm.CloseHome();
-                S.StartCommand(cmd);
+                // Begin may build a preview (analysis tools with empty picks
+                // examine the whole document). Wait for the requested inputs.
+                cmd.ConfigureInputs(() => S.StartCommand(cmd));
                 if (S.ActiveCommand != cmd) throw new InvalidOperationException(S.Status);
                 try
                 {
@@ -1351,7 +1366,7 @@ public sealed partial class AutomationApi
         Add("sketch_add", "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: " +
             "line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); " +
             "circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; " +
-            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}. Add \"construction\":true for reference geometry.",
+            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}; text {text, at:[u,v] (lower-left of the first line, default [0,0]), height? (mm, default 10), font? (an installed font, default Arial), bold?, spacing? (extra letter spacing, mm); line breaks start a new line}. Add \"construction\":true for reference geometry.",
             Schema(["entities"], ("entities", "array", "List of entity objects.")), a =>
             {
                 var sk = S.Sketch ?? throw new InvalidOperationException("No sketch is open. Call sketch_begin first.");
@@ -1365,6 +1380,13 @@ public sealed partial class AutomationApi
                     try
                     {
                         var pts = o["points"]?.AsArray().Select(p => P(p!)).ToList() ?? [];
+                        if (type == "text")
+                        {
+                            // letters become lines and splines at the given spot, the same as the Text tool's Place button
+                            var at = o["at"] != null ? P(o["at"]!) : (0.0, 0.0);
+                            SketchTextTool.PlaceText(S, Str(o, "text"), at.Item1, at.Item2, Dbl(o, "height", 10), o["font"]?.ToString(), Bool(o, "bold", false), Dbl(o, "spacing", 0));
+                            continue;
+                        }
                         ClickTool tool; List<(double, double)> feed; bool closed = Bool(o, "closed", false);
                         switch (type)
                         {

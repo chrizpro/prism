@@ -125,6 +125,7 @@ public sealed class NurbsPatchCommand : Command
     }
 }
 
+[Legacy("Retired from the Curves menu in 0.4. Kept for saved files and scripts.")]
 public sealed class CurveByPointsCommand : Command
 {
     readonly ChoiceParam _plane;

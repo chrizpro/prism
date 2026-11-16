@@ -223,23 +223,55 @@ class Sketch:
     def _add(self, *entities):
         return call("sketch_add", entities=list(entities))
 
-    def line(self, a, b):
-        return self._add({"type": "line", "points": [list(a), list(b)]})
+    @staticmethod
+    def _kind(entity, construction):
+        """Mark reference geometry (``construction=True``): drawn dashed and never part of a profile."""
+        if construction:
+            entity["construction"] = True
+        return entity
 
-    def polyline(self, points, closed=False):
-        return self._add({"type": "polyline", "points": [list(p) for p in points], "closed": closed})
+    def line(self, a, b, construction=False):
+        return self._add(self._kind({"type": "line", "points": [list(a), list(b)]}, construction))
 
-    def rect(self, corner1, corner2):
-        return self._add({"type": "rect", "corner1": list(corner1), "corner2": list(corner2)})
+    def polyline(self, points, closed=False, construction=False):
+        return self._add(self._kind({"type": "polyline", "points": [list(p) for p in points], "closed": closed}, construction))
 
-    def circle(self, center, radius):
-        return self._add({"type": "circle", "center": list(center), "radius": radius})
+    def rect(self, corner1, corner2, construction=False):
+        return self._add(self._kind({"type": "rect", "corner1": list(corner1), "corner2": list(corner2)}, construction))
 
-    def arc(self, start, through, end):
-        return self._add({"type": "arc", "points": [list(start), list(through), list(end)]})
+    def rect_center(self, center, corner, construction=False):
+        """A rectangle from its middle and one corner."""
+        return self._add(self._kind({"type": "rect", "center": list(center), "corner": list(corner)}, construction))
 
-    def spline(self, points, closed=False):
-        return self._add({"type": "spline", "points": [list(p) for p in points], "closed": closed})
+    def circle(self, center, radius, construction=False):
+        return self._add(self._kind({"type": "circle", "center": list(center), "radius": radius}, construction))
+
+    def ellipse(self, center, major_end, minor, construction=False):
+        """``major_end`` is the end of one axis ([u, v]); ``minor`` is the other radius."""
+        return self._add(self._kind({"type": "ellipse", "center": list(center), "major": list(major_end), "minor": minor}, construction))
+
+    def arc(self, start, through, end, construction=False):
+        return self._add(self._kind({"type": "arc", "points": [list(start), list(through), list(end)]}, construction))
+
+    def spline(self, points, closed=False, construction=False):
+        return self._add(self._kind({"type": "spline", "points": [list(p) for p in points], "closed": closed}, construction))
+
+    def polygon(self, center, radius, sides=6, circumscribed=False, construction=False):
+        return self._add(self._kind({"type": "polygon", "center": list(center), "radius": radius, "sides": sides, "circumscribed": circumscribed}, construction))
+
+    def slot(self, center1, center2, width, construction=False):
+        return self._add(self._kind({"type": "slot", "center1": list(center1), "center2": list(center2), "width": width}, construction))
+
+    def point(self, at, construction=False):
+        return self._add(self._kind({"type": "point", "at": list(at)}, construction))
+
+    def text(self, text, at=(0, 0), height=10, font=None, bold=False, spacing=0, construction=False):
+        """Letters as lines and splines, ready to extrude, emboss or cut. ``at`` is the lower-left of the first line;
+        a line break in ``text`` starts a new line; ``font`` is any font installed on this computer (default Arial)."""
+        e = {"type": "text", "text": text, "at": list(at), "height": height, "bold": bold, "spacing": spacing}
+        if font:
+            e["font"] = font
+        return self._add(self._kind(e, construction))
 
 
 def sketch(plane="XY", offset=0):

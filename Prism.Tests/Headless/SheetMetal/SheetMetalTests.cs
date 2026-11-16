@@ -229,6 +229,43 @@ public class SheetMetalTests
 
     // ------------------------------------------------------------------ Flatten / Refold
 
+    [AvaloniaTheory(DisplayName = "SHM-H013 | Flat Pattern retains a radial hole through a cylindrical bend, including after rigid rotation")]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("TestId", "SHM-H013")]
+    public void FlatPatternRetainsAHoleInTheBend(bool rotate)
+    {
+        var session = new CadSession();
+        var flange = Flange(session, Sketch(session, (0, 65), (0, 0), (65, 0)));
+        SetNumber(flange, "Bend radius (inside)", 20);
+        var original = Body(flange);
+        double c = Math.Sqrt(.5);
+        var tool = Occ.Transform(CylinderAt(Vec3.Zero, 2, 6),
+            [0, -c, -c, 0, c, -c, 1, 0, 0], new Vec3(22 - 19 * c, 22 - 19 * c, Width / 2));
+        var cut = Occ.Cut(original, tool);
+        Assert.True(cut.Props().Volume < original.Props().Volume - 10);
+        if (rotate) cut = Occ.Transform(cut, [1, 0, 0, 0, -1, 0, 0, 0, -1], new Vec3(100, 60, 80));
+        var slotted = session.AddObject(cut, "Perforated bend", ObjKind.Solid);
+        var command = Begin(session, () => new FlatPatternCommand());
+        Pick(command, "Sheet metal body", slotted);
+        var flat = Assert.Single(BuildOutput(command).Add, o => o.Kind == ObjKind.Surface).Shape!;
+        Assert.True(flat.IsValid);
+        Assert.Equal(flat.Count(SubKind.Face) + 1, flat.Count(SubKind.Wire));
+        // Independent neutral-surface integral of a radial cylindrical cutter:
+        // axial opening = 2 sqrt(holeRadius² - outerRadius² sin²(theta)).
+        double maxAngle = Math.Asin(2.0 / 22), sum = 0;
+        const int steps = 2000;
+        for (int i = 0; i <= steps; i++)
+        {
+            double angle = maxAngle * i / steps;
+            double value = Math.Sqrt(Math.Max(0, 4 - 22 * 22 * Math.Sin(angle) * Math.Sin(angle)));
+            sum += value * (i == 0 || i == steps ? 1 : i % 2 == 0 ? 2 : 4);
+        }
+        double holeArea = 4 * (20 + .44 * Thickness) * sum * maxAngle / (3 * steps);
+        double blankArea = (86 + Math.PI / 2 * (20 + .44 * Thickness)) * Width;
+        AssertClose(blankArea - holeArea, flat.Props().Area, .15, "Developed area preserves the curved-face hole (mm²)");
+    }
+
     static (CadSession Session, SceneObject Cylinder, SelItem Wall) Cylinder()
     {
         var session = new CadSession();

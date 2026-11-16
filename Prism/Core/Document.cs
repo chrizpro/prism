@@ -76,6 +76,8 @@ public sealed class SceneObject
     public Assembly.ComponentInfo? Component => Asm as Assembly.ComponentInfo;
 
     Shape? _shape;
+    /// <summary>Diagnostic for avoiding eager NURBS conversion of unrelated forms during scoped operations.</summary>
+    internal bool HasCachedShape => _shape != null;
     MeshData? _mesh;
 
     /// <summary>Exact geometry. For a Form this is generated (and cached) by fitting NURBS patches to the subdivision surface.</summary>

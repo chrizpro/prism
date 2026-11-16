@@ -53,11 +53,13 @@ static class FaceOpsHelpers
 public sealed class SplitFaceCommand : Command
 {
     readonly SelectionSlot _face, _tool;
+    readonly ChoiceParam _mode;
 
     public SplitFaceCommand()
     {
         _face = Slot(new SelectionSlot { Label = "Face to split", Filter = SelFilter.Face, SmartPick = true });
         _tool = Slot(new SelectionSlot { Label = "Splitting plane, edge or sketch", Filter = SelFilter.Plane | SelFilter.Edge | SelFilter.SketchObj | SelFilter.CurveObj });
+        _mode = Choice("Mode", 0, "Split (cut across the face)", "Imprint (mark curves on the face)");
     }
 
     public override string Title => "Split Face";
@@ -79,9 +81,11 @@ public sealed class SplitFaceCommand : Command
         else
         {
             curves = S.ShapeOf(ti) ?? throw new FormatException("Pick a plane, an edge or a sketch.");
-            if (S.FaceFrame(fi) is { } fr) { try { curves = Occ.ProjectCurve(curves, face, fr.normal, false); } catch (KernelException) { } }
+            if (Occ.FaceInfoOf(face).Type != "Plane") curves = PlaceOnCurvedFace(curves, face);
+            else if (S.FaceFrame(fi) is { } fr) { try { curves = Occ.ProjectCurve(curves, face, fr.normal, false); } catch (KernelException) { } }
         }
         int before = body.Shape.Count(SubKind.Face);
+        if (_mode.Index == 1) return Imprint(body, fi, curves, before);
         Shape res;
         try { res = Occ.Split(body.Shape, curves); }
         catch (KernelException) { throw new FormatException("That does not cross the face. Extend the plane, edge or sketch so it runs from one side of the face to the other."); }
@@ -90,6 +94,54 @@ public sealed class SplitFaceCommand : Command
         res = res.Sub(SubKind.Solid, 0);
         Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
+        o.Replace.Add((body, res));
+        return o;
+    }
+
+    /// <summary>Normal of the plane the curves lie in, or null when they are not flat.</summary>
+    static Vec3? FlatNormal(Shape curves)
+    {
+        var pts = Occ.CurveSamples(curves, 24, 256).SelectMany(e => e.Select(x => x.p)).ToList();
+        if (pts.Count < 3) return null;
+        var c = pts.Aggregate(Vec3.Zero, (a, p) => a + p) / pts.Count; var n = Vec3.Zero;
+        for (int i = 1; i < pts.Count; i++) n += Vec3.Cross(pts[i - 1] - c, pts[i] - c);
+        if (n.Length < 1e-9) return null;
+        n = n.Normalized(); double extent = pts.Max(p => (p - c).Length);
+        return pts.All(p => Math.Abs(Vec3.Dot(p - c, n)) < 1e-4 * Math.Max(extent, 1)) ? n : null;
+    }
+
+    /// <summary>
+    /// Bring curves onto a curved face as they look from where they are: straight along the plane they lie in toward the face (a curve that is not flat is pulled to the nearest spot).
+    /// A round face is crossed twice, at the front and at the back; the hits nearest the curves are kept.
+    /// </summary>
+    static Shape PlaceOnCurvedFace(Shape curves, Shape face)
+    {
+        var flat = FlatNormal(curves);
+        if (flat is not { } dir) return curves;                                    // the kernel pulls curves that are not flat onto the face itself
+        var centre = curves.Props().Center;
+        if (Vec3.Dot(face.Props().Center - centre, dir) < 0) dir = -dir;
+        Shape projected;
+        try { projected = Occ.ProjectCurve(curves, face, dir, false); } catch (KernelException) { return curves; }
+        var edges = Enumerable.Range(0, projected.Count(SubKind.Edge)).Select(i => projected.Sub(SubKind.Edge, i)).ToList();
+        if (edges.Count == 0) return curves;
+        var distance = edges.Select(e => Occ.Distance(e, curves).Distance).ToList();
+        var sorted = distance.OrderBy(d => d).ToList(); double gap = 0, cut = double.MaxValue;
+        for (int i = 0; i + 1 < sorted.Count; i++) if (sorted[i + 1] - sorted[i] > gap) { gap = sorted[i + 1] - sorted[i]; cut = (sorted[i] + sorted[i + 1]) / 2; }
+        if (gap < 1 || gap < 0.3 * sorted[^1]) return projected;
+        var near = edges.Where((_, i) => distance[i] <= cut).ToList();
+        return Occ.Compound(near);
+    }
+
+    /// <summary>Mark the curves onto the face: a closed loop cuts out a piece, a curve that stops inside the face stays as an edge of it. The shape of the body does not change.</summary>
+    CommandOutput Imprint(SceneObject body, SelItem face, Shape curves, int before)
+    {
+        Shape res;
+        try { res = Occ.Imprint(body.Shape, face.Index, curves); }
+        catch (KernelException e) { throw new FormatException(e.Message + " Pick curves or a sketch that lie on the face, or switch Mode to Split."); }
+        if (res.Count(SubKind.Solid) == 0 || res.Count(SubKind.Face) < before) throw new FormatException("Imprinting did not leave a valid body.");
+        if (res.Count(SubKind.Solid) > 1) res = res.Sub(SubKind.Solid, 0);
+        Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        var o = new CommandOutput { Label = "Imprint face", Icon = "splitbody" };
         o.Replace.Add((body, res));
         return o;
     }

@@ -142,6 +142,89 @@ public static class FormOps
         return result;
     }
 
+    /// <summary>
+    /// Knife: cut the cage along a plane. Every edge the plane crosses gets a new point where it crosses, and every face it passes through is split in two
+    /// along the cut (a plane that passes through existing points splits the face between them). Faces that only touch the plane, or lie in it, are left alone.
+    /// Returns the new points; <paramref name="cutFaces"/> is how many faces were split. A positive <paramref name="crease"/> sharpens the new edges.
+    /// </summary>
+    public static List<int> CutWithPlane(SubdMesh m, Vec3 origin, Vec3 normal, out int cutFaces, double crease = 0)
+    {
+        cutFaces = 0;
+        if (m.F.Count == 0 || normal.Length < 1e-12) return [];
+        normal = normal.Normalized();
+        var (lo, hi) = m.Bounds();
+        double eps = 1e-9 * Math.Max((hi - lo).Length, 1);
+        int oldCount = m.V.Count;
+        var d = new double[oldCount];
+        for (int i = 0; i < oldCount; i++) d[i] = Vec3.Dot(m.V[i] - origin, normal);
+        bool On(int v) => v >= oldCount || Math.Abs(d[v]) <= eps;
+
+        var cutPoint = new Dictionary<long, int>();                      // each crossed edge, and the point put on it
+        foreach (var key in m.Topo().EdgeFaces.Keys)
+        {
+            var (a, b) = SubdMesh.Unkey(key);
+            if (On(a) || On(b) || d[a] * d[b] > 0) continue;
+            double t = d[a] / (d[a] - d[b]);
+            cutPoint[key] = m.V.Count; m.V.Add(m.V[a] + (m.V[b] - m.V[a]) * t);
+        }
+        if (cutPoint.Count == 0 && !m.V.Take(oldCount).Where((_, i) => Math.Abs(d[i]) <= eps).Skip(1).Any()) return [];
+
+        // a crease on a crossed edge carries over to both halves
+        foreach (var (key, mid) in cutPoint)
+            if (m.Crease.TryGetValue(key, out var c) && c > 0)
+            {
+                var (a, b) = SubdMesh.Unkey(key); m.Crease.Remove(key);
+                m.Crease[SubdMesh.Key(a, mid)] = c; m.Crease[SubdMesh.Key(mid, b)] = c;
+            }
+
+        var result = new List<int[]>();
+        foreach (var face in m.F.ToList())
+        {
+            // the face's outline with the new points put in
+            var poly = new List<int>();
+            for (int i = 0; i < face.Length; i++)
+            {
+                poly.Add(face[i]);
+                if (cutPoint.TryGetValue(SubdMesh.Key(face[i], face[(i + 1) % face.Length]), out int mid)) poly.Add(mid);
+            }
+            var on = Enumerable.Range(0, poly.Count).Where(i => On(poly[i])).ToList();
+            if (on.Count < 2 || on.Count == poly.Count) { result.Add(poly.ToArray()); continue; }
+
+            // along the cut line, cut between the 1st and 2nd points, the 3rd and 4th ... (the stretches inside the face)
+            var n = Vec3.Zero;
+            for (int i = 0; i < poly.Count; i++) n += Vec3.Cross(m.V[poly[i]], m.V[poly[(i + 1) % poly.Count]]);
+            var line = Vec3.Cross(normal, n.Normalized());
+            var ordered = on.Select(i => poly[i]).OrderBy(v => Vec3.Dot(m.V[v], line)).ToList();
+            var pieces = new List<List<int>> { poly };
+            bool split = false;
+            for (int k = 0; k + 1 < ordered.Count; k += 2)
+            {
+                int u = ordered[k], w = ordered[k + 1];
+                var piece = pieces.FirstOrDefault(p => p.Contains(u) && p.Contains(w));
+                if (piece == null) continue;
+                int iu = piece.IndexOf(u), iw = piece.IndexOf(w);
+                if ((iw - iu + piece.Count) % piece.Count == 1 || (iu - iw + piece.Count) % piece.Count == 1) continue;      // already neighbours: the cut runs along an edge
+                if (iu > iw) (iu, iw) = (iw, iu);
+                var first = piece.Skip(iu).Take(iw - iu + 1).ToList();
+                var second = piece.Skip(iw).Concat(piece.Take(iu + 1)).ToList();
+                pieces.Remove(piece); pieces.Add(first); pieces.Add(second);
+                if (crease > 0) m.Crease[SubdMesh.Key(u, w)] = crease;
+                split = true;
+            }
+            if (split) cutFaces++;
+            foreach (var p in pieces) result.Add(p.ToArray());
+        }
+        m.F.Clear(); m.F.AddRange(result);
+        // a crease also goes along the cut where it follows existing edges between new points
+        if (crease > 0)
+            foreach (var (key, _) in m.Topo().EdgeFaces)
+            {
+                var (a, b) = SubdMesh.Unkey(key);
+                if (a >= oldCount && b >= oldCount) m.Crease[key] = crease;
+            }
+        return cutPoint.Values.ToList();
+    }
+
     /// <summary>Adds an edge loop through the given edge (splits the ring of quads around it). <paramref name="t"/> is how far along the edge
     /// from <paramref name="ea"/> to <paramref name="eb"/> the loop goes (0.5 = the middle; the loop stays parallel all the way round). Returns the new vertices.</summary>
     public static List<int> InsertEdgeLoop(SubdMesh m, int ea, int eb, double t = 0.5) => InsertEdgeLoop(m, ea, eb, t, out _);

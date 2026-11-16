@@ -14,6 +14,32 @@ namespace Prism.HeadlessTests.Solid;
 [Trait("Layer", "Headless")]
 public class AppearanceStudioTests
 {
+    [AvaloniaFact(DisplayName = "APP-H011 | Material mass preview retains current names and density across metadata edits and new shape volumes across undo")]
+    [Trait("TestId", "APP-H011")]
+    public void MaterialMassPreviewFollowsImmutableGeometry()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var a = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        var b = CreateBoxBody(s, new(20, 0, 0), 10, 10, 10);
+        vm.OpenMaterials(); s.SelectItems([SelItem.Of(a), SelItem.Of(b)]);
+        vm.SelectedMaterialRow = vm.MaterialList.First(r => r.Material.Id == "6061");
+        Assert.Contains("2 bodies", vm.MatMassNote);
+        Assert.Contains("2 cm³", vm.MatMassNote);
+        var geometry = s.Find(a.Id)!.Shape;
+        s.Update(a.Id, o => o.WithName("Renamed block").WithColor(0xFF123456));
+        Assert.Same(geometry, s.Find(a.Id)!.Shape);
+        Assert.Contains("2 cm³", vm.MatMassNote);
+        using var larger = BoxAt(new(0, 0, 0), 20, 10, 10);
+        s.Update(a.Id, o => o.WithShape(larger));
+        Assert.Contains("3 cm³", vm.MatMassNote);
+        s.Undo(); Assert.Contains("2 cm³", vm.MatMassNote);
+        s.SelectItems([SelItem.Of(s.Find(a.Id)!)]);
+        Assert.Contains("Renamed block", vm.MatMassNote);
+        vm.SelectedMaterialRow = vm.MaterialList.First(r => r.Material.Id == "304");
+        Assert.Contains("1 cm³", vm.MatMassNote);
+        Assert.Contains(Materials.Find("304")!.Name, vm.MatMassNote);
+    }
+
     [AvaloniaFact(DisplayName = "APP-H001 | Appearance layers preserve engineering properties and undo together across selected bodies")]
     [Trait("TestId", "APP-H001")]
     public void LayersAndSliderGestureUndoTogether()

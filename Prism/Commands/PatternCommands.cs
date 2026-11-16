@@ -151,7 +151,7 @@ public abstract class PatternCommand : Command
     protected PatternCommand(bool offerMoveOriginal)
     {
         _offerMove = offerMoveOriginal;
-        Src = Slot(new SelectionSlot { Label = "Objects to pattern", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.CurveObj, Multi = true });
+        Src = Slot(new SelectionSlot { Label = "Objects to pattern", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.CurveObj | SelFilter.Form, Multi = true });
     }
 
     /// <summary>Call at the end of the derived constructor so these controls come last in the panel.</summary>
@@ -204,6 +204,26 @@ public abstract class PatternCommand : Command
         return set;
     }
 
+    static Vec3 Turn(Vec3 v, Vec3 pivot, Vec3 axis, double degrees)
+    {
+        axis = axis.Normalized(); double a = degrees * Math.PI / 180, c = Math.Cos(a), sn = Math.Sin(a);
+        var r = v - pivot;
+        return pivot + r * c + Vec3.Cross(axis, r) * sn + axis * (Vec3.Dot(axis, r) * (1 - c));
+    }
+
+    /// <summary>A copy of a freeform's cage moved the way a pattern places a body. Locks are not copied, since they are kept by position.</summary>
+    static Core.Form.SubdMesh Apply(Core.Form.SubdMesh cage, Placement p)
+    {
+        var copy = cage.Clone(); copy.Frozen.Clear();
+        for (int i = 0; i < copy.V.Count; i++)
+        {
+            var v = copy.V[i] + p.Pre;
+            foreach (var r in p.Rots) if (Math.Abs(r.Deg) > 1e-9) v = Turn(v, r.Pivot, r.Axis, r.Deg);
+            copy.V[i] = v + p.Post;
+        }
+        return copy;
+    }
+
     static Shape Apply(Shape s, Placement p)
     {
         if (p.Pre.Length > 1e-9) s = Occ.Translate(s, p.Pre);
@@ -222,9 +242,9 @@ public abstract class PatternCommand : Command
         var min = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var max = -min;
         foreach (var o in srcs)
         {
-            var p = o.Shape.Props();
-            min = new(Math.Min(min.X, p.Min.X), Math.Min(min.Y, p.Min.Y), Math.Min(min.Z, p.Min.Z));
-            max = new(Math.Max(max.X, p.Max.X), Math.Max(max.Y, p.Max.Y), Math.Max(max.Z, p.Max.Z));
+            var (bmin, bmax) = o.Form is { } cage ? cage.Bounds() : (o.Shape.Props().Min, o.Shape.Props().Max);
+            min = new(Math.Min(min.X, bmin.X), Math.Min(min.Y, bmin.Y), Math.Min(min.Z, bmin.Z));
+            max = new(Math.Max(max.X, bmax.X), Math.Max(max.Y, bmax.Y), Math.Max(max.Z, bmax.Z));
         }
         var center = (min + max) * 0.5;
         var layout = Layout(center, min, max);
@@ -253,6 +273,13 @@ public abstract class PatternCommand : Command
                 if (kept[i].IsIdentity) continue;
                 foreach (var obj in srcs)
                 {
+                    if (obj.Form is { } form)
+                    {
+                        var moved = Apply(form, kept[i]);
+                        if (i == 0 && moveFirst) o2.ReplaceForms.Add((obj, moved));
+                        else o2.Add.Add(new(null, StripNumber(obj.Name), ObjKind.Form, obj.Color, obj.SketchPlane, moved, obj.Look));
+                        continue;
+                    }
                     var shape = Apply(obj.Shape, kept[i]);
                     if (i == 0 && moveFirst) o2.Replace.Add((obj, shape));
                     else o2.Add.Add(new(shape, StripNumber(obj.Name), obj.Kind, obj.Color, obj.SketchPlane, null, obj.Look));
@@ -261,6 +288,7 @@ public abstract class PatternCommand : Command
             return o2;
         }
 
+        if (srcs.Any(x => x.Form != null)) { Row("Freeforms", "can be copied as new bodies, but not joined to or cut from another body", 2); return null; }
         if (_target.Items.Count == 0) { Row("Pick a target body", "the pattern will be " + (mode == 1 ? "joined to" : "cut from") + " it", 2); return null; }
         var target = S.Find(_target.Items[0].Obj)!;
         var tools = srcs.Where(x => x.Id != target.Id).ToList();

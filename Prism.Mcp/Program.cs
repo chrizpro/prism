@@ -280,6 +280,7 @@ sealed class Bridge
     }
 
     int? _launchedPid;
+    int? _discoveredPid;
 
     async Task<bool> TryDiscoverAsync()
     {
@@ -287,6 +288,7 @@ sealed class Bridge
         {
             if (!File.Exists(Discovery)) return false;
             var d = JsonNode.Parse(File.ReadAllText(Discovery))!.AsObject();
+            _discoveredPid = d["pid"]?.GetValue<int>();
             _baseUrl = $"http://127.0.0.1:{d["port"]}"; _token = d["token"]!.ToString();
             _restricted = d["restricted"]?.GetValue<bool>() == true;
             using var cts = new CancellationTokenSource(1500);
@@ -301,6 +303,14 @@ sealed class Bridge
     async Task<bool> ConnectAsync(bool launch)
     {
         if (await TryDiscoverAsync()) return true;
+        // Rendering can temporarily starve the ping handler. Do not launch an
+        // empty second app over a live instance's discovery file; the normal
+        // six-minute request timeout can wait for the busy endpoint instead.
+        if (_discoveredPid is { } pid && _baseUrl != null && _token != null)
+        {
+            try { using var process = Process.GetProcessById(pid); if (!process.HasExited) return true; }
+            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        }
         if (!launch) return false;
         var exe = FindExe();
         if (exe == null) { Log("Prism.Desktop.exe not found"); return false; }

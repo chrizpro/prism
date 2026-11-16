@@ -24,6 +24,8 @@ public sealed partial class RibbonButton : RibbonItem
     public Action<RibbonButton>? Picked { get; init; }
     /// <summary>Stable identity (icon + label as shipped) so a customised ribbon can refer to a command.</summary>
     public string Id { get; set; } = "";
+    /// <summary>The command behind this button is marked <c>[Legacy]</c>: it is retired from the interface, so the ribbon leaves the button out.</summary>
+    public bool IsLegacy { get; set; }
     public string Caption => HasMenu ? Label + " ▾" : Label;
     partial void OnLabelChanged(string value) => OnPropertyChanged(nameof(Caption));
     public RibbonSize Size { get; init; } = RibbonSize.Large;

@@ -4,15 +4,9 @@ using System.Linq;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Data;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Prism.Commands;
 using Prism.Core;
 using Prism.Core.Data;
@@ -20,14 +14,12 @@ using Prism.ViewModels;
 
 namespace Prism.Views;
 
-/// <summary>The Data panel: the document's tables, edited like a small spreadsheet. Paste from Excel, open a CSV, text or Excel file, type values and formulas.</summary>
+/// <summary>The Data panel: the document's tables, edited like a small spreadsheet. Select cells, type values and formulas, copy and paste blocks, sort, fill down, undo, and see the numbers as a picture.</summary>
 public partial class DataPanel : UserControl
 {
-    const double CellWidth = 96, CellHeight = 26, NumberWidth = 44;
     CadSession? _session;
     DataSheet? _sheet;
-    int _row, _col;
-    bool _own;               // a change this panel made itself: its cells are already right, so they are not rebuilt (that would drop the caret)
+    bool _own;               // a change this panel made itself: its cells are already right, so they are not rebuilt (that would drop the selection)
 
     public DataPanel()
     {
@@ -35,8 +27,14 @@ public partial class DataPanel : UserControl
         DataContextChanged += (_, _) => Bind();
         NameBox.LostFocus += (_, _) => CommitName();
         NameBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); e.Handled = true; } };
-        RowList.AddHandler(ScrollViewer.ScrollChangedEvent, (_, e) => { if (e.Source is ScrollViewer sv && ReferenceEquals(sv.GetVisualParent(), RowList) | sv.GetVisualAncestors().Contains(RowList)) HeaderScroll.Offset = new Vector(sv.Offset.X, 0); });
-        ActualThemeVariantChanged += (_, _) => RefreshSheetTabs();
+        Grid.Edited += () => { if (_session == null) return; _own = true; _session.RaiseData(); _own = false; };
+        Grid.SelectionChanged += UpdateStatus;
+        FormulaBox.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter) { Grid.SetActive(FormulaBox.Text ?? ""); Grid.Focus(); e.Handled = true; }
+            else if (e.Key == Key.Escape) { UpdateStatus(); Grid.Focus(); e.Handled = true; }
+        };
+        ActualThemeVariantChanged += (_, _) => { RefreshSheetTabs(); Grid.InvalidateVisual(); Plot.InvalidateVisual(); };
     }
 
     MainViewModel? Vm => DataContext as MainViewModel;
@@ -64,13 +62,7 @@ public partial class DataPanel : UserControl
     void OnDataChanged() { if (!_own) Dispatcher.UIThread.Post(Rebuild); }
 
     /// <summary>Show a sheet.</summary>
-    public void Select(DataSheet? sheet) { _sheet = sheet; _row = _col = 0; Rebuild(); }
-
-    // ------------------------------------------------------------------ drawing
-    int ShownRows => _sheet == null ? 0 : Math.Max(_sheet.RowCount + 20, 40);
-    int ShownColumns => _sheet == null ? 0 : Math.Max(_sheet.ColumnCount + 2, 8);
-
-    IBrush Brush(string key) => this.TryFindResource(key, ActualThemeVariant, out var value) && value is IBrush brush ? brush : Brushes.Gray;
+    public void Select(DataSheet? sheet) { _sheet = sheet; Grid.Sheet = null; Rebuild(); }
 
     void Rebuild()
     {
@@ -80,19 +72,7 @@ public partial class DataPanel : UserControl
         NameBox.Text = _sheet?.Name ?? "";
         NameBox.IsEnabled = _sheet != null;
         ReferenceText.Text = _sheet == null ? "" : "read it in a tool as @" + _sheet.Name;
-        HeaderRow.Children.Clear();
-        if (_sheet != null)
-        {
-            HeaderRow.Children.Add(new Border { Width = NumberWidth, Height = CellHeight, BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 0, 1, 1) });
-            for (int c = 0; c < ShownColumns; c++)
-                HeaderRow.Children.Add(new Border
-                {
-                    Width = CellWidth, Height = CellHeight, BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 0, 1, 1),
-                    Child = new TextBlock { Text = DataSheet.ColumnName(c), Classes = { "faint" }, FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                });
-        }
-        RowList.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((r, _) => BuildRow(r), true);
-        RowList.ItemsSource = _sheet == null ? Array.Empty<int>() : Enumerable.Range(0, ShownRows).ToList();
+        Grid.Sheet = _sheet;
         UpdateStatus();
     }
 
@@ -114,101 +94,28 @@ public partial class DataPanel : UserControl
         SheetBar.Children.Add(add);
     }
 
-    Control BuildRow(int r)
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(new Border
-        {
-            Width = NumberWidth, Height = CellHeight, Background = Brush("PanelAlt"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 0, 1, 1),
-            Child = new TextBlock { Text = (r + 1).ToString(), Classes = { "faint" }, FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-        });
-        for (int c = 0; c < ShownColumns; c++) row.Children.Add(BuildCell(r, c));
-        return row;
-    }
-
-    Control BuildCell(int r, int c)
-    {
-        var tb = new TextBox
-        {
-            Classes = { "cell" }, Tag = c, Width = CellWidth, Height = CellHeight, MinHeight = 0, Padding = new Thickness(6, 0), BorderThickness = new Thickness(0),
-            VerticalContentAlignment = VerticalAlignment.Center, FontSize = 12.5, FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
-            AcceptsReturn = false, AcceptsTab = false,
-        };
-        Show(tb, r, c);
-        tb.GotFocus += (_, _) => { _row = r; _col = c; tb.Text = _sheet?.Raw(r, c) ?? ""; UpdateStatus(); };
-        tb.LostFocus += (_, _) => Commit(tb, r, c);
-        tb.KeyDown += (_, e) => OnCellKey(tb, r, c, e);
-        return new Border { Width = CellWidth, Height = CellHeight, BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 0, 1, 1), Child = tb };
-    }
-
-    /// <summary>What a cell shows when it is not being edited. A formula's result is tinted, and an error is red.</summary>
-    void Show(TextBox tb, int r, int c)
-    {
-        if (_sheet == null) return;
-        string raw = _sheet.Raw(r, c), shown = _sheet.Display(r, c);
-        tb.Text = shown;
-        tb.Foreground = shown.StartsWith('#') && raw.StartsWith('=') ? Brush("Danger") : raw.StartsWith('=') ? Brush("Accent") : Brush("Ink");
-    }
-
-    void Commit(TextBox tb, int r, int c)
-    {
-        if (_sheet == null || _session == null) return;
-        string text = tb.Text ?? "";
-        if (text != _sheet.Raw(r, c) && (tb.IsFocused || tb.IsKeyboardFocusWithin || text != _sheet.Display(r, c)))
-        {
-            // the box held the raw text while it had focus; it only differs from the sheet when the user changed it
-            if (tb.Text != _sheet.Display(r, c) || _sheet.Raw(r, c).Length == 0)
-            {
-                _sheet.Set(r, c, text.Trim());
-                _own = true; _session.RaiseData(); _own = false;
-            }
-        }
-        Show(tb, r, c);
-        if (_sheet.Rows.Any(row => row.Any(x => x.StartsWith('=')))) RefreshDisplays(tb);
-        UpdateStatus();
-    }
-
-    /// <summary>After an edit, the cells that hold formulas may have new results.</summary>
-    void RefreshDisplays(TextBox except)
-    {
-        foreach (var container in RowList.GetRealizedContainers().OfType<ListBoxItem>())
-        {
-            if (container.Content is not int r) continue;
-            foreach (var cell in container.GetVisualDescendants().OfType<TextBox>())
-                if (!ReferenceEquals(cell, except) && !cell.IsFocused && cell.Tag is int c) Show(cell, r, c);
-        }
-    }
-
+    /// <summary>The formula bar, the picture, the buttons that need something to act on, and the line of numbers about the selection.</summary>
     void UpdateStatus()
     {
-        if (_sheet == null) { StatusText.Text = "No sheet yet. Press + to start one, or Open… to bring in a file."; return; }
-        string where = DataSheet.ColumnName(_col) + (_row + 1);
-        string raw = _sheet.Raw(_row, _col);
-        string cell = raw.StartsWith('=') ? $"{where}:  {raw}  =  {_sheet.Display(_row, _col, true)}" : $"{where}  selected";
-        StatusText.Text = $"{_sheet.Name}:  {_sheet.RowCount} rows × {_sheet.ColumnCount} columns   ·   {cell}\nFormulas start with =, such as =A1*2 or =SUM(B1:B9).";
-    }
-
-    // ------------------------------------------------------------------ typing
-    void OnCellKey(TextBox tb, int r, int c, KeyEventArgs e)
-    {
-        bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
-        if (e.Key == Key.Enter) { MoveTo(e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? r - 1 : r + 1, c); e.Handled = true; }
-        else if (e.Key == Key.Down && !ctrl) { MoveTo(r + 1, c); e.Handled = true; }
-        else if (e.Key == Key.Up && !ctrl) { MoveTo(r - 1, c); e.Handled = true; }
-        else if (e.Key == Key.Escape) { tb.Text = _sheet?.Raw(r, c) ?? ""; e.Handled = true; }
-        else if (e.Key == Key.V && ctrl) { e.Handled = true; _ = PasteAsync(r, c); }
-    }
-
-    void MoveTo(int r, int c)
-    {
-        if (_sheet == null || r < 0 || r >= ShownRows) return;
-        RowList.ScrollIntoView(r);
-        Dispatcher.UIThread.Post(() =>
+        UndoButton.IsEnabled = Grid.CanUndo; RedoButton.IsEnabled = Grid.CanRedo;
+        FormulaBox.IsEnabled = _sheet != null;
+        if (_sheet == null)
         {
-            var item = RowList.ContainerFromIndex(r);
-            var cell = item?.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.Tag is int tc && tc == c);
-            cell?.Focus();
-        }, DispatcherPriority.Background);
+            CellName.Text = ""; FormulaBox.Text = ""; Plot.Show(null, default);
+            StatusText.Text = "No sheet yet. Press + to start one, or Open… to bring in a file.";
+            return;
+        }
+        var (r0, c0, r1, c1) = Grid.Selection;
+        string where = DataSheet.ColumnName(Grid.Column) + (Grid.Row + 1);
+        bool block = r1 > r0 || c1 > c0;
+        CellName.Text = block ? $"{DataSheet.ColumnName(c0)}{r0 + 1}:{DataSheet.ColumnName(c1)}{r1 + 1}" : where;
+        if (!FormulaBox.IsKeyboardFocusWithin) FormulaBox.Text = _sheet.Raw(Grid.Row, Grid.Column);
+        Plot.Show(_sheet, Grid.Selection);
+        string stats = "";
+        if (block && _sheet.Stats(r0, c0, r1, c1) is { } s) stats = $"   ·   {s.count} numbers: sum {DataSheet.Format(s.sum)}, average {DataSheet.Format(s.sum / s.count)}, smallest {DataSheet.Format(s.min)}, largest {DataSheet.Format(s.max)}";
+        string raw = _sheet.Raw(Grid.Row, Grid.Column);
+        string cell = raw.StartsWith('=') ? $"{where}  =  {_sheet.Display(Grid.Row, Grid.Column, true)}" : $"{where} selected";
+        StatusText.Text = $"{_sheet.Name}:  {_sheet.RowCount} rows × {_sheet.ColumnCount} columns   ·   {cell}{stats}\nClick a cell and type. Enter, Tab and the arrows move; Shift extends the selection; Ctrl+C, X, V, Z and D copy, cut, paste, undo and fill down. Formulas start with =, such as =A1*2 or =SUM(B1:B9).";
     }
 
     // ------------------------------------------------------------------ toolbar
@@ -216,31 +123,33 @@ public partial class DataPanel : UserControl
 
     async void OnOpen(object? sender, RoutedEventArgs e) { if (Vm != null) Vm.ImportTable(); await System.Threading.Tasks.Task.CompletedTask; }
 
-    async void OnPaste(object? sender, RoutedEventArgs e) => await PasteAsync(_row, _col);
-
-    /// <summary>Paste cells at a position: a block copied from Excel fills a block of cells. One value goes in the cell.</summary>
-    public async System.Threading.Tasks.Task PasteAsync(int row, int col)
+    async void OnPaste(object? sender, RoutedEventArgs e)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         string? text = clipboard == null ? null : await clipboard.GetTextAsync();
-        if (!string.IsNullOrEmpty(text)) PasteText(text, row, col);
+        if (!string.IsNullOrEmpty(text)) PasteText(text, Grid.Row, Grid.Column);
     }
 
+    /// <summary>Paste cells at a position: a block copied from Excel fills a block of cells. One value goes in the cell.</summary>
     public void PasteText(string text, int row, int col)
     {
         if (_session == null) return;
         _sheet ??= _session.NewSheet();
-        var rows = DataSheet.Parse(text);
-        if (rows.Count == 0) return;
-        if (_sheet.IsEmpty && (rows.Count > 1 || rows[0].Count > 1)) _sheet.Rows = rows;
-        else for (int i = 0; i < rows.Count; i++) for (int j = 0; j < rows[i].Count; j++) _sheet.Set(row + i, col + j, rows[i][j]);
-        _session.RaiseData(); Rebuild();
+        if (!ReferenceEquals(Grid.Sheet, _sheet)) Grid.Sheet = _sheet;
+        Grid.Select(row, col);
+        Grid.Paste(text);
+        Rebuild();
     }
 
     async void OnCopy(object? sender, RoutedEventArgs e)
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (_sheet != null && clipboard != null) { await clipboard.SetTextAsync(_sheet.ToTsv()); _session?.Say($"Copied {_sheet.Name}."); }
+        if (_sheet != null && clipboard != null)
+        {
+            var (r0, c0, r1, c1) = Grid.Selection;
+            await clipboard.SetTextAsync(Grid.CopySelection());
+            _session?.Say(r1 > r0 || c1 > c0 ? "Copied the selected cells." : $"Copied {_sheet.Name}'s cell.");
+        }
     }
 
     async void OnSave(object? sender, RoutedEventArgs e)
@@ -252,11 +161,15 @@ public partial class DataPanel : UserControl
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _session?.Say("Could not save: " + ex.Message, true); }
     }
 
-    void Edit(Action<DataSheet> change) { if (_sheet == null || _session == null) return; change(_sheet); _session.RaiseData(); Rebuild(); }
-    void OnAddRow(object? sender, RoutedEventArgs e) => Edit(s => s.InsertRow(_row));
-    void OnAddColumn(object? sender, RoutedEventArgs e) => Edit(s => s.InsertColumn(_col));
-    void OnDeleteRow(object? sender, RoutedEventArgs e) => Edit(s => s.DeleteRow(_row));
-    void OnDeleteColumn(object? sender, RoutedEventArgs e) => Edit(s => s.DeleteColumn(_col));
+    void OnUndo(object? sender, RoutedEventArgs e) { Grid.Undo(); Grid.Focus(); }
+    void OnRedo(object? sender, RoutedEventArgs e) { Grid.Redo(); Grid.Focus(); }
+    void OnAddRow(object? sender, RoutedEventArgs e) { int r = Grid.Selection.r0, n = Grid.Selection.r1 - r + 1; Grid.Apply(s => { for (int i = 0; i < n; i++) s.InsertRow(r); }); }
+    void OnAddColumn(object? sender, RoutedEventArgs e) { int c = Grid.Selection.c0, n = Grid.Selection.c1 - c + 1; Grid.Apply(s => { for (int i = 0; i < n; i++) s.InsertColumn(c); }); }
+    void OnDeleteRow(object? sender, RoutedEventArgs e) { var (r0, _, r1, _) = Grid.Selection; Grid.Apply(s => { for (int r = r1; r >= r0; r--) s.DeleteRow(r); }); }
+    void OnDeleteColumn(object? sender, RoutedEventArgs e) { var (_, c0, _, c1) = Grid.Selection; Grid.Apply(s => { for (int c = c1; c >= c0; c--) s.DeleteColumn(c); }); }
+    void OnSortUp(object? sender, RoutedEventArgs e) => Grid.Sort(true);
+    void OnSortDown(object? sender, RoutedEventArgs e) => Grid.Sort(false);
+    void OnFillDown(object? sender, RoutedEventArgs e) { Grid.FillDown(); Grid.Focus(); }
 
     void OnDeleteSheet(object? sender, RoutedEventArgs e)
     {

@@ -28,7 +28,7 @@ public sealed class BoundarySurfaceCommand : Command
     readonly NumberParam _tol;
     /// <summary>Per-edge "order:weight" pairs, hidden: it carries the dynamic pair values through feature recipes.</summary>
     readonly TextParam _edgeCfg;
-    readonly ChoiceParam _fill, _inside;
+    readonly ChoiceParam _mode, _fill, _inside;
     readonly IntParam _samples, _degree, _density, _iter;
     readonly NumberParam _full;
     readonly List<(ChoiceParam g, NumberParam w)> _pairs = [];
@@ -39,6 +39,7 @@ public sealed class BoundarySurfaceCommand : Command
     {
         _boundary = Slot(new SelectionSlot { Label = "Boundary", Filter = SelFilter.Edge | SelFilter.AnyCurve | SelFilter.SurfaceObj, Multi = true, SelectionRuleIndex = 1 });
         _guides = Slot(new SelectionSlot { Label = "Guide curves", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true, Optional = true, SelectionRuleIndex = 1 });
+        _mode = Choice("Mode", 0, "Automatic", "Fill boundary", "Edge: span two to four curves", "Blend: bridge two surface edges", "Network: outline and curves across");
         _join = Check("Join the patch to the boundary surfaces (closes into a solid when it can)", true); _join.Section = "Join";
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01); _tol.Section = "Join";
         _edgeCfg = Text("Edge continuity", ""); _edgeCfg.IsVisible = false;
@@ -54,7 +55,15 @@ public sealed class BoundarySurfaceCommand : Command
     public override string Title => "Boundary Surface";
     public override string Icon => "patch";
     public override string OkText => "Create";
-    public override string Hint => "Pick the curves and surface edges around the new surface. A flat loop of curves becomes a flat surface, with loops inside it as holes; anything else becomes a smooth surface. Clicking one open edge fills the whole opening it belongs to; picking a surface fills every opening. Pick an edge on each of two separate surfaces to blend between them. Each boundary edge has its own continuity (G0/G1/G2) and weight; guide curves shape the inside.";
+    public override string Hint => _mode.Index switch
+    {
+        1 => "Fill the boundary you pick: a flat loop becomes a flat surface, anything else a smooth one. Surface edges keep their own continuity (G0/G1/G2) and weight.",
+        2 => "Pick two, three or four curves that meet end to end (two make a ruled surface). A smooth surface spans the gap between them.",
+        3 => "Pick one open edge on each of two surfaces. The blend leaves both edges in the direction of their surfaces (G1) or with their bend too (G2); Fullness sets how far it reaches.",
+        4 => "Pick the curves that make a closed outline, then add the curves that run across the inside under Guide curves. The surface follows the outline exactly and passes close to the inner curves.",
+        _ => HintAutomatic,
+    };
+    const string HintAutomatic = "Pick the curves and surface edges around the new surface. A flat loop of curves becomes a flat surface, with loops inside it as holes; anything else becomes a smooth surface. Clicking one open edge fills the whole opening it belongs to; picking a surface fills every opening. Pick an edge on each of two separate surfaces to blend between them. Each boundary edge has its own continuity (G0/G1/G2) and weight; guide curves shape the inside.";
 
     /// <summary>Edges of objects with faces and whole surfaces get a continuity+weight pair; free curves are always G0.</summary>
     bool HasEdgeSettings(SelItem it)
@@ -68,16 +77,19 @@ public sealed class BoundarySurfaceCommand : Command
     {
         if (_full == null || S == null) return;
         SyncItemParams();
-        bool blend = IsBlend(), inside = _guides.Items.Count > 0;
-        _fill.IsVisible = !blend && !inside;
-        _full.IsVisible = blend;
-        _inside.IsVisible = inside;
-        _samples.IsVisible = _degree.IsVisible = _density.IsVisible = _iter.IsVisible = inside && _inside.Index == 1;
+        int mode = _mode.Index;
+        bool blend = IsBlend(), inside = _guides.Items.Count > 0 || mode == 4;
+        _fill.IsVisible = mode is 0 or 1 && !blend && !inside;
+        _full.IsVisible = blend || mode == 3;
+        _inside.IsVisible = inside && mode != 4;
+        _samples.IsVisible = _degree.IsVisible = _density.IsVisible = _iter.IsVisible = inside && (mode == 4 || _inside.Index == 1);
     }
 
     /// <summary>Two surface edges that do not touch: there is no closed loop, so the surface spans the gap between them.</summary>
     bool IsBlend()
     {
+        if (_mode.Index is 1 or 2 or 4) return false;
+        if (_mode.Index == 3) return _boundary.Items.Count == 2 && _guides.Items.Count == 0 && _boundary.Items.All(i => i.Kind == SelKind.Edge && HasEdgeSettings(i));
         if (_boundary.Items.Count != 2 || _guides.Items.Count > 0 || _boundary.Items.Any(i => i.Kind != SelKind.Edge || !HasEdgeSettings(i))) return false;
         var a = Occ.EdgeInfoOf(S.ShapeOf(_boundary.Items[0])!); var b = Occ.EdgeInfoOf(S.ShapeOf(_boundary.Items[1])!);
         foreach (var p in new[] { a.Start, a.End }) foreach (var q in new[] { b.Start, b.End }) if (p.DistanceTo(q) < 1e-6) return false;
@@ -188,11 +200,11 @@ public sealed class BoundarySurfaceCommand : Command
             if (_fill.Index == 1) throw new FormatException("The curves do not form a closed flat loop. Choose Smooth surface for a bent boundary.");
         }
         // Pure curve boundaries keep the proven Edge Surface behaviour (ruled / Coons); everything else uses the plate fill.
-        if (f.Hosts.Count == 0 && f.Free.Count is >= 2 and <= 4 && guides.Count == 0)
+        if (_mode.Index != 1 && f.Hosts.Count == 0 && f.Free.Count is >= 2 and <= 4 && guides.Count == 0)
             return Occ.EdgeSurface(f.Free);
         if (guides.Count > 0)
         {
-            if (_inside.Index == 1) return Fitted(f, guides);
+            if (_inside.Index == 1 || _mode.Index == 4) return Fitted(f, guides);
             try { return Occ.BoundaryFill(f.Hosts, f.Ids.ToArray(), f.Orders.ToArray(), f.Weights.ToArray(), f.Free, guides); }
             catch (KernelException)
             {
@@ -228,10 +240,30 @@ public sealed class BoundarySurfaceCommand : Command
         return Occ.BlendSurface(S.Find(a.Obj)!.Shape, a.Index, S.Find(b.Obj)!.Shape, b.Index, order, _full.Value);
     }
 
+    /// <summary>A forced mode needs picks that fit it; say what is missing instead of quietly doing something else.</summary>
+    void CheckMode()
+    {
+        int n = _boundary.Items.Count;
+        switch (_mode.Index)
+        {
+            case 2 when n is < 2 or > 4 || _boundary.Items.Any(HasEdgeSettings) || _guides.Items.Count > 0:
+                throw new FormatException("Edge mode spans two to four free curves or sketch edges, with no surface edges or inside curves. Pick just those curves, or set Mode to Automatic.");
+            case 3 when !IsBlend():
+                throw new FormatException("Blend mode needs one open edge on each of two surfaces, and no inside curves.");
+            case 4 when _guides.Items.Count == 0:
+                throw new FormatException("Network mode needs curves across the surface: add them under Guide curves.");
+        }
+    }
+
+    /// <summary>Recipes saved before the Mode choice existed (their value list is one shorter, in pairs after the fixed ones) open in Automatic.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count % 2 == 0 ? InsertValue(recipe, 0, 0) : recipe;
+
     protected override CommandOutput? Build()
     {
         Results.Clear();
         if (_boundary.Items.Count == 0) return null;
+        CheckMode();
         var guides = _guides.Items.Select(i => SurfaceUtil.CurveShape(S, i)).ToList();
         bool blend = IsBlend();
         var fills = blend ? [] : Resolve();

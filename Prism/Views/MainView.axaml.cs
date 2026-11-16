@@ -331,7 +331,12 @@ public partial class MainView : UserControl
         menu.Open(control); e.Handled = true;
     }
     void OnDocTab(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.ActivateDocument(t); }
-    void OnDocClose(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.CloseDocument(t); e.Handled = true; }
+    async void OnDocClose(object? s, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (s is not Control { Tag: DocumentTab t } || Vm is not { } vm || TopLevel.GetTopLevel(this) is not Window window) return;
+        await vm.CloseDocumentWithPromptAsync(t, tab => new SaveChangesWindow(tab.Title, tab.Session.FilePath, tab.Session.Sketch != null || tab.Session.ActiveCommand != null).ShowDialog<DocumentCloseDecision>(window));
+    }
     void OnDocNew(object? s, RoutedEventArgs e) => Vm?.NewDocumentTab();
 
     void Attach()

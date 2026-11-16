@@ -19,6 +19,14 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(ShowDataEditor));
     }
 
+    /// <summary>A command (such as Curve from Data) wants the Data panel open, with a sheet to start in.</summary>
+    void ShowDataPanelForCommand()
+    {
+        OpenRightPanel("data");
+        if (Session.DataSheets.Count == 0) Session.NewSheet();
+        OnPropertyChanged(nameof(ShowDataEditor));
+    }
+
     /// <summary>Pick a CSV, text or Excel file and add its sheets to the Data panel.</summary>
     public async void ImportTable()
     {

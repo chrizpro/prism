@@ -9,6 +9,177 @@ namespace Prism.IntegrationTests;
 [Trait("Layer", "Integration")]
 public class DesktopGalleryTests
 {
+    [Fact(DisplayName = "GAL-I013 | Arc lamp retains its rolled shade, eighteen developed slots, ground contact and valid sheet-metal parts")]
+    [Trait("TestId", "GAL-I013")]
+    public async Task ArcLampRetainsItsRolledSheetDevelopments()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        string path = Path.Combine(root.FullName, "gallery/models/arc-desk-lamp.prism");
+        var saved = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        Assert.Equal(3, saved["Lights"]!.AsArray().Count);
+        await using var mcp = new DesktopMcp("GAL-I013", "Light");
+        await mcp.Initialize();
+        var open = await mcp.Call("file", new { action = "open", path });
+        Assert.Equal(saved["Objects"]!.AsArray().Count, (int)open["objects"]!);
+        var objects = saved["Objects"]!.AsArray().Where(o => (string?)o!["Kind"] is "Solid" or "Surface").ToArray();
+        var reports = (await mcp.Call("batch", new { calls = objects.Select(o => new { tool = "object_info", args = new Dictionary<string, object> { ["object"] = (string)o!["Name"]! } }).ToArray() })).AsArray();
+        var info = reports.ToDictionary(r => (string)r!["result"]!["name"]!, r => r!["result"]!);
+        Assert.Equal(15, objects.Count(o => (string?)o!["Kind"] == "Solid"));
+        foreach (var obj in objects)
+        {
+            string name = (string)obj!["Name"]!;
+            Assert.True((bool?)info[name]["valid"], name);
+            if ((string?)obj["Kind"] == "Solid") Assert.True((double?)info[name]["volume"] > 0, name);
+            uint color = (uint)obj["Color"]!;
+            Assert.Equal($"#{color & 0xFFFFFF:X6}", (string?)info[name]["color"]);
+        }
+        var flat = info["Shade development"];
+        Assert.Equal((int)flat["faces"]! + 18, (int)flat["wires"]!);
+        Assert.InRange((double)flat["size"]![1]!, 239.99, 240.01);
+        // Independent cylindrical development of a stadium-shaped radial punch.
+        const double neutral = 68 + .44 * 1.5, outer = 69.5, radius = 2.5;
+        double angleMax = Math.Asin(radius / outer), sum = 0;
+        const int steps = 2000;
+        for (int i = 0; i <= steps; i++)
+        {
+            double angle = angleMax * i / steps;
+            sum += Math.Sqrt(Math.Max(0, radius * radius - outer * outer * Math.Sin(angle) * Math.Sin(angle))) *
+                (i == 0 || i == steps ? 1 : i % 2 == 0 ? 2 : 4);
+        }
+        double holeArea = 20 * 2 * neutral * angleMax + 4 * neutral * sum * angleMax / (3 * steps);
+        double blankArea = 240 * (20 + Math.PI * neutral + 2 * (7 + Math.PI * (.25 + .44 * 1.5)));
+        Assert.InRange((double)flat["area"]!, blankArea - 18 * holeArea - 3, blankArea - 18 * holeArea + 3);
+        Assert.Equal((int)info["Plinth development"]["faces"]! + 5, (int)info["Plinth development"]["wires"]!);
+        Assert.InRange((double)info["Folded plinth"]["min"]![2]!, -.01, .01);
+        foreach (double radiusCheck in new[] { 68.0, 69.5 })
+        {
+            var hits = await mcp.Call("solid_find", new { @object = "Rolled shade", kind = "faces", type = "Cylinder", radius = radiusCheck, radius_tol = .01 });
+            Assert.True((int)hits["total"]! > 0);
+        }
+        await mcp.Call("view", new { yaw = -38, pitch = 18, fit = true, grid = false });
+        await mcp.Capture("arc-lamp-assembled");
+        await mcp.Call("batch", new { calls = objects.Select(o => new { tool = "object_update", args = new { @object = (string)o!["Name"]!, visible = (string?)o["Kind"] == "Surface" } }).ToArray() });
+        var bendNames = saved["Objects"]!.AsArray().Where(o => (string?)o!["Kind"] == "Curve" && ((string?)o["Name"])!.Contains("bend lines", StringComparison.OrdinalIgnoreCase)).Select(o => (string)o!["Name"]!).ToArray();
+        await mcp.Call("batch", new { calls = bendNames.Select(name => new { tool = "object_update", args = new { @object = name, visible = true } }).ToArray() });
+        await mcp.Call("view", new { preset = "top", fit = true, grid = false });
+        await mcp.Capture("arc-lamp-developments");
+        await mcp.Call("file", new { action = "save_as", path = Path.Combine(mcp.OutputDirectory, "developments-review.prism") });
+    }
+
+    [Fact(DisplayName = "GAL-I011 | Aster Road reopens with valid parts and two grounded 680 mm tires on a 1000 mm wheelbase")]
+    [Trait("TestId", "GAL-I011")]
+    public async Task AsterRoadKeepsItsWheelPlacementAndNativeParts()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        string path = Path.Combine(root.FullName, "gallery/models/aster-road.prism");
+        var saved = JsonNode.Parse(await File.ReadAllTextAsync(path))!["Objects"]!.AsArray();
+        Assert.All(saved, o => Assert.Equal("component", (string?)o!["Asm"]?["$t"]));
+        Assert.Single(saved, o => (bool?)o!["Asm"]?["Grounded"] == true);
+        await using var mcp = new DesktopMcp("GAL-I011", "Light");
+        await mcp.Initialize();
+        var opened = await mcp.Call("file", new { action = "open", path });
+        Assert.Equal(saved.Count, (int)opened["objects"]!);
+        var calls = saved.Select(o => new { tool = "object_info", args = new Dictionary<string, object> { ["object"] = (string)o!["Name"]! } }).ToArray();
+        var reports = (await mcp.Call("batch", new { calls })).AsArray();
+        var byName = reports.ToDictionary(r => (string)r!["result"]!["name"]!, r => r!["result"]!);
+        foreach (var obj in saved)
+        {
+            string name = (string)obj!["Name"]!;
+            var info = byName[name];
+            Assert.True((bool?)info["valid"], name);
+            Assert.True((double?)info["volume"] > 0, name);
+            uint color = (uint)obj["Color"]!;
+            Assert.Equal($"#{color & 0xFFFFFF:X6}", (string?)info["color"]);
+            if (obj["Material"] is { } material)
+                Assert.Equal(material.GetValue<string>(), (string?)info["appearance"]?["materialId"]);
+        }
+        foreach (var (label, x) in new[] { ("Rear", 0), ("Front", 1000) })
+        {
+            var tire = byName[label + " tire"];
+            Assert.InRange((double)tire["center"]![0]!, x - .01, x + .01);
+            Assert.InRange((double)tire["min"]![2]!, -.01, .01);
+            for (int i = 0; i < 3; i++)
+                Assert.InRange((double)tire["size"]![i]!, new[] { 680, 28, 680 }[i] - .02, new[] { 680, 28, 680 }[i] + .02);
+            Assert.Equal(28, byName.Keys.Count(n => n.StartsWith(label + " spoke ", StringComparison.Ordinal)));
+        }
+        await mcp.Call("view", new { yaw = 165, pitch = 12, fit = true, grid = false, display = "shaded" });
+        await mcp.Capture("aster-road-drive-side");
+    }
+
+    [Fact(DisplayName = "GAL-I010 | Bellavista retains valid geometry and appearances, four grounded symmetric wheels and clear wheel openings")]
+    [Trait("TestId", "GAL-I010")]
+    public async Task BellavistaHasGroundedWheelsAndClearCoachwork()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Prism.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        string path = Path.Combine(root.FullName, "gallery/models/bellavista-1964.prism");
+        var saved = JsonNode.Parse(await File.ReadAllTextAsync(path))!["Objects"]!.AsArray();
+        await using var mcp = new DesktopMcp("GAL-I010", "Light");
+        await mcp.Initialize();
+        var opened = await mcp.Call("file", new { action = "open", path });
+        Assert.Equal(saved.Count, (int)opened["objects"]!);
+        var calls = saved.Select(o => new { tool = "object_info", args = new Dictionary<string, object> { ["object"] = (string)o!["Name"]! } }).ToArray();
+        var reports = (await mcp.Call("batch", new { calls })).AsArray();
+        var byName = reports.ToDictionary(r => (string)r!["result"]!["name"]!, r => r!["result"]!);
+        foreach (var obj in saved)
+        {
+            string name = (string)obj!["Name"]!;
+            var info = byName[name];
+            Assert.Equal((bool)obj["Visible"]!, (bool)info["visible"]!);
+            uint color = (uint)obj["Color"]!;
+            Assert.Equal($"#{color & 0xFFFFFF:X6}", (string?)info["color"]);
+            if (obj["Material"] is { } material)
+                Assert.Equal(material.GetValue<string>(), (string?)info["appearance"]?["materialId"]);
+            if ((string?)obj["Kind"] == "Solid")
+            {
+                Assert.True((bool?)info["valid"], name);
+                Assert.True((double?)info["volume"] > 0, name);
+            }
+            if ((string?)obj["Kind"] == "Form")
+            {
+                var cage = await mcp.Call("form_info", new { @object = name, summary = true });
+                Assert.True((bool?)cage["closed"], name);
+                Assert.Equal(0, (int?)cage["topology"]!["nonManifoldEdges"]);
+                Assert.Equal(0, (int?)cage["topology"]!["windingConflicts"]);
+            }
+        }
+        foreach (var (label, x) in new[] { ("Front", -1350), ("Rear", 1250) })
+        foreach (int side in new[] { -1, 1 })
+        {
+            string tire = $"{label} {side} tire";
+            var wheel = byName[tire];
+            Assert.InRange((double)wheel["min"]![2]!, -.01, .01);
+            for (int i = 0; i < 3; i++)
+                Assert.InRange((double)wheel["size"]![i]!, new[] { 680, 195, 680 }[i] - .02, new[] { 680, 195, 680 }[i] + .02);
+            Assert.InRange((double)wheel["center"]![0]!, x - .01, x + .01);
+            Assert.InRange((double)wheel["center"]![1]!, side * 755 - .01, side * 755 + .01);
+            var check = await mcp.Call("run_command", new { name = "interference", commit = false,
+                slots = new Dictionary<string, object> { ["Bodies to check (none = all solids)"] = new[] { "Rosso coachwork", tire } } });
+            string result = check["activeCommand"]!["results"]!.ToJsonString();
+            await mcp.Call("command_cancel");
+            Assert.Contains("No interference", result);
+        }
+        // A subdivision surface stays within its cage. Keeping every dashboard
+        // cage point inside the inner windscreen plane prevents a visible poke-through.
+        var dashboard = await mcp.Call("form_info", new { @object = "Dashboard upper" });
+        foreach (var vertex in dashboard["vertices"]!.AsArray())
+        {
+            double x = (double)vertex![0]!, z = (double)vertex[2]!;
+            double innerGlassZ = 685 + (x + 395) * 470 / 450 - 3;
+            Assert.True(z <= innerGlassZ, $"Dashboard cage ({x}, {z}) crosses inner glass at {innerGlassZ}");
+        }
+        foreach (var (name, yaw, pitch) in new[] { ("front-quarter", -48, 17), ("side", 0, 0), ("rear-quarter", 140, 18) })
+        {
+            await mcp.Call("view", new { yaw, pitch, fit = true, grid = false, display = "shaded" });
+            await mcp.Capture("bellavista-" + name);
+        }
+    }
+
     [Fact(DisplayName = "GAL-I009 | The serving board is one valid 300 x 160 x 18 mm solid with a saved CAM plan of four toolpaths")]
     [Trait("TestId", "GAL-I009")]
     public async Task ServingBoardKeepsItsCamPlan()

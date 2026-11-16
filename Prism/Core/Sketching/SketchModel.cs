@@ -115,6 +115,30 @@ public sealed class SketchModel
         return m;
     }
 
+    /// <summary>Copy another sketch's points, curves and constraints into this one under fresh ids, leaving the other sketch alone. Its origin maps onto this origin.</summary>
+    public void Absorb(SketchModel other)
+    {
+        var copy = other.Clone();
+        var pm = new Dictionary<int, int> { [0] = 0 };
+        var em = new Dictionary<int, int>();
+        foreach (var p in copy.Points.Where(p => p.Id != 0)) { int id = NextId++; pm[p.Id] = id; p.Id = id; Points.Add(p); }
+        foreach (var e in copy.Entities)
+        {
+            int id = NextId++; em[e.Id] = id; e.Id = id;
+            if (e.A >= 0) e.A = pm[e.A]; if (e.B >= 0) e.B = pm[e.B]; if (e.C >= 0) e.C = pm[e.C];
+            e.Pts = e.Pts.Select(i => pm[i]).ToList();
+            Entities.Add(e);
+        }
+        foreach (var c in copy.Constraints.Where(c => !c.Hidden))
+        {
+            var mask = RefIsPoint(c.Type, c.Refs.Length);
+            c.Refs = c.Refs.Select((r, i) => mask[i] ? pm[r] : em[r]).ToArray();
+            c.Id = NextId++;
+            Constraints.Add(c);
+        }
+        GreaseStrokes.AddRange(copy.GreaseStrokes);
+    }
+
     /// <summary>Display changes must not become sketch-edit sources when replaying feature history.</summary>
     public bool SameDefinition(SketchModel other)
     {

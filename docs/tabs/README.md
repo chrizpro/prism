@@ -14,6 +14,16 @@ Each ribbon tab shows its section captions below the tools in both themes. **3D 
 
 Owner request and desktop evidence [#113](https://github.com/chrizpro/prism/issues/113). On 2026-11-10, RIB-H001 checked names for all shipped tabs and rendered the two print tabs and Mold in both themes. RIB-I001 captured those tabs on the Windows desktop in both themes. See the [ribbon section tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
 
+## Tools shared between modeling tabs
+
+A tool that works on more than one kind of body is offered on every modeling tab that makes those bodies, so a workflow never has to go to another tab for it. Checked 2026-11-14 ([RIB-H003, RIB-H004](../../Prism.Tests/Headless/Ribbon/CommonToolPlacementTests.cs)).
+
+- **Pattern** (Linear, Circular, Along Curve, Fill, Table) takes solids, surfaces, curves and freeforms: Home, Solid, Surface, NURBS and Freeform (a freeform is copied as a new freeform; joining or cutting with one needs a converted body).
+- **Wrap** (in the Curves dropdown) wraps onto any face: Home, Solid, Surface and NURBS.
+- **Match Surface** is on Surface and NURBS. **Analyze** (Zebra Stripes, Curvature Map, Draft Analysis) is on Solid, Surface, NURBS and Freeform; Check Seam joins it only where surfaces meet, on Surface and NURBS. **Warp** is on Surface, NURBS and Freeform, where it takes forms too.
+- **Thicken** (surfaces, and faces of solids), Sweep, Loft, Pipe and Intersection Curve are on the surface-making tabs. **Hole** and **Thread** need exact solids and stay on Home and Solid, in one dropdown to save room.
+- **Not offered on Freeform:** Wrap, Match Surface and Combine do not take subdivision forms (a smooth subdivision surface has no exact boundary to match, and booleans do not work well on one); convert a form to NURBS first. **Knife** is Freeform-only because it cuts a cage.
+
 ## Modeling ribbon palette
 
 Solid-first review (2026-11-10, [#118](https://github.com/chrizpro/prism/issues/118)). Solid uses blue for modeled geometry and pattern instances. Smaller accents distinguish a direction arrow, cut line or modified edge. The shared Gizmo control uses the viewport's red, green and blue axes, a center handle and a rotation arc. Move uses its separate icon. RIB-H002 verified the viewport axis colors in both themes and the saved Gizmo ribbon ID. RIB-I002 captured the Solid preview on Windows in [Light](evidence/RIB-I002-solid-light.png) and [Dark](evidence/RIB-I002-solid-dark.png). [Ribbon tests](../../Prism.Tests/Headless/Ribbon/RibbonSectionTests.cs).
@@ -111,3 +121,8 @@ An approved requirement can still be a product gap, and a working feature may st
 ## Suggested review sequence
 
 Review one existing guide at a time. Keep accepted behavior; flag unclear or changed semantics for owner decision; then file issues for confirmed gaps. Start with a small pilot rather than reformatting all guides. See [Motion's review section](../cae/motion/README.md#requirements-review-and-traceability) as an example of a *review queue*, not approved tests.
+
+
+## Illustrated tool reference
+
+Every current [tool-reference page](../../site/tools/index.md) now has a primary image, including non-command buttons such as file operations, selection, sketch constraints and view controls. The [image maintenance guide](../engineering/tool-reference-images.md) documents before/after help renders, explicit action diagrams, actual 0.4 result captures and the complete-page coverage check. These are documentation examples; canonical behavior and maintained feature tests remain in the guides linked above.

@@ -18,8 +18,11 @@
                 <DockPanel>
                     <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
                         <StackPanel Spacing="5">
-                            <TextBlock Text="Finishes update live · material data stays assigned." FontSize="11" Classes="meta" TextWrapping="Wrap"/>
-                            <Button Name="ResetFinish" Content="Reset finish" Classes="studioAction" Click="OnResetFinish" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                            <TextBlock Text="Finishes update live · press Done to keep them." FontSize="11" Classes="meta" TextWrapping="Wrap"/>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <Button Name="ResetFinish" Content="Reset finish" Classes="studioAction" Click="OnResetFinish" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                                <Button Name="DoneAppearance" Grid.Column="1" Content="Done" Classes="studioAction primary" Click="OnClose" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Keep the appearance and close the studio"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">

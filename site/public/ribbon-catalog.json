@@ -1,5 +1,5 @@
 {
-  "sourceHash": "684A250F4AA7D6727651B5AFB187DBC1B6B7E1E7D47218C175311F92F04AF49A",
+  "sourceHash": "49BA8CA32D596D0BA928718E1084A3F11ACD3C895EDC8712DF64FCE4EB127E67",
   "workspaces": [
     {
       "Id": "design",
@@ -483,12 +483,6 @@
           "title": "Curves",
           "tools": [
             {
-              "id": "curve-through|Curve",
-              "label": "Curve",
-              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
               "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
@@ -525,45 +519,9 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
-              "shortcut": ""
-            },
-            {
-              "id": "knit|Join",
-              "label": "Join",
-              "description": "Join curves that touch end to end into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "unstitch|Explode",
-              "label": "Explode",
-              "description": "Break a curve or sketch into its segments.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-through|Duplicate Edge",
               "label": "Extract Edges",
               "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim Curve",
-              "label": "Trim Curve",
-              "description": "Keep part of a curve, or cut it into pieces.",
-              "shortcut": ""
-            },
-            {
-              "id": "extend-surface|Extend Curve",
-              "label": "Extend Curve",
-              "description": "Grow a curve past its end, keeping it smooth.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -974,12 +932,6 @@
           "title": "Curves",
           "tools": [
             {
-              "id": "curve-through|Curve",
-              "label": "Curve",
-              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
               "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
@@ -992,45 +944,9 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
-              "shortcut": ""
-            },
-            {
-              "id": "knit|Join",
-              "label": "Join",
-              "description": "Join curves that touch end to end into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "unstitch|Explode",
-              "label": "Explode",
-              "description": "Break a curve or sketch into its segments.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-through|Duplicate Edge",
               "label": "Extract Edges",
               "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim Curve",
-              "label": "Trim Curve",
-              "description": "Keep part of a curve, or cut it into pieces.",
-              "shortcut": ""
-            },
-            {
-              "id": "extend-surface|Extend Curve",
-              "label": "Extend Curve",
-              "description": "Grow a curve past its end, keeping it smooth.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1436,12 +1352,6 @@
           "title": "Curves",
           "tools": [
             {
-              "id": "curve-through|Curve",
-              "label": "Curve",
-              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
               "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
@@ -1478,45 +1388,9 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
-              "shortcut": ""
-            },
-            {
-              "id": "knit|Join",
-              "label": "Join",
-              "description": "Join curves that touch end to end into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "unstitch|Explode",
-              "label": "Explode",
-              "description": "Break a curve or sketch into its segments.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-through|Duplicate Edge",
               "label": "Extract Edges",
               "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim Curve",
-              "label": "Trim Curve",
-              "description": "Keep part of a curve, or cut it into pieces.",
-              "shortcut": ""
-            },
-            {
-              "id": "extend-surface|Extend Curve",
-              "label": "Extend Curve",
-              "description": "Grow a curve past its end, keeping it smooth.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -1687,6 +1561,35 @@
               "id": "intersect|Intersect",
               "label": "Intersect",
               "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Analyze",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft Analysis",
+              "label": "Draft Analysis",
+              "description": "Check faces for mold release in a pull direction.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Check Seam",
+              "label": "Check Seam",
+              "description": "Inspect sampled continuity between two natural patch boundaries.",
               "shortcut": ""
             }
           ]
@@ -1923,12 +1826,6 @@
           "title": "Curves",
           "tools": [
             {
-              "id": "curve-through|Curve",
-              "label": "Curve",
-              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
               "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
@@ -1941,45 +1838,9 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
-              "shortcut": ""
-            },
-            {
-              "id": "knit|Join",
-              "label": "Join",
-              "description": "Join curves that touch end to end into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "unstitch|Explode",
-              "label": "Explode",
-              "description": "Break a curve or sketch into its segments.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-through|Duplicate Edge",
               "label": "Extract Edges",
               "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim Curve",
-              "label": "Trim Curve",
-              "description": "Keep part of a curve, or cut it into pieces.",
-              "shortcut": ""
-            },
-            {
-              "id": "extend-surface|Extend Curve",
-              "label": "Extend Curve",
-              "description": "Grow a curve past its end, keeping it smooth.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2507,12 +2368,6 @@
           "title": "Curves",
           "tools": [
             {
-              "id": "curve-through|Curve",
-              "label": "Curve",
-              "description": "Click points in space. The curve passes through them, or is pulled toward them as control points.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-equation|Curve from Data",
               "label": "Curve from Data",
               "description": "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file.",
@@ -2549,45 +2404,9 @@
               "shortcut": ""
             },
             {
-              "id": "curve-through|Blend Curve",
-              "label": "Blend Curve",
-              "description": "Join two curves with a curve that keeps their position, direction or bend.",
-              "shortcut": ""
-            },
-            {
-              "id": "knit|Join",
-              "label": "Join",
-              "description": "Join curves that touch end to end into one.",
-              "shortcut": ""
-            },
-            {
-              "id": "unstitch|Explode",
-              "label": "Explode",
-              "description": "Break a curve or sketch into its segments.",
-              "shortcut": ""
-            },
-            {
               "id": "curve-through|Duplicate Edge",
               "label": "Extract Edges",
               "description": "Copy selected edges as independent curves, joining touching edges and keeping the source body.",
-              "shortcut": ""
-            },
-            {
-              "id": "trim|Trim Curve",
-              "label": "Trim Curve",
-              "description": "Keep part of a curve, or cut it into pieces.",
-              "shortcut": ""
-            },
-            {
-              "id": "extend-surface|Extend Curve",
-              "label": "Extend Curve",
-              "description": "Grow a curve past its end, keeping it smooth.",
-              "shortcut": ""
-            },
-            {
-              "id": "offset|Offset Curve",
-              "label": "Offset Curve",
-              "description": "Copy a flat curve parallel to itself.",
               "shortcut": ""
             },
             {
@@ -2705,12 +2524,6 @@
               "label": "Match Surface",
               "description": "Match compatible natural patch boundaries with G0, G1 or G2 constraints.",
               "shortcut": ""
-            },
-            {
-              "id": "curvature|Check Seam",
-              "label": "Check Seam",
-              "description": "Inspect sampled continuity between two natural patch boundaries.",
-              "shortcut": ""
             }
           ]
         },
@@ -2804,6 +2617,35 @@
               "id": "intersect|Intersect",
               "label": "Intersect",
               "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Analyze",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft Analysis",
+              "label": "Draft Analysis",
+              "description": "Check faces for mold release in a pull direction.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Check Seam",
+              "label": "Check Seam",
+              "description": "Inspect sampled continuity between two natural patch boundaries.",
               "shortcut": ""
             }
           ]

@@ -602,6 +602,29 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>The sketch entity a baked edge index belongs to (emission order: root entities, then each section's), as an Entity pick. Null when not a sketch edge.</summary>
+    /// <summary>
+    /// The curves of a shared NURBS sketch that no earlier feature uses, as entity picks. A whole-sketch pick of that sketch means these only, so
+    /// a new surface never takes the curves an earlier one was made from. Null for any other pick, or when every curve is already used.
+    /// </summary>
+    public List<SelItem>? UnusedSketchCurves(SelItem sketchPick)
+    {
+        if (sketchPick.Kind != SelKind.Object || Find(sketchPick.Obj) is not { Kind: ObjKind.Sketch, SketchData: { SharedNurbsCurves: true } sd }) return null;
+        var used = new HashSet<(int id, int sec)>();
+        for (var n = Current; n != null; n = n.Parent)
+            if (n.Recipe != null)
+                foreach (var slot in n.Recipe.Slots)
+                    foreach (var it in slot)
+                        if (it.Obj == sketchPick.Obj && it.Kind == SelKind.Entity) used.Add((it.Index, it.Index2));
+        var items = new List<SelItem>();
+        for (int sec = 0; sec <= sd.Sections.Count; sec++)
+        {
+            var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+            foreach (var e in model.Entities)
+                if (!e.Construction && !used.Contains((e.Id, sec))) items.Add(new SelItem(sketchPick.Obj, SelKind.Entity, e.Id, sec));
+        }
+        return items.Count > 0 ? items : null;
+    }
+
     public SelItem? SketchEntityOf(SelItem edge)
     {
         if (edge.Kind != SelKind.Edge || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
@@ -629,7 +652,9 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public List<SelItem>? SketchComponentItems(SelItem edge)
     {
-        if (SketchEntityOf(edge) is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        // a sketch curve that is already an Entity pick is its own starting point
+        SelItem? start = edge.Kind == SelKind.Entity ? edge : SketchEntityOf(edge);
+        if (start is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
         Sketching.SketchModel model; Plane3 plane;
         if (first.Index2 <= 0) { model = sd; plane = root; }
         else if (first.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[first.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
@@ -944,6 +969,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void UpdateHover(double px, double py)
     {
+        ActiveCommand?.HoverScreen(this, px, py);
         if (ActiveTool != null && ActiveTool is not null && ToolOwnsPointer) { if (Hover != null) { Hover = null; Invalidate(); } return; }
         var r = Pick(px, py, ActiveFilter);
         var h = r?.Item;
@@ -1128,7 +1154,9 @@ public sealed partial class CadSession : ObservableObject
         _handleDrag = false;
         // Direct edits are plain undo steps unless the body they change has history tracking turned on.
         bool tracked = res.Replace.Any(r => r.Old.TrackHistory);
-        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked ? null : c.Capture();
+        // Moving, turning or scaling whole bodies does not depend on face numbers, so it is always recorded: editing an earlier feature (a component's size) must not drop where the parts were put.
+        bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
+        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
@@ -1403,9 +1431,12 @@ public sealed partial class CadSession : ObservableObject
 
     static PreviewItem? ContextGhostOf(SceneObject o)
     {
-        if (o.Tri is { } t) return new PreviewItem(t) { Context = true, NoEdges = true };
-        if (o.Form is { } f) return new PreviewItem(f) { Context = true, NoEdges = true };
-        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : null;
+        // by preference the later objects keep their own colour instead of the faint see-through look
+        bool faint = AppSettings.Current.SketchContextTranslucent;
+        if (o.Tri is { } t) return faint ? new PreviewItem(t) { Context = true, NoEdges = true } : new PreviewItem(t, o.Color);
+        if (o.Form is { } f) return faint ? new PreviewItem(f) { Context = true, NoEdges = true } : new PreviewItem(f, o.Color);
+        if (!o.HasBrep) return null;
+        return faint ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : new PreviewItem(o.Shape, o.Kind, o.Color);
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
@@ -1893,7 +1924,7 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public Plane3 DisplayGridPlane() =>
         (Ortho || Camera.Orthographic) && Camera.AxisFacingPlane() is { } facing ? facing
-        : Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+        : Sketch?.GridPlane ?? ActiveCommand?.GridPlane ?? ViewPlane();
 
     /// <summary>In orthographic mode, and while sketching, both axes of the grid plane being looked at are drawn: X red, Y green, Z blue.</summary>
     void BuildPlaneAxesOverlay(Overlay o)
@@ -2406,6 +2437,49 @@ public sealed partial class CadSession : ObservableObject
         }
         else if (Layout == ViewLayout.Quad && MaximizedView is { } m && LinkViews) SyncViews(Cameras[m]);
         Invalidate();
+    }
+
+    /// <summary>The box around everything selected: whole bodies, or just the picked faces, edges and corner points. Null when nothing selected has a place in space.</summary>
+    public (Vec3 min, Vec3 max)? SelectionBounds()
+    {
+        var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo; bool any = false;
+        void Add(Vec3 p)
+        {
+            lo = new(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); any = true;
+        }
+        foreach (var it in Selection)
+        {
+            var o = Find(it.Obj); if (o == null) continue;
+            switch (it.Kind)
+            {
+                case SelKind.Face:
+                    var m = o.Mesh;
+                    if (it.Index + 1 >= m.FaceTriStart.Length) { Add(m.Min); Add(m.Max); break; }
+                    for (int t = m.FaceTriStart[it.Index]; t < m.FaceTriStart[it.Index + 1]; t++)
+                        for (int k = 0; k < 3; k++) { int a = m.Indices[3 * t + k] * 3; Add(new Vec3(m.Positions[a], m.Positions[a + 1], m.Positions[a + 2])); }
+                    break;
+                case SelKind.Edge: foreach (var p in EdgePoints(it)) Add(p); break;
+                case SelKind.Vertex: if (VertexPoint(it) is { } v) Add(v); break;
+                default: Add(o.Mesh.Min); Add(o.Mesh.Max); break;
+            }
+        }
+        return any ? (lo, hi) : null;
+    }
+
+    /// <summary>Bring what is selected to the middle of every visible view, filling it as Zoom Extents fills the whole model.</summary>
+    public bool ZoomSelection()
+    {
+        if (Sketch != null) { Say("Zoom Selected works on bodies, faces and edges. Zoom Extents fits the sketch.", true); return false; }
+        if (SelectionBounds() is not { } b) { Say("Select something first, then zoom to it. Zoom Extents fits everything.", true); return false; }
+        var (lo, hi) = b;
+        // a lone corner point or a hair-thin edge would zoom in absurdly far: keep at least a 10 mm box
+        var mid = (lo + hi) * 0.5; var half = new Vec3(Math.Max((hi.X - lo.X) / 2, 5), Math.Max((hi.Y - lo.Y) / 2, 5), Math.Max((hi.Z - lo.Z) / 2, 5));
+        var keep = Camera;
+        foreach (var c in VisibleCameras.ToList()) { Camera = c; Camera.Fit(mid - half, mid + half); Camera.Distance *= 1.15; }
+        Camera = keep;
+        if (VisibleViews > 1 && LinkViews) { double d = VisibleCameras.Max(c => c.Distance); foreach (var c in VisibleCameras) c.Distance = d; }
+        Invalidate();
+        return true;
     }
 
     void ZoomExtentsActive()

@@ -72,9 +72,7 @@ public class SolidRibbonTests
         buttons.Single(button => button.Label == "Lasso").Invoke();
         Assert.Equal(SelectMethod.Lasso, vm.Session.Method);
 
-        bool previous = vm.Session.XRay;
-        buttons.Single(button => button.Label == "Through").Invoke();
-        Assert.Equal(!previous, vm.Session.XRay);
+        Assert.DoesNotContain(buttons, button => button.Label == "Through");
 
         var first = Support.ModelingScenario.CreateBoxBody(vm.Session, Vec3.Zero, 2, 2, 2);
         var second = Support.ModelingScenario.CreateBoxBody(vm.Session, new Vec3(5, 0, 0), 2, 2, 2);
