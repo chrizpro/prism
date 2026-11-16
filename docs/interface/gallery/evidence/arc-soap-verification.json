@@ -1,0 +1,398 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "desktopSource": "c9a5773",
+  "objects": [
+    {
+      "id": "cd44e528",
+      "name": "Arc soap - casting master",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#B8CCC0",
+      "min": [
+        40,
+        -150,
+        0
+      ],
+      "max": [
+        150,
+        -80,
+        24
+      ],
+      "faces": 46,
+      "edges": 104,
+      "wires": 50,
+      "volume": 166304.7389,
+      "area": 20765.0566,
+      "size": [
+        110,
+        70,
+        24
+      ],
+      "center": [
+        95,
+        -115,
+        12
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.6,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "82cffa9d",
+      "name": "A - lower cavity",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#B2BCC5",
+      "min": [
+        -75,
+        -55,
+        0
+      ],
+      "max": [
+        75,
+        55,
+        25
+      ],
+      "faces": 31,
+      "edges": 64,
+      "wires": 36,
+      "volume": 327281.3591,
+      "area": 49201.2385,
+      "size": [
+        150,
+        110,
+        25
+      ],
+      "center": [
+        0,
+        0,
+        12.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.7,
+        "gloss": 0.6,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "74b38a4b",
+      "name": "B - upper detail cavity",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#B2BCC5",
+      "min": [
+        115,
+        -55,
+        0
+      ],
+      "max": [
+        265,
+        55,
+        25
+      ],
+      "faces": 51,
+      "edges": 112,
+      "wires": 60,
+      "volume": 329604.3446,
+      "area": 49541.8712,
+      "size": [
+        150,
+        110,
+        25
+      ],
+      "center": [
+        190,
+        0,
+        12.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.7,
+        "gloss": 0.6,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    }
+  ],
+  "saveReopened": true,
+  "sha256": "af06a01d033784eff75c3eb693d580339c9d2e9de14735bf0c25735c5d11836f",
+  "bytes": 4582216,
+  "setups": [
+    {
+      "Name": "A - Arc soap cavity up",
+      "BodyId": "82cffa9d-0442-4760-9880-2b251d0e94b1",
+      "ShapeSignature": "FDA6A01D11FD88DC12D4391BAD705FF8C872F22C0CBD3BF0319B12906B3F6843",
+      "StockMin": [
+        -75,
+        -55,
+        0
+      ],
+      "StockMax": [
+        75,
+        55,
+        26
+      ],
+      "WorkZero": [
+        -75,
+        -55,
+        26
+      ],
+      "ToolDiameter": 6,
+      "Feed": 650,
+      "Plunge": 180,
+      "Rpm": 12000,
+      "Clearance": 8
+    },
+    {
+      "Name": "B - Arc soap cavity up",
+      "BodyId": "74b38a4b-3248-4969-a141-4f710d9eb6e0",
+      "ShapeSignature": "619E5178E0774E3FF7CA986A26D503CFF748D85D63B7D30B1839624A50199668",
+      "StockMin": [
+        115,
+        -55.00000000000001,
+        -7.105427357601002e-15
+      ],
+      "StockMax": [
+        265,
+        55,
+        26.00000000000001
+      ],
+      "WorkZero": [
+        115,
+        -55.00000000000001,
+        26.00000000000001
+      ],
+      "ToolDiameter": 6,
+      "Feed": 650,
+      "Plunge": 180,
+      "Rpm": 12000,
+      "Clearance": 8
+    }
+  ],
+  "reviews": {
+    "A": {
+      "title": "CAM Review",
+      "values": {
+        "Setup sheet folder": "C:\\Users\\chris\\RiderProjects\\Prism\\artifacts\\arc-soap-mold\\A"
+      },
+      "slots": {},
+      "results": [
+        "Setup: A - Arc soap cavity up",
+        "Work zero: -75, -55, 26 mm",
+        "A1 - Face tooling blank: 12 mm end mill \u00b7 64 moves \u00b7 7.98 min",
+        "A2 - Peck drill registration bores: 6 mm end mill \u00b7 64 moves \u00b7 0.51 min",
+        "A3 - Rough cavity: 6 mm end mill \u00b7 628 moves \u00b7 31.7 min",
+        "A4 - Ball finish cavity: 3 mm ball nose \u00b7 7,138 moves \u00b7 54.81 min",
+        "Scope: Feed-based review only. Use Stock review for sampled milling removal and contacts; tool axis is global Z."
+      ],
+      "error": null,
+      "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+    },
+    "B": {
+      "title": "CAM Review",
+      "values": {
+        "Setup sheet folder": "C:\\Users\\chris\\RiderProjects\\Prism\\artifacts\\arc-soap-mold\\B"
+      },
+      "slots": {},
+      "results": [
+        "Setup: B - Arc soap cavity up",
+        "Work zero: 115, -55, 26 mm",
+        "B1 - Face tooling blank: 12 mm end mill \u00b7 64 moves \u00b7 7.98 min",
+        "B2 - Peck drill registration bores: 6 mm end mill \u00b7 64 moves \u00b7 0.51 min",
+        "B3 - Rough cavity: 6 mm end mill \u00b7 716 moves \u00b7 33.19 min",
+        "B4 - Ball finish cavity: 3 mm ball nose \u00b7 13,064 moves \u00b7 60.27 min",
+        "Scope: Feed-based review only. Use Stock review for sampled milling removal and contacts; tool axis is global Z."
+      ],
+      "error": null,
+      "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+    }
+  },
+  "stockReviews": {
+    "A": {
+      "title": "CNC Stock Review",
+      "values": {
+        "Grid size": 1,
+        "Flute / holder clearance length": 35,
+        "Holder diameter": 12,
+        "Comparison tolerance": 0.35,
+        "Program position": 100
+      },
+      "slots": {
+        "Model": [
+          "A - lower cavity"
+        ]
+      },
+      "results": [
+        "Model: A - lower cavity",
+        "Sampling: 1 mm grid; 100% of feed-based program time",
+        "Removed stock: 99.926 cm\u00b3",
+        "Remaining material: 1.142 cm\u00b3",
+        "Possible gouges: 0 moves; 0 cm\u00b3",
+        "Rapid contacts: 0 sampled moves",
+        "Holder contacts: 0 sampled moves",
+        "Scope: Sampled 3-axis heightfield screening; inspect fixtures and full machine clearance separately."
+      ],
+      "error": null,
+      "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+    },
+    "B": {
+      "title": "CNC Stock Review",
+      "values": {
+        "Grid size": 1.5,
+        "Flute / holder clearance length": 35,
+        "Holder diameter": 12,
+        "Comparison tolerance": 0.35,
+        "Program position": 100
+      },
+      "slots": {
+        "Model": [
+          "B - upper detail cavity"
+        ]
+      },
+      "results": [
+        "Model: B - upper detail cavity",
+        "Sampling: 1.5 mm grid; 100% of feed-based program time",
+        "Removed stock: 97.335 cm\u00b3",
+        "Remaining material: 7.076 cm\u00b3",
+        "Possible gouges: 0 moves; 0 cm\u00b3",
+        "Rapid contacts: 0 sampled moves",
+        "Holder contacts: 0 sampled moves",
+        "Scope: Sampled 3-axis heightfield screening; inspect fixtures and full machine clearance separately."
+      ],
+      "error": null,
+      "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+    }
+  },
+  "operations": [
+    {
+      "name": "A1 - Face tooling blank",
+      "setup": "A - Arc soap cavity up",
+      "operation": "Face",
+      "tool": "12 mm end mill",
+      "diameter": 12,
+      "moves": 64
+    },
+    {
+      "name": "A2 - Peck drill registration bores",
+      "setup": "A - Arc soap cavity up",
+      "operation": "Drill",
+      "tool": "6 mm end mill",
+      "diameter": 6,
+      "moves": 64
+    },
+    {
+      "name": "A3 - Rough cavity",
+      "setup": "A - Arc soap cavity up",
+      "operation": "3D roughing",
+      "tool": "6 mm end mill",
+      "diameter": 6,
+      "moves": 628
+    },
+    {
+      "name": "A4 - Ball finish cavity",
+      "setup": "A - Arc soap cavity up",
+      "operation": "3D finish (ball nose)",
+      "tool": "3 mm ball nose",
+      "diameter": 3,
+      "moves": 7138
+    },
+    {
+      "name": "B1 - Face tooling blank",
+      "setup": "B - Arc soap cavity up",
+      "operation": "Face",
+      "tool": "12 mm end mill",
+      "diameter": 12,
+      "moves": 64
+    },
+    {
+      "name": "B2 - Peck drill registration bores",
+      "setup": "B - Arc soap cavity up",
+      "operation": "Drill",
+      "tool": "6 mm end mill",
+      "diameter": 6,
+      "moves": 64
+    },
+    {
+      "name": "B3 - Rough cavity",
+      "setup": "B - Arc soap cavity up",
+      "operation": "3D roughing",
+      "tool": "6 mm end mill",
+      "diameter": 6,
+      "moves": 716
+    },
+    {
+      "name": "B4 - Ball finish cavity",
+      "setup": "B - Arc soap cavity up",
+      "operation": "3D finish (ball nose)",
+      "tool": "3 mm ball nose",
+      "diameter": 3,
+      "moves": 13064
+    }
+  ],
+  "method": "Actual Windows MCP solid modeling, Create Mold, two cavity-up CAM setups, eight saved operations; native reopen and source freshness checked. No Freeform, renderer or test suite.",
+  "limits": "Static visual tooling study without gates/runners/ejectors. Sampled stock review retains a conservative finishing band, particularly around small details; no machine prove-out."
+}

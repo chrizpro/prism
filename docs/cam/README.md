@@ -127,3 +127,7 @@ Fixed on 2026-11-05:
 The standalone suites cover the legacy 3D-print Slice tool and additional print formats. The maintained FDM tests cover review and the 3MF file boundary.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+## Arc soap mold CAM demonstration
+
+Owner-authorized 2026-11-16 ([#136](https://github.com/chrizpro/prism/issues/136)): the [Arc soap tooling study](../interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study) has two cavity-up +Z setups, each with facing, registration-hole peck drilling, raster roughing and ball-nose finishing. Both saved setup/source reviews accepted their four paths after reopen. Sampled stock review completed with zero reported gouges, rapid contacts or holder contacts at the documented grids; conservative finishing material remains around small details. The gallery guide records exact review settings, native files and actual Prism screenshots. No physical machining, renderer or test suite was run, and no CAM behavior changed.
