@@ -3,19 +3,38 @@
 Native design only, no hardware, CAM setup, render or test suite.
 Canonical scope: docs/interface/gallery/README.md.
 """
+import argparse
 import json
 import build_pavilion as p
 
 cad=p.cad
 OUT=p.ROOT/'artifacts/guitar'
-OUTLINE=[(30,170),(65,155),(105,225),(120,218),(133,176),
- (120,130),(147,75),(152,25),(135,-20),(142,-85),
- (165,-140),(151,-193),(110,-222),(40,-232),(-40,-232),
- (-110,-217),(-152,-180),(-160,-130),(-138,-70),
- (-120,-25),(-126,22),(-150,80),(-143,138),
- (-117,185),(-98,210),(-83,198),(-80,165),
- (-70,136),(-45,123),(-30,150),(-30,180)]
-TOP=dict(material='maple',color='#DEB579',roughness=.42,pattern='Wood',patternScale=32,patternAngle=90,surface=dict(Coat=.32,Bump=.015))
+# Tangent-aligned cubic spans give the waist, bouts and horns deliberate curvature.
+# Sample the spans into one periodic native spline, rather than interpolating a
+# crowded set of silhouette guesses that creates lumps between the points.
+SPANS=[
+ ((28,155),(29,125),(38,101),(64,105)),
+ ((64,105),(85,108),(81,174),(99,174)),
+ ((99,174),(119,174),(137,130),(133,100)),
+ ((133,100),(132,63),(105,36),(105,0)),
+ ((105,0),(105,-55),(166,-82),(166,-139)),
+ ((166,-139),(166,-208),(104,-245),(0,-245)),
+ ((0,-245),(-104,-245),(-166,-208),(-166,-139)),
+ ((-166,-139),(-166,-79),(-107,-53),(-107,3)),
+ ((-107,3),(-107,41),(-135,67),(-134,108)),
+ ((-134,108),(-133,153),(-108,211),(-82,211)),
+ ((-82,211),(-62,211),(-72,115),(-60,110)),
+ ((-60,110),(-40,104),(-29,127),(-28,155)),
+ ((-28,155),(-14,161),(14,161),(28,155))]
+def outline():
+    points=[]
+    for a,b,c,e in SPANS:
+        for j in range(10):
+            t=j/10;u=1-t
+            points.append(tuple(u*u*u*a[k]+3*u*u*t*b[k]+3*u*t*t*c[k]+t*t*t*e[k] for k in range(2)))
+    return points
+OUTLINE=outline()
+TOP=dict(material='maple',color='#DEB579',roughness=.48,pattern='Plain',surface=dict(Coat=.22,Bump=0))
 
 def curve(z,scale=1):
     return cad.run('curve_through',points=[[x*scale,-45+(y+45)*scale,z] for x,y in OUTLINE],closed=True)[0]
@@ -43,7 +62,7 @@ def build():
     p.place_min(back,'z',0)
     p.done(back,'Sculpted walnut back',p.CAP)
     # Several matching spline sections form a convex carved top and a thin pale rim.
-    sections=[curve(z,s) for z,s in [(34,1),(35,1),(38,.986),(43,.945),(46,.87)]]
+    sections=[curve(z,s) for z,s in [(34,1),(35,1),(38,.994),(42,.98),(44,.96)]]
     top=cad.loft(sections,operation='New body',straight=False)
     cad.delete(*sections)
     # Smooth loft interpolation can bow below its first section. Trim the joint flat.
@@ -52,7 +71,7 @@ def build():
     p.done(top,'Carved maple top',TOP)
     checkpoint('01-double-cutaway-carved-blank')
     parts=[back,top]
-    cut_all(parts,rounded_tool(-28,140,56,110,26,35,4))
+    cut_all(parts,rounded_tool(-28,105,56,130,26,35,4))
     for name,y in [('Neck',53),('Bridge',-48)]:
         cut_all(parts,rounded_tool(-37,y,74,39,20,40,3.5))
         # Deeper mounting ears show distinct milling depths inside each pickup cavity.
@@ -65,11 +84,11 @@ def build():
     # Wire channels connect the routed pickup cavities and the rear control chamber.
     p.cutbox(back,(-4,-69,20,8,130,8))
     p.cutbox(back,(0,-73,20,99,8,8))
-    rear=rounded_tool(73,-183,65,122,-1,25,14);cad.subtract(back,rear)
+    rear=rounded_tool(63,-183,65,122,-1,25,14);cad.subtract(back,rear)
     # A recessed cover ledge, with clearance around the removable wooden plate.
-    ledge=rounded_tool(68,-188,75,132,-1,3.5,17);cad.subtract(back,ledge)
-    cover=rounded_tool(68.6,-187.4,73.8,130.8,.3,1.8,16.4)
-    for i,(x,y) in enumerate([(81,-174),(130,-174),(81,-69),(130,-69)]):
+    ledge=rounded_tool(58,-188,75,132,-1,3.5,17);cad.subtract(back,ledge)
+    cover=rounded_tool(58.6,-187.4,73.8,130.8,.3,1.8,16.4)
+    for i,(x,y) in enumerate([(71,-174),(120,-174),(71,-69),(120,-69)]):
         hole=cad.cylinder(radius=1.6,height=8,position_x=x,position_y=y,position_z=-1,operation='New body');cad.subtract(cover,hole)
         screw=cad.cylinder(radius=2.1,height=.6,position_x=x,position_y=y,position_z=-.3,operation='New body')
         p.done(screw,f'Rear cover screw {i+1}',dict(material='brass',color='#A88950',roughness=.4,pattern='Plain'))
@@ -78,12 +97,12 @@ def build():
     # Ellipsoidal subtraction makes a flowing forearm relief on the lower treble bout.
     tool=cad.sphere(radius=1,operation='New body')
     cad.run('scale',slots={'Objects':tool},scale_type='Per axis (stretch)',factor_x=200,factor_y=145,factor_z=105,pivot='World origin')
-    cad.move(tool,x=270,y=-120,z=128)
-    cad.subtract(top,tool)
+    cad.move(tool,x=270,y=-120,z=118)
+    cut_all(parts,tool)
     # A second ellipsoid scoops the back's bass-side waist for a belly contour.
     tool=cad.sphere(radius=1,operation='New body')
-    cad.run('scale',slots={'Objects':tool},scale_type='Per axis (stretch)',factor_x=155,factor_y=130,factor_z=65,pivot='World origin')
-    cad.move(tool,x=-230,y=10,z=-48);cad.subtract(back,tool)
+    cad.run('scale',slots={'Objects':tool},scale_type='Per axis (stretch)',factor_x=150,factor_y=130,factor_z=65,pivot='World origin')
+    cad.move(tool,x=-190,y=-15,z=-45);cad.subtract(back,tool)
     finish()
 
 def finish():
@@ -97,7 +116,8 @@ def finish():
     print('Finished guitar:',len(info),'valid solids',flush=True)
 
 if __name__=='__main__':
+    parser=argparse.ArgumentParser();parser.add_argument('--discovery',default=str(p.ROOT/'artifacts/pavilion/automation.json'));args=parser.parse_args()
     OUT.mkdir(parents=True,exist_ok=True);p.d.OUT=OUT
-    b,l=p.d.connect(p.ROOT/'artifacts/pavilion/automation.json')
+    b,l=p.d.connect(args.discovery)
     try:build()
     finally:b.terminate();b.wait(timeout=10);l.close()
