@@ -12,10 +12,10 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | --- | --- |
 | Drawing | Combination wrench drawing (`wrench-drawing`), Maple serving board drawing (`serving-board-drawing`), Fold tablet stand drawing (`fold-stand-drawing`) |
 | CAE / Solid | Combination wrench (`wrench`) |
-| CAM / Solid | Walnut valet tray (`walnut-valet`), Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
+| CAM / Solid | Arc soap mold and CAM (`arc-soap-mold-cam`), Walnut valet tray (`walnut-valet`), Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
 | Sheet Metal | Arc desk lamp (`arc-desk-lamp`), Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
-| Solid / Assembly | Aster Road bicycle (`aster-road`), Meridian orrery (`meridian-orrery`) |
-| Solid | Ridge all-terrain wheel (`ridge-all-terrain`), Kestrel R-07 (`kestrel-r07`), Peregrine S4 (`peregrine-s4`), Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
+| Solid / Assembly | Maple observatory (`maple-observatory`), Horizon H4 (`horizon-h4`), Linen T2 toaster (`linen-t2-toaster`), Serein S1 phone (`serein-s1-phone`), Aster Road bicycle (`aster-road`), Meridian orrery (`meridian-orrery`) |
+| Solid | Art Deco mantel clock (`deco-mantel-clock`), Maple/walnut guitar body (`maple-walnut-guitar`), Ridge all-terrain wheel (`ridge-all-terrain`), Kestrel R-07 (`kestrel-r07`), Peregrine S4 (`peregrine-s4`), Atelier side table (`atelier-table`), 50 mm camera lens (`camera-lens`) |
 | Freeform / Solid | Bellavista 1964 (`bellavista-1964`), Apex R07 (`apex-r07`), Relay S1 (`relay-s1`), Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
 | Freeform | Azure handled bottle (`azure-bottle`) |
 | Surface / NURBS | Halo pendant (`halo-pendant`), Transition duct (`transition-duct`), Arc mouse (`arc-mouse`) |
@@ -84,3 +84,9 @@ Both builders share `demo_session.py`. Build the current Desktop into `artifacts
 `python gallery/build_arc_soap_mold.py --phase geometry --discovery <automation.json>` creates **Arc soap** and its two cavity-up tooling halves ([#136](https://github.com/chrizpro/prism/issues/136)); run `--phase cam` next for two named CAM setups with facing, peck drilling, 3D roughing and ball finishing. `--phase verify` repeats saved-setup/source reviews, sampled stock checks and viewport captures without rebuilding geometry or paths. Native checkpoints and setup sheets go under `artifacts/arc-soap-mold/`. The final project and separate two-solid `.prism_mld` copy are in `gallery/models/`. Native solids only, no Freeform or renderer. [Canonical scope and actual evidence](../docs/interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study).
 
 `python gallery/build_serein_phone.py --discovery <automation.json>` builds **Serein S1** ([#137](https://github.com/chrizpro/prism/issues/137)), a 45-component solid-modeled phone with inset display, detailed rear optics, side controls and actual port/speaker cuts. Pillow and NumPy generate the original embedded wallpaper; the rest uses native MCP/cadkit solids. Checkpoints and actual front/rear Prism screenshots go to `artifacts/serein-phone/`. The rear capture temporarily rotates the assembly for viewport lighting and reopens the saved original afterward. No Freeform or renderer. [Canonical scope, verification and bug findings](../docs/interface/gallery/README.md#serein-s1-phone--november-16-native-study).
+
+## November 16 rendered additions
+
+Owner authorized gallery cards and actual studio renders for the seven recent finished models ([#140](https://github.com/chrizpro/prism/issues/140)). `python gallery/render_recent_studies.py` reopens the native documents and renders them through the actual Windows MCP host at 1280 × 720, 96 samples, six bounces and final denoising, then downsizes previews to at most 810 × 504. It uses the task discovery file under `artifacts/guitar-v2/`; originals are not overwritten during rendering. The two experimental Freeform skill studies are outside this curated batch.
+
+The observatory includes a [116-part inventory](extras/maple-observatory-part-plan.csv) and [proposed router work breakdown](extras/maple-observatory-router-plan.md) for the owner-selected 600 × 400 mm bed. This plan is a manufacturing assessment, not generated G-code. Shared-stock multi-part CAM is proposed in [#141](https://github.com/chrizpro/prism/issues/141).

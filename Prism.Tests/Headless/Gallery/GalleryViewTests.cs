@@ -173,7 +173,12 @@ public class GalleryViewTests
         {
             await vm.LoadGallery();
             var cam = Assert.Single(vm.GalleryGroups, section => section.Title == "CAM");
-            Assert.Contains(cam.Visible, card => card.Entry.Id == "injection-mold");
+            // Section membership survives additions that move the card beyond the
+            // collapsed preview. Expanding must still expose the existing model.
+            Assert.Contains(cam.Cards, card => card.Entry.Id == "injection-mold");
+            cam.Toggle();
+            var expanded = Assert.Single(vm.GalleryGroups, section => section.Title == "CAM");
+            Assert.Contains(expanded.Visible, card => card.Entry.Id == "injection-mold");
             Assert.DoesNotContain(vm.GalleryGroups, section => section.Title == "Mold");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }

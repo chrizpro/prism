@@ -2,6 +2,113 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "maple-observatory",
+      "Name": "Maple observatory",
+      "Description": "A maple architectural miniature with walnut dome and roofs, framed windows, columns and a four-step portico. Includes a proposed router part/stock plan for a 600 by 400 mm bed.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 32752358,
+      "Sha256": "826915dd46494555f81f1efd5e78e33c1a1d805b766ff934194a90f2455fd932",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/maple-observatory.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/maple-observatory.png?v=c370b4c41331c6de",
+      "Extras": [
+        {
+          "Label": "Router work breakdown (Markdown)",
+          "FileName": "maple-observatory-router-plan.md",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/maple-observatory-router-plan.md",
+          "Bytes": 3786,
+          "Sha256": "00cd7868d1f0abe30adf238a45d663a4aa6b9a3a630531dc06c476a6bb1dd46b"
+        },
+        {
+          "Label": "Part and stock inventory (CSV)",
+          "FileName": "maple-observatory-part-plan.csv",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/maple-observatory-part-plan.csv",
+          "Bytes": 20686,
+          "Sha256": "bca30670bfdad7de8564a5c28f9243ec98587c024d41074873cdfbcf1c58d920"
+        }
+      ]
+    },
+    {
+      "Id": "deco-mantel-clock",
+      "Name": "Art Deco mantel clock",
+      "Description": "A walnut mantel clock with stepped case, contrasting maple accents, detailed dial and static hands.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 7072953,
+      "Sha256": "19e1b820b52b6830a266c4b7e16ec215dbad782a124aa4de0aa4bbbf7215a178",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/deco-mantel-clock.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/deco-mantel-clock.png?v=3f271fd272f1cade"
+    },
+    {
+      "Id": "maple-walnut-guitar",
+      "Name": "Maple and walnut guitar body",
+      "Description": "A sculpted double-cutaway guitar body with a carved maple cap, walnut back, routing pockets and rear cover.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 10155244,
+      "Sha256": "5ca350401bfd1208a55e13342a27ad97afeedc262cc4cd9052ecbff89a6f2d30",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/maple-walnut-guitar.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/maple-walnut-guitar.png?v=6faa7ef8864828d7"
+    },
+    {
+      "Id": "horizon-h4",
+      "Name": "Horizon H4 helicopter",
+      "Description": "A pearl-and-teal utility helicopter assembly with framed glazing, detailed rotor head, shaped blades and landing skids.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 39200331,
+      "Sha256": "04e3aaf70ff080f6427a021c5c92f1110b318497827324bf06513509d8ca2b89",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/horizon-h4.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/horizon-h4.png?v=adfbe6d0684ba75b"
+    },
+    {
+      "Id": "linen-t2-toaster",
+      "Name": "Linen T2 toaster",
+      "Description": "An ivory two-slot toaster assembly with deep lined wells, stainless rims, side controls and a crumb-tray pull.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4121193,
+      "Sha256": "f0d848e35bd9a15d51a4932ed961af30f2144bd5fd0a9c8ca2df88367f00759c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/linen-t2-toaster.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/linen-t2-toaster.png?v=3aad6cafb2ad4265"
+    },
+    {
+      "Id": "serein-s1-phone",
+      "Name": "Serein S1 phone",
+      "Description": "A sage phone assembly with inset display artwork, detailed rear camera optics, metal frame and side controls.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 6930040,
+      "Sha256": "d11d2035e2664b444c19e4400d0fe344c59907144f04f150f4013f3315a371e6",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serein-s1-phone.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serein-s1-phone.png?v=dba5117c78d0beb4"
+    },
+    {
+      "Id": "arc-soap-mold-cam",
+      "Name": "Arc soap mold and CAM",
+      "Description": "A rounded soap master with two cavity-up tooling halves, registration bores and two named CAM setups with eight saved operations.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4582216,
+      "Sha256": "af06a01d033784eff75c3eb693d580339c9d2e9de14735bf0c25735c5d11836f",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/arc-soap-mold-cam.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/arc-soap-mold-cam.png?v=e75ef84a9167f18c"
+    },
+    {
       "Id": "walnut-valet",
       "Name": "Walnut valet tray",
       "Description": "Bitmap-textured walnut with three flowing pockets, carved fan grooves, four saved CNC operations and stock-removal review.",

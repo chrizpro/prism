@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "desktopSource": "c9a5773",
+  "renderer": "Actual Prism CPU renderer via MCP",
+  "settings": {
+    "size": [
+      1280,
+      720
+    ],
+    "samples": 96,
+    "bounces": 6,
+    "denoising": true,
+    "lighting": "Studio soft white boxes",
+    "background": "White",
+    "ground": true
+  },
+  "previews": "Downscaled to at most 810 x 504; helicopter centrally cropped to 70% before downscaling",
+  "items": [
+    {
+      "id": "maple-observatory",
+      "modelBytes": 32752358,
+      "modelSha256": "826915dd46494555f81f1efd5e78e33c1a1d805b766ff934194a90f2455fd932",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "c370b4c41331c6def5c4caa5304059c629a99f66dc88b2e2d62ed77823eb7ab0",
+      "camera": {
+        "target": [
+          0,
+          0,
+          89.5
+        ],
+        "distance": 730.236,
+        "yawDeg": 32,
+        "pitchDeg": 25
+      }
+    },
+    {
+      "id": "deco-mantel-clock",
+      "modelBytes": 7072953,
+      "modelSha256": "19e1b820b52b6830a266c4b7e16ec215dbad782a124aa4de0aa4bbbf7215a178",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "3f271fd272f1cade3cca79da98f06bf66a59a1b8fab76cb1c66f0e319e546c83",
+      "camera": {
+        "target": [
+          0,
+          0,
+          90
+        ],
+        "distance": 670.977,
+        "yawDeg": 18,
+        "pitchDeg": 14
+      }
+    },
+    {
+      "id": "maple-walnut-guitar",
+      "modelBytes": 10155244,
+      "modelSha256": "5ca350401bfd1208a55e13342a27ad97afeedc262cc4cd9052ecbff89a6f2d30",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "6faa7ef8864828d775c1b3a7353c69049c34f22d445c559049f15dbb5b2f77ce",
+      "camera": {
+        "target": [
+          -0.0122,
+          -16.9472,
+          21.85
+        ],
+        "distance": 988.093,
+        "yawDeg": -20,
+        "pitchDeg": 58
+      }
+    },
+    {
+      "id": "horizon-h4",
+      "modelBytes": 39200331,
+      "modelSha256": "04e3aaf70ff080f6427a021c5c92f1110b318497827324bf06513509d8ca2b89",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "adfbe6d0684ba75b670d4f2cf97c92ce2e1c25798f00a5bef8659f2f112e1306",
+      "camera": {
+        "target": [
+          114.5449,
+          0,
+          237.1111
+        ],
+        "distance": 2798.498,
+        "yawDeg": -38,
+        "pitchDeg": 24
+      }
+    },
+    {
+      "id": "linen-t2-toaster",
+      "modelBytes": 4121193,
+      "modelSha256": "f0d848e35bd9a15d51a4932ed961af30f2144bd5fd0a9c8ca2df88367f00759c",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "3aad6cafb2ad4265cbed726ee54f6b0a216b4da4937e6a04aef7bf371ed47d8d",
+      "camera": {
+        "target": [
+          9,
+          -2.5,
+          99.1
+        ],
+        "distance": 682.58,
+        "yawDeg": 55,
+        "pitchDeg": 29
+      }
+    },
+    {
+      "id": "arc-soap-mold-cam",
+      "modelBytes": 4582216,
+      "modelSha256": "af06a01d033784eff75c3eb693d580339c9d2e9de14735bf0c25735c5d11836f",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "e75ef84a9167f18c3b361e097ded6f9e734fa3ca53a984712df63f096b84da16",
+      "camera": {
+        "target": [
+          95,
+          -47.5,
+          17
+        ],
+        "distance": 695.692,
+        "yawDeg": 22,
+        "pitchDeg": 52
+      }
+    },
+    {
+      "id": "serein-s1-phone",
+      "modelBytes": 6930040,
+      "modelSha256": "d11d2035e2664b444c19e4400d0fe344c59907144f04f150f4013f3315a371e6",
+      "previewSize": [
+        810,
+        456
+      ],
+      "previewSha256": "dba5117c78d0beb4fae5f13c22ea859ac3ce726fdd83f44f3b18afc5fb566515",
+      "camera": {
+        "target": [
+          0,
+          0,
+          3.0625
+        ],
+        "distance": 302.98,
+        "yawDeg": 15,
+        "pitchDeg": 65
+      }
+    }
+  ],
+  "observatoryAssembly": {
+    "components": 116,
+    "grounded": 1,
+    "valid": true,
+    "saveReopened": true,
+    "sha256": "826915dd46494555f81f1efd5e78e33c1a1d805b766ff934194a90f2455fd932",
+    "bytes": 32752358
+  },
+  "observatoryComparison": "All 116 native volumes, bounds and face counts match the earlier verified design; appearance fields unchanged. Native save reserializes BREP along with added component metadata.",
+  "routerBed": [
+    600,
+    400
+  ],
+  "routerPlan": "Inventory and proposed manufacturing groups only; no new observatory CAM or G-code",
+  "publication": "Prepared locally on the requested branch; not pushed or merged",
+  "tests": {
+    "UnitGallery": {
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "notExecuted": 0
+    },
+    "HeadlessGallery": {
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "notExecuted": 0
+    },
+    "initialHeadlessFinding": "GAL-H007 assumed an existing CAM card stayed in the collapsed first three. Updated to verify CAM membership and Show all visibility; final 11 cases passed. No gallery product behavior changed."
+  }
+}

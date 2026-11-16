@@ -178,6 +178,8 @@ def finish():
     assert not bad,bad
     cad.call('select_tab',title='Solid');cad.call('view',yaw=32,pitch=25,fit=True,grid=False,display='shaded')
     cad.call('view',distance=540)
+    # Keep the design assembly separate from future manufacturing placements.
+    cad.run('make_part',slots={'Bodies':PARTS})
     model=ROOT/'gallery/models/maple-observatory.prism';cad.save(str(model))
     cad.call('file',action='open',path=str(model));cad.call('view',yaw=32,pitch=25,fit=True,grid=False,display='shaded');cad.call('view',distance=540)
     d.capture(OUT/'pavilion-front-quarter.png')

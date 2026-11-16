@@ -135,3 +135,9 @@ Owner-authorized 2026-11-16 ([#136](https://github.com/chrizpro/prism/issues/136
 ## Known roughing stock-top comparison issue
 
 Confirmed 2026-11-16 during the Arc soap mold study ([#138](https://github.com/chrizpro/prism/issues/138)): a tooling half rotated 180° had serialized stock top 26.00000000000001 mm. Entering a roughing top of 26 mm was refused by the strict stock-top comparison; 26.01 mm succeeded with all other settings unchanged. The saved gallery paths use the latter workaround. [Actual rejected/accepted preview evidence](../interface/gallery/evidence/modeling-bug-findings.json). This is an unresolved numerical comparison bug; no product fix or regression pass is claimed. Existing [CAM program coverage](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) remains unchanged.
+
+## Multi-part router jobs — proposed extension
+
+Owner requested planning the observatory's parts for a **600 × 400 mm** demo bed on 2026-11-16 ([#140](https://github.com/chrizpro/prism/issues/140)). Current named setups each bind one model body; 3D roughing/finishing and Stock Review use that body. Multiple 2D outlines can be machined, but shared-sheet multi-part stock review and assembly-linked bed layouts are not a complete supported workflow.
+
+Proposed for owner review ([#141](https://github.com/chrizpro/prism/issues/141)): linked part instances on a stock/fixture layout, quantities and labels, one named setup per physical bed load or flip, a common work zero, multi-body source freshness and stock review, operation ordering across parts, and separate posted programs/setup sheets. Manual placement should precede optional automatic nesting. No new product behavior or requirements tests are implemented by this proposal. The [observatory inventory and router work breakdown](../../gallery/extras/maple-observatory-router-plan.md) records fabrication decisions needed before toolpath generation.
