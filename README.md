@@ -134,6 +134,8 @@ After that, these are the directions we plan to take:
 | Area | Goal |
 | --- | --- |
 | **Add-on support** | A way to extend Prism with add-ons, which could eventually let users expand CAE, modeling and other areas themselves |
+| **Freeform modeling** | Substantially improve cage control, surface quality, shaping tools and the modeling workflow, including better feedback for people and AI assistants. [Roadmap discussion #139](https://github.com/chrizpro/prism/issues/139) |
+| **Advanced fillets and chamfers** | Substantially improve edge blends and corner transitions, including setback fillets, broader advanced controls and more robust results and failure diagnostics. Detailed options remain to be reviewed. [Roadmap discussion #139](https://github.com/chrizpro/prism/issues/139) |
 | **Large assemblies** | Work comfortably with assemblies of many parts: loading, display and editing that stay responsive as projects grow |
 | **Integrated engineering worksheets** | Bring equations, units, dependent parameters, plots and comparisons between study scenarios into Prism, connected to model parameters and CAE. This is a future direction after current-tool polish, with detailed scope still to be reviewed. [Roadmap discussion #121](https://github.com/chrizpro/prism/issues/121) |
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
