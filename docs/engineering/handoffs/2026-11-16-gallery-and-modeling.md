@@ -34,4 +34,4 @@ Earlier blank viewport captures were intermittent and were not reproduced during
 
 ## Publication
 
-Changes are committed locally, not pushed or merged. Catalog URLs target `develop`; new hosted downloads remain unavailable until the catalog and assets are published there. Keep publication separate from bug fixes and the owner's requested working branch.
+The feature branch was pushed through `fb3955e`. After the owner reported missing gallery downloads, a separate content publication commit **`1ede4c8`** was pushed to `develop`: all 36 catalog entries, referenced models/previews/extras and reproduction sources. No application implementation was merged from the feature branch. The small Gallery test maintenance change is included. Raw branch URLs may temporarily serve the previous catalog while GitHub caches expire; publication verification is recorded separately. Continue bug fixes on the owner's requested feature branch.
