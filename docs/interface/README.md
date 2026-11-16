@@ -14,6 +14,8 @@
 - [Sketch hotkeys](../sketch-hotkeys.md)
 - [All keyboard shortcuts](../../site/reference/hotkeys.md) (published at `/reference/hotkeys`; the catalogue is `Prism/Core/Hotkeys.cs`, so update the page when it changes). Owner direction 2026-11-09: Zoom Extents gets **F**, with Home kept as a second key; command search rows show each command's current key.
 - [Selection](selection/README.md)
+- **Zoom Selected** (owner request 2026-11-15, test HDL-H041): on the View tab, Zoom Extents is now a dropdown whose second choice, Zoom Selected, centres the selected bodies, faces or edges in every visible view and fills the window with them (never closer than a 10 mm box, so one corner point does not zoom in absurdly). It is also in the viewport right-click menu as "Zoom to selection" when something is selected. With nothing selected, or in a sketch, it says so in the status bar. No keyboard shortcut yet.
+- **Extrude arrow position** (HDL-H040/H042): the arrow stands on the middle of the profile that was picked, wherever it is: a closed shape, an open outline or a chain of edges. It used to jump to the origin for outlines with no surface.
 - [Home orientation](view-home/README.md)
 - [Inspect and Appearance](inspection/README.md)
 - [Feedback, bug and crash reporting](reporting/README.md)

@@ -374,7 +374,11 @@ public abstract partial class Command : ObservableObject
     protected static Vec3 CenterOf(Shape sh)
     {
         var m = sh.Tessellate(); var p = m.Positions;
-        if (p.Length < 3) return Vec3.Zero;
+        if (p.Length < 3)
+        {
+            // curves have no surface to measure: use the box around them, so an arrow or gizmo still stands on an open outline or a chain of edges
+            try { var pr = sh.Props(); return (pr.Min + pr.Max) * 0.5; } catch (Exception e) when (e is not OutOfMemoryException) { return Vec3.Zero; }
+        }
         double x0 = double.MaxValue, y0 = x0, z0 = x0, x1 = double.MinValue, y1 = x1, z1 = x1;
         for (int i = 0; i + 2 < p.Length; i += 3) { x0 = Math.Min(x0, p[i]); x1 = Math.Max(x1, p[i]); y0 = Math.Min(y0, p[i + 1]); y1 = Math.Max(y1, p[i + 1]); z0 = Math.Min(z0, p[i + 2]); z1 = Math.Max(z1, p[i + 2]); }
         return new Vec3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);

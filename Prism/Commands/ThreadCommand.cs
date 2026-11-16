@@ -32,11 +32,14 @@ public sealed class ThreadCommand : Command
         _offset = Num("Start this far in from the end", 0, 0, 100000, .5);
         _otherEnd = Check("Start at the other end", false);
         _leftHand = Check("Left-hand thread", false);
+        // Cutting a helix takes seconds (about 7 s for an M8 × 25 mm pin, a minute for a fine pitch) and the preview would redo it on every change, freezing the window:
+        // so the live preview starts off. OK always cuts the thread; tick Preview to see it first.
+        PreviewEnabled = false;
     }
 
     public override string Title => "Thread";
     public override string Icon => "hole";
-    public override string Hint => "Pick the round face of a bolt, pin or boss for an external thread, or the wall of a hole you already drilled for an internal one. The thread takes its size from the face: a pin's diameter is the thread's major diameter, and a hole's diameter is the tap drill. The pitch is the standard coarse one for that size, or type your own. The thread starts at the higher end of the face (tick Start at the other end to swap) and runs the length you set, the whole face by default.";
+    public override string Hint => "Pick the round face of a bolt, pin or boss for an external thread, or the wall of a hole you already drilled for an internal one. The thread takes its size from the face: a pin's diameter is the thread's major diameter, and a hole's diameter is the tap drill. The pitch is the standard coarse one for that size, or type your own. The thread starts at the higher end of the face (tick Start at the other end to swap) and runs the length you set, the whole face by default. Cutting a thread takes a few seconds, so the live preview is off: tick Preview to see it before you press OK, and expect a pause each time you change something.";
 
     protected override void UpdateVisibility() { _pitch.IsVisible = _pitchKind.Index == 1; }
 

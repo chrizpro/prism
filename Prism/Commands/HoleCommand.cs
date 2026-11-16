@@ -63,6 +63,8 @@ public sealed class HoleCommand : Command
             OnChanged();
         }
         _diameter.Changed = _pitch.Changed = DimensionsChanged;
+        // a modeled thread is a helical cut that takes seconds per hole: choosing it turns the live preview off (tick Preview to see it) so the window does not freeze
+        _type.Changed = () => { if (_type.Index == 1 && PreviewEnabled) { PreviewEnabled = false; S?.Say("Threaded holes take a few seconds to cut, so the live preview is off. Tick Preview to see the thread before OK."); } UpdateVisibility(); OnChanged(); };
     }
 
     public override string Title => "Hole";
@@ -307,8 +309,13 @@ public sealed class HoleCommand : Command
                 var body = S.Find(item.Obj);
                 if (body == null || body.Tri != null || !body.Shape.HasFaces) return [];
                 var (origin, x, direction) = Frame(body, item);
-                var list = new List<HandleSpec> { new(origin, x, _diameter, 2) };
-                if (_extent.Index == 1) list.Add(new HandleSpec(origin, direction, _depth));
+                // every hole in the list gets its own arrows: all holes share one diameter and depth, so pulling any hole's arrow resizes them all
+                var list = new List<HandleSpec>();
+                foreach (var at in Origins(body, item, origin))
+                {
+                    list.Add(new(at, x, _diameter, 2));
+                    if (_extent.Index == 1) list.Add(new HandleSpec(at, direction, _depth));
+                }
                 return list;
             }
             catch (Exception e) when (e is not OutOfMemoryException) { return []; }

@@ -1154,7 +1154,9 @@ public sealed partial class CadSession : ObservableObject
         _handleDrag = false;
         // Direct edits are plain undo steps unless the body they change has history tracking turned on.
         bool tracked = res.Replace.Any(r => r.Old.TrackHistory);
-        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked ? null : c.Capture();
+        // Moving, turning or scaling whole bodies does not depend on face numbers, so it is always recorded: editing an earlier feature (a component's size) must not drop where the parts were put.
+        bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
+        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
@@ -2435,6 +2437,49 @@ public sealed partial class CadSession : ObservableObject
         }
         else if (Layout == ViewLayout.Quad && MaximizedView is { } m && LinkViews) SyncViews(Cameras[m]);
         Invalidate();
+    }
+
+    /// <summary>The box around everything selected: whole bodies, or just the picked faces, edges and corner points. Null when nothing selected has a place in space.</summary>
+    public (Vec3 min, Vec3 max)? SelectionBounds()
+    {
+        var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo; bool any = false;
+        void Add(Vec3 p)
+        {
+            lo = new(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); any = true;
+        }
+        foreach (var it in Selection)
+        {
+            var o = Find(it.Obj); if (o == null) continue;
+            switch (it.Kind)
+            {
+                case SelKind.Face:
+                    var m = o.Mesh;
+                    if (it.Index + 1 >= m.FaceTriStart.Length) { Add(m.Min); Add(m.Max); break; }
+                    for (int t = m.FaceTriStart[it.Index]; t < m.FaceTriStart[it.Index + 1]; t++)
+                        for (int k = 0; k < 3; k++) { int a = m.Indices[3 * t + k] * 3; Add(new Vec3(m.Positions[a], m.Positions[a + 1], m.Positions[a + 2])); }
+                    break;
+                case SelKind.Edge: foreach (var p in EdgePoints(it)) Add(p); break;
+                case SelKind.Vertex: if (VertexPoint(it) is { } v) Add(v); break;
+                default: Add(o.Mesh.Min); Add(o.Mesh.Max); break;
+            }
+        }
+        return any ? (lo, hi) : null;
+    }
+
+    /// <summary>Bring what is selected to the middle of every visible view, filling it as Zoom Extents fills the whole model.</summary>
+    public bool ZoomSelection()
+    {
+        if (Sketch != null) { Say("Zoom Selected works on bodies, faces and edges. Zoom Extents fits the sketch.", true); return false; }
+        if (SelectionBounds() is not { } b) { Say("Select something first, then zoom to it. Zoom Extents fits everything.", true); return false; }
+        var (lo, hi) = b;
+        // a lone corner point or a hair-thin edge would zoom in absurdly far: keep at least a 10 mm box
+        var mid = (lo + hi) * 0.5; var half = new Vec3(Math.Max((hi.X - lo.X) / 2, 5), Math.Max((hi.Y - lo.Y) / 2, 5), Math.Max((hi.Z - lo.Z) / 2, 5));
+        var keep = Camera;
+        foreach (var c in VisibleCameras.ToList()) { Camera = c; Camera.Fit(mid - half, mid + half); Camera.Distance *= 1.15; }
+        Camera = keep;
+        if (VisibleViews > 1 && LinkViews) { double d = VisibleCameras.Max(c => c.Distance); foreach (var c in VisibleCameras) c.Distance = d; }
+        Invalidate();
+        return true;
     }
 
     void ZoomExtentsActive()

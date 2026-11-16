@@ -311,6 +311,7 @@ public static partial class ToolHelp
         "home-set" => Display(icon, "Set Home", "Make the current view the home view, and turn Front, Top, Right and the view cube to match it. Orbit until the part sits the way you want, then choose Set Home. Afterwards this button becomes Reset Home, which puts the original orientation back."),
         "home-reset" => Display(icon, "Reset Home", "Put the part back on its own axes, as it was modeled, and look at it from the stock home view."),
         "zoom-extents" => Display(icon, "Zoom Extents", "Fit everything in the window."),
+        "zoom-selected" => Display(icon, "Zoom Selected", "Bring the selected bodies, faces or edges to the middle of the window and fill it with them."),
         "look-at" => Display(icon, "Look At", "Look straight at the selected plane, face or sketch."),
         "grid" => Display(icon, "Grid", "Show the construction grid."),
         "visibility-off" => new(icon, "Hide", "Hide the selected objects. Show All brings them back.", "Three bodies", "The selected one hidden",
