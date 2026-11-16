@@ -25,6 +25,26 @@ public class DocumentTabTests
         Assert.True(await vm.CloseAllTabsAsync(true, _ => Task.FromResult(DocumentCloseDecision.Discard), target));
         Assert.Single(vm.Documents); Assert.Same(target, vm.Documents[0]); Assert.True(target.Session.Dirty);
     }
+    [AvaloniaFact(DisplayName = "TAB-H020 | The tab's × asks Save / Don't save / Cancel once for a changed tab, and closes a clean tab without asking")]
+    [Trait("TestId", "TAB-H020")]
+    public async Task CloseButtonAsksOnceForChangedTabs()
+    {
+        var vm = new MainViewModel(); var first = vm.ActiveDocument!;
+        var changed = vm.NewDocumentTab();
+        changed.Session.AddObject(Occ.Box(1, 1, 1), "Part", ObjKind.Solid);
+        int asked = 0;
+        Assert.False(await vm.CloseDocumentWithPromptAsync(changed, _ => { asked++; return Task.FromResult(DocumentCloseDecision.Cancel); }));
+        Assert.Equal(1, asked); Assert.Contains(changed, vm.Documents);          // Cancel keeps the tab, and one click asked once (no "press × again")
+        Assert.True(await vm.CloseDocumentWithPromptAsync(changed, _ => { asked++; return Task.FromResult(DocumentCloseDecision.Discard); }));
+        Assert.Equal(2, asked); Assert.DoesNotContain(changed, vm.Documents);      // Don't save closes it in that one answer
+
+        Assert.False(vm.Documents.Any(MainViewModel.NeedsCloseDecision));
+        var clean = vm.NewDocumentTab();
+        Assert.True(await vm.CloseDocumentWithPromptAsync(clean, _ => { asked++; return Task.FromResult(DocumentCloseDecision.Cancel); }));
+        Assert.Equal(2, asked); Assert.DoesNotContain(clean, vm.Documents);        // nothing to lose: no question
+        Assert.Contains(first, vm.Documents);
+    }
+
     [AvaloniaFact(DisplayName = "TAB-H002 | Close All saves dirty tabs and retains them when Save As is canceled")]
     [Trait("TestId", "TAB-H002")]
     public async Task CloseAllSavesOrStopsWhenSaveAsCanceled()
