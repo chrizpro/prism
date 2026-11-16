@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "desktopSource": "c9a5773",
+  "screenshot": [
+    {
+      "viewport": true,
+      "width": 904,
+      "height": 592,
+      "bytes": 288245
+    },
+    {
+      "viewport": false,
+      "width": 1000,
+      "height": 613,
+      "bytes": 314066
+    }
+  ],
+  "roughingAt26": {
+    "title": "CNC 3D Rough",
+    "values": {
+      "Tool from the library": "Custom (my own values)",
+      "Tool diameter": 6,
+      "Spindle speed": 12000,
+      "Cutting feed": 650,
+      "Plunge feed": 180,
+      "Depth per pass": 2,
+      "Clearance above the material": 8,
+      "Top of the material (Z)": 26,
+      "Total cutting depth": 14,
+      "Roughing stepover": 55,
+      "Stock to leave": 0.4
+    },
+    "slots": {
+      "Model to rough": [
+        "B - upper detail cavity"
+      ]
+    },
+    "results": [],
+    "error": "Roughing top must be at or above stock top, and the final depth must stay within stock bounds.",
+    "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+  },
+  "roughingAt26_01": {
+    "title": "CNC 3D Rough",
+    "values": {
+      "Tool from the library": "Custom (my own values)",
+      "Tool diameter": 6,
+      "Spindle speed": 12000,
+      "Cutting feed": 650,
+      "Plunge feed": 180,
+      "Depth per pass": 2,
+      "Clearance above the material": 8,
+      "Top of the material (Z)": 26.01,
+      "Total cutting depth": 14,
+      "Roughing stepover": 55,
+      "Stock to leave": 0.4
+    },
+    "slots": {
+      "Model to rough": [
+        "B - upper detail cavity"
+      ]
+    },
+    "results": [
+      "Roughing runs: 173",
+      "Stock to leave: 0.4 mm",
+      "Cutting path: 12,643 mm",
+      "Rapid moves: 9,494 mm",
+      "Machining time: about 32.3 min"
+    ],
+    "error": null,
+    "note": "Brief view. get_state (or run_command with commit:false) lists every parameter with its type, options and the action buttons."
+  },
+  "roughingSavedSetup": {
+    "Name": "B - Arc soap cavity up",
+    "BodyId": "74b38a4b-3248-4969-a141-4f710d9eb6e0",
+    "ShapeSignature": "619E5178E0774E3FF7CA986A26D503CFF748D85D63B7D30B1839624A50199668",
+    "StockMin": [
+      115,
+      -55.00000000000001,
+      -7.105427357601002e-15
+    ],
+    "StockMax": [
+      265,
+      55,
+      26.00000000000001
+    ],
+    "WorkZero": [
+      115,
+      -55.00000000000001,
+      26.00000000000001
+    ],
+    "ToolDiameter": 6,
+    "Feed": 650,
+    "Plunge": 180,
+    "Rpm": 12000,
+    "Clearance": 8
+  },
+  "earlierBlankCaptures": []
+}

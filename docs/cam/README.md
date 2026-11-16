@@ -131,3 +131,7 @@ Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 59
 ## Arc soap mold CAM demonstration
 
 Owner-authorized 2026-11-16 ([#136](https://github.com/chrizpro/prism/issues/136)): the [Arc soap tooling study](../interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study) has two cavity-up +Z setups, each with facing, registration-hole peck drilling, raster roughing and ball-nose finishing. Both saved setup/source reviews accepted their four paths after reopen. Sampled stock review completed with zero reported gouges, rapid contacts or holder contacts at the documented grids; conservative finishing material remains around small details. The gallery guide records exact review settings, native files and actual Prism screenshots. No physical machining, renderer or test suite was run, and no CAM behavior changed.
+
+## Known roughing stock-top comparison issue
+
+Confirmed 2026-11-16 during the Arc soap mold study ([#138](https://github.com/chrizpro/prism/issues/138)): a tooling half rotated 180° had serialized stock top 26.00000000000001 mm. Entering a roughing top of 26 mm was refused by the strict stock-top comparison; 26.01 mm succeeded with all other settings unchanged. The saved gallery paths use the latter workaround. [Actual rejected/accepted preview evidence](../interface/gallery/evidence/modeling-bug-findings.json). This is an unresolved numerical comparison bug; no product fix or regression pass is claimed. Existing [CAM program coverage](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) remains unchanged.
