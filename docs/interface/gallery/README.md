@@ -119,3 +119,10 @@ Actual new-study viewport evidence: [Atelier table](evidence/atelier-table-viewp
 ## Open decisions and limits
 
 Community submissions, ratings, accounts and assembly insertion from online cards are future proposals. No automatic replacement of a user's working copy. GitHub availability is needed for uncached downloads; a separate library repository or release assets can be adopted as the collection grows.
+
+
+## November 16 gallery publication correction
+
+Owner reported that the feature-branch work did not appear in the app. GalleryStore fetches its catalog from `develop`, so pushing the feature branch alone did not publish the examples. This content-only update publishes all 36 catalog entries and their models, previews, extras and reproduction sources at the existing live URLs. No application implementation is merged from the feature branch. The seven latest previews are actual Prism studio renders at 1280 × 720, 96 samples, six bounces and final denoising; earlier models retain their reviewed renders. The observatory includes its 116-component assembly and proposed 600 × 400 mm router inventory/work breakdown, not new building G-code. Related delivery: [#140](https://github.com/chrizpro/prism/issues/140).
+
+The Gallery membership test is maintained to check CAM membership and Show all rather than requiring an older model in the first three collapsed cards. This preserves the existing grouping behavior as the catalog grows. Publication verification checks the public catalog and actual hosted file bytes/hashes; results are recorded in the issue.
