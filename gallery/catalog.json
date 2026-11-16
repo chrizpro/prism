@@ -2,6 +2,32 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "walnut-valet",
+      "Name": "Walnut valet tray",
+      "Description": "Bitmap-textured walnut with three flowing pockets, carved fan grooves, four saved CNC operations and stock-removal review.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 13895017,
+      "Sha256": "6f0e3015669b78f643ad6cd3d7b0e508387281129e7ddb61cf47bf4067f076fb",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/walnut-valet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/walnut-valet.png?v=46fbb38543fc841a"
+    },
+    {
+      "Id": "ridge-all-terrain",
+      "Name": "Ridge all-terrain wheel",
+      "Description": "160 patterned tread blocks with modeled sipes, a silver six split-spoke wheel, machined lip and six recessed lug nuts.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 49621935,
+      "Sha256": "01ec5e69d03e5b68bb6368e6c0e6ccd14248a70d338320be7af10c47ff705757",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/ridge-all-terrain.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/ridge-all-terrain.png?v=d8afb6f988529552"
+    },
+    {
       "Id": "arc-desk-lamp",
       "Name": "Arc desk lamp",
       "Description": "A rolled, slotted and hemmed shade on a stepped support and folded plinth. Four sheet-metal developments are retained.",
