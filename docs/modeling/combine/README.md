@@ -17,6 +17,8 @@ An open surface does not need to be closed by hand to cut with. Two extruded rec
 
 ## Review and verification
 
+**Known issue under investigation (2026-11-16, [#134](https://github.com/chrizpro/prism/issues/134)):** the existing `c9a5773` desktop host reported an extruded airfoil increasing from 43693.2016 to 47316.4706 mm³ after Intersect with a clipping prism, while both results reported valid and retained the same bounding size. The cause may involve geometry, mass properties or measurement reuse; it has not been established. No Boolean fix or new regression result is claimed by the model-only gallery delivery that exposed this report. The issue records the reproduction geometry and relevant existing test coverage.
+
 This guide describes observed behavior. [Tracking issue #28](https://github.com/chrizpro/prism/issues/28).
 
 - [Maintained headless coverage](../../../Prism.Tests/Headless/Solid/CombineTests.cs)

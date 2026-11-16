@@ -136,11 +136,11 @@ def finish(assembled=False):
     cad.call('wait_idle',timeout_ms=5000)
     cad.call('workspace',id='assemble')
     cad.call('select_tab',title='Assemble')
-    cad.call('view',yaw=-25,pitch=17,fit=True,grid=False,display='shaded');cad.call('view',distance=1550)
+    cad.call('view',yaw=-38,pitch=24,fit=True,grid=False,display='shaded');cad.call('view',distance=1600)
     cad.save(str(MODEL));cad.call('file',action='open',path=str(MODEL))
     cad.call('wait_idle',timeout_ms=5000)
     cad.call('workspace',id='assemble');cad.call('select_tab',title='Assemble')
-    cad.call('view',yaw=-25,pitch=17,fit=True,grid=False,display='shaded');cad.call('view',distance=1550)
+    cad.call('view',yaw=-38,pitch=24,fit=True,grid=False,display='shaded');cad.call('view',distance=1600)
     cad.call('wait_idle',timeout_ms=5000)
     info=[r['result'] for r in cad.call('batch',calls=[dict(tool='object_info',args=dict(object=n)) for n in PARTS])]
     assert all(r['valid'] and r['volume']>0 for r in info),[(r['name'],r['valid']) for r in info]
@@ -154,10 +154,6 @@ def finish(assembled=False):
     print('Finished helicopter:',len(info),'valid assembly components',flush=True)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--discovery',default=str(ROOT/'artifacts/guitar-v2/automation.json'));a=parser.parse_args()
-    OUT.mkdir(parents=True,exist_ok=True);d.OUT=OUT
-    b,l=d.connect(a.discovery)
-    try:
-        cad.call('document_new')
-        cabin();tail();gear();rotor();finish()
-    finally:b.terminate();b.wait(timeout=10);l.close()
+    # Keep this entry point on the current owner-requested exterior revision.
+    import runpy
+    runpy.run_module('refine_helicopter',run_name='__main__')
