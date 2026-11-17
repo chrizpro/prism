@@ -1089,9 +1089,26 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
     protected override double[]? LiveValues(CadSession s, SnapInfo h) { if (Clicks.Count == 0) return null; var (l, g) = Polar((Clicks[^1].U, Clicks[^1].V), h); return [l, g]; }
     protected override SnapInfo? TypedPoint(CadSession s, SnapInfo h, double[] v) => Clicks.Count == 0 ? null : PolarPoint((Clicks[^1].U, Clicks[^1].V), h, v[0], v[1]);
 
+    /// <summary>How close (in screen pixels) the pointer must be to the first point for the next click to close the spline. A little wider than a point snap so it is easy to hit.</summary>
+    const double CloseRadiusPixels = 12;
+
+    /// <summary>True when a fit-point spline of at least three points could be closed by a click at this spot: the pointer is near the first point placed.</summary>
+    bool NearFirst(CadSession s, SnapInfo sn)
+    {
+        if (_carried != null || controlPoints || Clicks.Count < 3) return false;
+        double pixel = s.Camera.PixelSizeAt(Sk(s).Plane.PointAt(Clicks[0].U, Clicks[0].V));
+        return Dist(sn.U, sn.V, Clicks[0].U, Clicks[0].V) < CloseRadiusPixels * pixel;
+    }
+
+    /// <summary>Near the first point, the pointer is pulled onto it, however that first point was placed (free in the sketch or on existing geometry).</summary>
+    protected override SnapInfo Constrain(CadSession s, SnapInfo sn) => NearFirst(s, sn) ? Clicks[0] : base.Constrain(s, sn);
+
+    bool Closing => Hot is { } h && _carried == null && !controlPoints && Clicks.Count >= 3 && Dist(h.U, h.V, Clicks[0].U, Clicks[0].V) < 1e-6;
+    protected override string? Inference(CadSession s, SnapInfo hot) => Closing ? "Click to close the spline" : null;
+
     protected override void Click(CadSession s, SketchContext sk, SnapInfo sn)
     {
-        if (_carried == null && !controlPoints && Clicks.Count >= 3 && sn.Kind == SnapKind.Point && Clicks[0].Kind == SnapKind.Point && sn.Id == Clicks[0].Id) { Commit(s, true); return; }
+        if (_carried == null && !controlPoints && Clicks.Count >= 3 && Dist(sn.U, sn.V, Clicks[0].U, Clicks[0].V) < 1e-6) { Commit(s, true, lastRepeatsFirst: false); return; }       // the closing click is not stored, so no point is dropped
         if (Clicks.Count > 0 && Dist(Clicks[^1].U, Clicks[^1].V, sn.U, sn.V) < 1e-6) return;
         if (Clicks.Count == 0 && _carried != null && sk.WorldOf(sn).DistanceTo(sk.WorldIn(_home, _carried[^1])) < 1e-6) return;   // the shared point is already placed
         Clicks.Add(sn);
@@ -1168,10 +1185,12 @@ public sealed class SplineTool(bool controlPoints) : ClickTool
         foreach (var c in Clicks) o.AddDot(W(sk, c.U, c.V), 0xFF4C94FF, 8);
         if (_carried != null) { CarriedOverlay(s, sk, o); return; }
         if (Clicks.Count == 0 || Hot is not { } h) return;
-        var all = Clicks.Select(c => (c.U, c.V)).ToList(); all.Add((h.U, h.V));
+        bool closing = Closing;
+        if (closing) o.AddDot(W(sk, Clicks[0].U, Clicks[0].V), 0xFFFFC53D, 14);       // the first point lights up: a click here closes the loop
+        var all = Clicks.Select(c => (c.U, c.V)).ToList(); if (!closing) all.Add((h.U, h.V));
         if (all.Count < 3) { o.AddLine(W(sk, all[0].U, all[0].V), W(sk, all[1].U, all[1].V), Rubber, 2f); return; }
         var tmp = new SketchModel(); var ids = all.Select(p => tmp.AddPoint(p.U, p.V)).ToList();
-        int eid = tmp.AddSpline(ids, false, controlPoints);
+        int eid = tmp.AddSpline(ids, closing, controlPoints);
         var e = tmp.Entities.First(x => x.Id == eid);
         o.AddPolyline(tmp.SplineSamples(e).Select(q => W(sk, q.x, q.y)).ToList(), Rubber, 2f);
         if (SketchContext.ShowCurvature && all.Count >= 3)
