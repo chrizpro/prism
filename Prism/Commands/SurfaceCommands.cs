@@ -228,6 +228,13 @@ public sealed class SewCommand : Command
             catch (KernelException) { Results.Add(new ResultLine("Merge", "the faces could not be merged, so they stay stitched", 2)); }
             Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         }
+        if (_solid.Value && !res.HasSolids)
+        {
+            int free = 0; try { free = Occ.FreeEdges(res).Length; } catch (KernelException) { }
+            Results.Add(new ResultLine("Not a solid", free > 0
+                ? $"{free} edge{(free == 1 ? " is" : "s are")} still open, so the result stays a surface. Raise Tolerance if the gaps are tiny, or add the missing surface."
+                : "the joined faces do not enclose a single closed volume, so the result stays a surface.", 2));
+        }
         var o = new CommandOutput();
         if (!_keep.Value) o.Remove.AddRange(objs);
         o.Add.Add(new(res, res.HasSolids ? "Body" : "Knit"));

@@ -39,6 +39,7 @@ public sealed class BoundarySurfaceCommand : Command
     {
         _boundary = Slot(new SelectionSlot { Label = "Boundary", Filter = SelFilter.Edge | SelFilter.AnyCurve | SelFilter.SurfaceObj, Multi = true, SelectionRuleIndex = 1 });
         _guides = Slot(new SelectionSlot { Label = "Guide curves", Filter = SelFilter.AnyCurve | SelFilter.Edge, Multi = true, Optional = true, SelectionRuleIndex = 1 });
+        // the five intents in a compact dropdown, like Fill with below it (owner, 2026-11-16: the buttons took too much room); Automatic stays the default and guesses from what you pick
         _mode = Choice("Mode", 0, "Automatic", "Fill boundary", "Edge: span two to four curves", "Blend: bridge two surface edges", "Network: outline and curves across");
         _join = Check("Join the patch to the boundary surfaces (closes into a solid when it can)", true); _join.Section = "Join";
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01); _tol.Section = "Join";
@@ -78,6 +79,16 @@ public sealed class BoundarySurfaceCommand : Command
         if (_full == null || S == null) return;
         SyncItemParams();
         int mode = _mode.Index;
+        // each intent names its own picks, and only offers the ones that make sense for it (items already picked keep their pick visible)
+        (_boundary.Caption, _guides.Caption) = mode switch
+        {
+            1 => ("Edges or curves around the opening", "Curves inside the opening (optional)"),
+            2 => ("Two to four curves that meet end to end", null),
+            3 => ("One open edge on each of two surfaces", null),
+            4 => ("Outline curves (a closed loop)", "Curves across the surface"),
+            _ => ((string?)null, (string?)null),
+        };
+        _guides.IsVisible = mode is 0 or 1 or 4 || _guides.Items.Count > 0;
         bool blend = IsBlend(), inside = _guides.Items.Count > 0 || mode == 4;
         _fill.IsVisible = mode is 0 or 1 && !blend && !inside;
         _full.IsVisible = blend || mode == 3;
@@ -199,6 +210,14 @@ public sealed class BoundarySurfaceCommand : Command
             if (flat is { HasFaces: true }) return flat;
             if (_fill.Index == 1) throw new FormatException("The curves do not form a closed flat loop. Choose Smooth surface for a bent boundary.");
         }
+        // Automatic means "flat if the loop is flat" for surface edges too: an opening whose edges all lie in one plane is capped flat.
+        // Asking a plate fill for tangent edges there balloons the patch (a box-like tube's walls meet its opening at 90 degrees), so the
+        // continuity settings apply only when Smooth surface is chosen.
+        if (_fill.Index == 0 && guides.Count == 0 && f.Hosts.Count > 0 && FlatPatch(f) is { } cap)
+        {
+            Results.Add(new ResultLine("Fill", "the opening is flat, so it is capped flat; choose Smooth surface for a tangent cap"));
+            return cap;
+        }
         // Pure curve boundaries keep the proven Edge Surface behaviour (ruled / Coons); everything else uses the plate fill.
         if (_mode.Index != 1 && f.Hosts.Count == 0 && f.Free.Count is >= 2 and <= 4 && guides.Count == 0)
             return Occ.EdgeSurface(f.Free);
@@ -213,6 +232,25 @@ public sealed class BoundarySurfaceCommand : Command
             }
         }
         return Occ.BoundaryFill(f.Hosts, f.Ids.ToArray(), f.Orders.ToArray(), f.Weights.ToArray(), f.Free, guides);
+    }
+
+    /// <summary>A flat face over the outline when every edge of it (surface edges and free curves) lies in one plane; null otherwise.</summary>
+    Shape? FlatPatch(FillReq f)
+    {
+        try
+        {
+            var outline = f.Free.Concat(f.Hosts.Select((h, i) => h.Sub(SubKind.Edge, f.Ids[i]))).ToList();
+            var pts = Occ.CurveSamples(Occ.Compound(outline), 24, 256).SelectMany(e => e.Select(x => x.p)).ToList();
+            if (pts.Count < 3) return null;
+            var c = pts.Aggregate(Vec3.Zero, (a, p) => a + p) / pts.Count; var n = Vec3.Zero;
+            for (int i = 1; i < pts.Count; i++) n += Vec3.Cross(pts[i - 1] - c, pts[i] - c);
+            if (n.Length < 1e-9) return null;
+            n = n.Normalized(); double extent = pts.Max(p => (p - c).Length);
+            if (!pts.All(p => Math.Abs(Vec3.Dot(p - c, n)) < 1e-4 * Math.Max(extent, 1))) return null;
+            var face = Occ.Profile(outline, true);
+            return face is { HasFaces: true } ? face : null;
+        }
+        catch (KernelException) { return null; }
     }
 
     /// <summary>A surface that follows the outline exactly and passes close to points sampled on the inside curves.</summary>

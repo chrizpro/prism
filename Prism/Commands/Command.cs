@@ -74,6 +74,8 @@ public sealed partial class ChoiceParam : Param
 {
     public bool IsIllustrated { get; init; }
     public bool IsAngular { get; init; }
+    /// <summary>With <see cref="IsIllustrated"/>: the icon drawn on each option's button, by option text.</summary>
+    public Func<string, string>? OptionIcons { get; init; }
     public IReadOnlyList<string> Options { get; init; } = [];
     [ObservableProperty] public partial int Index { get; set; }
     bool _silent;
@@ -113,7 +115,11 @@ public sealed partial class SelectionSlot : ObservableObject
         if (ChainStart != null && ChainEnd != null) { PathNeedsUpdate = true; Changed?.Invoke(); }
     }
     public string Label { get; init; } = "";
-    public string? Caption { get; init; }
+    /// <summary>What the panel calls this pick. Scripts and saved steps still find the slot by <see cref="Label"/>; a command may change the caption as its mode changes.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
+    [NotifyPropertyChangedFor(nameof(PickerLabel))]
+    public partial string? Caption { get; set; }
     public string DisplayLabel => Caption ?? Label;
     public SelFilter Filter { get; set; } = SelFilter.AnyObject;
     public bool Multi { get; init; }
