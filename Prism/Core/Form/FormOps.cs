@@ -43,14 +43,17 @@ public static class FormOps
     }
 
     /// <summary>"Quadball": a cube projected onto a sphere. All faces are quads.</summary>
-    public static SubdMesh Sphere(double r, int n)
+    public static SubdMesh Sphere(double r, int n) => Sphere(r, n, n, n);
+
+    /// <summary>A quadball with its own face count in each direction (nx, ny, nz faces from one side of the cube to the other), so one direction can carry more points than another.</summary>
+    public static SubdMesh Sphere(double r, int nx, int ny, int nz)
     {
         var m = new SubdMesh();
         var e = 2.0;
-        void Face(Vec3 o, Vec3 u, Vec3 v) => AddGrid(m, o, u * e, v * e, n, n);
-        Face(new(-1, -1, 1), Vec3.UnitX, Vec3.UnitY); Face(new(-1, -1, -1), Vec3.UnitY, Vec3.UnitX);
-        Face(new(1, -1, -1), Vec3.UnitY, Vec3.UnitZ); Face(new(-1, -1, -1), Vec3.UnitZ, Vec3.UnitY);
-        Face(new(-1, 1, -1), Vec3.UnitZ, Vec3.UnitX); Face(new(-1, -1, -1), Vec3.UnitX, Vec3.UnitZ);
+        void Face(Vec3 o, Vec3 u, Vec3 v, int nu, int nv) => AddGrid(m, o, u * e, v * e, nu, nv);
+        Face(new(-1, -1, 1), Vec3.UnitX, Vec3.UnitY, nx, ny); Face(new(-1, -1, -1), Vec3.UnitY, Vec3.UnitX, ny, nx);
+        Face(new(1, -1, -1), Vec3.UnitY, Vec3.UnitZ, ny, nz); Face(new(-1, -1, -1), Vec3.UnitZ, Vec3.UnitY, nz, ny);
+        Face(new(-1, 1, -1), Vec3.UnitZ, Vec3.UnitX, nz, nx); Face(new(-1, -1, -1), Vec3.UnitX, Vec3.UnitZ, nx, nz);
         m.WeldByDistance(1e-6);
         // spherify with a gentle correction so cells stay evenly sized
         for (int i = 0; i < m.V.Count; i++)
@@ -63,7 +66,8 @@ public static class FormOps
         return m;
     }
 
-    public static SubdMesh Cylinder(double r, double h, int seg, int rings, bool caps = true)
+    /// <param name="capRings">How many concentric rings of faces each cap is divided into before the middle face (0 keeps each cap a single face, as it always was).</param>
+    public static SubdMesh Cylinder(double r, double h, int seg, int rings, bool caps = true, int capRings = 0)
     {
         var m = new SubdMesh();
         for (int j = 0; j <= rings; j++)
@@ -79,6 +83,29 @@ public static class FormOps
         {
             m.F.Add(Enumerable.Range(0, seg).Select(i => Id(i, rings)).ToArray());          // top (CCW from +Z)
             m.F.Add(Enumerable.Range(0, seg).Select(i => Id(seg - 1 - i, 0)).ToArray());   // bottom
+            if (capRings > 0)
+            {
+                // divide each cap: rings of the same number of points, shrinking toward the middle, joined by quads, with the innermost ring left as the middle face
+                m.F.RemoveRange(m.F.Count - 2, 2);
+                foreach (bool top in new[] { true, false })
+                {
+                    int[] previous = Enumerable.Range(0, seg).Select(i => Id(i, top ? rings : 0)).ToArray();
+                    double z = top ? h : 0;
+                    for (int t = 1; t <= capRings; t++)
+                    {
+                        double radius = r * (capRings + 1 - t) / (capRings + 1);
+                        var ring = new int[seg];
+                        for (int i = 0; i < seg; i++) { double a = 2 * Math.PI * i / seg; ring[i] = m.V.Count; m.V.Add(new(radius * Math.Cos(a), radius * Math.Sin(a), z)); }
+                        for (int i = 0; i < seg; i++)
+                        {
+                            int j = (i + 1) % seg;
+                            m.F.Add(top ? [previous[i], previous[j], ring[j], ring[i]] : [previous[j], previous[i], ring[i], ring[j]]);      // counter-clockwise seen from outside
+                        }
+                        previous = ring;
+                    }
+                    m.F.Add(top ? previous : previous.Reverse().ToArray());
+                }
+            }
         }
         return m;
     }
@@ -666,8 +693,33 @@ public static class FormOps
     }
 
     /// <summary>Caps every open boundary loop with one polygon (facing the same way as its neighbours). Returns how many holes were filled.</summary>
-    public static int FillHoles(SubdMesh m)
+    /// <summary>
+    /// Sharpen every edge where two faces meet at more than <paramref name="angleDeg"/> degrees (a box's edges, a cylinder's cap rims), so smoothing does not round them off.
+    /// Edges between faces that bend gently, and open border edges, are left alone. Returns how many edges were sharpened.
+    /// </summary>
+    public static int CreaseFeatureEdges(SubdMesh m, double angleDeg = 70, double sharpness = 5)
     {
+        Vec3 Normal(int f)
+        {
+            var face = m.F[f]; var n = Vec3.Zero;
+            for (int i = 0; i < face.Length; i++) { var a = m.V[face[i]]; var b = m.V[face[(i + 1) % face.Length]]; n += new Vec3((a.Y - b.Y) * (a.Z + b.Z), (a.Z - b.Z) * (a.X + b.X), (a.X - b.X) * (a.Y + b.Y)); }
+            return n.Normalized();
+        }
+        double limit = Math.Cos(angleDeg * Math.PI / 180); int count = 0;
+        foreach (var (key, faces) in m.Topo().EdgeFaces)
+            if (faces.Count == 2 && Vec3.Dot(Normal(faces[0]), Normal(faces[1])) < limit) { m.Crease[key] = sharpness; count++; }
+        return count;
+    }
+
+    public static int FillHoles(SubdMesh m) => FillHoles(m, null, out _);
+
+    /// <summary>
+    /// Cap open borders. With <paramref name="near"/>, only the holes whose rim touches one of those points are filled (a hole far from what you selected is left alone);
+    /// <paramref name="found"/> is how many holes the form has altogether, so a caller can say "there are holes, but not here".
+    /// </summary>
+    public static int FillHoles(SubdMesh m, ISet<int>? near, out int found)
+    {
+        var rims = new List<int[]>();
         var directed = new HashSet<(int, int)>();
         foreach (var f in m.F) for (int i = 0; i < f.Length; i++) directed.Add((f[i], f[(i + 1) % f.Length]));
         var next = new Dictionary<int, List<int>>();
@@ -685,9 +737,15 @@ public static class FormOps
                 if (cur == start) break;
                 if (loop.Count > 100000) { loop.Clear(); break; }
             }
-            if (loop.Count >= 3) { m.F.Add(loop.ToArray()); filled++; }
+            if (loop.Count >= 3) rims.Add(loop.ToArray());
             else foreach (var k in next.Keys.Where(k => next[k].Count == 0).ToList()) next.Remove(k);
             if (loop.Count == 0 && next.Count > 0 && next.Values.All(v => v.Count == 0)) break;
+        }
+        found = rims.Count;
+        foreach (var rim in rims)
+        {
+            if (near != null && !rim.Any(near.Contains)) continue;      // not at what was selected
+            m.F.Add(rim); filled++;
         }
         return filled;
     }

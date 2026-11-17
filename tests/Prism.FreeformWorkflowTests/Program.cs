@@ -43,7 +43,8 @@ var loops=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Loop
 Console.WriteLine(string.Join("|",loops.Select(b=>b.Label+":"+b.HasMenu+":"+b.IsEnabled)));foreach(var n in new[]{"Insert Edge","Inset","Bridge"})Check(loops.Any(b=>b.Label.Replace("\n"," ")==n&&!b.HasMenu&&b.IsEnabled),"Loops has "+n);
 Check(loops.Any(b=>b.Label.Replace("\n"," ")=="Select Loop"&&!b.HasMenu&&!b.IsSplit)&&!loops.Any(b=>b.IsSplit),"Loop and ring selection is one Loops button");
 var more=modify.Single(b=>b.HasMenu).Menu!.ToList();
-foreach(var n in new[]{"Bevel","Delete","Split face","Smooth","Flatten","Fill holes","Thicken"})Check(more.Any(b=>b.Label==n),"More menu has "+n);
+foreach(var n in new[]{"Bevel","Split face","Smooth","Flatten","Fill holes","Thicken"})Check(more.Any(b=>b.Label==n),"More menu has "+n);
+Check(more.All(b=>b.Label!="Delete"),"More menu has no Delete: the Delete key does it while Edit Freeform is open (owner request 2026-11-16)");
 Check(more.All(b=>b.IsEnabled)&&modify.All(b=>b.Label!="Grow selection"),"More menu items are enabled and Grow stays panel-only");
 {
 var splitSel=vm.Tabs.Single(t=>t.Title=="Freeform").Groups.Single(g=>g.Title=="Select").Items.OfType<RibbonButton>().First(b=>b.IsSplit);
@@ -102,6 +103,18 @@ int afterOne=form.Work.F.Count;Check(afterOne>loopBase&&form.LoopArmed,"clicking
 var nextEdge=form.Work.Edges().First(e=>Math.Abs(form.Work.V[e.a].Z-form.Work.V[e.b].Z)<.001);var nextScreen=s.Camera.Project((form.Work.V[nextEdge.a]+form.Work.V[nextEdge.b])*.5)!.Value;
 form.Tool.PointerMove(s,new(nextScreen.x,nextScreen.y,false,false,false,false));form.Tool.PointerDown(s,new(nextScreen.x,nextScreen.y,true,false,false,false,1));form.Tool.PointerUp(s,new(nextScreen.x,nextScreen.y,false,false,false,false));
 Check(form.Work.F.Count>afterOne&&form.LoopArmed,"a second click inserts another loop without re-arming");
+// press, hold, move along the edge and release slides the loop (owner request 2026-11-16)
+var slideEdge=form.Work.Edges().Where(e=>Math.Abs(form.Work.V[e.a].Z-form.Work.V[e.b].Z)<.001).OrderByDescending(e=>(form.Work.V[e.a]-form.Work.V[e.b]).Length).First();
+var sA=form.Work.V[slideEdge.a];var sB=form.Work.V[slideEdge.b];double sLen=(sB-sA).Length;int slideBase=form.Work.V.Count;int slideFaces=form.Work.F.Count;
+var sMid=s.Camera.Project((sA+sB)*.5)!.Value;var sQuarter=s.Camera.Project(sA+(sB-sA)*.25)!.Value;
+form.Tool.PointerMove(s,new(sMid.x,sMid.y,false,false,false,false));form.Tool.PointerDown(s,new(sMid.x,sMid.y,true,false,false,false,1));
+Check(form.Work.F.Count==slideFaces&&form.Work.V.Count==slideBase,"pressing on an edge inserts nothing until the button is released");
+form.Tool.PointerMove(s,new(sQuarter.x,sQuarter.y,true,false,false,false));
+var slideOverlay=new Overlay();form.Tool.BuildOverlay(s,slideOverlay);Check(slideOverlay.Lines.Any(l=>l.Color==0xFF3DDC84),"holding and moving along the edge shows the loop following the pointer");
+Key(Avalonia.Input.Key.Escape);Check(form.Work.F.Count==slideFaces&&form.LoopArmed,"Esc while holding cancels the slide and keeps the tool armed");
+form.Tool.PointerMove(s,new(sMid.x,sMid.y,false,false,false,false));form.Tool.PointerDown(s,new(sMid.x,sMid.y,true,false,false,false,1));form.Tool.PointerMove(s,new(sQuarter.x,sQuarter.y,true,false,false,false));form.Tool.PointerUp(s,new(sQuarter.x,sQuarter.y,false,false,false,false));
+Check(form.Work.F.Count>slideFaces&&form.LoopArmed,"releasing places the loop and the tool stays armed");
+Check(Enumerable.Range(slideBase,form.Work.V.Count-slideBase).Select(i=>form.Work.V[i]).Any(v=>Math.Abs((v-sA).Length-.25*sLen)<.01*sLen&&Math.Abs((v-sA).Length+(v-sB).Length-sLen)<.001*sLen),"the loop lands a quarter of the way along the edge where the pointer was released");
 Key(Avalonia.Input.Key.Escape);Check(!form.LoopArmed&&ReferenceEquals(s.ActiveCommand,form),"Esc ends Insert edge loop but keeps Edit Freeform open");
 armLoop.Run();form.Params.OfType<ActionParam>().Single(a=>a.Label=="Select everything").Run();Check(!form.LoopArmed,"choosing another action ends Insert edge loop");
 armLoop.Run();Key(Avalonia.Input.Key.D1);Check(!form.LoopArmed,"changing the selection mode ends Insert edge loop");

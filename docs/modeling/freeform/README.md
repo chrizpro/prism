@@ -92,6 +92,89 @@ Run `./tools/test.ps1 -Feature Freeform`. [Pipe](../pipe/README.md) has its own 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
 - **Knife fixes (owner report 2026-11-15, screenshots; FRM-H120, FRM-H121; tried live in the desktop app).** (1) *Running the cut on to the edges* carried the sheet across every face it passed beyond the ends of the line, so a line drawn across two cage faces split four. It now continues only inside the faces the drawn line reaches: a diagonal from one cage point to another splits exactly the faces it crosses (a live check on a 60 mm form cube gave 24 → 25 faces for one face's diagonal; the old code gave 26). It is a different setting from *Cut through*, which only adds the faces turned away; the option's hover help now says so. (2) *Picking points was hard:* only a click on the smooth surface counted, but the cage corners stand outside it. A click within 16 px of a cage point, 13 px of an edge midpoint or 7 px of an edge now takes that spot (points beat midpoints beat edges), and a white dot under the pointer shows what a click would take. Turn *Snap* off to click freely on the surface.
 
+
+## Primitive smoothing, and Fill holes at the selection (owner request and report 2026-11-16; tests only, not tried by hand in the app)
+
+**Primitive options.** Every Freeform primitive (Plane, Box, Sphere, Cylinder, Torus) already had its own segment counts (Box: Faces X, Y, Z; Plane: Faces across and along; Sphere: Faces per side; Cylinder: Sides and Rings; Torus: Segments around and of tube). They now also offer, after Position:
+- **Smoothness (0 shows the plain cage), 0 to 4**, default 3 as before. It sets the form's display level at creation (it can still be changed later in Edit Freeform).
+- **Sharp edges**, off by default. It sharpens the edges where faces meet at more than 70°: a box's 12 edges (24 short edges with the default 2 faces per side, 12 with one), a cylinder's two cap rims (16 with 8 sides). Gentle bends, like the sides of a round cylinder, and open edges are left smooth; on a plane or sphere it does nothing. So a box can be given more faces to shape with and still stay a crisp box when smoothed.
+Checks: [FRM-H130 to FRM-H133](../../../Prism.Tests/Headless/Freeform/FormPrimitiveOptionTests.cs) and [FRM-U052](../../../Prism.Tests/Unit/Freeform/FormHoleTests.cs). Not changed: the segment counts, defaults and existing results. Whether other tools would benefit from the same options was not looked at.
+
+
+**More segments (owner request 2026-11-16; tests only).** Beyond smoothing, the segment controls now go further, and the limits are higher. New controls come after the older ones, so saved Freeform steps still open as before:
+- **Cylinder, Cap rings (0 to 30, default 0).** Each flat end can be divided into rings of faces before its middle face, so an end is no longer one large face with no points to shape. 0 keeps today's single face per end. It is hidden when Caps is off. Dividing the caps does not change the volume.
+- **Sphere, Faces X, Y, Z (each 0 to 64, default 0 = the same as Faces per side).** The quad-ball can carry a different number of faces in each direction, for example more around the equator than over the poles. A sphere with counts nx, ny, nz has 2(nx ny + ny nz + nz nx) faces.
+- **Higher limits:** Plane 100 faces each way (was 40), Box 64 per direction (20), Sphere faces per side 32 (12), Cylinder 96 sides (48) and 100 rings (30), Torus 96 around (48) and 64 around the tube (32).
+Checks: [FRM-U060 to FRM-U062](../../../Prism.Tests/Unit/Freeform/FormSegmentTests.cs) (face counts worked out by hand, closed cage, Euler number 2, volume of the polygon prism) and [FRM-H137](../../../Prism.Tests/Headless/Freeform/FormPrimitiveOptionTests.cs). **Not built:** a separate count for the around and the over of a sphere other than through X, Y and Z, dividing a cone or torus caps, and a different split of a Box face than a straight grid.
+
+**Fill holes (owner report).** It capped **every open border in the whole form**, wherever you had selected, so a hole made far away was filled by selecting something else and pressing it. Now a hole is filled only when its rim touches the selected points, edges or faces. A selection with no hole at it fills nothing and says "No hole touches what you selected (N holes elsewhere in the form were left alone)". With **nothing selected** it fills every open border, as before. Note that an open sheet's own outer edge counts as an open border, so on a plane with nothing selected the outline is capped too (as it always was). Checks: [FRM-U050, FRM-U051](../../../Prism.Tests/Unit/Freeform/FormHoleTests.cs) and [FRM-H134 to FRM-H136](../../../Prism.Tests/Headless/Freeform/FormPrimitiveOptionTests.cs); FRM-H134 and FRM-H135 fail on the old behavior (the far hole is capped).
+
 ## Planned major improvements
 
 Owner direction on 2026-11-16 ([#139](https://github.com/chrizpro/prism/issues/139)): substantially improve Freeform modeling, including cage control, surface quality, shaping workflows and feedback for people and agents. This direction is now in the project README roadmap. Specific operations, diagnostics and acceptance criteria remain proposed until reviewed; this documentation change adds no new product behavior.
+
+## Owner requests of 2026-11-16
+
+**Owner decisions 2026-11-16, recorded here:** Delete key — approved and already true (see Delete, corrected). Number keys and soft selection — **no changes needed**. Edge loop slide — approved as *click, hold, move along the edge, release*; **not built yet**. Copy and paste — approved for whatever is selected, including faces, edges and, if it can be made to do something useful, vertices; **not built yet**. The point-reduction ideas stay optional. Everything not named here is still Proposed — awaiting owner review. "Today" lines were read from the code on 2026-11-16 and not tried by hand.
+
+### Slide an inserted edge loop in the viewport — Approved 2026-11-16 as press, hold, move, release; delivered (legacy Freeform workflow suite, not tried by hand)
+
+**Delivered:** with Insert Edge armed, pressing on an edge inserts nothing; while the button is held the loop is previewed and follows the pointer along the edge (the nearest point of the edge to the pointer's ray, so perspective does not skew it); releasing places it, the panel's *Position* takes that value, and the tool stays armed. A press with under about 4 px of movement is a plain click and uses the panel's position as before. **Shift** snaps to 25, 50 and 75 %; **Esc** while holding cancels without inserting. With *Loops to insert* above 1 the loops stay evenly spaced (the position does not apply). Checks: five new lines in `tests/Prism.FreeformWorkflowTests` (press inserts nothing, hold shows the preview, Esc cancels, release places, the loop lands a quarter of the way along). **Not built:** mouse wheel or Up/Down to change the count while holding, and Ctrl to mirror a pair. The original proposal follows.
+
+**Today.** Insert Edge adds a loop where you click an edge, using the *Count* and *Position* typed in the panel ([FormTools.cs](../../../Prism/Tools/FormTools.cs)). There is no way to drag the loop. Separate **Slide** exists, but only for edges that are already selected.
+
+**Proposal.** After the first click on an edge the loop is shown live and follows the pointer *along the ring*; a second click (or releasing the mouse, if the first press dragged) places it. The mouse wheel or Up/Down changes the count while it is live; Shift snaps to 25 %, 50 % and 75 %; Ctrl mirrors a pair of loops about the middle; Esc cancels without changing the cage. The panel's *Position* follows the pointer and still accepts a typed value. The tool stays on for the next click, as now.
+
+**Open decisions.** Click-then-move (Blender) or press-drag-release (Maya)? Recommended click, move, click, because it keeps working with a pen or a trackpad. Should the loop stop at creases? Recommended no.
+
+**Acceptance (draft).** On a 10 mm cube with one loop live, moving the pointer to the middle gives a loop whose points are at 5.0 mm on every ring edge; placing it adds 4 points, 4 faces and 8 edges and keeps the cage closed. Esc leaves 8 points and 6 faces. Typing 0.25 in *Position* puts the loop at 2.5 mm.
+
+### Number keys for Vertex, Edge and Face — no change needed (owner, 2026-11-16)
+
+**Today (finding, not a change).** The keys already exist while a Freeform is being edited: **1** vertices, **2** edges, **3** faces and **4** the whole form ([Hotkeys.cs](../../../Prism/Core/Hotkeys.cs), actions `form.vertex`, `form.edge`, `form.face`, `form.object`). They are limited to Freeform editing, so they do not fire in other workspaces.
+
+**Proposal.** The gap is discoverability, not the keys. Show the key in each mode button's tooltip and in the status-bar selection mode picker. *Context-sensitive* is read as: the same keys do nothing in Freeform until a form is being edited, and **Tab** toggles between Object and the last component mode. **Open decision:** is the Tab toggle wanted, and should the keys stay 1 to 4 when a form is not being edited (where they could switch Object, Face, Edge and Vertex picking for every body)?
+
+### Delete
+
+**Correction, 2026-11-16.** This section first said the Delete key did not delete cage faces. That was wrong: while Edit Freeform is open, the Delete key runs the same *Delete selection* action as the ribbon button ([FormTools.cs](../../../Prism/Tools/FormTools.cs)): for faces it removes them, for edges the faces either side, for points the faces that use them, and refuses frozen faces. **Delivered (owner request, tried by build only):** the ribbon **Modify → More → Delete** is removed, since the key does the same job. With no cage selection and a whole form selected, Delete still removes the whole object, as before. The panel never showed the action.
+
+### Soft selection, extended — no change needed for now (owner, 2026-11-16: "if we have soft selection, then no need to improve it"; the owner may review it further)
+
+**Today.** Soft selection exists in the Edit Freeform panel ([FormCommands.cs](../../../Prism/Commands/FormCommands.cs)): one *radius* (0 = off, millimetres) and one *falloff* (Smooth, Linear, Sharp). Weights come from the straight-line distance in space between points ([FalloffMath](../../../Prism/Commands/FreeformCommands.cs)), so the handle of a mug can be pulled by moving the body next to it.
+
+**Proposal, in priority order.**
+1. **Distance along the cage ("connected only").** Weight by the number of edges or the length of the shortest path over the cage instead of straight distance, so unconnected parts nearby are not dragged. Choice: *Space* (today) or *Along the surface*. Recommended default: Along the surface.
+2. **Adjust the radius while you work.** Hold a key (proposed **Shift+wheel**) or drag with the soft handle to change the radius live; a shaded ring on the cage shows the influence (white 1, fading to none) before you move anything.
+3. **Falloff curves.** The current three plus **Constant**, **Spike**, **Root**, **Sphere** and a **Custom** curve you draw in a small editor. Each is a function of distance / radius, 0 to 1, shown as a thumbnail on the button.
+4. **Pin and protect.** Frozen points already do not move; soft selection never moves them, and *Pin* points that keep their position without being frozen from other tools.
+5. **Weight painting.** Paint the weights of the soft selection with a brush (radius, strength, smooth, erase), for shapes distance cannot describe. Weights live with the form and survive saving.
+6. **Symmetry.** Soft selection respects Live symmetry (already the case for the move itself; the influence ring should mirror).
+7. **Proportional types for rotate and scale**, not only move: rotation and scale are weighted by the same falloff about the selection's pivot.
+
+**Open decisions.** Which of 1 to 7 for the first delivery (recommended 1 to 3); whether NURBS *Edit Points* and *Sculpt*, which share the three falloffs, should gain the same options (recommended yes, one shared soft-selection control, as [one tool, several jobs](#one-tool-several-jobs) suggests); where *Custom* curves are saved (in the document, so a model keeps its look).
+
+**Acceptance (draft).** On a 10 x 10 mm plane cage of 11 x 11 points, soft radius 3 mm, Linear falloff, lifting the centre point by 1 mm lifts points at 1.5 mm distance by 0.5 mm and points at 3 mm or more by 0. With *Along the surface*, a second plane cage placed 1 mm above the first and not joined to it does not move. A mirrored move with X symmetry on gives mirrored heights within 1e-6 mm.
+
+### Copy and paste of faces, and in general — Approved 2026-11-16 for faces, edges and (if useful) vertices; not built yet
+
+**Today.** Copy and Paste exist as `Ctrl+C` and `Ctrl+V` for the selection ([Hotkeys.cs](../../../Prism/Core/Hotkeys.cs)); whether they carry the faces of a form was not checked.
+
+**Proposal for Freeform.** With cage faces selected, Ctrl+C copies those faces (with their points, creases and frozen flags) and Ctrl+V pastes them as a **new Freeform body** at the same place, selected and ready to move with the gizmo, or as part of the same cage when *Paste into this form* is chosen (faces that share edges with the cage weld to it). Ctrl+Shift+V pastes at the pointer. The general rule across Prism is in [Transform → Copy and paste](../transform/README.md#copy-and-paste-in-general--proposed-awaiting-owner-review).
+
+**Open decision.** New body or join the cage by default? Recommended new body, because it never changes the form you copied from.
+
+**Acceptance (draft).** Copy the top face of a 10 mm cube cage and paste: a one-face body with 4 points exists at the same place, the cube is unchanged, and Ctrl+Z removes the new body only.
+
+### Fewer points: ideas for keeping the cage light (optional)
+
+The owner's goal is to keep the number of points down while controlling the shape. Suggestions, each independent and none required:
+
+1. **Show the point count** and a target in the Freeform status line, with a warning colour past a chosen number.
+2. **Reduce** (the opposite of Subdivide): merge faces in an even pattern to cut points by about a quarter, within a tolerance of the current surface. The ribbon already has *Convert fewer faces* for NURBS conversion; this is the same idea on the cage.
+3. **Select edge loops to dissolve**: remove a loop of edges and its points without leaving a hole (Dissolve), so a loop added by mistake or no longer needed goes away cleanly.
+4. **Crease instead of loops**: sharpness on an edge keeps a corner tight without extra support loops (Crease exists; the default is the open finding 4 above).
+5. **Symmetry and Mirror and weld** first, so only half the points are worked on (both exist).
+6. **Surface Check**: list loops that add points but change the surface by less than a tolerance, so they can be dissolved in one click.
+
+**Open decision.** Which, if any, to build; recommended 1 and 3 first as they are cheap and safe.

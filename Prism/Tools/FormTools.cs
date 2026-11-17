@@ -52,10 +52,26 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     Plane3 _bindingStart;
     int _hotMode = -1;
 
+    // Insert edge loop: press on an edge, hold and move along it to slide the loop, release to place it.
+    long _loopEdge = -1; bool _loopDown, _loopMoved; double _loopT = 0.5; double _loopX0, _loopY0;
+
+    /// <summary>Where along the edge (0 at its first point, 1 at its second) the pointer is: the nearest point of the edge to the pointer's ray, so perspective does not skew it.</summary>
+    double? LoopFraction(CadSession s, long edge, PointerInfo p)
+    {
+        if (cmd.Work == null) return null;
+        var (a, b) = SubdMesh.Unkey(edge); var A = cmd.Work.V[a]; var B = cmd.Work.V[b];
+        double len = (B - A).Length; if (len < 1e-9) return null;
+        var (o, d) = s.Camera.Ray(p.X, p.Y);
+        if (AxisParam(o, d, A, (B - A) / len) is not double t) return null;
+        double f = Math.Clamp(t / len, 0.02, 0.98);
+        if (p.Shift) f = new[] { 0.25, 0.5, 0.75 }.MinBy(x => Math.Abs(x - f));      // Shift snaps to a quarter, the middle or three quarters
+        return f;
+    }
+
     public string Prompt => cmd.LoopArmed
-        ? "Insert edge loop: click an edge to add a loop across it (count and position are in the panel). Esc or choosing another tool ends it."
+        ? "Insert edge loop: press on an edge, hold and move along it to slide the loop, then release to place it (Shift snaps to 25, 50 and 75%; Esc while holding cancels). A plain click uses the position in the panel. Esc or choosing another tool ends it."
         : "Click to select; drag the gizmo to move, rotate (R) or scale (S); T goes back to move, E extrudes. Drag a colored square to move or scale two axes at once, or hold Ctrl while dragging an arrow to move the plane across it. Drag on empty space to box-select (hold Ctrl to draw a lasso). Shift adds to the selection.";
-    public bool Dragging => _drag != Drag.None;
+    public bool Dragging => _drag != Drag.None || _loopDown;
 
     List<(Vec3 a, Vec3 b)> _loopLines = [];
 
@@ -67,7 +83,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         _loopLines = [];
         if (_hotE < 0 || cmd.Work == null) return;
         var trial = cmd.Work.Clone(); var (a, b) = SubdMesh.Unkey(_hotE);
-        var added = FormOps.InsertEdgeLoops(trial, a, b, cmd.LoopCount, cmd.LoopPosition).ToHashSet();
+        var added = FormOps.InsertEdgeLoops(trial, a, b, cmd.LoopCount, _loopDown && _loopMoved ? _loopT : cmd.LoopPosition).ToHashSet();
         foreach (var (x, y) in FormOverlay.Edges(trial)) if (added.Contains(x) && added.Contains(y)) _loopLines.Add((trial.V[x], trial.V[y]));
     }
 
@@ -136,7 +152,12 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if (cmd.Work == null || !p.Left) return false;
         if (cmd.LoopArmed)
         {
-            if (p.Clicks < 2 && PickEdge(s, p.X, p.Y) is var loopEdge && loopEdge >= 0) cmd.InsertLoopAt(loopEdge);
+            if (p.Clicks < 2 && PickEdge(s, p.X, p.Y) is var loopEdge && loopEdge >= 0)
+            {
+                // nothing is inserted yet: the loop is previewed while the button is held and placed on release
+                _loopEdge = loopEdge; _loopDown = true; _loopMoved = false; _loopX0 = p.X; _loopY0 = p.Y;
+                _loopT = LoopFraction(s, loopEdge, p) ?? cmd.LoopPosition; _hotE = loopEdge; UpdateLoopPreview(); s.Invalidate();
+            }
             return true;
         }
         if(p.Clicks>=2)
@@ -232,6 +253,17 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
     {
         if (cmd.Work == null) return;
         var (o, d) = s.Camera.Ray(p.X, p.Y);
+        if (_loopDown && cmd.LoopArmed)
+        {
+            // slide: a few pixels of movement count as a drag, so a plain click keeps using the panel's position
+            if (!_loopMoved && Math.Abs(p.X - _loopX0) + Math.Abs(p.Y - _loopY0) > 4) _loopMoved = true;
+            if (_loopMoved && LoopFraction(s, _loopEdge, p) is double f)
+            {
+                _loopT = f; UpdateLoopPreview(); s.Invalidate();
+                s.Say(cmd.LoopCount == 1 ? $"Loop {f * 100:0}% along the edge. Release to place it." : "Several loops are spaced evenly along the edge. Release to place them.");
+            }
+            return;
+        }
         switch (_drag)
         {
             case Drag.Axis:
@@ -322,6 +354,14 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
 
     public void PointerUp(CadSession s, PointerInfo p)
     {
+        if (_loopDown)
+        {
+            // release places the loop where the preview showed it (or at the panel's position after a plain click)
+            _loopDown = false;
+            if (cmd.LoopArmed) cmd.InsertLoopAt(_loopEdge, _loopMoved ? _loopT : null);
+            _loopMoved = false; s.Invalidate();
+            return;
+        }
         if (_drag == Drag.Lasso && cmd.Work != null)
         {
             if (_lasso.Count > 2)
@@ -361,6 +401,7 @@ public sealed class FormEditTool(EditFormCommand cmd) : IViewportTool
         if(Binding.Positioning&&key is "Escape" or "Enter")
         {if(key=="Escape")Binding.Cancel();else if(!Binding.Bind(cmd.MovingVertices()))s.Say("Select cage geometry before binding the gizmo.",true);s.RaiseState();s.Invalidate();return true;}
         if(cmd.HasPanelStep)return false;
+        if (_loopDown && key == "Escape") { _loopDown = false; _loopMoved = false; ResetLoopPreview(); s.Say("Loop cancelled: nothing was inserted."); return true; }
         if (cmd.LoopArmed && key == "Escape") { cmd.DisarmLoop(); s.Say("Insert edge loop finished."); return true; }
         if (key == "Delete") { cmd.Params.OfType<ActionParam>().FirstOrDefault(p => p.Label == "Delete selection")?.Run(); return true; }
         if (key == "Char:T") { cmd.ForceMode(0); s.Say("Move gizmo."); return true; }

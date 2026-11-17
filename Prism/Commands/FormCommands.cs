@@ -15,11 +15,24 @@ public abstract class FormCreateCommand : Command
     protected abstract SubdMesh Make();
     public override string Hint => "Set the size and segment counts, then press OK. Edit the result with Edit Freeform.";
 
-    protected void AddPosition() { X = Num("Position X", 0); Y = Num("Position Y", 0); Z = Num("Position Z", 0); }
+    protected IntParam Smoothness = null!;
+    protected BoolParam SharpEdges = null!;
+
+    /// <summary>Position, then the smoothing every primitive offers (owner request 2026-11-16: subdivision options when making a primitive). The segment counts are each shape's own.</summary>
+    protected void AddPosition()
+    {
+        X = Num("Position X", 0); Y = Num("Position Y", 0); Z = Num("Position Z", 0);
+        Smoothness = Add(new IntParam { Label = "Smoothness (0 shows the plain cage)", Value = 3, Min = 0, Max = 4 });
+        Smoothness.HelpText = "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with.";
+        SharpEdges = Check("Sharp edges (keep corners and rims crisp when smoothed)", false);
+        SharpEdges.HelpText = "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth.";
+    }
 
     protected override CommandOutput? Build()
     {
         var m = Make();
+        m.Level = Smoothness.Value;
+        if (SharpEdges.Value) FormOps.CreaseFeatureEdges(m, 70, 5);
         var off = new Vec3(X.Value, Y.Value, Z.Value);
         if (off != Vec3.Zero) for (int i = 0; i < m.V.Count; i++) m.V[i] += off;
         var o = new CommandOutput { Label = Title };
@@ -37,8 +50,8 @@ public sealed class FormPlaneCommand : FormCreateCommand
     {
         _plane = Choice("Plane", 0, "XY (ground)", "XZ (front)", "YZ (side)");
         _w = Num("Width", 80, 0.01); _h = Num("Length", 80, 0.01);
-        _nx = Add(new IntParam { Label = "Faces across", Value = 4, Min = 1, Max = 40 });
-        _ny = Add(new IntParam { Label = "Faces along", Value = 4, Min = 1, Max = 40 });
+        _nx = Add(new IntParam { Label = "Faces across", Value = 4, Min = 1, Max = 100 });
+        _ny = Add(new IntParam { Label = "Faces along", Value = 4, Min = 1, Max = 100 });
         AddPosition();
     }
     protected override SubdMesh Make()
@@ -63,9 +76,9 @@ public sealed class FormBoxCommand : FormCreateCommand
     public FormBoxCommand()
     {
         _w = Num("Width (X)", 60, 0.01); _d = Num("Depth (Y)", 60, 0.01); _h = Num("Height (Z)", 60, 0.01);
-        _nx = Add(new IntParam { Label = "Faces X", Value = 2, Min = 1, Max = 20 });
-        _ny = Add(new IntParam { Label = "Faces Y", Value = 2, Min = 1, Max = 20 });
-        _nz = Add(new IntParam { Label = "Faces Z", Value = 2, Min = 1, Max = 20 });
+        _nx = Add(new IntParam { Label = "Faces X", Value = 2, Min = 1, Max = 64 });
+        _ny = Add(new IntParam { Label = "Faces Y", Value = 2, Min = 1, Max = 64 });
+        _nz = Add(new IntParam { Label = "Faces Z", Value = 2, Min = 1, Max = 64 });
         AddPosition();
     }
     protected override SubdMesh Make() => FormOps.Box(_w.Value, _d.Value, _h.Value, _nx.Value, _ny.Value, _nz.Value);
@@ -73,32 +86,45 @@ public sealed class FormBoxCommand : FormCreateCommand
 
 public sealed class FormSphereCommand : FormCreateCommand
 {
-    readonly NumberParam _r; readonly IntParam _n;
+    readonly NumberParam _r; readonly IntParam _n, _fx, _fy, _fz;
     public override string Title => "Freeform Sphere";
     protected override string Prefix => "Freeform";
     public FormSphereCommand()
     {
         _r = Num("Radius", 30, 0.01);
-        _n = Add(new IntParam { Label = "Faces per side", Value = 3, Min = 1, Max = 12 });
+        _n = Add(new IntParam { Label = "Faces per side", Value = 3, Min = 1, Max = 32 });
         AddPosition();
+        // after the position and smoothing so older saved steps line up: a count of 0 means "the same as Faces per side"
+        _fx = Add(new IntParam { Label = "Faces X (0 = same as per side)", Value = 0, Min = 0, Max = 64 });
+        _fy = Add(new IntParam { Label = "Faces Y (0 = same as per side)", Value = 0, Min = 0, Max = 64 });
+        _fz = Add(new IntParam { Label = "Faces Z (0 = same as per side)", Value = 0, Min = 0, Max = 64 });
+        _fx.HelpText = "Give a direction its own number of faces (for example more around the equator than over the poles). Leave all three at 0 for the even quad-ball.";
     }
-    protected override SubdMesh Make() => FormOps.Sphere(_r.Value, _n.Value);
+    protected override SubdMesh Make()
+    {
+        int N(IntParam own) => own.Value > 0 ? own.Value : _n.Value;
+        return FormOps.Sphere(_r.Value, N(_fx), N(_fy), N(_fz));
+    }
 }
 
 public sealed class FormCylinderCommand : FormCreateCommand
 {
-    readonly NumberParam _r, _h; readonly IntParam _seg, _rings; readonly BoolParam _caps;
+    readonly NumberParam _r, _h; readonly IntParam _seg, _rings, _capRings; readonly BoolParam _caps;
     public override string Title => "Freeform Cylinder";
     protected override string Prefix => "Freeform";
     public FormCylinderCommand()
     {
         _r = Num("Radius", 25, 0.01); _h = Num("Height", 60, 0.01);
-        _seg = Add(new IntParam { Label = "Sides", Value = 8, Min = 3, Max = 48 });
-        _rings = Add(new IntParam { Label = "Rings", Value = 3, Min = 1, Max = 30 });
+        _seg = Add(new IntParam { Label = "Sides", Value = 8, Min = 3, Max = 96 });
+        _rings = Add(new IntParam { Label = "Rings", Value = 3, Min = 1, Max = 100 });
         _caps = Check("Caps", true);
         AddPosition();
+        // last, so older saved steps line up
+        _capRings = Add(new IntParam { Label = "Cap rings (0 = one face per cap)", Value = 0, Min = 0, Max = 30 });
+        _capRings.HelpText = "Divides each flat end into this many rings of faces before the middle face, so the end has points to shape and does not stay one large face. 0 keeps each end a single face.";
     }
-    protected override SubdMesh Make() => FormOps.Cylinder(_r.Value, _h.Value, _seg.Value, _rings.Value, _caps.Value);
+    protected override void UpdateVisibility() { if (_capRings != null) _capRings.IsVisible = _caps.Value; }
+    protected override SubdMesh Make() => FormOps.Cylinder(_r.Value, _h.Value, _seg.Value, _rings.Value, _caps.Value, _caps.Value ? _capRings.Value : 0);
 }
 
 public sealed class FormTorusCommand : FormCreateCommand
@@ -109,8 +135,8 @@ public sealed class FormTorusCommand : FormCreateCommand
     public FormTorusCommand()
     {
         _R = Num("Major radius", 30, 0.02); _r = Num("Minor radius", 10, 0.01);
-        _a = Add(new IntParam { Label = "Segments around", Value = 12, Min = 3, Max = 48 });
-        _b = Add(new IntParam { Label = "Segments of tube", Value = 6, Min = 3, Max = 32 });
+        _a = Add(new IntParam { Label = "Segments around", Value = 12, Min = 3, Max = 96 });
+        _b = Add(new IntParam { Label = "Segments of tube", Value = 6, Min = 3, Max = 64 });
         AddPosition();
     }
     protected override SubdMesh Make() => FormOps.Torus(_R.Value, Math.Min(_r.Value, _R.Value * 0.99), _a.Value, _b.Value);
@@ -227,7 +253,7 @@ public sealed class EditFormCommand : Command
         Add(new ActionParam { Label = "Inset selected faces", Run = () => Do(() => { MirrorSel(); InsetSel(); }) });
         Add(new ActionParam { Label = "Rotate selection by the angle above", Run = () => Do(() => TransformNumeric(FormTransform.RotateAbout(PivotPoint(), Axis(_rotAxis.Index), _rotAngle.Value * Math.PI / 180))) });
         Add(new ActionParam { Label = "Scale selection by the factor above", Run = () => Do(() => TransformNumeric(FormTransform.ScaleAbout(PivotPoint(), _scaleFactor.Value, _scaleFactor.Value, _scaleFactor.Value))) });
-        Add(new ActionParam { Label = "Fill holes (cap open borders)", Run = () => Do(() => { int n = FormOps.FillHoles(Work!); if (n == 0) throw new InvalidOperationException("There are no open borders to fill."); ClearSelection(); S.Say($"Filled {n} hole(s)."); }) });
+        Add(new ActionParam { Label = "Fill holes (cap open borders)", Run = () => Do(() => FillSelectedHoles()) });
         Add(new ActionParam { Label = "Thicken (give the cage wall thickness: Bevel width)", Run = () => Do(() => { FormOps.Solidify(Work!, _bevelW.Value); ClearSelection(); S.Say($"Added a second skin {_bevelW.Value:0.##} mm inside the cage."); }) });
         _slideAmt = Num("Slide amount (-1..1)", 0.3, -1, 1, 0.1, "");
         Add(new ActionParam { Label = "Slide selected edge loop (Slide amount)", Run = () => Do(() => { MirrorSel(); var es = Edges.Select(SubdMesh.Unkey).ToList(); if (es.Count == 0) throw new InvalidOperationException("Select an edge loop (Select: Edges, then Select edge loop) to slide."); int n = FormOps.SlideEdges(Work!, es, _slideAmt.Value); if (n == 0) throw new InvalidOperationException("Those edges have no quad rails to slide along."); S.Say($"Slid {n} point(s)."); }) });
@@ -384,6 +410,23 @@ public sealed class EditFormCommand : Command
 
     public bool StickToScan => _stick.Value && ScanSurface.Any(S);
     public void SnapToScan(IEnumerable<int> verts) => ScanSurface.Wrap(S, Work!, verts, 1, _scanOffset.Value);
+
+    /// <summary>
+    /// Fill the holes at what is selected: a hole is filled when its rim touches a selected point, edge or face. With nothing selected every hole in the form is filled.
+    /// A selection with no hole at it fills nothing and says so, instead of capping a hole somewhere else (owner report 2026-11-16).
+    /// </summary>
+    void FillSelectedHoles()
+    {
+        var m = Work!; var near = new HashSet<int>(Verts);
+        foreach (var k in Edges) { var (a, b) = SubdMesh.Unkey(k); near.Add(a); near.Add(b); }
+        foreach (var f in Faces) if (f < m.F.Count) foreach (var v in m.F[f]) near.Add(v);
+        bool anySelected = near.Count > 0 && !(SelMode == FormMode.Object && ObjectSelected);
+        int n = FormOps.FillHoles(m, anySelected ? near : null, out int found);
+        if (found == 0) throw new InvalidOperationException("There are no open borders to fill.");
+        if (n == 0) throw new InvalidOperationException($"No hole touches what you selected ({found} hole{(found == 1 ? "" : "s")} elsewhere in the form were left alone). Select the edges around the hole, or select nothing to fill every hole.");
+        ClearSelection();
+        S.Say(anySelected ? $"Filled {n} hole{(n == 1 ? "" : "s")} at the selection ({found - n} left alone)." : $"Filled {n} hole{(n == 1 ? "" : "s")}.");
+    }
 
     public IEnumerable<int> MovingVertices()
     {
@@ -656,9 +699,10 @@ public sealed class EditFormCommand : Command
     }
 
     /// <summary>One click of the Insert edge loop tool.</summary>
-    public void InsertLoopAt(long edge)
+    public void InsertLoopAt(long edge, double? fraction = null)
     {
         if (!LoopArmed || Work == null) return;
+        if (fraction is { } f) _loopPos.Value = Math.Clamp(f, 0.02, 0.98);      // where the loop was slid to; the panel follows it
         var (a, b) = SubdMesh.Unkey(edge);
         Do(() => InsertLoopThrough([(a, b)], false, false), keepLoop: true);
         _tool.ResetLoopPreview();
