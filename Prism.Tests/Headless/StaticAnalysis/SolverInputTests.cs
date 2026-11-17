@@ -119,6 +119,54 @@ public class SolverInputTests
         AssertPoint(new Vec3(200, 0, 0), NetForce(bar.Mesh, bc), 1e-6, "Two faces × 100 N");
     }
 
+    /// <summary>The force the tractions put on one face (N): traction × triangle area, summed over that face's boundary triangles.</summary>
+    static Vec3 ForceOnFace(Bar bar, StudyRunner.Boundary bc, FaceRef face)
+    {
+        int code = bar.Mesh.FaceCode(face);
+        return Enumerable.Range(0, bc.TracTri.Length).Where(i => bar.Mesh.FaceOfBoundary[bc.TracTri[i]] == code).Aggregate(Vec3.Zero, (sum, i) =>
+            sum + new Vec3(bc.TracVec[3 * i], bc.TracVec[3 * i + 1], bc.TracVec[3 * i + 2]) * bar.Mesh.BoundaryArea[bc.TracTri[i]]);
+    }
+
+    [AvaloniaFact(DisplayName = "SIN-H019 | A per-face force puts its full value on each face even when the faces have very different areas")]
+    [Trait("TestId", "SIN-H019")]
+    public void PerFaceForceIsExactOnEachFace()
+    {
+        using var bar = new Bar();
+        var top = bar.Ref(Vec3.UnitZ); var side = bar.Ref(Vec3.UnitY);         // 100 mm² and 1,000 mm²
+        var load = new Load { Kind = LoadKind.Force, Value = 100, Direction = Vec3.UnitX, Total = false, Faces = [top, side] };
+        var bc = StudyRunner.Conditions(bar.Mesh, Study(bar, load), []);
+        AssertPoint(new Vec3(100, 0, 0), ForceOnFace(bar, bc, top), 1e-6, "Force on the small face (N)");
+        AssertPoint(new Vec3(100, 0, 0), ForceOnFace(bar, bc, side), 1e-6, "Force on the large face (N)");
+    }
+
+    [AvaloniaTheory(DisplayName = "SIN-H020 | Any direction vector becomes tractions that add up to exactly value × unit direction")]
+    [InlineData(300, 1, 2, 2)]
+    [InlineData(450, -3, 4, 0)]
+    [InlineData(80, 0.2, -0.2, -0.1)]
+    [Trait("TestId", "SIN-H020")]
+    public void AnyVectorAddsUpToTheVector(double force, double x, double y, double z)
+    {
+        using var bar = new Bar();
+        var unit = VectorInputUnit(x, y, z);
+        var load = new Load { Kind = LoadKind.Force, Value = force, Direction = unit, Total = true, Faces = [bar.Ref(Vec3.UnitZ)] };
+        var bc = StudyRunner.Conditions(bar.Mesh, Study(bar, load), []);
+        AssertPoint(unit * force, NetForce(bar.Mesh, bc), 1e-6, "Applied force vector (N)");
+    }
+
+    static Vec3 VectorInputUnit(double x, double y, double z) => Prism.Commands.VectorInput.Unit(new Vec3(x, y, z));
+
+    [AvaloniaFact(DisplayName = "SIN-H021 | A force with no direction is refused instead of silently applying nothing")]
+    [Trait("TestId", "SIN-H021")]
+    public void ZeroDirectionIsRefused()
+    {
+        using var bar = new Bar();
+        var load = new Load { Kind = LoadKind.Force, Value = 100, Direction = Vec3.Zero, Total = true, Faces = [bar.Ref(Vec3.UnitZ)] };
+        var error = Assert.Throws<InvalidOperationException>(() => StudyRunner.Conditions(bar.Mesh, Study(bar, load), []));
+        Assert.Contains("no length", error.Message);
+        var gravity = new Load { Kind = LoadKind.Gravity, Value = 1, Direction = Vec3.Zero };
+        Assert.Contains("no length", Assert.Throws<InvalidOperationException>(() => StudyRunner.Conditions(bar.Mesh, Study(bar, gravity), [])).Message);
+    }
+
     [AvaloniaTheory(DisplayName = "SIN-H005 | Force along the normal and pressure both push into the loaded face")]
     [InlineData(LoadKind.Force, 300, 300)]
     [InlineData(LoadKind.Pressure, 2.5, 250)]

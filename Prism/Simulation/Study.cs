@@ -34,6 +34,9 @@ public sealed class Fixture
 
 public enum LoadKind { Force, Pressure, Torque, Gravity }
 
+/// <summary>The part of a face a load covers: all of it, a circle, or a rectangle (owner request 2026-11-16: put a force on a certain area of a face).</summary>
+public enum LoadRegionShape { WholeFace, Circle, Rectangle }
+
 public sealed class Load
 {
     public Guid Id { get; init; } = Guid.NewGuid();
@@ -47,6 +50,43 @@ public sealed class Load
     public double Value { get; set; } = 100;
     /// <summary>Total force is shared over the faces (true) or applied to each face (false).</summary>
     public bool Total { get; set; } = true;
+
+    // ---- a load on part of one flat face. Stored in global axes so the solver needs no face frame; files saved before this had no region and stay whole-face.
+    public LoadRegionShape Region { get; set; } = LoadRegionShape.WholeFace;
+    /// <summary>The middle of the region, on the face (mm).</summary>
+    public Vec3 RegionCentre { get; set; }
+    /// <summary>Two unit directions in the face that the region is measured along; U is the rectangle's width direction.</summary>
+    public Vec3 RegionU { get; set; } = Vec3.UnitX;
+    public Vec3 RegionV { get; set; } = Vec3.UnitY;
+    /// <summary>Circle: the radius. Rectangle: the width along U (mm).</summary>
+    public double RegionA { get; set; }
+    /// <summary>Rectangle: the height along V (mm).</summary>
+    public double RegionB { get; set; }
+
+    /// <summary>The area the region asks for (mm²), before it is cut off by the face's own outline; 0 for the whole face.</summary>
+    [JsonIgnore] public double RegionArea => Region switch { LoadRegionShape.Circle => Math.PI * RegionA * RegionA, LoadRegionShape.Rectangle => RegionA * RegionB, _ => 0 };
+
+    /// <summary>True when the point, projected into the face, lies inside the region (always true for a whole-face load).</summary>
+    public bool InRegion(Vec3 point)
+    {
+        if (Region == LoadRegionShape.WholeFace) return true;
+        var rel = point - RegionCentre; double x = Vec3.Dot(rel, RegionU), y = Vec3.Dot(rel, RegionV);
+        return Region == LoadRegionShape.Circle ? x * x + y * y <= RegionA * RegionA : Math.Abs(x) <= RegionA / 2 && Math.Abs(y) <= RegionB / 2;
+    }
+
+    /// <summary>The region's outline as a closed polyline of points on the face, for drawing.</summary>
+    public List<Vec3> RegionOutline()
+    {
+        var pts = new List<Vec3>();
+        if (Region == LoadRegionShape.Circle)
+            for (int i = 0; i < 48; i++) { double a = 2 * Math.PI * i / 48; pts.Add(RegionCentre + RegionU * (RegionA * Math.Cos(a)) + RegionV * (RegionA * Math.Sin(a))); }
+        else if (Region == LoadRegionShape.Rectangle)
+        {
+            double hx = RegionA / 2, hy = RegionB / 2;
+            pts.AddRange([RegionCentre - RegionU * hx - RegionV * hy, RegionCentre + RegionU * hx - RegionV * hy, RegionCentre + RegionU * hx + RegionV * hy, RegionCentre - RegionU * hx + RegionV * hy]);
+        }
+        return pts;
+    }
 }
 
 /// <summary>A simulation: its body (and any others bonded to it, each with its own material), fixtures and loads, mesh size and the latest results.</summary>
