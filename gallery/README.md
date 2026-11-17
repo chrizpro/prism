@@ -1,5 +1,7 @@
 # Made with Prism
 
+**Publication update, 2026-11-16:** this catalog contains 36 downloadable models, including the recent bicycle, car, lamp, wood studies, helicopter, toaster, phone and soap mold/CAM. Use Refresh in Prism to fetch the current catalog. Earlier delivery notes below describe their initial preparation.
+
 Curated native examples for the [startup gallery](../docs/interface/gallery/README.md), tracked by [#61](https://github.com/chrizpro/prism/issues/61). Models and preview images are hosted here and downloaded on demand; the app embeds only `catalog.json`.
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
