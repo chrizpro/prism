@@ -171,7 +171,7 @@ public sealed partial class CadSession : ObservableObject
 
     [ObservableProperty] public partial string Status { get; set; } = "Ready";
     [ObservableProperty] public partial bool StatusIsError { get; set; }
-    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.Shaded;
+    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.ShadedEdges;
     /// <summary>See-through bodies: faces turn translucent so hidden edges and inner shapes show.</summary>
     [ObservableProperty] public partial bool XRay { get; set; }
     [ObservableProperty] public partial bool Zebra { get; set; }

@@ -92,9 +92,7 @@
         </Border>
         <ScrollViewer Name="PanelScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12,0,12,12" Spacing="2">
-                <TextBlock Text="{Binding ActiveCommand.PanelHint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
-                <Button Content="Show tool example" IsVisible="{Binding HasActiveToolExample}" Click="OnHelp" HorizontalAlignment="Stretch" Margin="0,0,0,10"/>
-                <ItemsControl ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
+                <ItemsControl Margin="0,11,0,0" ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
                 <Button Classes="studioAction" Content="Gizmo…" IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Click="OnGizmo" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.Results}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>

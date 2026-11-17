@@ -59,6 +59,7 @@ public class CreateSketchCommand : Command
     public override void BuildOverlay(CadSession s, Overlay o)
     {
         if (_face.Items.Count > 0 && _face.Items[0].Kind == SelKind.Face) return;      // a flat face is used exactly: nothing to preview
+        if (_offset.Value == 0) return;      // no offset: the sketch starts on the plane itself (shown by the origin planes already), so an extra highlighted plane, even under the pointer, is only a distraction
         Plane3 basePlane; double hu, hv; string name;
         if (s.Hover is { Kind: SelKind.Origin or SelKind.Object } hov && hov.Kind == SelKind.Origin ? hov.Index < 3 : s.Hover is { Kind: SelKind.Object } && s.Find(s.Hover!.Value.Obj) is { Kind: ObjKind.Plane })
         {

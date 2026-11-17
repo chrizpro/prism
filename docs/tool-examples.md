@@ -7,7 +7,7 @@ Hover help and active-tool guidance have separate jobs and locations.
 - **File types in Export As** each have their own card, keyed `export-as|<extension>` (`Format` in `MainViewModel`), because the formats share two icons. Buttons that share an icon with an unrelated tool (Select Study, Refinement, Show Mode) are keyed `icon|Label`. `HLP-H001`, `HLP-H003` and `SOL-H089` fail when a ribbon button has no card or shows another tool's.
 - Disabled ribbon commands and disabled dropdown options can still show hover help; they cannot be run until their usual requirements are met.
 - **Activate a tool:** the top-right viewport assistance shows the current instruction. It updates as inputs are chosen, when the active selection slot changes, or when a tool enters a temporary operation step. Sketch tools use their current drawing prompt. Hovering another tool leaves this guidance and the active operation untouched.
-- **Dismiss:** leave the tool and tooltip to close hover help, or press Esc. F1, right-click **Show tool example**, and the command panel's **Show tool example** open the same tooltip. These never add example geometry to the viewport.
+- **Dismiss:** leave the tool and tooltip to close hover help, or press Esc. F1 and right-click **Show tool example** open the same tooltip. (The command panel no longer has a **Show tool example** button or a hint paragraph, owner request 2026-11-16: the live instructions are in the viewport.) These never add example geometry to the viewport.
 
 The examples use isolated OpenCascade shapes and the existing mesh renderer. They never add scene objects, move the working camera, or create undo history. The active command's own geometry preview continues to show the result of the user's selections.
 
