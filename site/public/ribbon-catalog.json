@@ -1,5 +1,5 @@
 {
-  "sourceHash": "49BA8CA32D596D0BA928718E1084A3F11ACD3C895EDC8712DF64FCE4EB127E67",
+  "sourceHash": "1ADF05A97F412A97D6AC2069880C85CA66DD7B624DE3965371CD7DB5CFC478E1",
   "workspaces": [
     {
       "Id": "design",
@@ -424,12 +424,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -495,9 +489,9 @@
               "shortcut": ""
             },
             {
-              "id": "section|Project",
-              "label": "Project",
-              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "id": "section|Project / Wrap",
+              "label": "Project / Wrap",
+              "description": "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.",
               "shortcut": ""
             },
             {
@@ -616,6 +610,12 @@
               "id": "hole|Hole",
               "label": "Hole",
               "description": "Create plain or modeled threaded holes on a body or face, with blind or through-all depth.",
+              "shortcut": ""
+            },
+            {
+              "id": "hole|Thread",
+              "label": "Thread",
+              "description": "Cut a modeled thread into a pin, bolt or boss (external) or a hole you already drilled (internal).",
               "shortcut": ""
             }
           ]
@@ -873,12 +873,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -941,6 +935,12 @@
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            },
+            {
+              "id": "section|Project / Wrap",
+              "label": "Project / Wrap",
+              "description": "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.",
               "shortcut": ""
             },
             {
@@ -1050,6 +1050,12 @@
               "shortcut": ""
             },
             {
+              "id": "hole|Thread",
+              "label": "Thread",
+              "description": "Cut a modeled thread into a pin, bolt or boss (external) or a hole you already drilled (internal).",
+              "shortcut": ""
+            },
+            {
               "id": "shell|Shell",
               "label": "Shell",
               "description": "Hollow out a body, optionally opening faces.",
@@ -1073,7 +1079,7 @@
           "title": "Direct Edit",
           "tools": [
             {
-              "id": "pushpull|Direct Edit",
+              "id": "direct-edit:solid",
               "label": "Direct Edit",
               "description": "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.",
               "shortcut": ""
@@ -1134,6 +1140,29 @@
               "id": "pattern-table|Table",
               "label": "Table",
               "description": "Place copies at positions you type: irregular layouts.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Analyze",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft Analysis",
+              "label": "Draft Analysis",
+              "description": "Check faces for mold release in a pull direction.",
               "shortcut": ""
             }
           ]
@@ -1293,12 +1322,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -1364,9 +1387,9 @@
               "shortcut": ""
             },
             {
-              "id": "section|Project",
-              "label": "Project",
-              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "id": "section|Project / Wrap",
+              "label": "Project / Wrap",
+              "description": "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.",
               "shortcut": ""
             },
             {
@@ -1506,6 +1529,12 @@
               "shortcut": ""
             },
             {
+              "id": "nurbs-patch|Match Surface",
+              "label": "Match Surface",
+              "description": "Reshape a surface edge to meet another surface or face smoothly: touching (G0), tangent (G1) or curvature-continuous (G2). The other face can be trimmed, or a face of a solid.",
+              "shortcut": ""
+            },
+            {
               "id": "reverse-normal|Reverse Normal",
               "label": "Reverse Normal",
               "description": "Turn a surface around so its other side faces out.",
@@ -1527,6 +1556,17 @@
               "id": "warp|Warp",
               "label": "Warp",
               "description": "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Direct Edit",
+          "tools": [
+            {
+              "id": "direct-edit:surface",
+              "label": "Direct Edit",
+              "description": "Edit surfaces you already have, with no history needed: pull or offset faces, delete or merge them, check and repair. Tools that need a solid are disabled.",
               "shortcut": ""
             }
           ]
@@ -1561,6 +1601,41 @@
               "id": "intersect|Intersect",
               "label": "Intersect",
               "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Pattern",
+          "tools": [
+            {
+              "id": "pattern-linear|Linear",
+              "label": "Linear",
+              "description": "Repeat objects along one, two or three directions (grids and blocks).",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-circular|Circular",
+              "label": "Circular",
+              "description": "Repeat objects around an axis, with optional concentric rings.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-curve|Along Curve",
+              "label": "Along Curve",
+              "description": "Repeat objects along a curve or edge chain, turning each copy to follow it.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-fill|Fill",
+              "label": "Fill",
+              "description": "Fill a face or closed sketch with copies.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-table|Table",
+              "label": "Table",
+              "description": "Place copies at positions you type: irregular layouts.",
               "shortcut": ""
             }
           ]
@@ -1766,12 +1841,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -2002,12 +2071,35 @@
               "label": "Thicken",
               "description": "Give the cage wall thickness (Bevel width).",
               "shortcut": ""
+            },
+            {
+              "id": "warp|Warp",
+              "label": "Warp",
+              "description": "Bend, twist, taper or stretch the form along an axis.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Direct Edit",
+          "tools": [
+            {
+              "id": "direct-edit:freeform",
+              "label": "Direct Edit",
+              "description": "Edit a Freeform body directly by its cage: select points, edges or faces and move them. Tools that need a solid are disabled.",
+              "shortcut": ""
             }
           ]
         },
         {
           "title": "Loops",
           "tools": [
+            {
+              "id": "splitbody|Knife",
+              "label": "Knife",
+              "description": "Cut the form with a plane: every face it passes through is split along the cut.",
+              "shortcut": ""
+            },
             {
               "id": "form-loop|Insert Edge",
               "label": "Insert Edge",
@@ -2144,6 +2236,64 @@
               "id": "form-nurbs|Convert fewer faces",
               "label": "Convert fewer faces",
               "description": "Like Convert to NURBS, but each irregular face becomes one fitted patch instead of four: a lighter solid that is quicker for booleans and fillets, a little less exact near poles.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Pattern",
+          "tools": [
+            {
+              "id": "pattern-linear|Linear",
+              "label": "Linear",
+              "description": "Repeat objects along one, two or three directions (grids and blocks).",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-circular|Circular",
+              "label": "Circular",
+              "description": "Repeat objects around an axis, with optional concentric rings.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-curve|Along Curve",
+              "label": "Along Curve",
+              "description": "Repeat objects along a curve or edge chain, turning each copy to follow it.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-fill|Fill",
+              "label": "Fill",
+              "description": "Fill a face or closed sketch with copies.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-table|Table",
+              "label": "Table",
+              "description": "Place copies at positions you type: irregular layouts.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Analyze",
+          "tools": [
+            {
+              "id": "zebra|Zebra Stripes",
+              "label": "Zebra Stripes",
+              "description": "Reflection stripes: smooth, continuous stripes mean a smooth surface.",
+              "shortcut": ""
+            },
+            {
+              "id": "curvature|Curvature Map",
+              "label": "Curvature Map",
+              "description": "Color surfaces by curvature.",
+              "shortcut": ""
+            },
+            {
+              "id": "draft|Draft Analysis",
+              "label": "Draft Analysis",
+              "description": "Check faces for mold release in a pull direction.",
               "shortcut": ""
             }
           ]
@@ -2309,12 +2459,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -2380,9 +2524,9 @@
               "shortcut": ""
             },
             {
-              "id": "section|Project",
-              "label": "Project",
-              "description": "Drop curves onto a surface, straight or by pulling to the nearest point.",
+              "id": "section|Project / Wrap",
+              "label": "Project / Wrap",
+              "description": "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.",
               "shortcut": ""
             },
             {
@@ -2419,6 +2563,17 @@
               "id": "origin-point|Divide",
               "label": "Points Along Curve",
               "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Direct Edit",
+          "tools": [
+            {
+              "id": "direct-edit:nurbs",
+              "label": "Direct Edit",
+              "description": "Edit NURBS directly with no history: drag control points, sculpt, delete or merge faces, check and repair. Tools that need a solid are disabled.",
               "shortcut": ""
             }
           ]
@@ -2617,6 +2772,41 @@
               "id": "intersect|Intersect",
               "label": "Intersect",
               "description": "Keep only the shared volume.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Pattern",
+          "tools": [
+            {
+              "id": "pattern-linear|Linear",
+              "label": "Linear",
+              "description": "Repeat objects along one, two or three directions (grids and blocks).",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-circular|Circular",
+              "label": "Circular",
+              "description": "Repeat objects around an axis, with optional concentric rings.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-curve|Along Curve",
+              "label": "Along Curve",
+              "description": "Repeat objects along a curve or edge chain, turning each copy to follow it.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-fill|Fill",
+              "label": "Fill",
+              "description": "Fill a face or closed sketch with copies.",
+              "shortcut": ""
+            },
+            {
+              "id": "pattern-table|Table",
+              "label": "Table",
+              "description": "Place copies at positions you type: irregular layouts.",
               "shortcut": ""
             }
           ]
@@ -2823,12 +3013,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -2867,7 +3051,7 @@
             {
               "id": "movehole|Edit Feature",
               "label": "Edit Feature",
-              "description": "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature.",
+              "description": "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature. Solid bodies only.",
               "shortcut": ""
             },
             {
@@ -2939,6 +3123,29 @@
               "id": "replaceface|Merge Faces",
               "label": "Merge Faces",
               "description": "Join neighbouring faces on the same surface into one.",
+              "shortcut": ""
+            }
+          ]
+        },
+        {
+          "title": "Shape",
+          "tools": [
+            {
+              "id": "form-edit|Edit Freeform",
+              "label": "Edit Freeform",
+              "description": "Select vertices, edges or faces of a Freeform body and move them with the manipulator. Freeform workflow only.",
+              "shortcut": ""
+            },
+            {
+              "id": "edit-points|Edit Points",
+              "label": "Edit Points",
+              "description": "Drag NURBS control points, with soft influence on neighbours. NURBS workflow only.",
+              "shortcut": ""
+            },
+            {
+              "id": "sculpt|Sculpt",
+              "label": "Sculpt",
+              "description": "Brush a NURBS surface: pull, push, move or smooth. NURBS workflow only.",
               "shortcut": ""
             }
           ]
@@ -3108,12 +3315,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -3399,12 +3600,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -4033,12 +4228,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -4223,12 +4412,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -4549,12 +4732,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -4826,12 +5003,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -5300,12 +5471,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -5521,12 +5686,6 @@
               "id": "sel-same-linked|Linked",
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
               "shortcut": ""
             }
           ]
@@ -6006,12 +6165,6 @@
               "label": "Linked",
               "description": "Add every face of the body a selected face belongs to.",
               "shortcut": ""
-            },
-            {
-              "id": "xray|Through",
-              "label": "Through",
-              "description": "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.",
-              "shortcut": ""
             }
           ]
         },
@@ -6352,6 +6505,12 @@
               "shortcut": "F"
             },
             {
+              "id": "zoom-selected|Zoom Selected",
+              "label": "Zoom Selected",
+              "description": "Bring the selected bodies, faces or edges to the middle of the window and fill it with them.",
+              "shortcut": ""
+            },
+            {
               "id": "home-set|Set Home",
               "label": "Set Home",
               "description": "Make the view you see now the home view, and turn Front, Top, Right and the view cube to match it. Useful when an imported mesh or an awkwardly modeled part sits at an odd angle. Once set, this button puts the original orientation back.",
@@ -6424,7 +6583,7 @@
             {
               "id": "xray|X-ray",
               "label": "X-ray",
-              "description": "Toggle translucent faces in shaded styles to see geometry behind them. Wireframe already shows all edges without faces.",
+              "description": "Toggle translucent faces in shaded styles to see geometry behind them. While it is on, selecting goes through the part too: a rectangle, lasso or paint stroke also picks the faces, edges and bodies hidden behind others, on both sides, and Alt-click steps through what is under the pointer, front to back. Wireframe already shows all edges without faces.",
               "shortcut": ""
             }
           ]
