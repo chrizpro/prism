@@ -16,14 +16,15 @@ public sealed class WarpCommand : Command
 {
     enum Kind { Bend, Twist, Taper, Stretch }
 
-    readonly SelectionSlot _src;
+    readonly SelectionSlot _src, _faces;
     readonly ChoiceParam _kind, _axis, _toward;
     readonly NumberParam _angle, _percent, _start, _end, _tol;
     readonly IntParam _detail;
 
     public WarpCommand()
     {
-        _src = Slot(new SelectionSlot { Label = "What to warp", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.CurveObj | SelFilter.Form | SelFilter.MeshObj, Multi = true });
+        _src = Slot(new SelectionSlot { Label = "What to warp", Filter = SelFilter.Solid | SelFilter.SurfaceObj | SelFilter.CurveObj | SelFilter.Form | SelFilter.MeshObj, Multi = true, Optional = true });
+        _faces = Slot(new SelectionSlot { Label = "Faces to warp (instead of the whole body)", Filter = SelFilter.Face, Multi = true, Optional = true });
         _kind = Choice("Warp", 0, "Bend", "Twist", "Taper (narrow or widen toward one end)", "Stretch (lengthen or shorten)");
         _axis = Choice("Along the axis", 0, "X", "Y", "Z");
         _toward = Choice("Bend toward", 0, "+X", "-X", "+Y", "-Y", "+Z", "-Z");
@@ -40,7 +41,7 @@ public sealed class WarpCommand : Command
     public override string Title => "Warp";
     public override string Icon => "warp";
     public override string OkText => "Apply warp";
-    public override string Hint => "Pick bodies, surfaces, curves, forms or meshes, then choose Bend, Twist, Taper or Stretch along an axis. The part of the shape before the start stays put and the part beyond the end moves rigidly with it. Higher smoothness gives solids and surfaces more control points to follow a strong bend.";
+    public override string Hint => "Pick bodies, surfaces, curves, forms or meshes, then choose Bend, Twist, Taper or Stretch along an axis. The part of the shape before the start stays put and the part beyond the end moves rigidly with it. Higher smoothness gives solids and surfaces more control points to follow a strong bend. To change only some faces of a solid, pick them under Faces to warp instead: each stays inside its own outline, the other faces are untouched, and the body is left alone if the result would not be a valid solid.";
 
     protected override void UpdateVisibility()
     {
@@ -204,9 +205,61 @@ public sealed class WarpCommand : Command
         return sewn;
     }
 
+    /// <summary>
+    /// Warp only the picked faces of each solid or surface. Each face becomes a NURBS surface whose outer ring of points stays put, so its outline is unchanged
+    /// and the other faces are left exactly as they were; the pieces are sewn back, and the body is refused when that does not give a valid result.
+    /// </summary>
+    CommandOutput WarpFaces(Func<Vec3, Vec3> f)
+    {
+        var o2 = new CommandOutput { Label = $"Warp faces ({_kind.Selected.Split(' ')[0]})", Icon = "warp" };
+        int count = 0;
+        foreach (var group in _faces.Items.Where(i => i.Kind == SelKind.Face).GroupBy(i => i.Obj))
+        {
+            var body = S.Find(group.Key);
+            if (body is not { HasBrep: true, Tri: null, Form: null } || body.Kind is not (ObjKind.Solid or ObjKind.Surface))
+                throw new FormatException("Faces can be warped on a solid or a surface.");
+            var picked = group.Select(i => i.Index).ToHashSet();
+            var pieces = new List<Shape>();
+            for (int i = 0; i < body.Shape.Count(SubKind.Face); i++)
+            {
+                var original = body.Shape.Sub(SubKind.Face, i);
+                if (!picked.Contains(i)) { pieces.Add(original); continue; }
+                if (Occ.FaceInfoOf(original).Type != "Plane") throw new FormatException("Warping single faces works on flat faces for now. Curved faces are not supported yet.");
+                if (original.Count(SubKind.Edge) != 4 || original.Count(SubKind.Wire) != 1)
+                    throw new FormatException("Warping single faces works on a flat face with four sides and no holes for now.");
+                var face = Occ.ToNurbs(original);
+                for (int r = 0; r < _detail.Value; r++) face = Occ.RefineFace(face);
+                var net = Occ.FaceNet(face);
+                var points = net.Points.ToArray();
+                for (int r = 1; r < net.Rows - 1; r++)
+                    for (int c = 1; c < net.Cols - 1; c++) points[r * net.Cols + c] = f(points[r * net.Cols + c]);       // the outer ring never moves
+                pieces.Add(Occ.SetFaceNet(face, points)); count++;
+            }
+            bool solid = body.Shape.HasSolids;
+            Shape result;
+            try { result = Occ.Sew(pieces, Math.Max(_tol.Value, 0.01), solid); }
+            catch (KernelException e) { throw new FormatException("The warped faces could not be joined back into the body: " + e.Message); }
+            if (solid && (!result.HasSolids || !result.IsValid))
+                throw new FormatException("The warped faces do not close into a valid solid, so nothing was changed. Try a gentler warp or fewer faces.");
+            o2.Replace.Add((body, result));
+        }
+        if (count == 0) return o2;
+        Results.Add(new ResultLine("Faces warped", count.ToString()));
+        Results.Add(new ResultLine("Outline", "kept where it was; the neighbouring faces meet the warped faces at a sharp edge"));
+        return o2;
+    }
+
     protected override CommandOutput? Build()
     {
         Results.Clear();
+        if (_faces.Items.Count > 0)
+        {
+            // the warp's range (starts at, ends at) is measured along the axis over the whole body the faces belong to
+            var owners = _faces.Items.Select(i => S.Find(i.Obj)).OfType<SceneObject>().Distinct().ToList();
+            var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo;
+            foreach (var o in owners) { var m = o.Mesh; lo = new(Math.Min(lo.X, m.Min.X), Math.Min(lo.Y, m.Min.Y), Math.Min(lo.Z, m.Min.Z)); hi = new(Math.Max(hi.X, m.Max.X), Math.Max(hi.Y, m.Max.Y), Math.Max(hi.Z, m.Max.Z)); }
+            return WarpFaces(Deformation(lo, hi));
+        }
         if (_src.Items.Count == 0) return null;
         var objs = _src.Items.Select(i => S.Find(i.Obj)).Where(o => o != null).Cast<SceneObject>().Distinct().ToList();
         var min = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var max = -min;

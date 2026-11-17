@@ -81,6 +81,7 @@ public static partial class ToolHelp
         Commands.CurvatureCommand => Find("curvature"),
         Commands.CurveCurvatureCommand => Find("curve-comb"),
         Commands.DraftCommand => Find("draft"),
+        Commands.DraftFaceCommand => null,      // its own help is the "draft|Draft" button topic; the icon's topic is Draft Analysis
         Commands.DrawingCommand => Find("drawing"),
         Commands.TransformCommand when command.Title is "Move" or "Rotate" or "Scale" => Find(command.Title.ToLowerInvariant()),
         Commands.BooleanCommand => Find(command.Title.ToLowerInvariant()),

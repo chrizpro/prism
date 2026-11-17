@@ -51,11 +51,10 @@ public class SolidRibbonTests
         Assert.Null(vm.Session.ActiveCommand);
     }
 
-    [AvaloniaTheory(DisplayName = "SOL-H053 | Direct Edit opens from Surface, Freeform and NURBS and disables tools that need a solid")]
+    // Freeform and NURBS no longer have a Direct Edit button (owner request 2026-11-16); their own ribbons already show Edit Freeform, Edit Points and Sculpt.
+    [AvaloniaTheory(DisplayName = "SOL-H053 | Direct Edit opens from Surface and disables tools that need a solid")]
     [Trait("TestId", "SOL-H053")]
     [InlineData("Surface", false, false)]
-    [InlineData("Freeform", true, false)]
-    [InlineData("NURBS", false, true)]
     public void DirectEditOpensFromEveryModelingTab(string tabTitle, bool freeform, bool nurbs)
     {
         var vm = new MainViewModel();
@@ -73,9 +72,9 @@ public class SolidRibbonTests
         RibbonButton Named(string label) => direct.Single(button => button.Label.Replace("\n", " ") == label);
         Assert.False(Named("Edit Feature").IsEnabled);
         Assert.False(Named("Draft").IsEnabled);
-        Assert.Equal(freeform, Named("Edit Freeform").IsEnabled);
-        Assert.Equal(nurbs, Named("Edit Points").IsEnabled);
-        Assert.Equal(!freeform, Named("Check and Repair").IsEnabled);
+        // Edit Freeform, Edit Points and Sculpt were removed from this tab (owner request 2026-11-16): nothing opens it from those workflows any more
+        Assert.DoesNotContain(direct, button => button.Label.Replace("\n", " ") is "Edit Freeform" or "Edit Points" or "Sculpt");
+        Assert.Contains(direct, button => button.Label.Replace("\n", " ") == "Check and Repair" && button.IsEnabled);      // listed in more than one group since an earlier merge
 
         vm.SelectedTab.Buttons.Single(button => button.Icon == "finish").Invoke();
         Assert.False(vm.IsDirectEditing);

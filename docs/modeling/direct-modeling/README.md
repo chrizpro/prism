@@ -4,7 +4,7 @@ Edit the geometry you already have, with no history needed. It works on any exac
 
 **Opening it:** on the Solid tab, the **Direct Edit** section has one button, **Direct Edit**. It opens this tab the way Create Sketch opens the Sketch tab, and **Finish Editing** (far right) goes back.
 
-**Opening it from other workflows (proposed, awaiting owner review).** Surface, Freeform and NURBS each have a **Direct Edit** section with the same button. The tab remembers where you came from and disables the tools that cannot work on that kind of geometry; a disabled tool stays visible so the tab reads the same everywhere.
+**Opening it from other workflows (proposed, awaiting owner review).** Solid and Surface each have a **Direct Edit** section with the same button. (Freeform and NURBS had one until 2026-11-16, when the owner removed it as pointless: their own ribbons already show Edit Freeform, Edit Points and Sculpt.) The tab remembers where you came from and disables the tools that cannot work on that kind of geometry; a disabled tool stays visible so the tab reads the same everywhere.
 
 | Tool | Solid | Surface | Freeform | NURBS |
 |---|---|---|---|---|
@@ -89,3 +89,41 @@ Remaining maintained work includes Edit Feature action and type choices, smart-s
 [Maintained feature action tests](../../../Prism.Tests/Headless/DirectModeling/FeatureActionTests.cs) exercise Delete, Resize, Copy and Move on a drilled hole, plus linear hole spacing, count and instance removal. [Issue #44](https://github.com/chrizpro/prism/issues/44) tracks additional feature and pattern options, including conversions, circular layouts and mirror targets.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+## Sculpt Face and Warp on faces — direction approved 2026-11-16; details awaiting owner review
+
+**Warp button (delivered 2026-11-16, tried by tests only).** The Direct Modeling tab's *Shape* group now has **Warp**, enabled for the Solid and Surface workflows. It is the same Warp as on the Surface, Freeform and NURBS tabs: it bends, twists, tapers or stretches a **whole** body or surface along an axis. It does not yet act on single faces.
+
+**Owner direction.** Sculpt a face of a solid in place, in the spirit of Fusion's face editing, and let Warp take **faces to warp** so a face can be modified "a little". The owner chose the "Option A" shape of this: the face becomes a NURBS surface, its interior is reshaped, and it goes back into the body.
+
+**What it is not (so the expectation is clear).** It is not Fusion's Press Pull or Move Face (those move a face and let its neighbours extend or trim; Push/Pull, Replace Face and Match Face already do that), and it is not the Sculpt workspace (T-splines). It reshapes the *surface* of a face and keeps the face's outline where it is.
+
+**Proposed behavior (first version).**
+1. Pick one or more faces of a solid; reshape them with a soft brush (pull, push, smooth, with the radius and falloff controls already used by Freeform and NURBS Sculpt), and, for Warp, with a **Faces to warp** pick that limits Bend, Twist, Taper or Stretch to those faces.
+2. **The outline stays fixed.** The outer ring of control points never moves, so the face still meets its neighbours exactly. Neighbouring faces do not follow and are not smooth with the new surface; the join is a sharp edge.
+3. **The result must be a valid solid.** The edit is built on a copy; if the body is not valid (or the faces cannot be sewn back), the command refuses with a message and the body is unchanged.
+4. Planar and gently curved faces first. Cylinders, cones, spheres and faces with holes or trimmed outlines are later and, until they work, are refused with a message.
+5. One undo step per edit; the saved history re-edits with the same settings.
+
+**Open decisions for the owner.** (a) How the brush is driven: a viewport brush like NURBS Sculpt, or first a typed bump (position, radius, height) with handles? Recommended: typed bump with handles first, brush second. (b) How much detail a face gets: automatic from the radius, or an *Add detail* button like Sculpt? (c) Whether Warp's range controls (*starts at*, *ends at*) still apply to a faces-only warp.
+
+**Feasibility evidence, 2026-11-16 (not a delivered feature).** [DIR-H070 and DIR-H071](../../../Prism.Tests/Headless/DirectModeling/SculptFaceFeasibilityTests.cs) take the top face of a 40 x 40 x 20 mm box, convert it to NURBS, refine it twice, raise (+4 mm) or dent (-4 mm) a smooth bump in its interior with the outline ring unchanged, and sew it back with the other five faces: both are valid solids, the raised one is taller than 20 mm and larger than 32,000 mm³, the dented one smaller. **Not yet shown:** curved faces, faces with holes or trimmed outlines, several faces at once, and the interactive tool.
+
+### Delivered 2026-11-16 (owner: "just get to work and let me know the restriction"; checked by tests, not tried by hand in the app)
+
+Owner decisions: turning a face into NURBS is acceptable; keep Warp on the Direct Modeling ribbon with an option to modify faces individually. The open decisions above were settled by my recommendations: a **typed bump** (position, radius, height) first, detail as a plain number (default 3 refinements, 1 to 5), and Warp's *starts at / ends at* range still applying, measured over the whole body.
+
+- **Sculpt Face** (Direct Modeling > Shape, solid workflow; `sculpt_face` for scripts): pick a flat, four-sided face; *Height* (negative pushes in), *Bump radius* (set to 40 % of the face's smaller side when you pick), *Falloff* (Smooth, Linear, Sharp), *Move the bump across* and *up* (mm), *Detail*. Tests [DIR-H070 to DIR-H076](../../../Prism.Tests/Headless/DirectModeling/SculptFaceTests.cs): a +4 mm bump on a 40 x 40 x 20 mm box top is a valid solid between 32,001 and 33,600 mm³ with the same width and depth; a -3 mm dent removes volume; offsets move the bump; a box turned 30 degrees, a face tilted 20 degrees and a box with every edge filleted (3 mm) each gain the same bump volume (632 mm³, 630 for the filleted one).
+- **Warp, Faces to warp** (optional second pick on Warp): bends, twists, tapers or stretches only the picked faces; the other faces are left exactly as they were. With no faces picked Warp is unchanged (WRP-H012). Tests [WRP-H010 to WRP-H012](../../../Prism.Tests/Headless/Solid/WarpFacesTests.cs).
+
+**Limitations (all refused with a message, body unchanged):**
+1. **Flat faces only.** Cylinders, cones, spheres and free-form faces are refused ("works on flat faces for now").
+2. **Four sides, no holes.** A face with a hole, a rounded corner, or more or fewer than four edges is refused. Faces whose corners are rounded off by a fillet qualify when the flat part still has four straight edges.
+3. **The outline is fixed.** The outer ring of points never moves, so the neighbouring faces do not follow and the join is a **sharp edge**, not smooth; no tangent blend into the neighbours.
+4. **The face becomes NURBS.** It is no longer a plane after the edit, so tools that need a flat face (Replace Face, Extend/Trim Face) refuse it afterwards. Undo restores it.
+5. **Valid solid or nothing.** The result is sewn at 0.01 mm; if it does not close into a valid solid the edit is refused. A very large height or a very tight radius can trigger that.
+6. **One face at a time for Sculpt Face.** Warp takes several faces, but each is warped on its own with its own outline.
+7. **Handles, no brush.** Sculpt Face has four viewport handles (owner request 2026-11-16, [DIR-H077](../../../Prism.Tests/Headless/DirectModeling/SculptFaceTests.cs); the dragging itself is not tried by hand): an arrow out of the face for **height**, an arrow across it for **radius**, and two arrows from the face's centre that **slide the bump** across and up the face. They edit the same typed values. There is no free brush yet.
+8. **Warp's handles in the viewport** are shown for whole-body warps only; a faces-only warp has typed values and no handles yet.
+9. **Surfaces** (not solids) are accepted by Warp's face option but not by Sculpt Face, and are less tested.
+10. Not yet checked: faces much larger than the bump radius (the bump only touches the middle), very thin faces, bodies with hundreds of faces (speed), and edits repeated many times on the same face (each edit refines it again).

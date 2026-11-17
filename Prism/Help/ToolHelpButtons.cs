@@ -9,6 +9,10 @@ public static partial class ToolHelp
 {
     static ToolHelpTopic? FindButton(string? key) => key switch
     {
+        // ---- Solid: Draft changes the walls; the Draft Analysis topic (same icon) only checks them ----
+        "draft|Draft" => Words(key, "Draft", "Lean the walls of a body away from a pull direction so a molded or cast part can release. This changes the shape; to only check an existing part, use Draft Analysis under Analyze.",
+            "1. Choose Draft.\n2. Pick the faces to lean, then the neutral plane or flat face they hinge on.\n3. Set the angle; Reverse pull direction flips the lean.",
+            "A parting line at the neutral plane leans the walls opposite ways, for a two-part mold."),
         // ---- Home: Export As (one card per file type) ----
         "export-as|prism" => Words(key, "Export As Prism document", "Write an editable copy of the whole document as a .prism file, to keep a version or send one.",
             "1. Choose Export As > Prism document.\n2. Pick a folder and name.\n3. Prism writes the copy; your open document is not renamed.",
