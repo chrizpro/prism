@@ -25,6 +25,42 @@ A saved design-history step lists its command's numbers by position, so a comman
 
 Whole-body Shell subtracts the inner solid from the outer solid to keep a closed wall. The [resin hollow-and-drain case](../../../Prism.Tests/Headless/Cam/ResinPreparationTests.cs) verifies an inward wall, a blind drain through one wall, and the cavity of an outward shell. [Bug #32](https://github.com/chrizpro/prism/issues/32). Engraving, threads, multi-edge blends, open-face outside shells, multi-face drafts and split misses still need maintained coverage.
 
+## Split Body by a sketch — Approved 2026-11-16, delivered (tests, not tried by hand)
+
+**Owner decisions 2026-11-16:** a closed shape inside the outline makes a plug and a body with a pocket; a line that stops inside the body is refused. **Delivered:** Split Body accepts a sketch or curve. The sketch is swept along its plane's normal through the whole body in both directions and the body is split by that sheet, so one rule covers all three cases. Tests [SOL-H160 to SOL-H163](../../../Prism.Tests/Headless/Solid/SplitBodyBySketchTests.cs): a line across a 100 mm cube gives two 500,000 mm³ halves, a 20 mm square gives a 40,000 mm³ plug and a 960,000 mm³ body, a stopped line is refused with "stops inside the body", and the sketch is deleted by default. **Not built:** the *Extend the line to the body's edges* and *Direction* options, and the same rules for Split Face with a sketch (open decision b). The proposal text below is the original draft.
+
+**Today.** [Split Body](../../../Prism/Commands/DirectCommands.cs) accepts a plane, face, surface or solid as the splitting tool and gives each piece its own body. It does not accept a sketch, while [Split Surface](../surface-and-nurbs/README.md) already accepts a sketch or curve and splits along its projection on the surface.
+
+**Intent.** The owner's rule: the tool must work out what the sketch is meant to do, and a line drawn right through the body means "cut here". Proposed reading, in order:
+
+1. **A line or chain that crosses the whole body as seen along the sketch's normal** (it runs past the body's outline at both ends): the sketch is swept straight through the body, in both directions, and the body is split along that sheet. This is the owner's clear case.
+2. **A closed loop that lies inside the body's outline:** the body is split into the prism the loop encloses and the rest, so you get a plug and a body with a matching pocket.
+3. **A chain that stops inside the outline, or leaves on one side only:** ambiguous. Proposed: refuse with a message that says so and offers *Extend the line to the body's edges*, which treats it as case 1. The tool never guesses past that.
+4. **Several curves in one sketch:** each is read separately and they all cut at once.
+
+**Options (proposed):** *Direction* (both ways through the body by default; one side or a distance if you want less), *Delete the sketch afterward* (see [cutting tools](../surface-and-nurbs/README.md#6-keep-the-originals-consistency)), and *Extend the line to the body's edges*. The sketch plane does not have to touch the body.
+
+**Open decisions.** (a) Is the closed-loop plug (case 2) wanted, or should a loop be refused as "that is a cut, use Extrude Cut"? (b) Should the same rules apply to Split Face with a sketch, which currently projects onto the face? Recommended: yes, so the two tools agree.
+
+**Acceptance (draft).** A line across the middle of a 100 x 100 x 100 mm box, drawn on its top plane and running past both sides, gives two bodies of 500,000 mm³ each whose volumes add to the original and whose cut faces are flat. A 20 mm square loop in the middle gives a 20 x 20 x 100 mm plug (40,000 mm³) and a body with the pocket. A line that stops at the middle is refused with the message above. Not yet tested; no tests are written until you decide.
+
+## Fillet "inverse" — Cove approved 2026-11-16, delivered (tests, not tried by hand)
+
+**Delivered, with a correction to the draft below.** Fillet has a **Shape** choice, *Round* or *Cove (concave scoop)*. **The draft's "tangent to both walls" cannot be done:** a concave scoop that is tangent to both faces of a convex edge would have to touch them outside the body. What is built is the quarter-round cove: a cylinder of the chosen *Radius* centred on the straight edge is cut away, so on a square edge the walls meet the scoop at **right angles**. Tests [SOL-H090 to SOL-H094](../../../Prism.Tests/Headless/Solid/CoveFilletTests.cs): radius 2 on one 10 mm edge of a 10 mm cube removes a quarter disc, 10 pi = 31.4 mm³ (hand calculation); two opposite edges remove twice that; a round fillet of the same radius removes (4 - pi) x 10 = 8.6 mm³, less; a curved edge is refused. **Limitations:** straight edges only (curved edges are refused); on a concave (inside) edge the same cylinder cuts a round groove, so use it on outside edges; *End radius* and *Radius per edge* are hidden for a cove; two coves meeting at a corner overlap slightly there; Chamfer is unchanged. The draft below is kept for the record.
+
+**Owner decision 2026-11-16:** "inverse" means concave, the cove (option A below); a Shape choice *Round | Cove*. Not implemented in this change: it needs new kernel geometry and a hand-worked cross-section for the acceptance test. Chamfer is unchanged. The draft below stands as the specification to build from.
+
+**Today.** [Fillet](../../../Prism/Commands/SolidCommands.cs) rounds selected edges with a radius, an optional end radius and per-edge constant or variable radii; there is no option to reverse the way it curves.
+
+**What "inverse" could mean — please choose.** "Inverse" is used for two different things in CAD programs and the request does not say which:
+
+- **A. Cove (inside-out round).** On a convex edge, instead of rounding the corner off (a quarter circle centred inside the body), cut a hollow scoop whose arc is centred outside the body, so the two faces meet the new surface tangent but it is concave. Used for decorative edges and for clearance. On a concave edge the same option would add a convex bulge.
+- **B. Invert the side the fillet is made on**, when the edge is shared by faces that could be filleted either way (for example a thin rib). This is a *Reverse direction* checkbox like the one on Extrude.
+
+**Recommendation:** A, as a **Shape: Round | Cove** choice, because B is already what happens automatically from the edge's convexity. **Open decisions:** which of A or B; whether Chamfer gets the same choice (a chamfer has no curvature, so recommended no); how a variable radius behaves with a cove (recommended: same rule per edge).
+
+**Acceptance (draft, for A).** The cove surface is tangent to both faces within 0.01° and is concave. The removed volume equals the cove's cross-section area times the edge length, with the cross-section worked out by hand once A is chosen (a hand calculation, not read from the app). Undo restores the body. Not yet tested; no tests are written until you decide.
+
 ## Planned advanced edge blends
 
 Owner direction on 2026-11-16 ([#139](https://github.com/chrizpro/prism/issues/139)): substantially improve fillets and chamfers, including advanced corner transitions such as setback fillets. Current Fillet already supports an end radius and per-edge constant/variable radii. Current Chamfer supports equal distances, two distances and distance-plus-angle with side swapping. No explicit setback-corner option was found in the current commands. Additional blend controls, robustness and failure diagnostics are roadmap directions; detailed behavior remains for review before implementation or new feature tests.

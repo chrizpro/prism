@@ -455,8 +455,8 @@ public class SurfaceToolTests
         var output = BuildOutput(command);
         Assert.Equal(2, output.Add.Count);
         Assert.All(output.Add, cell => AssertNear(500, cell.Shape!.Props().Volume, "Space volume (mm³)"));
-        Assert.Equal("500 mm³", Result(command, "Space 1"));
-        Assert.Equal("500 mm³", Result(command, "Space 2"));
+        Assert.Equal("500 mm³ · kept", Result(command, "Space 1"));       // each line now also says whether the space is kept (owner request 2026-11-16)
+        Assert.Equal("500 mm³ · kept", Result(command, "Space 2"));
     }
 
     [AvaloniaFact(DisplayName = "SRF-H020 | Enclosed Body 'Spaces to keep' selects listed spaces and rejects missing ones")]

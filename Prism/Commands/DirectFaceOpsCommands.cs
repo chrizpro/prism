@@ -54,13 +54,21 @@ public sealed class SplitFaceCommand : Command
 {
     readonly SelectionSlot _face, _tool;
     readonly ChoiceParam _mode;
+    readonly BoolParam _deleteTool;
 
     public SplitFaceCommand()
     {
         _face = Slot(new SelectionSlot { Label = "Face to split", Filter = SelFilter.Face, SmartPick = true });
         _tool = Slot(new SelectionSlot { Label = "Splitting plane, edge or sketch", Filter = SelFilter.Plane | SelFilter.Edge | SelFilter.SketchObj | SelFilter.CurveObj });
         _mode = Choice("Mode", 0, "Split (cut across the face)", "Imprint (mark curves on the face)");
+        _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
+
+    /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+
+    protected override void UpdateVisibility() =>
+        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _face.Items.Count > 0 ? S.Find(_face.Items[0].Obj) : null) != null;
 
     public override string Title => "Split Face";
     public override string Icon => "splitbody";
@@ -85,7 +93,12 @@ public sealed class SplitFaceCommand : Command
             else if (S.FaceFrame(fi) is { } fr) { try { curves = Occ.ProjectCurve(curves, face, fr.normal, false); } catch (KernelException) { } }
         }
         int before = body.Shape.Count(SubKind.Face);
-        if (_mode.Index == 1) return Imprint(body, fi, curves, before);
+        if (_mode.Index == 1)
+        {
+            var imprint = Imprint(body, fi, curves, before);
+            if (_deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } drawn) imprint.Remove.Add(drawn);
+            return imprint;
+        }
         Shape res;
         try { res = Occ.Split(body.Shape, curves); }
         catch (KernelException) { throw new FormatException("That does not cross the face. Extend the plane, edge or sketch so it runs from one side of the face to the other."); }
@@ -95,6 +108,7 @@ public sealed class SplitFaceCommand : Command
         Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
         o.Replace.Add((body, res));
+        if (_deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
         return o;
     }
 

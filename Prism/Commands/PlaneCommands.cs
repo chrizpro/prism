@@ -444,6 +444,7 @@ public sealed class IntersectCurvesCommand : Command
             {
                 curves.Slots[0].TryAdd(_a.Items[0]); curves.Slots[1].TryAdd(_b.Items[0]);
                 curves.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Separate")).Value = _separate.Value;
+                curves.Params.OfType<BoolParam>().First(p => p.Label.StartsWith("Delete the source")).Value = false;      // this command decides about its sources itself (Keep the original curves)
             });
             var output = curves.TryBuild() ?? throw new FormatException(curves.Error ?? "Those curves have no shared curve.");
             foreach (var line in curves.Results) Results.Add(line);

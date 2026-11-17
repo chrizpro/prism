@@ -619,17 +619,40 @@ public sealed class MoveFaceCommand : Command
 public sealed class SplitBodyCommand : Command
 {
     readonly SelectionSlot _body, _tool;
+    readonly BoolParam _deleteTool;
 
     public SplitBodyCommand()
     {
         _body = Slot(new SelectionSlot { Label = "Body to split", Filter = SelFilter.Solid });
-        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
+        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj });
+        _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
+
+    /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 0 ? recipe with { Values = [false] } : recipe;
+
+    /// <summary>
+    /// A sketch or curve cuts along its own plane's normal, straight through the whole body in both directions: a line across the body divides it in two,
+    /// and a closed loop inside the body's outline divides it into the plug the loop encloses and the rest. A line that stops inside the body separates nothing and is refused.
+    /// </summary>
+    Shape SweepThroughBody(SelItem item, SceneObject body)
+    {
+        var plane = S.PlaneOf(item) ?? S.Find(item.Obj)?.SketchPlane ?? throw new FormatException("A curve needs a plane to cut along. Pick a sketch, or a curve drawn in a sketch.");
+        var normal = plane.Normal.Normalized();
+        using var curves = SurfaceUtil.CurveShape(S, item);
+        var bp = body.Shape.Props(); var cp = curves.Props();
+        double span = (bp.Size.Length + cp.Size.Length + bp.Center.DistanceTo(cp.Center) + 1) * 2;
+        using var start = Occ.Translate(curves, -normal * span);
+        return Occ.Extrude(start, normal * (span * 2));
+    }
+
+    protected override void UpdateVisibility() =>
+        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _body.Items.Count > 0 ? S.Find(_body.Items[0].Obj) : null) != null;
 
     public override string Title => "Split Body";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the body, then what cuts it. Each piece becomes its own body.";
+    public override string Hint => "Pick the body, then what cuts it: a plane, face, surface, solid or a sketch. A sketch cuts straight through the body along its plane's normal: a line across the whole body gives two pieces, a closed shape inside the outline gives the plug it encloses and the body with a pocket. A line that stops inside the body is refused. Each piece becomes its own body.";
 
     protected override CommandOutput? Build()
     {
@@ -637,11 +660,15 @@ public sealed class SplitBodyCommand : Command
         if (_body.Items.Count == 0 || _tool.Items.Count == 0) return null;
         var body = S.Find(_body.Items[0].Obj) ?? throw new FormatException("That body is gone.");
         if (body.Kind != ObjKind.Solid || !body.HasBrep) throw new FormatException("Split Body works on solid bodies.");
-        var tool = ToolShapes.For(S, _tool.Items[0]);
+        bool sketchTool = S.Find(_tool.Items[0].Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve } && _tool.Items[0].Kind == SelKind.Object;
+        var tool = sketchTool ? SweepThroughBody(_tool.Items[0], body) : ToolShapes.For(S, _tool.Items[0]);
         var pieces = Occ.Split(body.Shape, tool);
         int n = pieces.Count(SubKind.Solid);
-        if (n < 2) throw new FormatException("The tool does not cut all the way through the body. Extend it so it crosses the body completely.");
+        if (n < 2) throw new FormatException(sketchTool
+            ? "That line stops inside the body, so it cannot divide it. Draw it across the whole body (past the outline on both sides), or use a closed shape that lies inside the outline."
+            : "The tool does not cut all the way through the body. Extend it so it crosses the body completely.");
         var o = new CommandOutput { Label = "Split body", Icon = "splitbody" };
+        if (_deleteTool.Value && ToolShapes.Throwaway(S, _tool.Items[0], body) is { } used) o.Remove.Add(used);
         o.Replace.Add((body, pieces.Sub(SubKind.Solid, 0)));
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Solid, i), "Split piece", ObjKind.Solid));
         Results.Add(new ResultLine("Pieces", n.ToString()));

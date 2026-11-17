@@ -28,7 +28,10 @@ Check(Math.Abs(curve.Props().Min.X+60)<.01&&Math.Abs(curve.Props().Max.X-60)<.01
 Check(s.Objects.Count==2&&Occ.CurveNet(first.Shape).Points.SequenceEqual(original),"preview leaves the sources and document unchanged");
 var overlay=new Overlay();cmd.BuildOverlay(s,overlay);Check(overlay.Lines.Count>0&&overlay.Labels.Count==3,"preview shows normal projection guides and identifies the two inputs and 3D result");
 cmd.Params.OfType<BoolParam>().Single(p=>p.Label=="Show projection guides").Value=false;overlay.Clear();cmd.BuildOverlay(s,overlay);Check(overlay.Lines.Count==0,"projection guides can be hidden");
-s.CommitCommand();Check(s.Objects.Count==3&&s.Objects.Last().Kind==ObjKind.Curve,"Create curve adds one reusable curve and keeps both sources");
+cmd.Params.OfType<BoolParam>().Single(p=>p.Label=="Delete the source curves afterward").Value=false;cmd.TryBuild();
+s.CommitCommand();Check(s.Objects.Count==3&&s.Objects.Last().Kind==ObjKind.Curve,"Create curve adds one reusable curve and keeps both sources when the delete option is off");
+var disposable=new CadSession();var (da1,da2)=CurveIntersectFixture.Add(disposable);var byDefault=Command(disposable,SelItem.Of(da1),SelItem.Of(da2));Check(byDefault.TryBuild()!=null,"the default build succeeds");disposable.CommitCommand();
+Check(disposable.Objects.Count==1&&disposable.Objects[0].Kind==ObjKind.Curve,"by default both throwaway source curves are deleted with the result (owner request 2026-11-16)");disposable.Undo();Check(disposable.Objects.Count==2,"undo brings the source curves back");
 var sample=Path.GetFullPath("artifacts/curve-intersect-review/two-plane-intersection.prism");s.Save(sample);var restored=new CadSession();restored.Open(sample);Check(restored.Objects.Count==3&&restored.Objects.Last().Shape.IsValid,"the resulting B-rep curve survives save and reopen");
 s.Undo();Check(s.Objects.Count==2,"intersection is one undo step");s.Redo();Check(s.Objects.Count==3,"redo restores the intersection curve");
 var oblique=new CadSession();double angle=18*Math.PI/180;var support=new Plane3(Vec3.Zero,Vec3.UnitX,new(0,Math.Cos(angle),Math.Sin(angle)));

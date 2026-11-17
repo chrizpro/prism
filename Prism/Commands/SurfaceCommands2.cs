@@ -22,6 +22,15 @@ static class ToolShapes
         return s.ShapeOf(it) ?? throw new FormatException("Pick a plane, surface, face or body.");
     }
 
+    /// <summary>
+    /// The object picked as a cutting tool, when it can be deleted afterward: a whole surface, solid, curve or sketch other than the one being cut.
+    /// Planes, origin planes and faces or edges of other bodies are references, so they are never deleted.
+    /// </summary>
+    public static SceneObject? Throwaway(CadSession s, SelItem tool, SceneObject? target) =>
+        tool.Kind == SelKind.Object && s.Find(tool.Obj) is { } o && (o.Kind is ObjKind.Surface or ObjKind.Solid or ObjKind.Curve or ObjKind.Sketch) && o != target ? o : null;
+
+    public const string DeleteToolLabel = "Delete the cutting tool afterward";
+
     public static Vec3 Centroid(Shape piece)
     {
         var m = piece.Tessellate(); var sum = Vec3.Zero; int n = m.Positions.Length / 3;
@@ -35,13 +44,21 @@ public sealed class TrimSurfaceCommand : Command
 {
     readonly SelectionSlot _target, _tool;
     readonly ChoiceParam _keep;
+    readonly BoolParam _deleteTool;
 
     public TrimSurfaceCommand()
     {
         _target = Slot(new SelectionSlot { Label = "Surface to trim", Filter = SelFilter.SurfaceObj });
         _tool = Slot(new SelectionSlot { Label = "Cutting tool (plane, surface, face or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
         _keep = Choice("Keep", 0, "The front side (where the tool's normal points, or outside a solid)", "The back side (the other side, or inside a solid)");
+        _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
+
+    /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+
+    protected override void UpdateVisibility() =>
+        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _target.Items.Count > 0 ? S.Find(_target.Items[0].Obj) : null) != null;
 
     public override string Title => "Trim Surface";
     public override string Icon => "trim";
@@ -83,6 +100,7 @@ public sealed class TrimSurfaceCommand : Command
         }
         var o = new CommandOutput { Label = "Trim surface", Icon = "trim" };
         o.Replace.Add((obj, result));
+        if (_deleteTool.Value && ToolShapes.Throwaway(S, toolItem, obj) is { } used) o.Remove.Add(used);
         return o;
     }
 }
@@ -92,6 +110,13 @@ public sealed class SplitSurfaceCommand : Command
 {
     readonly SelectionSlot _target, _tool;
     readonly ChoiceParam _result;
+    readonly BoolParam _deleteTool;
+
+    /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+
+    protected override void UpdateVisibility() =>
+        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _target.Items.Count > 0 ? S.Find(_target.Items[0].Obj) : null) != null;
 
     public SplitSurfaceCommand()
     {
@@ -99,6 +124,7 @@ public sealed class SplitSurfaceCommand : Command
         _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, sketch, curve or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Edge });
         _result = Choice("Result", 0, "One surface, several faces", "Separate surfaces");
         _result.HelpText = "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color.";
+        _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
 
     public override string Title => "Split Surface";
@@ -122,6 +148,7 @@ public sealed class SplitSurfaceCommand : Command
         int n = pieces.Count(SubKind.Face);
         if (n <= obj.Shape.Count(SubKind.Face)) throw new FormatException("The tool does not split the surface. A plane, face, surface or solid must cross it completely; a sketch or curve splits along its projection on the surface.");
         var o = new CommandOutput { Label = "Split surface", Icon = "splitbody" };
+        if (_deleteTool.Value && ToolShapes.Throwaway(S, _tool.Items[0], obj) is { } used) o.Remove.Add(used);
         if (_result.Index == 0)
         {
             // one surface: the faces stay joined along the cut, so Thicken, Sew and analysis loads see them as one body
@@ -197,42 +224,206 @@ public sealed class SplitSurfaceCommand : Command
     }
 }
 
-/// <summary>Make solids out of the spaces enclosed by surfaces, planes and bodies.</summary>
+/// <summary>
+/// Make solids out of the spaces enclosed by surfaces, planes and bodies. Two steps (owner request 2026-11-16): pick every surface that helps enclose a space, then pick the
+/// spaces to keep in the viewport. Each space has its own colour and number, and a click on it keeps or drops it; the typed list stays as an alternative.
+/// </summary>
 public sealed class BoundaryFillCommand : Command
 {
     readonly SelectionSlot _src;
     readonly TextParam _cells;
+    readonly ChoiceParam _step;
+    readonly BoolParam _discard;
+
+    /// <summary>One enclosed space, with what the viewport needs to draw and pick it.</summary>
+    sealed class Space
+    {
+        public required Shape Shape { get; init; }
+        public required MeshData Mesh { get; init; }
+        public required double Volume { get; init; }
+        public required Vec3 Centre { get; init; }
+        public required uint Color { get; init; }
+    }
+
+    List<Space> _spaces = [];
+    string _key = "";
+    int _hover = -1, _depth;
+    (double x, double y)? _lastClick;
+
+    const string StepSurfaces = "1  Pick the surfaces that enclose the space", StepSpaces = "2  Pick the spaces to keep";
+    static readonly uint[] Palette = [0xFF4C94FF, 0xFFE8743D, 0xFF5BD18B, 0xFFC77DFF, 0xFFFFC53D, 0xFF40C9D8, 0xFFFF6F91, 0xFFA3C94F];
 
     public BoundaryFillCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Surfaces, planes and bodies that enclose the space", Filter = SelFilter.SurfaceObj | SelFilter.Plane | SelFilter.Solid | SelFilter.Face, Multi = true });
         _cells = Text("Spaces to keep (blank = all)", "", "numbers as listed below, e.g. 1, 3");
+        _cells.HelpText = "The numbers shown in the viewport. Leave it empty to keep every space. Clicking a space in step 2 fills this in for you.";
+        Add(new ActionParam { Label = "Keep every space", Run = () => { _cells.Value = ""; OnChanged(); } });
+        Add(new ActionParam { Label = "Swap kept and left-out spaces", Run = InvertKept });
+        // last, so steps saved before the two steps existed (one value shorter) still line up
+        _step = Add(new ChoiceParam { Label = "Working on", Options = [StepSurfaces, StepSpaces], Index = 0, IsIllustrated = true, OptionIcons = o => o == StepSpaces ? "fill" : "patch" });
+        _discard = Check("Delete the surfaces and bodies used afterward", true);
+        _discard.HelpText = "Removes the surfaces, solids and sketches you picked in step 1 once the new solids exist, since they only served to enclose the spaces and would otherwise sit on top of them. Planes, and single faces of a body, are references and are never deleted. Undo brings them back.";
+        Tool = new SpaceTool(this);
     }
+
+    /// <summary>Steps saved before the option existed (and the first build of the two steps) left the picked surfaces where they were.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == 1 ? recipe with { Values = [recipe.Values[0], null, null, 0, false] }
+        : recipe.Values.Count == Params.Count - 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+
+    /// <summary>The picked objects that were only there to enclose the spaces: whole surfaces, solids and sketches (never a plane or a single face).</summary>
+    List<SceneObject> Disposable() => _src.Items.Select(i => ToolShapes.Throwaway(S, i, null)).OfType<SceneObject>().Distinct().ToList();
+
+    protected override void UpdateVisibility() { if (_discard != null) _discard.IsVisible = Disposable().Count > 0; }
 
     public override string Title => "Enclosed Body";
     public override string Icon => "fill";
     public override string OkText => "Create solids";
-    public override string Hint => "Pick surfaces, planes or bodies that together close off a space (for example a surface that cuts a block in two, or planes around a shape). Each enclosed space becomes a solid; list the ones you want in 'Spaces to keep'.";
+    public override string Hint => "Step 1: pick every surface, plane or body that helps close off a space (for example a surface that cuts a block in two, or planes around a shape). Step 2: each enclosed space gets its own colour and number; click the spaces you want to keep (Alt-click reaches one behind another) and press Create solids. With none picked, every space is kept.";
+
+    bool ChoosingSpaces => _step.Index == 1;
+
+    /// <summary>The numbers (1-based) typed in the list, or none meaning every space.</summary>
+    HashSet<int> Wanted()
+    {
+        var want = new HashSet<int>();
+        foreach (var tok in _cells.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries))
+            if (int.TryParse(tok, NumberStyles.Integer, CultureInfo.InvariantCulture, out int k)) want.Add(k);
+        return want;
+    }
+
+    bool Kept(int index, HashSet<int> want) => want.Count == 0 || want.Contains(index + 1);
+
+    /// <summary>Work out the enclosed spaces when the picked surfaces change (not on every keystroke).</summary>
+    void Refresh()
+    {
+        string key = string.Join("|", _src.Items.Select(i => $"{i.Obj}:{i.Kind}:{i.Index}"));
+        if (key == _key) return;
+        _key = key; _spaces = []; _hover = -1;
+        if (_src.Items.Count < 1) return;
+        var shapes = _src.Items.Select(i => ToolShapes.For(S, i)).ToList();
+        var volumes = Occ.MakeVolumes(shapes);
+        int n = volumes.Count(SubKind.Solid);
+        for (int i = 0; i < n; i++)
+        {
+            var cell = volumes.Sub(SubKind.Solid, i);
+            var mass = Occ.Mass(cell);
+            _spaces.Add(new Space { Shape = cell, Mesh = cell.Tessellate(), Volume = cell.Props().Volume, Centre = mass.Cog, Color = Palette[i % Palette.Length] });
+        }
+    }
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
         if (_src.Items.Count < 1) return null;
-        var shapes = _src.Items.Select(i => ToolShapes.For(S, i)).ToList();
-        var vol = Occ.MakeVolumes(shapes);
-        int n = vol.Count(SubKind.Solid);
-        if (n == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps.");
-        var want = new HashSet<int>();
-        foreach (var tok in _cells.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries)) if (int.TryParse(tok, NumberStyles.Integer, CultureInfo.InvariantCulture, out int k)) want.Add(k);
+        Refresh();
+        if (_spaces.Count == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps.");
+        var want = Wanted();
         var o = new CommandOutput { Label = "Enclosed solid", Icon = "fill" };
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < _spaces.Count; i++)
         {
-            var cell = vol.Sub(SubKind.Solid, i);
-            Results.Add(new ResultLine($"Space {i + 1}", $"{cell.Props().Volume:#,0.##} mm³"));
-            if (want.Count == 0 || want.Contains(i + 1)) o.Add.Add(new(cell, "Enclosed solid", ObjKind.Solid));
+            bool keep = Kept(i, want);
+            Results.Add(new ResultLine($"Space {i + 1}", $"{_spaces[i].Volume:#,0.##} mm³ · {(keep ? "kept" : "left out")}"));
+            if (keep) o.Add.Add(new(Occ.Copy(_spaces[i].Shape), "Enclosed solid", ObjKind.Solid, _spaces[i].Color));
         }
         if (o.Add.Count == 0) throw new FormatException("None of the listed spaces exist.");
+        if (_discard.Value && Disposable() is { Count: > 0 } gone)
+        {
+            o.Remove.AddRange(gone);
+            Results.Add(new ResultLine("Deleted", $"{gone.Count} picked object{(gone.Count == 1 ? "" : "s")} ({string.Join(", ", gone.Select(g => g.Name))})"));
+        }
+        if (!ChoosingSpaces && _spaces.Count > 1) Results.Add(new ResultLine("Next", "switch to step 2 above and click the spaces to keep", 1));
         return o;
+    }
+
+    void InvertKept()
+    {
+        var want = Wanted();
+        var kept = Enumerable.Range(1, _spaces.Count).Where(k => !(want.Count == 0 || want.Contains(k))).ToList();
+        _cells.Value = kept.Count == _spaces.Count ? "" : string.Join(", ", kept);
+        if (want.Count == 0) S?.Say("Every space was kept, so swapping leaves none; pick the ones you want instead.", true);
+        OnChanged();
+    }
+
+    /// <summary>Keep or drop one space: the first click keeps only that space, then each click adds or removes one. Dropping the last one picked goes back to keeping every space.</summary>
+    void Toggle(int index)
+    {
+        var want = Wanted();
+        if (want.Count == 0) want = [index + 1];
+        else if (!want.Remove(index + 1)) want.Add(index + 1);
+        _cells.Value = string.Join(", ", want.OrderBy(k => k));
+        S?.Say(want.Count == 0 ? "No space picked: every space is kept." : $"Keeping {(want.Count == 1 ? "space" : "spaces")} {string.Join(", ", want.OrderBy(k => k))}.");
+        OnChanged();
+    }
+
+    /// <summary>The spaces under the pointer, nearest first. A space inside another is reached with Alt-click (it steps through them).</summary>
+    List<int> SpacesAt(CadSession s, double x, double y)
+    {
+        var hits = new List<(int index, double t)>();
+        for (int i = 0; i < _spaces.Count; i++)
+            if (Picking.RayMesh(s.Camera, _spaces[i].Mesh, x, y) is { } hit) hits.Add((i, hit.t));
+        return hits.OrderBy(h => h.t).Select(h => h.index).ToList();
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_spaces.Count == 0) return;
+        var want = Wanted();
+        for (int i = 0; i < _spaces.Count; i++)
+        {
+            var space = _spaces[i]; bool keep = Kept(i, want), hovered = i == _hover && ChoosingSpaces;
+            var mesh = space.Mesh;
+            // the lines where the picked surfaces meet each other are the edges of the spaces: draw them in each space's own colour
+            uint edge = keep ? space.Color : 0x80808890;
+            for (int e = 0; e + 5 < mesh.EdgePoints.Length; e += 6)
+                o.AddLine(new Vec3(mesh.EdgePoints[e], mesh.EdgePoints[e + 1], mesh.EdgePoints[e + 2]), new Vec3(mesh.EdgePoints[e + 3], mesh.EdgePoints[e + 4], mesh.EdgePoints[e + 5]), edge, hovered ? 3.2f : 2f);
+            // a space that is left out stays visible as a faint ghost; the pointer lights up the one it is over
+            if (!keep || hovered)
+            {
+                uint fill = ((hovered ? 0x55u : 0x22u) << 24) | (keep ? space.Color & 0xFFFFFFu : 0x9AA0A8u);
+                for (int t = 0; t + 2 < mesh.Indices.Length; t += 3)
+                    o.AddTri(Vertex(mesh, mesh.Indices[t]), Vertex(mesh, mesh.Indices[t + 1]), Vertex(mesh, mesh.Indices[t + 2]), fill);
+            }
+            string label = hovered ? $"Space {i + 1} · {space.Volume:#,0} mm³ · {(keep ? "kept" : "left out")}" : $"{i + 1}{(keep ? "" : "  ✕")}";
+            o.AddLabel(space.Centre, label, true, 0);
+        }
+    }
+
+    static Vec3 Vertex(MeshData m, int i) => new(m.Positions[3 * i], m.Positions[3 * i + 1], m.Positions[3 * i + 2]);
+
+    /// <summary>In step 2 a click on a space keeps or drops it; in step 1 clicks go on picking surfaces as usual.</summary>
+    sealed class SpaceTool(BoundaryFillCommand cmd) : IViewportTool
+    {
+        public string Prompt => cmd.ChoosingSpaces
+            ? "Click a space to keep it, and click again to drop it. Alt-click picks the space behind. With none picked every space is kept."
+            : "Pick every surface, plane or body that helps enclose a space, then switch to step 2 to choose the spaces to keep.";
+
+        public bool PointerDown(CadSession s, PointerInfo p)
+        {
+            if (!p.Left || !cmd.ChoosingSpaces || cmd._spaces.Count == 0) return false;
+            var stack = cmd.SpacesAt(s, p.X, p.Y);
+            if (stack.Count == 0) return false;
+            // pressing again in the same spot with Alt steps one space deeper
+            bool same = cmd._lastClick is { } last && Math.Abs(last.x - p.X) < 4 && Math.Abs(last.y - p.Y) < 4;
+            cmd._depth = p.Alt && same ? (cmd._depth + 1) % stack.Count : 0;
+            cmd._lastClick = (p.X, p.Y);
+            cmd.Toggle(stack[cmd._depth]);
+            return true;
+        }
+
+        public void PointerMove(CadSession s, PointerInfo p)
+        {
+            if (!cmd.ChoosingSpaces) { if (cmd._hover != -1) { cmd._hover = -1; s.Invalidate(); } return; }
+            var stack = cmd.SpacesAt(s, p.X, p.Y);
+            int hover = stack.Count == 0 ? -1 : stack[0];
+            if (hover != cmd._hover) { cmd._hover = hover; s.Invalidate(); }
+        }
+
+        public void PointerUp(CadSession s, PointerInfo p) { }
+        public bool Key(CadSession s, string key) => false;
+        public void BuildOverlay(CadSession s, Overlay o) { }
+        public void Deactivate(CadSession s) { cmd._hover = -1; }
     }
 }
 
