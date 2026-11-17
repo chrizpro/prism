@@ -45,6 +45,8 @@ public sealed class DirectEditCommand : Command
         try
         {
             var it = _faces.Items[0];
+            // a surface has no features to recognise: its faces are pulled along their normals
+            if (S.Find(it.Obj) is { Kind: ObjKind.Surface, HasBrep: true } sheet) return (sheet, null);
             if (DirectHelpers.BodyOf(S, it) is not { } body) return null;
             var f = FeatureFinder.FeatureOf(body, it.Index);
             return (body, f is { Kind: FeatureKind.Face } ? null : f);
@@ -94,7 +96,7 @@ public sealed class DirectEditCommand : Command
                     var radial = Xform.AnyPerpendicular(feature.Dir).Normalized();
                     list.Add(new HandleSpec(round.Origin + feature.Dir.Normalized() * (round.T1), radial, _radius, 1, Colour: SizeColour));
                 }
-                if (feature == null && _faces.Items.Count == 1 && S.PlaneOf(it) is { } pl && Occ.FaceInfoOf(S.ShapeOf(it)!).Type == "Plane")
+                if (feature == null && body.Kind == ObjKind.Solid && _faces.Items.Count == 1 && S.PlaneOf(it) is { } pl && Occ.FaceInfoOf(S.ShapeOf(it)!).Type == "Plane")
                 {
                     var size = body.Mesh.Max - body.Mesh.Min;
                     list.Add(new HandleSpec(frame?.point ?? centre, pl.U, _rotate, 1, pl.Normal, Math.Max(size.Length * 0.12, 1), true, TurnColour));
@@ -114,6 +116,7 @@ public sealed class DirectEditCommand : Command
             try
             {
                 var (body, feature) = first; var frame = Anchor(_faces.Items[0]);
+                if (body.Kind != ObjKind.Solid) return null;     // moving and turning faces needs a solid; a surface face only pulls
                 var centre = feature?.Centre ?? frame?.point ?? CenterOf(body.Shape);
                 NumberParam?[] move = [_dx, _dy, _dz];
                 // one control per direction: while the pull arrow leaves the same spot along a world axis, it stands in for that axis's arrow
@@ -156,6 +159,8 @@ public sealed class DirectEditCommand : Command
         int ops = (moving ? 1 : 0) + (pulling ? 1 : 0) + (tilting ? 1 : 0) + (sizing ? 1 : 0);
         if (ops == 0) return null;
         if (ops > 1) throw new FormatException("Use one handle at a time: move, pull, tilt or resize.");
+        if (!pulling && S.Find(_faces.Items[0].Obj) is { Kind: ObjKind.Surface })
+            throw new FormatException("On a surface, pull the face along its normal. Moving, tilting and resizing need a solid.");
 
         CommandOutput result;
         if (sizing)

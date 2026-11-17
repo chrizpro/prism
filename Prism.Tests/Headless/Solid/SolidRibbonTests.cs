@@ -51,6 +51,37 @@ public class SolidRibbonTests
         Assert.Null(vm.Session.ActiveCommand);
     }
 
+    [AvaloniaTheory(DisplayName = "SOL-H053 | Direct Edit opens from Surface, Freeform and NURBS and disables tools that need a solid")]
+    [Trait("TestId", "SOL-H053")]
+    [InlineData("Surface", false, false)]
+    [InlineData("Freeform", true, false)]
+    [InlineData("NURBS", false, true)]
+    public void DirectEditOpensFromEveryModelingTab(string tabTitle, bool freeform, bool nurbs)
+    {
+        var vm = new MainViewModel();
+        var origin = vm.Tabs.Single(tab => tab.Title == tabTitle);
+        vm.SelectedTab = origin;
+        Buttons(origin.Buttons).Single(button => button.Id.StartsWith("direct-edit:")).Invoke();
+        Assert.True(vm.IsDirectEditing);
+        Assert.Equal("Direct Modeling", vm.SelectedTab?.Title);
+        if (freeform) Assert.IsType<EditFormCommand>(vm.Session.ActiveCommand);
+        else if (nurbs) Assert.IsType<EditPointsCommand>(vm.Session.ActiveCommand);
+        else Assert.IsType<DirectEditCommand>(vm.Session.ActiveCommand);
+
+        var direct = Buttons(vm.SelectedTab!.Buttons).ToList();
+        foreach (var button in direct) button.Refresh();
+        RibbonButton Named(string label) => direct.Single(button => button.Label.Replace("\n", " ") == label);
+        Assert.False(Named("Edit Feature").IsEnabled);
+        Assert.False(Named("Draft").IsEnabled);
+        Assert.Equal(freeform, Named("Edit Freeform").IsEnabled);
+        Assert.Equal(nurbs, Named("Edit Points").IsEnabled);
+        Assert.Equal(!freeform, Named("Check and Repair").IsEnabled);
+
+        vm.SelectedTab.Buttons.Single(button => button.Icon == "finish").Invoke();
+        Assert.False(vm.IsDirectEditing);
+        Assert.Same(origin, vm.SelectedTab);
+    }
+
     [AvaloniaFact(DisplayName = "SOL-H052 | Solid selection controls switch pick mode and rectangle selection")]
     [Trait("TestId", "SOL-H052")]
     public void SelectionControlsChangeSessionMode()

@@ -4,6 +4,19 @@ Edit the geometry you already have, with no history needed. It works on any exac
 
 **Opening it:** on the Solid tab, the **Direct Edit** section has one button, **Direct Edit**. It opens this tab the way Create Sketch opens the Sketch tab, and **Finish Editing** (far right) goes back.
 
+**Opening it from other workflows (proposed, awaiting owner review).** Surface, Freeform and NURBS each have a **Direct Edit** section with the same button. The tab remembers where you came from and disables the tools that cannot work on that kind of geometry; a disabled tool stays visible so the tab reads the same everywhere.
+
+| Tool | Solid | Surface | Freeform | NURBS |
+|---|---|---|---|---|
+| Gizmo (click a face: pull handle) | all handles | pull handle only | cage tool opens instead | control-point tool opens instead |
+| Edit Feature, Replace / Match / Extend / Trim Face, Split Face, Split Body, Draft, Edit Pattern, Mirror Feature | yes | no | no | no |
+| Check and Repair, Fill / Cap, Merge Faces | yes | yes | no | yes |
+| Edit Freeform | no | no | yes | no |
+| Edit Points, Sculpt | no | no | no | yes |
+| Transform, Select, Inspect, Appearance | yes | yes | yes | yes |
+
+Acceptance criteria (unapproved): opening Direct Edit from each tab shows the Direct Modeling tab; the first tool that starts is the gizmo (Solid, Surface), Edit Freeform (Freeform) or Edit Points (NURBS); every tool the table marks "no" is disabled; Finish Editing returns to the tab you came from. Checked by SOL-H053 in [SolidRibbonTests](../../../Prism.Tests/Headless/Solid/SolidRibbonTests.cs).
+
 **Adding things stays on the Solid tab.** Hole, Fillet, Chamfer, Shell, Draft and Split Body are there. This tab is for changing what exists; to remove a hole, fillet or boss, select it and press **Delete**.
 
 The tab reads left to right: **Select, Datum, Edit, Repair, Transform, Inspect, Appearance, Exit**.

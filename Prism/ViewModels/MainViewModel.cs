@@ -421,10 +421,10 @@ public sealed partial class MainViewModel : ViewModelBase
         IsToggle = chk != null, Shortcut = shortcut, Id = id,
     };
 
-    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
+    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large, Func<bool>? when = null)
     {
         CommandCatalog.Register(make);
-        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching, () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
+        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, when == null ? () => !IsSketching : () => !IsSketching && when(), () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
         // Some unrelated tools share an icon (for example Sweep and Sweep 2 rails).
         button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
         // Retired commands stay registered (saved files and scripts still reach them) but no button is shown for them.
@@ -752,7 +752,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
                     Cmd("Split\nBody", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.")),
                 G("Direct Edit",
-                    Btn("Direct\nEdit", "pushpull", EnterDirectEdit, "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.", RibbonSize.Large, () => !IsSketching)),
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Solid), "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:solid")),
                 G("Combine",
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body out of another."),
@@ -770,28 +770,34 @@ public sealed partial class MainViewModel : ViewModelBase
         };
 
         // Opened by the Direct Edit button on the Solid tab, like Sketch: its own tab with its own Finish button.
+        var solidOnly = DirectFor(DirectWorkflow.Solid);
+        var facesWorkflow = DirectFor(DirectWorkflow.Solid, DirectWorkflow.Surface, DirectWorkflow.Nurbs);
         _directTab = new RibbonTab
         {
             Title = "Direct Modeling", ContextLabel = "DIRECT EDIT", AccentColor = "#E8743D", IsVisible = false,
             Groups =
             [
                 G("Edit",
-                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature."),
+                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature. Solid bodies only.", RibbonSize.Large, solidOnly),
                     Split("split:direct-replace", "Make faces meet a target. Click the icon to run the one shown; click the name (or right-click) for the others.",
-                        Cmd("Replace Face", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face."),
-                        Cmd("Match Face", "replaceface", () => new MatchFaceCommand(), "Give faces the plane, cylinder radius or cone angle of a source face."),
-                        Cmd("Extend / Trim Face", "pushpull", () => new ExtendTrimFaceCommand(), "Grow or shrink flat faces until they meet a target plane or face.")),
+                        Cmd("Replace Face", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face.", RibbonSize.Large, solidOnly),
+                        Cmd("Match Face", "replaceface", () => new MatchFaceCommand(), "Give faces the plane, cylinder radius or cone angle of a source face.", RibbonSize.Large, solidOnly),
+                        Cmd("Extend / Trim Face", "pushpull", () => new ExtendTrimFaceCommand(), "Grow or shrink flat faces until they meet a target plane or face.", RibbonSize.Large, solidOnly)),
                     Split("split:direct-split", "Divide a face or a body. Click the icon to run the one shown; click the name (or right-click) for the other.",
-                        Cmd("Split Face", "splitbody", () => new SplitFaceCommand(), "Divide a face along a plane, edge or sketch; the shape stays the same."),
-                        Cmd("Split Body", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.")),
-                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
+                        Cmd("Split Face", "splitbody", () => new SplitFaceCommand(), "Divide a face along a plane, edge or sketch; the shape stays the same.", RibbonSize.Large, solidOnly),
+                        Cmd("Split Body", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.", RibbonSize.Large, solidOnly)),
+                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction.", RibbonSize.Large, solidOnly),
                     Split("split:direct-pattern", "Change or copy repeated features. Click the icon to run the one shown; click the name (or right-click) for the other.",
-                        Cmd("Edit Pattern", "pattern-linear", () => new EditPatternCommand(), "Change the spacing or count of a line, grid or circle of features, or drop one."),
-                        Cmd("Mirror Feature", "mirror", () => new MirrorFeatureCommand(), "Copy holes, slots, pockets or bosses across a plane or flat face."))),
+                        Cmd("Edit Pattern", "pattern-linear", () => new EditPatternCommand(), "Change the spacing or count of a line, grid or circle of features, or drop one.", RibbonSize.Large, solidOnly),
+                        Cmd("Mirror Feature", "mirror", () => new MirrorFeatureCommand(), "Copy holes, slots, pockets or bosses across a plane or flat face.", RibbonSize.Large, solidOnly))),
                 G("Repair",
-                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up."),
-                    Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Cap an open loop of edges with a flat face or smooth patch so the body closes."),
-                    Cmd("Merge\nFaces", "replaceface", () => new MergeFacesCommand(), "Join neighbouring faces on the same surface into one.")),
+                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up.", RibbonSize.Large, facesWorkflow),
+                    Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Cap an open loop of edges with a flat face or smooth patch so the body closes.", RibbonSize.Large, facesWorkflow),
+                    Cmd("Merge\nFaces", "replaceface", () => new MergeFacesCommand(), "Join neighbouring faces on the same surface into one.", RibbonSize.Large, facesWorkflow)),
+                G("Shape",
+                    Cmd("Edit\nFreeform", "form-edit", () => new EditFormCommand(), "Select vertices, edges or faces of a Freeform body and move them with the manipulator. Freeform workflow only.", RibbonSize.Large, DirectFor(DirectWorkflow.Freeform)),
+                    Cmd("Edit\nPoints", "edit-points", () => new EditPointsCommand(), "Drag NURBS control points, with soft influence on neighbours. NURBS workflow only.", RibbonSize.Large, DirectFor(DirectWorkflow.Nurbs)),
+                    Cmd("Sculpt", "sculpt", () => new SculptCommand(), "Brush a NURBS surface: pull, push, move or smooth. NURBS workflow only.", RibbonSize.Large, DirectFor(DirectWorkflow.Nurbs))),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
                 G("Exit", Btn("Finish\nEditing", "finish", ExitDirectEdit, "Leave Direct Edit and go back to where you were.", RibbonSize.Large)),
             ],
@@ -826,6 +832,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Enclosed\nBody", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
                     Cmd("Flatten /\nRefold", "flatten", () => new FlattenCommand(), "Flatten a surface and keep the layout, or return to wrap curves, sheets and solids onto its source or another surface."),
                     Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.")),
+                G("Direct Edit",
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Surface), "Edit surfaces you already have, with no history needed: pull or offset faces, delete or merge them, check and repair. Tools that need a solid are disabled.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:surface")),
                 G("Convert", Btn("Convert to\nNURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session), "Convert the selection to editable NURBS geometry.", RibbonSize.Large, hasSel)),
                 G("Combine",
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
@@ -872,6 +880,8 @@ public sealed partial class MainViewModel : ViewModelBase
                         FormAct("Fill holes", "form-face", "Fill holes", "Cap open borders with faces.", small),
                         FormAct("Thicken", "form-box", "Thicken", "Give the cage wall thickness (Bevel width).", small),
                         Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch the form along an axis.", small))),
+                G("Direct Edit",
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Freeform), "Edit a Freeform body directly by its cage: select points, edges or faces and move them. Tools that need a solid are disabled.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:freeform")),
                 G("Loops",
                     Cmd("Knife", "splitbody", () => new FormKnifeCommand(), "Cut the form with a plane: every face it passes through is split along the cut."),
                     FormAct("Insert\nEdge", "form-loop", "Insert edge", "Click an edge to add an edge loop across it. The tool stays on for more clicks until you press Esc or pick another tool. Count and position are in the panel.", RibbonSize.Large, () => Session.ActiveCommand is EditFormCommand {LoopArmed:true}),
@@ -921,6 +931,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Sculpt", "sculpt", () => new SculptCommand(), "Brush the surface: pull, push, move or smooth."),
                     Cmd("Rebuild\nSurface", "raise-degree", () => new RebuildSurfaceCommand(), "Redraw a surface as one patch with a chosen grid of points."),
                     Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.")),
+                G("Direct Edit",
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Nurbs), "Edit NURBS directly with no history: drag control points, sculpt, delete or merge faces, check and repair. Tools that need a solid are disabled.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:nurbs")),
                 G("Detail",
                     Btn("Add\nDetail", "add-detail", () => FreeformActions.AddDetail(Session), "Insert knots so the selected curve/surface has more control points without changing its shape.", RibbonSize.Large, hasSel),
                     Btn("Raise\nDegree", "raise-degree", () => FreeformActions.RaiseDegree(Session), "Increase the polynomial degree for smoother, more flexible surfaces.", RibbonSize.Large, hasSel)),
