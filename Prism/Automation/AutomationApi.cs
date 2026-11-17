@@ -238,6 +238,147 @@ public sealed partial class AutomationApi
 
     Core.Form.SubdMesh FormOf(string name) => FindObject(name).Form ?? throw new ArgumentException($"{name} is not a Form.");
 
+    /// <summary>The screenshot's views option: one labelled sheet of orthographic (or iso) pictures of just the chosen objects, all at one scale.
+    /// The camera, display style, grid and every object's visibility are put back afterwards, so the person's view is not disturbed.</summary>
+    async Task<JsonNode?> MultiViewShot(JsonObject a)
+    {
+        var window = _window ?? throw new InvalidOperationException("No window.");
+        var gl = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Prism.Rendering.GlViewport>().FirstOrDefault() ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+        var origin = Avalonia.VisualExtensions.TranslatePoint(gl, new Avalonia.Point(0, 0), window) ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+        double scale = window.RenderScaling;
+        int x0 = (int)(origin.X * scale), y0 = (int)(origin.Y * scale), vw = (int)(gl.Bounds.Width * scale), vh = (int)(gl.Bounds.Height * scale);
+
+        var names = (a["views"] as JsonArray)?.Select(v => v!.ToString().ToLowerInvariant()).ToList() ?? [];
+        if (names.Count == 0) names = ["front", "right", "top", "iso"];
+        var known = new Dictionary<string, (double yaw, double pitch, int u, int v, string axes)>
+        {
+            ["front"] = (0, 0, 0, 2, "x right, z up"), ["back"] = (180, 0, 0, 2, "x left, z up"), ["right"] = (90, 0, 1, 2, "y right, z up"), ["left"] = (-90, 0, 1, 2, "y left, z up"),
+            ["top"] = (0, 90, 0, 1, "x right, y up"), ["bottom"] = (0, -90, 0, 1, "x right, y down"), ["iso"] = (-35, 28, -1, -1, "perspective-free 3/4 view"),
+        };
+        foreach (var n in names) if (!known.ContainsKey(n)) throw new ArgumentException($"Unknown view '{n}'. Views: {string.Join(", ", known.Keys)}.");
+
+        // what to show: the named objects alone, or everything visible
+        var wanted = a["object"] is JsonArray oa ? oa.Select(n => n!.ToString()).ToList() : a["object"] != null ? [a["object"]!.ToString()] : [];
+        var shown = wanted.Count > 0 ? wanted.Select(FindObject).ToList() : S.Objects.Where(o => o.Visible && !o.IsAnnotation).ToList();
+        shown = shown.Where(o => o.Mesh != null && !o.IsAnnotation).ToList();
+        if (shown.Count == 0) throw new InvalidOperationException("Nothing to show: no visible object has a surface.");
+        var lo = new Vec3(shown.Min(o => o.Mesh.Min.X), shown.Min(o => o.Mesh.Min.Y), shown.Min(o => o.Mesh.Min.Z));
+        var hi = new Vec3(shown.Max(o => o.Mesh.Max.X), shown.Max(o => o.Mesh.Max.Y), shown.Max(o => o.Mesh.Max.Z));
+        var size = hi - lo; var centre = (lo + hi) * 0.5;
+        double Ext(int axis) => axis == 0 ? size.X : axis == 1 ? size.Y : size.Z;
+
+        var cam = S.Cameras[0];
+        var keep = (cam.Target, cam.Distance, cam.Yaw, cam.Pitch, cam.Roll, S.Ortho, S.ShowGrid, S.Display, S.XRay);
+        var keepOrigin = S.OriginVisible.ToArray();
+        var hidden = new List<SceneObject>();
+        int cellW = Math.Clamp((int)Dbl(a, "cell_width", 480), 120, 1600);
+        double aspect = Math.Max(cam.Width, 1) / Math.Max(cam.Height, 1);
+        // one world height for every orthographic view, so a feature has the same size in pixels in each of them
+        double worldH = 1e-6;
+        foreach (var n in names) { var (_, _, u, v, _) = known[n]; if (u >= 0) worldH = Math.Max(worldH, Math.Max(Ext(v), Ext(u) / aspect) * 1.12); }
+        if (worldH < 1e-3) worldH = Math.Max(size.Length, 1) * 1.12;
+        var cells = new List<(string label, byte[] pixels, int width, int height)>();
+        var legend = new JsonArray();
+        try
+        {
+            foreach (var o in S.Objects.Where(o => o.Visible && !o.IsAnnotation && !shown.Contains(o))) { hidden.Add(o); S.Update(o.Id, x => x.WithVisible(false), checkpoint: false); }
+            // a camera animation still running from the last command (zoom to fit) would overwrite the views set below
+            var settle = System.Diagnostics.Stopwatch.StartNew();
+            while (S.IsAnimating && settle.ElapsedMilliseconds < 3000) await Task.Delay(30);
+            S.Ortho = true; S.ShowGrid = false; S.XRay = false;
+            for (int i = 0; i < S.OriginVisible.Length; i++) S.SetOriginVisible(i, false);
+            if (a["display"] != null) S.Display = a["display"]!.ToString().ToLowerInvariant() switch { "shaded" => DisplayMode.Shaded, "wireframe" => DisplayMode.Wireframe, _ => DisplayMode.ShadedEdges };
+            else S.Display = DisplayMode.Shaded;
+            foreach (var n in names)
+            {
+                var (yaw, pitch, u, v, axes) = known[n];
+                cam.SetView(yaw, pitch); cam.Target = centre;
+                // iso is a perspective-free 3/4 view sized to the box diagonal
+                cam.Distance = (u >= 0 ? worldH : Math.Max(size.Length, 1) * 1.15) / (2 * Math.Tan(cam.FovY / 2));
+                S.Invalidate();
+                await Task.Delay((int)Dbl(a, "wait_ms", 250));
+                while (S.IsAnimating && settle.ElapsedMilliseconds < 6000) await Task.Delay(30);
+                var shot = WindowCapture.CaptureThumbnail(window, x0, y0, vw, vh, cellW) ?? throw new InvalidOperationException("Could not capture the viewport.");
+                // a busy renderer can still show the previous camera: keep capturing until two frames in a row are identical (at most 8 more tries)
+                for (int again = 0; again < 8; again++)
+                {
+                    await Task.Delay(150);
+                    var next = WindowCapture.CaptureThumbnail(window, x0, y0, vw, vh, cellW);
+                    if (next is not { } nx) break;
+                    bool same = nx.width == shot.width && nx.height == shot.height && nx.pixels.AsSpan().SequenceEqual(shot.pixels);
+                    shot = nx;
+                    if (same) break;
+                }
+                cells.Add((n, shot.pixels, shot.width, shot.height));
+                var entry = new JsonObject { ["view"] = n, ["axes"] = axes };
+                if (u >= 0) entry["pixelsPerMm"] = Math.Round(shot.height / worldH, 3);
+                legend.Add(entry);
+            }
+        }
+        finally
+        {
+            foreach (var o in hidden) S.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
+            cam.Target = keep.Target; cam.Distance = keep.Distance; cam.Yaw = keep.Yaw; cam.Pitch = keep.Pitch; cam.Roll = keep.Roll;
+            S.Ortho = keep.Item6; S.ShowGrid = keep.Item7; S.Display = keep.Item8; S.XRay = keep.Item9;
+            for (int i = 0; i < keepOrigin.Length && i < S.OriginVisible.Length; i++) S.SetOriginVisible(i, keepOrigin[i]);
+            S.Invalidate();
+        }
+        int cols = (int)Dbl(a, "columns", cells.Count <= 2 ? cells.Count : 2);
+        var sheet = ContactSheet.Compose(cells, cols);
+        var png = Prism.Rendering.PngWriter.Encode(sheet.pixels, sheet.width, sheet.height);
+        return new JsonObject
+        {
+            ["_image"] = new JsonObject { ["mime"] = "image/png", ["data"] = Convert.ToBase64String(png) },
+            ["views"] = legend, ["columns"] = cols,
+            ["bounds"] = new JsonObject { ["min"] = Arr(lo), ["max"] = Arr(hi), ["size"] = Arr(size) },
+            ["note"] = "Cells run left to right, top to bottom, each labelled. Orthographic views share one scale (pixelsPerMm); the model is centred in each. Camera, grid, display style and visibility were restored.",
+        };
+    }
+
+    /// <summary>What an edit did, so an agent need not diff the whole cage: the indices it created, the box before and after, how far points moved,
+    /// and warnings for folds, stretched faces and lost closure.</summary>
+    static void FormEditReport(SubdMesh before, SubdMesh after, JsonObject info)
+    {
+        static (Vec3 lo, Vec3 hi) Box(SubdMesh f) => f.V.Count == 0 ? (Vec3.Zero, Vec3.Zero)
+            : (new Vec3(f.V.Min(v => v.X), f.V.Min(v => v.Y), f.V.Min(v => v.Z)), new Vec3(f.V.Max(v => v.X), f.V.Max(v => v.Y), f.V.Max(v => v.Z)));
+        var (lo0, hi0) = Box(before); var (lo1, hi1) = Box(after);
+        info["bounds"] = new JsonObject { ["min"] = Arr(lo1), ["max"] = Arr(hi1), ["size"] = Arr(hi1 - lo1) };
+        var growth = (hi1 - lo1) - (hi0 - lo0);
+        if (growth.Length > 1e-6) info["sizeChange"] = Arr(growth);
+        var created = new JsonObject();
+        if (after.V.Count > before.V.Count) created["vertices"] = new JsonArray(before.V.Count, after.V.Count - 1);
+        if (after.F.Count > before.F.Count) created["faces"] = new JsonArray(before.F.Count, after.F.Count - 1);
+        if (created.Count > 0) { created["note"] = "Inclusive [first, last] index ranges of the entries appended by this edit."; info["created"] = created; }
+        if (after.V.Count < before.V.Count) info["removedVertices"] = before.V.Count - after.V.Count;
+        if (after.F.Count < before.F.Count) info["removedFaces"] = before.F.Count - after.F.Count;
+        int shared = Math.Min(before.V.Count, after.V.Count), moved = 0; double far = 0; int farAt = -1;
+        for (int i = 0; i < shared; i++)
+        {
+            double d = before.V[i].DistanceTo(after.V[i]);
+            if (d > 1e-9) { moved++; if (d > far) { far = d; farAt = i; } }
+        }
+        if (moved > 0) info["moved"] = new JsonObject { ["count"] = moved, ["maxDistance"] = Math.Round(far, 4), ["maxAtVertex"] = farAt };
+        var warnings = new JsonArray();
+        // a fold-over: same faces, but some now point the opposite way
+        if (before.F.Count == after.F.Count && before.V.Count == after.V.Count)
+        {
+            int flipped = 0;
+            for (int f = 0; f < after.F.Count; f++)
+            {
+                if (after.F[f].Length != before.F[f].Length) { flipped = -1; break; }
+                if (Vec3.Dot(before.FaceNormal(f), after.FaceNormal(f)) < -0.2) flipped++;
+            }
+            if (flipped > 0) { info["flippedFaces"] = flipped; warnings.Add($"{flipped} face(s) now point the opposite way: the surface folded over itself. Undo, or move the points less."); }
+        }
+        var q0 = FormQuality.Analyze(before); var q1 = FormQuality.Analyze(after);
+        if (q1.StretchedFaces > q0.StretchedFaces) warnings.Add($"{q1.StretchedFaces - q0.StretchedFaces} more stretched face(s) (worst aspect {q1.WorstAspect:0.#}): insert an edge loop or even out the spacing.");
+        if (q1.NGons > q0.NGons) warnings.Add($"{q1.NGons - q0.NGons} more n-gon(s): they smooth unevenly; split them into quads.");
+        if (before.IsClosed() && !after.IsClosed()) warnings.Add("The cage was closed and is now open (it has holes). fill_holes can repair it.");
+        double sizeBefore = Math.Max((hi0 - lo0).Length, 1e-9);
+        if ((hi1 - lo1).Length > sizeBefore * 3 && sizeBefore > 1e-6) warnings.Add("The form grew to more than three times its previous size; check the units and the distance.");
+        if (warnings.Count > 0) info["warnings"] = warnings;
+    }
+
     static JsonObject FormTopology(SubdMesh mesh)
     {
         var r = CageReport.Inspect(mesh);
@@ -734,9 +875,13 @@ public sealed partial class AutomationApi
                 return new JsonArray(S.Log.TakeLast(n).Select(l => (JsonNode)new JsonObject { ["time"] = l.Time.ToString("HH:mm:ss"), ["error"] = l.IsError, ["message"] = l.Message }).ToArray());
             });
 
-        Add("screenshot", "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900).",
-            Schema(null, ("viewport", "boolean", "Only the 3D viewport."), ("max_width", "integer", "Scale down to at most this many pixels wide."), ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250).")), async a =>
+        Add("screenshot", "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900). " +
+            "To judge a shape, pass views (front, back, left, right, top, bottom, iso; default front/right/top/iso): one labelled sheet of orthographic pictures at a common scale of just the objects named in object (a name or list; default every visible object), shaded without grid. The camera, display and visibility are restored afterwards. The reply gives each view's axes, pixelsPerMm and the bounds.",
+            Schema(null, ("viewport", "boolean", "Only the 3D viewport."), ("max_width", "integer", "Scale down to at most this many pixels wide."), ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250)."),
+                ("views", "array", "Standard views to combine into one labelled sheet: front, back, left, right, top, bottom, iso. An empty list means front, right, top, iso."), ("object", "any", "With views: show only this object name (or a list of names)."),
+                ("display", "string", "With views: shaded (default) | shaded_edges | wireframe."), ("cell_width", "integer", "With views: width of each picture in pixels (default 480)."), ("columns", "integer", "With views: pictures per row (default 2).")), async a =>
             {
+                if (a["views"] is JsonArray) return await MultiViewShot(a);
                 S.Invalidate();
                 await Task.Delay((int)Dbl(a, "wait_ms", 250));
                 bool viewportOnly = a["viewport"]?.GetValue<bool>() == true;
@@ -1787,6 +1932,72 @@ public sealed partial class AutomationApi
                 return res;
             });
 
+        Add("solid_profile", "Look at a shape in numbers and text, for judging proportions without a picture. Works on a Freeform, solid, surface or mesh (or a list of them, measured together). " +
+            "sections: cross-sections perpendicular to axis (x|y|z, default z) at count evenly spaced offsets (default 10) or at the offsets in at: for each cut the two extents (min/max), the section area, the centroid and how many separate outlines it has; an empty cut means the shape does not reach that offset. " +
+            "silhouettes: ASCII pictures (front: x right z up; right: y right z up; top: x right y up) at the stated mm per column; shade:true adds a depth ramp (@ nearest to . farthest). Use it to check that a neck is narrower than a shoulder, a handle really is a loop, or a part is lopsided.",
+            Schema(["object"], ("object", "any", "Object name, or a list of names."), ("axis", "string", "Section axis: x | y | z (default z)."), ("count", "integer", "Evenly spaced sections (default 10; 0 = none)."), ("at", "array", "Section offsets along the axis in mm (instead of count)."),
+                ("views", "array", "Silhouettes to draw: front, right, top (default all three; [] = none)."), ("width", "integer", "Silhouette width in characters (default 48)."), ("rows", "integer", "Most rows a silhouette may use (default 26); a tall shape gets a coarser grid instead."), ("shade", "boolean", "Silhouette uses a depth ramp instead of #.")), a =>
+            {
+                var names = a["object"] is JsonArray oa ? oa.Select(n => n!.ToString()).ToList() : [Str(a, "object")];
+                var parts = names.Select(FindObject).ToList();
+                var pos = new List<float>(); var idx = new List<int>();
+                foreach (var p in parts)
+                {
+                    var md = p.Mesh ?? throw new ArgumentException($"{p.Name} has no surface to measure.");
+                    int baseIndex = pos.Count / 3; pos.AddRange(md.Positions); idx.AddRange(md.Indices.Select(i => i + baseIndex));
+                }
+                var P = pos.ToArray(); var T = idx.ToArray();
+                if (T.Length == 0) throw new ArgumentException("The object has no triangles.");
+                var (lo, hi) = ShapeProbe.Bounds(P);
+                var res = new JsonObject { ["objects"] = new JsonArray(parts.Select(p => (JsonNode)p.Name).ToArray()), ["min"] = Arr(new Vec3(lo[0], lo[1], lo[2])), ["max"] = Arr(new Vec3(hi[0], hi[1], hi[2])), ["size"] = Arr(new Vec3(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2])) };
+                string axisText = (a["axis"]?.ToString() ?? "z").ToLowerInvariant();
+                int axis = axisText switch { "x" => 0, "y" => 1, "z" => 2, _ => throw new ArgumentException("axis must be x, y or z.") };
+                int count = (int)Dbl(a, "count", 10);
+                var offsets = a["at"] is JsonArray atArr ? atArr.Select(n => n!.GetValue<double>()).ToArray() : ShapeProbe.EvenOffsets(lo[axis], hi[axis], count);
+                if (offsets.Length > 0)
+                {
+                    var (u, v) = ShapeProbe.PlaneAxes(axis);
+                    string un = "xyz"[u].ToString(), vn = "xyz"[v].ToString();
+                    var rows = new JsonArray();
+                    foreach (var off in offsets)
+                    {
+                        var s = ShapeProbe.Slice(P, T, axis, off);
+                        rows.Add(s.Empty ? new JsonObject { ["at"] = Math.Round(off, 3), ["empty"] = true }
+                            : new JsonObject { ["at"] = Math.Round(off, 3), [un] = new JsonArray(Math.Round(s.MinU, 3), Math.Round(s.MaxU, 3)), [vn] = new JsonArray(Math.Round(s.MinV, 3), Math.Round(s.MaxV, 3)),
+                                ["area"] = Math.Round(s.Area, 2), ["centroid"] = new JsonArray(Math.Round(s.CentroidU, 3), Math.Round(s.CentroidV, 3)), ["outlines"] = s.Loops });
+                    }
+                    res["sections"] = new JsonObject { ["axis"] = axisText, ["order"] = $"[min,max] extents along {un} and {vn}; centroid is [{un},{vn}]; area in mm2 (signed; trust it only for closed shapes)", ["cuts"] = rows };
+                }
+                var views = a["views"] is JsonArray va ? va.Select(n => n!.ToString().ToLowerInvariant()).ToList() : ["front", "right", "top"];
+                if (views.Count > 0)
+                {
+                    var pics = new JsonArray();
+                    foreach (var vw in views)
+                    {
+                        var pic = ShapeProbe.Silhouette(P, T, vw, (int)Dbl(a, "width", 48), Bool(a, "shade", false), (int)Dbl(a, "rows", 26));
+                        pics.Add(new JsonObject
+                        {
+                            ["view"] = pic.View, ["axes"] = pic.Axes, ["mmPerColumn"] = Math.Round(pic.MmPerColumn, 3), ["mmPerRow"] = Math.Round(pic.MmPerRow, 3),
+                            ["leftEdge"] = Math.Round(pic.Left, 3), ["topEdge"] = Math.Round(pic.Top, 3), ["rows"] = new JsonArray(pic.Rows.Select(r => (JsonNode)r).ToArray()),
+                        });
+                    }
+                    res["silhouettes"] = pics;
+                }
+                return res;
+            });
+
+        Add("guide", "Read a built-in how-to for doing a kind of work well. With no topic it lists them. Read 'freeform' before building any curved or organic shape: it covers describing a shape by stations and silhouettes, measuring it with solid_profile and screenshot views, and the usual failure modes.",
+            Schema(null, ("topic", "string", "Guide name, for example freeform. Omit to list the guides.")), a =>
+            {
+                var guides = AgentGuides.All();
+                if (a["topic"] == null)
+                    return new JsonObject { ["guides"] = new JsonArray(guides.Select(g => (JsonNode)new JsonObject { ["topic"] = g.Topic, ["about"] = g.Description }).ToArray()) };
+                var want = Str(a, "topic").Trim().ToLowerInvariant();
+                var hit = guides.FirstOrDefault(g => g.Topic == want) ?? guides.FirstOrDefault(g => g.Topic.Contains(want));
+                if (hit == null) throw new ArgumentException($"No guide '{want}'. Guides: {string.Join(", ", guides.Select(g => g.Topic))}.");
+                return new JsonObject { ["topic"] = hit.Topic, ["text"] = hit.Text };
+            });
+
         Add("form_find","Find cage components by geometry so you do not have to read the whole cage. kind: vertices | faces | edges (default faces). Filters (all optional, combined with AND): box [[x0,y0,z0],[x1,y1,z1]] (a vertex, or a face/edge centre, inside), near [x,y,z] + radius, facing [dx,dy,dz] + angle (faces whose normal is within angle degrees, default 30), open:true (edges used by one face only), all:true. Returns 0-based indices ready for form_op / form_select, with centres (and normals for faces).",
             Schema(["object"], ("object", "string", "Form object name."), ("kind", "string", "vertices | faces | edges."), ("box", "array", "[[x0,y0,z0],[x1,y1,z1]]"), ("near", "array", "[x,y,z]"), ("radius", "number", "With near: distance (mm)."),
                 ("facing", "array", "Faces whose outward normal points this way [dx,dy,dz]."), ("angle", "number", "With facing: tolerance in degrees (default 30)."), ("open", "boolean", "Edges with one face only (boundary)."), ("all", "boolean", "Every component."), ("limit", "integer", "Maximum results (default 200).")), a =>
@@ -2072,6 +2283,7 @@ public sealed partial class AutomationApi
                 info["vertexCount"] = m.V.Count; info["faceCount"] = m.F.Count;
                 if (FormSymmetry.Of(m).Active) info["symmetry"] = m.Sym;
                 info["topology"] = FormTopology(m);
+                FormEditReport(o.Form!, m, info);
                 return info;
             });
 

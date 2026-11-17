@@ -109,6 +109,18 @@ Checks: [FRM-U060 to FRM-U062](../../../Prism.Tests/Unit/Freeform/FormSegmentTes
 
 **Fill holes (owner report).** It capped **every open border in the whole form**, wherever you had selected, so a hole made far away was filled by selecting something else and pressing it. Now a hole is filled only when its rim touches the selected points, edges or faces. A selection with no hole at it fills nothing and says "No hole touches what you selected (N holes elsewhere in the form were left alone)". With **nothing selected** it fills every open border, as before. Note that an open sheet's own outer edge counts as an open border, so on a plane with nothing selected the outline is capped too (as it always was). Checks: [FRM-U050, FRM-U051](../../../Prism.Tests/Unit/Freeform/FormHoleTests.cs) and [FRM-H134 to FRM-H136](../../../Prism.Tests/Headless/Freeform/FormPrimitiveOptionTests.cs); FRM-H134 and FRM-H135 fail on the old behavior (the far hole is capped).
 
+## Agents and scripts (owner approval 2026-11-17; implemented, verified as listed)
+
+How an AI agent or script should build Freeform shapes, and what it can read back. Full workflow for agents: [the `prism-freeform` skill](../../../.claude/skills/prism-freeform/SKILL.md) (also served by the `guide` tool and read by the in-app assistant). Diagnosis, decisions and the iron comparison: [Freeform for agents](../../freeform-studies/agent-tooling-proposal.md).
+
+- **Describe, then measure.** `cad.form_skin(stations)` builds a Freeform from cross-sections along an axis; `cad.form_from_silhouettes(first, second, axis)` derives the stations from two outlines and rebuilds once, rescaling each station by target / measured size because the smooth surface pulls in from the cage. `cad.svg_outlines` / `cad.svg_to_sketch` turn an SVG into outlines or a sketch. These helpers are Python only (cadkit); app tools underneath are unchanged.
+- **Numbers and text for a shape.** Automation tool `solid_profile` (Python `cad.profile`) reports cross-sections along x, y or z (extents, area, centroid, outline count) and ASCII silhouettes for any Freeform, solid, surface or mesh.
+- **One picture of several views.** `screenshot` with `views` (front, back, left, right, top, bottom, iso) and `object` returns one labelled sheet at a common scale of only the named objects, restoring the camera, display, grid, origin helpers and visibility.
+- **Edit replies describe the change.** `form_op` also returns `bounds`, `sizeChange`, `created` (inclusive index ranges of appended vertices and faces), `removedVertices`/`removedFaces`, `moved` (count, largest distance, vertex), `flippedFaces` and `warnings` (folded faces, more stretched faces or n-gons, a cage that lost closure, growth to over three times the size).
+- **`guide` tool.** Lists and serves built-in how-to guides (`freeform`).
+
+Tests: [FreeformAgentToolTests](../../../Prism.Tests/Headless/Automation/FreeformAgentToolTests.cs) (API-H003 to API-H012) and [test_cadkit_shapes.py](../../../tests/test_cadkit_shapes.py). Multi-view `screenshot` needs the desktop window and was verified by hand on 2026-11-17 (no automated test).
+
 ## Planned major improvements
 
 Owner direction on 2026-11-16 ([#139](https://github.com/chrizpro/prism/issues/139)): substantially improve Freeform modeling, including cage control, surface quality, shaping workflows and feedback for people and agents. This direction is now in the project README roadmap. Specific operations, diagnostics and acceptance criteria remain proposed until reviewed; this documentation change adds no new product behavior.

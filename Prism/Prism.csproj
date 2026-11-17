@@ -13,6 +13,8 @@
 
     <ItemGroup>
         <None Include="Scripting\**\*.py;Scripting\**\*.toml;Scripting\**\*.md" CopyToOutputDirectory="PreserveNewest"/>
+        <!-- Agent skills live under .claude/skills so coding agents find them in the repo; the app ships the same files for its guide tool and the in-app assistant. -->
+        <None Include="..\.claude\skills\**\SKILL.md" Link="Scripting\skills\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"/>
     </ItemGroup>
 
     <ItemGroup>

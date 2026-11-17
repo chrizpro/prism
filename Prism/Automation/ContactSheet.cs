@@ -1,0 +1,77 @@
+using System;
+using System.Collections.Generic;
+
+namespace Prism.Automation;
+
+/// <summary>Packs several equally sized BGRA pictures into one labelled grid (the multi-view screenshot).</summary>
+static class ContactSheet
+{
+    // 5x7 glyphs, one row per entry, bit 4 = leftmost pixel. Only the letters the standard view names need, plus a few symbols.
+    static readonly Dictionary<char, byte[]> Font = new()
+    {
+        ['A'] = [0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11], ['B'] = [0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E],
+        ['C'] = [0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E], ['D'] = [0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E],
+        ['E'] = [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F], ['F'] = [0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10],
+        ['G'] = [0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F], ['H'] = [0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11],
+        ['I'] = [0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E], ['K'] = [0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11],
+        ['L'] = [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F], ['M'] = [0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11],
+        ['N'] = [0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11], ['O'] = [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
+        ['P'] = [0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10], ['R'] = [0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11],
+        ['S'] = [0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E], ['T'] = [0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+        ['U'] = [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E], ['W'] = [0x11, 0x11, 0x11, 0x15, 0x15, 0x1B, 0x11],
+        ['X'] = [0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11], ['Y'] = [0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04],
+        ['Z'] = [0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F], ['V'] = [0x11, 0x11, 0x11, 0x11, 0x0A, 0x0A, 0x04],
+        ['0'] = [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E], ['1'] = [0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E],
+        ['2'] = [0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F], ['3'] = [0x1E, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1E],
+        ['4'] = [0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02], ['5'] = [0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E],
+        ['6'] = [0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E], ['7'] = [0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+        ['8'] = [0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E], ['9'] = [0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C],
+        ['.'] = [0, 0, 0, 0, 0, 0x0C, 0x0C], [' '] = [0, 0, 0, 0, 0, 0, 0], ['-'] = [0, 0, 0, 0x1F, 0, 0, 0],
+    };
+
+    /// <summary>Draw <paramref name="text"/> (upper-cased) with its top-left at x,y. Unknown characters are skipped.</summary>
+    public static void DrawLabel(byte[] bgra, int width, int height, int x, int y, string text, int scale = 2)
+    {
+        // a dark plate keeps the text readable on any background
+        int plateW = text.Length * 6 * scale + 2 * scale, plateH = 9 * scale + scale;
+        Fill(bgra, width, height, x - scale, y - scale, plateW, plateH, 0x20, 0x20, 0x20);
+        int cx = x;
+        foreach (var raw in text.ToUpperInvariant())
+        {
+            if (Font.TryGetValue(raw, out var rows))
+                for (int r = 0; r < 7; r++)
+                    for (int c = 0; c < 5; c++)
+                        if ((rows[r] >> (4 - c) & 1) != 0) Fill(bgra, width, height, cx + c * scale, y + r * scale, scale, scale, 0xFF, 0xFF, 0xFF);
+            cx += 6 * scale;
+        }
+    }
+
+    static void Fill(byte[] px, int w, int h, int x, int y, int rw, int rh, byte b, byte g, byte r)
+    {
+        for (int yy = Math.Max(0, y); yy < Math.Min(h, y + rh); yy++)
+            for (int xx = Math.Max(0, x); xx < Math.Min(w, x + rw); xx++)
+            {
+                int i = (yy * w + xx) * 4; px[i] = b; px[i + 1] = g; px[i + 2] = r; px[i + 3] = 255;
+            }
+    }
+
+    /// <summary>Lay the cells out row by row, <paramref name="columns"/> to a row, with a 2-pixel gutter; each gets its label in the corner.</summary>
+    public static (byte[] pixels, int width, int height) Compose(IReadOnlyList<(string label, byte[] pixels, int width, int height)> cells, int columns)
+    {
+        if (cells.Count == 0) throw new ArgumentException("No pictures to combine.");
+        columns = Math.Clamp(columns, 1, cells.Count);
+        int rows = (cells.Count + columns - 1) / columns, cw = cells[0].width, ch = cells[0].height, gap = 2;
+        int w = columns * cw + (columns - 1) * gap, h = rows * ch + (rows - 1) * gap;
+        var sheet = new byte[w * h * 4];
+        Fill(sheet, w, h, 0, 0, w, h, 0x60, 0x60, 0x60);
+        for (int k = 0; k < cells.Count; k++)
+        {
+            var (label, px, cellW, cellH) = cells[k];
+            int ox = k % columns * (cw + gap), oy = k / columns * (ch + gap);
+            for (int y = 0; y < Math.Min(ch, cellH); y++)
+                Buffer.BlockCopy(px, y * cellW * 4, sheet, ((oy + y) * w + ox) * 4, Math.Min(cw, cellW) * 4);
+            DrawLabel(sheet, w, h, ox + 6, oy + 6, label);
+        }
+        return (sheet, w, h);
+    }
+}
