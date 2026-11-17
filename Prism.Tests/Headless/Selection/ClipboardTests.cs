@@ -41,6 +41,47 @@ public class ClipboardTests
         Assert.Contains(Prism.Core.Hotkeys.Actions, h => h.Id == "edit.paste" && h.Default == "Ctrl+V");
     }
 
+    [AvaloniaFact(DisplayName = "SEL-H060 | Copying a face pastes a new surface of that face and leaves the body alone")]
+    [Trait("TestId", "SEL-H060")]
+    public void CopyFacePastesSurface()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        int top = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).First(i => Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)).Normal.Z > 0.99);
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, top), false);
+        Assert.True(session.CopySelection());
+        var pasted = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Surface, pasted.Kind);
+        Assert.Equal(100, pasted.Shape.Props().Area, 6);
+        Assert.Equal(10, pasted.Mesh.Max.Z, 6);                         // where the face is on the body
+        Assert.Equal(1000, session.Find(body.Id)!.Shape.Props().Volume, 6);
+
+        session.Undo();                                                 // one undo step removes only the new surface
+        Assert.Single(session.Objects);
+        Assert.Equal(body.Id, session.Objects[0].Id);
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H061 | Copying edges pastes a new curve, and two faces of one body paste as one joined surface")]
+    [Trait("TestId", "SEL-H061")]
+    public void CopyEdgesAndFaces()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        int Face(Func<Vec3, bool> pick) => Enumerable.Range(0, body.Shape.Count(SubKind.Face)).First(i => pick(Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)).Normal));
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, Face(n => n.Z > 0.99)), false);
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, Face(n => n.X > 0.99)), true);
+        Assert.True(session.CopySelection());
+        var surface = Assert.Single(session.Paste());
+        Assert.Equal(200, surface.Shape.Props().Area, 6);
+        Assert.Equal(1, surface.Shape.Count(SubKind.Shell));            // sewn along the edge they share
+
+        session.SetSelection(new SelItem(body.Id, SelKind.Edge, 0), false);
+        Assert.True(session.CopySelection());
+        var curve = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Curve, curve.Kind);
+        Assert.Equal(10, curve.Shape.Props().Size.Length > 0 ? new[] { curve.Shape.Props().Size.X, curve.Shape.Props().Size.Y, curve.Shape.Props().Size.Z }.Max() : 0, 6);
+    }
+
     [AvaloniaFact(DisplayName = "SEL-H029 | Alt-dragging a gizmo arrow in Move leaves the original and moves a copy")]
     [Trait("TestId", "SEL-H029")]
     public void AltDragCopies()

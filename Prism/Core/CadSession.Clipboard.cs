@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Prism.Kernel;
 
 namespace Prism.Core;
 
@@ -17,15 +18,48 @@ public sealed partial class CadSession
     /// <summary>True for an object Copy, Paste and Alt-drag can copy (not annotations, reference parts or assembly components).</summary>
     public bool IsCopyable(Guid id) => Find(id) is { } o && Copyable(o);
 
-    public bool CanCopy => ActiveCommand == null && Sketch == null && CopyableSelection().Count > 0;
-    public bool CanPaste => ActiveCommand == null && Sketch == null && _clipboard.Count > 0;
+    // Pieces of a model (selected faces or edges) copied instead of whole objects: pasted as a new surface or curve (owner direction 2026-11-16)
+    static List<(Shape Shape, string Name, ObjKind Kind)> _clipboardParts = [];
 
-    /// <summary>Remember the selected objects. They are copied now, so later edits or deleting the originals change nothing.</summary>
+    public bool CanCopy => ActiveCommand == null && Sketch == null && CopyableSelection().Count > 0;
+    public bool CanPaste => ActiveCommand == null && Sketch == null && (_clipboard.Count > 0 || _clipboardParts.Count > 0);
+
+    /// <summary>
+    /// The selected faces and edges of solids, surfaces and curves, one new object per source object: a face copy is a surface (the faces of one body stay
+    /// sewn together where they touch), an edge copy is a curve. Freeform cages and meshes are not handled here.
+    /// </summary>
+    List<(Shape Shape, string Name, ObjKind Kind)> CopyComponents()
+    {
+        var parts = new List<(Shape, string, ObjKind)>();
+        foreach (var group in _selection.Where(i => i.Kind is SelKind.Face or SelKind.Edge).GroupBy(i => i.Obj))
+        {
+            if (Find(group.Key) is not { Tri: null, Form: null, HasBrep: true } source) continue;
+            foreach (var kind in new[] { SelKind.Face, SelKind.Edge })
+            {
+                var items = group.Where(i => i.Kind == kind).Distinct().ToList();
+                if (items.Count == 0) continue;
+                var shapes = items.Select(i => ShapeOf(i)).OfType<Shape>().ToList();
+                if (shapes.Count == 0) continue;
+                Shape joined = shapes.Count == 1 ? Occ.Copy(shapes[0]) : kind == SelKind.Face ? Occ.Sew(shapes, 0.01, false) : Occ.Profile(shapes, false);
+                parts.Add((joined, kind == SelKind.Face ? $"{source.Name} face" : $"{source.Name} edge", kind == SelKind.Face ? ObjKind.Surface : ObjKind.Curve));
+            }
+        }
+        return parts;
+    }
+
+    /// <summary>Remember the selected objects, or the selected faces and edges. They are copied now, so later edits or deleting the originals change nothing.</summary>
     public bool CopySelection()
     {
+        var parts = CopyComponents();
+        if (parts.Count > 0)
+        {
+            _clipboardParts = parts; _clipboard = [];
+            Say($"Copied {parts.Count} piece(s) of the model. Paste with Ctrl+V to get them as new {(parts.All(p => p.Kind == ObjKind.Surface) ? "surfaces" : parts.All(p => p.Kind == ObjKind.Curve) ? "curves" : "surfaces and curves")}.");
+            return true;
+        }
         var objs = CopyableSelection();
-        if (objs.Count == 0) { Say("Select an object to copy.", true); return false; }
-        _clipboard = objs.Select(o => CloneObject(o, o.Name)).ToList();
+        if (objs.Count == 0) { Say("Select an object, face or edge to copy.", true); return false; }
+        _clipboard = objs.Select(o => CloneObject(o, o.Name)).ToList(); _clipboardParts = [];
         Say($"Copied {objs.Count} object(s). Paste with Ctrl+V.");
         return true;
     }
@@ -33,7 +67,16 @@ public sealed partial class CadSession
     /// <summary>Add copies of what was copied, in the same place, and select them so they can be moved away.</summary>
     public List<SceneObject> Paste()
     {
-        if (_clipboard.Count == 0) { Say("Nothing has been copied.", true); return []; }
+        if (_clipboard.Count == 0 && _clipboardParts.Count == 0) { Say("Nothing has been copied.", true); return []; }
+        if (_clipboardParts.Count > 0)
+        {
+            Checkpoint("Paste", "duplicate");
+            var pieces = _clipboardParts.Select(p => AddObject(Occ.Copy(p.Shape), p.Name, p.Kind, checkpoint: false)).ToList();
+            _selection.Clear(); foreach (var c in pieces) _selection.Add(SelItem.Of(c));
+            RaiseScene(); SelectionChanged?.Invoke();
+            Say($"Pasted {pieces.Count} new object(s) where they were copied from. Move them with the gizmo.");
+            return pieces;
+        }
         Checkpoint("Paste", "duplicate");
         var copies = new List<SceneObject>();
         foreach (var o in _clipboard)

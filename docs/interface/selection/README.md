@@ -36,7 +36,7 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 - **Closed 2026-11-13:** the Vertex level, Offset Face and Move Face on surface faces, and the right-click menu for a surface face. See the next section.
 - **Closed 2026-11-13:** Merge Faces works on surfaces too (`SEL-H022`), and Push / Pull takes curved surface faces (`SEL-H023`).
 - **Still open:** moving a corner point directly, and using a corner point as a pick inside other tools. Corner control points of a NURBS surface already move with Edit Points.
-- **Note:** the default Shaded display draws no edges, so a split is invisible until an edge is hovered or the display is set to shaded with edges.
+- **Note:** since 2026-11-16 (owner request) new documents open in *Shaded + edges*, so a split shows at once. Plain Shaded draws no edges, so a split is invisible there until an edge is hovered.
 
 ## Direct edits and the Vertex level on surfaces
 
@@ -69,7 +69,7 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 
 **Status: owner requested 2026-11-13; implemented.**
 
-- **Copy and paste (`SEL-H028`).** Ctrl+C remembers the selected objects (bodies, surfaces, curves, sketches, meshes and Freeform forms); Ctrl+V adds an independent copy of each in the same place, selects the copies, and names them like Duplicate does. The copy is taken at Ctrl+C, so editing or deleting the original afterwards changes nothing, and it can be pasted into another open document. Paste is one undo step. Components, joints, planes and reference parts are not copied. Ctrl+C and Ctrl+V do nothing while a tool or sketch is open.
+- **Copy and paste (`SEL-H028`).** Ctrl+C remembers the selected objects (bodies, surfaces, curves, sketches, meshes and Freeform forms); Ctrl+V adds an independent copy of each in the same place, selects the copies, and names them like Duplicate does. The copy is taken at Ctrl+C, so editing or deleting the original afterwards changes nothing, and it can be pasted into another open document. Paste is one undo step. Joints, planes and reference parts are not copied. **Faces and edges (owner direction 2026-11-16, `SEL-H060`, `SEL-H061`):** with faces or edges of a solid, surface or curve selected, Ctrl+C copies those pieces instead of the whole object, and Ctrl+V pastes a new **surface** (faces of one body stay sewn where they touch) or a new **curve** (edges), in place and selected, as one undo step; the body is untouched. **Not built yet:** Freeform cage faces, mesh triangles, sketch entities, vertices (the owner is open to something unique for them) and the other rows of the [Transform proposal](../../modeling/transform/README.md#copy-and-paste-in-general--direction-approved-2026-11-16-table-below-still-awaiting-review-not-built-yet). Extract Edges is unchanged for now. Ctrl+C and Ctrl+V do nothing while a tool or sketch is open.
 - **Alt-drag copy (`SEL-H029`).** With the Move tool, hold **Alt** when you press an arrow, plane block or the centre of the gizmo: the originals stay where they are and copies are dragged. The copies are selected afterwards. Alt also bypasses snapping on that drag, as it does elsewhere. Copy and Move are two undo steps.
 
 [Checks](../../../Prism.Tests/Headless/Selection/ClipboardTests.cs).
