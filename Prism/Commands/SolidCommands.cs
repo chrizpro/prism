@@ -1573,11 +1573,15 @@ public sealed class FilletCommand : EdgeDressCommand
 {
     readonly NumberParam _endRadius;
     readonly TextParam _perEdge;
+    readonly ChoiceParam _shape;
     public FilletCommand() : base(2)
     {
         _endRadius = Num("End radius (0 = same as radius)", 0, 0);
         _perEdge = Text("Radius per edge (optional)", "");
         _perEdge.HelpText = "One entry per picked edge, in the order picked, separated by commas: 3, 5, 2 gives each edge its own radius, and 3-5 grows that edge from 3 to 5. An edge with no entry uses Radius. Leave blank for one radius on every edge.";
+        // last, so steps saved before this choice existed (one value shorter) still line up
+        _shape = Choice("Shape", 0, "Round (rounded corner)", "Cove (concave scoop)");
+        _shape.HelpText = "Round takes the corner off. Cove cuts a quarter-round scoop into it instead, centred on the edge, so the walls meet it at right angles (on a square edge). A cove works on straight edges and uses Radius only.";
     }
 
     /// <summary>"3, 5-8, 2" as one (start, end) pair per entry; null when the text is blank or not numbers.</summary>
@@ -1596,10 +1600,21 @@ public sealed class FilletCommand : EdgeDressCommand
         return list;
     }
 
+    /// <summary>Steps saved before the Shape choice existed were all round fillets.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? recipe with { Values = [.. recipe.Values, 0] } : recipe;
+
+    protected override void UpdateVisibility()
+    {
+        if (_shape == null) return;
+        bool cove = _shape.Index == 1;
+        _endRadius.IsVisible = !cove; _perEdge.IsVisible = !cove;
+    }
+
     protected override CommandOutput? Build()
     {
         var radii = ParseRadii(_perEdge.Value);
-        if (radii == null) return base.Build();
+        if (radii == null || _shape.Index == 1) return base.Build();
         if (!Complete) return null;
         var o = new CommandOutput();
         foreach (var g in Edges.Items.GroupBy(i => i.Obj))
@@ -1621,7 +1636,32 @@ public sealed class FilletCommand : EdgeDressCommand
     protected override string SizeLabel => "Radius";
     public override string Hint => "Click edges on a body (click again to deselect). Give an end radius to make the fillet grow or shrink along each edge.";
     protected override Shape Apply(Shape s, int[] edges, double size)
-        => _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+        => _shape.Index == 1 ? Cove(s, edges, size)
+        : _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+
+    /// <summary>
+    /// A cove: a round groove of the given radius along each straight edge, the cylinder centred on the edge. On a square convex edge it removes a
+    /// quarter of the cylinder, leaving a concave quarter-round that meets each wall at right angles. (A concave scoop cannot also be tangent to both walls.)
+    /// </summary>
+    static Shape Cove(Shape s, int[] edges, double radius)
+    {
+        var tools = new List<Shape>();
+        foreach (int index in edges)
+        {
+            var edge = s.Sub(SubKind.Edge, index); var info = Occ.EdgeInfoOf(edge);
+            var along = info.End - info.Start;
+            if (along.Length < 1e-9 || Math.Abs(info.Length - along.Length) > 1e-6 * Math.Max(1, info.Length))
+                throw new FormatException("A cove works on straight edges for now. Curved edges are not supported yet.");
+            using var circle = Occ.Circle(info.Start, along.Normalized(), radius);
+            using var disc = Occ.Profile([circle], true);
+            tools.Add(Occ.Extrude(disc, along));
+        }
+        var result = s;
+        foreach (var tool in tools) result = Occ.Cut(result, tool);
+        if (!result.IsValid || !result.HasSolids) throw new FormatException("The cove does not leave a valid solid. Try a smaller radius.");
+        if (result.Props().Volume >= s.Props().Volume - 1e-9) throw new FormatException("The cove removes nothing here. Pick a convex edge of the body and a radius that reaches into it.");
+        return result;
+    }
 
     public override IReadOnlyList<HandleSpec> Handles
     {
