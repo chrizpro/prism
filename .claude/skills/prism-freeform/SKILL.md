@@ -73,7 +73,7 @@ Through `call_api`, `screenshot {views:["front","right","top","iso"], object:["S
 
 ### Edit replies
 
-`form_op` returns what changed, not only that the cage is valid: `created` (inclusive index ranges of appended vertices/faces), `bounds`, `sizeChange`, `moved` (count, farthest distance and vertex), and `warnings`. Read the warnings: `flippedFaces` / "folded over" means you pushed points through the surface: undo it. "stretched faces" means insert a loop or even out spacing. "no longer closed" means a hole appeared: `fill_holes`.
+`form_op` returns what changed, not only that the cage is valid: `created` (inclusive index ranges of appended vertices/faces), `bounds`, `sizeChange`, `moved` (count, farthest distance and vertex), and `warnings`. Read the warnings: `flippedFaces` counts faces whose normals turned substantially. Inspect the faces in `flippedFaceIds` using `form_info` and a viewport image. Intentional bending can also turn normals. "stretched faces" means insert a loop or even out spacing. "no longer closed" means a hole appeared: `fill_holes`.
 
 ## Without scripting
 

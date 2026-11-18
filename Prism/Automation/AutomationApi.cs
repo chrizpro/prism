@@ -359,16 +359,22 @@ public sealed partial class AutomationApi
         }
         if (moved > 0) info["moved"] = new JsonObject { ["count"] = moved, ["maxDistance"] = Math.Round(far, 4), ["maxAtVertex"] = farAt };
         var warnings = new JsonArray();
-        // a fold-over: same faces, but some now point the opposite way
+        // A large rotation of a normal can also occur during an intentional bend.
         if (before.F.Count == after.F.Count && before.V.Count == after.V.Count)
         {
-            int flipped = 0;
+            var flipped = new JsonArray();
             for (int f = 0; f < after.F.Count; f++)
             {
-                if (after.F[f].Length != before.F[f].Length) { flipped = -1; break; }
-                if (Vec3.Dot(before.FaceNormal(f), after.FaceNormal(f)) < -0.2) flipped++;
+                if (before.F[f].SequenceEqual(after.F[f]) &&
+                    Vec3.Dot(before.FaceNormal(f), after.FaceNormal(f)) < -0.2)
+                    flipped.Add(f);
             }
-            if (flipped > 0) { info["flippedFaces"] = flipped; warnings.Add($"{flipped} face(s) now point the opposite way: the surface folded over itself. Undo, or move the points less."); }
+            if (flipped.Count > 0)
+            {
+                info["flippedFaces"] = flipped.Count;
+                info["flippedFaceIds"] = flipped;
+                warnings.Add($"{flipped.Count} face normal(s) changed direction substantially. Inspect flippedFaceIds for a possible fold.");
+            }
         }
         var q0 = FormQuality.Analyze(before); var q1 = FormQuality.Analyze(after);
         if (q1.StretchedFaces > q0.StretchedFaces) warnings.Add($"{q1.StretchedFaces - q0.StretchedFaces} more stretched face(s) (worst aspect {q1.WorstAspect:0.#}): insert an edge loop or even out the spacing.");

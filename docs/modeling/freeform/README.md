@@ -116,10 +116,12 @@ How an AI agent or script should build Freeform shapes, and what it can read bac
 - **Describe, then measure.** `cad.form_skin(stations)` builds a Freeform from cross-sections along an axis; `cad.form_from_silhouettes(first, second, axis)` derives the stations from two outlines and rebuilds once, rescaling each station by target / measured size because the smooth surface pulls in from the cage. `cad.svg_outlines` / `cad.svg_to_sketch` turn an SVG into outlines or a sketch. These helpers are Python only (cadkit); app tools underneath are unchanged.
 - **Numbers and text for a shape.** Automation tool `solid_profile` (Python `cad.profile`) reports cross-sections along x, y or z (extents, area, centroid, outline count) and ASCII silhouettes for any Freeform, solid, surface or mesh.
 - **One picture of several views.** `screenshot` with `views` (front, back, left, right, top, bottom, iso) and `object` returns one labelled sheet at a common scale of only the named objects, restoring the camera, display, grid, origin helpers and visibility.
-- **Edit replies describe the change.** `form_op` also returns `bounds`, `sizeChange`, `created` (inclusive index ranges of appended vertices and faces), `removedVertices`/`removedFaces`, `moved` (count, largest distance, vertex), `flippedFaces` and `warnings` (folded faces, more stretched faces or n-gons, a cage that lost closure, growth to over three times the size).
+- **Edit replies describe the change.** `form_op` also returns `bounds`, `sizeChange`, `created` (inclusive index ranges of appended vertices and faces), `removedVertices`/`removedFaces`, `moved` (count, largest distance, vertex), `flippedFaces` (count), `flippedFaceIds` (zero-based indices of faces whose normal changed direction substantially with the same ordered vertices), and `warnings` (possible folds, more stretched faces or n-gons, a cage that lost closure, growth to over three times the size).
 - **`guide` tool.** Lists and serves built-in how-to guides (`freeform`).
 
 Tests: [FreeformAgentToolTests](../../../Prism.Tests/Headless/Automation/FreeformAgentToolTests.cs) (API-H003 to API-H012) and [test_cadkit_shapes.py](../../../tests/test_cadkit_shapes.py). Multi-view `screenshot` needs the desktop window and was verified by hand on 2026-11-17 (no automated test).
+
+2026-11-18: API-H005 passed on Windows. Moving the four upper corners of a box through its base reported the four side faces through the automation API.
 
 ## Planned major improvements
 

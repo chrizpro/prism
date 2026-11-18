@@ -63,8 +63,12 @@ public class FreeformAgentToolTests
         var info = (await api.CallAsync("form_find", Args(new { @object = name, kind = "vertices", box = new[] { new[] { -30, -30, 30 }, new[] { 30, 30, 50 } } })))!;
         var ids = info["results"]!.AsArray().Select(x => (int)x!["index"]!).ToArray();
         var r = (await api.CallAsync("form_op", Args(new { @object = name, op = "move", vertices = ids, delta = new[] { 0.0, 0.0, -100.0 } })))!;
-        Assert.True((int)r["flippedFaces"]! > 0);
-        Assert.Contains("folded", r["warnings"]!.ToJsonString());
+        var faces = r["flippedFaceIds"]!.AsArray().Select(f => (int)f!).ToArray();
+        Assert.Equal(4, faces.Length); // the four side walls reverse, the horizontal caps retain their normals
+        Assert.Equal(faces.Length, (int)r["flippedFaces"]!);
+        Assert.Equal(faces.Distinct().OrderBy(f => f).ToArray(), faces);
+        Assert.All(faces, f => Assert.InRange(f, 0, 5));
+        Assert.Contains("possible fold", r["warnings"]!.ToJsonString());
     }
 
     [AvaloniaFact(DisplayName = "API-H006 | solid_profile reports a Freeform box's size, sections with exact extents and area, and a filled silhouette")]
