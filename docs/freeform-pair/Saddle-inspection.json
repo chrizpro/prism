@@ -1,0 +1,129 @@
+{
+  "profile": {
+    "objects": [
+      "Oxblood saddle"
+    ],
+    "min": [
+      -137,
+      -76.6406,
+      39.0664
+    ],
+    "max": [
+      129.1359,
+      76.6406,
+      73.8739
+    ],
+    "size": [
+      266.1359,
+      153.2812,
+      34.8075
+    ],
+    "sections": {
+      "axis": "x",
+      "order": "[min,max] extents along y and z; centroid is [y,z]; area in mm2 (signed; trust it only for closed shapes)",
+      "cuts": [
+        {
+          "at": -110,
+          "y": [
+            -16.69,
+            16.69
+          ],
+          "z": [
+            41.848,
+            56.24
+          ],
+          "area": 403.18,
+          "centroid": [
+            0,
+            48.989
+          ],
+          "outlines": 1
+        },
+        {
+          "at": -40,
+          "y": [
+            -23.647,
+            23.647
+          ],
+          "z": [
+            39.231,
+            57.175
+          ],
+          "area": 707.22,
+          "centroid": [
+            0,
+            47.834
+          ],
+          "outlines": 1
+        },
+        {
+          "at": 36,
+          "y": [
+            -59.246,
+            59.246
+          ],
+          "z": [
+            40.239,
+            66.389
+          ],
+          "area": 2583.5,
+          "centroid": [
+            0,
+            52.408
+          ],
+          "outlines": 1
+        },
+        {
+          "at": 90,
+          "y": [
+            -76.453,
+            76.453
+          ],
+          "z": [
+            44.04,
+            73.052
+          ],
+          "area": 3735.84,
+          "centroid": [
+            0,
+            57.559
+          ],
+          "outlines": 1
+        }
+      ]
+    }
+  },
+  "cage": {
+    "vertexCount": 358,
+    "faceCount": 356,
+    "creaseCount": 0,
+    "symmetry": "off",
+    "asymmetry": 0,
+    "smoothLevel": 3,
+    "closed": true,
+    "min": [
+      -137,
+      -78,
+      39
+    ],
+    "max": [
+      129.5864,
+      78,
+      74.7802
+    ],
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 2,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 8
+    }
+  }
+}

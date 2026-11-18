@@ -1,5 +1,7 @@
 # Made with Prism
 
+**Publication update, 2026-11-18:** the catalog now contains 48 models, including twelve new Surface, Freeform, and NURBS studies. Use Refresh in Prism to fetch the catalog.
+
 **Publication update, 2026-11-16:** this catalog contains 36 downloadable models, including the recent bicycle, car, lamp, wood studies, helicopter, toaster, phone and soap mold/CAM. Use Refresh in Prism to fetch the current catalog. Earlier delivery notes below describe their initial preparation.
 
 Curated native examples for the [startup gallery](../docs/interface/gallery/README.md), tracked by [#61](https://github.com/chrizpro/prism/issues/61). Models and preview images are hosted here and downloaded on demand; the app embeds only `catalog.json`.
@@ -21,6 +23,18 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | Freeform / Solid | Bellavista 1964 (`bellavista-1964`), Apex R07 (`apex-r07`), Relay S1 (`relay-s1`), Comet number-one racer (`comet-racer`), Skylark light aircraft (`skylark-aircraft`), Cove lounge chair (`cove-chair`) |
 | Freeform | Azure handled bottle (`azure-bottle`) |
 | Surface / NURBS | Halo pendant (`halo-pendant`), Transition duct (`transition-duct`), Arc mouse (`arc-mouse`) |
+| Surface / Solid | Kingfisher kayak (`kingfisher-kayak`) |
+| NURBS / Solid | Calla gramophone horn (`calla-horn`) |
+| NURBS / Solid | Ergonomic desktop mouse (`ergonomic-mouse`) |
+| NURBS / Solid | Solis coupe (`solis-coupe`) |
+| Freeform | Oxblood bicycle saddle (`oxblood-saddle`) |
+| Freeform | Petrol ribbon chair (`petrol-ribbon-chair`) |
+| Freeform | Ochre climbing shoe (`ochre-climbing-shoe`) |
+| Freeform | Pebble pitcher (`pebble-pitcher`) |
+| Freeform | Manta ray statue (`manta-ray-statue`) |
+| NURBS | Porcelain spoon rest (`porcelain-spoon-rest`) |
+| NURBS | Three-lobed handbell (`three-lobed-handbell`) |
+| NURBS | Streamlined train nose (`streamlined-train-nose`) |
 
 Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 
