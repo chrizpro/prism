@@ -2,6 +2,8 @@
 
 ## Status and scope
 
+**Surface, Freeform, and NURBS studies approved 2026-11-18 ([#61](https://github.com/chrizpro/prism/issues/61)).** The twelve new cards include the Kingfisher kayak, Calla horn, ergonomic mouse, Solis coupe, saddle, ribbon chair, climbing shoe, pitcher, manta statue, spoon rest, handbell, and train nose. Each card provides an editable native model and an actual Prism preview. The catalog check verifies all 48 model byte counts, hashes, and preview revisions. [Model index](../../../gallery/README.md#what-is-here).
+
 Approved by the owner on 2026-11-05 after the on-demand GitHub gallery proposal: use existing Prism studies and Claude's camera lens, represent Solid, Surface/NURBS and Freeform, and add three new finished examples to exercise modeling, Appearance and API/MCP. [Delivery issue #61](https://github.com/chrizpro/prism/issues/61).
 
 ## Behavior
