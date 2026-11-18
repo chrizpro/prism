@@ -94,7 +94,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
     {
         var m = cmd.Model; if (m == null) return;
         for (int i = 0; i < m.Points.Length; i++)
-            if (s.Camera.Project(m.Points[i]) is { } q && region.Contains(q.x, q.y)) { if (remove) Selected.Remove(i); else Selected.Add(i); }
+            if (!cmd.IsLocked(i) && s.Camera.Project(m.Points[i]) is { } q && region.Contains(q.x, q.y)) { if (remove) Selected.Remove(i); else Selected.Add(i); }
         cmd.SelectionChanged(); s.Invalidate();
     }
 
@@ -151,7 +151,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         for (int j = 0; j < w.Length; j++)
         {
             if (Selected.Contains(j)) { w[j] = 1; continue; }
-            if (radius <= 0) continue;
+            if (radius <= 0 || cmd.IsLocked(j)) continue;
             foreach (int i in Selected) w[j] = Math.Max(w[j], FalloffMath.Weight(fall, basePts[i].DistanceTo(basePts[j]), radius));
         }
         return w;
@@ -217,6 +217,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         }
 
         int i = Picking.NearestPoint(s.Camera, m.Points, p.X, p.Y, 12);
+        if (i >= 0 && cmd.IsLocked(i)) i = -1;
         if (i < 0)
         {
             if (!p.Shift && !p.Ctrl) { Selected.Clear(); cmd.SelectionChanged(); }
@@ -245,6 +246,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         if (_drag == Drag.None)
         {
             int h = Picking.NearestPoint(s.Camera, m.Points, p.X, p.Y, 12);
+            if (h >= 0 && cmd.IsLocked(h)) h = -1;
             var (ax, ce, operation) = HitGizmo(s, p.X, p.Y); ax = GizmoVisual.AsPlane(ax, operation, p.Ctrl);
             if (operation != _hotMode || h != _hot || ax != _hotAxis || ce != _hotCenter) { _hotMode = operation; _hot = h; _hotAxis = ax; _hotCenter = ce; s.Invalidate(); }
             return;
@@ -327,6 +329,7 @@ public sealed class EditPointsTool(EditPointsCommand cmd) : IViewportTool
         m.BuildNetOverlay(o);
         for (int i = 0; i < m.Points.Length; i++)
         {
+            if (cmd.IsLocked(i)) { o.AddDot(m.Points[i], 0xFF7C828C, 6); continue; }          // locked: greyed, cannot be picked
             bool sel = Selected.Contains(i);
             o.AddDot(m.Points[i], sel ? 0xFFFF8A1F : i == _hot ? 0xFF00A8FF : 0xFF2F4A73, sel || i == _hot ? 11 : 8);
         }

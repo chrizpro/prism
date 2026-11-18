@@ -795,7 +795,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Cap an open loop of edges with a flat face or smooth patch so the body closes.", RibbonSize.Large, facesWorkflow),
                     Cmd("Merge\nFaces", "replaceface", () => new MergeFacesCommand(), "Join neighbouring faces on the same surface into one.", RibbonSize.Large, facesWorkflow)),
                 G("Shape",
-                    Cmd("Sculpt\nFace", "sculpt", () => new SculptFaceCommand(), "Pull or push a smooth bump into a flat, four-sided face of a solid. The face becomes a NURBS surface; its outline stays fixed, so the neighbouring faces meet it at a sharp edge. Solid bodies only.", RibbonSize.Large, solidOnly),
+                    Cmd("Edit\nFace", "edit-points", () => new EditFaceCommand(), "Reshape a flat, four-sided face of a solid by moving a grid of control points. The outline stays where it is; the neighbouring faces meet the new surface at a sharp edge. Solid bodies only.", RibbonSize.Large, solidOnly),
                     Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch a whole body or surface along an axis, or only chosen faces of a solid (pick them under Faces to warp; flat, four-sided faces, outline kept).", RibbonSize.Large, facesWorkflow)),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
                 G("Exit", Btn("Finish\nEditing", "finish", ExitDirectEdit, "Leave Direct Edit and go back to where you were.", RibbonSize.Large)),

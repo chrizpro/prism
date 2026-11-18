@@ -1325,7 +1325,9 @@ public sealed partial class CadSession : ObservableObject
             ViewChanged?.Invoke();
             return;
         }
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         var res = cmd.TryBuild();
+        clock.Stop();
         CommandError = cmd.Error;
         if (!cmd.TiltDone && cmd.Handle is { } hs) { cmd.TiltDone = true; TiltToHandle(hs); }
         if (res != null)
@@ -1338,7 +1340,15 @@ public sealed partial class CadSession : ObservableObject
             foreach (var gshape in res.Ghosts) Preview.Add(new PreviewItem(gshape, ObjKind.Solid) { Ghost = true });
         }
         ViewChanged?.Invoke();
+        // A preview that takes seconds freezes the app on every change, so on a heavy part it is switched off after the first slow one.
+        if (cmd.SupportsPreview && cmd.PreviewEnabled && !cmd.Committing && clock.Elapsed.TotalSeconds > SlowPreviewSeconds)
+        {
+            cmd.PreviewEnabled = false;
+            Say($"The preview took {clock.Elapsed.TotalSeconds:0} s on this part, so it is off. Press Apply to make the change, or tick Preview to see it first.");
+        }
     }
+    /// <summary>A live preview that takes longer than this is switched off for the rest of that command.</summary>
+    public const double SlowPreviewSeconds = 3;
 
     // ------------------------------------------------------------ sketch
     public SketchContext? Sketch { get; private set; }

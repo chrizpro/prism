@@ -42,6 +42,8 @@ public sealed class NetModel
 
     NetModel(Shape src, bool surface, ControlNet net) { Source = src; IsSurface = surface; Net = net; }
 
+    public static NetModel FromFace(Shape face) => new(face, true, Occ.FaceNet(face));
+
     public static NetModel From(SceneObject o)
     {
         if (o.Kind == ObjKind.Surface)
@@ -183,13 +185,16 @@ public sealed class CurveByPointsCommand : Command
 }
 
 // ---------------------------------------------------------------- edit control points
-public sealed class EditPointsCommand : Command
+public class EditPointsCommand : Command
 {
+    /// <summary>A locked point cannot be selected or moved (Edit Face locks the outline). Nothing is locked here.</summary>
+    public virtual bool IsLocked(int index) => false;
+    protected SelectionSlot SourceSlot => _src;
     /// <summary>Select every control point.</summary>
     public void SelectAllPoints()
     {
         if (Model == null) return;
-        _tool.Selected.Clear(); foreach (int i in Enumerable.Range(0, Model.Points.Length)) _tool.Selected.Add(i);
+        _tool.Selected.Clear(); foreach (int i in Enumerable.Range(0, Model.Points.Length).Where(i => !IsLocked(i))) _tool.Selected.Add(i);
         SelectionChanged(); S.Invalidate();
     }
 
@@ -197,7 +202,7 @@ public sealed class EditPointsCommand : Command
     public void InvertPoints()
     {
         if (Model == null) return;
-        var next = Enumerable.Range(0, Model.Points.Length).Where(i => !_tool.Selected.Contains(i)).ToList();
+        var next = Enumerable.Range(0, Model.Points.Length).Where(i => !IsLocked(i) && !_tool.Selected.Contains(i)).ToList();
         _tool.Selected.Clear(); foreach (int i in next) _tool.Selected.Add(i);
         SelectionChanged(); S.Invalidate();
     }
@@ -213,17 +218,23 @@ public sealed class EditPointsCommand : Command
     public SceneObject? Source { get; private set; }
     public Shape? Work { get; private set; }
 
-    public EditPointsCommand()
+    public EditPointsCommand() : this(new SelectionSlot { Label = "Curve or surface", Filter = SelFilter.SurfaceObj | SelFilter.CurveObj }, true) { }
+
+    /// <summary>For commands that edit a net they build themselves: their own source pick, and whether Add detail and Raise degree make sense.</summary>
+    protected EditPointsCommand(SelectionSlot source, bool restructure)
     {
-        _src = Slot(new SelectionSlot { Label = "Curve or surface", Filter = SelFilter.SurfaceObj | SelFilter.CurveObj });
+        _src = Slot(source);
         Radius = Num("Influence radius", 0, 0, 1e6, 1);
         FalloffMode = Choice("Falloff", 0, "Smooth", "Linear", "Sharp");
         TransformMode = Choice("Gizmo (W move, E rotate, R scale)", 0, "Move", "Rotate", "Scale");
         _px = Num("Point X", 0); _py = Num("Point Y", 0); _pz = Num("Point Z", 0);
         _px.IsVisible = _py.IsVisible = _pz.IsVisible = false;
         _px.Changed = _py.Changed = _pz.Changed = OnPoleField;
-        Add(new ActionParam { Label = "Add detail (more points)", Run = () => Restructure(Occ.RefineFace, Occ.RefineCurve) });
-        Add(new ActionParam { Label = "Raise degree", Run = () => Restructure(Occ.ElevateFace, null) });
+        if (restructure)
+        {
+            Add(new ActionParam { Label = "Add detail (more points)", Run = () => Restructure(Occ.RefineFace, Occ.RefineCurve) });
+            Add(new ActionParam { Label = "Raise degree", Run = () => Restructure(Occ.ElevateFace, null) });
+        }
         Tool = _tool = new EditPointsTool(this);
     }
     public override string Title => "Edit Control Points";
@@ -236,12 +247,12 @@ public sealed class EditPointsCommand : Command
     {
         // The source slot decides what we are editing; reload when it changes.
         var item = _src.Items.Count > 0 ? S.Find(_src.Items[0].Obj) : null;
-        if (item != Source)
+        if (ReloadNeeded(item))
         {
             Source = item; Model = null; Work = null; _tool.Reset();
             if (item != null)
             {
-                try { Model = NetModel.From(item); Work = item.Shape; }
+                try { LoadModel(item); }
                 catch (KernelException e) { Error = e.Message; S.Say(e.Message, true); _src.Items.Clear(); Source = null; }
             }
         }
@@ -250,6 +261,12 @@ public sealed class EditPointsCommand : Command
         _px.IsVisible = _py.IsVisible = _pz.IsVisible = one;
         if (one) SyncFields();
     }
+
+    /// <summary>True when the net must be built again for what is picked now.</summary>
+    protected virtual bool ReloadNeeded(SceneObject? item) => item != Source;
+    /// <summary>Builds <see cref="Model"/> and <see cref="Work"/> for the picked object. Throw a <see cref="KernelException"/> to refuse it with a message.</summary>
+    protected virtual void LoadModel(SceneObject item) { Model = NetModel.From(item); Work = item.Shape; }
+    protected void SetModel(NetModel model, Shape work) { Model = model; Work = work; }
 
     void SyncFields()
     {
@@ -276,7 +293,7 @@ public sealed class EditPointsCommand : Command
         OnChanged();
     }
 
-    CommandOutput? Out()
+    protected virtual CommandOutput? Out()
     {
         if (Source == null || Work == null) return null;
         var o = new CommandOutput();
@@ -284,7 +301,7 @@ public sealed class EditPointsCommand : Command
         return o;
     }
 
-    public void ApplyPoints(Vec3[] pts)
+    public virtual void ApplyPoints(Vec3[] pts)
     {
         if (Model == null) return;
         var shape = Model.With(pts);

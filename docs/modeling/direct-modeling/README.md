@@ -92,6 +92,8 @@ Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 59
 
 ## Sculpt Face and Warp on faces — direction approved 2026-11-16; details awaiting owner review
 
+**2026-11-17: Sculpt Face is no longer in the ribbon; Edit Face took its place.** The owner found it poor and asked for it to go unless it could be improved a lot. The command and its tests (DIR-H072 to DIR-H077) are kept, so it can return. The wanted replacement is Fusion's **Edit Face**: turn the picked face into a grid of control points (the grid size adjustable), move the points with the gizmo, and leave the editor to turn it back into a face of the solid with its outline kept. That is a separate proposal, not started; Prism already has a control-point editor for NURBS surfaces, Replace Face, and the face-to-net and net-to-face conversion that Sculpt Face uses.
+
 **Warp button (delivered 2026-11-16, tried by tests only).** The Direct Modeling tab's *Shape* group now has **Warp**, enabled for the Solid and Surface workflows. It is the same Warp as on the Surface, Freeform and NURBS tabs: it bends, twists, tapers or stretches a **whole** body or surface along an axis. It does not yet act on single faces.
 
 **Owner direction.** Sculpt a face of a solid in place, in the spirit of Fusion's face editing, and let Warp take **faces to warp** so a face can be modified "a little". The owner chose the "Option A" shape of this: the face becomes a NURBS surface, its interior is reshaped, and it goes back into the body.
@@ -127,3 +129,42 @@ Owner decisions: turning a face into NURBS is acceptable; keep Warp on the Direc
 8. **Warp's handles in the viewport** are shown for whole-body warps only; a faces-only warp has typed values and no handles yet.
 9. **Surfaces** (not solids) are accepted by Warp's face option but not by Sculpt Face, and are less tested.
 10. Not yet checked: faces much larger than the bump radius (the bump only touches the middle), very thin faces, bodies with hundreds of faces (speed), and edits repeated many times on the same face (each edit refines it again).
+
+## Slots with a rounded rim (2026-11-17)
+
+Feature recognition now looks for holes, bosses, slots and pockets before it groups smooth curved faces into fillet chains. A slot whose edge is rounded used to be taken as a fillet chain, so its flat walls were left as separate faces. Now the walls, the round ends and the rim rounds that run on from them are one **Slot**, and a click on any of them picks all. Test: DIR-H090. Checked on a 626-face plate with 51 slotted openings (about 51 slots found, the plate faces left as faces); whether Pull or Move on such a slot works on every part is not yet checked.
+
+**Large parts.** On that plate each Direct Edit preview took 7 to 14 seconds. A live preview that takes more than 3 seconds is now switched off for the rest of that command, with a message; Apply still makes the change, and ticking Preview brings it back. The edit itself is not faster.
+
+
+## Edit Face (owner-approved 2026-11-17; implemented, desktop check pending)
+
+Status: built and covered by DIR-H091 to DIR-H097 in `EditFaceTests.cs`; not yet tried by hand in the running app. Differences from the proposal below: **flat faces only** in this first version (a curved four-sided face is refused with a message), and there is **no Add detail** yet, so the grid size is set with Grid cells across and up (changing it rebuilds the grid and resets the points). Edit feature brings the moved points back. Moving a point through the far side of the solid is refused. Falloff with the influence radius is the shared control-point behavior and is not separately tested. It replaces Sculpt Face, which left the ribbon on 2026-11-17. The model is Fusion's **Edit Face**: the picked face becomes a grid of control points, you move the points, and leaving the editor turns the result back into a face of the solid. The aim is that it is easy to use: a grid you can see on the face, points you can grab, and a result that is a smooth surface.
+
+**Using it**
+1. **Direct Modeling → Shape → Edit Face** (where Sculpt Face was). Click one face of a solid.
+2. The face shows a grid of control points drawn over it. The default is 3 × 3 cells, which is 4 × 4 points. The outer ring of points is locked and drawn greyed, because the face's outline stays where it is; the inner points can be moved.
+3. Click a point to select it (Shift adds; a box or lasso picks several). Drag the shared gizmo to move, rotate or scale the selected points. Typing exact X, Y and Z for a single point works as it does in Edit Control Points.
+4. **Move points** chooses **Along the face normal** (the default, for bumps and dents) or **Any direction**.
+5. **Influence radius** and **Falloff** make nearby points follow the one you move. At radius 0 only the selected points move.
+6. **Grid size** sets the cells across and up (2 to 8 each). Changing it before any point has moved rebuilds the grid. After points have moved, **Add detail** adds points without changing the shape.
+7. **Reset points** puts every point back.
+8. The solid updates live while you edit. A preview that takes more than 3 seconds is switched off with a message, and **Apply** still works.
+9. **Apply** replaces the face with the smooth surface through the grid and keeps the outline. The neighbouring faces meet it at the original edges, which stay sharp: the new surface is not made tangent to them. One undo step. Edit feature reopens it with the points where they were.
+10. If the result would not be a valid solid, nothing changes and the message says so.
+
+**First version covers:** one flat or curved face with four sides and no holes. Other faces are refused with a message that names the reason (more than four sides, holes in the face). Not in this version: faces with more than four sides or holes, tangent continuity with the neighbours, mirrored (symmetric) editing, and several faces at once.
+
+**Acceptance criteria**
+1. A box top shows a 4 × 4 grid: 12 locked points and 4 movable ones.
+2. Moving one inner point 2 mm along the normal gives a valid solid that is larger by the expected volume, with the face's edges unchanged and the moved point on the new surface.
+3. A 5 × 5 cell grid shows 6 × 6 points, 16 of them movable.
+4. With influence radius greater than 0 and a smooth falloff, points near the moved one follow it by less the farther they are. At radius 0 they stay.
+5. A locked point cannot be selected or moved.
+6. Reset points restores the original volume and bounds.
+7. A reshape that makes an invalid solid changes nothing and shows a message.
+8. Undo and redo step over the whole edit. Edit feature restores the moved points.
+9. A five-sided face and a face with a hole are refused, each with its own message.
+10. Moving along the normal keeps every moved point on its original line along the normal.
+
+**Reuse:** Sculpt Face's face-to-net and net-to-face conversion, and the control-point selection, gizmo and falloff of Edit Control Points. When this lands, Sculpt Face and its tests (DIR-H072 to DIR-H077) are retired.

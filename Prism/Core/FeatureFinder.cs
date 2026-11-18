@@ -240,6 +240,7 @@ public static class FeatureFinder
             foreach (int f in faces) a.FeatureOfFace[f] = a.Features.Count;
             a.Features.Add(feat);
         }
+        // First pass: holes, bosses, slots and pockets. Fillet chains come second, or the rounded rim of a slot would be claimed as a fillet before its walls are looked at.
         for (int f = 0; f < n; f++)
         {
             if (a.FeatureOfFace[f] >= 0) continue;
@@ -266,10 +267,24 @@ public static class FeatureFinder
             }
             if (Loop(a, f) is { } loop && loop.faces.All(g => a.FeatureOfFace[g] < 0))
             {
-                double area = loop.faces.Sum(g => a.Info[g].Area);
-                Add(loop.kind, loop.faces, loop.dir, $"{loop.kind}|{loop.faces.Count}|{area:0.##}");
-                continue;
+                var faces = loop.faces;
+                // a slot with a rounded rim: the smooth curved faces that run on from its round walls belong to it
+                if (loop.kind == FeatureKind.Slot)
+                {
+                    var extended = new List<int>(faces);
+                    foreach (int c in faces.Where(g => a.Info[g].Type != "Plane"))
+                        foreach (int g in TangentChain(a, c, true)) if (a.FeatureOfFace[g] < 0 && !extended.Contains(g)) extended.Add(g);
+                    if (extended.Count <= 200) faces = extended;
+                }
+                double area = faces.Sum(g => a.Info[g].Area);
+                Add(loop.kind, faces, loop.dir, $"{loop.kind}|{faces.Count}|{area:0.##}");
             }
+        }
+        // Second pass: fillet chains and plain faces.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0) continue;
+            var info = a.Info[f];
             if (info.Type != "Plane" && a.Adj[f].Any(l => l.Class == Edge.Tangent))
             {
                 var chain = TangentChain(a, f, true).Where(g => a.FeatureOfFace[g] < 0).ToList();
