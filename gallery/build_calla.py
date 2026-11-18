@@ -11,35 +11,44 @@ BRASS = dict(material="brass", color="#CB984B", metal=.82, roughness=.26)
 
 
 def make_horn():
-    # Section centers, tilt away from vertical, transverse radii and petal growth.
-    stations = [
-        (-85, 51, 52, 0, 10, 10, 0),
-        (-90, 55, 78, 0, 11, 11, 0),
-        (-100, 60, 116, 7, 13, 13, 0),
-        (-102, 56, 152, 22, 18, 17, 0),
-        (-84, 44, 184, 42, 30, 25, 0),
-        (-56, 27, 206, 58, 49, 37, .04),
-        (-26, 6, 225, 65, 75, 53, .16),
-        (0, -15, 244, 69, 105, 72, .42),
-        (18, -35, 264, 70, 133, 87, .73),
-        (31, -54, 279, 69, 150, 94, 1),
+    # These are control rings rather than interpolated sections. Each ring
+    # steers the nearby surface; no prescribed section has to be hit exactly.
+    # x, y, z, tilt, width, height, petal growth
+    rings = [
+        (-85, 51, 52, 0, 10.2, 10.2, 0),
+        (-85, 51, 77, 0, 10.6, 10.6, 0),
+        (-98, 55, 123, 8, 14, 13, 0),
+        (-98, 54, 164, 22, 22, 19, 0),
+        (-79, 44, 198, 39, 38, 30, .035),
+        (-47, 23, 223, 54, 64, 46, .15),
+        (-12, -4, 245, 63, 96, 64, .37),
+        (17, -35, 266, 68, 128, 83, .67),
+        (34, -59, 281, 70, 153, 96, 1),
     ]
-    profiles = []
-    for x, y, z, tilt, width, height, growth in stations:
+    count = 24
+    poles = []
+    for x, y, z, tilt, width, height, growth in rings:
         angle = math.radians(tilt)
-        points = []
-        for i in range(32):
-            t = 2 * math.pi * i / 32
-            # Narrow the peak progressively. Its very tip rolls back from the mouth.
-            lobe = ((1 + math.cos(t - .94)) / 2) ** (5 + 9 * growth)
+        ring = []
+        for i in range(count):
+            t = 2 * math.pi * i / count
+            lobe = ((1 + math.cos(t - .94)) / 2) ** 7
             rise = height * math.sin(t)
-            points.append((x + width * math.cos(t) + 43 * growth * lobe,
-                           y + rise * math.cos(angle) + 55 * growth**2 * lobe,
-                           z + rise * math.sin(angle) + 120 * growth * lobe))
-        profiles.append(cad.run("curve_through", points=points, closed=True)[0])
-    horn, = cad.run("loft_surface", slots={"Sections": profiles})
+            ring.append((x + width * math.cos(t) + 42 * growth * lobe,
+                         y + rise * math.cos(angle) + 44 * growth**2 * lobe,
+                         z + rise * math.sin(angle) + 128 * growth * lobe))
+        # Clamp a uniform periodic cubic ring at the seam. The two ends
+        # have identical position, first derivative and second derivative.
+        last, first, second = ring[-1], ring[0], ring[1]
+        seam = tuple((a + 4*b + c)/6 for a,b,c in zip(last, first, second))
+        after = tuple((2*b + c)/3 for b,c in zip(first, second))
+        before = tuple((a + 2*b)/3 for a,b in zip(last, first))
+        poles.extend([seam, after, *ring[1:], before, seam])
+
+    horn, = cad.run("nurbs_patch", points_up=len(rings), points_across=count+3,
+                    degree=3, initial_relief=0)
+    cad.call("set_control_points", object=horn.name, points=poles)
     study.look(horn, "Calla bell", **BRASS)
-    cad.delete(*profiles)
 
 
 def build():
