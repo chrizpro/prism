@@ -30,12 +30,13 @@ public static class Post
     }
 
     /// <summary>CNC program: every machining toolpath in order. origin is subtracted from the model coordinates (the work zero).</summary>
-    public static string Cnc(IEnumerable<ToolpathInfo> paths, Controller controller, Vec3 origin, string title)
+    public static string Cnc(IEnumerable<ToolpathInfo> paths, Controller controller, Vec3 origin, string title, int turns = 0)
     {
+        if(turns<0||turns>3)throw new InvalidOperationException("Work axis turn must be 0 to 3 quarter turns.");
         if(!Enum.IsDefined(controller)||new[]{origin.X,origin.Y,origin.Z}.Any(v=>!double.IsFinite(v)))throw new InvalidOperationException("Invalid controller or work origin.");
         var ordered=paths.OrderBy(p=>p.ProgramOrder).ToArray();
         if(ordered.Length==0)throw new InvalidOperationException("No machining operations to post.");
-        if(ordered.Select(p=>p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup per program.");
+        if(ordered.Select(p=>p.SetupName??p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup per program.");
         foreach(var p in ordered){Validate(p);if(p.Operation.StartsWith("Turning",StringComparison.Ordinal))throw new InvalidOperationException("Use the lathe post for turning.");}
         var sb = new StringBuilder();
         sb.AppendLine($"({Comment(title)})");
@@ -59,7 +60,7 @@ public static class Post
             for (int i = 0; i < tp.MoveCount; i++)
             {
                 var (x, y, z, k) = tp.Move(i);
-                x -= origin.X; y -= origin.Y; z -= origin.Z;
+                (x, y) = CamSetup.ToWork(x - origin.X, y - origin.Y, turns); z -= origin.Z;
                 var line = new StringBuilder();
                 if (k == MoveKind.Rapid)
                 {

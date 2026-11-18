@@ -33,6 +33,30 @@ The owner approved the **Setup → Toolpaths → Review → Export** ribbon orde
 
 Windows verification on 2026-11-10: 77 targeted CAM and ribbon cases passed. CAM-H004 checks section order, Toolpaths menu membership and posting through the ribbon to a folder and a file. CAM-I003 opened Post G-code from Export in the desktop build and wrote a 33-line GRBL facing program containing G21, G54 and feed moves. [Desktop capture](evidence/CAM-I003-subtractive-export.png). Controller interpretation and machining remain manual checks.
 
+### Work zero choices (CAM-P1 owner-approved 2026-11-17; CAM-P2 withdrawn)
+
+The owner approved CAM-P1 and withdrew CAM-P2 (start position) on 2026-11-17, so P2 stays only as a record and is not planned. Status: CAM-P1 is implemented and covered by CAM-H001 and CAM-H014 to CAM-H016 in `CamWorkflowTests.cs`. The setup lists the nine stock points, Model origin and Picked point (click the model or type X and Y) for X/Y, and a separate height choice. Setups saved before keep their zero. Paths made before still match their setup. While CAM Setup is open the viewport shows the stock box, nine dots for the stock points (click one to choose it) and the work zero axes with its coordinates (CAM-H017). The visual check in the running app is still to do. Today a setup offers only **Stock lower-left, top** or **Model origin** for G54, and the Post G-code dialog repeats a similar list (plus **Saved CAM setup**). The program has no chosen start or end position: each operation begins with a rapid to the clearance plane and the program stops where the last cut ended.
+
+**CAM-P1. Work zero (G54) choices in the setup.**
+- X/Y: a 3×3 grid of stock points (four corners, four edge midpoints, center), **Model origin**, or **Pick a point** (a point the owner clicks on the model or types in model coordinates).
+- Z: **Top of stock**, **Bottom of stock** or **Model origin**.
+- The saved setup stores the result. Post G-code reads it from the setup, so the two cannot disagree. Post may still override with an explicit choice, and the result line states the work zero in model coordinates as it does today.
+- Posted coordinates are measured from the chosen point. Changing it after generating paths does not invalidate them, because only the posted numbers change; the setup sheet and stock review show the new zero.
+
+**CAM-P2. Start and end position (interpretation of "where the tool starts": please confirm).**
+- The setup has an optional **Start position**: X, Y and Z in work coordinates. Choices: **None** (today's behavior), a stock corner or center at the clearance height, or **Pick a point**.
+- When set, the program rapids to the clearance plane first, then to the start position's X/Y, before the first operation, and returns there after the last operation. Z never goes below the clearance plane on the way.
+- Tool changes between operations also return to the start position, so a person can reach the spindle.
+- Toolpath playback, stock review and the G-code start from the same position.
+
+**Acceptance criteria**
+1. A setup with work zero at stock center, top posts the same moves as a lower-left setup, shifted by half the stock width and depth.
+2. With Z zero at the bottom of stock, the top of the stock is at a positive Z equal to its thickness in the posted program, cuts end at positive Z values, and the setup sheet says which Z zero was used.
+3. A picked point outside the stock bounds is accepted and stated in the result, because a vise or fixture reference can be off the stock. A point that is not a finite number is refused with a message.
+4. With a start position set, the first motion in the posted program is a rapid at the clearance plane to its X/Y, and the last motion returns to it. With None, the output is unchanged from today.
+5. A start position at clearance height produces no lateral rapid below the clearance plane.
+6. Existing saved setups open unchanged and keep their current work zero.
+
 ### Playing stock removal
 
 The owner-approved wood demo (#131, 2026-11-15) requires showing the block being cut. **Stock Review → Play removal** starts from the current Program position, or restarts at zero after 100%. It recomputes the swept-cutter stock at 5% increments of feed-based program time; the marker identifies the current tool position. **Pause removal** stops the timer; **Next removal step** advances one interval. Changing Program position still needs Run checks for an individual review. Closing the command stops playback. This is a stepped sampled review, not real-time machine playback, and larger programs may compute slowly. Full-program toolpath lines are suppressed while this command is open so the stock surface remains readable; operations remain visible and included in the simulation.

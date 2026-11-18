@@ -10,16 +10,64 @@ using Prism.Simulation;
 namespace Prism.Commands;
 public sealed class CamSetupCommand : Command
 {
-    readonly SelectionSlot _body;readonly TextParam _name;readonly NumberParam _side,_top,_bottom,_dia,_feed,_plunge,_rpm,_clear;readonly ChoiceParam _zero;
-    public CamSetupCommand(){_body=Slot(new(){Label="Model body",Filter=SelFilter.Solid});_name=Text("Setup name","Setup 1");_side=Num("Stock allowance XY",3,0,10000,1);_top=Num("Top allowance",1,0,10000,.5);_bottom=Num("Bottom allowance",0,0,10000,.5);_zero=Choice("Work zero (G54)",0,"Stock lower-left, top","Model origin");_dia=Num("Tool diameter",6,.1,100,.5);_feed=Num("Cutting feed",800,1,20000,50,"mm/min");_plunge=Num("Plunge feed",300,1,10000,25,"mm/min");_rpm=Num("Spindle speed",12000,100,60000,500,"rpm");_clear=Num("Clearance above stock",5,.5,100,1);}
+    readonly SelectionSlot _body;readonly TextParam _name;readonly NumberParam _side,_top,_bottom,_dia,_feed,_plunge,_rpm,_clear;readonly ChoiceParam _zero,_zeroZ,_turns;readonly NumberParam _px,_py;
+    public CamSetupCommand(){_body=Slot(new(){Label="Model body",Filter=SelFilter.Solid});_name=Text("Setup name","Setup 1");_side=Num("Stock allowance XY",3,0,10000,1);_top=Num("Top allowance",1,0,10000,.5);_bottom=Num("Bottom allowance",0,0,10000,.5);_zero=Choice("Work zero (G54)",0,CamSetup.ZeroXYNames);_dia=Num("Tool diameter",6,.1,100,.5);_feed=Num("Cutting feed",800,1,20000,50,"mm/min");_plunge=Num("Plunge feed",300,1,10000,25,"mm/min");_rpm=Num("Spindle speed",12000,100,60000,500,"rpm");_clear=Num("Clearance above stock",5,.5,100,1);_zeroZ=Choice("Work zero height (Z)",0,CamSetup.ZeroZNames);_px=Num("Picked zero X",0);_py=Num("Picked zero Y",0);_turns=Choice("Machine X axis points",0,CamSetup.TurnNames);PanelSettings.Move(PanelSettings.IndexOf(_zeroZ),PanelSettings.IndexOf(_zero)+1);PanelSettings.Move(PanelSettings.IndexOf(_px),PanelSettings.IndexOf(_zeroZ)+1);PanelSettings.Move(PanelSettings.IndexOf(_py),PanelSettings.IndexOf(_px)+1);PanelSettings.Move(PanelSettings.IndexOf(_turns),PanelSettings.IndexOf(_py)+1);}
+    protected override void UpdateVisibility(){_px.IsVisible=_py.IsVisible=_zero.Index==CamSetup.PickedPointXY;}
+    // recipes saved before the work zero grid hold no height or picked point: model origin then meant a zero height too
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe r)
+    {
+        if(r.Values.Count==Params.Count-4)r=r with{Values=[..r.Values,r.Values[4] is int i&&i==CamSetup.ModelOriginXY?CamSetup.ModelOriginZ:0,0.0,0.0]};
+        return r.Values.Count==Params.Count-1?r with{Values=[..r.Values,0]}:r;      // recipes from before the work X direction choice
+    }
+    /// <summary>With Picked point chosen, a click on the model sets the work zero X and Y.</summary>
+    public override bool PickPoint(PickResult hit,bool additive){if(_zero.Index!=CamSetup.PickedPointXY||_body.Items.Count==0)return false;ConfigureInputs(()=>{_px.Value=hit.Point.X;_py.Value=hit.Point.Y;});OnChanged();return true;}
+    // ------------------------------------------------------------ preview in the viewport
+    (double[] lo,double[] hi)? Stock()
+    {
+        if(S==null||_body.Items.Count==0||S.Find(_body.Items[0].Obj) is not{HasBrep:true} body)return null;
+        var m=body.Mesh;
+        return ([m.Min.X-_side.Value,m.Min.Y-_side.Value,m.Min.Z-_bottom.Value],[m.Max.X+_side.Value,m.Max.Y+_side.Value,m.Max.Z+_top.Value]);
+    }
+    Vec3 DotAt(double[] lo,double[] hi,int col,int row)=>new(lo[0]+(hi[0]-lo[0])*col/2,lo[1]+(hi[1]-lo[1])*row/2,_zeroZ.Index==1?lo[2]:hi[2]);
+    /// <summary>Shows the stock, the nine stock points to click, and where the work zero will be, while the setup is still open.</summary>
+    public override void BuildOverlay(CadSession s,Overlay o)
+    {
+        if(Stock() is not{} st)return;
+        var(lo,hi)=st;
+        Vec3 P(int i)=>new((i&1)==0?lo[0]:hi[0],(i&2)==0?lo[1]:hi[1],(i&4)==0?lo[2]:hi[2]);
+        for(int i=0;i<8;i++)foreach(int bit in new[]{1,2,4})if((i&bit)==0)o.AddLine(P(i),P(i|bit),0xFF35B6FF,1.5f);
+        foreach(var(opt,col,row) in CamSetup.StockPoints())o.AddDot(DotAt(lo,hi,col,row),opt==_zero.Index?0xFFFFB020:0xFFE8EEF8,opt==_zero.Index?11:8);
+        try
+        {
+            var z=CamSetup.ComputeZero(lo,hi,_zero.Index,_zeroZ.Index,[_px.Value,_py.Value]);var zero=new Vec3(z[0],z[1],z[2]);
+            double length=Math.Max((P(7)-P(0)).Length*.12,3);
+            var(tc,ts)=CamSetup.Quarter(_turns.Index);o.AddLine(zero,zero+new Vec3(tc,ts,0)*length,0xFFFF6B6F,3);o.AddLine(zero,zero+new Vec3(-ts,tc,0)*length,0xFF3FCF8E,3);o.AddLine(zero,zero+Vec3.UnitZ*length,0xFF4C94FF,3);
+            o.AddDot(zero,0xFFFFB020,12);o.AddLabel(zero,$"Work zero (G54)  X {z[0]:0.##}  Y {z[1]:0.##}  Z {z[2]:0.##}");
+        }
+        catch(InvalidOperationException){}
+    }
+    /// <summary>Clicking near one of the nine dots chooses that stock point.</summary>
+    public override bool ClickScreen(CadSession s,double px,double py)
+    {
+        if(Stock() is not{} st)return false;
+        var(lo,hi)=st;int best=-1;double bestDist=16;
+        foreach(var(opt,col,row) in CamSetup.StockPoints())
+        {
+            if(s.Camera.Project(DotAt(lo,hi,col,row)) is not{} q)continue;
+            double d=Math.Sqrt((q.x-px)*(q.x-px)+(q.y-py)*(q.y-py));
+            if(d<bestDist){bestDist=d;best=opt;}
+        }
+        if(best<0)return false;
+        _zero.Index=best;return true;
+    }
     public override string Title=>"CAM Setup";public override string Icon=>"cnc";public override string OkText=>"Save setup";
     protected override void OnBegin()
     {
         if(S.CamSetup is not{} setup||S.Find(setup.BodyId) is not{} body)return;
-        ConfigureInputs(()=>{_body.Items.Add(SelItem.Of(body));_name.Value=setup.Name;_side.Value=Math.Max(0,body.Mesh.Min.X-setup.StockMin[0]);_top.Value=Math.Max(0,setup.StockMax[2]-body.Mesh.Max.Z);_bottom.Value=Math.Max(0,body.Mesh.Min.Z-setup.StockMin[2]);_zero.Index=setup.WorkZero.All(v=>v==0)?1:0;_dia.Value=setup.ToolDiameter;_feed.Value=setup.Feed;_plunge.Value=setup.Plunge;_rpm.Value=setup.Rpm;_clear.Value=setup.Clearance;});
+        ConfigureInputs(()=>{_body.Items.Add(SelItem.Of(body));_name.Value=setup.Name;_side.Value=Math.Max(0,body.Mesh.Min.X-setup.StockMin[0]);_top.Value=Math.Max(0,setup.StockMax[2]-body.Mesh.Max.Z);_bottom.Value=Math.Max(0,body.Mesh.Min.Z-setup.StockMin[2]);if(setup.ZeroXY>=0){_zero.Index=setup.ZeroXY;_zeroZ.Index=setup.ZeroZ;_turns.Index=setup.ZeroTurns;if(setup.PickedXY is{Length:2}pk){_px.Value=pk[0];_py.Value=pk[1];}}else if(setup.WorkZero.All(v=>v==0)){_zero.Index=CamSetup.ModelOriginXY;_zeroZ.Index=CamSetup.ModelOriginZ;}_dia.Value=setup.ToolDiameter;_feed.Value=setup.Feed;_plunge.Value=setup.Plunge;_rpm.Value=setup.Rpm;_clear.Value=setup.Clearance;});
     }
     public override string Hint=>"Define axis-aligned stock around one model, G54 work zero and shared tool settings for new 2.5D operations. Tool axis is global +Z. Changing a setup requires regenerating its toolpaths.";
-    protected override CommandOutput? Build(){if(!Complete)return null;var body=S.Find(_body.Items[0].Obj)!;var m=body.Mesh;double[] lo=[m.Min.X-_side.Value,m.Min.Y-_side.Value,m.Min.Z-_bottom.Value],hi=[m.Max.X+_side.Value,m.Max.Y+_side.Value,m.Max.Z+_top.Value];var setup=new CamSetup(string.IsNullOrWhiteSpace(_name.Value)?"Setup":_name.Value,body.Id,StudySetup.Signature(body),lo,hi,_zero.Index==0?[lo[0],lo[1],hi[2]]:[0,0,0],_dia.Value,_feed.Value,_plunge.Value,_rpm.Value,_clear.Value);setup.Validate(body);return new(){NoOp=true,After=s=>{s.SaveCamSetup(setup);s.Say("Saved CAM setup: "+setup.Name);}};}
+    protected override CommandOutput? Build(){if(!Complete)return null;var body=S.Find(_body.Items[0].Obj)!;var m=body.Mesh;double[] lo=[m.Min.X-_side.Value,m.Min.Y-_side.Value,m.Min.Z-_bottom.Value],hi=[m.Max.X+_side.Value,m.Max.Y+_side.Value,m.Max.Z+_top.Value];var setup=new CamSetup(string.IsNullOrWhiteSpace(_name.Value)?"Setup":_name.Value,body.Id,StudySetup.Signature(body),lo,hi,CamSetup.ComputeZero(lo,hi,_zero.Index,_zeroZ.Index,[_px.Value,_py.Value]),_dia.Value,_feed.Value,_plunge.Value,_rpm.Value,_clear.Value,_zero.Index,_zeroZ.Index,_zero.Index==CamSetup.PickedPointXY?[_px.Value,_py.Value]:null,_turns.Index);setup.Validate(body);return new(){NoOp=true,After=s=>{s.SaveCamSetup(setup);s.Say("Saved CAM setup: "+setup.Name);}};}
 }
 public sealed class ImportGcodeCommand : Command
 {

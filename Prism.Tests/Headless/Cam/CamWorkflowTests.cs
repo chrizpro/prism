@@ -17,10 +17,12 @@ namespace Prism.HeadlessTests.Cam;
 public class CamWorkflowTests
 {
     [AvaloniaTheory(DisplayName = "CAM-H001 | Setup allowances and G54 choice reach the committed setup")]
-    [InlineData("Stock lower-left, top", 8, 18, 39)]
-    [InlineData("Model origin", 0, 0, 0)]
+    [InlineData("Stock lower-left corner", "Top of stock", 8, 18, 39)]
+    [InlineData("Model origin", "Model origin", 0, 0, 0)]
+    [InlineData("Stock center", "Bottom of stock", 15, 24, 29)]
+    [InlineData("Stock upper-right", "Top of stock", 22, 30, 39)]
     [Trait("TestId", "CAM-H001")]
-    public void SetupCommitsStockAndWorkZero(string mode, int x, int y, int z)
+    public void SetupCommitsStockAndWorkZero(string mode, string height, int x, int y, int z)
     {
         var session = new CadSession();
         var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
@@ -32,6 +34,7 @@ public class CamWorkflowTests
             SetNumber(command, "Top allowance", 3);
             SetNumber(command, "Bottom allowance", 1);
             SetChoice(command, "Work zero (G54)", mode);
+            SetChoice(command, "Work zero height (Z)", height);
         });
         session.CommitCommand();
         var setup = session.CamSetup;
@@ -166,5 +169,114 @@ public class CamWorkflowTests
             await Call("command_cancel", "{}");
         }
         finally { if (File.Exists(file)) File.Delete(file); }
+    }
+
+    static CamSetupCommand StartSetup(CadSession session, SceneObject body, string mode, string height)
+    {
+        var command = StartCommand(session, body, () => new CamSetupCommand());
+        command.ConfigureInputs(() =>
+        {
+            SetSelection(command, "Model body", body);
+            SetNumber(command, "Stock allowance XY", 2);
+            SetNumber(command, "Top allowance", 3);
+            SetNumber(command, "Bottom allowance", 1);
+            SetChoice(command, "Work zero (G54)", mode);
+            SetChoice(command, "Work zero height (Z)", height);
+        });
+        return command;
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H014 | A picked work zero uses the clicked point and the chosen height")]
+    [Trait("TestId", "CAM-H014")]
+    public void PickedWorkZeroUsesClickedPoint()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
+        var command = StartSetup(session, body, "Picked point", "Bottom of stock");
+        var face = FaceFacing(body, Vec3.UnitZ);
+        Assert.True(command.PickPoint(new PickResult(face, new Vec3(12, 22, 36), Vec3.UnitZ, 0), false));
+        session.CommitCommand();
+        Assert.Equal(new double[] { 12, 22, 29 }, session.CamSetup!.WorkZero);
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H015 | Editing a setup shows the work zero choices it was saved with")]
+    [Trait("TestId", "CAM-H015")]
+    public void ReopenedSetupKeepsWorkZeroChoices()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
+        StartSetup(session, body, "Stock center", "Bottom of stock");
+        session.CommitCommand();
+        var again = StartCommand(session, body, () => new CamSetupCommand());
+        var xy = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Work zero (G54)");
+        Assert.Equal("Stock center", xy.Options[xy.Index]);
+        var z = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Work zero height (Z)");
+        Assert.Equal("Bottom of stock", z.Options[z.Index]);
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H016 | Moving the work zero keeps paths valid, and paths made before it still match")]
+    [Trait("TestId", "CAM-H016")]
+    public void WorkZeroChangeDoesNotInvalidatePaths()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
+        StartSetup(session, body, "Stock lower-left corner", "Top of stock");
+        session.CommitCommand();
+        var first = session.CamSetup!;
+        var moved = first with { WorkZero = [15, 24, 29], ZeroXY = 5, ZeroZ = 1 };
+        Assert.Equal(first.Signature(), moved.Signature());
+        Assert.True(moved.Matches(first.Signature()));
+        Assert.False(moved.Matches(first.LegacySignature()), "A path signed with the old rule needs its own work zero to match.");
+        Assert.True(first.Matches(first.LegacySignature()), "Paths made before this change still match their setup.");
+        Assert.NotEqual(first.LegacySignature(), moved.LegacySignature());
+        Assert.NotEqual(first.Signature(), (first with { Feed = 123 }).Signature());
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H017 | The open setup previews the stock, nine work zero dots and the zero, and a click on a dot chooses it")]
+    [Trait("TestId", "CAM-H017")]
+    public void SetupPreviewShowsDotsAndClickChoosesOne()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
+        var command = StartSetup(session, body, "Stock lower-left corner", "Top of stock");
+        var overlay = new Overlay();
+        command.BuildOverlay(session, overlay);
+        Assert.Equal(12, overlay.Lines.Count(l => l.Width == 1.5f));           // the stock box
+        Assert.Equal(9 + 1, overlay.Dots.Count);                                // nine stock points and the zero
+        Assert.Contains(overlay.Labels, l => l.Text.Contains("X 8"));          // lower-left zero at X 8
+
+        // the stock center dot, projected to the screen, is what a click there must choose
+        session.Camera.SetView(30, 30);
+        var center = new Vec3(15, 24, 39);
+        var at = session.Camera.Project(center);
+        Assert.NotNull(at);
+        Assert.True(command.ClickScreen(session, at.Value.x, at.Value.y));
+        var xy = command.Params.OfType<ChoiceParam>().Single(p => p.Label == "Work zero (G54)");
+        Assert.Equal("Stock center", xy.Options[xy.Index]);
+        Assert.False(command.ClickScreen(session, at.Value.x + 400, at.Value.y + 400), "A click far from every dot leaves the choice alone.");
+    }
+
+    [AvaloniaFact(DisplayName = "CAM-H018 | The machine X direction turns posted coordinates and is kept with the setup")]
+    [Trait("TestId", "CAM-H018")]
+    public void MachineAxisTurnRotatesPostedCoordinates()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new(10, 20, 30), 10, 8, 6);
+        var command = StartSetup(session, body, "Stock lower-left corner", "Top of stock");
+        SetChoice(command, "Machine X axis points", "Along model +Y");
+        session.CommitCommand();
+        Assert.Equal(1, session.CamSetup!.ZeroTurns);
+        var again = StartCommand(session, body, () => new CamSetupCommand());
+        var turns = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Machine X axis points");
+        Assert.Equal("Along model +Y", turns.Options[turns.Index]);
+
+        var path = new ToolpathInfo("Test path", "6 mm end mill", 6, 60, 30, 12000, 26, [0, 0, 26, 0, 10, 0, 26, 0, 10, 0, 20, 2, 0, 0, 20, 1], [0], false, false);
+        string straight = Post.Cnc([path], Controller.GRBL, Vec3.Zero, "t");
+        string turned = Post.Cnc([path], Controller.GRBL, Vec3.Zero, "t", 1);
+        Assert.Contains("X10", straight);
+        Assert.DoesNotContain("Y-10", straight);
+        Assert.Contains("Y-10", turned);          // work X is along model +Y, so model +X becomes work -Y
+        Assert.DoesNotContain("X10", turned);
+        Assert.Equal(1, session.CamSetup.Signature() == (session.CamSetup with { ZeroTurns = 3 }).Signature() ? 1 : 0);
     }
 }
