@@ -54,10 +54,12 @@ public sealed class PcbBoardCommand : Command
 public sealed class ComponentEnvelopeCommand : Command
 {
     readonly TextParam _reference;
+    readonly SelectionSlot _board;
     readonly NumberParam _width, _depth, _height, _x, _y, _z, _angle, _clearance;
     readonly ChoiceParam _side;
     public ComponentEnvelopeCommand()
     {
+        _board = Slot(new SelectionSlot { Label = "Board face", Filter = SelFilter.Face, Optional = true, MaxCount = 1 });
         _reference = Text("Reference designator", "U1", "U1, J1, R1…");
         _width = Num("Body width (X)", 10, .1, 1000, .5);
         _depth = Num("Body length (Y)", 10, .1, 1000, .5);
@@ -71,7 +73,30 @@ public sealed class ComponentEnvelopeCommand : Command
     }
     public override string Title => "Component Envelope";
     public override string Icon => "component";
-    public override string Hint => "Place an approximate package or keepout for enclosure checks. Coordinates use world XY; elevation is the mounting face. For accurate connectors or packages, import a STEP model.";
+    public override string Hint => "Place an approximate package or keepout for enclosure checks. Click a flat board face to put it on that board; Center X and Y then become offsets from the middle of that face. With no board face, coordinates use world XY and elevation is the mounting face. For accurate connectors or packages, import a STEP model.";
+
+    bool OnBoard => _board.Items.Count > 0;
+
+    protected override void UpdateVisibility()
+    {
+        _z.IsVisible = _side.IsVisible = !OnBoard;
+        _x.Caption = OnBoard ? "Board offset U" : null;
+        _y.Caption = OnBoard ? "Board offset V" : null;
+    }
+
+    public override bool PickPoint(PickResult hit, bool additive)
+    {
+        if (ActiveSlot != _board || hit.Item.Kind != SelKind.Face) return false;
+        try
+        {
+            var point = BoardFace.Frame(S, hit.Item).Inverse().Apply(hit.Point);
+            ConfigureInputs(() => { _x.Value = point.X; _y.Value = point.Y; Pick(hit.Item, additive); });
+            OnChanged();
+        }
+        catch (Exception e) when (e is FormatException or KernelException) { S.Say(e.Message, true); }
+        return true;
+    }
+
     protected override CommandOutput? Build()
     {
         Results.Clear();
@@ -79,8 +104,19 @@ public sealed class ComponentEnvelopeCommand : Command
         if (reference.Length == 0 || reference.Length > 40) throw new FormatException("Enter a reference designator of 1–40 characters.");
         double margin = _clearance.Value, height = _height.Value + margin;
         Shape body = Occ.Box(_width.Value + 2 * margin, _depth.Value + 2 * margin, height);
-        if (_angle.Value != 0) { var rotated = Occ.Rotate(body, Vec3.Zero, Vec3.UnitZ, _angle.Value); body.Dispose(); body = rotated; }
-        var placed = Occ.Translate(body, new(_x.Value, _y.Value, _z.Value - (_side.Index == 1 ? height : 0))); body.Dispose();
+        Shape placed;
+        if (OnBoard)
+        {
+            // the box is centered in X/Y with its base at Z = 0: stand it on the face along the face's outward normal
+            var frame = BoardFace.Frame(S, _board.Items[0]);
+            var on = frame * Xform.Translation(new Vec3(_x.Value, _y.Value, 0)) * Xform.RotZ(_angle.Value * Math.PI / 180);
+            placed = on.Apply(body); body.Dispose();
+        }
+        else
+        {
+            if (_angle.Value != 0) { var rotated = Occ.Rotate(body, Vec3.Zero, Vec3.UnitZ, _angle.Value); body.Dispose(); body = rotated; }
+            placed = Occ.Translate(body, new(_x.Value, _y.Value, _z.Value - (_side.Index == 1 ? height : 0))); body.Dispose();
+        }
         var output = new CommandOutput();
         output.Add.Add(new(placed, reference + (margin > 0 ? " keepout" : " envelope"), ObjKind.Solid, margin > 0 ? 0xFFE2A348 : 0xFF303B4B));
         Results.Add(new ResultLine("Envelope", margin > 0 ? $"Includes {margin:0.##} mm mechanical clearance" : "Approximate component body"));
