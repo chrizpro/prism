@@ -9,7 +9,7 @@ OUT = study.ROOT / "docs/solis-coupe"
 MODEL = OUT / "Solis.prism"
 PAINT = dict(material="6061", color="#CE6235", metal=.48, roughness=.24,
              surface=dict(Coat=.85, CoatRoughness=.14))
-GLASS = dict(material="abs", color="#23292D", metal=.36, roughness=.15)
+GLASS = dict(material="abs", color="#303B43", metal=.48, roughness=.14)
 TRIM = dict(material="abs", color="#212429", roughness=.42)
 ALLOY = dict(material="6061", color="#C8C9C6", metal=.86, roughness=.26)
 RUBBER = dict(material="silicone", color="#28282A", roughness=.63)
@@ -35,7 +35,7 @@ def coachwork():
         (1340,950,800,902,0),(1660,943,786,866,-15),
         (1960,881,745,793,-65),(2110,820,709,733,-115),
         (2140,804,470,478,-122),(2115,785,185,185,-130)]
-    half = [(0,1,0),(.35,1,0),(.62,1,.30),(.79,1,.97),(.89,.975,1),
+    half = [(0,1,0),(.48,1,0),(.60,1,.02),(.765,1,.97),(.81,.988,1),
             (.97,.89,.90),(1.005,.72,.65),(1.005,.47,.30),(.98,.18,.06),(.965,0,0)]
     cross = [(-a,b,c) for a,b,c in reversed(half[1:])] + half
     net = []
@@ -75,16 +75,43 @@ def coachwork():
 
 
 def canopy():
-    # The perimeter lies slightly inside the coachwork. Its intersection
-    # with the body gives the glazing a continuous belt line.
-    rows = [(-907,624,684,170),(-790,678,815,155),(-462,698,1070,115),
-            (-75,709,1240,54),(380,717,1288,0),(782,715,1252,-30),
-            (1130,691,1130,-70),(1430,650,918,-100),(1590,619,744,-140)]
-    cross = [(-1,0),(-.99,.18),(-.87,.67),(-.70,.94),(-.38,1),
-             (0,1.025),(.38,1),(.70,.94),(.87,.67),(.99,.18),(1,0)]
-    net = [[(x+sweep*abs(a)**3,w*a,675+(height-675)*b) for a,b in cross]
-           for x,w,height,sweep in rows]
-    return patch("Smoked canopy",net,GLASS)
+    # Front glass, roof and backlight have independent tangent planes at
+    # their shared headers. The side glass meets the roof at a swept rail.
+    # x at centerline, x sweep to rail, rail half-width, rail z, crown rise.
+    windscreen = [(-910,185,687,677,36),(-735,170,666,819,40),
+                  (-378,121,594,1043,40),(-192,93,548,1137,34)]
+    roof = [windscreen[-1],(-103,77,545,1170,30),
+            (115,45,547,1189,27),(488,0,550,1193,25),
+            (674,-23,548,1180,26),(800,-43,546,1155,29)]
+    backlight = [roof[-1],(1032,-79,574,1075,35),
+                 (1392,-124,644,862,38),(1615,-150,679,714,34)]
+    glass, painted = [], []
+    for name, stations in [("Windscreen",windscreen),("Roof",roof),("Backlight",backlight)]:
+        top = []
+        sides = {side: [] for side in (-1,1)}
+        rails = {side: [] for side in (-1,1)}
+        for x,sweep,w,z,rise in stations:
+            top.append([(x+sweep*q*q,w*q,z+rise*(1-q*q))
+                        for q in (-1,-.85,-.45,0,.45,.85,1)])
+            # Carry a narrow painted A-pillar into the cant rail, then widen
+            # it into a rear sail panel as the backlight slopes toward the tail.
+            rail_fraction = .092 + .26*max(0,(x-700)/915)
+            for side in sides:
+                for target,start,end in [(rails,0,rail_fraction),(sides,rail_fraction,1)]:
+                    row=[]
+                    for q in (0,1/3,2/3,1):
+                        t=start+(end-start)*q
+                        row.append((x+sweep+(.05*x-16)*t,
+                                    side*(w+(746-w)*t+5*math.sin(math.pi*t)),
+                                    z+(649-z)*t))
+                    target[side].append(row)
+        (painted if name=="Roof" else glass).append(patch(name,top,PAINT if name=="Roof" else GLASS))
+        for side in sides:
+            glass.append(patch(f"{name} side {side}",sides[side],GLASS))
+            painted.append(patch(f"{name} rail {side}",rails[side],PAINT))
+    for group,name,finish in [(glass,"Smoked glazing",GLASS),(painted,"Roof and pillars",PAINT)]:
+        joined, = cad.run("knit",slots={"Surfaces":group},make_solid_if_closed=False)
+        study.look(joined,name,**finish)
 
 
 def basis(n,t):
