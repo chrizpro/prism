@@ -141,6 +141,7 @@ After that, these are the directions we plan to take:
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
 | **Drawings** | Improve engineering drawings: more views, annotations and dimensioning control, and editing after a drawing is made |
 | **Python API and MCP** | Grow today's `cadkit` library and MCP bridge into a stable, versioned API for scripts, integrations and AI assistants |
+| **Script editor intellisense** | Completion, signatures and documentation hints in the built-in script editor, so `cadkit` scripts can be written without leaving Prism. The plan is to connect a Python language server; the editor control and detailed scope remain to be reviewed |
 | **Improve workflow and iron out bugs** | Keep tightening how the tools fit together (the same steps, selection cues and views in every tool) and fix what real use turns up. This runs alongside everything else on this list |
 | **Make NURBS shine** | Make NURBS curves and surfaces frictionless and fast to create. If we cannot make them worthwhile, we will discontinue them rather than keep maintaining a weak feature |
 
