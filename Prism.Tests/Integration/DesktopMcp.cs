@@ -104,7 +104,7 @@ internal sealed class DesktopMcp : IAsyncDisposable
         Xunit.Assert.Equal(System.Net.HttpStatusCode.Forbidden, crossOrigin.StatusCode);
     }
 
-    async Task<JsonNode> Tool(string name, object arguments)
+    internal async Task<JsonNode> Tool(string name, object arguments)
     {
         var response = await Request("tools/call", new { name, arguments });
         if ((bool?)response["isError"] == true)

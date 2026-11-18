@@ -102,3 +102,5 @@ Update this living document when approved requirements change. Closed stories pi
 
 
 Desktop integration: [LFT-I001 viewport evidence](../../integration-evidence/README.md#surface-loft--lft-i001) covers straight-section Surface Loft with Smooth and Ruled transitions.
+
+The [Kingfisher study](../../kingfisher-study/README.md) exercises open transverse spline sections for a hull, crowned deck and seat. [SFC-I002](../../../Prism.Tests/Integration/KingfisherStudyTests.cs) checks the reopened deck span and cockpit opening through the MCP bridge.

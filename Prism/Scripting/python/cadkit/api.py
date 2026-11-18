@@ -82,6 +82,12 @@ def _label(key):
 
 def run(command, slots=None, preview=False, points=None, **params):
     """Run any modeling command: ``run("fillet", slots={"Edges": [...]}, radius=2)``. Returns the new Obj list."""
+    result = run_report(command, slots=slots, preview=preview, points=points, **params)
+    return [Obj(o) for o in (result.get("created") or [])]
+
+
+def run_report(command, slots=None, preview=False, points=None, **params):
+    """Run a command with the same arguments as run(), returning the full command or preview report."""
     args = {"name": command}
     if slots:
         args["slots"] = {k: _slot_value(v) for k, v in slots.items()}
@@ -91,8 +97,7 @@ def run(command, slots=None, preview=False, points=None, **params):
         args["points"] = [list(point) for point in points]
     if preview:
         args["commit"] = False
-    r = call("run_command", **args)
-    return [Obj(o) for o in (r.get("created") or [])]
+    return call("run_command", **args)
 
 
 def _one(objs, what):

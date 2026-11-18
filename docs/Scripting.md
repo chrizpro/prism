@@ -38,3 +38,15 @@ Implement `IScriptLanguage` (Core/Scripting/ScriptLanguage.cs): `Name`, `Extensi
 
 ## Renaming the product
 The name appears in `ScriptPaths.AppFolder` (C#), `_APP_FOLDERS` in `cadkit/_conn.py` (the discovery-file folder), and the `X-Prism-Token` header.
+
+## Inspecting the result of a modeling command
+
+Owner-approved on 2026-11-17. Use `cad.run_report(command, slots=None, preview=False, points=None, **params)` to receive the complete `run_command` dictionary. It accepts the same object references, point lists and snake_case parameters as `cad.run()`. A preview includes the active command. Committed operations can report created objects, in-place changes and removed tools. Optional keys depend on the operation. Existing scripts can continue to use `cad.run()` for a list of newly created `Obj` instances.
+
+```python
+report = cad.run_report("trim_surface", slots={"Surface to trim": deck, "Cutting tool": cutter})
+for change in report.get("changed", []):
+    print(change["name"], change.get("areaDelta"), change.get("valid"))
+```
+
+[Kingfisher builder](../gallery/build_kingfisher.py) · [API-I001 desktop integration test](../Prism.Tests/Integration/ScriptCommandReportTests.cs) · [MCP guide](MCP.md).
