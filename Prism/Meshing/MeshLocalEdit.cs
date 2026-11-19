@@ -117,14 +117,15 @@ public static class MeshLocalEdit
         int firstNew = triangles.Count / 3;
         foreach (var polygon in polygons)
         {
-            if (polygon.Length is < 3 or > 4 || polygon.Distinct().Count() != polygon.Length)
+            if (polygon.Length < 3 || polygon.Distinct().Count() != polygon.Length)
                 throw new InvalidOperationException("Draw three or four distinct corners for each face.");
             var p = polygon.Select(i => points[i]).ToArray();
-            var normal = Vec3.Cross(p[1] - p[0], p[2] - p[0]);
-            if (p.Length == 4) normal += Vec3.Cross(p[2] - p[0], p[3] - p[0]);
+            // Newell's normal: faces that follow a rim can have many corners and need not be flat
+            var normal = Vec3.Zero;
+            for (int i = 0; i < p.Length; i++) { var a = p[i]; var b = p[(i + 1) % p.Length]; normal += new Vec3((a.Y - b.Y) * (a.Z + b.Z), (a.Z - b.Z) * (a.X + b.X), (a.X - b.X) * (a.Y + b.Y)); }
             if (normal.Length < 1e-12) throw new InvalidOperationException("The face is folded or has no area.");
             normal = normal.Normalized();
-            var u = (p[1] - p[0]).Normalized();
+            var u = (p[1] - p[0] - normal * Vec3.Dot(p[1] - p[0], normal)).Normalized();
             var v = Vec3.Cross(normal, u).Normalized();
             var projected = p.Select(q => (Vec3.Dot(q - p[0], u), Vec3.Dot(q - p[0], v))).ToArray();
             var face = Triangulator.Polygon(projected);

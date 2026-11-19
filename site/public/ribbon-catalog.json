@@ -1,5 +1,5 @@
 {
-  "sourceHash": "950F12B7DFC28E946956359CAD00631414A734BDBC536BBAA4B140A13D04C4C5",
+  "sourceHash": "E93736742680BA4A72BB102BF221E5CE116323BA8DD4FB9BBB13DE8D78F86531",
   "workspaces": [
     {
       "Id": "design",
@@ -4540,6 +4540,12 @@
               "id": "mesh-section|Section Sketch",
               "label": "Section Sketch",
               "description": "Use a mesh section to start an editable parametric sketch.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-patch|Fit Region",
+              "label": "Fit Region",
+              "description": "Fit a plane, cylinder, sphere, cone or smooth patch to the region picked with Edit Region, and read its size and axis.",
               "shortcut": ""
             }
           ]

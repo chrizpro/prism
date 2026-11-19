@@ -1292,7 +1292,9 @@ public sealed partial class AutomationApi
         Add("mesh_import", "Import a mesh file (STL, OBJ, PLY, 3MF) as one or more mesh objects. Without options it imports as-is (mm, Z-up, no repair). Colours and parts in the file are kept.",
             Schema(["path"], ("path", "string", "Full path of the file."), ("units", "string", "auto (default: the 3MF's own unit, else mm) | mm | cm | m | inch."), ("up_axis", "string", "z (default, keep) | y (rotate Y-up to Z-up) | x (rotate X-up to Z-up)."),
                 ("weld_tolerance", "number", "Merge vertices closer than this many mm (default 0: identical corners only)."), ("auto_repair", "boolean", "Merge, clean, fix normals and fill small holes (default false)."),
-                ("split", "string", "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces).")), a =>
+                ("split", "string", "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces)."),
+                ("reduce_percent", "number", "Reduce faces on import: keep this percentage of the triangles (default: no reduction)."),
+                ("reduce_to", "integer", "Reduce faces on import to about this many triangles for the whole file (default: no reduction).")), a =>
         {
             var opts = new Meshing.MeshImportOptions
             {
@@ -1300,6 +1302,9 @@ public sealed partial class AutomationApi
                 UpAxis = Str(a, "up_axis", "z").ToLowerInvariant() switch { "z" => Meshing.ImportUpAxis.Z, "y" => Meshing.ImportUpAxis.Y, "x" => Meshing.ImportUpAxis.X, var u => throw new ArgumentException($"Unknown up_axis '{u}'. Use z, y or x.") },
                 WeldTolerance = Math.Max(0, Dbl(a, "weld_tolerance", 0)), AutoRepair = Bool(a, "auto_repair", false),
                 Split = Str(a, "split", "auto").ToLowerInvariant() switch { "auto" => Meshing.ImportSplit.Auto, "none" => Meshing.ImportSplit.None, "groups" => Meshing.ImportSplit.Groups, "components" => Meshing.ImportSplit.Components, var u => throw new ArgumentException($"Unknown split '{u}'. Use auto, none, groups or components.") },
+                Reduce = a["reduce_percent"] != null || a["reduce_to"] != null,
+                ReducePercent = Math.Clamp(Dbl(a, "reduce_percent", 25), 0.1, 100),
+                ReduceToCount = a["reduce_to"] != null ? Math.Max(4, (int)Dbl(a, "reduce_to", 4)) : 0,
             };
             var all = S.ImportMeshAll(Str(a, "path"), opts);
             var d = Describe(all[0], true);

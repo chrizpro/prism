@@ -79,7 +79,7 @@ public sealed class MeshSelection
 
     // ---------------------------------------------------------------- region finders
     /// <summary>Flood from a seed over edges where neighbouring triangles turn less than the angle, and never drift more than 2.5x the angle from the seed's direction.</summary>
-    public List<int> SmartPatch(int seed, double angleDeg)
+    public List<int> SmartPatch(int seed, double angleDeg, bool limitDrift = true)
     {
         double cosStep = Math.Cos(angleDeg * Math.PI / 180), cosDrift = Math.Cos(Math.Min(angleDeg * 2.5, 85) * Math.PI / 180);
         var fn = SmoothedNormals(); var seen = new HashSet<int> { seed }; var res = new List<int> { seed };
@@ -97,7 +97,7 @@ public sealed class MeshSelection
                 double nx = fn[3 * nb], ny = fn[3 * nb + 1], nz = fn[3 * nb + 2];
                 if (nx * tx + ny * ty + nz * tz < cosStep) continue;
                 double ml = Math.Sqrt(mx * mx + my * my + mz * mz); if (ml < 1e-9) ml = 1;
-                bool nearSeed = (nx * sx + ny * sy + nz * sz) >= cosDrift || (nx * mx + ny * my + nz * mz) / ml >= cosStep;
+                bool nearSeed = !limitDrift || (nx * sx + ny * sy + nz * sz) >= cosDrift || (nx * mx + ny * my + nz * mz) / ml >= cosStep;
                 if (!nearSeed) continue;
                 seen.Add(nb); res.Add(nb);
                 if (res.Count % 8 == 0) { mx = (mx * 7 + nx) / 8; my = (my * 7 + ny) / 8; mz = (mz * 7 + nz) / 8; }
@@ -127,6 +127,20 @@ public sealed class MeshSelection
         }
         if (_prep == null || Math.Abs(_prepTol - tolerance) > 1e-9) { _prep = PrimitiveFit.Prepare(Mesh, new PrimitiveFit.Options(tolerance, 15, 3)); _prepTol = tolerance; }
         var r = PrimitiveFit.FitAround(_prep, seed);
+        // Cones and long curved faces defeat the local fit; flood over smooth edges up to the first sharp one and
+        // keep the flood when one exact shape fits all of it.
+        var flood = SmartPatch(seed, angleDeg, limitDrift: false);
+        if (flood.Count >= 12 && (r == null || flood.Count > r.Tris.Length * 1.2))
+        {
+            var part = Mesh.Subset(flood);
+            foreach (var kind in new[] { PrimKind.Cylinder, PrimKind.Cone, PrimKind.Sphere })
+                if (PrimitivePolish.FitWhole(part, kind) is { } f && f.Rms <= tolerance * 0.5 && f.MaxDev <= tolerance * 3 &&
+                    (kind == PrimKind.Cone ? f.HalfAngle is > 1 and < 89 : f.Radius < Mesh.Size.Length))
+                {
+                    what = new FitRegion { Kind = f.Kind, Radius = f.Radius, HalfAngle = f.HalfAngle, Convex = f.Convex }.Describe();
+                    return flood;
+                }
+        }
         if (r != null && r.Tris.Length >= 12) { what = r.Describe(); return r.Tris.ToList(); }
         what = "free-form surface";
         return SmartPatch(seed, angleDeg);

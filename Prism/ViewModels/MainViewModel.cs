@@ -1172,7 +1172,8 @@ public sealed partial class MainViewModel : ViewModelBase
                         Cmd("Extract", "mesh-select", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Extract), "Select a region to copy as a separate mesh.")),
                     Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Redistribute triangles or reduce the triangle count.")),
                 G("Convert",
-                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchPanelCommand(), "Use a mesh section to start an editable parametric sketch.")),
+                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchPanelCommand(), "Use a mesh section to start an editable parametric sketch."),
+                    Cmd("Fit\nRegion", "mesh-patch", () => new MeshFitSurfaceCommand(), "Fit a plane, cylinder, sphere, cone or smooth patch to the region picked with Edit Region, and read its size and axis.")),
                 TransformGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };

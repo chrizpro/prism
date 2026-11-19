@@ -311,6 +311,7 @@ public class MeshSectionSketchCommand : MeshCommand
     readonly SelectionSlot _ref;
     readonly ChoiceParam _plane;
     readonly NumberParam _offset, _spacing, _tol;
+    readonly BoolParam _autoTol;
     readonly IntParam _count;
     const int Movable = 5;
     readonly bool _interactive;
@@ -330,6 +331,7 @@ public class MeshSectionSketchCommand : MeshCommand
         _offset = Num("Offset from the plane", 0);
         _count = Add(new IntParam { Label = "Number of sketches", Value = 1, Min = 1, Max = 50 });
         _spacing = Num("Spacing", 5, 0.01);
+        _autoTol = Check("Estimate the fit tolerance from the scan's noise", true);
         _tol = Num("Fit tolerance", 0.05, 0.0005, 5, 0.01);
         _x = Num("Move X", 0); _y = Num("Move Y", 0); _z = Num("Move Z", 0);
         _rx = Num("Rotate X", 0, unit: "°"); _ry = Num("Rotate Y", 0, unit: "°"); _rz = Num("Rotate Z", 0, unit: "°");
@@ -357,6 +359,7 @@ public class MeshSectionSketchCommand : MeshCommand
         _offset.IsVisible = !movable;
         _ref.IsVisible = _plane.Index == 3;
         _spacing.IsVisible = _count.Value > 1;
+        _tol.IsVisible = !_autoTol.Value;
     }
 
     Vec3 MovableOrigin(TriMesh mesh) => mesh.Center + new Vec3(_x.Value, _y.Value, _z.Value);
@@ -459,7 +462,7 @@ public class MeshSectionSketchCommand : MeshCommand
             _planeOutline = [p.PointAt(-extent, -extent), p.PointAt(extent, -extent), p.PointAt(extent, extent), p.PointAt(-extent, extent)];
         }
         var output = new CommandOutput { Label = Title, Icon = Icon };
-        int sketches = 0, loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0;
+        int sketches = 0, loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0, worstRatio = 0, sigma = 0, tolMin = double.MaxValue, tolMax = 0;
         for (int k = 0; k < _count.Value; k++)
         {
             var plane = frame with { Origin = frame.Origin + n * (offset + k * _spacing.Value) };
@@ -468,9 +471,19 @@ public class MeshSectionSketchCommand : MeshCommand
             {
                 if (l.Points.Count < (l.Closed ? 3 : 2)) continue;
                 var p2 = l.Points.Select(p => plane.Project(p)).Select(p => (x: p.u, y: p.v)).ToList();
-                var segs = LineArcFit.Fit(p2, l.Closed, _tol.Value);
+                double tol = _tol.Value;
+                if (_autoTol.Value)
+                {
+                    // each outline gets a tolerance from its own measured noise, so a noisy scan is not cut into many short curves
+                    double noise = LineArcFit.NoiseSigma(p2, l.Closed);
+                    tol = LineArcFit.ToleranceFromNoise(noise, LineArcFit.Size(p2), _tol.Value);
+                    if (!double.IsNaN(noise)) sigma = Math.Max(sigma, noise);
+                }
+                tolMin = Math.Min(tolMin, tol); tolMax = Math.Max(tolMax, tol);
+                var segs = LineArcFit.Fit(p2, l.Closed, tol);
                 if (segs.Count == 0) continue;
-                loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, LineArcFit.MaxDeviation(p2, segs));
+                double dev = LineArcFit.MaxDeviation(p2, segs);
+                loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, dev); worstRatio = Math.Max(worstRatio, dev / tol);
                 lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
                 _overlay.Add(segs.SelectMany(s => s.Polyline().Select(q => plane.PointAt(q.x, q.y))).ToList());
                 if (_interactive) _raw.Add(l.Closed ? [.. l.Points, l.Points[0]] : l.Points);
@@ -489,7 +502,9 @@ public class MeshSectionSketchCommand : MeshCommand
         Row("Sketches", sketches.ToString(), 1);
         Row("Outlines", loops.ToString());
         Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
-        Row("Largest deviation", N(worst, "mm"), worst <= _tol.Value * 1.5 ? 1 : 2);
+        string range = tolMax - tolMin < 0.0005 ? N(tolMax, "mm") : $"{N(tolMin)} to {N(tolMax, "mm")}";
+        Row("Fit tolerance", _autoTol.Value ? $"{range} (scan noise about {N(sigma, "mm")})" : range);
+        Row("Largest deviation", N(worst, "mm"), worstRatio <= 1.5 ? 1 : 2);
         Row("Output", "Editable sketch curves. Add driving dimensions in the sketch.");
         if (_interactive) Row("Preview", "Orange: measured section. Cyan: editable curves.");
         return create ? output : Report();

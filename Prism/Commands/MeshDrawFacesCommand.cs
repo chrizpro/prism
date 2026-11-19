@@ -12,7 +12,7 @@ namespace Prism.Commands;
 public sealed class MeshDrawFacesCommand : MeshCommand
 {
     readonly ChoiceParam _scope, _plane;
-    readonly BoolParam _snap, _seam;
+    readonly BoolParam _snap, _seam, _follow, _longer, _fit;
     readonly NumberParam _offset;
     const uint DraftFill = 0xC49736E6, DraftOutline = 0xFFDCACFF;
     readonly List<Corner[]> _faces = [];
@@ -24,7 +24,11 @@ public sealed class MeshDrawFacesCommand : MeshCommand
     Corner[] _rimCorners = [];
     HashSet<int> _rimVertices = [];
     HashSet<(int, int)> _rimEdges = [];
+    /// <summary>Open rims as ordered vertex loops, and where each rim vertex sits in them.</summary>
+    List<int[]> _loops = [];
+    Dictionary<int, (int Loop, int At)> _loopOf = [];
     MeshLocalEdit.Patch? _draft;
+    string _draftKey = "";
 
     public MeshDrawFacesCommand()
     {
@@ -33,6 +37,9 @@ public sealed class MeshDrawFacesCommand : MeshCommand
         _plane = Choice("Draw on plane", 0, "XY", "XZ", "YZ");
         _offset = Num("Plane offset", 0, -1000000, 1000000);
         _seam = Check("Show stitch preview", true);
+        _follow = Check("Follow the rim between corners", true);
+        _longer = Check("Use the longer way around the rim", false);
+        _fit = Check("Fit to surface", true);
         Add(new ActionParam { Label = "Undo last face", Run = () => TryUndo() });
         Tool = new DrawTool(this);
     }
@@ -88,9 +95,58 @@ public sealed class MeshDrawFacesCommand : MeshCommand
         _rimVertices = _boundary.SelectMany(e => new[] { e.A, e.B }).ToHashSet();
         _rimEdges = _boundary.Select(e => e.Key).ToHashSet();
         _rimCorners = mesh == null ? [] : _rimVertices.Select(i => new Corner(mesh.P(i), i)).ToArray();
+        _loops = Loops(_boundary);
+        _loopOf = [];
+        for (int l = 0; l < _loops.Count; l++) for (int i = 0; i < _loops[l].Length; i++) _loopOf[_loops[l][i]] = (l, i);
         _faces.Clear();
         _draft = null;
         ((DrawTool)Tool!).Reset();
+    }
+
+    /// <summary>Chains boundary edges into closed loops of vertices.</summary>
+    static List<int[]> Loops(Edge[] boundary)
+    {
+        var next = new Dictionary<int, int>();
+        foreach (var e in boundary) next.TryAdd(e.A, e.B);
+        var loops = new List<int[]>();
+        var used = new HashSet<int>();
+        foreach (int start in next.Keys)
+        {
+            if (used.Contains(start)) continue;
+            var loop = new List<int>();
+            int v = start;
+            while (used.Add(v) && next.TryGetValue(v, out int w)) { loop.Add(v); v = w; }
+            if (v == start && loop.Count >= 3) loops.Add([.. loop]);
+        }
+        return loops;
+    }
+
+    /// <summary>
+    /// Follow the rim (MSH-P03): where two consecutive corners of a face are vertices of the same open rim, the side between them
+    /// runs along the rim (the shorter way unless asked otherwise), so every rim edge it passes is stitched.
+    /// </summary>
+    Corner[] FollowRim(Corner[] face)
+    {
+        if (_mesh is not { } mesh) return face;
+        var res = new List<Corner>();
+        for (int i = 0; i < face.Length; i++)
+        {
+            var a = face[i]; var b = face[(i + 1) % face.Length];
+            res.Add(a);
+            if (a.Vertex < 0 || b.Vertex < 0 || !_loopOf.TryGetValue(a.Vertex, out var la) || !_loopOf.TryGetValue(b.Vertex, out var lb) || la.Loop != lb.Loop) continue;
+            var loop = _loops[la.Loop];
+            int n = loop.Length, forward = ((lb.At - la.At) % n + n) % n, backward = n - forward;
+            if (forward <= 1 || backward <= 1) continue;                  // already neighbours along the rim
+            bool goForward = (forward <= backward) != _longer.Value;
+            int steps = goForward ? forward : backward;
+            for (int k = 1; k < steps; k++)
+            {
+                int v = loop[((la.At + (goForward ? k : -k)) % n + n) % n];
+                if (face.Any(c => c.Vertex == v) || res.Any(c => c.Vertex == v)) continue;
+                res.Add(new Corner(mesh.P(v), v));
+            }
+        }
+        return [.. res];
     }
 
     public override bool TryUndo()
@@ -123,7 +179,21 @@ public sealed class MeshDrawFacesCommand : MeshCommand
             throw new InvalidOperationException("Finish the current face or clear its corners before applying.");
         if (_faces.Count == 0) return null;
 
-        _draft ??= MeshLocalEdit.Draw(_mesh, _removed, _boundary, _faces);
+        string key = $"{_follow.Value}|{_longer.Value}|{_fit.Value}";
+        if (key != _draftKey) { _draft = null; _draftKey = key; }
+        if (_draft == null)
+        {
+            var faces = _follow.Value ? _faces.Select(FollowRim).ToList() : _faces;
+            _draft = MeshLocalEdit.Draw(_mesh, _removed, _boundary, faces);
+            if (_fit.Value && _draft.Error == null)
+            {
+                // bend the new faces onto the surface around them; keep them flat if that would fold or overlap anything
+                var fitted = MeshPatch.FitNewFaces(_draft.Mesh, _draft.FirstNewTriangle);
+                var added = Enumerable.Range(_draft.FirstNewTriangle, fitted.TriCount - _draft.FirstNewTriangle).ToHashSet();
+                if (MeshLocalEdit.Validate(fitted, added) is { } problem) Row("Fit to surface", "kept flat: " + problem, 2);
+                else _draft = _draft with { Mesh = fitted };
+            }
+        }
         Row("Joined edges", Count(_draft.Stitched.Length), _draft.Stitched.Length == 0 ? 2 : 1);
         Row("Remaining open edges", Count(_draft.Mesh.Topology().BoundaryEdges));
         if (_draft.Error is { } error)
@@ -167,8 +237,16 @@ public sealed class MeshDrawFacesCommand : MeshCommand
         if (!_seam.Value) return;
         foreach (var e in _boundary.Take(10000)) overlay.AddLine(_mesh.P(e.A), _mesh.P(e.B), 0xFFF29B45, 2);
         if (_draft is { } merged)
+        {
             foreach (var e in merged.Stitched)
                 overlay.AddLine(merged.Mesh.P(e.A), merged.Mesh.P(e.B), 0xFF36C978, 3);
+            // rim edges the draft does not reach stay open: show them in red (an edge split by a corner counts once both ends join)
+            var joined = merged.Stitched.Select(e => e.Key).ToHashSet();
+            var touched = merged.Stitched.SelectMany(e => new[] { e.A, e.B }).ToHashSet();
+            foreach (var e in _boundary.Take(10000))
+                if (!joined.Contains(e.Key) && !(touched.Contains(e.A) && touched.Contains(e.B)))
+                    overlay.AddLine(_mesh.P(e.A), _mesh.P(e.B), 0xFFE5484D, 2.5f);
+        }
     }
 
     static void DrawDraft(Overlay overlay, IReadOnlyList<Corner> corners)

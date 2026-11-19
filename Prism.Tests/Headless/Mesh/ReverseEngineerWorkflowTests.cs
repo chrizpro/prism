@@ -48,7 +48,7 @@ public class ReverseEngineerWorkflowTests
         Assert.DoesNotContain(vm.Tabs, tab => tab.Title == "Reverse Engineer");
         var mesh = vm.Tabs.Single(t => t.Title == "Mesh");
         var groups = mesh.Groups.Where(g => g.Title is "Prepare" or "Analyze" or "Repair" or "Convert");
-        Assert.Equal(new[] { "Import Mesh", "Align", "Mesh Quality", "Deviation", "Repair", "Edit Region", "Remesh", "Section Sketch" },
+        Assert.Equal(new[] { "Import Mesh", "Align", "Mesh Quality", "Deviation", "Repair", "Edit Region", "Remesh", "Section Sketch", "Fit Region" },
             groups.SelectMany(g => g.Items.OfType<RibbonButton>()).Select(b => b.Label.Replace("\n", " ")));
         var legacy = new MeshToSolidCommand();
         Assert.True(LegacyAttribute.IsLegacy(legacy.GetType()));
