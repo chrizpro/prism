@@ -164,7 +164,7 @@ Preferences and support files live in `%LOCALAPPDATA%\Prism` on Windows. On firs
 
 ### Branches
 
-Day-to-day work happens on `develop`. `main` is the public, stable branch: pushes to it publish the website, and release tags are cut from it. Merge `develop` into `main` when work is ready to show.
+Work on feature branches and merge reviewed changes into `develop` or the integration branch named by the owner. `main` is the public, stable branch. Pushes to it publish the website, and release tags are cut from it. Merge into `main` when the owner asks.
 
 ### Automation
 
