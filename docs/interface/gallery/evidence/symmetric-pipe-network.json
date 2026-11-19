@@ -1,0 +1,17 @@
+{
+  "rows": [
+    "A \u2192 B: 468.47 L/min   \u00b7   6.213 m/s   \u00b7   Re 247,589 (turbulent)   \u00b7   loses 36.958 kPa",
+    "B \u2192 C: 234.235 L/min   \u00b7   7.953 m/s   \u00b7   Re 198,071 (turbulent)   \u00b7   loses 163.042 kPa",
+    "B \u2192 D: 234.235 L/min   \u00b7   7.953 m/s   \u00b7   Re 198,071 (turbulent)   \u00b7   loses 163.042 kPa",
+    "Pressure at A: 200 kPa",
+    "Pressure at B: 163.042 kPa",
+    "Pressure at C: 0 kPa",
+    "Pressure at D: 0 kPa"
+  ],
+  "branchFlows_L_min": [
+    468.47,
+    234.235,
+    234.235
+  ],
+  "desktopSource": "038d801"
+}

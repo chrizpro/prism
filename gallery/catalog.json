@@ -593,6 +593,32 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cae-cantilever.png?v=13a17fe52d67af4d"
     },
     {
+      "Id": "symmetric-pipe-network",
+      "Name": "Symmetric pipe network",
+      "Description": "A 40 mm trunk feeds two identical 25 mm branches. Opens Pipe Network with the example rows and pressures filled in.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 64696,
+      "Sha256": "848eb0a4048aa41eef4162b74b5a79c223af7f4ba85fa47a407eef71e0b2a066",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/symmetric-pipe-network.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/symmetric-pipe-network.png?v=eea6dee531bcab81"
+    },
+    {
+      "Id": "laminar-flow-duct",
+      "Name": "Laminar flow through a duct",
+      "Description": "A 20 mm bore water duct for comparing a 3D speed slice with the Pipe Flow calculation. Select the duct and its two end faces in Flow Study.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 14182,
+      "Sha256": "358989255bfdfa641182d102d087d4ccc76457fad28b47e60eeec62aab784982",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/laminar-flow-duct.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/laminar-flow-duct.png?v=16613bda6bf9bb4a"
+    },
+    {
       "Id": "wrench",
       "Name": "Combination wrench",
       "Description": "A 13 mm chrome-vanadium combination wrench. Opens on the Static tab with five load cases, natural frequencies and a thermal setup ready to run.",

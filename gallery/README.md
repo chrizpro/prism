@@ -15,7 +15,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | Workflow | Models (catalog ID) |
 | --- | --- |
 | Drawing | Combination wrench drawing (`wrench-drawing`), Maple serving board drawing (`serving-board-drawing`), Fold tablet stand drawing (`fold-stand-drawing`) |
-| CAE | Cantilever beam (`cae-cantilever`) |
+| CAE | Cantilever beam (`cae-cantilever`), Symmetric pipe network (`symmetric-pipe-network`), Laminar flow through a duct (`laminar-flow-duct`) |
 | CAE / Solid | Combination wrench (`wrench`) |
 | CAM / Solid | Arc soap mold and CAM (`arc-soap-mold-cam`), Walnut valet tray (`walnut-valet`), Maple serving board (`serving-board`), Carved lotus plaque (`relief-plaque`), Injection mold (`injection-mold`) |
 | Sheet Metal | Arc desk lamp (`arc-desk-lamp`), Cardboard box (`cardboard-box`), Lotus dish (`lotus-dish`), Fold tablet stand (`fold-stand`) |
@@ -65,6 +65,8 @@ The owner-approved [wood studies (#132)](../docs/interface/gallery/README.md) ar
 `python gallery/build_drawings.py --discovery <discovery.json> --svg-output <folder>` builds the three editable A3 drawings from the existing models ([#96](https://github.com/chrizpro/prism/issues/96)). Open a copy and choose **Drawing** to edit the sheet. Each sheet contains top, front and isometric views and three measured overall dimensions. The script saves and reopens each document, checks the complete sheet state and exports the SVG used for its preview.
 
 `python gallery/build_relief_plaque.py --discovery <discovery.json>` builds the carved lotus plaque ([#86](https://github.com/chrizpro/prism/issues/86)): a 150 × 150 × 18 mm maple block, a CAM setup and one **Image Carve** operation (3 mm ball nose, 3 mm deep, 130 mm square) from `extras/relief-lotus.png`, which is also offered as a download. The file reopens on the CAM tab with Playback open. A real Prism render does not show toolpaths or reference pictures, so the preview is the plain block: **known gap**, as the carving is only visible in the app. `python gallery/build_mold.py --discovery <discovery.json>` builds the injection mold: a steel block around a cap-shaped part, made into two exploded halves with **Create Mold**; it asserts the halves' positions and that their volumes add up to the block minus the cap. Both reopen ready for the user to press the command's button. Illustrations only.
+
+**Symmetric pipe network** opens Pipe Network with live results for a 5 m trunk and two equal 8 m branches. **Laminar flow through a duct** opens Flow Study on a 120 mm long fluid cylinder. The same cylinder works for a Pipe Flow comparison. [Run both demos](../docs/cae/fluids/README.md#gallery-demos) · [Build and solve checks](build_fluids_demos.py).
 
 The **Cantilever beam** opens in **CAE → Static**. Press **Run Study**, then **Displacement** to see the 50 N tip load bend the bar. For the other two demos, use **Saved CAE setups** to run **Clamped bar - natural frequencies** or **Hot clamp to cold tip - steady conduction**. Those setups use CalculiX. [Model](models/cae-cantilever.prism) · [Displacement plot](previews/cae-cantilever.png) · [Rebuild and solve checks](build_cae_cantilever.py) · [Measured results](../docs/interface/gallery/README.md#cantilever-beam).
 
