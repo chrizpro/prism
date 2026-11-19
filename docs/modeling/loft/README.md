@@ -8,7 +8,7 @@ This is the canonical requirements document for Surface, Freeform and NURBS Loft
 
 A degree-one control curve can describe an entire polygon. A ruled loft now gives each straight span its own edge at the section, so its corners remain available to later cuts. During the planar coupe build, the previous single folded face caused two wheel-arch tools to disappear without removing measurable volume. Cutting the cabin pocket then produced an invalid body. On the rebuilt Windows desktop, the arches removed 964,124,470 mm³ and both cuts retained a valid body.
 
-[LFT-H034](../../../Prism.Tests/Headless/Loft/LoftCommandTests.cs) checks six faces on a 20 mm cube lofted from two square control curves, then verifies that a rectangular opening leaves 7,200 mm³. All 24 selected Loft and Combine cases passed on 2026-11-19. [Issue #150](https://github.com/chrizpro/prism/issues/150).
+[LFT-H034](../../../Prism.Tests/Headless/Loft/LoftCommandTests.cs) checks six faces on a 20 mm cube lofted from two square control curves, then verifies that a rectangular opening leaves 7,200 mm³. All 24 selected Loft and Combine cases passed on 2026-11-19. [Desktop viewport after reopening the coupe](planar-coupe-viewport.png). [Issue #150](https://github.com/chrizpro/prism/issues/150).
 
 ## Variants
 

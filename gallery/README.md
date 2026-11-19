@@ -8,6 +8,12 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Planar coupe study
+
+This two-seat wedge coupe was built on the owner's approval of the teal concept on 2026-11-19. Seven cross-sections establish its folded body, with separate glazing, a recessed cabin, and four perforated alloy wheels. The front and rear axles are 2,490 mm apart. This branch study can be opened directly in Prism. [Native car](models/planar-coupe.prism) · [Prism render](previews/planar-coupe.png) · [Rebuild script](build_planar_coupe.py).
+
+Reopening the file on the Windows desktop verified 108 valid positive-volume solids and six closed seat forms. All four 630 mm tyres meet the ground plane. The wheel-arch cuts exposed a ruled-loft bug tracked in [#150](https://github.com/chrizpro/prism/issues/150) and covered by [LFT-H034](../Prism.Tests/Headless/Loft/LoftCommandTests.cs).
+
 ## What is here
 
 Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, CAM, Mold, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
