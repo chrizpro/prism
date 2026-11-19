@@ -49,6 +49,8 @@ Owner asked on 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)) f
 
 Gallery verification on 2026-11-09, Windows workstation. `dotnet test` on the Unit and Headless projects with `-c Release --filter Feature=Gallery` passed all 15 tests (8 Unit, 7 Headless). `python gallery/update_catalog.py --check` verified the model sizes, hashes and preview revisions.
 
+**Fluids demos.** The CAE gallery includes a symmetric pipe network that opens with live calculations and a short water duct for 3D Flow Study and Pipe Flow. [Setup instructions and Windows evidence](../../cae/fluids/README.md#gallery-demos).
+
 ### Cantilever beam
 
 The owner requested a simple reusable CAE demo for the live gallery on 2026-11-19. This one 200 × 25 × 12 mm A36 steel bar opens in Static with a fixed left end, a 50 N downward force on the right end and a 4 mm target mesh size. **Saved CAE setups** provides natural frequencies with the left end fixed and steady conduction with the ends held at 100 °C and 20 °C. The remaining faces are insulated. Modal and thermal use CalculiX. Prism recomputes the results when you run each study.

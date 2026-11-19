@@ -9,6 +9,16 @@ Three levels of flow, from a quick calculation to a 3D picture. Cooling lives on
 
 Owner approved this organization. Pipe calculations keep their live Setup inputs and result readouts. Flow Study groups geometry, fluid and boundaries under Setup, detail and run/stop under Solve, and display, slicing and streamlines under Results. [Maintained ribbon/panel checks](../../../Prism.Tests/Headless/Ribbon/CaeRibbonWorkflowTests.cs).
 
+## Gallery demos
+
+**Symmetric pipe network.** Refresh the gallery and open the card under CAE. Pipe Network opens with a 5,000 mm trunk at 40 mm bore, two 8,000 mm branches at 25 mm bore, water, and gauge pressures of 200 kPa at A and zero at C and D. Both branches carry 234.235 L/min and together match the 468.470 L/min trunk. The symmetry is an independent check on the split. The schematic exaggerates pipe diameter so the branches are visible. The panel rows give the actual bore values. [Model](../../../gallery/models/symmetric-pipe-network.prism) · [Viewport](../../../gallery/previews/symmetric-pipe-network.png) · [Measured results](../../interface/gallery/evidence/symmetric-pipe-network.json).
+
+**Laminar flow through a duct.** The card opens Flow Study with a solid cylinder representing the water inside a 20 mm bore, 120 mm long duct. Choose **Through the body**, select the cylinder, then pick the flat ends at minimum and maximum X for **Inlet** and **Outlet** respectively. Choose **Water (20 °C)**, enter **0.00200761 m/s**, keep **Normal (100 cells)**, and press **Run flow**. The example settled at Reynolds number 40. The velocity slice shows a 0.004 m/s peak, about twice the inlet mean, and the inlet and outlet flow readouts are 0.036 and 0.038 L/min. [Model](../../../gallery/models/laminar-flow-duct.prism) · [Speed slice](../../../gallery/previews/laminar-flow-duct.png) · [Measured results](../../interface/gallery/evidence/laminar-flow-duct.json).
+
+For the same duct in **Pipe Flow**, enter 20 mm **Internal diameter**, 120 mm **Pipe length**, and 0.0378426 L/min **Volume flow**, with the default water properties. Pipe Flow gives 0.01931 Pa, matching Hagen–Poiseuille for fully developed flow. Flow Study gives 0.02104 Pa over the modeled duct, about 9% higher with its inlet boundary and grid. The example demonstrates the profile and the scale of the loss.
+
+Owner requested the gallery demos on 2026-11-19. The [builder](../../../gallery/build_fluids_demos.py) ran both in the Windows desktop at revision `038d801`, with checks for flow balance and the laminar velocity and pressure-drop benchmarks. [Maintained Fluids tests](../../../Prism.Tests/Headless/Fluids) · [Gallery issue #61](https://github.com/chrizpro/prism/issues/61) · [Pipe Network issue #55](https://github.com/chrizpro/prism/issues/55).
+
 ## Pipe Network
 
 Steady flow through round, full pipes and pumps: how the flow splits, the pressure at each point, and where a pump settles. Type rows, or pick curves and press **Read picked curves** so the model's own routing becomes the pipes. Give at least one point a known pressure, such as a tank or the open air at 0.
