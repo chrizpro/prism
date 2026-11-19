@@ -580,6 +580,19 @@
       "Sha256": "3e5a0ccdb34e35ac4e704d2a9b9e60a7f617413c59720f8ebeba277047ed727f"
     },
     {
+      "Id": "cae-cantilever",
+      "Name": "Cantilever beam - three CAE studies",
+      "Description": "One A36 steel bar with ready-to-run static bending, natural frequencies and steady heat conduction. Opens in Static with the 50 N tip load applied.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 15930,
+      "Sha256": "64b5f9c63b94f983704016381410fc8c8393b0eb1289d209af6faab728f299e0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/cae-cantilever.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cae-cantilever.png?v=13a17fe52d67af4d"
+    },
+    {
       "Id": "wrench",
       "Name": "Combination wrench",
       "Description": "A 13 mm chrome-vanadium combination wrench. Opens on the Static tab with five load cases, natural frequencies and a thermal setup ready to run.",

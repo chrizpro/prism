@@ -1,0 +1,61 @@
+{
+  "desktopSource": "038d801",
+  "modelSha256": "64b5f9c63b94f983704016381410fc8c8393b0eb1289d209af6faab728f299e0",
+  "savedStudies": {
+    "staticStudies": [
+      {
+        "name": "Static 1",
+        "body": "A36 steel cantilever",
+        "active": true
+      }
+    ],
+    "faceSets": [],
+    "caeSetups": [
+      {
+        "name": "Clamped bar - natural frequencies",
+        "kind": "Modal",
+        "body": "A36 steel cantilever"
+      },
+      {
+        "name": "Hot clamp to cold tip - steady conduction",
+        "kind": "SteadyThermal",
+        "body": "A36 steel cantilever"
+      }
+    ],
+    "camSetup": null,
+    "playback": null
+  },
+  "static": {
+    "expectedTip_mm": 0.18518518518518517,
+    "elements": 4906,
+    "nodes": 8805,
+    "minQuality": 0.403,
+    "maxVonMises_MPa": 16.696,
+    "yield_MPa": 250,
+    "maxDisplacement_mm": 0.18458,
+    "minSafetyFactor": 14.974,
+    "reactionNet_N": 50,
+    "appliedNet_N": 50,
+    "solveSeconds": 3.1,
+    "material": "Mild Steel (A36)",
+    "notes": [
+      "Material data: Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate. Source: No grade-specific source recorded",
+      "4,906 elements, 8,805 nodes (10-node tetrahedra), element size 4 mm. Assembly 0.2 s, solve 2.4 s.",
+      "Stress peaks right at supports and point-like loads can grow with finer meshes (singularities); judge the stress away from them."
+    ]
+  },
+  "modal": {
+    "expectedFirst_Hz": 244.6141937128515,
+    "frequencies_Hz": [
+      245.065,
+      505.104,
+      1511.29
+    ]
+  },
+  "thermal": {
+    "nodes": 8805,
+    "midpointSample_mm": -7.1054273576e-15,
+    "midpointSample_C": 60.0,
+    "maxLinearProfileError_C": 4.999080005063661e-06
+  }
+}
