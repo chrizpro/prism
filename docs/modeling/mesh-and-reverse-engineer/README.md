@@ -30,6 +30,15 @@ The draft fills in purple after three corners, including while you place a fourt
 **Approved 2026-11-19** in [#147](https://github.com/chrizpro/prism/issues/147). In the shared **Select → Face** mode, click an individual mesh triangle, Shift-click to add triangles, or select a patch with a box, lasso or paint stroke. Choosing Face on the Mesh ribbon closes Mesh Quality or the current Section Sketch preview. Sections you already applied stay in the model. Finish a repair draft before switching to Face selection. **Delete** opens a gap in the original mesh, keeps the remaining face and vertex colors, and supports Undo. Use Object selection to delete the whole mesh. Edit Region offers broader repair commands such as growing a region or patching a gap.
 
 
+### Proposed mesh repair interactions
+
+**Proposed — awaiting owner review.** [Issue #149](https://github.com/chrizpro/prism/issues/149).
+
+- **Fill Hole** toggles each visible opening when you click inside it or on its rim. Selected openings preview in green, and **Clear picks** empties the selection. Choose Flat or Smooth for the batch. **Fill** applies the selected openings on the current mesh as one undoable edit. Unselected openings stay open. If any selected patch fails validation, the mesh stays as it was so you can revise the selection.
+- **Draw Faces** tints the visible mesh triangle under the pointer. With **Snap to mesh** on, the cursor previews the next corner on a nearby visible vertex, then an edge, then a free point on the surface. Edge and vertex snaps get distinct markers. The new face keeps its purple preview. Existing geometry can guide placement, and replacing it still requires a selected region and valid stitching.
+
+Verification after approval will cover adding and removing hole picks, preserving a third opening, undoing the batch, and hitting the intended face, edge and vertex when other geometry lies behind it.
+
 ### Removing something from a mesh
 
 Open **Edit Region**, pick the area with smart patch, brush, rectangle or lasso, and press **Delete and patch**. The tool closes openings created by the deletion and keeps existing holes open.
