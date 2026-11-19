@@ -8,6 +8,20 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Sports car, passenger jet and electric train
+
+Three standalone studies follow the concept images approved on 2026-11-19. Open a model directly in Prism to inspect and edit its named solid bodies. Some repeated details, including fan blades and glazing, are grouped into compound objects.
+
+| Study | Native model | Prism render | Construction |
+| --- | --- | --- | --- |
+| Vermilion GT | [Sports car](models/vermilion-gt.prism) | [Front quarter](previews/vermilion-gt.png) | Sculpted fenders, outboard wheel wells, recessed side intakes, curved glazing and split-spoke wheels |
+| Tideline | [Commercial airliner](models/tideline-jet.prism) | [Front quarter](previews/tideline-jet.png) | Single-aisle fuselage, paired turbofans with 21 blades each, swept wings, winglets and tricycle landing gear |
+| Evergreen Express | [Electric train](models/evergreen-express.prism) | [Full trainset](previews/evergreen-express.png) | Three cars, two articulated gangways, two driving cabs, four bogies and a raised pantograph |
+
+The [geometry builder](TransportStudies.cs) uses the Prism kernel. From the repository root, put the built native libraries on the library search path and run `dotnet run --file gallery/TransportStudies.cs -- vermilion-gt`, substituting `tideline-jet` or `evergreen-express` for the other studies. The [desktop verification and render script](render_transport_studies.py) takes the same model ID and `--discovery` pointing to a dedicated Prism session with a built MCP bridge. It reopens the file, checks each object's validity and positive volume, and renders that geometry. The studies are static exterior models.
+
+On 2026-11-19 the Windows desktop reopened and rendered all three files. All 65 car objects, 47 airliner objects, and 61 train objects passed the validity and positive-volume checks. The car builder also checks material at the centre of the hood and clearance at each wheel centre.
+
 ## Planar coupe study
 
 This two-seat wedge coupe was built on the owner's approval of the teal concept on 2026-11-19. Seven cross-sections establish its folded body, with separate glazing, a recessed cabin, and four perforated alloy wheels. The front and rear axles are 2,490 mm apart. This branch study can be opened directly in Prism. [Native car](models/planar-coupe.prism) · [Prism render](previews/planar-coupe.png) · [Rebuild script](build_planar_coupe.py).

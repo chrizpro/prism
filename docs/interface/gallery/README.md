@@ -2,6 +2,8 @@
 
 ## Status and scope
 
+The owner approved three additional standalone transport studies on 2026-11-19. The Vermilion GT, Tideline jet and Evergreen Express are available as native documents on the study branch. [Models, actual Prism renders and desktop verification](../../../gallery/README.md#sports-car-passenger-jet-and-electric-train).
+
 **Surface, Freeform, and NURBS studies approved 2026-11-18 ([#61](https://github.com/chrizpro/prism/issues/61)).** The twelve new cards include the Kingfisher kayak, Calla horn, ergonomic mouse, Solis coupe, saddle, ribbon chair, climbing shoe, pitcher, manta statue, spoon rest, handbell, and train nose. Each card provides an editable native model and an actual Prism preview. The catalog check verifies all 48 model byte counts, hashes, and preview revisions. [Model index](../../../gallery/README.md#what-is-here).
 
 **Publication correction:** all 36 catalog entries and their downloadable assets were published to `develop` in `1ede4c8` after the owner reported that pushing the feature branch alone did not update the app. See the publication note below; earlier preparation notes are historical.
