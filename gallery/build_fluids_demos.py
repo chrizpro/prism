@@ -141,4 +141,3 @@ if __name__ == "__main__":
         bridge.terminate()
         bridge.wait(timeout=10)
         log.close()
-
