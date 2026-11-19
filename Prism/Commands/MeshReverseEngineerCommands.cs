@@ -14,6 +14,7 @@ namespace Prism.Commands;
 // =====================================================================================================================
 
 /// <summary>Segment -> fit -> merge -> faces from the fitted surfaces -> boundary / intersection curves -> sew -> deviation to the scan.</summary>
+[Legacy("Use Convert Mesh.")]
 public sealed class MeshRebuildCommand : MeshCommand
 {
     readonly NumberParam _tol, _angle, _sew, _devTol;
@@ -24,7 +25,7 @@ public sealed class MeshRebuildCommand : MeshCommand
     public MeshRebuildCommand() : base("Mesh")
     {
         _tol = Num("Surface tolerance", 0.3, 0.001, 50, 0.1);
-        _angle = Num("Normal tolerance", 12, 1, 45, 1, "°");
+        _angle = Num("Normal tolerance", 12, 1, 45, 1, "Â°");
         _minTris = Add(new IntParam { Label = "Smallest region (triangles)", Value = 40, Min = 3, Max = 100000 });
         _extended = Check("Also find tori, extrusions, revolved and free-form surfaces", true);
         _merge = Check("Merge neighbouring regions of the same shape", true);
@@ -42,11 +43,24 @@ public sealed class MeshRebuildCommand : MeshCommand
 
     sealed record Analysis(List<FitRegion> Regions, RegionGraph Graph, List<RegionGraph.RegionReport> Report);
 
-    protected override CommandOutput? Build()
+    protected override CommandOutput? Build() => Build(Meshes().FirstOrDefault(), showRegions: true);
+
+    internal CommandOutput? BuildConversion(SceneObject obj, bool solid, double tolerance, double sewTolerance, int minTriangles, bool extended)
+    {
+        _create.Index = solid ? 3 : 1;
+        _tol.Value = _devTol.Value = tolerance;
+        _sew.Value = sewTolerance;
+        _minTris.Value = minTriangles;
+        _extended.Value = extended;
+        Committing = true;
+        return Build(obj, showRegions: false);
+    }
+
+    CommandOutput? Build(SceneObject? obj, bool showRegions)
     {
         Results.Clear();
         Row("Output", _create.Index == 0 ? "Analysis only; no CAD geometry is created" : "Fitted CAD faces or a direct-edit shell/solid; original sketches and feature history are not recovered");
-        var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
+        if (obj == null) return null;
         var m = obj.Tri!;
         var an = Cached(Key(obj.Id, m.TriCount, _tol.Value, _angle.Value, _minTris.Value, _extended.Value, _merge.Value, _devTol.Value), () =>
         {
@@ -55,10 +69,14 @@ public sealed class MeshRebuildCommand : MeshCommand
             return new Analysis(found, RegionGraph.Build(m, found), RegionGraph.Report(m, found, _devTol.Value));
         });
         if (an == null) return null;
-        var regs = an.Regions; var label = new int[m.TriCount];
-        for (int i = 0; i < regs.Count; i++) foreach (int t in regs[i].Tris) label[t] = i + 1;
-        var (disp, sc) = m.ToLabelledMeshData(label); disp.Scalars = sc;
-        S.SetField(obj, m, disp, 2, 0, regs.Count + 1, 0);
+        var regs = an.Regions;
+        if (showRegions)
+        {
+            var label = new int[m.TriCount];
+            for (int i = 0; i < regs.Count; i++) foreach (int t in regs[i].Tris) label[t] = i + 1;
+            var (disp, sc) = m.ToLabelledMeshData(label); disp.Scalars = sc;
+            S.SetField(obj, m, disp, 2, 0, regs.Count + 1, 0);
+        }
 
         double covered = regs.Sum(r => r.Area) / Math.Max(m.Area(), 1e-9) * 100;
         Row("Regions", regs.Count.ToString(), regs.Count > 0 ? 1 : 2);
@@ -67,7 +85,7 @@ public sealed class MeshRebuildCommand : MeshCommand
         for (int i = 0; i < Math.Min(regs.Count, 25); i++)
         {
             var rp = an.Report[i];
-            Row($"{i + 1}.  {regs[i].Describe()}", $"{rp.Area:#,0} mm²   rms {rp.Rms:0.###}   max {rp.Max:0.###}   {rp.PercentInTolerance:0}% in tol");
+            Row($"{i + 1}.  {regs[i].Describe()}", $"{rp.Area:#,0} mmÂ²   rms {rp.Rms:0.###}   max {rp.Max:0.###}   {rp.PercentInTolerance:0}% in tol");
         }
         if (regs.Any(r => r.Kind == PrimKind.Freeform))
             Row("Free-form patches", string.Join(", ", regs.Where(r => r.Kind == PrimKind.Freeform).Select(r => $"rms {r.Patch!.Rms:0.###} / max {r.Patch.MaxError:0.###}")), 2);
@@ -110,8 +128,11 @@ public sealed class MeshRebuildCommand : MeshCommand
         }
         if (result == null) for (int i = 0; i < faces.Count; i++) o.Add.Add(new(faces[i], $"Scan face {i + 1}", ObjKind.Surface));
 
-        if (_create.Index >= 2) AddCurves(o, an, m);
-        ReportDeviation(m, an, faces, result);
+        if (showRegions)
+        {
+            if (_create.Index >= 2) AddCurves(o, an, m);
+            ReportDeviation(m, an, faces, result);
+        }
         return o;
     }
 
@@ -305,7 +326,7 @@ public sealed class MeshSectionSketchCommand : MeshCommand
     }
 
     public override string Title => "Section Sketch";
-    public override string Hint => "Put a plane on the scan and get an editable sketch of the outline there: straight lines, arcs and circles fitted within the tolerance, not thousands of tiny segments. Use a world plane, a construction plane or face, or the area you selected with Select Region. Extrude or revolve the sketch, then use Deviation to see how close you are.";
+    public override string Hint => "Put a plane on the scan and get an editable sketch of the outline there: straight lines, arcs and circles fitted within the tolerance, not thousands of tiny segments. Use a world plane, a construction plane or face, or the area you selected with Edit Region. Extrude or revolve the sketch, then use Deviation to see how close you are.";
     public override string Icon => "mesh-section";
     public override string OkText => "Create sketch";
     protected override void UpdateVisibility() { if (_ref == null) return; _spacing.IsVisible = _count.Value > 1; _ref.IsVisible = _plane.Index == 3; }
@@ -373,7 +394,7 @@ public sealed class MeshSectionSketchCommand : MeshCommand
         var m = obj.Tri!;
         if (Frame(m) is not { } frame)
         {
-            Row("Plane", _plane.Index == 3 ? "pick a construction plane or a flat face" : "select an area with Select Region first, then come back", 2);
+            Row("Plane", _plane.Index == 3 ? "pick a construction plane or a flat face" : "select an area with Edit Region first, then come back", 2);
             return null;
         }
         var n = frame.Normal;

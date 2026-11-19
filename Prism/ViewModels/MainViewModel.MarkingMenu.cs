@@ -66,7 +66,7 @@ public sealed partial class MainViewModel
                 return [Cm("Edit freeform", "form-edit", () => new EditFormCommand()), Act("To NURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session)), Cm("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror)), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move)),
                         del, hide, Act("Materials", "materials", OpenMaterials), Act("Duplicate", "duplicate", () => s.Duplicate())];
             case ObjKind.Mesh:
-                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Reduce", "mesh-reduce", () => new MeshDecimateCommand()), Cm("Smooth", "mesh-smooth", () => new MeshSmoothCommand()), Cm("Mesh to solid", "mesh-solid", () => new MeshToSolidCommand()),
+                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Remesh", "mesh-remesh", () => new MeshRemeshCommand()), Cm("Edit Region", "mesh-select", () => new MeshRegionCommand()), Cm("Convert Mesh", "mesh-fit", () => new ConvertMeshCommand()),
                         del, hide, Cm("Measure", "measure", () => new MeasureCommand()), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move))];
         }
         if (objs.Count(o => o.Kind == ObjKind.Solid) >= 2)

@@ -3929,3 +3929,56 @@ def group_ribbon():
     rows.append(("Nothing is deleted by grouping", f"{len(cad.objects())} objects (expect 3)", len(cad.objects()) == 3))
     strip = ["Group and Ungroup through the ribbon (browser nesting, hide and rename are checked by SEL-H025 to SEL-H027)"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
     return [("three bodies", render(-25, 30)), ("checks", text_panel(strip))]
+
+
+
+@scenario("mesh__convert-open-scan-and-fit-region", columns=1)
+def mesh_convert_open_scan_and_fit_region():
+    import base64
+    import io
+    from PIL import Image
+
+    def screenshot():
+        shot = cad.call("screenshot", max_width=1280)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    # A 20 mm planar mesh with 32 triangles and deliberately open edges.
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Open scan.obj"
+        lines = [f"v {i * 5} {j * 5} 0" for j in range(5) for i in range(5)]
+        for j in range(4):
+            for i in range(4):
+                a = 1 + 5 * j + i
+                lines.extend([f"f {a} {a + 1} {a + 6}", f"f {a} {a + 6} {a + 5}"])
+        path.write_text("\n".join(lines))
+        cad.call("mesh_import", path=str(path))
+    cad.call("view", yaw=-35, pitch=55, fit=True, grid=False)
+    cad.call("wait_idle")
+
+    cad.call("history_view", expanded=False)
+    cad.call("ribbon_click", tab="Mesh", label="Convert Mesh")
+    report = cad.call("command_set", params={"Preview result": True})["results"]
+    preview = screenshot()
+    try:
+        cad.call("command_commit")
+    except cad.CadError:
+        pass
+    refused = any("Open CAD surface" in row for row in report) and all(o.kind == "Mesh" for o in cad.objects())
+    cad.call("command_cancel")
+
+    cad.call("ribbon_click", tab="Mesh", label="Edit Region")
+    cad.call("view", yaw=-35, pitch=55, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("pointer", events=[{"type": "click", "x": 11, "y": 8, "z": 0}])
+    cad.call("command_commit")
+
+    cad.call("run_command", name="mesh_convert", params={"Output type": "Surface", "Source": "Selected region", "Face type": "Plane"})
+    result = next(o for o in cad.objects() if o.kind == "Surface")
+    area = cad.call("object_info", object=result.name)["area"]
+    strip = [
+        "PASS  Solid leaves an open preview and needs consent" if refused else "FAIL  Solid accepted an open surface without consent",
+        f"{'PASS' if abs(area - 400) < 0.1 else 'FAIL'}  Selected region fits {area:.1f} mm² (expected 400.0)",
+    ]
+    return [("Solid preview", preview), ("Region fit checks", text_panel(strip))]

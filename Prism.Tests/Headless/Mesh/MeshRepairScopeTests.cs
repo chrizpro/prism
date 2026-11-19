@@ -79,25 +79,26 @@ public class MeshRepairScopeTests
         var session = new CadSession(); var obj = AddMesh(session, OpenTube());
         var command = Begin(session, () => new MeshRepairCommand());
         SetChoice(command, "Repair scope", "Selected region");
-        Assert.Contains("Select Region", session.CommandError);
+        Assert.Contains("Edit Region", session.CommandError);
         session.RegionFor(obj).Add(TopRim(obj.Tri!)); command.OnChanged();
         Assert.Null(session.CommandError);
         var other = AddMesh(session, OpenTube(), "Other");
         Pick(command, "Meshes", other); command.OnChanged();
-        Assert.Contains("Select Region", session.CommandError);
+        Assert.Contains("Edit Region", session.CommandError);
         Pick(command, "Meshes", obj);
         var replacement = new CommandOutput(); replacement.ReplaceMeshes.Add((obj, OpenTube())); session.Apply(replacement);
         command.OnChanged();
-        Assert.Contains("Select Region", session.CommandError);
+        Assert.Contains("Edit Region", session.CommandError);
     }
 
-    [AvaloniaFact(DisplayName = "MSH-H036 | Mesh ribbon exposes modification tools in workflow order")]
+    [AvaloniaFact(DisplayName = "MSH-H036 | Mesh repair groups scoped repair, local editing and remeshing")]
     [Trait("TestId", "MSH-H036")]
-    public void RibbonExposesModifications()
+    public void RibbonExposesRepairs()
     {
         var vm = new MainViewModel(); var tab = vm.Tabs.Single(t => t.Title == "Mesh");
-        Assert.Equal(new[] { "Select", "Datum", "Import & Convert", "Check", "Repair", "Reshape", "Modify", "Print analysis", "Transform", "Inspect", "Appearance" }, tab.Groups.Select(g => g.Title));
-        Assert.Equal(new[] { "Split", "Offset", "Mesh\nBoolean" }, tab.Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>().Select(b => b.Label));
-        Assert.All(tab.Groups.Single(g => g.Title == "Modify").Items.OfType<RibbonButton>(), b => Assert.False(b.HasMenu));
+        Assert.Equal(new[] { "Select", "Datum", "Prepare", "Analyze", "Repair", "Convert", "Transform", "Inspect", "Appearance" }, tab.Groups.Select(g => g.Title));
+        var repairs = tab.Groups.Single(g => g.Title == "Repair").Items.OfType<RibbonButton>().ToArray();
+        Assert.Equal(new[] { "Repair", "Edit\nRegion", "Remesh" }, repairs.Select(b => b.Label));
+        Assert.All(repairs, b => Assert.False(b.HasMenu));
     }
 }

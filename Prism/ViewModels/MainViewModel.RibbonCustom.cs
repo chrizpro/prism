@@ -19,7 +19,7 @@ public sealed partial class MainViewModel
     void OrganizeRibbons(Func<RibbonGroup> transform, Func<RibbonGroup> inspect,
         Func<RibbonGroup> appearance, Func<RibbonGroup> select)
     {
-        var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "Reverse Engineer", "ECAD" };
+        var modeling = new[] { "Home", "Solid", "Surface", "NURBS", "Freeform", "Direct Modeling", "Sheet Metal", "Mesh", "ECAD" };
         foreach (var tab in Tabs)
         {
             // Look At lives in the viewport toolbar and the View tab.

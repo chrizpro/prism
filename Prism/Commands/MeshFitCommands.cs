@@ -7,7 +7,8 @@ using Prism.Meshing;
 
 namespace Prism.Commands;
 
-/// <summary>Turn the selected region of a mesh (Mesh > Select Region) into an exact CAD surface: an analytic shape or a smooth NURBS patch.</summary>
+/// <summary>Turn the selected region of a mesh (Mesh > Edit Region) into an exact CAD surface: an analytic shape or a smooth NURBS patch.</summary>
+[Legacy("Use Convert Mesh with Selected region.")]
 public sealed class MeshFitSurfaceCommand : MeshCommand
 {
     readonly ChoiceParam _type;
@@ -28,7 +29,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
     }
 
     public override string Title => "Fit Surface to Region";
-    public override string Hint => "Uses the triangles picked with Select Region. Exact shapes (plane, cylinder, sphere, cone) are best for mechanical faces; the smooth patch follows organic regions and is trimmed to the outline you picked.";
+    public override string Hint => "Uses the triangles picked with Edit Region. Exact shapes (plane, cylinder, sphere, cone) are best for mechanical faces; the smooth patch follows organic regions and is trimmed to the outline you picked.";
     public override string Icon => "mesh-patch";
     public override string OkText => "Create surface";
 
@@ -54,7 +55,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         Results.Clear(); _outlines = []; _samples = [];
         var sel = S.RegionSel;
         var obj = sel == null ? null : S.Find(sel.ObjectId);
-        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "use Mesh > Select Region first", 2); return null; }
+        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "use Mesh > Edit Region first", 2); return null; }
         var sub = sel.Extract();
         Row("Region", $"{Count(sub.TriCount)} triangles, {N(sub.Area(), "mm²")}");
 
@@ -72,7 +73,20 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
 
     sealed record FitResult(Shape? Shape, string Name, bool Solid, List<ResultLine> Rows, List<List<Vec3>> Outlines, List<Vec3> Samples);
 
-    FitResult Fit(MeshSelection sel, TriMesh sub)
+    internal CommandOutput? BuildConversion(SceneObject obj, MeshSelection selection, int type, double tolerance, bool surfaceOnly, bool primitiveOnly)
+    {
+        _type.Index = type;
+        _tol.Value = tolerance;
+        _outline.Value = Math.Round(Math.Max(selection.Mesh.Size.Length * 0.004, 0.02), 3);
+        var fit = Fit(selection, selection.Extract(), surfaceOnly, primitiveOnly);
+        foreach (var row in fit.Rows) Results.Add(row);
+        if (fit.Shape == null) return null;
+        var output = new CommandOutput();
+        output.Add.Add(new(fit.Shape, fit.Name, fit.Solid ? ObjKind.Solid : ObjKind.Surface, Look: obj.Look));
+        return output;
+    }
+
+    FitResult Fit(MeshSelection sel, TriMesh sub, bool surfaceOnly = false, bool primitiveOnly = false)
     {
         var rows = new List<ResultLine>();
         void R(string a, string b, int lvl = 0) => rows.Add(new ResultLine(a, b, lvl));
@@ -81,7 +95,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         // ---- analytic shapes
         if (type <= 4)
         {
-            var opt = new PrimitiveFit.Options(_tol.Value, 15, 3, KindsFor(type).Contains(PrimKind.Plane), KindsFor(type).Contains(PrimKind.Cylinder), KindsFor(type).Contains(PrimKind.Sphere), KindsFor(type).Contains(PrimKind.Cone), 4);
+            var opt = new PrimitiveFit.Options(_tol.Value, 15, 3, !primitiveOnly && KindsFor(type).Contains(PrimKind.Plane), KindsFor(type).Contains(PrimKind.Cylinder), KindsFor(type).Contains(PrimKind.Sphere), KindsFor(type).Contains(PrimKind.Cone), 4);
             var regs = PrimitiveFit.Detect(sub, opt);
             double total = sub.Area();
             var best = regs.OrderByDescending(r => r.Area).FirstOrDefault();
@@ -90,7 +104,16 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
             {
                 try
                 {
-                    var made = MeshSegmentCommand.BuildGeometry(best, sub);
+                    NewObject? made;
+                    if (surfaceOnly)
+                    {
+                        var graph = RegionGraph.Build(sub, [best]);
+                        var faces = MeshRebuildCommand.BuildFaces(best, sub, graph, 0, _tol.Value);
+                        var face = faces.Count == 1 ? faces[0] : Occ.Compound(faces);
+                        made = new NewObject(face, best.Kind + " fit", ObjKind.Surface);
+                    }
+                    else
+                        made = MeshSegmentCommand.BuildGeometry(best, sub);
                     if (made?.Shape != null)
                     {
                         R("Fitted shape", best.Describe(), 1);
@@ -101,7 +124,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
                 }
                 catch (KernelException e) { R("Could not build", e.Message, 2); }
             }
-            if (type != 0) { R("No match", best == null ? "the region does not look like that shape - try a smooth patch" : $"only {100 * best.Area / total:0.#}% of it fits a {best.Kind}", 2); return new FitResult(null, "", false, rows, [], []); }
+            if (type != 0 || primitiveOnly) { R("No match", best == null ? "the selected region does not match the requested shape" : $"only {100 * best.Area / total:0.#}% of it fits a {best.Kind}", 2); return new FitResult(null, "", false, rows, [], []); }
             R("Not a single exact shape", "using a smooth patch instead");
         }
 

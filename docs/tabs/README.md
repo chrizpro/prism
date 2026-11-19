@@ -42,7 +42,7 @@ Owner approved a ribbon-wide palette in [#118](https://github.com/chrizpro/prism
 | Script | [Script](../interface/script/README.md) | Script editor and external editors |
 | Drawing | [Drawing workspace](../drawing/README.md) | Editable sheets, views, dimensions, annotations and export; approved 2026-11-05 |
 | Freeform | [Freeform](../modeling/freeform/README.md) · [Extrude Profile review](../modeling/extrude/README.md#freeform-extrusion) · [Revolve](../modeling/revolve/README.md#freeform-revolve) · [Sweep](../modeling/sweep/README.md#freeform-sweep) · [Loft](../modeling/loft/README.md#freeform-loft) | Subdivision/cage creation and edits |
-| Mesh and scan reconstruction | [Mesh and Reverse Engineer](../modeling/mesh-and-reverse-engineer/README.md) | Mesh cleanup, region fitting and CAD reconstruction |
+| Mesh and scan reconstruction | [Mesh and scan conversion](../modeling/mesh-and-reverse-engineer/README.md) | Mesh cleanup, region fitting and CAD reconstruction |
 | Mechanisms | [Motion](../cae/motion/README.md) | Joints, drives, couplings and motion studies |
 | Fluid analysis | [Fluids](../cae/fluids/README.md) | Pipe and 3D flow workflows |
 | Static structural analysis | [Static analysis living specification](../cae/static-analysis/README.md) | Linear-static setup, native solver, independent benchmarks and limits |
@@ -69,7 +69,7 @@ Each file covers a short hands-on pass for one shipped tab. Drawing has its own 
 - [3D Resin](../cam/resin-manual-test-checklist.md)
 - [Analyze](checklists/analyze-manual-test-checklist.md)
 - [Mesh](checklists/mesh-manual-test-checklist.md)
-- [Reverse Engineer](checklists/reverse-engineer-manual-test-checklist.md)
+- [Mesh conversion](checklists/reverse-engineer-manual-test-checklist.md)
 - [Static](checklists/static-manual-test-checklist.md)
 - [Thermal](checklists/thermal-manual-test-checklist.md)
 - [Dynamics](checklists/dynamics-manual-test-checklist.md)

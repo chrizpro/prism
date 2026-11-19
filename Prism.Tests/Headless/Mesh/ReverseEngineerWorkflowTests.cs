@@ -40,17 +40,19 @@ public class ReverseEngineerWorkflowTests
         session.CancelCommand();
     }
 
-    [AvaloniaFact(DisplayName = "REV-H118 | Reverse Engineer exposes local fitting and separates sketches, rebuild and fallback conversion")]
+    [AvaloniaFact(DisplayName = "REV-H118 | The combined Mesh ribbon exposes nine tools and keeps legacy conversions callable")]
     [Trait("TestId", "REV-H118")]
     public void RibbonShowsTheDifferentRoutes()
     {
-        var vm = new MainViewModel(); var tab = vm.Tabs.Single(t => t.Title == "Reverse Engineer");
-        Assert.Equal(new[] { "Select", "Datum", "Prepare", "Sketch from Scan", "Fit Surfaces", "Rebuild", "Check", "Transform", "Inspect", "Appearance" }, tab.Groups.Select(g => g.Title));
-        var fits = tab.Groups.Single(g => g.Title == "Fit Surfaces").Items.OfType<RibbonButton>().ToArray();
-        Assert.Equal(new[] { "Segment\n& Fit", "Fit Surface\nto Region" }, fits.Select(b => b.Label));
-        Assert.All(fits, b => Assert.False(b.HasMenu));
-        var fallback = tab.Groups.Single(g => g.Title == "Rebuild").Items.OfType<RibbonButton>().Single(b => b.Label == "Fallback");
-        Assert.Equal("Mesh to\nSolid", Assert.Single(fallback.Menu!).Label);
+        var vm = new MainViewModel();
+        Assert.DoesNotContain(vm.Tabs, tab => tab.Title == "Reverse Engineer");
+        var mesh = vm.Tabs.Single(t => t.Title == "Mesh");
+        var groups = mesh.Groups.Where(g => g.Title is "Prepare" or "Analyze" or "Repair" or "Convert");
+        Assert.Equal(new[] { "Import Mesh", "Align", "Mesh Quality", "Deviation", "Repair", "Edit Region", "Remesh", "Convert Mesh", "Section Sketch" },
+            groups.SelectMany(g => g.Items.OfType<RibbonButton>()).Select(b => b.Label.Replace("\n", " ")));
+        var legacy = new MeshToSolidCommand();
+        Assert.True(LegacyAttribute.IsLegacy(legacy.GetType()));
+        Assert.NotNull(CommandCatalog.Find(CommandCatalog.KeyOf(legacy)));
     }
 
     [AvaloniaFact(DisplayName = "REV-H119 | A scanned circle accepts a diameter dimension, extrudes, compares to the scan and rebuilds after a dimension edit")]

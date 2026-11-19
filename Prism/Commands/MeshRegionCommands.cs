@@ -32,10 +32,11 @@ public sealed class MeshRegionCommand : MeshCommand
         Add(new ActionParam { Label = "Delete selected triangles", Run = DeleteSel });
         _patch = Choice("Patch", 0, "Smooth (follows the surface around it)", "Flat");
         Add(new ActionParam { Label = "Delete and patch", Run = DeleteAndPatch });
+        Add(new ActionParam { Label = "Smooth selected triangles", Run = SmoothSel });
         Tool = new RegionTool(this);
     }
 
-    public override string Title => "Select Region";
+    public override string Title => "Edit Region";
     public override string Hint => "Pick triangles on a scan. Smart patch grows over a smooth surface from the point you click; Brush paints; Rectangle and Lasso pick everything inside. Shift adds, Ctrl removes. The selection stays when you leave this tool.";
     public override string Icon => "mesh-select";
     public override string OkText => "Done";
@@ -100,7 +101,7 @@ public sealed class MeshRegionCommand : MeshCommand
         var rest = s.Without();
         var res = new CommandOutput { Label = "Delete region", Icon = "mesh-select" };
         res.ReplaceMeshes.Add((o, rest));
-        S.Apply(res); S.Say("Deleted the selected triangles. Use Fill Holes to close the opening.");
+        S.Apply(res); S.Say("Deleted the selected triangles. Use Repair to close the opening.");
         S.DropRegion(); OnChanged();
     }
 
@@ -116,6 +117,30 @@ public sealed class MeshRegionCommand : MeshCommand
         S.Apply(res);
         S.Say(patched.Openings == 0 ? "Deleted the triangles. They left no opening to patch." : $"Deleted the selection and patched {patched.Openings} opening{(patched.Openings == 1 ? "" : "s")} with {Count(patched.NewTriangles)} triangles.");
         S.DropRegion(); OnChanged();
+    }
+
+    void SmoothSel()
+    {
+        var obj = Target;
+        var selection = Sel();
+        if (obj == null || selection == null || selection.IsEmpty)
+        {
+            S.Say("Select some triangles first.", true);
+            return;
+        }
+
+        var mesh = selection.Mesh;
+        var weights = MeshOps.SharpWeights(mesh, 35);
+        for (int triangle = 0; triangle < mesh.TriCount; triangle++)
+            if (!selection.Tris.Contains(triangle))
+                for (int corner = 0; corner < 3; corner++)
+                    weights[mesh.T[3 * triangle + corner]] = 0;
+
+        var output = new CommandOutput { Label = "Smooth region", Icon = "mesh-smooth" };
+        output.ReplaceMeshes.Add((obj, MeshOps.Smooth(mesh, 5, weights: weights)));
+        S.Apply(output);
+        S.DropRegion();
+        OnChanged();
     }
 
     protected override CommandOutput? Build()
