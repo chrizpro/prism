@@ -3958,7 +3958,7 @@ def mesh_convert_open_scan_and_fit_region():
     cad.call("wait_idle")
 
     cad.call("history_view", expanded=False)
-    cad.call("ribbon_click", tab="Mesh", label="Convert Mesh")
+    cad.call("run_command", name="mesh_convert", commit=False)
     report = cad.call("command_set", params={"Preview result": True})["results"]
     preview = screenshot()
     try:
@@ -3982,3 +3982,103 @@ def mesh_convert_open_scan_and_fit_region():
         f"{'PASS' if abs(area - 400) < 0.1 else 'FAIL'}  Selected region fits {area:.1f} mm² (expected 400.0)",
     ]
     return [("Solid preview", preview), ("Region fit checks", text_panel(strip))]
+
+
+@scenario("mesh__draw-faces-stitch-one-rim", columns=1)
+def mesh_draw_faces_stitch_one_rim():
+    import base64
+    import io
+    from PIL import Image
+
+    def screenshot():
+        shot = cad.call("screenshot", max_width=1280)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Open box.obj"
+        path.write_text("""v 0 0 0
+v 20 0 0
+v 20 20 0
+v 0 20 0
+v 0 0 20
+v 20 0 20
+v 20 20 20
+v 0 20 20
+f 1 2 6
+f 1 6 5
+f 2 3 7
+f 2 7 6
+f 3 4 8
+f 3 8 7
+f 4 1 5
+f 4 5 8
+""")
+        mesh = cad.call("mesh_import", path=str(path))["name"]
+
+    cad.call("history_view", expanded=False)
+    cad.call("view", yaw=-32, pitch=53, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("run_command", name="mesh_draw_faces", commit=False)
+    clicks = [(0, 0, 20), (20, 0, 20), (20, 20, 20), (0, 20, 20)]
+    cad.call("pointer", events=[{"type": "click", "x": x, "y": y, "z": z} for x, y, z in clicks] + [{"type": "key", "key": "Enter"}])
+    report = cad.call("get_state")["activeCommand"]["results"]
+    preview = screenshot()
+    before = cad.call("object_info", object=mesh)
+    cad.call("command_commit")
+    after = cad.call("object_info", object=mesh)
+    joined = any(row["label"] == "Joined edges" and row["value"] == "4" for row in report)
+    ok = joined and (before["triangles"], after["triangles"], before["holes"], after["holes"]) == (8, 10, 2, 1)
+    text = f"{'PASS' if ok else 'FAIL'}  {before['triangles']} to {after['triangles']} triangles, {before['holes']} to {after['holes']} open rims"
+    return [("Draw Faces stitch preview", preview), ("Checks", text_panel([text]))]
+
+
+@scenario("mesh__fill-and-stitch-picked-boundaries", columns=1)
+def mesh_fill_and_stitch_picked_boundaries():
+    import base64
+    import io
+    from PIL import Image
+
+    def import_obj(name, vertices, faces):
+        cad.call("document_new")
+        cad.call("workspace", id="scan")
+        cad.call("history_view", expanded=False)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / (name + ".obj")
+            path.write_text("\n".join(["v %s %s %s" % p for p in vertices] + ["f %s %s %s" % face for face in faces]))
+            mesh = cad.call("mesh_import", path=str(path))["name"]
+        return mesh
+
+    def pick(points):
+        cad.call("pointer", events=[{"type": "click", "x": x, "y": y, "z": z} for x, y, z in points])
+
+    def screenshot():
+        shot = cad.call("screenshot", max_width=1280)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+
+    mesh = import_obj("Separated sheets", [(0,0,0),(10,0,0),(10,10,0),(0,10,0),(10.2,0,0),(20,0,0),(20,10,0),(10.2,10,0)],
+                      [(1,2,3),(1,3,4),(5,6,7),(5,7,8)])
+    cad.call("view", yaw=0, pitch=89, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("run_command", name="mesh_stitch_seam", params={"Maximum gap": 0.3}, commit=False)
+    pick([(10,5,0),(10.2,5,0)])
+    preview = screenshot()
+    cad.call("command_commit")
+    welded = cad.call("object_info", object=mesh)
+    stitch_ok = (welded["vertices"], welded["triangles"], welded["holes"]) == (6,4,1)
+
+    mesh = import_obj("Open box", [(0,0,0),(20,0,0),(20,20,0),(0,20,0),(0,0,20),(20,0,20),(20,20,20),(0,20,20)],
+                      [(1,2,6),(1,6,5),(2,3,7),(2,7,6),(3,4,8),(3,8,7),(4,1,5),(4,5,8)])
+    cad.call("view", yaw=-32, pitch=53, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("run_command", name="mesh_fill_hole", commit=False)
+    pick([(10,0,20)])
+    cad.call("command_commit")
+    filled = cad.call("object_info", object=mesh)
+    fill_ok = (filled["triangles"], filled["holes"]) == (10,1)
+    lines = [
+        f"{'PASS' if stitch_ok else 'FAIL'}  Stitch leaves {welded['vertices']} vertices, {welded['triangles']} triangles and {welded['holes']} open rim",
+        f"{'PASS' if fill_ok else 'FAIL'}  Fill Hole leaves {filled['triangles']} triangles and {filled['holes']} open rim",
+    ]
+    return [("Stitch Seam preview", preview), ("Checks", text_panel(lines))]

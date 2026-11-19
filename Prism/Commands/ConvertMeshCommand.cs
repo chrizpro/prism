@@ -7,6 +7,7 @@ using Prism.Meshing;
 
 namespace Prism.Commands;
 
+[Legacy("Use Section Sketch for parametric reconstruction. Existing scripts can still call mesh_convert.")]
 public sealed class ConvertMeshCommand : MeshCommand
 {
     enum OutputKind { Solid, Surface, Freeform, Nurbs }

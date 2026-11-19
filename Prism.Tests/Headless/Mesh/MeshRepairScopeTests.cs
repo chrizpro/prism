@@ -99,6 +99,8 @@ public class MeshRepairScopeTests
         Assert.Equal(new[] { "Select", "Datum", "Prepare", "Analyze", "Repair", "Convert", "Transform", "Inspect", "Appearance" }, tab.Groups.Select(g => g.Title));
         var repairs = tab.Groups.Single(g => g.Title == "Repair").Items.OfType<RibbonButton>().ToArray();
         Assert.Equal(new[] { "Repair", "Edit\nRegion", "Remesh" }, repairs.Select(b => b.Label));
-        Assert.All(repairs, b => Assert.False(b.HasMenu));
+        Assert.Equal(new[] { "Cleanup", "Fill Hole", "Stitch Seam" }, repairs[0].Menu!.Select(b => b.Label));
+        Assert.Equal(new[] { "Edit\nRegion", "Draw Faces", "Delete and Patch", "Smooth", "Extract" }, repairs[1].Menu!.Select(b => b.Label));
+        Assert.False(repairs[2].HasMenu);
     }
 }

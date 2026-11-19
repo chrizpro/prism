@@ -70,7 +70,9 @@ public sealed class MeshRepairCommand : MeshCommand
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
         recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_scope), 0) : recipe;
 
-    public MeshRepairCommand(bool holesOnly = false) : base("Meshes", true)
+    readonly bool _cleanupOnly;
+
+    public MeshRepairCommand(bool holesOnly = false, bool cleanupOnly = false) : base("Meshes", true)
     {
         _scope = Choice("Repair scope", 0, "Entire mesh", "Selected region");
         _scope.HelpText = "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Edit Region. Shared vertices stay in place.";
@@ -80,17 +82,18 @@ public sealed class MeshRepairCommand : MeshCommand
         _shells = Check("Remove tiny floating shells", false);
         _minShell = Add(new IntParam { Label = "Shells smaller than (triangles)", Value = 100, Min = 1, Max = 1000000 });
         _orient = Check("Fix flipped and inconsistent normals", !holesOnly);
-        _holes = Check("Fill holes", true);
+        _cleanupOnly = cleanupOnly;
+        _holes = Check("Fill holes", !cleanupOnly);
         _maxHole = Add(new IntParam { Label = "Largest hole to fill (edges)", Value = 250, Min = 3, Max = 100000 });
         Src.Section = _scope.Section = "Scope";
         foreach (var parameter in new Param[] { _weld, _weldTol, _clean, _shells, _minShell, _orient }) parameter.Section = "Cleanup";
         _holes.Section = _maxHole.Section = "Hole filling";
-        _title = holesOnly ? "Fill Holes" : "Repair Mesh";
+        _title = cleanupOnly ? "Mesh Cleanup" : holesOnly ? "Fill Holes" : "Repair Mesh";
     }
 
     readonly string _title;
     public override string Title => _title;
-    public override string Hint => "Repair the entire mesh or the region chosen with Edit Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.";
+    public override string Hint => _cleanupOnly ? "Clean up duplicate vertices, bad triangles and flipped normals. Open rims are preserved." : "Repair the entire mesh or the region chosen with Edit Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.";
     public override string Icon => "mesh-repair";
     public override string OkText => "Repair";
 
@@ -104,7 +107,7 @@ public sealed class MeshRepairCommand : MeshCommand
         }
     }
 
-    protected override void UpdateVisibility() { _weldTol.IsVisible = _weld.Value; _minShell.IsVisible = _shells.Value; _maxHole.IsVisible = _holes.Value; }
+    protected override void UpdateVisibility() { _weldTol.IsVisible = _weld.Value; _minShell.IsVisible = _shells.Value; _holes.IsVisible = !_cleanupOnly; _maxHole.IsVisible = !_cleanupOnly && _holes.Value; }
 
     protected override CommandOutput? Build()
     {
@@ -141,7 +144,7 @@ public sealed class MeshRepairCommand : MeshCommand
                 if (_orient.Value) { var r = MeshOps.FixOrientation(m); m = r.mesh; flipped = r.flipped; }
             }
             int filled = 0, skipped = 0;
-            if (_holes.Value)
+            if (!_cleanupOnly && _holes.Value)
             {
                 var source = m;
                 var r = MeshOps.FillHoles(m, _maxHole.Value, include, loop => _filledRims.Add(loop.Select(source.P).ToArray()));
@@ -153,7 +156,7 @@ public sealed class MeshRepairCommand : MeshCommand
             string p = objs.Count > 1 ? obj.Name + ": " : "";
             Row(p + "Triangles", $"{Count(before.Triangles)} → {Count(after.Triangles)}");
             Row(p + "Holes", $"{before.HoleLoops} → {after.HoleLoops}" + (skipped > 0 ? $"  ({skipped} too large or could not be patched)" : ""), after.HoleLoops == 0 ? 1 : 2);
-            if (_holes.Value) Row(p + "Hole preview", $"{filled} to fill (green rims)" + (_scope.Index == 1 ? $"; {protectedHoles} outside the selected region left open" : ""));
+            if (!_cleanupOnly && _holes.Value) Row(p + "Hole preview", $"{filled} to fill (green rims)" + (_scope.Index == 1 ? $"; {protectedHoles} outside the selected region left open" : ""));
             if (before.NonManifoldEdges + after.NonManifoldEdges > 0) Row(p + "Non-manifold edges", $"{before.NonManifoldEdges} → {after.NonManifoldEdges}", after.NonManifoldEdges == 0 ? 1 : 3);
             if (flipped > 0) Row(p + "Triangles re-oriented", Count(flipped));
             Row(p + "Result", after.Printable ? "Watertight and printable" : after.Closed ? "Closed, but check normals / non-manifold edges" : "Still open", after.Printable ? 1 : 2);

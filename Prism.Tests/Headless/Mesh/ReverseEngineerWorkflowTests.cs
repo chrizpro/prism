@@ -40,7 +40,7 @@ public class ReverseEngineerWorkflowTests
         session.CancelCommand();
     }
 
-    [AvaloniaFact(DisplayName = "REV-H118 | The combined Mesh ribbon exposes nine tools and keeps legacy conversions callable")]
+    [AvaloniaFact(DisplayName = "REV-H118 | Mesh exposes Section Sketch and keeps legacy conversions callable")]
     [Trait("TestId", "REV-H118")]
     public void RibbonShowsTheDifferentRoutes()
     {
@@ -48,7 +48,7 @@ public class ReverseEngineerWorkflowTests
         Assert.DoesNotContain(vm.Tabs, tab => tab.Title == "Reverse Engineer");
         var mesh = vm.Tabs.Single(t => t.Title == "Mesh");
         var groups = mesh.Groups.Where(g => g.Title is "Prepare" or "Analyze" or "Repair" or "Convert");
-        Assert.Equal(new[] { "Import Mesh", "Align", "Mesh Quality", "Deviation", "Repair", "Edit Region", "Remesh", "Convert Mesh", "Section Sketch" },
+        Assert.Equal(new[] { "Import Mesh", "Align", "Mesh Quality", "Deviation", "Repair", "Edit Region", "Remesh", "Section Sketch" },
             groups.SelectMany(g => g.Items.OfType<RibbonButton>()).Select(b => b.Label.Replace("\n", " ")));
         var legacy = new MeshToSolidCommand();
         Assert.True(LegacyAttribute.IsLegacy(legacy.GetType()));

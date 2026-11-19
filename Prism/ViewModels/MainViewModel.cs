@@ -1120,6 +1120,11 @@ public sealed partial class MainViewModel : ViewModelBase
             IsSplit = true, Current = primary, Menu = [primary, .. alternatives],
             CanExecute = primary.CanExecute,
         };
+        var meshRepair = MeshMenu("split:mesh-repair", "Clean the mesh, fill a chosen rim, or stitch two boundary edges.",
+            Cmd("Cleanup", "mesh-repair", () => new MeshRepairCommand(cleanupOnly: true), "Clean up vertices, triangles and winding without filling openings."),
+            Cmd("Fill Hole", "mesh-patch", () => new MeshBoundaryCommand(), "Pick a single rim to fill."),
+            Cmd("Stitch Seam", "mesh-repair", () => new MeshBoundaryCommand(stitch: true), "Join two picked boundary edges within a maximum gap."));
+        meshRepair.Label = "Repair";
         var mesh = new RibbonTab
         {
             Title = "Mesh",
@@ -1137,11 +1142,15 @@ public sealed partial class MainViewModel : ViewModelBase
                         Btn("Clear Colors", "clear-analysis", () => Session.ClearAnalysis(), "Remove analysis colors from meshes.")),
                     Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare the scan with a CAD body or another mesh.")),
                 G("Repair",
-                    Cmd("Repair", "mesh-repair", () => new MeshRepairCommand(), "Repair the entire mesh or a selected region; preview the holes to fill."),
-                    Cmd("Edit\nRegion", "mesh-select", () => new MeshRegionCommand(), "Select, delete, patch, smooth or extract triangles."),
+                    meshRepair,
+                    MeshMenu("split:mesh-region", "Select or repair a mesh region.",
+                        Cmd("Edit\nRegion", "mesh-select", () => new MeshRegionCommand(), "Select, delete, patch, smooth or extract triangles."),
+                        Cmd("Draw Faces", "form-face", () => new MeshDrawFacesCommand(), "Draw triangles and quads and stitch them into the mesh."),
+                        Cmd("Delete and Patch", "mesh-patch", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.DeleteAndPatch), "Select a region to remove and patch."),
+                        Cmd("Smooth", "mesh-smooth", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Smooth), "Select a region to smooth."),
+                        Cmd("Extract", "mesh-select", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Extract), "Select a region to copy as a separate mesh.")),
                     Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Redistribute triangles or reduce the triangle count.")),
                 G("Convert",
-                    Cmd("Convert\nMesh", "mesh-fit", () => new ConvertMeshCommand(), "Fit a solid, surface, freeform cage or NURBS patch to the mesh."),
                     Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchCommand(), "Use a mesh section to start an editable parametric sketch.")),
                 TransformGrp(), InspectGrp(), AppearanceGrp(),
             ],
@@ -1487,7 +1496,7 @@ public sealed partial class MainViewModel : ViewModelBase
             () => new MeshSmoothCommand(), () => new MeshCutCommand(), () => new MeshOffsetCommand(), () => new MeshBooleanCommand(),
             () => new MeshToSolidCommand(), () => new MeshSegmentCommand(), () => new MeshRebuildCommand(),
             () => new MeshFitSurfaceCommand(), () => new FormFromScanCommand(), () => new SolidToMeshCommand(),
-            () => new MeshCheckCommand() }) CommandCatalog.Register(make);
+            () => new MeshCheckCommand(), () => new ConvertMeshCommand(), () => new MeshRepairCommand() }) CommandCatalog.Register(make);
         // folded into other tools on the ribbon; scripts and saved steps still reach them
         foreach (Func<Command> make in new Func<Command>[] { () => new SweepTwoRailsCommand(), () => new NetworkSurfaceCommand(), () => new BlendSurfaceCommand(), () => new PatchCommand(), () => new PlanarSurfaceCommand(), () => new RuledSurfaceCommand(), () => new SplitCurveCommand(), () => new DeformCommand(), () => new IntersectSurfacesCommand(), () => new CurveIntersectCommand() }) CommandCatalog.Register(make);
         CommandCatalog.Register(() => new FillOpeningCommand());

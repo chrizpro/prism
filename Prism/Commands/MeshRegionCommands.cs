@@ -15,7 +15,9 @@ public sealed class MeshRegionCommand : MeshCommand
     readonly BoolParam _front, _through;
     readonly ChoiceParam _patch;
 
-    public MeshRegionCommand() : base("Mesh (click it)")
+    public enum ActionMode { All, DeleteAndPatch, Smooth, Extract }
+
+    public MeshRegionCommand(ActionMode action = ActionMode.All) : base("Mesh (click it)")
     {
         Mode = Choice("Select with", 0, "Smart patch: click a smooth area", "Brush: paint triangles", "Rectangle: drag a box", "Lasso: draw around");
         _tolerance = Num("Surface tolerance", 0.2, 0.001, 50, 0.05);
@@ -28,11 +30,12 @@ public sealed class MeshRegionCommand : MeshCommand
         Add(new ActionParam { Label = "Invert selection", Run = () => Edit(s => s.Invert()) });
         Add(new ActionParam { Label = "Select everything", Run = () => Edit(s => s.All()) });
         Add(new ActionParam { Label = "Clear selection", Run = () => Edit(s => s.Clear()) });
-        Add(new ActionParam { Label = "Extract selection as a new mesh", Run = ExtractSel });
-        Add(new ActionParam { Label = "Delete selected triangles", Run = DeleteSel });
+        Add(new ActionParam { Label = "Extract selection as a new mesh", Run = ExtractSel, IsVisible = action is ActionMode.All or ActionMode.Extract });
+        Add(new ActionParam { Label = "Delete selected triangles", Run = DeleteSel, IsVisible = action == ActionMode.All });
         _patch = Choice("Patch", 0, "Smooth (follows the surface around it)", "Flat");
-        Add(new ActionParam { Label = "Delete and patch", Run = DeleteAndPatch });
-        Add(new ActionParam { Label = "Smooth selected triangles", Run = SmoothSel });
+        Add(new ActionParam { Label = "Delete and patch", Run = DeleteAndPatch, IsVisible = action is ActionMode.All or ActionMode.DeleteAndPatch });
+        Add(new ActionParam { Label = "Smooth selected triangles", Run = SmoothSel, IsVisible = action is ActionMode.All or ActionMode.Smooth });
+        _patch.IsVisible = action is ActionMode.All or ActionMode.DeleteAndPatch;
         Tool = new RegionTool(this);
     }
 

@@ -7,11 +7,24 @@ The owner approved the combined Mesh tab and the conversion workflow on 2026-11-
 | Prepare | Import Mesh (with Import Point Cloud and Reconstruct Mesh in its menu), Align |
 | Analyze | Mesh Quality (with Clear Colors in its menu), Deviation |
 | Repair | Repair, Edit Region, Remesh |
-| Convert | Convert Mesh, Section Sketch |
+| Convert | Section Sketch |
 
 Select, Datum, Transform, Inspect and Appearance remain available as shared sections. Print Check, Wall Thickness and Overhang & Orientation are available in CAM's print preparation. Use File → Export for mesh files. Superseded tools, including standalone Reduce and the triangle-by-triangle Mesh to Solid, use the command legacy attribute and remain available to existing scripts and saved feature recipes.
 
+The owner approved manual mesh repair and the revised ribbon on 2026-11-18 for [#146](https://github.com/chrizpro/prism/issues/146). Section Sketch is the visible reconstruction command. The automatic Convert Mesh tool remains available to scripts as `mesh_convert` and to saved recipes.
+
 ## Repair and local editing
+
+**Repair** opens Cleanup. Its menu also offers **Fill Hole** and **Stitch Seam**. Cleanup preserves open rims. Fill Hole picks one closed rim and previews a flat or smooth patch. Stitch Seam picks an edge to keep fixed, then the matching boundary edge to move. It welds the endpoints only within **Maximum gap** in millimeters. Repeat on longer seams. Use Draw Faces to bridge gaps or mismatched edges.
+
+### Drawing a repair
+
+Open **Edit Region → Draw Faces**. Choose **Open rim** to add faces, or **Replace selected region** to draft against a cut boundary while the source faces stay visible. Click three or four corners and press Enter to finish a face. Shift-click a rim or draft edge to start from its endpoints, or Shift-drag the edge into a quad. Corners snap to the rim, to draft vertices, or to the scan surface. The XY, XZ or YZ drawing plane and its offset supply points where the scan has no hit. Turn off **Snap to mesh** to place points on the plane while retaining explicit edge starts.
+
+The preview shows source faces to remove, the draft faces, joined edges in green, and the remaining open-edge count. Landing on an edge interior splits the adjoining source triangle to give the patch a shared vertex. Applying replaces the mesh in one undoable edit. Replacements must cover the entire cut seam. Invalid joins, collapsed faces and new overlaps detected by the local check block Apply. Intentional holes elsewhere remain open.
+
+**Proposed — awaiting owner review.** The shared Face picker currently uses a single face ID for the entire displayed triangle mesh. Direct triangle selection needs a mesh-specific identity and a handoff to the region tools. Keep the shared ribbon sections pending the owner's separate review.
+
 
 ### Removing something from a mesh
 
@@ -22,11 +35,11 @@ Open **Edit Region**, pick the area with smart patch, brush, rectangle or lasso,
 
 **Smooth selected triangles** reduces local noise while keeping sharp edges, open edges and vertices shared with unselected triangles fixed.
 
-### Controlling Repair
+### Cleanup scope and saved Repair workflows
 
-Repair's **Scope** section offers Entire mesh and Selected region. If a current nonempty region exists, opening Repair selects that mesh and defaults to Selected region. Otherwise it defaults to Entire mesh. Choose the scope explicitly before applying.
+Cleanup's **Scope** section offers Entire mesh and Selected region. If a current nonempty region exists, opening Repair selects that mesh and defaults to Selected region. Otherwise it defaults to Entire mesh. Choose the scope explicitly before applying.
 
-For a local repair, open Edit Region, select the triangles around an unwanted opening, then open Repair. A hole is eligible only when the triangle beside **every edge of its rim** is selected. Partial rims and openings outside the region stay open. Green outlines preview the holes that will be filled; the report counts filled candidates, protected holes and remaining holes. The hole limit is a count of rim edges, not a diameter in millimeters. Turning Fill holes off leaves hole filling disabled in either scope.
+For a local fill on the ribbon, use **Repair → Fill Hole** and pick the rim. The original batch Repair command remains callable as `mesh_repair`. In that command’s selected-region mode a hole is eligible only when the triangle beside **every edge of its rim** is selected. Partial rims and openings outside the region stay open. Green outlines preview the holes that will be filled; the report counts filled candidates, protected holes and remaining holes. The hole limit is a count of rim edges, not a diameter in millimeters. Turning Fill holes off leaves hole filling disabled in either scope.
 
 **Cleanup** controls merging duplicate vertices, removing degenerate/duplicate triangles, removing tiny floating shells and correcting normals. Selected-region mode restricts these operations too: vertices shared with unselected faces stay fixed, junk triangles outside the region remain, and a tiny shell is removed only if it is wholly selected. Normal correction uses surrounding unselected faces as anchors; it cannot fix an inconsistent surrounding mesh without changing the scope. Seam defects can require a larger selection or Entire mesh. Entire mesh retains the global cleanup behavior. There is no general automatic repair for self-intersections or non-manifold edges.
 
@@ -34,7 +47,7 @@ Selection is tied to one version of one mesh. A missing, empty, wrong-mesh or st
 
 **Remesh** has two modes. **Redistribute triangles** sets a target edge length and can preserve sharp and open edges. **Reduce Faces** simplifies by target triangle count or percentage and can keep open edges. Both can keep the source mesh. Check the triangle count and shape change before applying, especially around small features.
 
-## Convert Mesh
+## Legacy Convert Mesh automation
 
 | Output | Source and result |
 |---|---|
@@ -65,6 +78,8 @@ If automation fits the wrong local shape, use Edit Region and Convert Mesh to ch
 
 ## Maintained tests
 
+[Manual mesh repair headless tests](../../../Prism.Tests/Headless/Mesh/MeshManualRepairTests.cs) and [local topology tests](../../../Prism.Tests/Unit/Mesh/MeshLocalEditTests.cs) cover drawing, seam welding, rim isolation and undo.
+
 [Combined Mesh workflow tests](../../../Prism.Tests/Headless/Mesh/MeshConsolidationTests.cs) cover open-solid consent, explicit region outputs, deviation in both directions, Freeform, face reduction and local smoothing.
 
 [Mesh tool tests](../../../Prism.Tests/Headless/Mesh/MeshToolTests.cs) cover Repair and Fill Holes, Print Check (printers, custom volume, materials), Reduce, Smooth, Offset, Split (every plane, flip, open cut, keep options), Section Curves, Wall Thickness, Overhang orientation, Deviation, every Align mode, Mesh Boolean, Remesh, Mesh Quality and both conversions between meshes and solids. [Reverse engineering tests](../../../Prism.Tests/Headless/Mesh/ReverseEngineerTests.cs) cover Segment & Fit, Rebuild from Scan (faces, curves and sewn solid), Section Lines & Arcs, Section Sketch and Select Region actions. Run `./tools/test.ps1 -Feature Mesh`.
@@ -81,6 +96,13 @@ Fixed on 2026-11-05:
 Fixed during the 2026-11-10 Reverse Engineer workflow verification: sparse rectangular section corners could fit a circle even though their straight edges departed from that circle. Arc fitting now checks edge interiors and the closing edge of a complete circle candidate. Section arc previews also sample the fitted curves instead of drawing only their start/mid/end chords, which made a circle preview look rectangular. REV-U001 / REV-H120 cover the rectangular tube section; REV-U002 / REV-H119 retain the circular route and verify the preview follows the circle.
 
 ## Tested on
+
+On 2026-11-18, Windows Release passed **10 Mesh Unit and 87 Mesh Headless tests** using the workstation's staged OCCT runtime. The desktop build and ribbon catalog check passed. Three desktop scenarios passed twice in shuffled order, including the legacy conversion workflow.
+
+- **MSH-I003** used the pointer to draw a quad over one of two open rims. The preview reported four joined edges. Applying changed 8 triangles to 10 and 2 open rims to 1. [Draw Faces viewport](evidence/MSH-I003-draw-faces.png)
+- **MSH-I004** stitched a 0.2 mm gap within a 0.3 mm limit. The two sheets joined with 6 vertices, 4 triangles, and one open outer rim. The companion Fill Hole action closed one of two openings. [Stitch Seam viewport](evidence/MSH-I004-stitch-seam.png)
+
+The tested revision and commands are recorded in [#146](https://github.com/chrizpro/prism/issues/146). Large, heavily damaged scans still need hands-on usability checks.
 
 On 2026-11-18, **6 Unit and 83 Headless Mesh tests** passed on Windows Release using the workstation's staged OCCT runtime. The desktop build and ribbon catalog check passed. Desktop scenario **MSH-I002** imported an open 20 × 20 mm mesh, previewed a Solid conversion and confirmed it required explicit consent to keep the open result. It then selected the mesh with a pointer and fitted a 400.0 mm² CAD face. Both checks passed in two runs. See the [preview and checks](evidence/MSH-I002-convert-open-scan.png) and [#145](https://github.com/chrizpro/prism/issues/145) for the tested revision.
 

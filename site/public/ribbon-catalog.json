@@ -1,5 +1,5 @@
 {
-  "sourceHash": "3D5254E0261FB3A85012778AEE81BF746B919202903085307BC59D83BCFA5BBC",
+  "sourceHash": "39D67E332DDDC0C5D992FB80A07BEC0448B8CBB6A9A22FB67394B162FA26ABF7",
   "workspaces": [
     {
       "Id": "design",
@@ -4456,15 +4456,51 @@
           "title": "Repair",
           "tools": [
             {
-              "id": "mesh-repair|Repair",
-              "label": "Repair",
-              "description": "Repair the entire mesh or a selected region; preview the holes to fill.",
+              "id": "mesh-repair|Cleanup",
+              "label": "Cleanup",
+              "description": "Clean up vertices, triangles and winding without filling openings.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-patch|Fill Hole",
+              "label": "Fill Hole",
+              "description": "Pick a single rim to fill.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-repair|Stitch Seam",
+              "label": "Stitch Seam",
+              "description": "Join two picked boundary edges within a maximum gap.",
               "shortcut": ""
             },
             {
               "id": "mesh-select|Edit Region",
               "label": "Edit Region",
               "description": "Select, delete, patch, smooth or extract triangles.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-face|Draw Faces",
+              "label": "Draw Faces",
+              "description": "Draw triangles and quads and stitch them into the mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-patch|Delete and Patch",
+              "label": "Delete and Patch",
+              "description": "Select a region to remove and patch.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-smooth|Smooth",
+              "label": "Smooth",
+              "description": "Select a region to smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-select|Extract",
+              "label": "Extract",
+              "description": "Select a region to copy as a separate mesh.",
               "shortcut": ""
             },
             {
@@ -4478,12 +4514,6 @@
         {
           "title": "Convert",
           "tools": [
-            {
-              "id": "mesh-fit|Convert Mesh",
-              "label": "Convert Mesh",
-              "description": "Fit a solid, surface, freeform cage or NURBS patch to the mesh.",
-              "shortcut": ""
-            },
             {
               "id": "mesh-section|Section Sketch",
               "label": "Section Sketch",
