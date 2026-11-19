@@ -1,5 +1,5 @@
 {
-  "sourceHash": "1884F7C2B294A87DC3A10A9D09F792B8573B32016E65B626D5250400127B44DB",
+  "sourceHash": "950F12B7DFC28E946956359CAD00631414A734BDBC536BBAA4B140A13D04C4C5",
   "workspaces": [
     {
       "Id": "design",
@@ -4486,7 +4486,7 @@
             {
               "id": "mesh-patch|Fill Hole",
               "label": "Fill Hole",
-              "description": "Pick a single rim to fill.",
+              "description": "Pick one or more openings, then fill them together.",
               "shortcut": ""
             },
             {

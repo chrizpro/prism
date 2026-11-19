@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Prism.Core;
 using Prism.Kernel;
@@ -7,7 +8,7 @@ using Edge = Prism.Meshing.MeshLocalEdit.Edge;
 
 namespace Prism.Commands;
 
-/// <summary>Applies a local operation to a rim or two explicitly picked boundary edges.</summary>
+/// <summary>Fills selected rims or stitches two explicitly picked boundary edges.</summary>
 public sealed class MeshBoundaryCommand : MeshCommand
 {
     readonly bool _stitch;
@@ -17,7 +18,11 @@ public sealed class MeshBoundaryCommand : MeshCommand
     TriMesh? _mesh;
     Edge[] _edges = [];
     Edge? _first, _second;
-    int[]? _rim;
+    IReadOnlyList<int[]> _rims = [];
+    readonly SortedSet<int> _selectedRims = [];
+    readonly Dictionary<(int, int), int> _rimByEdge = [];
+    Edge[] _closedEdges = [];
+    (TriMesh Mesh, int[] RimByTriangle)? _pickCaps;
     TriMesh? _result;
     bool _valid;
 
@@ -37,7 +42,7 @@ public sealed class MeshBoundaryCommand : MeshCommand
     public override string OkText => _stitch ? "Stitch" : "Fill";
     public override string Hint => _stitch
         ? "Pick the rim edge to keep, then the matching edge to weld to it. Preview which endpoints join."
-        : "Click a closed rim to fill that opening. Nearby rims stay open.";
+        : "Click inside an opening or on its rim to select it. Click it again to remove it, then choose Fill.";
 
     protected override void UpdateVisibility()
     {
@@ -47,13 +52,24 @@ public sealed class MeshBoundaryCommand : MeshCommand
         _mesh = obj?.Tri;
         _edges = _mesh == null ? [] : MeshLocalEdit.Boundary(_mesh);
         _first = _second = null;
-        _rim = null;
+        _selectedRims.Clear();
+        _rimByEdge.Clear();
+        _closedEdges = [];
+        _pickCaps = null;
+        _rims = !_stitch && _mesh != null ? _mesh.Topology().HoleLoops : [];
+        for (int i = 0; i < _rims.Count; i++)
+        {
+            var rim = _rims[i];
+            for (int k = 0; k < rim.Length; k++)
+                _rimByEdge.TryAdd(new Edge(rim[k], rim[(k + 1) % rim.Length]).Key, i);
+        }
+        _closedEdges = _edges.Where(edge => _rimByEdge.ContainsKey(edge.Key)).ToArray();
     }
 
     void Clear()
     {
         _first = _second = null;
-        _rim = null;
+        _selectedRims.Clear();
         OnChanged();
     }
 
@@ -76,8 +92,13 @@ public sealed class MeshBoundaryCommand : MeshCommand
         }
         else
         {
-            if (_rim == null) { Row("Rim", "Pick a closed boundary."); return null; }
-            _result = MeshPatch.FillBoundary(_mesh, _rim, _fill.Index == 1);
+            if (_selectedRims.Count == 0)
+            {
+                Row("Openings", _rims.Count == 0 ? "This mesh has no closed openings." : "Pick one or more openings.");
+                return null;
+            }
+            Row("Selected openings", Count(_selectedRims.Count));
+            _result = MeshPatch.FillBoundaries(_mesh, _selectedRims.Select(i => _rims[i]), _fill.Index == 1);
             var added = Enumerable.Range(_mesh.TriCount, _result.TriCount - _mesh.TriCount).ToHashSet();
             if (added.Count == 0) throw new InvalidOperationException("The selected rim could not be filled.");
             if (MeshLocalEdit.Validate(_result, added) is { } error) throw new InvalidOperationException(error);
@@ -94,7 +115,8 @@ public sealed class MeshBoundaryCommand : MeshCommand
     {
         if (_mesh == null) return;
         foreach (var e in _edges.Take(10000)) overlay.AddLine(_mesh.P(e.A), _mesh.P(e.B), 0xFFF29B45, 2);
-        if (_rim is { } rim) overlay.AddPolyline(rim.Select(_mesh.P).ToArray(), _valid ? 0xFF36C978 : 0xFFFF5555, 3, true);
+        foreach (int rim in _selectedRims)
+            overlay.AddPolyline(_rims[rim].Select(_mesh.P).ToArray(), _valid ? 0xFF36C978 : 0xFFFF5555, 3, true);
         if (_first is { } first) overlay.AddLine(_mesh.P(first.A), _mesh.P(first.B), 0xFF36C978, 4);
         if (_first is { } a && _second is { } b)
         {
@@ -109,6 +131,20 @@ public sealed class MeshBoundaryCommand : MeshCommand
                 var (x, y, z) = fitted.Tri(t);
                 overlay.AddTri(fitted.P(x), fitted.P(y), fitted.P(z), 0x9036C978);
             }
+    }
+
+    int? PickRim(CadSession s, TriMesh mesh, double x, double y)
+    {
+        if (_rims.Count == 0) return null;
+        if (MeshBoundaryPicker.Nearest(s, mesh, _closedEdges, x, y,
+            accept: hit => MeshBoundaryPicker.IsVisible(s, hit.Point)) is { } edge)
+            return _rimByEdge[edge.Edge.Key];
+
+        _pickCaps ??= MeshPatch.BoundaryPickMesh(mesh, _rims);
+        var (caps, rimByTriangle) = _pickCaps.Value;
+        var (origin, direction) = s.Camera.Ray(x, y);
+        if (caps.Bvh.Raycast(origin, direction) is not { } hit) return null;
+        return MeshBoundaryPicker.IsVisible(s, origin + direction * hit.t) ? rimByTriangle[hit.tri] : null;
     }
 
     sealed class BoundaryTool(MeshBoundaryCommand command) : IViewportTool
@@ -127,28 +163,28 @@ public sealed class MeshBoundaryCommand : MeshCommand
                 }
                 return true;
             }
+            if (!command._stitch)
+            {
+                if (command.PickRim(s, mesh, p.X, p.Y) is { } rim)
+                {
+                    if (!command._selectedRims.Add(rim)) command._selectedRims.Remove(rim);
+                    command.OnChanged();
+                }
+                return true;
+            }
             var (origin, direction) = s.Camera.Ray(p.X, p.Y);
             var hit = mesh.Bvh.Raycast(origin, direction);
             double? depth = hit == null ? null : s.Camera.Project(origin + direction * hit.Value.t)?.depth;
-            var exclude = command._stitch && command._second == null ? command._first : null;
+            var exclude = command._second == null ? command._first : null;
             if (MeshBoundaryPicker.Nearest(s, mesh, command._edges, p.X, p.Y, depth, exclude) is not { } edge)
                 return true;
 
-            if (command._stitch)
+            if (command._first == null || command._second != null)
             {
-                if (command._first == null || command._second != null)
-                {
-                    command._first = edge.Edge;
-                    command._second = null;
-                }
-                else if (command._first.Value.Key != edge.Edge.Key) command._second = edge.Edge;
+                command._first = edge.Edge;
+                command._second = null;
             }
-            else
-            {
-                command._rim = mesh.Topology().HoleLoops.FirstOrDefault(loop => Enumerable.Range(0, loop.Length)
-                    .Any(i => new Edge(loop[i], loop[(i + 1) % loop.Length]).Key == edge.Edge.Key));
-                if (command._rim == null) s.Say("That edge does not belong to a closed rim. Use Draw Faces to bridge it.", true);
-            }
+            else if (command._first.Value.Key != edge.Edge.Key) command._second = edge.Edge;
             command.OnChanged();
             return true;
         }

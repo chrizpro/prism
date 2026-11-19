@@ -49,22 +49,50 @@ public static class MeshPatch
         return new Result(MeshOps.Compact(v, [.. tris]), openings, added);
     }
 
-    public static TriMesh FillBoundary(TriMesh mesh, int[] rim, bool smooth)
+    public static TriMesh FillBoundary(TriMesh mesh, int[] rim, bool smooth) => FillBoundaries(mesh, [rim], smooth);
+
+    public static TriMesh FillBoundaries(TriMesh mesh, IEnumerable<int[]> rims, bool smooth)
     {
         var verts = Enumerable.Range(0, mesh.VertexCount).Select(mesh.P).ToList();
-        var loop = rim.Reverse().ToArray();
-        var patch = Cap(loop, verts);
-        if (smooth)
+        var tris = mesh.T.ToList();
+        var neighbours = smooth ? Neighbours(tris) : null;
+        foreach (var rim in rims)
         {
-            double size = Enumerable.Range(0, loop.Length).Average(i => verts[loop[i]].DistanceTo(verts[loop[(i + 1) % loop.Length]]));
-            Refine(patch, verts, size);
-            Fair(patch, loop.ToHashSet(), Neighbours([.. mesh.T]), verts);
+            var loop = rim.Reverse().ToArray();
+            var patch = Cap(loop, verts);
+            if (neighbours != null)
+            {
+                double size = Enumerable.Range(0, loop.Length).Average(i => verts[loop[i]].DistanceTo(verts[loop[(i + 1) % loop.Length]]));
+                Refine(patch, verts, size);
+                Fair(patch, loop.ToHashSet(), neighbours, verts);
+            }
+            tris.AddRange(patch);
         }
-        var v = verts.SelectMany(p => new[] { (float)p.X, (float)p.Y, (float)p.Z }).ToArray();
         var colors = mesh.VertexColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, verts.Count - mesh.VertexCount)).ToArray();
-        var faces = mesh.FaceColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, patch.Count / 3)).ToArray();
-        return new TriMesh(v, [.. mesh.T, .. patch], colors, faces);
+        var faces = mesh.FaceColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, tris.Count / 3 - mesh.TriCount)).ToArray();
+        return new TriMesh(Coordinates(verts), [.. tris], colors, faces);
     }
+
+    /// <summary>Virtual flat caps for ray picking the space inside each opening.</summary>
+    internal static (TriMesh Mesh, int[] RimByTriangle) BoundaryPickMesh(TriMesh mesh, IReadOnlyList<int[]> rims)
+    {
+        var verts = new List<Vec3>();
+        var tris = new List<int>();
+        var rimByTriangle = new List<int>();
+        for (int i = 0; i < rims.Count; i++)
+        {
+            var rim = rims[i];
+            int start = verts.Count;
+            verts.AddRange(rim.Select(mesh.P));
+            var cap = Cap(Enumerable.Range(start, rim.Length).Reverse().ToArray(), verts);
+            tris.AddRange(cap);
+            rimByTriangle.AddRange(Enumerable.Repeat(i, cap.Count / 3));
+        }
+        return (new TriMesh(Coordinates(verts), [.. tris]), [.. rimByTriangle]);
+    }
+
+    static float[] Coordinates(IEnumerable<Vec3> points) =>
+        points.SelectMany(p => new[] { (float)p.X, (float)p.Y, (float)p.Z }).ToArray();
 
     static Dictionary<int, HashSet<int>> Neighbours(List<int> t)
     {

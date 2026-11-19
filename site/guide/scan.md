@@ -6,10 +6,10 @@ The **Scan** workspace uses one [Mesh tab](/tools/mesh) to prepare, inspect, rep
 
 1. Open **Import Mesh** for STL, OBJ, PLY or 3MF. Its menu also opens a point cloud and reconstructs a mesh from it.
 2. Use **Align** to orient the scan or best-fit it to a reference.
-3. Open **Mesh Quality** to find defects. **Repair → Cleanup** cleans the whole mesh or a selected region. Use **Fill Hole** to pick a single rim, or **Stitch Seam** to weld a pair of boundary edges.
+3. Open **Mesh Quality** to find defects. **Repair → Cleanup** cleans the whole mesh or a selected region. Use **Fill Hole** to select openings and fill them together, or **Stitch Seam** to weld a pair of boundary edges.
 4. Use **Remesh** to redistribute triangles by edge length or reduce the triangle count. Keep the source to compare fine details.
 
-**Select → Face** picks individual mesh triangles. Press **Delete** to remove them and leave an opening. **Edit Region** lets you delete and patch, smooth, or extract selected triangles. **Draw Faces** lets you build a custom patch from an open rim or replace a selected region. Snap the corners to the mesh or draw on a work plane. Green lines preview the shared edges before **Stitch and apply**.
+**Select → Face** picks individual mesh triangles. Press **Delete** to remove them and leave an opening. **Edit Region** lets you delete and patch, smooth, or extract selected triangles. **Draw Faces** lets you build a custom patch from an open rim or replace a selected region. The source triangle turns cyan under the cursor. Snap the next corner to a vertex, edge or point on the mesh, or draw on a work plane. Green lines preview the shared edges before **Stitch and apply**.
 
 <GuideImage image="scan-mesh-quality" />
 
