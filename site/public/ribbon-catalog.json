@@ -1,5 +1,5 @@
 {
-  "sourceHash": "2170949E261CAD1D66BE2EB5D2F9EBD06A7D49D9B69715661E04017AA0E4E184",
+  "sourceHash": "1884F7C2B294A87DC3A10A9D09F792B8573B32016E65B626D5250400127B44DB",
   "workspaces": [
     {
       "Id": "design",
@@ -355,7 +355,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -804,7 +804,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -1253,7 +1253,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -1773,7 +1773,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -2373,7 +2373,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -2916,7 +2916,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -3213,7 +3213,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -3498,7 +3498,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -4137,7 +4137,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -4322,7 +4322,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -4631,7 +4631,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -5098,7 +5098,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -5314,7 +5314,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {
@@ -5792,7 +5792,7 @@
             {
               "id": "sel-face|Face",
               "label": "Face",
-              "description": "Pick individual faces.",
+              "description": "Pick individual CAD faces or mesh triangles.",
               "shortcut": ""
             },
             {

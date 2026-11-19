@@ -4022,7 +4022,9 @@ f 4 5 8
     cad.call("wait_idle")
     cad.call("run_command", name="mesh_draw_faces", commit=False)
     clicks = [(0, 0, 20), (20, 0, 20), (20, 20, 20), (0, 20, 20)]
-    cad.call("pointer", events=[{"type": "click", "x": x, "y": y, "z": z} for x, y, z in clicks] + [{"type": "key", "key": "Enter"}])
+    cad.call("pointer", events=[{"type": "click", "x": x, "y": y, "z": z} for x, y, z in clicks])
+    draft = screenshot()
+    cad.call("pointer", events=[{"type": "key", "key": "Enter"}])
     report = cad.call("get_state")["activeCommand"]["results"]
     preview = screenshot()
     before = cad.call("object_info", object=mesh)
@@ -4031,7 +4033,13 @@ f 4 5 8
     joined = any(row["label"] == "Joined edges" and row["value"] == "4" for row in report)
     ok = joined and (before["triangles"], after["triangles"], before["holes"], after["holes"]) == (8, 10, 2, 1)
     text = f"{'PASS' if ok else 'FAIL'}  {before['triangles']} to {after['triangles']} triangles, {before['holes']} to {after['holes']} open rims"
-    return [("Draw Faces stitch preview", preview), ("Checks", text_panel([text]))]
+    def purple_pixels(img):
+        return sum(r > g + 30 and b > r + 30 for r, g, b in img.convert("RGB").getdata())
+
+    counts = [purple_pixels(img) for img in (draft, preview)]
+    visible = ("PASS  More than 100 purple pixels before and after Enter" if min(counts) > 100
+               else f"FAIL  Expected more than 100 purple pixels before and after Enter, got {counts}")
+    return [("MSH-I003 | Pending face", draft), ("Stitch preview", preview), ("Checks", text_panel([text, visible]))]
 
 
 @scenario("mesh__fill-and-stitch-picked-boundaries", columns=1)
@@ -4211,18 +4219,71 @@ def mesh_select_face_delete_one_triangle():
     cad.call("history_view", expanded=False)
     cad.call("view", yaw=0, pitch=90, fit=True, grid=False)
     cad.call("wait_idle")
-    cad.call("ribbon_click", tab="Mesh", label="Face")
+    cad.call("ribbon_click", tab="Mesh", label="Section Sketch")
+    face_mode = cad.call("ribbon_click", tab="Mesh", label="Face")
     cad.call("pointer", events=[{"type": "click", "x": 15, "y": 5, "z": 0}])
     selected = cad.call("get_state", fields=["selection"])["selection"]
     before = screenshot()
     cad.call("pointer", events=[{"type": "key", "key": "Delete"}])
-    count = cad.call("object_info", object=mesh)["triangles"]
-    after = screenshot()
+    remaining = next((obj for obj in cad.call("get_state", fields=["objects"])["objects"] if obj["name"] == mesh), None)
+    count = remaining["triangles"] if remaining is not None else None
+    after = screenshot() if remaining is not None else text_panel(["No mesh remains after Delete"])
     cad.call("history", action="undo")
     undone = cad.call("object_info", object=mesh)["triangles"]
     tests = [
+        (face_mode.get("activeCommand") is None, "Face mode closed Section Sketch"),
         (len(selected) == 1 and selected[0].startswith("Triangle "), "Face mode selected one triangle"),
         (count == 3 and undone == 4, f"Delete left {count} triangles in the same mesh; Undo restored {undone}"),
     ]
     return [("MSH-I006 | Selected triangle", before), ("After Delete", after),
             ("Checks", text_panel([f"{'PASS' if ok else 'FAIL'}  {label}" for ok, label in tests]))]
+
+
+
+@scenario("mesh__quality-clear-and-preview-in-wireframe", columns=2)
+def mesh_quality_clear_and_preview():
+    import base64
+    import io
+    from PIL import Image
+
+    def screenshot():
+        cad.call("wait_idle")
+        shot = cad.call("screenshot", max_width=900)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).convert("RGB")
+
+    def warm_pixels(img):
+        # The preview colors the mesh in the center of the viewport. Ignore panels, status text and neutral UI pixels.
+        img = img.resize((480, round(img.height * 480 / img.width)))
+        x0, y0, x1, y1 = 105, round(img.height * .33), 342, round(img.height * .84)
+        return sum(r > 105 and r > g + 12 and g > b + 12 for r, g, b in img.crop((x0, y0, x1, y1)).getdata())
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Quality sample.obj"
+        path.write_text("v 0 0 0\nv 35 0 0\nv 1 5 0\nv 0 25 0\nf 1 2 3\nf 1 3 4\n")
+        cad.call("mesh_import", path=str(path))
+    cad.call("history_view", expanded=False)
+    cad.call("view", preset="top", fit=True, grid=False, display="wireframe")
+    cad.call("wait_idle")
+    cad.call("run_command", name="mesh_quality", params={"Show open edges (red)": False,
+             "Show sliver triangles (yellow)": False}, commit=False)
+    cad.call("command_set", params={"Clear defect display": True})
+    clear = screenshot()
+    report = cad.call("command_set", params={"Preview result": True})
+    restored = screenshot()
+    cad.call("command_set", params={"Clear defect display": True})
+    clear_again = screenshot()
+    cleared = warm_pixels(clear)
+    painted = warm_pixels(restored) - cleared
+    residual = abs(warm_pixels(clear_again) - cleared)
+    four_edges = "Open edges: 4" in report["results"]
+    checks = [
+        ("PASS  Wireframe heat map added > 700 warm pixels on Preview and returned within 350 pixels on Clear"
+         if painted > 700 and residual < 350 else
+         f"FAIL  Expected > 700 warm pixels on Preview and < 350 after Clear, got {painted} and {residual}"),
+        f"{'PASS' if four_edges else 'FAIL'}  Mesh Quality reported four open edges",
+    ]
+    cad.call("command_cancel")
+    cad.call("view", display="shaded_edges")
+    return [("MSH-I007 | Cleared", clear), ("Heat map restored", restored), ("Checks", text_panel(checks))]

@@ -107,6 +107,33 @@ public sealed class MeshSectionAndSelectionTests
         finally { File.Delete(path); }
     }
 
+    [AvaloniaFact(DisplayName = "MSH-H135 | Mesh Face selection dismisses the section preview and picks a triangle")]
+    [Trait("TestId", "MSH-H135")]
+    public void FaceModeLeavesSectionPreview()
+    {
+        var vm = new Prism.ViewModels.MainViewModel();
+        vm.SetWorkspace("scan");
+        vm.SelectTab(vm.Tabs.Single(t => t.Title == "Mesh"));
+        var session = vm.Session;
+        var mesh = AddMesh(session, BoxMesh(Vec3.Zero, 20, 20, 20));
+        var command = Begin(session, () => new MeshSectionSketchPanelCommand());
+        command.RepeatApply!.Run();
+        var sketch = Assert.Single(session.Objects, o => o.Kind == ObjKind.Sketch);
+
+        vm.SetSelectionMode(SelMode.Face);
+        Assert.Null(session.ActiveCommand);
+        Assert.Equal(SelMode.Face, session.Mode);
+        Assert.Same(sketch, session.Find(sketch.Id));
+        session.Camera.SetView(0, 90);
+        session.ZoomExtents();
+        var p = Screen(session, new Vec3(14, 5, 20));
+        session.PointerDown(p);
+        session.PointerUp(p with { Left = false });
+        var picked = Assert.Single(session.Selection);
+        Assert.Equal(mesh.Id, picked.Obj);
+        Assert.Equal(SelKind.MeshFace, picked.Kind);
+    }
+
     [AvaloniaFact(DisplayName = "MSH-H132 | Shared Face mode picks one colored mesh triangle; Delete and Undo preserve its mesh")]
     [Trait("TestId", "MSH-H132")]
     public void SelectAndDeleteOneMeshTriangle()

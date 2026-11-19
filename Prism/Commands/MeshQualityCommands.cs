@@ -35,6 +35,8 @@ public sealed class MeshQualityCommand : MeshCommand
     public override string Hint => "Measures triangle shape (aspect ratio, angles, edge lengths), finds self-intersections, and highlights defects in the viewport. The highlights stay until you press 'Clear defect display' or Clear Analysis.";
     public override string Icon => "mesh-quality";
     public override string OkText => "Done";
+    // The report is live. Expensive intersection checks are gated by Preview result.
+    public override bool SupportsPreview => false;
 
     void ClearDisplay()
     {
@@ -89,12 +91,12 @@ public sealed class MeshQualityCommand : MeshCommand
             var metric = (QualityMetric)(_heat.Index - 1);
             var vert = MeshQuality.ToVertexMax(m, MeshQuality.Severity(mt, metric));
             var (disp, sc) = m.ToScalarMeshData(vert); disp.Scalars = sc;
-            S.SetField(obj, m, disp, 1, 0f, 1f);
+            S.SetField(obj, m, disp, 1, 0f, 1f, showInWireframe: true);
             Row("Heat map", "blue = good, red = worst: " + new[] { "", "high aspect ratio", "small angle", "large angle", "size far from the median" }[_heat.Index]);
         }
 
         // persistent viewport highlights
-        var defects = MeshQuality.Defects(m, mt, _hits?.Triangles ?? [], _open.Value, _nonManifold.Value, _sliver.Value);
+        var defects = MeshQuality.Defects(m, mt, wantHits ? _hits?.Triangles ?? [] : [], _open.Value, _nonManifold.Value, _sliver.Value);
         bool any = defects.OpenEdges.Count + defects.NonManifoldEdges.Count + defects.SelfIntersecting.Count + defects.Slivers.Count > 0;
         S.SetDefects(any ? ov => DrawDefects(ov, defects) : null);
         Row("Legend", "red = open edge, magenta = non-manifold, orange = self-intersection, yellow = sliver");

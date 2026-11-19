@@ -14,7 +14,9 @@ public sealed class MeshDrawFacesCommand : MeshCommand
     readonly ChoiceParam _scope, _plane;
     readonly BoolParam _snap, _seam;
     readonly NumberParam _offset;
+    const uint DraftFill = 0xC49736E6, DraftOutline = 0xFFDCACFF;
     readonly List<Corner[]> _faces = [];
+    MeshSelection? _pickedFaces;
     Guid _target;
     TriMesh? _mesh;
     HashSet<int>? _removed;
@@ -50,7 +52,16 @@ public sealed class MeshDrawFacesCommand : MeshCommand
     protected override void OnBegin()
     {
         base.OnBegin();
-        if (S.RegionSel is { IsEmpty: false } region && S.Find(region.ObjectId) is { } obj && ReferenceEquals(region.Mesh, obj.Tri))
+        var picked = S.Selection.Where(item => item.Kind == SelKind.MeshFace).ToArray();
+        if (picked.Length > 0 && S.Find(picked[0].Obj) is { Tri: { } mesh } &&
+            picked.All(item => item.Obj == picked[0].Obj && item.Index >= 0 && item.Index < mesh.TriCount))
+        {
+            _pickedFaces = new MeshSelection(picked[0].Obj, mesh);
+            _pickedFaces.Add(picked.Select(item => item.Index));
+        }
+
+        var region = _pickedFaces ?? S.RegionSel;
+        if (region is { IsEmpty: false } && S.Find(region.ObjectId) is { } obj && ReferenceEquals(region.Mesh, obj.Tri))
         {
             Src.Items.Clear();
             Src.Items.Add(SelItem.Of(obj));
@@ -62,7 +73,7 @@ public sealed class MeshDrawFacesCommand : MeshCommand
     {
         var obj = Meshes().FirstOrDefault();
         var mesh = obj?.Tri;
-        var region = S.RegionSel;
+        var region = _pickedFaces is { } picked && picked.ObjectId == obj?.Id ? picked : S.RegionSel;
         var removed = _scope.Index == 1 && region != null && region.ObjectId == obj?.Id &&
             ReferenceEquals(region.Mesh, mesh) && !region.IsEmpty ? region.Tris : null;
         bool sameRegion = _removed == null ? removed == null : removed != null && _removed.SetEquals(removed);
@@ -94,19 +105,19 @@ public sealed class MeshDrawFacesCommand : MeshCommand
         Results.Clear();
         var obj = S.Find(_target);
         if (_mesh == null || obj == null || !ReferenceEquals(obj.Tri, _mesh)) return null;
+        Row("Draft faces", Count(_faces.Count));
         if (_scope.Index == 1 && (_removed == null || _removed.Count >= _mesh.TriCount))
         {
-            Row("Patch boundary", "Select a region with a remaining boundary in Edit Region.", 2);
+            Row("Patch boundary", "Select faces with Select → Face or Edit Region before opening Draw Faces.", 2);
             return null;
         }
         if (_boundary.Length == 0)
         {
-            Row("Patch boundary", "Pick a mesh with an open rim or select faces to replace in Edit Region.", 2);
+            Row("Patch boundary", "Stitching needs an open rim or faces selected for replacement.", 2);
             return null;
         }
         if (Committing && ((DrawTool)Tool!).HasPending)
             throw new InvalidOperationException("Finish the current face or clear its corners before applying.");
-        Row("Draft faces", Count(_faces.Count));
         if (_faces.Count == 0) return null;
 
         _draft ??= MeshLocalEdit.Draw(_mesh, _removed, _boundary, _faces);
@@ -135,18 +146,33 @@ public sealed class MeshDrawFacesCommand : MeshCommand
                 overlay.AddTri(_mesh.P(a), _mesh.P(b), _mesh.P(c), 0x60F69736);
             }
         if (_draft is { } draft)
+        {
             for (int t = draft.FirstNewTriangle; t < draft.Mesh.TriCount; t++)
             {
                 var (a, b, c) = draft.Mesh.Tri(t);
-                var m = draft.Mesh;
-                overlay.AddTri(m.P(a), m.P(b), m.P(c), 0x9077B9FF);
-                overlay.AddPolyline([m.P(a), m.P(b), m.P(c)], 0xFF358CE9, 2, true);
+                overlay.AddTri(draft.Mesh.P(a), draft.Mesh.P(b), draft.Mesh.P(c), DraftFill);
             }
+            foreach (var face in _faces)
+                overlay.AddPolyline(face.Select(c => c.Point).ToArray(), DraftOutline, 2.5f, closed: true);
+        }
+        else
+        {
+            foreach (var face in _faces)
+                DrawDraft(overlay, face);
+        }
         if (!_seam.Value) return;
         foreach (var e in _boundary.Take(10000)) overlay.AddLine(_mesh.P(e.A), _mesh.P(e.B), 0xFFF29B45, 2);
         if (_draft is { } merged)
             foreach (var e in merged.Stitched)
                 overlay.AddLine(merged.Mesh.P(e.A), merged.Mesh.P(e.B), 0xFF36C978, 3);
+    }
+
+    static void DrawDraft(Overlay overlay, IReadOnlyList<Corner> corners)
+    {
+        if (corners.Count < 3) return;
+        for (int i = 1; i + 1 < corners.Count; i++)
+            overlay.AddTri(corners[0].Point, corners[i].Point, corners[i + 1].Point, DraftFill);
+        overlay.AddPolyline(corners.Select(c => c.Point).ToArray(), DraftOutline, 2.5f, closed: true);
     }
 
     sealed class DrawTool(MeshDrawFacesCommand command) : IViewportTool
@@ -295,14 +321,15 @@ public sealed class MeshDrawFacesCommand : MeshCommand
         {
             if (_pull is { } pulled)
             {
-                overlay.AddPolyline(pulled.Select(c => c.Point).ToArray(), 0xFF70B7FF, 2.5f, true);
+                DrawDraft(overlay, pulled);
                 return;
             }
-            overlay.AddPolyline(_pending.Select(c => c.Point).ToArray(), 0xFF70B7FF, 2.5f);
-            foreach (var c in _pending) overlay.AddDot(c.Point, 0xFF70B7FF, 7);
+            if (_pending.Count >= 3) DrawDraft(overlay, _pending);
+            else overlay.AddPolyline(_pending.Select(c => c.Point).ToArray(), DraftOutline, 2.5f);
+            foreach (var c in _pending) overlay.AddDot(c.Point, DraftOutline, 7);
             if (_hover is not { } hot) return;
-            if (_pending.Count > 0) overlay.AddLine(_pending[^1].Point, hot.Point, 0xFF70B7FF, 2);
-            overlay.AddDot(hot.Point, hot.Vertex >= 0 ? 0xFF36C978 : 0xFF70B7FF, 8);
+            if (_pending.Count is > 0 and < 4) overlay.AddLine(_pending[^1].Point, hot.Point, DraftOutline, 2);
+            overlay.AddDot(hot.Point, hot.Vertex >= 0 ? 0xFF36C978 : DraftOutline, 8);
         }
 
         public void Deactivate(CadSession s) => Reset();

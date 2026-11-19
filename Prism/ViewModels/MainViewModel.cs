@@ -477,6 +477,21 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public void SetSelectionMode(SelMode mode)
     {
+        if (mode == SelMode.Face && SelectedTab?.Title == "Mesh")
+        {
+            // Section Sketch applies each cut immediately. The open panel only holds its next preview.
+            if (Session.ActiveCommand is MeshQualityCommand or MeshSectionSketchPanelCommand)
+                Session.CancelCommandPanel();
+            if (Session.ActiveCommand is { } command)
+            {
+                Session.Say($"Finish or close {command.DisplayTitle} before selecting mesh triangles.");
+                return;
+            }
+            Session.SetFreeTool(null);
+            Session.Mode = SelMode.Face;
+            Session.Say("Click a mesh triangle to select it. Shift-click to add triangles, then press Delete.");
+            return;
+        }
         if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,SelMode.Vertex=>FormMode.Vertex,_=>FormMode.Face});
         else Session.Mode=mode;
@@ -613,7 +628,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonGroup SelectGrp() => G("Select",
             Sel("Object", "sel-object", SelMode.Object, "Pick whole bodies, surfaces and curves."),
             Followed(Split(RibbonSize.Small, "split:selection-components", "Select faces, edges or Freeform vertices. Click the name to choose a mode.",
-                Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
+                Sel("Face", "sel-face", SelMode.Face, "Pick individual CAD faces or mesh triangles."),
                 Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."),
                 VertexSelection())),
             Followed(Split(RibbonSize.Small, "split:selection-method", "Select by dragging in the view: a rectangle, a lasso or a paint stroke. A rectangle dragged left to right takes what is fully inside it; right to left (or a lasso) takes whatever it touches; paint takes whatever the stroke crosses. Shift adds, Ctrl removes. With Through on, it also picks what is hidden behind.",

@@ -13,6 +13,10 @@ Select, Datum, Transform, Inspect and Appearance remain available as shared sect
 
 The owner approved manual mesh repair and the revised ribbon on 2026-11-18 for [#146](https://github.com/chrizpro/prism/issues/146). Section Sketch is the visible reconstruction command. The automatic Convert Mesh tool remains available to scripts as `mesh_convert` and to saved recipes.
 
+## Mesh Quality
+
+Pick a mesh to see triangle statistics and defect highlights. **Preview result** restores the display after **Clear defect display** and runs the self-intersection check for large meshes when enabled. The heat map also appears in Wireframe. Use **Mesh Quality → Clear Colors** to remove the display from the ribbon. [Viewport fixes #148](https://github.com/chrizpro/prism/issues/148).
+
 ## Repair and local editing
 
 **Repair** opens Cleanup. Its menu also offers **Fill Hole** and **Stitch Seam**. Cleanup preserves open rims. Fill Hole picks one closed rim and previews a flat or smooth patch. Stitch Seam picks an edge to keep fixed, then the matching boundary edge to move. It welds the endpoints only within **Maximum gap** in millimeters. Repeat on longer seams. Use Draw Faces to bridge gaps or mismatched edges.
@@ -21,9 +25,9 @@ The owner approved manual mesh repair and the revised ribbon on 2026-11-18 for [
 
 Open **Edit Region → Draw Faces**. Choose **Open rim** to add faces, or **Replace selected region** to draft against a cut boundary while the source faces stay visible. Click three or four corners and press Enter to finish a face. Shift-click a rim or draft edge to start from its endpoints, or Shift-drag the edge into a quad. Corners snap to the rim, to draft vertices, or to the scan surface. The XY, XZ or YZ drawing plane and its offset supply points where the scan has no hit. Turn off **Snap to mesh** to place points on the plane while retaining explicit edge starts.
 
-The preview shows source faces to remove, the draft faces, joined edges in green, and the remaining open-edge count. Landing on an edge interior splits the adjoining source triangle to give the patch a shared vertex. Applying replaces the mesh in one undoable edit. Replacements must cover the entire cut seam. Invalid joins, collapsed faces and new overlaps detected by the local check block Apply. Intentional holes elsewhere remain open.
+The draft fills in purple after three corners, including while you place a fourth corner or pull a quad. To replace faces on a closed mesh, select them with **Select → Face** or **Edit Region** before opening Draw Faces. The stitch preview shows source faces to remove, joined edges in green, and the remaining open-edge count. Landing on an edge interior splits the adjoining source triangle to give the patch a shared vertex. Applying replaces the mesh in one undoable edit. Replacements must cover the entire cut seam. Invalid joins, collapsed faces and new overlaps detected by the local check block Apply. Intentional holes elsewhere remain open.
 
-**Approved 2026-11-19** in [#147](https://github.com/chrizpro/prism/issues/147). In the shared **Select → Face** mode, click an individual mesh triangle, Shift-click to add triangles, or select a patch with a box, lasso or paint stroke. **Delete** opens a gap in the original mesh, keeps the remaining face and vertex colors, and supports Undo. Use Object selection to delete the whole mesh. Edit Region offers broader repair commands such as growing a region or patching a gap.
+**Approved 2026-11-19** in [#147](https://github.com/chrizpro/prism/issues/147). In the shared **Select → Face** mode, click an individual mesh triangle, Shift-click to add triangles, or select a patch with a box, lasso or paint stroke. Choosing Face on the Mesh ribbon closes Mesh Quality or the current Section Sketch preview. Sections you already applied stay in the model. Finish a repair draft before switching to Face selection. **Delete** opens a gap in the original mesh, keeps the remaining face and vertex colors, and supports Undo. Use Object selection to delete the whole mesh. Edit Region offers broader repair commands such as growing a region or patching a gap.
 
 
 ### Removing something from a mesh

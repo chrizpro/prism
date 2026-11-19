@@ -2402,6 +2402,7 @@ public sealed partial class CadSession : ObservableObject
         public float Min { get; init; }
         public float Max { get; init; } = 1;
         public bool IsSelection { get; init; }
+        public bool ShowInWireframe { get; init; }
     }
     public Dictionary<Guid, ScalarField> Fields { get; } = [];
 
@@ -2435,10 +2436,10 @@ public sealed partial class CadSession : ObservableObject
         else RegionSel.Refresh();
         RegionChanged?.Invoke(); Invalidate();
     }
-    public void SetField(SceneObject o, Meshing.TriMesh source, MeshData display, int mode, float min, float max, int palette = 0)
+    public void SetField(SceneObject o, Meshing.TriMesh source, MeshData display, int mode, float min, float max, int palette = 0, bool showInWireframe = false)
     {
         display.Scalars ??= new float[display.VertexCount];
-        Fields[o.Id] = new ScalarField { Source = source, Display = display, Mode = mode, Min = min, Max = max, Palette = palette };
+        Fields[o.Id] = new ScalarField { Source = source, Display = display, Mode = mode, Min = min, Max = max, Palette = palette, ShowInWireframe = showInWireframe };
         Invalidate();
     }
     public void ClearField(Guid id) { if (Fields.Remove(id)) Invalidate(); }

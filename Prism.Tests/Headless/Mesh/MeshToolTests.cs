@@ -600,6 +600,26 @@ public class MeshToolTests
         Assert.DoesNotContain(command.Results, r => r.Label == "Heat map" || r.Label == "Self-intersecting triangles");
     }
 
+    [AvaloniaFact(DisplayName = "MSH-H133 | Preview result restores Mesh Quality colors after clearing")]
+    [Trait("TestId", "MSH-H133")]
+    public void QualityPreviewRestoresClearedDisplay()
+    {
+        var session = new CadSession();
+        var mesh = AddMesh(session, BoxMesh(Vec3.Zero, 20, 20, 20, dropLastTriangle: true));
+        var command = Begin(session, () => new MeshQualityCommand());
+        command.PreviewEnabled = false;
+        command.Params.OfType<ActionParam>().Single(a => a.Label == "Clear defect display").Run();
+        Assert.Empty(session.Fields);
+        Assert.Null(session.DefectOverlay);
+
+        command.Params.OfType<ActionParam>().Single(a => a.Label == "Preview result").Run();
+        Assert.True(session.Fields[mesh.Id].ShowInWireframe);
+        var overlay = new Overlay();
+        session.DefectOverlay!.Invoke(overlay);
+        Assert.Equal(3, overlay.Lines.Count(l => l.Color == MeshQualityCommand.OpenColor));
+        Assert.Equal("3", Result(command, "Open edges"));
+    }
+
     // ------------------------------------------------------------------ Mesh ↔ Solid
 
     [AvaloniaTheory(DisplayName = "MSH-H029 | Mesh to Solid converts a closed cube into a 8000 mm³ solid or a shell")]

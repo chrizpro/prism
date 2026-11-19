@@ -66,6 +66,45 @@ public sealed class MeshManualRepairTests
         Assert.Equal(2, session.Find(box.Id)!.Tri!.Topology().HoleLoops.Count);
     }
 
+    [AvaloniaFact(DisplayName = "MSH-H134 | A closed mesh shows the purple draft and requires a replacement region to apply")]
+    [Trait("TestId", "MSH-H134")]
+    public void DraftRemainsVisibleWithoutStitchBoundary()
+    {
+        var session = new CadSession();
+        var box = AddMesh(session, BoxMesh(Vec3.Zero, 20, 20, 20));
+        session.Camera.SetView(0, 90);
+        session.ZoomExtents();
+        var command = Begin(session, () => new MeshDrawFacesCommand());
+        Click(session, command, new(2, 2, 20));
+        Click(session, command, new(18, 2, 20));
+        Click(session, command, new(10, 18, 20));
+        var overlay = new Overlay();
+        command.Tool!.BuildOverlay(session, overlay);
+        uint fill = Assert.Single(overlay.Tris).Color;
+        Assert.True(command.Tool.Key(session, "Enter"));
+        overlay.Clear();
+        command.BuildOverlay(session, overlay);
+        Assert.Equal(fill, Assert.Single(overlay.Tris).Color);
+        session.CommitCommand();
+        Assert.Same(command, session.ActiveCommand);
+        Assert.Same(box, session.Find(box.Id));
+        session.CancelCommand();
+
+        session.SetSelection(new SelItem(box.Id, SelKind.MeshFace, 2), false);
+        session.StartCommand(() => new MeshDrawFacesCommand());
+        var replace = Assert.IsType<MeshDrawFacesCommand>(session.ActiveCommand);
+        Assert.Equal("Replace selected region", replace.Params.OfType<ChoiceParam>()
+            .Single(p => p.Label == "Patch boundary").Selected);
+        Click(session, replace, new(0, 0, 20));
+        Click(session, replace, new(20, 0, 20));
+        Click(session, replace, new(20, 20, 20));
+        Assert.True(replace.Tool!.Key(session, "Enter"));
+        Assert.Equal("3", Result(replace, "Joined edges"));
+        session.CommitCommand();
+        Assert.Null(session.ActiveCommand);
+        Assert.Equal(0, session.Find(box.Id)!.Tri!.Topology().BoundaryEdges);
+    }
+
     [AvaloniaTheory(DisplayName = "MSH-H129 | Fill Hole uses only the rim picked in the viewport")]
     [Trait("TestId", "MSH-H129")]
     [InlineData("Flat")]
