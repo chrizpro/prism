@@ -1031,7 +1031,11 @@ public sealed unsafe class GlViewport : Decorator
 
     void OnExited(object? _, PointerEventArgs e)
     {
-        if(Session is {} session)session.ViewportCursor=null;
+        if (Session is { } session)
+        {
+            session.ViewportCursor = null;
+            session.ActiveTool?.PointerExit(session);
+        }
         if (Session is { Hover: not null } s) { s.Hover = null; s.Invalidate(); }
     }
 }

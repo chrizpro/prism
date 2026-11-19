@@ -4287,3 +4287,91 @@ def mesh_quality_clear_and_preview():
     cad.call("command_cancel")
     cad.call("view", display="shaded_edges")
     return [("MSH-I007 | Cleared", clear), ("Heat map restored", restored), ("Checks", text_panel(checks))]
+
+
+
+@scenario("mesh__fill-several-picked-openings", columns=1)
+def mesh_fill_several_picked_openings():
+    import base64
+    import io
+    from PIL import Image
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    cad.call("history_view", expanded=False)
+    obj = []
+    box = [(0,0,0),(20,0,0),(20,20,0),(0,20,0),(0,0,20),(20,0,20),(20,20,20),(0,20,20)]
+    faces = [(1,3,2),(1,4,3),(1,2,6),(1,6,5),(2,3,7),(2,7,6),(3,4,8),(3,8,7),(4,1,5),(4,5,8)]
+    for i in range(3):
+        obj.extend(f"v {x + i * 30} {y} {z}" for x, y, z in box)
+        obj.extend(f"f {a + i * 8} {b + i * 8} {c + i * 8}" for a, b, c in faces)
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Three openings.obj"
+        path.write_text("\n".join(obj))
+        mesh = cad.call("mesh_import", path=str(path))["name"]
+    cad.call("view", preset="top", orthographic=True, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("ribbon_click", tab="Mesh", label="Fill Hole")
+
+    def pick(x, y):
+        cad.call("pointer", events=[{"type": "click", "x": x, "y": y, "z": 20}])
+        rows = cad.call("get_state")["activeCommand"]["results"]
+        return next((int(row["value"]) for row in rows if row["label"] == "Selected openings"), 0)
+
+    counts = [pick(10, 10), pick(40, 0), pick(10, 10), pick(10, 10)]
+    shot = cad.call("screenshot", max_width=1280)
+    preview = Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+    original = cad.call("object_info", object=mesh)
+    cad.call("command_commit")
+    filled = cad.call("object_info", object=mesh)
+    cad.call("history", action="undo")
+    undone = cad.call("object_info", object=mesh)
+    toggled = counts == [1, 2, 1, 2]
+    edited = (original["holes"], filled["holes"], undone["holes"]) == (3, 1, 3)
+    checks = [
+        f"{'PASS' if toggled else 'FAIL'}  Interior and rim clicks changed selected opening counts to {counts}",
+        f"{'PASS' if edited else 'FAIL'}  {original['holes']} original holes, {filled['holes']} after Fill, {undone['holes']} after one Undo",
+    ]
+    return [("MSH-I008 | Two green patches and an unselected third opening", preview), ("Checks", text_panel(checks))]
+
+
+@scenario("mesh__draw-faces-target-and-snap", columns=2)
+def mesh_draw_faces_target_and_snap():
+    import base64
+    import io
+    from PIL import Image
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    cad.call("history_view", expanded=False)
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Two mesh triangles.obj"
+        path.write_text("v 0 0 0\nv 40 0 0\nv 40 40 0\nv 0 40 0\nf 1 2 3\nf 1 3 4\n")
+        cad.call("mesh_import", path=str(path))
+    cad.call("view", preset="top", orthographic=True, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("ribbon_click", tab="Mesh", label="Draw Faces")
+
+    def hover(x, y):
+        cad.call("pointer", events=[{"type": "move", "x": x, "y": y, "z": 0}])
+        shot = cad.call("screenshot", max_width=1280)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).convert("RGB")
+
+    def pixel_count(img, test):
+        w, h = img.size
+        return sum(test(r, g, b) for r, g, b in img.crop((round(w*.21), round(h*.33), round(w*.72), round(h*.83))).getdata())
+
+    face = hover(27, 12)
+    edge = hover(20, 20.25)
+    vertex = hover(.25, .25)
+    cyan = lambda r, g, b: g > r + 35 and b > r + 35
+    amber = lambda r, g, b: r > 220 and g > 165 and b < 145
+    tinted = pixel_count(face, cyan) > 300
+    marked_edge = pixel_count(edge, amber) > pixel_count(face, amber) + 30
+    checks = [
+        f"{'PASS' if tinted else 'FAIL'}  Hover tinted the target triangle cyan",
+        f"{'PASS' if marked_edge else 'FAIL'}  The interior diagonal gained an amber edge marker",
+    ]
+    cad.call("command_cancel")
+    return [("MSH-I009 | Target triangle", face), ("Edge snap", edge), ("Vertex snap", vertex),
+            ("Checks", text_panel(checks))]

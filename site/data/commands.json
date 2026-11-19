@@ -9162,7 +9162,7 @@
  {
   "name": "mesh_draw_faces",
   "title": "Draw Faces",
-  "hint": "Click three or four corners and press Enter to finish a face. Shift-click a rim or draft edge to start along it, or Shift-drag it into a quad. Preview the stitch before applying.",
+  "hint": "Hover to see the source triangle and snap target. Click three or four corners and press Enter to finish a face. Shift-click or Shift-drag a rim or draft edge to start from it.",
   "slots": [
    {
     "label": "Mesh",
@@ -9219,7 +9219,7 @@
  {
   "name": "mesh_fill_hole",
   "title": "Fill Hole",
-  "hint": "Click a closed rim to fill that opening. Nearby rims stay open.",
+  "hint": "Click inside an opening or on its rim to select it. Click it again to remove it, then choose Fill.",
   "slots": [
    {
     "label": "Mesh",

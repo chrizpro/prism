@@ -1143,7 +1143,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         var meshRepair = MeshMenu("split:mesh-repair", "Clean the mesh, fill a chosen rim, or stitch two boundary edges.",
             Cmd("Cleanup", "mesh-repair", () => new MeshRepairCommand(cleanupOnly: true), "Clean up vertices, triangles and winding without filling openings."),
-            Cmd("Fill Hole", "mesh-patch", () => new MeshBoundaryCommand(), "Pick a single rim to fill."),
+            Cmd("Fill Hole", "mesh-patch", () => new MeshBoundaryCommand(), "Pick one or more openings, then fill them together."),
             Cmd("Stitch Seam", "mesh-repair", () => new MeshBoundaryCommand(stitch: true), "Join two picked boundary edges within a maximum gap."));
         meshRepair.Label = "Repair";
         var mesh = new RibbonTab

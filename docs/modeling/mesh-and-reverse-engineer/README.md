@@ -19,25 +19,22 @@ Pick a mesh to see triangle statistics and defect highlights. **Preview result**
 
 ## Repair and local editing
 
-**Repair** opens Cleanup. Its menu also offers **Fill Hole** and **Stitch Seam**. Cleanup preserves open rims. Fill Hole picks one closed rim and previews a flat or smooth patch. Stitch Seam picks an edge to keep fixed, then the matching boundary edge to move. It welds the endpoints only within **Maximum gap** in millimeters. Repeat on longer seams. Use Draw Faces to bridge gaps or mismatched edges.
+**Repair** opens Cleanup. Its menu also offers **Fill Hole** and **Stitch Seam**. Cleanup preserves open rims. Fill Hole previews flat or smooth patches for the openings you select. Stitch Seam picks an edge to keep fixed, then the matching boundary edge to move. It welds the endpoints only within **Maximum gap** in millimeters. Repeat on longer seams. Use Draw Faces to bridge gaps or mismatched edges.
 
 ### Drawing a repair
 
-Open **Edit Region → Draw Faces**. Choose **Open rim** to add faces, or **Replace selected region** to draft against a cut boundary while the source faces stay visible. Click three or four corners and press Enter to finish a face. Shift-click a rim or draft edge to start from its endpoints, or Shift-drag the edge into a quad. Corners snap to the rim, to draft vertices, or to the scan surface. The XY, XZ or YZ drawing plane and its offset supply points where the scan has no hit. Turn off **Snap to mesh** to place points on the plane while retaining explicit edge starts.
+Open **Edit Region → Draw Faces**. Choose **Open rim** to add faces, or **Replace selected region** to draft against a cut boundary while the source faces stay visible. Click three or four corners and press Enter to finish a face. Shift-click a rim or draft edge to start from its endpoints, or Shift-drag the edge into a quad. The visible source triangle under the pointer turns cyan. With **Snap to mesh** on, a nearby vertex takes priority over an edge, then a free surface point. A cyan dot marks a vertex snap and an amber line and dot mark an edge snap. These snaps guide the corner position. Only the repair boundary can anchor the new faces to the existing mesh. The XY, XZ or YZ drawing plane and its offset supply points where the scan has no hit. Turn off **Snap to mesh** to place points on the plane while retaining explicit edge starts.
 
 The draft fills in purple after three corners, including while you place a fourth corner or pull a quad. To replace faces on a closed mesh, select them with **Select → Face** or **Edit Region** before opening Draw Faces. The stitch preview shows source faces to remove, joined edges in green, and the remaining open-edge count. Landing on an edge interior splits the adjoining source triangle to give the patch a shared vertex. Applying replaces the mesh in one undoable edit. Replacements must cover the entire cut seam. Invalid joins, collapsed faces and new overlaps detected by the local check block Apply. Intentional holes elsewhere remain open.
 
 **Approved 2026-11-19** in [#147](https://github.com/chrizpro/prism/issues/147). In the shared **Select → Face** mode, click an individual mesh triangle, Shift-click to add triangles, or select a patch with a box, lasso or paint stroke. Choosing Face on the Mesh ribbon closes Mesh Quality or the current Section Sketch preview. Sections you already applied stay in the model. Finish a repair draft before switching to Face selection. **Delete** opens a gap in the original mesh, keeps the remaining face and vertex colors, and supports Undo. Use Object selection to delete the whole mesh. Edit Region offers broader repair commands such as growing a region or patching a gap.
 
 
-### Proposed mesh repair interactions
+### Filling several holes
 
-**Proposed — awaiting owner review.** [Issue #149](https://github.com/chrizpro/prism/issues/149).
+Approved on 2026-11-19 along with the Draw Faces target preview and snaps. [Issue #149](https://github.com/chrizpro/prism/issues/149).
 
-- **Fill Hole** toggles each visible opening when you click inside it or on its rim. Selected openings preview in green, and **Clear picks** empties the selection. Choose Flat or Smooth for the batch. **Fill** applies the selected openings on the current mesh as one undoable edit. Unselected openings stay open. If any selected patch fails validation, the mesh stays as it was so you can revise the selection.
-- **Draw Faces** tints the visible mesh triangle under the pointer. With **Snap to mesh** on, the cursor previews the next corner on a nearby visible vertex, then an edge, then a free point on the surface. Edge and vertex snaps get distinct markers. The new face keeps its purple preview. Existing geometry can guide placement, and replacing it still requires a selected region and valid stitching.
-
-Verification after approval will cover adding and removing hole picks, preserving a third opening, undoing the batch, and hitting the intended face, edge and vertex when other geometry lies behind it.
+Open **Repair → Fill Hole**. Click inside a visible opening or on its rim to toggle it. Selected openings preview in green. **Clear picks** empties the selection. Choose **Flat** or **Smooth** for the batch and press **Fill** to patch the selected openings on the current mesh in one undoable edit. Unselected openings stay open. If a patch fails validation, the mesh stays as it was so you can revise the selection.
 
 ### Removing something from a mesh
 
@@ -52,7 +49,7 @@ Open **Edit Region**, pick the area with smart patch, brush, rectangle or lasso,
 
 Cleanup's **Scope** section offers Entire mesh and Selected region. If a current nonempty region exists, opening Repair selects that mesh and defaults to Selected region. Otherwise it defaults to Entire mesh. Choose the scope explicitly before applying.
 
-For a local fill on the ribbon, use **Repair → Fill Hole** and pick the rim. The original batch Repair command remains callable as `mesh_repair`. In that command’s selected-region mode a hole is eligible only when the triangle beside **every edge of its rim** is selected. Partial rims and openings outside the region stay open. Green outlines preview the holes that will be filled; the report counts filled candidates, protected holes and remaining holes. The hole limit is a count of rim edges, not a diameter in millimeters. Turning Fill holes off leaves hole filling disabled in either scope.
+For a local fill on the ribbon, use **Repair → Fill Hole** and pick the openings. The original batch Repair command remains callable as `mesh_repair`. In that command’s selected-region mode a hole is eligible only when the triangle beside **every edge of its rim** is selected. Partial rims and openings outside the region stay open. Green outlines preview the holes that will be filled; the report counts filled candidates, protected holes and remaining holes. The hole limit is a count of rim edges, not a diameter in millimeters. Turning Fill holes off leaves hole filling disabled in either scope.
 
 **Cleanup** controls merging duplicate vertices, removing degenerate/duplicate triangles, removing tiny floating shells and correcting normals. Selected-region mode restricts these operations too: vertices shared with unselected faces stay fixed, junk triangles outside the region remain, and a tiny shell is removed only if it is wholly selected. Normal correction uses surrounding unselected faces as anchors; it cannot fix an inconsistent surrounding mesh without changing the scope. Seam defects can require a larger selection or Entire mesh. Entire mesh retains the global cleanup behavior. There is no general automatic repair for self-intersections or non-manifold edges.
 
@@ -93,7 +90,7 @@ If automation fits the wrong local shape, use Edit Region and Convert Mesh to ch
 
 [Section Sketch and mesh selection tests](../../../Prism.Tests/Headless/Mesh/MeshSectionAndSelectionTests.cs) check repeated Apply and Done, angled sections, refitting and nominal dimensioning through save and reopen, and single-triangle selection, deletion and Undo.
 
-[Manual mesh repair headless tests](../../../Prism.Tests/Headless/Mesh/MeshManualRepairTests.cs) and [local topology tests](../../../Prism.Tests/Unit/Mesh/MeshLocalEditTests.cs) cover drawing, seam welding, rim isolation and undo.
+[Manual mesh repair headless tests](../../../Prism.Tests/Headless/Mesh/MeshManualRepairTests.cs) and [local topology tests](../../../Prism.Tests/Unit/Mesh/MeshLocalEditTests.cs) cover drawing, visible face and snap targets, seam welding, batch hole filling, rim isolation and undo.
 
 [Combined Mesh workflow tests](../../../Prism.Tests/Headless/Mesh/MeshConsolidationTests.cs) cover open-solid consent, explicit region outputs, deviation in both directions, Freeform, face reduction and local smoothing.
 
