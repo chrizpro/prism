@@ -8,6 +8,19 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Transport studies
+
+Four owner-approved vehicle concepts are available as native Prism models. The gallery previews show renders of the saved geometry.
+
+| Study | Native model | Prism render |
+| --- | --- | --- |
+| Planar coupe — Solid / Freeform (`planar-coupe`) | [Model](models/planar-coupe.prism) | [Render](previews/planar-coupe.png) |
+| Vermilion GT — Solid (`vermilion-gt`) | [Model](models/vermilion-gt.prism) | [Render](previews/vermilion-gt.png) |
+| Tideline airliner — Solid (`tideline-jet`) | [Model](models/tideline-jet.prism) | [Render](previews/tideline-jet.png) |
+| Evergreen Express — Solid (`evergreen-express`) | [Model](models/evergreen-express.prism) | [Render](previews/evergreen-express.png) |
+
+[Planar coupe builder](build_planar_coupe.py) · [Sports car, airliner and train builder](TransportStudies.cs) · [Transport render and verification script](render_transport_studies.py) · [Windows verification](../docs/interface/gallery/README.md#transport-studies).
+
 ## What is here
 
 Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, CAM, Mold, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
