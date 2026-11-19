@@ -72,6 +72,14 @@
         <!-- Every sketch-tool family uses the same ordered, collapsible presentation. -->
         <ItemsControl ItemsSource="{Binding ToolSections}" Margin="0,0,0,4"/>
 
+        <StackPanel Margin="12,8" Spacing="8" IsVisible="{Binding !ToolPanelFocused}">
+            <StackPanel Spacing="8" IsVisible="{Binding HasMeshSectionReference}">
+                <CheckBox Content="Show measured section" IsChecked="{Binding ShowMeshSectionReference, Mode=TwoWay}"/>
+                <Button Content="Fit Section Curve" Classes="studioAction" Click="OnFitMeshSection"
+                        ToolTip.Tip="Fit a different curve to the measured section. Use Edge selection to select one curve first if you want to replace it."/>
+            </StackPanel>
+        </StackPanel>
+
         <views:SketchSpacePanel IsVisible="{Binding !ToolPanelFocused}"/>
 
         <StackPanel DockPanel.Dock="Top" Margin="14,14,14,6" Spacing="4" IsVisible="{Binding !ToolPanelFocused}">

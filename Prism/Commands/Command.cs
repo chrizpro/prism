@@ -174,7 +174,7 @@ public sealed record ResultLine(string Label, string Value, int Level = 0)
 }
 
 // ---------------------------------------------------------------- command result
-public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null, bool IsReference = false, bool IsMoldHalf = false);
+public sealed record NewObject(Shape? Shape, string NamePrefix, ObjKind? Kind = null, uint? Color = null, Plane3? Plane = null, Core.Form.SubdMesh? Form = null, Appearance? Look = null, Meshing.TriMesh? Tri = null, Core.Assembly.AssemblyData? Asm = null, FlatPatternMap? FlatMap = null, bool IsReference = false, bool IsMoldHalf = false, Core.Sketching.SketchModel? Sketch = null);
 
 public sealed class CommandOutput
 {
@@ -215,6 +215,7 @@ public sealed record HandleSpec(Vec3 Origin, Vec3 Dir, NumberParam Param, double
 /// </summary>
 public sealed record GizmoSpec(Vec3 Center, NumberParam?[] Move, NumberParam?[] Turn, NumberParam? Scale = null, Vec3[]? AxesOverride = null, double Mul = 1, Action<int, int>? Engage = null)
 {
+    public bool CombinedByDefault { get; init; }
     public static readonly NumberParam?[] None = [null, null, null];
     public Vec3[] Axes => AxesOverride ?? Core.GizmoVisual.WorldAxes;
     public bool Supports(int operation) => operation switch { 0 => Move.Any(p => p != null), 1 => Turn.Any(p => p != null), _ => Scale != null };
@@ -230,6 +231,7 @@ public abstract partial class Command : ObservableObject
     [ObservableProperty] public partial bool PreviewEnabled { get; set; } = true;
     partial void OnPreviewEnabledChanged(bool value) => OnChanged();
     public virtual bool SupportsPreview => Tool == null;
+    public virtual ActionParam? RepeatApply => null;
     public string CommitText => HasPanelStep ? "Apply and return" : EditMode ? "Update" : OkText == "OK" ? "Create" : OkText;
     // ---- editing a feature after the fact
     /// <summary>How to make a fresh copy of this command (set by whoever started it). Without it the step cannot be edited later.</summary>
@@ -519,7 +521,7 @@ public abstract partial class Command : ObservableObject
             groups[i].items.Add(item);
         }
         foreach (var slot in InputSlots) Place(slot.Section.Length > 0 ? slot.Section : slot.DisplayLabel, slot);
-        foreach (var p in PanelSettings) Place(p.Section, p);
+        foreach (var p in PanelSettings) if (p != RepeatApply) Place(p.Section, p);
         foreach (var p in AdvancedSettings) Place("Advanced", p);
         foreach (var p in ResultSettings) Place("Result", p);
         foreach (var slot in ResultSlots) Place("Result", slot);

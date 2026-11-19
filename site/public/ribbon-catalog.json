@@ -1,5 +1,5 @@
 {
-  "sourceHash": "1ADF05A97F412A97D6AC2069880C85CA66DD7B624DE3965371CD7DB5CFC478E1",
+  "sourceHash": "2170949E261CAD1D66BE2EB5D2F9EBD06A7D49D9B69715661E04017AA0E4E184",
   "workspaces": [
     {
       "Id": "design",
@@ -47,7 +47,6 @@
       "Tabs": [
         "Home",
         "Mesh",
-        "Reverse Engineer",
         "Solid",
         "Surface",
         "Freeform",
@@ -2037,12 +2036,6 @@
               "shortcut": ""
             },
             {
-              "id": "form-delete|Delete",
-              "label": "Delete",
-              "description": "Delete the selected faces, edges or points.",
-              "shortcut": ""
-            },
-            {
               "id": "form-subdivide|Split face",
               "label": "Split face",
               "description": "Cut a face in two between two selected corners.",
@@ -2076,17 +2069,6 @@
               "id": "warp|Warp",
               "label": "Warp",
               "description": "Bend, twist, taper or stretch the form along an axis.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Direct Edit",
-          "tools": [
-            {
-              "id": "direct-edit:freeform",
-              "label": "Direct Edit",
-              "description": "Edit a Freeform body directly by its cage: select points, edges or faces and move them. Tools that need a solid are disabled.",
               "shortcut": ""
             }
           ]
@@ -2563,17 +2545,6 @@
               "id": "origin-point|Divide",
               "label": "Points Along Curve",
               "description": "Place points at equal distances along a curve; keep the curve intact and report its length.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Direct Edit",
-          "tools": [
-            {
-              "id": "direct-edit:nurbs",
-              "label": "Direct Edit",
-              "description": "Edit NURBS directly with no history: drag control points, sculpt, delete or merge faces, check and repair. Tools that need a solid are disabled.",
               "shortcut": ""
             }
           ]
@@ -3131,21 +3102,15 @@
           "title": "Shape",
           "tools": [
             {
-              "id": "form-edit|Edit Freeform",
-              "label": "Edit Freeform",
-              "description": "Select vertices, edges or faces of a Freeform body and move them with the manipulator. Freeform workflow only.",
+              "id": "edit-points|Edit Face",
+              "label": "Edit Face",
+              "description": "Reshape a flat, four-sided face of a solid by moving a grid of control points. The outline stays where it is; the neighbouring faces meet the new surface at a sharp edge. Solid bodies only.",
               "shortcut": ""
             },
             {
-              "id": "edit-points|Edit Points",
-              "label": "Edit Points",
-              "description": "Drag NURBS control points, with soft influence on neighbours. NURBS workflow only.",
-              "shortcut": ""
-            },
-            {
-              "id": "sculpt|Sculpt",
-              "label": "Sculpt",
-              "description": "Brush a NURBS surface: pull, push, move or smooth. NURBS workflow only.",
+              "id": "warp|Warp",
+              "label": "Warp",
+              "description": "Bend, twist, taper or stretch a whole body or surface along an axis, or only chosen faces of a solid (pick them under Faces to warp; flat, four-sided faces, outline kept).",
               "shortcut": ""
             }
           ]
@@ -4025,6 +3990,12 @@
               "shortcut": ""
             },
             {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Check watertightness, printer fit, supports and weight.",
+              "shortcut": ""
+            },
+            {
               "id": "mesh-overhang|Overhang \u0026 Orientation",
               "label": "Overhang \u0026 Orientation",
               "description": "Find overhangs and compare orientations.",
@@ -4115,6 +4086,12 @@
               "id": "mesh-quality|Mesh Quality",
               "label": "Mesh Quality",
               "description": "Find thin triangles, open edges and self-intersections.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-check|Print Check",
+              "label": "Print Check",
+              "description": "Check watertightness, printer fit, supports and weight.",
               "shortcut": ""
             },
             {
@@ -4446,7 +4423,7 @@
           ]
         },
         {
-          "title": "Import \u0026 Convert",
+          "title": "Prepare",
           "tools": [
             {
               "id": "mesh-import|Import Mesh",
@@ -4455,38 +4432,44 @@
               "shortcut": ""
             },
             {
-              "id": "mesh-from-solid|Solid to Mesh",
-              "label": "Solid to Mesh",
-              "description": "Turn CAD bodies into triangle meshes.",
-              "shortcut": ""
-            },
-            {
               "id": "pointcloud-import|Import Point Cloud",
               "label": "Import Point Cloud",
-              "description": "Bring in a scan as points (XYZ, PTS, CSV, PLY) and turn it into a mesh.",
+              "description": "Bring in a scan as points (XYZ, PTS, CSV, PLY).",
               "shortcut": ""
             },
             {
-              "id": "mesh-reconstruct|Reconstruct Surface",
-              "label": "Reconstruct Surface",
-              "description": "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim.",
+              "id": "mesh-reconstruct|Reconstruct Mesh",
+              "label": "Reconstruct Mesh",
+              "description": "Build a mesh from the imported point cloud.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-align|Align",
+              "label": "Align",
+              "description": "Orient the mesh or best-fit it onto a reference.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Check",
+          "title": "Analyze",
           "tools": [
             {
               "id": "mesh-quality|Mesh Quality",
               "label": "Mesh Quality",
-              "description": "Triangle quality, self-intersections and persistent defect highlights.",
+              "description": "Find holes, non-manifold edges, self-intersections and poor triangles.",
               "shortcut": ""
             },
             {
-              "id": "mesh-check|Print Check",
-              "label": "Print Check",
-              "description": "Pre-flight check: watertight, fits your printer, supports, weight.",
+              "id": "clear-analysis|Clear Colors",
+              "label": "Clear Colors",
+              "description": "Remove analysis colors from meshes.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-deviation|Deviation",
+              "label": "Deviation",
+              "description": "Compare the scan with a CAD body or another mesh.",
               "shortcut": ""
             }
           ]
@@ -4495,356 +4478,68 @@
           "title": "Repair",
           "tools": [
             {
-              "id": "mesh-repair|Repair",
-              "label": "Repair",
-              "description": "Repair the entire mesh or a selected region; preview the holes to fill.",
+              "id": "mesh-repair|Cleanup",
+              "label": "Cleanup",
+              "description": "Clean up vertices, triangles and winding without filling openings.",
               "shortcut": ""
             },
             {
-              "id": "mesh-select|Select Region",
-              "label": "Select Region",
-              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Reshape",
-          "tools": [
-            {
-              "id": "mesh-reduce|Reduce",
-              "label": "Reduce",
-              "description": "Simplify a dense mesh while keeping its shape.",
+              "id": "mesh-patch|Fill Hole",
+              "label": "Fill Hole",
+              "description": "Pick a single rim to fill.",
               "shortcut": ""
             },
             {
-              "id": "mesh-remesh|Remesh",
-              "label": "Remesh",
-              "description": "Rebuild with even, well-shaped triangles of a chosen size.",
+              "id": "mesh-repair|Stitch Seam",
+              "label": "Stitch Seam",
+              "description": "Join two picked boundary edges within a maximum gap.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-select|Edit Region",
+              "label": "Edit Region",
+              "description": "Select, delete, patch, smooth or extract triangles.",
+              "shortcut": ""
+            },
+            {
+              "id": "form-face|Draw Faces",
+              "label": "Draw Faces",
+              "description": "Draw triangles and quads and stitch them into the mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-patch|Delete and Patch",
+              "label": "Delete and Patch",
+              "description": "Select a region to remove and patch.",
               "shortcut": ""
             },
             {
               "id": "mesh-smooth|Smooth",
               "label": "Smooth",
-              "description": "Remove scanner noise without shrinking the part.",
+              "description": "Select a region to smooth.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-select|Extract",
+              "label": "Extract",
+              "description": "Select a region to copy as a separate mesh.",
+              "shortcut": ""
+            },
+            {
+              "id": "mesh-remesh|Remesh",
+              "label": "Remesh",
+              "description": "Redistribute triangles or reduce the triangle count.",
               "shortcut": ""
             }
           ]
         },
         {
-          "title": "Modify",
-          "tools": [
-            {
-              "id": "mesh-cut|Split",
-              "label": "Split",
-              "description": "Cut with a plane and cap the halves.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-offset|Offset",
-              "label": "Offset",
-              "description": "Grow or shrink the surface (tolerances, clearances).",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-boolean|Mesh Boolean",
-              "label": "Mesh Boolean",
-              "description": "Join, subtract or intersect two closed meshes.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Print analysis",
-          "tools": [
-            {
-              "id": "mesh-thickness|Wall Thickness",
-              "label": "Wall Thickness",
-              "description": "Color the part by wall thickness.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-overhang|Overhang \u0026 Orientation",
-              "label": "Overhang \u0026 Orientation",
-              "description": "Find what needs supports and the best way to lay the part down.",
-              "shortcut": ""
-            },
-            {
-              "id": "clear-analysis|Clear Colors",
-              "label": "Clear Colors",
-              "description": "Remove analysis colors from meshes.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Transform",
-          "tools": [
-            {
-              "id": "move|Move",
-              "label": "Move",
-              "description": "Grab anything \u2014 objects, meshes, datums \u2014 and drag it with the gizmo, or type exact values in the panel. Hold Alt while dragging to drag a copy and leave the original.",
-              "shortcut": ""
-            },
-            {
-              "id": "rotate|Rotate",
-              "label": "Rotate",
-              "description": "Rotate objects around an axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "scale|Scale",
-              "label": "Scale",
-              "description": "Resize objects evenly, or stretch them along each axis.",
-              "shortcut": ""
-            },
-            {
-              "id": "mirror|Mirror",
-              "label": "Mirror",
-              "description": "Reflect objects across a plane.",
-              "shortcut": ""
-            },
-            {
-              "id": "duplicate|Duplicate",
-              "label": "Duplicate",
-              "description": "Copy the selected objects.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Inspect",
-          "tools": [
-            {
-              "id": "measure|Measure",
-              "label": "Measure",
-              "description": "Measure sizes, distances and angles between faces, edges, bodies or points.",
-              "shortcut": ""
-            },
-            {
-              "id": "properties|Properties",
-              "label": "Properties",
-              "description": "Volume, mass, center of mass and moments of inertia.",
-              "shortcut": ""
-            },
-            {
-              "id": "section|Section Analysis",
-              "label": "Section Analysis",
-              "description": "Cut the model with a plane to see inside.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Appearance",
-          "tools": [
-            {
-              "id": "materials|Materials",
-              "label": "Materials",
-              "description": "Open the material library: colors, finishes and engineering data you can apply to bodies.",
-              "shortcut": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "Reverse Engineer",
-      "contextual": false,
-      "groups": [
-        {
-          "title": "Select",
-          "tools": [
-            {
-              "id": "sel-object|Object",
-              "label": "Object",
-              "description": "Pick whole bodies, surfaces and curves.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-face|Face",
-              "label": "Face",
-              "description": "Pick individual faces.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-edge|Edge",
-              "label": "Edge",
-              "description": "Pick individual edges.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-vertex|Vertex",
-              "label": "Vertex",
-              "description": "Pick corner points of solids, surfaces and curves. With a Freeform form selected it picks cage vertices (1 while editing Freeform); in a sketch it picks points.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-rect|Rectangle",
-              "label": "Rectangle",
-              "description": "Drag a rectangle. Left to right takes only what is completely inside; right to left takes whatever it touches. Click the button again to go back to clicking.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-lasso|Lasso",
-              "label": "Lasso",
-              "description": "Draw around what you want to select. Whatever the loop touches is picked.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-paint|Paint",
-              "label": "Paint",
-              "description": "Drag a stroke across the model: whatever the stroke crosses is selected. Click the button again to go back to clicking.",
-              "shortcut": ""
-            },
-            {
-              "id": "group|Group",
-              "label": "Group",
-              "description": "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl\u002BG.",
-              "shortcut": ""
-            },
-            {
-              "id": "ungroup|Ungroup",
-              "label": "Ungroup",
-              "description": "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl\u002BShift\u002BG.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-invert|Invert",
-              "label": "Invert",
-              "description": "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-same-color|Same Color",
-              "label": "Same Color",
-              "description": "Add every face of the same body that has the same color and finish as a selected face.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
-              "shortcut": ""
-            },
-            {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Datum",
-          "tools": [
-            {
-              "id": "move|Gizmo",
-              "label": "Gizmo",
-              "description": "Position and bind the gizmo; adjust its handles and snapping.",
-              "shortcut": ""
-            },
-            {
-              "id": "sketch-point|Point",
-              "label": "Point",
-              "description": "Place datum points: click a face, edge or empty space, and keep clicking to add more.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-axis|Axis",
-              "label": "Axis",
-              "description": "Place a datum axis on an edge or face normal; empty space uses the work-plane normal.",
-              "shortcut": ""
-            },
-            {
-              "id": "origin-plane|Plane",
-              "label": "Plane",
-              "description": "Place a datum plane on a face, plane or the work plane.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Prepare",
-          "tools": [
-            {
-              "id": "mesh-align|Align",
-              "label": "Align",
-              "description": "Drop on the bed, lay a face flat, or best-fit onto a CAD body.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-select|Select Region",
-              "label": "Select Region",
-              "description": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Sketch from Scan",
+          "title": "Convert",
           "tools": [
             {
               "id": "mesh-section|Section Sketch",
               "label": "Section Sketch",
-              "description": "Create editable lines, arcs and circles from a scan section. Add dimensions and constraints, then extrude or revolve to build parametric features.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Fit Surfaces",
-          "tools": [
-            {
-              "id": "mesh-fit|Segment \u0026 Fit",
-              "label": "Segment \u0026 Fit",
-              "description": "Identify and measure regions across a scan; optionally create separate fitted CAD surfaces.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-patch|Fit Surface to Region",
-              "label": "Fit Surface to Region",
-              "description": "Choose a region and fit one exact surface or smooth NURBS patch. This does not recover a feature history.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Rebuild",
-          "tools": [
-            {
-              "id": "mesh-fit|Rebuild from Scan",
-              "label": "Rebuild from Scan",
-              "description": "Fit faces and attempt a shell or direct-edit solid. This does not recover the original sketches or feature history.",
-              "shortcut": ""
-            },
-            {
-              "id": "form-scan|Freeform from Scan",
-              "label": "Freeform from Scan",
-              "description": "Create an editable freeform cage around the scan for manual shape refinement.",
-              "shortcut": ""
-            },
-            {
-              "id": "mesh-solid|Mesh to Solid",
-              "label": "Mesh to Solid",
-              "description": "Last resort: one CAD face per triangle. Heavy, hard to edit, and no recovered feature history.",
-              "shortcut": ""
-            }
-          ]
-        },
-        {
-          "title": "Check",
-          "tools": [
-            {
-              "id": "mesh-deviation|Deviation",
-              "label": "Deviation",
-              "description": "Compare a scan with its CAD model and show the error as colors.",
-              "shortcut": ""
-            },
-            {
-              "id": "clear-analysis|Clear Colors",
-              "label": "Clear Colors",
-              "description": "Remove analysis colors from meshes.",
+              "description": "Use a mesh section to start an editable parametric sketch.",
               "shortcut": ""
             }
           ]

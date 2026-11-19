@@ -49,6 +49,23 @@ public static class MeshPatch
         return new Result(MeshOps.Compact(v, [.. tris]), openings, added);
     }
 
+    public static TriMesh FillBoundary(TriMesh mesh, int[] rim, bool smooth)
+    {
+        var verts = Enumerable.Range(0, mesh.VertexCount).Select(mesh.P).ToList();
+        var loop = rim.Reverse().ToArray();
+        var patch = Cap(loop, verts);
+        if (smooth)
+        {
+            double size = Enumerable.Range(0, loop.Length).Average(i => verts[loop[i]].DistanceTo(verts[loop[(i + 1) % loop.Length]]));
+            Refine(patch, verts, size);
+            Fair(patch, loop.ToHashSet(), Neighbours([.. mesh.T]), verts);
+        }
+        var v = verts.SelectMany(p => new[] { (float)p.X, (float)p.Y, (float)p.Z }).ToArray();
+        var colors = mesh.VertexColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, verts.Count - mesh.VertexCount)).ToArray();
+        var faces = mesh.FaceColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, patch.Count / 3)).ToArray();
+        return new TriMesh(v, [.. mesh.T, .. patch], colors, faces);
+    }
+
     static Dictionary<int, HashSet<int>> Neighbours(List<int> t)
     {
         var res = new Dictionary<int, HashSet<int>>();

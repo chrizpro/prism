@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
         new("design", "Design", "Solid, surface, freeform, NURBS and sheet metal modeling.", ["Home", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"]),
         new("drawing", "Drawing", "Edit engineering drawing sheets, views, dimensions and annotations.", ["Home"], "Home"),
         new("ecad", "ECAD", "Electronic boards, component envelopes and enclosure integration.", ["Home", "ECAD", "Solid", "Sheet Metal", "Direct Modeling", "Analyze", "View"], "ECAD"),
-        new("scan", "Scan", "Clean up meshes, and rebuild scans as CAD. Print preparation is in CAM.", ["Home", "Mesh", "Reverse Engineer", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Analyze", "View"], "Mesh"),
+        new("scan", "Scan", "Clean up meshes, and rebuild scans as CAD. Print preparation is in CAM.", ["Home", "Mesh", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Analyze", "View"], "Mesh"),
         new("simulate", "CAE", "Static structures, thermal conduction, natural frequencies, mechanism kinematics and motion, and pipe-flow calculations.", ["Home", "Static", "Thermal", "Dynamics", "Motion", "Fluids", "Solid", "Direct Modeling", "Analyze", "View"], "Static"),
         new("assemble", "Assemble", "Build assemblies and model their parts, connect joints, test motion and animate.", ["Home", "Assemble", "Joints", "Solid", "Surface", "Freeform", "NURBS", "Direct Modeling", "Sheet Metal", "Animate", "Analyze", "View"], "Assemble"),
         new("render", "Render", "Make realistic pictures: lighting, background and quality.", ["Home", "Render", "Animate", "Solid", "Direct Modeling", "Analyze", "View"], "Render"),
@@ -94,7 +94,7 @@ public sealed partial class MainViewModel
         if (t.UserHidden) return false;
         if (t.IsCustom || WorkspaceId == "all") return true;
         if (Current.Tabs.Contains(t.Title)) return true;
-        return t.Title is "Mesh" or "Reverse Engineer" && Session.Objects.Any(o => o.Tri != null);
+        return t.Title == "Mesh" && Session.Objects.Any(o => o.Tri != null);
     }
 
     void ApplyWorkspace()

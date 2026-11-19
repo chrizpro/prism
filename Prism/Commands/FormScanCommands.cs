@@ -8,6 +8,7 @@ using Prism.Meshing;
 namespace Prism.Commands;
 
 /// <summary>Start a form cage around a scan: a box, ball or cylinder shrink-wrapped onto the mesh, ready to edit.</summary>
+[Legacy("Use Convert Mesh with Freeform.")]
 public sealed class FormFromScanCommand : MeshCommand
 {
     readonly ChoiceParam _shape;
@@ -31,11 +32,16 @@ public sealed class FormFromScanCommand : MeshCommand
     {
         Results.Clear();
         var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
-        var m = obj.Tri!; var size = m.Size; var c = m.Center; int n = _res.Value;
+        return BuildConversion(obj, _shape.Index, _res.Value, _relax.Value, _offset.Value);
+    }
+
+    internal CommandOutput BuildConversion(SceneObject obj, int shape, int n, int relax, double offset)
+    {
+        var m = obj.Tri!; var size = m.Size; var c = m.Center;
         Row("Output", "Editable freeform cage; original sketches and feature history are not recovered");
         SubdMesh cage;
         double pad = 1.15;
-        switch (_shape.Index)
+        switch (shape)
         {
             case 0:
                 cage = FormOps.Box(size.X * pad, size.Y * pad, size.Z * pad, n, n, n);
@@ -54,9 +60,9 @@ public sealed class FormFromScanCommand : MeshCommand
             }
         }
         // the scan under test is the one chosen here, not every mesh in the scene
-        var wrapSession = new ScanScope(S, obj);
-        wrapSession.Shrink(cage, c, _offset.Value);
-        wrapSession.Relax(cage, _relax.Value, _offset.Value);
+        var wrapSession = new ScanScope(obj);
+        wrapSession.Shrink(cage, c, offset);
+        wrapSession.Relax(cage, relax, offset);
         cage.Level = 2;
         Row("Cage", $"{cage.V.Count} points, {cage.F.Count} quads", 1);
         var dev = cage.V.Average(v => m.Bvh.ClosestPoint(v)?.Dist ?? 0);
@@ -67,7 +73,7 @@ public sealed class FormFromScanCommand : MeshCommand
     }
 
     /// <summary>Wrap helpers limited to one chosen scan.</summary>
-    sealed class ScanScope(CadSession s, SceneObject scan)
+    sealed class ScanScope(SceneObject scan)
     {
         readonly TriMesh _m = scan.Tri!;
         (Vec3 p, Vec3 n)? Closest(Vec3 p) => _m.Bvh.ClosestPoint(p) is { } c ? (c.Point, _m.FaceNormal(c.Tri)) : null;

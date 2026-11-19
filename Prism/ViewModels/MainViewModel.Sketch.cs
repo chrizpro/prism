@@ -254,8 +254,23 @@ public sealed partial class MainViewModel
         SyncRightPanels();
     }
 
+    public bool HasMeshSectionReference => Session.Sketch?.Model.MeshSectionTraces.Count > 0;
+    public bool ShowMeshSectionReference
+    {
+        get => Session.Sketch?.ShowMeshSectionReference ?? false;
+        set { if (Session.Sketch is { } sk) { sk.ShowMeshSectionReference = value; Session.Invalidate(); } }
+    }
+
+    public void FitMeshSection()
+    {
+        if (Session.Sketch is { } sk && HasMeshSectionReference)
+            sk.SetTool(Session, new FitMeshSectionTool());
+    }
+
     void RebuildSketchPanel()
     {
+        OnPropertyChanged(nameof(HasMeshSectionReference));
+        OnPropertyChanged(nameof(ShowMeshSectionReference));
         RefreshSketchSpace();
         RebuildBrowser();
         SketchConstraints.Clear();

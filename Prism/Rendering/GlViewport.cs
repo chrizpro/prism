@@ -352,7 +352,7 @@ public sealed unsafe class GlViewport : Decorator
         foreach (var it in items)
         {
             if (!d.TryGetValue(it.Obj, out var h)) d[it.Obj] = h = new();
-            switch (it.Kind) { case SelKind.Object: h.Object = true; break; case SelKind.Face: h.Faces.Add(it.Index); break; default: h.Edges.Add(it.Index); break; }
+            switch (it.Kind) { case SelKind.Object: h.Object = true; break; case SelKind.Face: h.Faces.Add(it.Index); break; case SelKind.MeshFace: break; default: h.Edges.Add(it.Index); break; }
         }
         return d;
     }

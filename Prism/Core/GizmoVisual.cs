@@ -68,10 +68,10 @@ public static class GizmoVisual
         return true;
     }
     static bool PlaneUsable(GizmoSettings settings, int plane) => settings.AxisVisible((plane - PlaneBase + 1) % 3) && settings.AxisVisible((plane - PlaneBase + 2) % 3);
-    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false, bool planes = false, Func<int, int, bool>? allow = null)
+    public static void DrawOperation(Overlay o, CadSession s, Vec3 c, Vec3[] axes, int operation, int active, int hotAxis = -1, bool hotCenter = false, bool axisScale = true, bool planar = false, bool planes = false, Func<int, int, bool>? allow = null, bool combinedByDefault = false)
     {
         var settings = GizmoSettings.Current;
-        if (!settings.Allows(operation, active)) return;
+        if (!settings.Allows(operation, active, combinedByDefault)) return;
         double length = Length(s, c); float width = settings.Stroke;
         for (int axis = 0; axis < 3; axis++)
         {
@@ -87,7 +87,7 @@ public static class GizmoVisual
                 var tip = c + axes[axis] * length * 1.18;
                 o.AddLine(c, tip, color, stroke); Square(o, s, tip, length, color);
             }
-            if (settings.Labels && (operation == 0 || !settings.Allows(0, active)))
+            if (settings.Labels && (operation == 0 || !settings.Allows(0, active, combinedByDefault)))
                 o.AddLabel(c + axes[axis] * length * (operation == 2 ? 1.32 : 1.12), axes[axis].DistanceTo(WorldAxes[axis]) < 1e-6 ? new[] { "X", "Y", "Z" }[axis] : new[] { "U", "V", "N" }[axis], false);
         }
         if (planes && operation != 1)
@@ -105,7 +105,7 @@ public static class GizmoVisual
         if (operation == 2) Square(o, s, UniformPoint(s, c, length), length * 2.2, hotCenter ? Accent : 0xFFFFFFFF);
         if (operation == active && operation != 2) { o.AddDot(c, 0xFFFFFFFF, operation == 0 ? 15 : 11); o.AddDot(c, hotCenter && operation == 0 ? Accent : Ink, operation == 0 ? 11 : 7); }
     }
-    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false, bool planar = false, bool axisScale = true, Func<int, int, bool>? allow = null)
+    public static (int axis, bool center, int operation) Hit(CadSession s, double x, double y, Func<int, Vec3> center, Vec3[] axes, int active, bool planes = false, bool planar = false, bool axisScale = true, Func<int, int, bool>? allow = null, bool combinedByDefault = false)
     {
         var settings = GizmoSettings.Current; double best = settings.Tolerance;
         (int axis, bool center, int operation) hit = (-1, false, active);
@@ -122,7 +122,7 @@ public static class GizmoVisual
             double distance = Math.Sqrt(Math.Pow(x - q.x, 2) + Math.Pow(y - q.y, 2));
             if (distance < best) { best = distance; hit = (-1, true, op); }
         }
-        foreach (int op in new[] { 0, 1, 2 }.Where(op => settings.Allows(op, active)))
+        foreach (int op in new[] { 0, 1, 2 }.Where(op => settings.Allows(op, active, combinedByDefault)))
         {
             var c = center(op); double length = Length(s, c);
             if (op == 0) Point(c, 0);

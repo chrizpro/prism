@@ -252,7 +252,7 @@ public partial class RibbonView : UserControl
                 CloseHoverHelp();
                 if (!variant.IsEnabled) return;
                 variant.Invoke();
-                if (rb.IsSplit) { rb.Label = variant.Label.Replace("\n", " "); rb.Icon = variant.Icon; rb.Current = variant; rb.Picked?.Invoke(variant); }
+                if (rb.IsSplit && rb.Picked is { } picked) { rb.Label = variant.Label.Replace("\n", " "); rb.Icon = variant.Icon; rb.Current = variant; picked(variant); }
                 rb.Refresh();
             };
             items.Add(mi);

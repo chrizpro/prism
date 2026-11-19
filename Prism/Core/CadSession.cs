@@ -392,7 +392,7 @@ public sealed partial class CadSession : ObservableObject
 
     static string IconForKind(ObjKind k) => k switch { ObjKind.Mesh => "mesh", ObjKind.Surface => "nurbs-patch", ObjKind.Curve => "curve-through", ObjKind.Form => "form-box", ObjKind.Plane => "origin-plane", _ => "box" };
 
-    public void Apply(CommandOutput output)
+    public void Apply(CommandOutput output, bool selectCreated = true)
     {
         Checkpoint(output.Label ?? "Edit", output.Icon ?? "box");
         var list = Objects;
@@ -414,6 +414,8 @@ public sealed partial class CadSession : ObservableObject
         {
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithTri(tri));
+            _selection.RemoveAll(item => item.Obj == old.Id && item.Kind == SelKind.MeshFace);
+            if (Hover is { Kind: SelKind.MeshFace } face && face.Obj == old.Id) Hover = null;
         }
         foreach (var r in output.Remove) list = list.RemoveAll(o => o.Id == r.Id);
         var created = new List<SceneObject>();
@@ -421,13 +423,13 @@ public sealed partial class CadSession : ObservableObject
         {
             var k = n.Tri != null ? ObjKind.Mesh : n.Kind ?? (n.Form != null ? ObjKind.Form : SceneObject.Classify(n.Shape!));
             uint c = n.Color ?? Palette.DefaultFor(k, list.Count(o => o.Kind == ObjKind.Solid));
-            var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, null, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
+            var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, n.Sketch, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
             if (n.IsReference) obj = obj.WithReference(true);
             if (n.IsMoldHalf) obj = obj.WithMoldHalf();
             list = list.Add(obj); created.Add(obj);
         }
         Objects = list;
-        if (created.Count > 0) { _selection.Clear(); foreach (var o in created) _selection.Add(SelItem.Of(o)); }
+        if (selectCreated && created.Count > 0) { _selection.Clear(); foreach (var o in created) _selection.Add(SelItem.Of(o)); }
         PruneSelection();
         RaiseScene();
         SelectionChanged?.Invoke();
@@ -444,6 +446,29 @@ public sealed partial class CadSession : ObservableObject
 
     public void DeleteSelection()
     {
+        var meshFaces = _selection.Where(item => item.Kind == SelKind.MeshFace).ToList();
+        if (meshFaces.Count > 0)
+        {
+            if (ActiveCommand != null || Sketch != null) return;
+            if (meshFaces.Count != _selection.Count) { Say("Select mesh triangles on their own to delete them.", true); return; }
+            var output = new CommandOutput { Label = "Delete mesh faces", Icon = "deleteface" };
+            foreach (var group in meshFaces.GroupBy(item => item.Obj))
+            {
+                if (Find(group.Key) is not { Tri: { } mesh } obj) continue;
+                var remove = group.Select(item => item.Index).Where(i => i >= 0 && i < mesh.TriCount).ToHashSet();
+                if (remove.Count == 0) continue;
+                if (remove.Count == mesh.TriCount)
+                {
+                    Say("Switch to Object selection to delete an entire mesh.", true);
+                    return;
+                }
+                output.ReplaceMeshes.Add((obj, mesh.Subset(Enumerable.Range(0, mesh.TriCount).Where(i => !remove.Contains(i)))));
+            }
+            if (output.ReplaceMeshes.Count == 0) return;
+            Apply(output);
+            Say($"Deleted {meshFaces.Count} mesh face(s).");
+            return;
+        }
         // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body.
         // Faces of a surface: Delete removes just those faces and leaves the gap.
         var faces = _selection.Where(i => i.Kind == SelKind.Face).ToList();
@@ -552,7 +577,8 @@ public sealed partial class CadSession : ObservableObject
         switch (it.Kind)
         {
             case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
-            case SelKind.Face: return f.HasFlag(SelFilter.Face);
+            case SelKind.Face: return f.HasFlag(SelFilter.Face) && Find(it.Obj) is not { Kind: ObjKind.Mesh };
+            case SelKind.MeshFace: return f.HasFlag(SelFilter.MeshFace) && Find(it.Obj)?.Tri is { } tri && it.Index >= 0 && it.Index < tri.TriCount;
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
             case SelKind.Vertex: return f.HasFlag(SelFilter.Vertex);
             case SelKind.Entity: return (f.HasFlag(SelFilter.Edge) || f.HasFlag(SelFilter.SketchObj)) && Find(it.Obj) is { Kind: ObjKind.Sketch };
@@ -677,7 +703,7 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return OriginNames[Math.Clamp(it.Index, 0, 6)];
         var o = Find(it.Obj);
         if (o == null) return "?";
-        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
+        return it.Kind switch { SelKind.MeshFace => $"Triangle {it.Index + 1} of {o.Name}", SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
     }
 
     /// <summary>Polyline of a picked edge (from the tessellation), in order.</summary>
@@ -720,7 +746,7 @@ public sealed partial class CadSession : ObservableObject
                 var f = slot.PickFilter;
                 return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
             }
-            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
+            return Mode switch { SelMode.Face => SelFilter.Face | SelFilter.MeshFace, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
 
@@ -908,7 +934,7 @@ public sealed partial class CadSession : ObservableObject
     {
         var cam = Camera;
         bool wantEdges = filter.HasFlag(SelFilter.Edge) || (filter & SelFilter.AnyCurve) != 0;
-        bool wantFaces = filter.HasFlag(SelFilter.Face) || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
+        bool wantFaces = (filter & (SelFilter.Face | SelFilter.MeshFace)) != 0 || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
         // while a command is collecting picks its preview hides the original bodies; they stay pickable so more edges, faces or spots can be added
         bool picking = ActiveCommand?.ActiveSlot != null;
         var vis = Objects.Where(o => (picking || !HiddenIds.Contains(o.Id)) && ShownByIsolation(o)).ToList();
@@ -917,7 +943,9 @@ public sealed partial class CadSession : ObservableObject
         PickResult? fr = null;
         if (face is { } f)
         {
-            var item = filter.HasFlag(SelFilter.Face) ? new SelItem(f.obj.Id, SelKind.Face, f.face) : SelItem.Of(f.obj);
+            var item = f.obj.Kind == ObjKind.Mesh
+                ? filter.HasFlag(SelFilter.MeshFace) ? new SelItem(f.obj.Id, SelKind.MeshFace, f.face) : SelItem.Of(f.obj)
+                : filter.HasFlag(SelFilter.Face) ? new SelItem(f.obj.Id, SelKind.Face, f.face) : SelItem.Of(f.obj);
             double depth = cam.Project(f.point)?.depth ?? 1;
             fr = new PickResult(item, f.point, f.normal, depth);
         }
@@ -958,7 +986,8 @@ public sealed partial class CadSession : ObservableObject
     }
 
     static bool FaceEligible(SceneObject o, SelFilter f) =>
-        !o.IsAnnotation && f.HasFlag(SelFilter.Face) || (o.Kind == ObjKind.Solid && f.HasFlag(SelFilter.Solid)) || (o.Kind == ObjKind.Surface && f.HasFlag(SelFilter.SurfaceObj)) || (o.Kind == ObjKind.Form && f.HasFlag(SelFilter.Form)) || (o.Kind == ObjKind.Mesh && f.HasFlag(SelFilter.MeshObj));
+        o.Kind == ObjKind.Mesh ? (f & (SelFilter.MeshFace | SelFilter.MeshObj)) != 0 :
+        !o.IsAnnotation && f.HasFlag(SelFilter.Face) || (o.Kind == ObjKind.Solid && f.HasFlag(SelFilter.Solid)) || (o.Kind == ObjKind.Surface && f.HasFlag(SelFilter.SurfaceObj)) || (o.Kind == ObjKind.Form && f.HasFlag(SelFilter.Form));
     static bool EdgeEligible(SceneObject o, SelFilter f) => o.Kind switch
     {
         ObjKind.Curve => f.HasFlag(SelFilter.CurveObj) || f.HasFlag(SelFilter.Edge),
@@ -1947,6 +1976,16 @@ public sealed partial class CadSession : ObservableObject
         o.AddLine(pl.Origin - pl.V * ext, pl.Origin + pl.V * ext, ColorOf(pl.V), 1.8f);
     }
 
+    void DrawMeshFace(Overlay overlay, SelItem item, uint fill, uint outline)
+    {
+        if (Find(item.Obj) is not { Visible: true, Tri: { } mesh } || HiddenIds.Contains(item.Obj)
+            || !ShownByIsolation(item) || item.Index < 0 || item.Index >= mesh.TriCount) return;
+        var (a, b, c) = mesh.Tri(item.Index);
+        var p = mesh.P(a); var q = mesh.P(b); var r = mesh.P(c);
+        overlay.AddTri(p, q, r, fill);
+        overlay.AddPolyline([p, q, r], outline, 1.6f, closed: true);
+    }
+
     public void BuildOverlay(Overlay o)
     {
         BuildPlaneAxesOverlay(o);
@@ -1973,6 +2012,10 @@ public sealed partial class CadSession : ObservableObject
                 }
             }
         }
+        foreach (var item in _selection)
+            if (item.Kind == SelKind.MeshFace) DrawMeshFace(o, item, 0x99FFA34F, 0xFFFFA34F);
+        if (Hover is { Kind: SelKind.MeshFace } hovered && !_selection.Contains(hovered))
+            DrawMeshFace(o, hovered, 0x704BA9FF, 0xFF4BA9FF);
         Sketch?.BuildOverlay(this, o);
         DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);

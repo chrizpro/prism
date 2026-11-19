@@ -1119,64 +1119,45 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
 
-        // ---- Mesh (3D printing and reverse engineering)
-        RibbonButton RegionBtn() => Cmd("Select\nRegion", "mesh-select", () => new MeshRegionCommand(), "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.");
-        RibbonButton ClearColorsBtn() => Btn("Clear\nColors", "clear-analysis", () => Session.ClearAnalysis(), "Remove analysis colors from meshes.", RibbonSize.Large);
+        // ---- Mesh
+        RibbonButton MeshMenu(string id, string description, RibbonButton primary, params RibbonButton[] alternatives) => new()
+        {
+            Id = id, Label = primary.Label, Icon = primary.Icon, Description = description,
+            IsSplit = true, Current = primary, Menu = [primary, .. alternatives],
+            CanExecute = primary.CanExecute,
+        };
+        var meshRepair = MeshMenu("split:mesh-repair", "Clean the mesh, fill a chosen rim, or stitch two boundary edges.",
+            Cmd("Cleanup", "mesh-repair", () => new MeshRepairCommand(cleanupOnly: true), "Clean up vertices, triangles and winding without filling openings."),
+            Cmd("Fill Hole", "mesh-patch", () => new MeshBoundaryCommand(), "Pick a single rim to fill."),
+            Cmd("Stitch Seam", "mesh-repair", () => new MeshBoundaryCommand(stitch: true), "Join two picked boundary edges within a maximum gap."));
+        meshRepair.Label = "Repair";
         var mesh = new RibbonTab
         {
             Title = "Mesh",
             Groups =
             [
-                G("Import & Convert",
-                    Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
-                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes."),
-                    Split("split:mesh-cloud", "Bring in a scan as points and turn it into a mesh. Click the name (or right-click) for the other.",
-                        Btn("Import Point\nCloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY) and turn it into a mesh.", RibbonSize.Large, () => !IsSketching),
-                        Btn("Reconstruct\nSurface", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim.", RibbonSize.Large, () => !IsSketching))),
-                G("Check",
-                    Cmd("Mesh\nQuality", "mesh-quality", () => new MeshQualityCommand(), "Triangle quality, self-intersections and persistent defect highlights."),
-                    Cmd("Print\nCheck", "mesh-check", () => new MeshCheckCommand(), "Pre-flight check: watertight, fits your printer, supports, weight.")),
-                G("Repair",
-                    Cmd("Repair", "mesh-repair", () => new MeshRepairCommand(), "Repair the entire mesh or a selected region; preview the holes to fill."),
-                    RegionBtn()),
-                G("Reshape",
-                    Cmd("Reduce", "mesh-reduce", () => new MeshDecimateCommand(), "Simplify a dense mesh while keeping its shape."),
-                    Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Rebuild with even, well-shaped triangles of a chosen size."),
-                    Cmd("Smooth", "mesh-smooth", () => new MeshSmoothCommand(), "Remove scanner noise without shrinking the part.")),
-                G("Modify",
-                    Cmd("Split", "mesh-cut", () => new MeshCutCommand(), "Cut with a plane and cap the halves."),
-                    Cmd("Offset", "mesh-offset", () => new MeshOffsetCommand(), "Grow or shrink the surface (tolerances, clearances)."),
-                    Cmd("Mesh\nBoolean", "mesh-boolean", () => new MeshBooleanCommand(), "Join, subtract or intersect two closed meshes.")),
-                G("Print analysis",
-                    Cmd("Wall\nThickness", "mesh-thickness", () => new MeshThicknessCommand(), "Color the part by wall thickness."),
-                    Cmd("Overhang &\nOrientation", "mesh-overhang", () => new MeshOverhangCommand(), "Find what needs supports and the best way to lay the part down."),
-                    ClearColorsBtn()),
-                TransformGrp(), InspectGrp(), AppearanceGrp(),
-            ],
-        };
-
-        // ---- Reverse Engineer
-        var reverse = new RibbonTab
-        {
-            Title = "Reverse Engineer",
-            Groups =
-            [
                 G("Prepare",
-                    Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Drop on the bed, lay a face flat, or best-fit onto a CAD body."),
-                    RegionBtn()),
-                G("Sketch from Scan",
-                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchCommand(), "Create editable lines, arcs and circles from a scan section. Add dimensions and constraints, then extrude or revolve to build parametric features.")),
-                G("Fit Surfaces",
-                    Cmd("Segment\n& Fit", "mesh-fit", () => new MeshSegmentCommand(), "Identify and measure regions across a scan; optionally create separate fitted CAD surfaces."),
-                    Cmd("Fit Surface\nto Region", "mesh-patch", () => new MeshFitSurfaceCommand(), "Choose a region and fit one exact surface or smooth NURBS patch. This does not recover a feature history.")),
-                G("Rebuild",
-                    Cmd("Rebuild\nfrom Scan", "mesh-fit", () => new MeshRebuildCommand(), "Fit faces and attempt a shell or direct-edit solid. This does not recover the original sketches or feature history."),
-                    Cmd("Freeform\nfrom Scan", "form-scan", () => new FormFromScanCommand(), "Create an editable freeform cage around the scan for manual shape refinement."),
-                    new RibbonButton { Label = "Fallback", Icon = "mesh-solid", Description = "Triangle-by-triangle conversion when fitted rebuilding is unsuitable.", Menu =
-                        [Cmd("Mesh to\nSolid", "mesh-solid", () => new MeshToSolidCommand(), "Last resort: one CAD face per triangle. Heavy, hard to edit, and no recovered feature history.")] }),
-                G("Check",
-                    Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare a scan with its CAD model and show the error as colors."),
-                    ClearColorsBtn()),
+                    MeshMenu("split:mesh-import", "Import a mesh or reconstruct one from a point cloud.",
+                        Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
+                        Btn("Import Point Cloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY).", RibbonSize.Large, () => !IsSketching),
+                        Btn("Reconstruct Mesh", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud.", RibbonSize.Large, () => !IsSketching)),
+                    Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Orient the mesh or best-fit it onto a reference.")),
+                G("Analyze",
+                    MeshMenu("split:mesh-quality", "Inspect mesh defects and clear analysis colors.",
+                        Cmd("Mesh\nQuality", "mesh-quality", () => new MeshQualityCommand(), "Find holes, non-manifold edges, self-intersections and poor triangles."),
+                        Btn("Clear Colors", "clear-analysis", () => Session.ClearAnalysis(), "Remove analysis colors from meshes.")),
+                    Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare the scan with a CAD body or another mesh.")),
+                G("Repair",
+                    meshRepair,
+                    MeshMenu("split:mesh-region", "Select or repair a mesh region.",
+                        Cmd("Edit\nRegion", "mesh-select", () => new MeshRegionCommand(), "Select, delete, patch, smooth or extract triangles."),
+                        Cmd("Draw Faces", "form-face", () => new MeshDrawFacesCommand(), "Draw triangles and quads and stitch them into the mesh."),
+                        Cmd("Delete and Patch", "mesh-patch", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.DeleteAndPatch), "Select a region to remove and patch."),
+                        Cmd("Smooth", "mesh-smooth", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Smooth), "Select a region to smooth."),
+                        Cmd("Extract", "mesh-select", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Extract), "Select a region to copy as a separate mesh.")),
+                    Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Redistribute triangles or reduce the triangle count.")),
+                G("Convert",
+                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchPanelCommand(), "Use a mesh section to start an editable parametric sketch.")),
                 TransformGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -1384,6 +1365,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 Menu=[
                     Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, fix normals and fill holes in imported meshes."),
                     Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Print Check","mesh-check",()=>new MeshCheckCommand(),"Check watertightness, printer fit, supports and weight."),
                     Cmd("Overhang & Orientation","mesh-overhang",()=>new MeshOverhangCommand(),"Find overhangs and compare orientations."),
                     Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
                     Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")
@@ -1411,6 +1393,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),
                     Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
                     Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Print Check","mesh-check",()=>new MeshCheckCommand(),"Check watertightness, printer fit, supports and weight."),
                     Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
                     Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")
                 ]
@@ -1511,13 +1494,17 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Reuse",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         // The ribbon's Move buttons arm the move gizmo instead of a command; keep the param-driven
         // transform reachable from command search.
         CommandCatalog.Register(() => new TransformCommand(TransformCommand.Kind.Move));
         CommandCatalog.Register(() => new EdgeSurfaceCommand());
-        foreach (Func<Command> make in new Func<Command>[] { () => new MeshRepairCommand(true), () => new MeshSectionCommand(), () => new MeshSectionFitCommand() }) CommandCatalog.Register(make);
+        foreach (Func<Command> make in new Func<Command>[] { () => new MeshRepairCommand(true), () => new MeshSectionCommand(), () => new MeshSectionFitCommand(), () => new MeshDecimateCommand(),
+            () => new MeshSmoothCommand(), () => new MeshCutCommand(), () => new MeshOffsetCommand(), () => new MeshBooleanCommand(),
+            () => new MeshToSolidCommand(), () => new MeshSegmentCommand(), () => new MeshRebuildCommand(),
+            () => new MeshFitSurfaceCommand(), () => new FormFromScanCommand(), () => new SolidToMeshCommand(),
+            () => new MeshCheckCommand(), () => new ConvertMeshCommand(), () => new MeshRepairCommand() }) CommandCatalog.Register(make);
         // folded into other tools on the ribbon; scripts and saved steps still reach them
         foreach (Func<Command> make in new Func<Command>[] { () => new SweepTwoRailsCommand(), () => new NetworkSurfaceCommand(), () => new BlendSurfaceCommand(), () => new PatchCommand(), () => new PlanarSurfaceCommand(), () => new RuledSurfaceCommand(), () => new SplitCurveCommand(), () => new DeformCommand(), () => new IntersectSurfacesCommand(), () => new CurveIntersectCommand() }) CommandCatalog.Register(make);
         CommandCatalog.Register(() => new FillOpeningCommand());

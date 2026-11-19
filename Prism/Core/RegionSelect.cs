@@ -246,10 +246,11 @@ public static class RegionSelect
             }
 
             var faces = new List<int>();
-            int faceCount = whole ? 1 : m.FaceCount;
+            bool meshFaces = whole && mode == SelMode.Face;
+            int faceCount = meshFaces ? m.TriangleCount : whole ? 1 : m.FaceCount;
             for (int f = 0; f < faceCount; f++)
             {
-                int t0 = whole ? 0 : m.FaceTriStart[f], t1 = whole ? m.TriangleCount : m.FaceTriStart[f + 1];
+                int t0 = meshFaces ? f : whole ? 0 : m.FaceTriStart[f], t1 = meshFaces ? f + 1 : whole ? m.TriangleCount : m.FaceTriStart[f + 1];
                 if (t1 <= t0) continue;
                 bool allIn = true, anyIn = false, anyVisible = false; int samples = 0, stride = Math.Max(1, (t1 - t0) / 48);
                 for (int t = t0; t < t1; t++)
@@ -268,13 +269,14 @@ public static class RegionSelect
                     samples++;
                     if (region.Contains(cx, cy)) { anyIn = true; if (depth == null || depth.Visible(cx, cy, cz, 1e-3)) anyVisible = true; }
                 }
-                if (!anyIn && region.IsBox && region.Crossing) anyIn = BoxInsideFace(region, proj, I, t0, t1);
+                if (!anyVisible && region.IsBox && region.Crossing && BoxInsideFace(region, proj, I, t0, t1, depth))
+                    anyIn = anyVisible = true;
                 if (depth == null) anyVisible = anyIn;
                 bool take = region.Crossing || !region.IsBox ? anyIn && anyVisible : allIn && (depth == null || anyVisible || FaceVisible(proj, I, t0, t1, depth));
                 if (take) faces.Add(f);
             }
-            // a scanned mesh is one face (index 0), exactly what a click on it in Face mode gives; a cage has its own faces
-            if (mode == SelMode.Face) foreach (int f in faces) result.Add(new SelItem(obj.Id, SelKind.Face, f));
+            if (mode == SelMode.Face)
+                foreach (int f in faces) result.Add(new SelItem(obj.Id, meshFaces ? SelKind.MeshFace : SelKind.Face, f));
             else if (mode != SelMode.Face && faces.Count > 0)
             {
                 // whole bodies: a drag that crosses the body, or a rectangle that encloses all of it
@@ -378,15 +380,19 @@ public static class RegionSelect
     }
 
     /// <summary>A small rectangle inside one big face touches it even though none of the face's corners are in the rectangle.</summary>
-    static bool BoxInsideFace(Region r, (double x, double y, double depth)?[] proj, int[] I, int t0, int t1)
+    static bool BoxInsideFace(Region r, (double x, double y, double depth)?[] proj, int[] I, int t0, int t1, DepthMap? depth)
     {
         double cx = (r.X0 + r.X1) / 2, cy = (r.Y0 + r.Y1) / 2;
         for (int t = t0; t < t1; t++)
         {
             if (proj[I[3 * t]] is not { } a || proj[I[3 * t + 1]] is not { } b || proj[I[3 * t + 2]] is not { } c) continue;
-            double d1 = (cx - b.x) * (a.y - b.y) - (a.x - b.x) * (cy - b.y), d2 = (cx - c.x) * (b.y - c.y) - (b.x - c.x) * (cy - c.y), d3 = (cx - a.x) * (c.y - a.y) - (c.x - a.x) * (cy - a.y);
-            bool neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
-            if (!(neg && pos)) return true;
+            double denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+            if (Math.Abs(denominator) < 1e-12) continue;
+            double wa = ((b.y - c.y) * (cx - c.x) + (c.x - b.x) * (cy - c.y)) / denominator;
+            double wb = ((c.y - a.y) * (cx - c.x) + (a.x - c.x) * (cy - c.y)) / denominator;
+            double wc = 1 - wa - wb;
+            if (wa < 0 || wb < 0 || wc < 0) continue;
+            if (depth == null || depth.Visible(cx, cy, wa * a.depth + wb * b.depth + wc * c.depth, 1e-3)) return true;
         }
         return false;
     }

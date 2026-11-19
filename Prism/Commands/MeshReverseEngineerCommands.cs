@@ -14,6 +14,7 @@ namespace Prism.Commands;
 // =====================================================================================================================
 
 /// <summary>Segment -> fit -> merge -> faces from the fitted surfaces -> boundary / intersection curves -> sew -> deviation to the scan.</summary>
+[Legacy("Use Convert Mesh.")]
 public sealed class MeshRebuildCommand : MeshCommand
 {
     readonly NumberParam _tol, _angle, _sew, _devTol;
@@ -24,7 +25,7 @@ public sealed class MeshRebuildCommand : MeshCommand
     public MeshRebuildCommand() : base("Mesh")
     {
         _tol = Num("Surface tolerance", 0.3, 0.001, 50, 0.1);
-        _angle = Num("Normal tolerance", 12, 1, 45, 1, "°");
+        _angle = Num("Normal tolerance", 12, 1, 45, 1, "Â°");
         _minTris = Add(new IntParam { Label = "Smallest region (triangles)", Value = 40, Min = 3, Max = 100000 });
         _extended = Check("Also find tori, extrusions, revolved and free-form surfaces", true);
         _merge = Check("Merge neighbouring regions of the same shape", true);
@@ -42,11 +43,24 @@ public sealed class MeshRebuildCommand : MeshCommand
 
     sealed record Analysis(List<FitRegion> Regions, RegionGraph Graph, List<RegionGraph.RegionReport> Report);
 
-    protected override CommandOutput? Build()
+    protected override CommandOutput? Build() => Build(Meshes().FirstOrDefault(), showRegions: true);
+
+    internal CommandOutput? BuildConversion(SceneObject obj, bool solid, double tolerance, double sewTolerance, int minTriangles, bool extended)
+    {
+        _create.Index = solid ? 3 : 1;
+        _tol.Value = _devTol.Value = tolerance;
+        _sew.Value = sewTolerance;
+        _minTris.Value = minTriangles;
+        _extended.Value = extended;
+        Committing = true;
+        return Build(obj, showRegions: false);
+    }
+
+    CommandOutput? Build(SceneObject? obj, bool showRegions)
     {
         Results.Clear();
         Row("Output", _create.Index == 0 ? "Analysis only; no CAD geometry is created" : "Fitted CAD faces or a direct-edit shell/solid; original sketches and feature history are not recovered");
-        var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
+        if (obj == null) return null;
         var m = obj.Tri!;
         var an = Cached(Key(obj.Id, m.TriCount, _tol.Value, _angle.Value, _minTris.Value, _extended.Value, _merge.Value, _devTol.Value), () =>
         {
@@ -55,10 +69,14 @@ public sealed class MeshRebuildCommand : MeshCommand
             return new Analysis(found, RegionGraph.Build(m, found), RegionGraph.Report(m, found, _devTol.Value));
         });
         if (an == null) return null;
-        var regs = an.Regions; var label = new int[m.TriCount];
-        for (int i = 0; i < regs.Count; i++) foreach (int t in regs[i].Tris) label[t] = i + 1;
-        var (disp, sc) = m.ToLabelledMeshData(label); disp.Scalars = sc;
-        S.SetField(obj, m, disp, 2, 0, regs.Count + 1, 0);
+        var regs = an.Regions;
+        if (showRegions)
+        {
+            var label = new int[m.TriCount];
+            for (int i = 0; i < regs.Count; i++) foreach (int t in regs[i].Tris) label[t] = i + 1;
+            var (disp, sc) = m.ToLabelledMeshData(label); disp.Scalars = sc;
+            S.SetField(obj, m, disp, 2, 0, regs.Count + 1, 0);
+        }
 
         double covered = regs.Sum(r => r.Area) / Math.Max(m.Area(), 1e-9) * 100;
         Row("Regions", regs.Count.ToString(), regs.Count > 0 ? 1 : 2);
@@ -67,7 +85,7 @@ public sealed class MeshRebuildCommand : MeshCommand
         for (int i = 0; i < Math.Min(regs.Count, 25); i++)
         {
             var rp = an.Report[i];
-            Row($"{i + 1}.  {regs[i].Describe()}", $"{rp.Area:#,0} mm²   rms {rp.Rms:0.###}   max {rp.Max:0.###}   {rp.PercentInTolerance:0}% in tol");
+            Row($"{i + 1}.  {regs[i].Describe()}", $"{rp.Area:#,0} mmÂ²   rms {rp.Rms:0.###}   max {rp.Max:0.###}   {rp.PercentInTolerance:0}% in tol");
         }
         if (regs.Any(r => r.Kind == PrimKind.Freeform))
             Row("Free-form patches", string.Join(", ", regs.Where(r => r.Kind == PrimKind.Freeform).Select(r => $"rms {r.Patch!.Rms:0.###} / max {r.Patch.MaxError:0.###}")), 2);
@@ -110,8 +128,11 @@ public sealed class MeshRebuildCommand : MeshCommand
         }
         if (result == null) for (int i = 0; i < faces.Count; i++) o.Add.Add(new(faces[i], $"Scan face {i + 1}", ObjKind.Surface));
 
-        if (_create.Index >= 2) AddCurves(o, an, m);
-        ReportDeviation(m, an, faces, result);
+        if (showRegions)
+        {
+            if (_create.Index >= 2) AddCurves(o, an, m);
+            ReportDeviation(m, an, faces, result);
+        }
         return o;
     }
 
@@ -285,30 +306,73 @@ public sealed class MeshRebuildCommand : MeshCommand
 
 /// <summary>Fits lines and arcs to mesh section outlines and creates them as curves.</summary>
 /// <summary>Puts a plane on the scan, slices it there and makes a real sketch of fitted lines, arcs and circles, ready to extrude or revolve.</summary>
-public sealed class MeshSectionSketchCommand : MeshCommand
+public class MeshSectionSketchCommand : MeshCommand
 {
     readonly SelectionSlot _ref;
     readonly ChoiceParam _plane;
     readonly NumberParam _offset, _spacing, _tol;
     readonly IntParam _count;
-    readonly List<List<Vec3>> _overlay = [];
+    const int Movable = 5;
+    readonly bool _interactive;
+    readonly NumberParam _x, _y, _z, _rx, _ry, _rz;
+    readonly List<List<Vec3>> _overlay = [], _raw = [];
+    Vec3[]? _planeOutline;
+    int _applied;
+    bool _applying;
 
-    public MeshSectionSketchCommand() : base("Mesh")
+    public MeshSectionSketchCommand() : this(false) { }
+
+    protected MeshSectionSketchCommand(bool interactive) : base("Mesh")
     {
-        _plane = Choice("Plane", 0, "XY (horizontal)", "XZ", "YZ", "A construction plane or flat face", "Fitted to the selected region");
+        _interactive = interactive;
+        _plane = Choice("Plane", interactive ? Movable : 0, "XY (horizontal)", "XZ", "YZ", "A construction plane or flat face", "Fitted to the selected region", "Movable plane");
         _ref = Slot(new SelectionSlot { Label = "Plane or flat face", Filter = SelFilter.Plane | SelFilter.Face, Optional = true });
         _offset = Num("Offset from the plane", 0);
         _count = Add(new IntParam { Label = "Number of sketches", Value = 1, Min = 1, Max = 50 });
         _spacing = Num("Spacing", 5, 0.01);
         _tol = Num("Fit tolerance", 0.05, 0.0005, 5, 0.01);
+        _x = Num("Move X", 0); _y = Num("Move Y", 0); _z = Num("Move Z", 0);
+        _rx = Num("Rotate X", 0, unit: "°"); _ry = Num("Rotate Y", 0, unit: "°"); _rz = Num("Rotate Z", 0, unit: "°");
+        if (interactive) RepeatApply = Add(new ActionParam { Label = "Apply section", Run = ApplySection });
         UpdateVisibility();
     }
 
     public override string Title => "Section Sketch";
-    public override string Hint => "Put a plane on the scan and get an editable sketch of the outline there: straight lines, arcs and circles fitted within the tolerance, not thousands of tiny segments. Use a world plane, a construction plane or face, or the area you selected with Select Region. Extrude or revolve the sketch, then use Deviation to see how close you are.";
+    public override string Hint => _interactive
+        ? "Drag the plane arrows or rings to move or rotate it. Apply each section, then choose Done."
+        : "Fit an editable sketch of the measured outline on a world plane, construction plane, flat face, or selected mesh region.";
     public override string Icon => "mesh-section";
-    public override string OkText => "Create sketch";
-    protected override void UpdateVisibility() { if (_ref == null) return; _spacing.IsVisible = _count.Value > 1; _ref.IsVisible = _plane.Index == 3; }
+    public override ActionParam? RepeatApply { get; }
+    public override bool SupportsPreview => !_interactive;
+    public override string OkText => _interactive ? "Done" : "Create sketch";
+    public override GizmoSpec? Gizmo => _plane.Index == Movable && Meshes().FirstOrDefault()?.Tri is { } mesh
+        ? GizmoSpec.At(MovableOrigin(mesh), _x, _y, _z, _rx, _ry, _rz) with { CombinedByDefault = true }
+        : null;
+
+    protected override void UpdateVisibility()
+    {
+        if (_rz == null) return;
+        bool movable = _plane.Index == Movable;
+        _x.IsVisible = _y.IsVisible = _z.IsVisible = _rx.IsVisible = _ry.IsVisible = _rz.IsVisible = movable;
+        _offset.IsVisible = !movable;
+        _ref.IsVisible = _plane.Index == 3;
+        _spacing.IsVisible = _count.Value > 1;
+    }
+
+    Vec3 MovableOrigin(TriMesh mesh) => mesh.Center + new Vec3(_x.Value, _y.Value, _z.Value);
+
+    void ApplySection()
+    {
+        if (S.ActiveCommand != this) return;
+        _applying = true;
+        CommandOutput? output;
+        try { output = TryBuild(); } finally { _applying = false; }
+        if (output == null) { S.Say(Error ?? "Position the plane where it cuts the mesh before applying.", true); return; }
+        S.Apply(output, selectCreated: false);
+        _applied += output.Add.Count;
+        OnChanged();
+        S.Say("Section applied. Move the plane to take another section, or choose Done.");
+    }
 
     /// <summary>The plane to slice on, or null while it still needs a pick.</summary>
     Plane3? Frame(TriMesh m)
@@ -319,6 +383,13 @@ public sealed class MeshSectionSketchCommand : MeshCommand
             case 0: return Plane3.XY;
             case 1: return Plane3.XZ;
             case 2: return Plane3.YZ;
+            case Movable:
+            {
+                Vec3 Rotate(Vec3 axis) => DirectHelpers.RotateAbout(
+                    DirectHelpers.RotateAbout(DirectHelpers.RotateAbout(axis, Vec3.UnitX, _rx.Value),
+                        Vec3.UnitY, _ry.Value), Vec3.UnitZ, _rz.Value);
+                return new Plane3(MovableOrigin(m), Rotate(Vec3.UnitX), Rotate(Vec3.UnitY));
+            }
             case 3:
             {
                 if (_ref.Items.Count == 0) return null;
@@ -366,53 +437,78 @@ public sealed class MeshSectionSketchCommand : MeshCommand
         }
     }
 
-    protected override CommandOutput? Build()
+    protected override CommandOutput? Build() => _interactive && Committing ? Report() : BuildSections(create: !_interactive || _applying);
+
+    CommandOutput? BuildSections(bool create)
     {
-        Results.Clear(); _overlay.Clear();
+        Results.Clear(); _overlay.Clear(); _raw.Clear(); _planeOutline = null;
+        if (_applied > 0) Row("Applied sketches", _applied.ToString(), 1);
         var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
         var m = obj.Tri!;
         if (Frame(m) is not { } frame)
         {
-            Row("Plane", _plane.Index == 3 ? "pick a construction plane or a flat face" : "select an area with Select Region first, then come back", 2);
+            Row("Plane", _plane.Index == 3 ? "pick a construction plane or a flat face" : "select an area with Edit Region first, then come back", 2);
             return null;
         }
         var n = frame.Normal;
-        var made = new List<(Shape shape, Plane3 plane, SketchModel model)>();
-        int loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0;
+        double offset = _plane.Index == Movable ? 0 : _offset.Value;
+        if (_interactive)
+        {
+            double extent = Math.Max((m.Max - m.Min).Length * 0.52, 0.01);
+            var p = frame with { Origin = frame.Origin + n * offset };
+            _planeOutline = [p.PointAt(-extent, -extent), p.PointAt(extent, -extent), p.PointAt(extent, extent), p.PointAt(-extent, extent)];
+        }
+        var output = new CommandOutput { Label = Title, Icon = Icon };
+        int sketches = 0, loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0;
         for (int k = 0; k < _count.Value; k++)
         {
-            var plane = frame with { Origin = frame.Origin + n * (_offset.Value + k * _spacing.Value) };
-            var model = new SketchModel(); int found = 0;
+            var plane = frame with { Origin = frame.Origin + n * (offset + k * _spacing.Value) };
+            var model = create ? new SketchModel() : null; int found = 0;
             foreach (var l in MeshOps.Section(m, plane.Origin, n))
             {
-                if (l.Points.Count < 3) continue;
+                if (l.Points.Count < (l.Closed ? 3 : 2)) continue;
                 var p2 = l.Points.Select(p => plane.Project(p)).Select(p => (x: p.u, y: p.v)).ToList();
                 var segs = LineArcFit.Fit(p2, l.Closed, _tol.Value);
                 if (segs.Count == 0) continue;
                 loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, LineArcFit.MaxDeviation(p2, segs));
                 lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
                 _overlay.Add(segs.SelectMany(s => s.Polyline().Select(q => plane.PointAt(q.x, q.y))).ToList());
-                AddToSketch(model, segs, l.Closed);
+                if (_interactive) _raw.Add(l.Closed ? [.. l.Points, l.Points[0]] : l.Points);
+                if (model != null)
+                {
+                    model.MeshSectionTraces.Add(new MeshSectionTrace(l.Closed, p2.Select(p => new MeshSectionSample(p.x, p.y)).ToArray()));
+                    AddToSketch(model, segs, l.Closed);
+                }
             }
             if (found == 0) continue;
-            made.Add((Occ.Profile(model.ToShapes(plane), faces: false), plane, model));
+            sketches++;
+            if (model != null)
+                output.Add.Add(new NewObject(Occ.Profile(model.ToShapes(plane), faces: false), "Section sketch", ObjKind.Sketch, Plane: plane, Sketch: model));
         }
         if (loops == 0) { Row("Nothing here", "the plane does not cut the mesh", 2); return null; }
-        Row("Sketches", made.Count.ToString(), 1);
+        Row("Sketches", sketches.ToString(), 1);
         Row("Outlines", loops.ToString());
         Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
         Row("Largest deviation", N(worst, "mm"), worst <= _tol.Value * 1.5 ? 1 : 2);
-        Row("Output", "Editable sketch geometry; dimensions and geometric constraints are not added automatically");
-        Row("Next", "Edit the sketch, add dimensions and constraints, then extrude or revolve. Use Deviation to compare the rebuilt part with the scan.");
-        return new CommandOutput
-        {
-            Label = Title, Icon = Icon,
-            After = s => { foreach (var (shape, plane, model) in made) s.AddObject(shape, "Section sketch", ObjKind.Sketch, plane: plane, checkpoint: false, sketch: model); },
-        };
+        Row("Output", "Editable sketch curves. Add driving dimensions in the sketch.");
+        if (_interactive) Row("Preview", "Orange: measured section. Cyan: editable curves.");
+        return create ? output : Report();
     }
 
-    public override void BuildOverlay(CadSession s, Overlay o) { foreach (var l in _overlay) o.AddPolyline(l, 0xFF35B6FF, 2.4f, false); }
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_planeOutline is [var a, var b, var c, var d])
+        {
+            o.AddTri(a, b, c, 0x1835B6FF);
+            o.AddTri(a, c, d, 0x1835B6FF);
+            o.AddPolyline([a, b, c, d, a], 0xC035B6FF, 1.5f, false);
+        }
+        foreach (var l in _raw) o.AddPolyline(l, 0xFFEAA755, 4f, false);
+        foreach (var l in _overlay) o.AddPolyline(l, 0xFF35B6FF, 2.4f, false);
+    }
 }
+
+public sealed class MeshSectionSketchPanelCommand() : MeshSectionSketchCommand(interactive: true);
 
 public sealed class MeshSectionFitCommand : MeshCommand
 {

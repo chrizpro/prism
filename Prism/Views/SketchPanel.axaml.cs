@@ -12,6 +12,7 @@ public partial class SketchPanel : UserControl
 
     void OnSketchAction(object? sender, RoutedEventArgs e) { if(sender is Button { Tag:string action }) Vm?.SketchSpaceAction(action); }
     void OnFinish(object? sender, RoutedEventArgs e) => Vm?.Session.ExitSketch(true);
+    void OnFitMeshSection(object? sender, RoutedEventArgs e) => Vm?.FitMeshSection();
     void OnToolDone(object? sender, RoutedEventArgs e) => Vm?.FinishTool();
     void OnToolOption(object? sender, RoutedEventArgs e) { if(sender is Control { DataContext:ToolOptionItem option })Vm?.PickToolOption(option.Index); }
     void OnToolChoice(object? sender, SelectionChangedEventArgs e) { if (sender is ComboBox { DataContext: ToolOptionItem option, SelectedIndex: >= 0 } box) Vm?.PickToolOptionChoice(option, box.SelectedIndex); }

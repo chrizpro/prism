@@ -200,7 +200,18 @@ public sealed partial class CadSession
         else
         {
             var kind = mode == SelMode.Face ? SelKind.Face : SelKind.Edge;
-            var touched = have.Where(i => i.Kind == kind).Select(i => i.Obj).ToHashSet();
+            bool meshFaces = mode == SelMode.Face && filter.HasFlag(SelFilter.MeshFace);
+            var touched = have.Where(i => i.Kind == kind || meshFaces && i.Kind == SelKind.MeshFace).Select(i => i.Obj).ToHashSet();
+            if (meshFaces)
+            {
+                foreach (var obj in Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && ShownByIsolation(o) &&
+                            o.Tri != null && (touched.Count == 0 || touched.Contains(o.Id))))
+                    for (int i = 0; i < obj.Tri!.TriCount; i++)
+                    {
+                        var item = new SelItem(obj.Id, SelKind.MeshFace, i);
+                        if (!have.Contains(item)) next.Add(item);
+                    }
+            }
             foreach (var o in bodies.Where(b => touched.Count == 0 || touched.Contains(b.Id)))
             {
                 int n = kind == SelKind.Face ? o.Mesh.FaceCount : o.Mesh.EdgeCount;
@@ -227,7 +238,9 @@ public sealed partial class CadSession
     {
         var (o, d) = Camera.Ray(p.X, p.Y);
         var hits = new List<(double t, SelItem item)>();
-        foreach (var obj in Objects.Where(x => x.Visible && !HiddenIds.Contains(x.Id) && !x.IsAnnotation && x.Kind is ObjKind.Solid or ObjKind.Surface))
+        var filter = ActiveFilter;
+        foreach (var obj in Objects.Where(x => x.Visible && !HiddenIds.Contains(x.Id) && ShownByIsolation(x) &&
+             (x.Kind is ObjKind.Solid or ObjKind.Surface || x.Kind == ObjKind.Mesh && (filter & (SelFilter.MeshFace | SelFilter.MeshObj)) != 0)))
         {
             var m = obj.Mesh; var P = m.Positions; var I = m.Indices;
             var seen = new HashSet<int>();
@@ -235,10 +248,11 @@ public sealed partial class CadSession
             {
                 double? hit = Ray(o, d, P, I[t] * 3, I[t + 1] * 3, I[t + 2] * 3);
                 if (hit is not { } h || h <= 0) continue;
-                int face = m.TriFace[t / 3];
-                if (!ShownByIsolation(new SelItem(obj.Id, SelKind.Face, face))) continue;
-                if (Mode == SelMode.Face || ActiveFilter.HasFlag(SelFilter.Face)) { if (seen.Add(face)) hits.Add((h, new SelItem(obj.Id, SelKind.Face, face))); }
-                else if (seen.Add(-1)) hits.Add((h, SelItem.Of(obj)));
+                var item = obj.Kind == ObjKind.Mesh
+                    ? filter.HasFlag(SelFilter.MeshFace) ? new SelItem(obj.Id, SelKind.MeshFace, t / 3) : SelItem.Of(obj)
+                    : filter.HasFlag(SelFilter.Face) ? new SelItem(obj.Id, SelKind.Face, m.TriFace[t / 3]) : SelItem.Of(obj);
+                if (ShownByIsolation(item) && Matches(item, filter) && seen.Add(item.Index))
+                    hits.Add((h, item));
             }
         }
         if (hits.Count == 0) return null;

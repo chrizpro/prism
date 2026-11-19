@@ -87,7 +87,7 @@ public static class LineArcFit
     }
 
     // algebraic (Kasa-style, centred) circle fit
-    static (double cx, double cy, double r)? FitCircleFast(List<(double x, double y)> pts)
+    internal static (double cx, double cy, double r)? FitCircleFast(List<(double x, double y)> pts)
     {
         int n = pts.Count; double mx = 0, my = 0; foreach (var p in pts) { mx += p.x; my += p.y; } mx /= n; my /= n;
         double suu = 0, suv = 0, svv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
