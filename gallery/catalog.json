@@ -2,6 +2,58 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "planar-coupe",
+      "Name": "Planar coupe",
+      "Description": "A teal two-seater with folded coachwork, perforated alloy wheels and separate glazing.",
+      "Workflow": "Solid / Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4905992,
+      "Sha256": "741d2d400c4b052e79eb0c34395e9b0bd7d3e115fd4116a97aa5f1dcac318639",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/planar-coupe.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/planar-coupe.png?v=329211c13846fbc4"
+    },
+    {
+      "Id": "vermilion-gt",
+      "Name": "Vermilion GT",
+      "Description": "A red mid-engine sports car with sculpted fenders, recessed side intakes and split-spoke wheels.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 2120099,
+      "Sha256": "0f11c194df333217e8009709433258242c0eec59bddc379d22e6aa842eef2cc7",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/vermilion-gt.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/vermilion-gt.png?v=287da60e89855685"
+    },
+    {
+      "Id": "tideline-jet",
+      "Name": "Tideline airliner",
+      "Description": "A single-aisle passenger jet with swept wings, two turbofans and tricycle landing gear.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1889601,
+      "Sha256": "3cdb7c4a24d6cc51da2d6b01ba08e316110681add1176aa633ccd0d391e6be5c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/tideline-jet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/tideline-jet.png?v=6b8d3f8901687406"
+    },
+    {
+      "Id": "evergreen-express",
+      "Name": "Evergreen Express",
+      "Description": "A three-car electric passenger train with articulated gangways, two driving cabs and a raised pantograph.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 3506342,
+      "Sha256": "92995edd99d67c919ee91713777755ca9f54b607992ca99791b33164f43c5dd9",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/evergreen-express.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/evergreen-express.png?v=dc5ec66afc8c5b52"
+    },
+    {
       "Id": "kingfisher-kayak",
       "Name": "Kingfisher kayak",
       "Description": "A copper and teal kayak with lofted hull and deck skins, a trimmed cockpit, and a sculpted seat.",

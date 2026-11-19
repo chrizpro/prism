@@ -49,6 +49,12 @@ Owner asked on 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)) f
 
 Gallery verification on 2026-11-09, Windows workstation. `dotnet test` on the Unit and Headless projects with `-c Release --filter Feature=Gallery` passed all 15 tests (8 Unit, 7 Headless). `python gallery/update_catalog.py --check` verified the model sizes, hashes and preview revisions.
 
+### Transport studies
+
+The owner authorized gallery publication of the four transport studies on 2026-11-19. Windows Prism reopened and checked 108 solids and six closed seat forms for the planar coupe, 65 objects for the Vermilion GT, 47 for the Tideline airliner and 61 for the Evergreen Express. The gallery uses actual Prism renders. [Models and rebuild scripts](../../../gallery/README.md#transport-studies).
+
+The planar coupe builder uses the ruled-loft correction tracked in [#150](https://github.com/chrizpro/prism/issues/150). It is available on [the coupe branch](https://github.com/chrizpro/prism/tree/codex/planar-coupe). The published coupe already contains the saved solid geometry. [Gallery open coverage](../../../Prism.Tests/Headless/Gallery/GalleryViewTests.cs).
+
 **Fluids demos.** The CAE gallery includes a symmetric pipe network that opens with live calculations and a short water duct for 3D Flow Study and Pipe Flow. [Setup instructions and Windows evidence](../../cae/fluids/README.md#gallery-demos).
 
 ### Cantilever beam
