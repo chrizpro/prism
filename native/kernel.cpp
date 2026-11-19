@@ -539,13 +539,38 @@ CK_API void* ck_thread_groove_external(double diameter, double pitch, double dep
         return wrap(clip.Shape());
     CATCH(nullptr)
 }
+// A degree-one control spline can store an entire polygon in one edge. A
+// ruled loft then gets one folded face across all its corners. OCCT Boolean
+// operations can miss intersections on that face. Give each span a real edge.
+static TopoDS_Wire ruledSection(const TopoDS_Wire& wire) {
+    BRepTools_WireExplorer edges(wire);
+    if (!edges.More()) return wire;
+    const TopoDS_Edge edge = edges.Current();
+    edges.Next();
+    if (edges.More()) return wire;
+    BRepAdaptor_Curve curve(edge);
+    if (curve.GetType() != GeomAbs_BSplineCurve || curve.Degree() != 1) return wire;
+    const int spans = curve.NbIntervals(GeomAbs_C1);
+    if (spans < 2) return wire;
+    TColStd_Array1OfReal bounds(1, spans + 1);
+    curve.Intervals(bounds, GeomAbs_C1);
+    BRepBuilderAPI_MakePolygon polygon;
+    for (int i = 1; i <= spans + 1; ++i) {
+        const int k = edge.Orientation() == TopAbs_REVERSED ? spans + 2 - i : i;
+        polygon.Add(curve.Value(bounds(k)));
+    }
+    return polygon.Wire();
+}
 CK_API void* ck_loft(void** sections, int n, int solid, int ruled) {
     TRY
         BRepOffsetAPI_ThruSections ts(solid != 0, ruled != 0);
         for (int i = 0; i < n; ++i) {
             const TopoDS_Shape& s = get(sections[i]);
             if (s.ShapeType() == TopAbs_VERTEX) ts.AddVertex(TopoDS::Vertex(s));
-            else ts.AddWire(asWire(s));
+            else {
+                const TopoDS_Wire wire = asWire(s);
+                ts.AddWire(ruled ? ruledSection(wire) : wire);
+            }
         }
         ts.Build();
         if (!ts.IsDone()) { fail("Loft failed."); return nullptr; }

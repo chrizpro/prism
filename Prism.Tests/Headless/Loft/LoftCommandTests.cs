@@ -14,6 +14,23 @@ namespace Prism.HeadlessTests.Loft;
 [Trait("Feature", "Loft")]
 public class LoftCommandTests(Xunit.Abstractions.ITestOutputHelper output)
 {
+    [AvaloniaFact(DisplayName = "LFT-H034 | A ruled polygonal control loft has cuttable planar side faces")]
+    [Trait("TestId", "LFT-H034")]
+    public void RuledControlPolygonSupportsSideCut()
+    {
+        using var lower = Occ.NurbsCurve([new(0, 0, 0), new(20, 0, 0), new(20, 20, 0),
+            new(0, 20, 0), new(0, 0, 0)], degree: 1);
+        using var upper = Occ.Translate(lower, new(0, 0, 20));
+        using var block = Occ.Loft([lower, upper], solid: true, ruled: true);
+        Assert.Equal(6, block.Count(SubKind.Face));
+
+        using var tool = Occ.Box(30, 5, 8);
+        using var throughSide = Occ.Translate(tool, new(10, 10, 5));
+        using var cut = Occ.Cut(block, throughSide);
+        AssertValidSolid(cut);
+        AssertNear(7200, cut.Props().Volume, "Side opening removes 800 mm³");
+    }
+
     [AvaloniaTheory(DisplayName = "LFT-H009 | Straight matching rails retain the analytic square frustum")]
     [InlineData(1, false)]
     [InlineData(2, false)]
