@@ -103,6 +103,12 @@ Fixed during the 2026-11-10 Reverse Engineer workflow verification: sparse recta
 
 ## Tested on
 
+On 2026-11-19, Windows Release at `3d3ee0e` passed the desktop build, ribbon catalog check, 10 Mesh Unit tests and 127 Mesh and Selection Headless tests. Three viewport scenarios passed twice in shuffled order. [Tracking issue #148](https://github.com/chrizpro/prism/issues/148).
+
+- **MSH-I003** checks the purple draft before and after Enter, four joined edges, and one remaining open rim. [Draw Faces viewport](evidence/MSH-I003-purple-draft.png)
+- **MSH-I006** starts with Section Sketch active, uses the Face ribbon control, and checks that deleting one triangle leaves three and Undo restores four. [Face selection viewport](evidence/MSH-I006-face-from-section.png)
+- **MSH-I007** checks that Preview result restores the heat map in Wireframe after Clear and that the report still counts four open edges. [Mesh Quality viewport](evidence/MSH-I007-quality-preview.png)
+
 On 2026-11-19, the integration into `v0.4-work` passed the Windows Release desktop build, the ribbon catalog check, 10 Mesh Unit tests, and 124 Mesh and Selection Headless tests. Viewport scenarios MSH-I005 and MSH-I006 passed twice in shuffled order.
 
 On 2026-11-19, Windows Release passed **10 Mesh Unit tests** and **122 Mesh and Selection Headless tests**. Both pointer-driven desktop scenarios passed twice in shuffled order. The desktop build and generated ribbon catalog check passed. See [#147](https://github.com/chrizpro/prism/issues/147) for the source revision and commands.
