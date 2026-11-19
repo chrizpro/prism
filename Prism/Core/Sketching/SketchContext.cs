@@ -36,6 +36,7 @@ public sealed partial class SketchContext
     public string? SuggestedName { get; set; }
     public Guid? EditingId { get; }
     public SketchTool? Tool { get; private set; }
+    public bool ShowMeshSectionReference { get; set; } = true;
     public SolveResult Result { get; private set; }
     /// <summary>New curves are created as construction geometry (reference only; not part of the profile).</summary>
     public bool Construction { get; set; }
@@ -721,6 +722,9 @@ public sealed partial class SketchContext
     {
         BuildSpaceOverlay(s, o);
         foreach (var section in _sections) DrawGrease(o, section.Model, section.Plane);
+        if (ShowMeshSectionReference || Tool is FitMeshSectionTool)
+            foreach (var trace in Model.MeshSectionTraces)
+                o.AddPolyline(trace.Points.Select(p => Plane.PointAt(p.X, p.Y)).ToArray(), 0xCFEAA755, 3.8f, trace.Closed);
         var cam = s.Camera;
         var free = Result.FreeEntities;
         bool conflict = !Result.Converged;

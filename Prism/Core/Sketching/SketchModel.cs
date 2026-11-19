@@ -82,8 +82,13 @@ public sealed class GreaseStroke
 
 public readonly record struct GreasePoint(double U, double V, double Depth = 0);
 
+public readonly record struct MeshSectionSample(double X, double Y);
+
+public sealed record MeshSectionTrace(bool Closed, MeshSectionSample[] Points);
+
 public sealed class SketchModel
 {
+    public List<MeshSectionTrace> MeshSectionTraces { get; set; } = [];
     public List<GreaseStroke> GreaseStrokes { get; set; } = [];
     public List<SketchSection> Sections { get; set; } = [];
     public List<SketchDatum> Datums { get; set; } = [];
@@ -108,6 +113,7 @@ public sealed class SketchModel
     public SketchModel Clone()
     {
         var m = new SketchModel { GreaseStrokes = GreaseStrokes.Select(stroke => stroke.Clone()).ToList(), NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, SharedNurbsCurves = SharedNurbsCurves, FreePointEditing = FreePointEditing, FlatDrawing = FlatDrawing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
+        m.MeshSectionTraces.AddRange(MeshSectionTraces.Select(trace => trace with { Points = [.. trace.Points] }));
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });

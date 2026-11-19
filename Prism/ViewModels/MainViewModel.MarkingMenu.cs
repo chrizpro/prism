@@ -41,6 +41,7 @@ public sealed partial class MainViewModel
                     Act("Cancel", "cancel", () => s.CancelCommandPanel()), null, Act("Fit view", "zoom-extents", () => s.ZoomExtents()), null];
         var sel = s.Selection;
         if (sel.Count == 0) return EmptyMarking();
+        if (sel[0].Kind == SelKind.MeshFace) return [Act("Delete mesh faces", "deleteface", () => s.DeleteSelection())];
         if (sel[0].Kind == SelKind.Face) return s.Find(sel[0].Obj) is { Kind: ObjKind.Surface } ? SurfaceFaceMarking() : FaceMarking();
         if (sel[0].Kind == SelKind.Edge) return EdgeMarking();
         var objs = s.SelectedObjects.ToList();
@@ -66,7 +67,7 @@ public sealed partial class MainViewModel
                 return [Cm("Edit freeform", "form-edit", () => new EditFormCommand()), Act("To NURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session)), Cm("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror)), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move)),
                         del, hide, Act("Materials", "materials", OpenMaterials), Act("Duplicate", "duplicate", () => s.Duplicate())];
             case ObjKind.Mesh:
-                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Remesh", "mesh-remesh", () => new MeshRemeshCommand()), Cm("Edit Region", "mesh-select", () => new MeshRegionCommand()), Cm("Section Sketch", "mesh-section", () => new MeshSectionSketchCommand()),
+                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Remesh", "mesh-remesh", () => new MeshRemeshCommand()), Cm("Edit Region", "mesh-select", () => new MeshRegionCommand()), Cm("Section Sketch", "mesh-section", () => new MeshSectionSketchPanelCommand()),
                         del, hide, Cm("Measure", "measure", () => new MeasureCommand()), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move))];
         }
         if (objs.Count(o => o.Kind == ObjKind.Solid) >= 2)

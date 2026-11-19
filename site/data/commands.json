@@ -10033,7 +10033,7 @@
  {
   "name": "mesh_section_sketch",
   "title": "Section Sketch",
-  "hint": "Put a plane on the scan and get an editable sketch of the outline there: straight lines, arcs and circles fitted within the tolerance, not thousands of tiny segments. Use a world plane, a construction plane or face, or the area you selected with Edit Region. Extrude or revolve the sketch, then use Deviation to see how close you are.",
+  "hint": "Fit an editable sketch of the measured outline on a world plane, construction plane, flat face, or selected mesh region.",
   "slots": [
    {
     "label": "Mesh",
@@ -10058,7 +10058,8 @@
      "XZ",
      "YZ",
      "A construction plane or flat face",
-     "Fitted to the selected region"
+     "Fitted to the selected region",
+     "Movable plane"
     ]
    },
    {
@@ -10088,6 +10089,145 @@
     "unit": "mm",
     "min": 0.0005,
     "max": 5
+   },
+   {
+    "label": "Move X",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Move Y",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Move Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Rotate X",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   },
+   {
+    "label": "Rotate Y",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   },
+   {
+    "label": "Rotate Z",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "mesh_section_sketch_panel",
+  "title": "Section Sketch",
+  "hint": "Drag the plane arrows or rings to move or rotate it. Apply each section, then choose Done.",
+  "slots": [
+   {
+    "label": "Mesh",
+    "accepts": "MeshObj",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Plane or flat face",
+    "accepts": "Face, Plane",
+    "multi": false,
+    "optional": true
+   }
+  ],
+  "params": [
+   {
+    "label": "Plane",
+    "type": "choice",
+    "default": "Movable plane",
+    "options": [
+     "XY (horizontal)",
+     "XZ",
+     "YZ",
+     "A construction plane or flat face",
+     "Fitted to the selected region",
+     "Movable plane"
+    ]
+   },
+   {
+    "label": "Offset from the plane",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Number of sketches",
+    "type": "integer",
+    "default": 1,
+    "min": 1,
+    "max": 50
+   },
+   {
+    "label": "Spacing",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.01
+   },
+   {
+    "label": "Fit tolerance",
+    "type": "number",
+    "default": 0.05,
+    "unit": "mm",
+    "min": 0.0005,
+    "max": 5
+   },
+   {
+    "label": "Move X",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Move Y",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Move Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Rotate X",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   },
+   {
+    "label": "Rotate Y",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   },
+   {
+    "label": "Rotate Z",
+    "type": "number",
+    "default": 0,
+    "unit": "°"
+   },
+   {
+    "label": "Apply section",
+    "type": "action"
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."

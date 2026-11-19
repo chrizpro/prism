@@ -68,7 +68,7 @@ public sealed partial class CadSession
     {
         int mode = CommandGizmoMode;
         // the factor is one number, so scale shows only the centre block (axisScale: false)
-        var hit = GizmoVisual.Hit(this, x, y, _ => g.Center, g.Axes, mode, planes: GizmoPlanes(g), axisScale: false, allow: (op, axis) => GizmoAllows(g, op, axis));
+        var hit = GizmoVisual.Hit(this, x, y, _ => g.Center, g.Axes, mode, planes: GizmoPlanes(g), axisScale: false, allow: (op, axis) => GizmoAllows(g, op, axis), combinedByDefault: g.CombinedByDefault);
         if (!g.Supports(hit.operation)) return (-1, false, mode);
         if (hit.center && !(hit.operation == 0 ? g.Move.Any(p => p != null) : hit.operation == 2 && g.Scale != null)) return (-1, false, mode);
         return hit;
@@ -249,7 +249,7 @@ public sealed partial class CadSession
         {
             if (!g.Supports(op)) continue;
             GizmoVisual.DrawOperation(o, this, g.Center, g.Axes, op, mode, op == mode ? _gizmoHot : -1, op == mode && _gizmoHotCenter,
-                axisScale: false, planes: GizmoPlanes(g), allow: (oper, axis) => GizmoAllows(g, oper, axis));
+                axisScale: false, planes: GizmoPlanes(g), allow: (oper, axis) => GizmoAllows(g, oper, axis), combinedByDefault: g.CombinedByDefault);
         }
         // the engaged handle reads its value (dragged, hovered or being typed into); nothing is labelled at rest
         double length = GizmoVisual.Length(this, g.Center);

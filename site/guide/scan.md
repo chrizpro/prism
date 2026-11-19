@@ -9,13 +9,17 @@ The **Scan** workspace uses one [Mesh tab](/tools/mesh) to prepare, inspect, rep
 3. Open **Mesh Quality** to find defects. **Repair → Cleanup** cleans the whole mesh or a selected region. Use **Fill Hole** to pick a single rim, or **Stitch Seam** to weld a pair of boundary edges.
 4. Use **Remesh** to redistribute triangles by edge length or reduce the triangle count. Keep the source to compare fine details.
 
-**Edit Region** lets you delete and patch, smooth, or extract selected triangles. **Draw Faces** lets you build a custom patch from an open rim or replace a selected region. Snap the corners to the mesh or draw on a work plane. Green lines preview the shared edges before **Stitch and apply**.
+**Select → Face** picks individual mesh triangles. Press **Delete** to remove them and leave an opening. **Edit Region** lets you delete and patch, smooth, or extract selected triangles. **Draw Faces** lets you build a custom patch from an open rim or replace a selected region. Snap the corners to the mesh or draw on a work plane. Green lines preview the shared edges before **Stitch and apply**.
 
 <GuideImage image="scan-mesh-quality" />
 
 ## Rebuild from sections
 
-For a parametric part, use **Section Sketch** and add dimensions and constraints before extruding or revolving it. Those features create the editable history. For example, an axial section through a tube gives profiles on both sides of the axis. Keep one radial profile for the revolve.
+Open **Section Sketch** and drag the cutting plane’s arrows or rings to position it. **Apply section** saves a sketch at the current position. Move the plane and apply again for each cut you need, then choose **Done**.
+
+Edit a generated sketch to compare the fitted curves with the orange measured outline. Use **Fit Section Curve** in the sketch panel to fit a span or a closed circle. Add a driving dimension to set the intended size, such as 50 mm for a measured 50.3 mm edge. The measured outline remains available for comparison.
+
+Use the Solid or Surface tools that fit the part you’re rebuilding. For an axial cut through a tube, keep one radial profile and revolve it.
 
 <GuideImage image="scan-section-sketch" />
 

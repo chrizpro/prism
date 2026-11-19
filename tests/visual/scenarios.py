@@ -4082,3 +4082,147 @@ def mesh_fill_and_stitch_picked_boundaries():
         f"{'PASS' if fill_ok else 'FAIL'}  Fill Hole leaves {filled['triangles']} triangles and {filled['holes']} open rim",
     ]
     return [("Stitch Seam preview", preview), ("Checks", text_panel(lines))]
+
+
+@scenario("mesh__section-plane-apply-refit-and-dimension", columns=1)
+def mesh_section_plane_apply_refit_and_dimension():
+    import base64
+    import io
+    import math
+    from PIL import Image
+
+    def screenshot():
+        shot = cad.call("screenshot", max_width=1360)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Measured 50.3 mm box.obj"
+        path.write_text("""v 0 0 0
+v 50.3 0 0
+v 50.3 30 0
+v 0 30 0
+v 0 0 20
+v 50.3 0 20
+v 50.3 30 20
+v 0 30 20
+f 1 3 2
+f 1 4 3
+f 5 6 7
+f 5 7 8
+f 1 2 6
+f 1 6 5
+f 2 3 7
+f 2 7 6
+f 3 4 8
+f 3 8 7
+f 4 1 5
+f 4 5 8
+""")
+        cad.call("mesh_import", path=str(path))
+    cad.call("history_view", expanded=False)
+    cad.call("ribbon_click", tab="Mesh", label="Section Sketch")
+    cad.call("view", yaw=-32, pitch=39, fit=True, grid=False)
+    cad.call("wait_idle")
+
+    def drag(a, b):
+        event = dict(zip(("x", "y", "z", "x2", "y2", "z2"), [*a, *b]))
+        return cad.call("pointer", events=[dict(type="drag", **event)])["gizmo"]
+
+    initial = cad.call("pointer", events=[])["gizmo"]
+    grab = initial["grab"]["z"]
+    moved = drag(grab, [grab[0], grab[1], grab[2] - 4])
+    cad.call("command_set", params={"Apply section": True})
+    first = next(o for o in cad.objects() if o.kind == "Sketch")
+    first_plane = cad.call("object_info", object=first.name)["sketchPlane"]
+
+    cad.call("command_set", params={"Move Z": 3})
+    rotate = cad.call("pointer", events=[])["gizmo"]
+    cx, cy, cz = rotate["center"]
+    radius = rotate["length"] * .8
+    start_angle, end_angle = math.radians(45), math.radians(60)
+    def ring_point(theta):
+        return [cx, cy + radius * math.cos(theta), cz + radius * math.sin(theta)]
+    turned = drag(ring_point(start_angle), ring_point(end_angle))
+    preview = screenshot()
+    cad.call("command_set", params={"Apply section": True})
+    cad.call("command_commit")
+    cuts = [o for o in cad.objects() if o.kind == "Sketch"]
+    second_plane = cad.call("object_info", object=cuts[-1].name)["sketchPlane"]
+
+    original = cad.call("sketch_begin", edit=first.name)
+    cad.call("wait_idle")
+    cad.call("ribbon_click", tab="Sketch", label="Edge")
+    cad.call("sketch_input", events=[{"type": "click", "u": 0, "v": -15}])
+    cad.call("sketch_input", tool="fit_section_curve")
+    cad.call("wait_idle")
+    cad.call("sketch_input", events=[
+        {"type": "click", "u": -20, "v": -15},
+        {"type": "move", "u": 20, "v": -15},
+    ])
+    editing = screenshot()
+    fitted = cad.call("sketch_input", events=[{"type": "click", "u": 20, "v": -15}])
+    previous_ids = {e["id"] for e in original["entities"]}
+    new_lines = [e for e in fitted["entities"] if e["id"] not in previous_ids]
+    if len(new_lines) != 1 or len(fitted["entities"]) != 4:
+        raise RuntimeError(f"Expected one replaced span and four total edges, got {len(new_lines)} new curves and {len(fitted['entities'])} total")
+    line = new_lines[0]
+
+    def length(state, entity):
+        points = {p["id"]: (p["u"], p["v"]) for p in state["points"]}
+        return math.dist(*(points[pid] for pid in entity["points"]))
+
+    for entity in fitted["entities"]:
+        points = {p["id"]: p for p in fitted["points"]}
+        a, b = (points[pid] for pid in entity["points"])
+        cad.call("sketch_constrain", type="horizontal" if abs(a["v"] - b["v"]) < .01 else "vertical", refs=[entity["id"]])
+    dimensioned = cad.call("sketch_dimension", type="length", refs=[line["id"]], value=50)
+    cad.call("sketch_input", tool="select")
+    nominal = screenshot()
+    cad.call("sketch_finish")
+    tests = [
+        (abs(moved["values"]["z"] + 4) < .05 and abs(first_plane["origin"][2] - 6) < .05, "Dragged first section to Z=6 mm"),
+        (abs(turned["values"]["x"] - 15) < .2 and abs(second_plane["normal"][2] - math.cos(math.pi / 12)) < .005, "Dragged ring to tilt the next section by 15 degrees"),
+        (len(cuts) == 2, "Applied twice; Done left exactly two sketches"),
+        (abs(length(fitted, line) - 50.3) < .002 and abs(length(dimensioned, line) - 50) < .002,
+         "Replaced one span and drove its measured 50.3 mm length to 50 mm"),
+    ]
+    return [("MSH-I005 | Second plane", preview), ("Fit a measured span", editing),
+            ("Dimensioned sketch", nominal), ("Checks", text_panel([f"{'PASS' if ok else 'FAIL'}  {label}" for ok, label in tests]))]
+
+
+@scenario("mesh__select-face-delete-one-triangle", columns=1)
+def mesh_select_face_delete_one_triangle():
+    import base64
+    import io
+    from PIL import Image
+
+    def screenshot():
+        shot = cad.call("screenshot", max_width=1360)
+        return Image.open(io.BytesIO(base64.b64decode(shot["_image"]["data"]))).copy()
+
+    cad.call("document_new")
+    cad.call("workspace", id="scan")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "Four triangles.obj"
+        path.write_text("v 0 0 0\nv 30 0 0\nv 30 30 0\nv 0 30 0\nv 15 15 0\nf 1 2 5\nf 2 3 5\nf 3 4 5\nf 4 1 5\n")
+        mesh = cad.call("mesh_import", path=str(path))["name"]
+    cad.call("history_view", expanded=False)
+    cad.call("view", yaw=0, pitch=90, fit=True, grid=False)
+    cad.call("wait_idle")
+    cad.call("ribbon_click", tab="Mesh", label="Face")
+    cad.call("pointer", events=[{"type": "click", "x": 15, "y": 5, "z": 0}])
+    selected = cad.call("get_state", fields=["selection"])["selection"]
+    before = screenshot()
+    cad.call("pointer", events=[{"type": "key", "key": "Delete"}])
+    count = cad.call("object_info", object=mesh)["triangles"]
+    after = screenshot()
+    cad.call("history", action="undo")
+    undone = cad.call("object_info", object=mesh)["triangles"]
+    tests = [
+        (len(selected) == 1 and selected[0].startswith("Triangle "), "Face mode selected one triangle"),
+        (count == 3 and undone == 4, f"Delete left {count} triangles in the same mesh; Undo restored {undone}"),
+    ]
+    return [("MSH-I006 | Selected triangle", before), ("After Delete", after),
+            ("Checks", text_panel([f"{'PASS' if ok else 'FAIL'}  {label}" for ok, label in tests]))]

@@ -202,7 +202,6 @@ public class ReverseEngineerTests
         Assert.Equal("1", Result(command, "Sketches"));
         Assert.StartsWith("4 lines + 0 arcs", Result(command, "Elements"));
         session.Apply(output);
-        output.After!(session);
         var sketch = Assert.Single(session.Objects, o => o.Kind == ObjKind.Sketch);
         AssertClose(80, Length(sketch.Shape), 1e-3, "Sketch outline length (mm)");
     }

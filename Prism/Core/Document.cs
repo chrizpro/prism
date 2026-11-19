@@ -134,7 +134,7 @@ public sealed class SceneObject
     public SceneObject WithForm(SubdMesh f) => new(Id, Name, null, ObjKind.Form, Color, Visible, null, f, null, Look) { Group = Group };
 }
 
-public enum SelKind { Object, Face, Edge, Origin, Datum, Entity, Vertex }
+public enum SelKind { Object, Face, Edge, Origin, Datum, Entity, Vertex, MeshFace }
 
 public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index, int Index2 = 0)
 {
@@ -148,7 +148,7 @@ public enum SelFilter
     /// <summary>Datum annotations (points, axes, planes) hosted by sketch data.</summary>
     Datum = 1024,
     /// <summary>Corner points of solids, surfaces and curves.</summary>
-    Vertex = 2048,
+    Vertex = 2048, MeshFace = 4096,
     AnyObject = Solid | SurfaceObj | CurveObj | SketchObj | Form | MeshObj,
     AnyCurve = CurveObj | SketchObj,
     Any = AnyObject | Face | Edge | Plane | Axis | Datum,

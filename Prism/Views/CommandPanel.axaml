@@ -117,9 +117,11 @@
                     <CheckBox Content="Preview" IsChecked="{Binding ActiveCommand.PreviewEnabled}" IsVisible="{Binding ActiveCommand.SupportsPreview}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="Enter · Esc" Classes="faint" FontSize="11" VerticalAlignment="Center"/>
                 </Grid>
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                     <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
-                    <Button Grid.Column="2" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
+                    <Button Grid.Column="2" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                            IsVisible="{Binding ActiveCommand.RepeatApply, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Button Grid.Column="3" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
                 </Grid>
             </StackPanel>
         </Border>

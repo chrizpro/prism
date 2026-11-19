@@ -432,42 +432,11 @@ public static class MeshOps
     public static CutResult PlaneCut(TriMesh m, Vec3 origin, Vec3 normal, bool cap)
     {
         normal = normal.Normalized();
-        double d0 = Vec3.Dot(normal, origin);
-        var verts = new List<float>(m.V);
-        int nv0 = m.VertexCount;
-        var dist = new double[nv0];
-        for (int i = 0; i < nv0; i++) { dist[i] = Vec3.Dot(normal, m.P(i)) - d0; if (Math.Abs(dist[i]) < 1e-9) dist[i] = 1e-9; }
-        var cutVert = new Dictionary<long, int>();
-        int Cut(int a, int b)
-        {
-            long key = TriMesh.EdgeKey(a, b, nv0);
-            if (cutVert.TryGetValue(key, out int id)) return id;
-            double t = dist[a] / (dist[a] - dist[b]);
-            id = verts.Count / 3; cutVert[key] = id;
-            for (int k = 0; k < 3; k++) verts.Add((float)(m.V[3 * a + k] + t * (m.V[3 * b + k] - m.V[3 * a + k])));
-            return id;
-        }
-        var above = new List<int>(); var below = new List<int>(); var segs = new List<(int a, int b)>();
-        for (int t = 0; t < m.TriCount; t++)
-        {
-            int[] v = [m.T[3 * t], m.T[3 * t + 1], m.T[3 * t + 2]];
-            bool[] pos = [dist[v[0]] > 0, dist[v[1]] > 0, dist[v[2]] > 0];
-            int np = pos.Count(x => x);
-            if (np == 3) { above.AddRange(v); continue; }
-            if (np == 0) { below.AddRange(v); continue; }
-            // rotate so the lone vertex (the one alone on its side) is v[0]
-            int lone = np == 1 ? Array.IndexOf(pos, true) : Array.IndexOf(pos, false);
-            int a = v[lone], b = v[(lone + 1) % 3], c = v[(lone + 2) % 3];
-            int ab = Cut(a, b), ca = Cut(c, a);
-            var loneSide = np == 1 ? above : below; var otherSide = np == 1 ? below : above;
-            loneSide.AddRange([a, ab, ca]);
-            otherSide.AddRange([ab, b, c]); otherSide.AddRange([ab, c, ca]);
-            // directed cut segment: along the lone-side triangle, from ca to ab keeps the lone side on the left when it is "above"
-            segs.Add(np == 1 ? (ca, ab) : (ab, ca));
-        }
-
-        var loops = ChainLoops(segs, verts);
-        var cutLoops = loops.Select(l => new CutLoop(l.ids.Select(i => new Vec3(verts[3 * i], verts[3 * i + 1], verts[3 * i + 2])).ToList(), l.closed)).ToList();
+        var above = new List<int>();
+        var below = new List<int>();
+        var (verts, segs) = CollectCut(m, origin, normal, above, below);
+        var loops = ChainLoops(segs);
+        var cutLoops = CutOutlines(verts, loops);
 
         if (cap && loops.Count > 0)
         {
@@ -503,6 +472,58 @@ public static class MeshOps
         return new CutResult(Compact(vv, [.. above]), Compact(vv, [.. below]), cutLoops);
     }
 
+    static (List<float> vertices, List<(int a, int b)> segments) CollectCut(
+        TriMesh mesh, Vec3 origin, Vec3 normal, List<int>? above = null, List<int>? below = null)
+    {
+        double planeDistance = Vec3.Dot(normal, origin);
+        int vertexCount = mesh.VertexCount;
+        var vertices = above == null ? new List<float>() : new List<float>(mesh.V);
+        var distance = new double[vertexCount];
+        for (int i = 0; i < vertexCount; i++)
+        {
+            double d = Vec3.Dot(normal, mesh.P(i)) - planeDistance;
+            distance[i] = Math.Abs(d) < 1e-9 ? 1e-9 : d;
+        }
+
+        var cutVertices = new Dictionary<long, int>();
+        int Cut(int a, int b)
+        {
+            long key = TriMesh.EdgeKey(a, b, vertexCount);
+            if (cutVertices.TryGetValue(key, out int id)) return id;
+            double t = distance[a] / (distance[a] - distance[b]);
+            id = vertices.Count / 3;
+            cutVertices[key] = id;
+            for (int k = 0; k < 3; k++)
+                vertices.Add((float)(mesh.V[3 * a + k] + t * (mesh.V[3 * b + k] - mesh.V[3 * a + k])));
+            return id;
+        }
+
+        var segments = new List<(int a, int b)>();
+        for (int i = 0; i < mesh.TriCount; i++)
+        {
+            var (a, b, c) = mesh.Tri(i);
+            bool pa = distance[a] > 0, pb = distance[b] > 0, pc = distance[c] > 0;
+            if (pa == pb && pb == pc)
+            {
+                (pa ? above : below)?.AddRange([a, b, c]);
+                continue;
+            }
+
+            // Keep winding as we rotate the triangle so a is the lone vertex on its side.
+            if (pa == pb) (a, b, c, pa) = (c, a, b, pc);
+            else if (pa == pc) (a, b, c, pa) = (b, c, a, pb);
+            int ab = Cut(a, b), ca = Cut(c, a);
+            (pa ? above : below)?.AddRange([a, ab, ca]);
+            (pa ? below : above)?.AddRange([ab, b, c, ab, c, ca]);
+            segments.Add(pa ? (ca, ab) : (ab, ca));
+        }
+        return (vertices, segments);
+    }
+
+    static List<CutLoop> CutOutlines(List<float> vertices, List<(List<int> ids, bool closed)> loops) =>
+        loops.Select(loop => new CutLoop(loop.ids.Select(i => new Vec3(vertices[3 * i], vertices[3 * i + 1],
+            vertices[3 * i + 2])).ToList(), loop.closed)).ToList();
+
     static bool Inside(List<(double x, double y)> poly, (double x, double y) p)
     {
         bool inside = false;
@@ -511,7 +532,7 @@ public static class MeshOps
         return inside;
     }
 
-    static List<(List<int> ids, bool closed)> ChainLoops(List<(int a, int b)> segs, List<float> verts)
+    static List<(List<int> ids, bool closed)> ChainLoops(List<(int a, int b)> segs)
     {
         var next = new Dictionary<int, List<int>>();
         for (int i = 0; i < segs.Count; i++) { if (!next.TryGetValue(segs[i].a, out var l)) next[segs[i].a] = l = []; l.Add(i); }
@@ -536,7 +557,11 @@ public static class MeshOps
     }
 
     /// <summary>Section outline of a mesh at a plane, without building the halves.</summary>
-    public static List<CutLoop> Section(TriMesh m, Vec3 origin, Vec3 normal) => PlaneCut(m, origin, normal, false).Loops;
+    public static List<CutLoop> Section(TriMesh m, Vec3 origin, Vec3 normal)
+    {
+        var (vertices, segments) = CollectCut(m, origin, normal.Normalized());
+        return CutOutlines(vertices, ChainLoops(segments));
+    }
 
     // ================================================================= transforms
     public static TriMesh Move(TriMesh m, Vec3 d) => m.Transformed(p => p + d);

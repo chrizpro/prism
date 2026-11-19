@@ -26,7 +26,7 @@ public static class Picking
             if (obj.Tri is { } tri)
             {
                 if (tri.Bvh.Raycast(o, d, best?.Item5 ?? double.MaxValue, 1e-6) is { } hit0)
-                    best = (obj, 0, o + d * hit0.t, tri.FaceNormal(hit0.tri), hit0.t);
+                    best = (obj, hit0.tri, o + d * hit0.t, tri.FaceNormal(hit0.tri), hit0.t);
                 continue;
             }
             var P = m.Positions; var I = m.Indices; var only = shownFaces?.Invoke(obj);

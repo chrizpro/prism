@@ -1549,7 +1549,7 @@ public sealed partial class AutomationApi
                 return SketchStateJson();
             });
 
-        Add("sketch_input", "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
+        Add("sketch_input", "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, fit_section_curve, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
             Schema(null, ("tool", "string", "Tool to activate first."), ("events", "array", "List of event objects."), ("type", "string", "Event types, see above.")), a =>
             {
                 var sk = S.Sketch ?? throw new InvalidOperationException("No sketch is open.");
@@ -1563,6 +1563,7 @@ public sealed partial class AutomationApi
                         "rect" => new RectTool(RectMode.TwoCorner), "rect_center" => new RectTool(RectMode.Center), "rect_3pt" => new RectTool(RectMode.ThreePoint),
                         "ellipse" => new EllipseTool(EllipseMode.Center), "ellipse_2pt" => new EllipseTool(EllipseMode.TwoPoint), "ellipse_3pt" => new EllipseTool(EllipseMode.ThreePoint), "arc" or "arc_3pt" => new ArcTool(ArcMode.ThreePoint), "arc_center" => new ArcTool(ArcMode.CenterStartEnd), "arc_tangent" => new ArcTool(ArcMode.Tangent), "circle" => new CircleTool(CircleMode.CenterRadius), "circle_2pt" => new CircleTool(CircleMode.TwoPoint), "circle_3pt" => new CircleTool(CircleMode.ThreePoint),
                         "polygon" => new PolygonTool(false), "slot" => new SlotTool(), "text" => new SketchTextTool(), "spline" => new SplineTool(false), "spline_control" => new SplineTool(true),
+                        "fit_section_curve" when sk.Model.MeshSectionTraces.Count > 0 => new FitMeshSectionTool(),
                         "edit_spline" => new SketchGeometryEditTool(1), "edit_sketch" => new SketchGeometryEditTool(), "select" => new SelectTool(), "extend" => new ExtendTool(), "offset" => new OffsetTool(), "fillet" => new FilletTool(false), "chamfer" => new FilletTool(true), "trim" => new TrimTool(), "pattern" => SketchPatternTool.Make(0), "pattern_circular" => SketchPatternTool.Make(1), "pattern_curve" => SketchPatternTool.Make(2),
                         _ => throw new ArgumentException($"Unknown sketch tool '{n}'."),
                     };

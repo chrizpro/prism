@@ -23,7 +23,7 @@ Open **Edit Region → Draw Faces**. Choose **Open rim** to add faces, or **Repl
 
 The preview shows source faces to remove, the draft faces, joined edges in green, and the remaining open-edge count. Landing on an edge interior splits the adjoining source triangle to give the patch a shared vertex. Applying replaces the mesh in one undoable edit. Replacements must cover the entire cut seam. Invalid joins, collapsed faces and new overlaps detected by the local check block Apply. Intentional holes elsewhere remain open.
 
-**Proposed — awaiting owner review.** The shared Face picker currently uses a single face ID for the entire displayed triangle mesh. Direct triangle selection needs a mesh-specific identity and a handoff to the region tools. Keep the shared ribbon sections pending the owner's separate review.
+**Approved 2026-11-19** in [#147](https://github.com/chrizpro/prism/issues/147). In the shared **Select → Face** mode, click an individual mesh triangle, Shift-click to add triangles, or select a patch with a box, lasso or paint stroke. **Delete** opens a gap in the original mesh, keeps the remaining face and vertex colors, and supports Undo. Use Object selection to delete the whole mesh. Edit Region offers broader repair commands such as growing a region or patching a gap.
 
 
 ### Removing something from a mesh
@@ -69,14 +69,16 @@ Convert Mesh creates fitted geometry for direct editing or an editable freeform 
 To build your own parametric part:
 
 1. Clean the mesh in Mesh if needed, then **Prepare → Align** it to useful planes.
-2. Use **Section Sketch** through a representative part of the scan. Adjust the plane, offset and fitting tolerance; the report gives the largest sampled section fitting error.
-3. Edit the resulting sketch. Add dimensions and appropriate geometric constraints manually. Remove unwanted outlines or segments: a tube cut through its axis has profiles on both sides, so keep only one radial profile before revolving it.
-4. Extrude or revolve the sketch using the intended depth, axis and extent. Those features form the editable construction history. Change a driving sketch dimension to adjust the part.
+2. Open **Section Sketch**. Its movable plane starts at the mesh center. Drag the translation arrows or rotation rings, or type a move and angle in the panel. The orange trace shows the measured cut and the cyan curves show the fit. Both are visible through nearby geometry. Apply creates sketches at the current plane positions. Reposition the plane and Apply again for additional cuts, then choose Done. Each Apply is an undo step. The original world and picked plane options, offsets, and batches of parallel cuts are still available.
+3. Edit a generated sketch. The orange trace stays as a reference and is saved with the sketch. Toggle it with **Show measured section**. The panel's **Fit Section Curve** fits a line, arc or spline between two picks, or a circle to a closed outline. Use **Edge** selection to choose a single unconstrained curve before opening the tool to replace it while keeping shared endpoints. Add dimensions and constraints to express design intent. For example, enter 50 mm on a line measured as 50.3 mm. The orange reference retains the scan measurement.
+4. Use the Solid or Surface tools that suit the design, such as Extrude, Revolve or Loft. Choose the depth, axis or profiles there. Change a driving sketch dimension later to adjust the part. The choice of a ribbon shortcut to these tools is open for review.
 5. Run **Deviation** with the scan as Mesh to check and the rebuilt CAD body as the reference. This samples the scan against the reference; it is not a complete, bidirectional certification of every rebuilt surface. A partial or missing scan cannot establish the intended shape of the missing area.
 
 If automation fits the wrong local shape, use Edit Region and Convert Mesh to choose the intended surface type. For unwanted mesh bumps, use Edit Region → Delete and patch or Smooth selected triangles. Deviation helps review the result; it does not change the geometry.
 
 ## Maintained tests
+
+[Section Sketch and mesh selection tests](../../../Prism.Tests/Headless/Mesh/MeshSectionAndSelectionTests.cs) check repeated Apply and Done, angled sections, refitting and nominal dimensioning through save and reopen, and single-triangle selection, deletion and Undo.
 
 [Manual mesh repair headless tests](../../../Prism.Tests/Headless/Mesh/MeshManualRepairTests.cs) and [local topology tests](../../../Prism.Tests/Unit/Mesh/MeshLocalEditTests.cs) cover drawing, seam welding, rim isolation and undo.
 
@@ -96,6 +98,11 @@ Fixed on 2026-11-05:
 Fixed during the 2026-11-10 Reverse Engineer workflow verification: sparse rectangular section corners could fit a circle even though their straight edges departed from that circle. Arc fitting now checks edge interiors and the closing edge of a complete circle candidate. Section arc previews also sample the fitted curves instead of drawing only their start/mid/end chords, which made a circle preview look rectangular. REV-U001 / REV-H120 cover the rectangular tube section; REV-U002 / REV-H119 retain the circular route and verify the preview follows the circle.
 
 ## Tested on
+
+On 2026-11-19, Windows Release passed **10 Mesh Unit tests** and **122 Mesh and Selection Headless tests**. Both pointer-driven desktop scenarios passed twice in shuffled order. The desktop build and generated ribbon catalog check passed. See [#147](https://github.com/chrizpro/prism/issues/147) for the source revision and commands.
+
+- **MSH-I005** moved a plane to a 6 mm section, tilted the next plane 15 degrees, and applied twice. Done left exactly two sketches. The sketch panel replaced the measured 50.3 mm span, and its driving dimension solved to 50 mm. [Plane, refit and dimension captures](evidence/MSH-I005-section-sketch.png)
+- **MSH-I006** used the shared Face tool to pick one triangle. Delete left three triangles in the original mesh, and Undo restored four. [Selection and deletion captures](evidence/MSH-I006-select-delete.png)
 
 On 2026-11-18, Windows Release passed **10 Mesh Unit and 87 Mesh Headless tests** using the workstation's staged OCCT runtime. The desktop build and ribbon catalog check passed. Three desktop scenarios passed twice in shuffled order, including the legacy conversion workflow.
 

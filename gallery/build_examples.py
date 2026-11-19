@@ -41,7 +41,7 @@ def connect_mcp(discovery):
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
 
-    def call(tool, **args):
+    def call(tool, /, **args):
         # Obj instances and tuples are normalized by cadkit before reaching here.
         result = request("tools/call", dict(name="call_api", arguments=dict(name=tool, arguments=args)))
         text = next((c["text"] for c in result["content"] if c["type"] == "text"), "{}")

@@ -64,6 +64,7 @@ public partial class CommandPanel : UserControl
         else Dispatcher.UIThread.Post(()=>PanelScroll.Offset=_returnOffset,DispatcherPriority.Loaded);
     }
 
+    void OnRepeatApply(object? sender, RoutedEventArgs e) => Vm?.ActiveCommand?.RepeatApply?.Run();
     void OnOk(object? sender, RoutedEventArgs e) => Vm?.Session.AcceptCommandPanel();
     void OnHelp(object? sender, RoutedEventArgs e)
     {
