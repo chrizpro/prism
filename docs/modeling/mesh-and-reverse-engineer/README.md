@@ -109,6 +109,11 @@ Fixed during the 2026-11-10 Reverse Engineer workflow verification: sparse recta
 
 ## Tested on
 
+On 2026-11-19, Windows Release at `bb9d0de` passed the desktop build, ribbon catalog check, 10 Mesh Unit tests and 132 Mesh and Selection Headless tests. Four mesh repair viewport scenarios passed twice in shuffled order. [Tracking issue #149](https://github.com/chrizpro/prism/issues/149).
+
+- **MSH-I008** clicked inside one opening and on another rim, toggled a pick off and back on, and filled two of three openings. One Undo restored all three. [Batch Fill Hole viewport](evidence/MSH-I008-batch-fill.png)
+- **MSH-I009** captured the cyan target triangle, amber interior-edge guide, and vertex marker. **MSH-H138** also checked exact snap coordinates and an occluded target. [Draw Faces viewport](evidence/MSH-I009-draw-face-snaps.png)
+
 On 2026-11-19, Windows Release at `3d3ee0e` passed the desktop build, ribbon catalog check, 10 Mesh Unit tests and 127 Mesh and Selection Headless tests. Three viewport scenarios passed twice in shuffled order. [Tracking issue #148](https://github.com/chrizpro/prism/issues/148).
 
 - **MSH-I003** checks the purple draft before and after Enter, four joined edges, and one remaining open rim. [Draw Faces viewport](evidence/MSH-I003-purple-draft.png)
