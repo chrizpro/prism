@@ -47,7 +47,7 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
         return new TriMesh(v, mesh.T);
     }
 
-    static string WriteObj(TriMesh mesh, string name)
+    internal static string WriteObj(TriMesh mesh, string name)
     {
         var path = Path.Combine(Path.GetTempPath(), $"{name}-{Guid.NewGuid():N}.obj");
         var sb = new StringBuilder();
@@ -58,7 +58,7 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
     }
 
     /// <summary>Import Mesh with the given reduction, exactly as the options panel does it.</summary>
-    static SceneObject Import(CadSession session, string path, double keepPercent)
+    internal static SceneObject Import(CadSession session, string path, double keepPercent)
     {
         var prefs = MeshImportPrefs.File;
         MeshImportPrefs.File = Path.Combine(Path.GetTempPath(), $"prism-prefs-{Guid.NewGuid():N}.json");
@@ -203,7 +203,7 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
         finally { File.Delete(path); }
     }
 
-    [AvaloniaFact(DisplayName = "GAL-H202 | Turned knob scan: Smart patch and Fit Region recover its cylinder, cone and sphere as trimmed surfaces")]
+    [AvaloniaFact(DisplayName = "GAL-H202 | Turned knob scan: fitted cylinder, cone and dome rebuild one closed solid")]
     [Trait("TestId", "GAL-H202")]
     public void TurnedKnobPrimitives()
     {
@@ -244,7 +244,26 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
 
             session.DropRegion();
             session.Update(scan.Id, x => x.WithTri(x.Tri!.Transformed(p => p + new Vec3(-40, 0, 0))));
+            // The fitted patches stop short of the transitions. Extend the measured primitives to
+            // their intersections and close the bottom to recover one machinable solid.
+            double gripRadius = Number(Result(grip1, "Diameter")) / 2;
+            double domeRadius = Number(Result(cap, "Diameter")) / 2;
+            double slope = Math.Tan(Number(Result(taper, "Included angle").Replace("°", "")) * Math.PI / 360);
+            static double Z(string point) => Number(point.Split(", ")[2].TrimEnd(')'));
+            double equator = Z(Result(cap, "Centre"));
+            double shoulder = Z(Result(taper, "Apex")) - gripRadius / slope;
+            using var gripSolid = CylinderAt(Vec3.Zero, gripRadius, shoulder);
+            using var taperSolid = Occ.Translate(Occ.Cone(gripRadius, domeRadius, equator - shoulder), Vec3.UnitZ * shoulder);
+            using var domeSolid = Occ.Translate(Occ.Sphere(domeRadius), Vec3.UnitZ * equator);
+            using var shank = Occ.Fuse(gripSolid, taperSolid);
+            var rebuilt = Occ.Fuse(shank, domeSolid);
+            AssertValidSolid(rebuilt);
+            AssertClose(part.Props().Volume, rebuilt.Props().Volume, part.Props().Volume * 0.01, "knob volume");
+            foreach (var item in session.Objects.Where(o => o.Id != scan.Id).ToArray())
+                session.Update(item.Id, o => o.WithVisible(false));
+            session.AddObject(rebuilt, "Rebuilt turned knob", ObjKind.Solid, 0xFFA6ABB2);
             SaveForGallery(session, "turned-knob-scan");
+            Gallery.IndustrialGalleryStudies.Publish(session, "turned-knob-scan", -12, 22);
         }
         finally { File.Delete(path); }
     }

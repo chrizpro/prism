@@ -76,6 +76,36 @@ public static class FeatureFinder
         return face >= 0 && face < a.FeatureOfFace.Length && a.FeatureOfFace[face] >= 0 ? a.Features[a.FeatureOfFace[face]] : null;
     }
 
+    // A simple protruding cylinder has an exposed planar end and a planar shoulder.
+    // Its end may be oblique after Tilt Face, so cylinder area/height recognition alone is insufficient.
+    internal static (int Cap, Vec3 Outward, double Clearance)? BossEnds(SceneObject body, int wall, Vec3 move)
+    {
+        var a = Get(body);
+        if (a.Info[wall].Type != "Cylinder" || a.Axis[wall] is not { } axis ||
+            Vec3.Cross(move.Normalized(), axis.Dir.Normalized()).Length > 1e-6) return null;
+        var neighbours = a.Adj[wall];
+        if (neighbours.Count != 2 || neighbours.Any(l => a.Info[l.To].Type != "Plane")) return null;
+        foreach (var cap in neighbours)
+        {
+            var shoulder = neighbours.First(l => l.To != cap.To);
+            if (cap.Class == Edge.Convex && a.Adj[cap.To].Count == 1 && shoulder.Class == Edge.Concave &&
+                Math.Abs(Vec3.Dot(a.Normal[shoulder.To], axis.Dir.Normalized())) > 0.999999)
+            {
+                // Intersect the cylinder axis with each plane. A tilted cap's lowest point
+                // sits radius * tan(tilt) below the centre of its elliptical rim.
+                var outward = a.Normal[shoulder.To];
+                var capNormal = a.Normal[cap.To];
+                double cosine = Vec3.Dot(capNormal, outward);
+                if (cosine <= 1e-6) return null;
+                double centre = Vec3.Dot(a.FirstPoint[cap.To] - axis.Origin, capNormal) / cosine;
+                double floor = Vec3.Dot(a.FirstPoint[shoulder.To] - axis.Origin, outward);
+                double drop = a.Info[wall].R1 * Vec3.Cross(capNormal, outward).Length / cosine;
+                return (cap.To, outward, centre - floor - drop);
+            }
+        }
+        return null;
+    }
+
     static Analysis Get(SceneObject body) => Cache.GetValue(body.Shape, _ => Analyse(body));
 
     // ---------------------------------------------------------------- analysis

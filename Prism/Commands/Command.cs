@@ -100,6 +100,7 @@ public sealed partial class SelectionSlot : ObservableObject
     public int EdgeRule => SelectionRuleIndex - (ProfileSelection ? 1 : 0);
     public bool IsPartialLoop => HasSelectionRules && EdgeRule == 3;
     public bool ReplacesSelection => !Multi || ProfileSelection && EdgeRule < 0;
+    public bool RevealHiddenPlanes { get; init; } = true;
     public SelFilter PickFilter => !ProfileSelection ? Filter : EdgeRule < 0 ? Filter : SelFilter.Edge;
     internal SelItem? ChainStart, ChainEnd;
     internal bool PathNeedsUpdate;

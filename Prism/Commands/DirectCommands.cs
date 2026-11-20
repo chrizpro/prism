@@ -605,6 +605,17 @@ public sealed class MoveFaceCommand : Command
             }
             var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies and on faces of a surface.");
             var result = body.Shape;
+            if (_faces.Items.Count == 1 && Math.Abs(_tilt.Value) < 1e-9 && _scope.Index == 0 &&
+                FeatureFinder.BossEnds(body, grp.First().Index, move) is { } ends)
+            {
+                using var cap = body.Shape.Sub(SubKind.Face, ends.Cap);
+                double offset = Vec3.Dot(move, ends.Outward);
+                if (ends.Clearance + offset < -1e-7)
+                    throw new FormatException("The boss cap would pass through its shoulder.");
+                using var swept = Occ.Extrude(cap, move);
+                o.Replace.Add((body, offset < 0 ? Occ.Cut(body.Shape, swept) : Occ.Fuse(body.Shape, swept)));
+                continue;
+            }
             var plan = new List<(Shape face, Vec3 n, Vec3 pt, Vec3 nt)>();
             foreach (var it in DirectHelpers.Scope(S, body, grp, _scope.Index, Results))
             {

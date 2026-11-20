@@ -47,6 +47,74 @@ public class DirectEditTests
         return FeatureFinder.Features(body).Where(f => f.Kind == FeatureKind.Hole).Select(f => Math.Round(f.Centre.X, 3)).Order().ToArray();
     }
 
+    [AvaloniaTheory(DisplayName = "DIR-H201 | Apply stays in Direct Edit and Done exits with or without a final edit")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("TestId", "DIR-H201")]
+    public void ApplyAndDone(bool finalEdit)
+    {
+        var vm = new Prism.ViewModels.MainViewModel();
+        var session = vm.Session;
+        var box = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        vm.EnterDirectEdit();
+        var edit = Assert.IsType<DirectEditCommand>(session.ActiveCommand);
+        Pick(edit, edit.Slots[0].Label, FaceFacing(box, Vec3.UnitZ));
+        SetNumber(edit, "Pull (positive moves faces out)", 2);
+        edit.RepeatApply.Run();
+        var next = Assert.IsType<DirectEditCommand>(session.ActiveCommand);
+        Assert.NotSame(edit, next);
+        Assert.Equal("Done", next.CommitText);
+        box = session.Find(box.Id)!;
+        AssertNear(12, box.Shape.Props().Max.Z, "first edit");
+        if (finalEdit)
+        {
+            Pick(next, next.Slots[0].Label, FaceFacing(box, Vec3.UnitX));
+            SetNumber(next, "Pull (positive moves faces out)", 3);
+        }
+        session.AcceptCommandPanel();
+        Assert.False(vm.IsDirectEditing);
+        Assert.Null(session.ActiveCommand);
+        AssertNear(finalEdit ? 13 : 10, session.Find(box.Id)!.Shape.Props().Max.X, "final edit");
+        session.Undo();
+        AssertNear(finalEdit ? 1200 : 1000, session.Find(box.Id)!.Shape.Props().Volume, "volume after undo");
+    }
+
+    [AvaloniaFact(DisplayName = "DIR-H200 | Dragging Z on the side of a tilted boss lowers the sloped cap along the cylinder axis")]
+    [Trait("TestId", "DIR-H200")]
+    public void LowerTiltedBossByItsWall()
+    {
+        var session = new CadSession();
+        using var basePlate = BoxAt(new(-20, -20, 0), 40, 40, 8);
+        using var boss = CylinderAt(new(0, 0, 8), 8, 20);
+        var body = session.AddObject(Occ.Fuse(basePlate, boss), "Casting", ObjKind.Solid);
+        int top = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).Single(i =>
+        {
+            using var face = body.Shape.Sub(SubKind.Face, i);
+            return face.Props().Min.Z > 27.99;
+        });
+        var tilt = Begin(session, () => new DirectEditCommand());
+        Pick(tilt, tilt.Slots[0].Label, new SelItem(body.Id, SelKind.Face, top));
+        SetNumber(tilt, "Tilt", 23);
+        session.CommitCommand();
+        body = session.Find(body.Id)!;
+        var tilted = body.Shape.Props();
+        Assert.True(tilted.Max.Z > 29);
+        var edit = Begin(session, () => new DirectEditCommand());
+        Pick(edit, edit.Slots[0].Label, HoleWall(body));
+        var gizmo = Assert.IsType<GizmoSpec>(edit.Gizmo);
+        var grip = gizmo.Center + Vec3.UnitZ * GizmoVisual.Length(session, gizmo.Center) * 0.7;
+        var start = session.Camera.Project(grip)!.Value;
+        var end = session.Camera.Project(grip - Vec3.UnitZ * 5)!.Value;
+        session.PointerDown(new PointerInfo(start.x, start.y, true, false, false, false));
+        session.PointerMove(new PointerInfo(end.x, end.y, true, false, false, true));
+        session.PointerUp(new PointerInfo(end.x, end.y, false, false, false, true));
+        var moved = Replaced(edit, body).Props();
+        AssertClose(tilted.Max.Z - 5, moved.Max.Z, 0.001, "cap height");
+        AssertClose(tilted.Volume - 5 * Math.PI * 64, moved.Volume, 0.01, "casting volume");
+        SetNumber(edit, "Move Z", -18);
+        AssertBuildFails(edit, "shoulder");
+    }
+
     // ------------------------------------------------------------------ Push / Pull
 
     [AvaloniaTheory(DisplayName = "DIR-H006 | Push / Pull moves the top face of a cube out or in by the signed distance")]

@@ -12,7 +12,7 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 
 A solid spindle upright becomes a wide, slotted carrier with tapered braces and open windows. [Source STEP](extras/spindle-carrier-source.step) · [Fresh import](extras/spindle-carrier-imported.prism) · [Revised model](models/spindle-carrier-revised.prism) · [Matched-camera preview](previews/spindle-carrier-revised.png) · [Workflow and verification](../docs/modeling/direct-modeling/README.md#open-brace-spindle-carrier).
 
-## Pump-mount bracket rework
+## Archived pump-mount bracket rework
 
 A plain 63-face STEP bracket reworked into a visibly different part by Direct Modeling alone: wider base, taller tapered and rounded tower, bigger flange with eight bolts, thicker gussets, tapped and engraved. [Source STEP](extras/pump-bracket-source.step) · [Before](extras/pump-bracket-imported.prism) · [After](models/pump-bracket-revised.prism) · [Comparison](previews/pump-bracket-revised.png) · [Steps, checks and known issues](../docs/modeling/direct-modeling/README.md#pump-mount-bracket-rework-2026-11-20)
 
@@ -64,9 +64,12 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | NURBS | Porcelain spoon rest (`porcelain-spoon-rest`) |
 | NURBS | Three-lobed handbell (`three-lobed-handbell`) |
 | NURBS | Streamlined train nose (`streamlined-train-nose`) |
-| Mesh / Solid | Scanned pillow block rebuilt (`pillow-block-scan`) |
-| Mesh / Surface | Turned knob scan with fitted primitives (`turned-knob-scan`) |
-| Direct Modeling / Solid | Motor mount revised without history (`motor-mount-direct-edit`), mounting plate (`mounting-plate-before-after`), gearbox housing (`reduction-gearbox-before-after`), spindle carrier (`spindle-carrier-before-after`) and pump bracket (`pump-bracket-before-after`): each an assembly of the STEP import (left) and the revised part (right) |
+| Solid | Inline-four engine block with fitted liners and core plugs (`inline-four-crankcase`) |
+| Mesh | Four-groove drive sheave (`multi-groove-sheave`), centrifugal impeller (`centrifugal-impeller`) |
+| Direct Modeling / Solid | Pin-fin cold plate from a STEP blank (`pin-fin-cold-plate`) |
+| Direct Modeling / Solid | Keyed shaft coupling before and after (`keyed-shaft-coupling`) |
+| Mesh / Solid | Turned knob rebuilt from scan (`turned-knob-scan`) |
+| Direct Modeling / Solid | Motor mount revised without history (`motor-mount-direct-edit`), mounting plate (`mounting-plate-before-after`), gearbox housing (`reduction-gearbox-before-after`) and spindle carrier (`spindle-carrier-before-after`): each an assembly of the STEP import (left) and the revised part (right) |
 
 Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 
@@ -141,8 +144,8 @@ Both builders share `demo_session.py`. Build the current Desktop into `artifacts
 
 These studies are built by maintained headless tests, which assert what each step recovers. Run them with `PRISM_GALLERY_OUT` set to a folder to save the documents: `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter "TestId=GAL-H201|TestId=GAL-H202|TestId=GAL-H203"`.
 
-- **Scanned pillow block** ([GAL-H201](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). The scan is synthetic: an 80 × 50 × 10 mm base with two Ø8 holes and a Ø36 boss with a Ø20 bore, 40 mm tall, remeshed to 0.8 mm with 0.03 mm normal noise. It is imported with Reduce faces at 60%. Smart patch and Fit Region read the top face at Z = 10, the boss as Ø36 and the bore as Ø20 (each within 0.05 mm). Two Section Sketches at 5 and 25 mm are extruded and joined, the rebuilt volume is within 1% of the original, and at least 99% of the scan lies within 0.15 mm of it in Deviation. The rebuilt part sits beside the scan; the sketches are kept hidden for editing, and the fitted bore surface is hidden.
-- **Turned knob scan** ([GAL-H202](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). A Ø30 grip, a cone narrowing to Ø16 over 14 mm and an R8 dome, scanned at 0.6 mm with 0.025 mm noise. Smart patch picks each face, and Fit Region returns trimmed surfaces: Ø30 grip, a 53.13° included-angle cone (within 0.3°) and a Ø16 dome centred on the axis. The scan is moved 40 mm aside so the coloured surfaces read on their own.
+- **Archived scanned pillow block** ([GAL-H201](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). The scan is synthetic: an 80 × 50 × 10 mm base with two Ø8 holes and a Ø36 boss with a Ø20 bore, 40 mm tall, remeshed to 0.8 mm with 0.03 mm normal noise. It is imported with Reduce faces at 60%. Smart patch and Fit Region read the top face at Z = 10, the boss as Ø36 and the bore as Ø20 (each within 0.05 mm). Two Section Sketches at 5 and 25 mm are extruded and joined, the rebuilt volume is within 1% of the original, and at least 99% of the scan lies within 0.15 mm of it in Deviation. The rebuilt part sits beside the scan; the sketches are kept hidden for editing, and the fitted bore surface is hidden.
+- **Turned knob scan** ([GAL-H202](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). A Ø30 grip, a cone narrowing to Ø16 over 14 mm and an R8 dome, scanned at 0.6 mm with 0.025 mm noise. Smart patch picks each face, and Fit Region returns trimmed surfaces: Ø30 grip, a 53.13° included-angle cone (within 0.3°) and a Ø16 dome centred on the axis. The scan sits beside a closed solid rebuilt from the measured primitives. Show the hidden surfaces to inspect the individual fits.
 - **Motor mount revision** ([GAL-H203](../Prism.Tests/Headless/DirectModeling/DirectGalleryStudies.cs)). A history-free plate, as from STEP, is lengthened 15 mm with Move Face, its bore opened from Ø30 to Ø32 with Offset Face, one corner hole closed with Delete Face, and the pad's walls given 6° with Draft. The original stays beside it as "As imported".
 
 These are workflow demonstrations on synthetic scans, not measurements of real parts.

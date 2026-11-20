@@ -119,6 +119,7 @@ public sealed partial class MainViewModel : ViewModelBase
         var s = Session;
         if (IsDrawingWorkspace && (s.ActiveCommand != null || s.Sketch != null)) SetWorkspace("design");
         ActiveCommand = s.ActiveCommand;
+        if (IsDirectEditing && ActiveCommand is DirectEditCommand direct) direct.LeaveWorkspace = ExitDirectEdit;
         IsSketching = s.Sketch != null;
         RebuildQuickBar();
         UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions(); RebuildBrowser();

@@ -12,6 +12,21 @@ namespace Prism.HeadlessTests.Solid;
 [Trait("Layer", "Headless")]
 public class TransformTests
 {
+    [AvaloniaTheory(DisplayName = "SOL-H200 | Object transforms respect the browser's plane visibility")]
+    [InlineData(TransformCommand.Kind.Rotate)]
+    [InlineData(TransformCommand.Kind.Scale)]
+    [Trait("TestId", "SOL-H200")]
+    public void TransformRespectsHiddenPlanes(TransformCommand.Kind kind)
+    {
+        var session = new CadSession();
+        var box = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        var command = StartCommand(session, box, () => new TransformCommand(kind));
+        Assert.True(command.ActiveSlot!.PickFilter.HasFlag(SelFilter.Plane));
+        Assert.All(Enumerable.Range(0, 3), i => Assert.False(session.OriginShown(i)));
+        session.SetOriginVisible(1, true);
+        Assert.True(session.OriginShown(1));
+    }
+
     [AvaloniaFact(DisplayName = "SOL-H020 | Move translates the box by the typed delta")]
     [Trait("TestId", "SOL-H020")]
     public void MoveTranslatesBox()
