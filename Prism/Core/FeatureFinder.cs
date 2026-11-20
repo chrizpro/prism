@@ -405,7 +405,7 @@ public static class FeatureFinder
                 var (w0, w1) = Span(a, f, u); var (l0, l1) = Span(a, f, e);
                 double width = w1 - w0, length = l1 - l0;
                 if (width <= 1e-6 || (width > 0.5 * length && width > 0.08 * (a.Mesh.Max - a.Mesh.Min).Length)) continue;
-                if (info.Area > 0.5 * Math.Min(a.Info[fa].Area, a.Info[fb].Area)) continue;
+                if (info.Area > Math.Min(a.Info[fa].Area, a.Info[fb].Area)) continue;   // a bevel bigger than a face it joins is a face of its own
                 // section square to the edge: the old sharp corner's angle is pi - turn, and the strip meets face A at angle ba
                 double corner = Math.PI - turn, atB = Math.PI - corner - ba;
                 double setA = width * Math.Sin(atB) / Math.Sin(corner), setB = width * Math.Sin(ba) / Math.Sin(corner);

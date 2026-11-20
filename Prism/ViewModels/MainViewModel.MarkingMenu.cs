@@ -129,10 +129,13 @@ public sealed partial class MainViewModel
             var body = s.Find(faces[0].Obj)!; int pattern = FeatureFinder.PatternSize(body, feat!);
             if (faces.Count < feat!.Faces.Count) list.Add(new($"Select the whole {name}", () => s.SelectItems(feat.Faces.Select(f => new SelItem(body.Id, SelKind.Face, f)))));
             if (pattern > 0) list.Add(new($"Select the whole pattern ({pattern + 1})", () => s.SelectItems(FeatureFinder.Expand(body, faces[0].Index, PickIntent.Pattern).Select(f => new SelItem(body.Id, SelKind.Face, f)))));
-            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Move {name}…", () => Edit(0)));
-            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Copy {name}…", () => Edit(2)));
+            bool edge = feat.Kind is FeatureKind.Fillet or FeatureKind.Chamfer;   // rounds and bevels belong to their edge: they resize or swap, never move
+            if (!edge) list.Add(new($"Move {name}…", () => Edit(0)));
+            if (!edge) list.Add(new($"Copy {name}…", () => Edit(2)));
             list.Add(new($"Resize {name}…", () => Edit(1)));
             if (feat.Kind is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink) list.Add(new("Change hole type…", () => Edit(4)));
+            if (feat.Kind == FeatureKind.Fillet) list.Add(new("Swap for a chamfer…", () => Edit(4)));
+            if (feat.Kind == FeatureKind.Chamfer) list.Add(new("Swap for a fillet…", () => Edit(4)));
             list.Add(new($"Delete {name}", () => s.DeleteSelection(), Gesture: "Del"));
         }
         else

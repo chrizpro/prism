@@ -96,6 +96,51 @@ public sealed class FeatureRecognitionTests
         Assert.Contains(FeatureFinder.Features(bossBody), f => f.Kind == FeatureKind.Boss);
     }
 
+    static Shape Edited(CadSession session, SceneObject body, Func<Feat, bool> which, Action<Prism.Commands.Command> set)
+    {
+        var feat = FeatureFinder.Features(body).First(which);
+        var command = StartCommand(session, body, () => new Prism.Commands.FeatureEditCommand());
+        command.ConfigureInputs(() => { Assert.True(command.Slots[0].TryAdd(new SelItem(body.Id, SelKind.Face, feat.Face))); set(command); });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var shape = Assert.Single(output.Replace).New;
+        AssertValidSolid(shape);
+        session.CancelCommand();
+        return shape;
+    }
+
+    [AvaloniaTheory(DisplayName = "DIR-H105 | Edit Feature resizes or deletes a recognised chamfer and swaps chamfers and fillets, by the exact volume")]
+    [InlineData("chamfer", "Resize", 3.0)]
+    [InlineData("chamfer", "Delete", 0.0)]
+    [InlineData("chamfer", "Change type", 2.0)]
+    [InlineData("fillet", "Change type", 2.0)]
+    [Trait("TestId", "DIR-H105")]
+    public void ChamferAndFilletActions(string start, string action, double size)
+    {
+        // a 40 x 30 x 10 block with one top edge (40 mm long) chamfered or rounded by 2 mm
+        using var box = BoxAt(new Vec3(0, 0, 0), 40, 30, 10);
+        var edge = Edges(box, e => Along(e, p => Math.Abs(p.Z - 10) < 1e-6 && Math.Abs(p.Y) < 1e-6));
+        using var part = start == "chamfer" ? Occ.Chamfer(box, edge, 2) : Occ.Fillet(box, edge, 2);
+        var (session, body) = Imported(part);
+        var kind = start == "chamfer" ? FeatureKind.Chamfer : FeatureKind.Fillet;
+        using var result = Edited(session, body, f => f.Kind == kind, c =>
+        {
+            SetChoice(c, "Action", action);
+            if (action == "Resize") SetNumber(c, "New chamfer distance (0 = keep)", size);
+        });
+        double block = 40 * 30 * 10, chamferCut = size * size / 2 * 40, roundCut = (1 - Math.PI / 4) * size * size * 40;
+        double expected = action == "Delete" ? block
+            : action == "Resize" ? block - chamferCut
+            : start == "chamfer" ? block - roundCut     // swapped for a fillet of the same setback
+            : block - chamferCut;                       // a fillet swapped for a chamfer of the same setback
+        AssertClose(expected, result.Props().Volume, 1e-3, $"{start} {action} volume");
+        var check = session.AddObject(result, "Edited", ObjKind.Solid);
+        var feats = FeatureFinder.Features(check);
+        if (action == "Delete") Assert.DoesNotContain(feats, f => f.Kind is FeatureKind.Chamfer or FeatureKind.Fillet);
+        else if (action == "Resize") AssertClose(3, FeatureFinder.ChamferOf(check, feats.Single(f => f.Kind == FeatureKind.Chamfer))!.SetbackA, 0.01, "new setback");
+        else Assert.Contains(feats, f => f.Kind == (start == "chamfer" ? FeatureKind.Fillet : FeatureKind.Chamfer));
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H104 | Holes report through or blind, depth, drill point and the matching metric size")]
     [Trait("TestId", "DIR-H104")]
     public void HoleEndsAndStandardSizes()
