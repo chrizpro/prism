@@ -25,6 +25,8 @@ A single 144-face STEP casting for testing Direct Modeling across stepped bores,
 A nine-body mounting plate with four bolts and nuts, a slot pattern and a stiffening rib. Compare the fresh STEP import with the revised model in the split preview. [Source STEP](extras/mounting-plate-source.step) · [Before](extras/mounting-plate-imported.prism) · [After](models/mounting-plate-revised.prism) · [Preview](previews/mounting-plate-revised.png) · [Direct Modeling steps and verification](../docs/modeling/direct-modeling/README.md#step-mounting-plate-gallery-candidate).
 ## Transport studies
 
+The first three gallery cards have standalone STEP downloads. [Vermilion GT (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step) · [Tideline airliner (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step) · [Evergreen Express (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step).
+
 Four owner-approved vehicle concepts are available as native Prism models. The gallery previews show renders of the saved geometry.
 
 | Study | Native model | Prism render |

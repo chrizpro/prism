@@ -1,6 +1,8 @@
 # Install Prism
 
-Download Prism from the [download page](https://chrizpro.github.io/prism/download) or from [GitHub Releases](https://github.com/chrizpro/prism/releases). ::: warning Prism is in alpha
+Download Prism from the [download page](https://chrizpro.github.io/prism/download) or from [GitHub Releases](https://github.com/chrizpro/prism/releases).
+
+::: warning Prism is in alpha
 Features and workflows can still change between releases, and you will run into bugs. Prism is not yet ready for production work. Keep backups of your models, check the [known issues](/reference/known-issues), and [report bugs](https://github.com/chrizpro/prism/issues/new?template=bug_report.yml) when you find them.
 :::
 
@@ -12,6 +14,12 @@ Features and workflows can still change between releases, and you will run into 
 | Linux x64 | `Prism-linux-x64.deb` | Debian, Ubuntu and derivatives |
 
 Each download has a `.sha256` file next to it so you can check the file.
+
+## Try a STEP model
+
+Open a finished Prism model in any STEP-compatible CAD application. The files are hosted on GitHub and contain the vehicle geometry in millimetres.
+
+[Vermilion GT (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step) · [Tideline airliner (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step) · [Evergreen Express (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step).
 
 ## Windows
 
