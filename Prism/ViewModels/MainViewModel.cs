@@ -75,6 +75,10 @@ public sealed partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         MoldSources.Documents = () => Documents.Where(d => !ReferenceEquals(d, ActiveDocument)).Select(d => (d.Title, d.Session)).ToList();
+        // every list button remembers what was picked last (split buttons already did through their own ids)
+        static string PickKey(RibbonButton b) => b.Id.Length > 0 ? b.Id : "list:" + b.Label.Replace("\n", " ");
+        RibbonButton.RememberPick = (b, v) => { AppSettings.Current.LastPicks[PickKey(b)] = v.Label.Replace("\n", " "); AppSettings.Save(false); };
+        RibbonButton.RecallPick = b => AppSettings.Current.LastPicks.TryGetValue(PickKey(b), out var last) ? last : null;
         BuildRibbon();
         HookMaterials();
         AttachSession(Session);

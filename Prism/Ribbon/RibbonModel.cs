@@ -18,7 +18,34 @@ public sealed partial class RibbonButton : RibbonItem
     public List<RibbonButton>? Menu { get; init; }
     public bool HasMenu => Menu != null;
     /// <summary>A split button: pressing the icon runs the variant last used, pressing the label (or right-clicking) opens the list of variants.</summary>
-    public bool IsSplit { get; init; }
+    // Every button with a list behaves the same (owner rule 2026-11-20): clicking it runs the action picked last (or a default, the first one that
+    // can run), the arrow opens the list, and picking from the list runs that action and makes it the one the button runs next.
+    readonly bool _split;
+    public bool IsSplit { get => _split || Menu is { Count: > 0 }; init => _split = value; }
+    /// <summary>Where a button's last pick is remembered between sessions (set by the app); null in tests.</summary>
+    public static Action<RibbonButton, RibbonButton>? RememberPick { get; set; }
+    /// <summary>The last pick saved for a button's id (set by the app), used to start a plain list button on what was used last time.</summary>
+    public static Func<RibbonButton, string?>? RecallPick { get; set; }
+    /// <summary>The action a click runs: the last pick, or the first item that can run.</summary>
+    public RibbonButton? Active
+    {
+        get
+        {
+            if (Menu is not { Count: > 0 } menu) return null;
+            if (Current == null && RecallPick?.Invoke(this) is { } saved) Current = menu.FirstOrDefault(v => v.Label.Replace("\n", " ") == saved);
+            if (Current != null) return Current;
+            foreach (var v in menu) { v.Refresh(); if (v.IsEnabled) return v; }
+            return menu[0];
+        }
+    }
+    /// <summary>Picking from the list: the button runs it now and runs it again on the next click.</summary>
+    public void Pick(RibbonButton variant)
+    {
+        if (!_split) { Current = variant; }   // a list button keeps its own name; a split button shows the tool it will run
+        else { Label = variant.Label.Replace("\n", " "); Icon = variant.Icon; Current = variant; }
+        Picked?.Invoke(variant);
+        RememberPick?.Invoke(this, variant);
+    }
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasExample)), NotifyPropertyChangedFor(nameof(ToolHelpIcon))]
     public partial RibbonButton? Current { get; set; }
     public Action<RibbonButton>? Picked { get; init; }
@@ -81,7 +108,7 @@ public sealed partial class RibbonButton : RibbonItem
     public void Invoke()
     {
         if (!IsEnabled) return;
-        if (IsSplit && Current != null) { Current.Refresh(); Current.Invoke(); } else Execute();
+        if (IsSplit && Active is { } run) { run.Refresh(); run.Invoke(); } else Execute();
     }
     System.Windows.Input.ICommand? _click;
     public System.Windows.Input.ICommand ClickCommand => _click ??= new CommunityToolkit.Mvvm.Input.RelayCommand(Invoke);
