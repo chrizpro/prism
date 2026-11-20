@@ -48,6 +48,16 @@ public sealed class FeatureEditCommand : Command
         _carry = Check("Bolts and nuts in the hole follow it", true);
     }
 
+    // Recipes restore by position. Before v0.4 the list had no chamfer, swap-size, text-depth or rib fields (inserted after the fillet radius)
+    // and no "Bolts and nuts follow it" box at the end, so such a recipe has six fewer values: put five zeros back at their place.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (recipe.Values.Count != Params.Count - 6) return recipe;
+        int at = Params.IndexOf(_chamferD);
+        for (int i = 0; i < 5; i++) recipe = InsertValue(recipe, at, 0.0);
+        return recipe;
+    }
+
     /// <summary>Start with these faces picked and this action chosen (the context menu uses it). Action: 0 Move, 1 Resize, 2 Copy, 3 Delete, 4 Change type.</summary>
     public void Preset(IEnumerable<SelItem> faces, int action) => ConfigureInputs(() =>
     {
@@ -214,8 +224,8 @@ public sealed class FeatureEditCommand : Command
                 {
                     using var face = body.Shape.Sub(SubKind.Face, side); var info = Occ.FaceInfoOf(face);
                     var nrm = Vec3.Dot(info.Normal, side == rib.SideA ? rib.Normal : -rib.Normal) < 0 ? -info.Normal.Normalized() : info.Normal.Normalized();
-                    using var again = FindFaceLike(start, face.Props().Center, nrm) ?? throw new FormatException("Could not find the rib's side again.");
-                    start = DirectHelpers.MoveFaceToPlane(start, again, nrm, again.Props().Center + nrm * half, nrm);
+                    using var again = FindFaceLike(start, DirectHelpers.PointOn(face), nrm) ?? throw new FormatException("Could not find the rib's side again.");
+                    start = DirectHelpers.MoveFaceToPlane(start, again, nrm, DirectHelpers.PointOn(again) + nrm * half, nrm);
                 }
             }
             var result = DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill);
@@ -291,7 +301,7 @@ public sealed class FeatureEditCommand : Command
         for (int i = 0; i < body.Count(SubKind.Face); i++)
         {
             var face = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(face);
-            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(face.Props().Center - point, normal)) < 1e-6) return face;
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(DirectHelpers.PointOn(face) - point, normal)) < 1e-6) return face;
             face.Dispose();
         }
         return null;

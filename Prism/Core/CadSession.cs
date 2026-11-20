@@ -456,6 +456,9 @@ public sealed partial class CadSession : ObservableObject
         if (meshFaces.Count > 0)
         {
             if (ActiveCommand != null || Sketch != null) return;
+            // a mesh tool adds the mesh itself next to its picked triangles (AdoptMeshFaceSelection); that is the same request, not a second one
+            var owners = meshFaces.Select(i => i.Obj).ToHashSet();
+            _selection.RemoveAll(i => i.Kind == SelKind.Object && owners.Contains(i.Obj));
             if (meshFaces.Count != _selection.Count) { Say("Select mesh triangles on their own to delete them.", true); return; }
             var output = new CommandOutput { Label = "Delete mesh faces", Icon = "deleteface" };
             foreach (var group in meshFaces.GroupBy(item => item.Obj))

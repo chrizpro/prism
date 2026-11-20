@@ -25,7 +25,8 @@ public sealed partial class CadSession
         var pts = m.Points.Where(p => pointIds.Contains(p.Id)).Select(p => new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z }).ToList();
         var copies = ents.Select(e => new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints }).ToList();
         var cons = m.Constraints.Where(c => c.Type != CType.Fixed && c.Refs.Length > 0 && c.Refs.All(ids.Contains))
-            .Select(c => new SkConstraint { Type = c.Type, Refs = [.. c.Refs], Value = c.Value, V2 = c.V2, LabelU = c.LabelU, LabelV = c.LabelV }).ToList();
+            .Select(c => new SkConstraint { Type = c.Type, Refs = [.. c.Refs], Value = c.Value, V2 = c.V2, LabelU = c.LabelU, LabelV = c.LabelV,
+                IsDimension = c.IsDimension, Hidden = c.Hidden, Disabled = c.Disabled, Formula = c.Formula }).ToList();   // not the name: dimension names stay unique
         double size = pts.Count == 0 ? 10 : Math.Max(pts.Max(p => p.X) - pts.Min(p => p.X), pts.Max(p => p.Y) - pts.Min(p => p.Y));
         _sketchClip = new SketchClip(pts, copies, cons, size);
         Say($"Copied {ents.Count} sketch curve(s) and {cons.Count} constraint(s) between them. Paste with Ctrl+V while sketching.");
@@ -50,7 +51,8 @@ public sealed partial class CadSession
             }
             foreach (var c in clip.Constraints)
             {
-                var added = m.Add(c.Type, c.Value, c.V2, false, c.Refs.Select(r => map[r]).ToArray());
+                var added = m.Add(c.Type, c.Value, c.V2, c.IsDimension, c.Refs.Select(r => map[r]).ToArray());
+                added.IsDimension = c.IsDimension; added.Hidden = c.Hidden; added.Disabled = c.Disabled; added.Formula = c.Formula;
                 if (c.LabelU is { } u) added.LabelU = u + d;
                 if (c.LabelV is { } v) added.LabelV = v - d;
             }

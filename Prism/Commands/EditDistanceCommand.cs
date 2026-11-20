@@ -158,8 +158,17 @@ public sealed class EditDistanceCommand : Command
             }
             shapes[body.Id] = (body, result);
         }
-        Moved(c.move, c.dir * moveShare);
-        if (_symmetric.Value) Moved(c.from, c.dir * -(change / 2));
+        // a feature is moved from the body's original shape, so when one side is a feature and the other a face of the same body, the feature goes first
+        if (_symmetric.Value && c.from.Feature != null && c.move.Feature == null && c.from.Body.Id == c.move.Body.Id)
+        {
+            Moved(c.from, c.dir * -(change / 2));
+            Moved(c.move, c.dir * moveShare);
+        }
+        else
+        {
+            Moved(c.move, c.dir * moveShare);
+            if (_symmetric.Value) Moved(c.from, c.dir * -(change / 2));
+        }
         foreach (var (body, shape) in shapes.Values) o.Replace.Add((body, shape));
         Results.Add(new ResultLine("Moved by", _symmetric.Value ? $"{Math.Abs(change) / 2:0.###} mm each" : $"{Math.Abs(change):0.###} mm"));
         return o;
@@ -170,7 +179,7 @@ public sealed class EditDistanceCommand : Command
         for (int i = 0; i < body.Count(SubKind.Face); i++)
         {
             var face = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(face);
-            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(face.Props().Center - point, normal)) < 1e-6) return face;
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(DirectHelpers.PointOn(face) - point, normal)) < 1e-6) return face;
             face.Dispose();
         }
         return null;

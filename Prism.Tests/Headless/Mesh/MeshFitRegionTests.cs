@@ -207,4 +207,22 @@ public sealed class MeshFitRegionTests
         s.ClearSelection();
         Assert.True(s.RegionSel == null || s.RegionSel.IsEmpty, "clearing the selection clears the highlighted region");
     }
+
+    [AvaloniaFact(DisplayName = "MSH-H155 | Selected triangles can still be deleted after a Mesh tool was opened and cancelled on them")]
+    [Trait("TestId", "MSH-H155")]
+    public void DeleteAfterMeshToolCancelled()
+    {
+        var s = new CadSession();
+        using var box = BoxAt(new Vec3(0, 0, 0), 30, 20, 12);
+        var mesh = s.AddObject(null, "Export", ObjKind.Mesh);
+        s.Update(mesh.Id, o => o.WithTri(MeshOps.Weld(MeshAnalysis.FromMeshData(box.Tessellate()), 1e-6)), checkpoint: false);
+        int before = s.Find(mesh.Id)!.Tri!.TriCount;
+        s.ZoomExtents(); s.Mode = SelMode.Face;
+        var top = s.Camera.Project(new Vec3(15, 10, 12))!.Value;
+        s.PointerDown(new PointerInfo(top.x, top.y, true, false, false, false, 2)); s.PointerUp(new PointerInfo(top.x, top.y, false, false, false, false, 2));
+        s.StartCommand(() => new MeshFitSurfaceCommand());
+        s.CancelCommand();
+        s.DeleteSelection();
+        Assert.True(s.Find(mesh.Id)!.Tri!.TriCount < before, "the picked triangles were deleted");
+    }
 }

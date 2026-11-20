@@ -11,6 +11,14 @@ namespace Prism.Commands;
 // =================================================================== helpers shared by the direct-modeling tools
 static class DirectHelpers
 {
+    /// <summary>A point that lies on the face: one of its corners. A box centre is off the plane of a slanted face, so it cannot find or place one.</summary>
+    public static Vec3 PointOn(Shape face)
+    {
+        if (face.Count(SubKind.Vertex) == 0) return face.Props().Center;
+        using var v = face.Sub(SubKind.Vertex, 0);
+        return v.Props().Center;
+    }
+
     public static SceneObject? BodyOf(CadSession s, SelItem it) { var o = s.Find(it.Obj); return o != null && o.Kind == ObjKind.Solid && o.HasBrep ? o : null; }
 
     public static IEnumerable<IGrouping<Guid, SelItem>> ByBody(IEnumerable<SelItem> items) => items.Where(i => i.Kind == SelKind.Face).GroupBy(i => i.Obj);
@@ -461,6 +469,13 @@ public sealed class DraftFaceCommand : Command
                     double side = Vec3.Dot(bounds.Center - pl.Origin, pl.Normal);
                     double span = Math.Max(Math.Abs(bounds.Max.X - bounds.Min.X), Math.Max(Math.Abs(bounds.Max.Y - bounds.Min.Y), Math.Abs(bounds.Max.Z - bounds.Min.Z)));
                     if (Math.Abs(side) < 1e-6 * Math.Max(1, span)) throw new FormatException("A picked wall lies on the parting line. Split it there with Split Face first, or pick walls either side of it.");
+                    // a wall that reaches both sides would lean one way along its whole height: refuse it rather than make an undercut
+                    double lo = double.MaxValue, hi = double.MinValue, tol = 1e-6 * Math.Max(1, span);
+                    foreach (var x in new[] { bounds.Min.X, bounds.Max.X })
+                        foreach (var y in new[] { bounds.Min.Y, bounds.Max.Y })
+                            foreach (var z in new[] { bounds.Min.Z, bounds.Max.Z })
+                            { double d = Vec3.Dot(new Vec3(x, y, z) - pl.Origin, pl.Normal); lo = Math.Min(lo, d); hi = Math.Max(hi, d); }
+                    if (lo < -tol && hi > tol) throw new FormatException("A picked wall crosses the parting line. Split it there with Split Face first, then draft the two halves.");
                     angles[k] = side > 0 ? _angle.Value : -_angle.Value;   // with a positive angle both ends of the part shrink away from the parting line
                 }
                 o.Replace.Add((body, Occ.DraftSigned(body.Shape, items.Select(i => i.Index).ToArray(), angles, pull, pl.Origin, pl.Normal)));

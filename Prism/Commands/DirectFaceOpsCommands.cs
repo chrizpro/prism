@@ -65,7 +65,13 @@ public sealed class SplitFaceCommand : Command
     }
 
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
-    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+    // Split Face had no options before v0.4 (0 values) and then only the mode (1): a recipe from either keeps the cutting tool, as it did then.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count switch
+    {
+        0 => recipe with { Values = [0, false] },
+        1 => recipe with { Values = [.. recipe.Values, false] },
+        _ => recipe
+    };
 
     protected override void UpdateVisibility() =>
         _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _face.Items.Count > 0 ? S.Find(_face.Items[0].Obj) : null) != null;
