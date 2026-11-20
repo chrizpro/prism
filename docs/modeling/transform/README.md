@@ -6,6 +6,10 @@ In the viewport Move, Rotate and Scale are driven by the shared gizmo: arrows fo
 
 **Moving sketches and datum planes (owner report 2026-11-19: "I sometimes find myself moving the gizmo, and the object didn't move").** Two causes were found. Move, Rotate, Scale and Mirror refused datum planes and reference images, so with one selected nothing could move. And a moved sketch kept its old plane and lost its sketch data, so it became a plain curve and reopened where it was. Now a sketch moves by moving its plane (a uniform Scale also scales its points, radii and dimension lengths) and stays editable, and a datum plane's plane moves with it. A third look-alike remains by design: the Datum section's free **Gizmo** moves only itself. Check: [SOL-H178](../../../Prism.Tests/Headless/Solid/MoveEveryKindTests.cs).
 
+Move, Rotate and Scale respect browser visibility when selecting objects. A visible datum plane can still be transformed. Selecting a box leaves hidden construction and origin planes hidden. The owner requested this on 2026-11-20. [Issue #154](https://github.com/chrizpro/prism/issues/154) · [SOL-H200](../../../Prism.Tests/Headless/Solid/TransformTests.cs).
+
+Windows desktop captures, 2026-11-20, with the browser origin hidden: [Rotate](evidence/SOL-H200-rotate.png) and [Scale](evidence/SOL-H200-scale.png).
+
 ## Review and verification
 
 This guide describes observed behavior. Additional requirements are proposed and need owner review. [Tracking issue #29](https://github.com/chrizpro/prism/issues/29).

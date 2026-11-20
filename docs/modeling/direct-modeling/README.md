@@ -23,6 +23,12 @@ The tab reads left to right: **Select, Datum, Edit, Repair, Transform, Inspect, 
 
 **Status key:** *Done* works and is covered by tests. *Thin* works but is only tested on simple parts. *Gap* has a known limitation.
 
+## Lowering a cylindrical boss
+
+Select the cylindrical side and drag the gizmo along the cylinder axis. On a simple boss with one flat cap and a perpendicular planar shoulder, this changes the height and preserves the cap angle, including after **Tilt face**. The drag stops with an explanation if the low edge would cross the shoulder. Verified against a 5 mm downward Z drag on a boss with a 23° cap. [Owner report #154](https://github.com/chrizpro/prism/issues/154) · [DIR-H200](../../../Prism.Tests/Headless/DirectModeling/DirectEditTests.cs).
+
+Windows desktop verification, 2026-11-20: [selected wall before dragging](evidence/DIR-H200-before.png) and [after lowering the cap](evidence/DIR-H200-lowered.png). The pointer API measured −4.999998 mm along Z and the volume decreased by 320π mm³ within 1 mm³.
+
 ## The gizmo
 
 There is no button for it. It is open whenever the tab is open. Click a face, hole, slot, pocket, boss or fillet (one click picks the whole feature) and controls appear on it:

@@ -811,8 +811,9 @@ public sealed partial class CadSession : ObservableObject
         if (OriginVisible[i]) return true;
         SyncSuppression();
         if (_originSuppressed.Contains(i)) return false;
-        var f = ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None;
-        return (i < 3 && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
+        var slot = ActiveCommand?.ActiveSlot;
+        var f = slot?.PickFilter ?? SelFilter.None;
+        return (i < 3 && slot?.RevealHiddenPlanes == true && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
     }
 
     /// <summary>A construction plane is drawn and pickable while switched on, or while a command is asking for a plane and the user has not hidden it this time.</summary>
@@ -821,7 +822,7 @@ public sealed partial class CadSession : ObservableObject
         if (obj.Kind != ObjKind.Plane || obj.Visible) return obj.Visible;
         SyncSuppression();
         if (_planeSuppressed.Contains(obj.Id)) return false;
-        return (ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None).HasFlag(SelFilter.Plane);
+        return ActiveCommand?.ActiveSlot is { RevealHiddenPlanes: true } slot && slot.PickFilter.HasFlag(SelFilter.Plane);
     }
 
     /// <summary>The browser eye for a construction plane: a persistent switch like any object, except that hiding a plane a command only revealed is remembered until that command ends.</summary>

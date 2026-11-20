@@ -176,6 +176,9 @@ public sealed class DirectEditCommand : Command
         }
         else if (pulling) result = Run(new OffsetFaceCommand { Factory = () => new OffsetFaceCommand() }, null, ("Offset distance", _offset.Value));
         else if (tilting) result = Run(new RotateFaceCommand { Factory = () => new RotateFaceCommand() }, null, ("Rotation angle", _rotate.Value));
+        else if (_faces.Items.Count == 1 && First() is { } picked &&
+            FeatureFinder.BossEnds(picked.body, _faces.Items[0].Index, move) != null)
+            result = Run(new MoveFaceCommand { Factory = () => new MoveFaceCommand() }, null, ("Move X", move.X), ("Move Y", move.Y), ("Move Z", move.Z));
         else if (PickedFeature(out bool all))
         {
             if (!all) throw new FormatException("Pick either whole features or plain faces to move, not both at once.");

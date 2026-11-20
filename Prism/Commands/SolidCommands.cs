@@ -1933,7 +1933,7 @@ public sealed class TransformCommand : Command
         // datum planes and reference images are objects too: Move, Rotate, Scale and Mirror take them (they used to be refused, so the gizmo moved nothing)
         // anything that can be selected can be moved (owner rule 2026-11-20): whole objects, and faces, edges or points, which move what they
         // belong to; flat faces of a solid move on their own and the solid follows
-        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject | SelFilter.Plane | SelFilter.Face | SelFilter.Edge | SelFilter.Vertex | SelFilter.MeshFace, Multi = true });
+        _objs = Slot(new SelectionSlot { Label = "Objects", RevealHiddenPlanes = kind == Kind.Mirror, Filter = SelFilter.AnyObject | SelFilter.Plane | SelFilter.Face | SelFilter.Edge | SelFilter.Vertex | SelFilter.MeshFace, Multi = true });
         switch (kind)
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
