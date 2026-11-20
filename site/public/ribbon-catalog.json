@@ -1,5 +1,5 @@
 {
-  "sourceHash": "E93736742680BA4A72BB102BF221E5CE116323BA8DD4FB9BBB13DE8D78F86531",
+  "sourceHash": "8802CBB87074F129630D4A466630F635DFC46D059B6BFE952B238C2FBF8F0947",
   "workspaces": [
     {
       "Id": "design",
@@ -3022,7 +3022,13 @@
             {
               "id": "movehole|Edit Feature",
               "label": "Edit Feature",
-              "description": "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature. Solid bodies only.",
+              "description": "Pick a hole, slot, pocket, boss, fillet or chamfer: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread; a fillet and a chamfer swap) or delete it. One click picks the whole feature. Solid bodies only.",
+              "shortcut": ""
+            },
+            {
+              "id": "measure|Edit Distance",
+              "label": "Edit Distance",
+              "description": "Pick what to move and what to measure from, read the distance between them and type a new one: the face or feature moves to match.",
               "shortcut": ""
             },
             {
