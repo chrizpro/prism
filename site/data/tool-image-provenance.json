@@ -1,10 +1,10 @@
 {
   "sourceRevision": "fba5314",
-  "helpAssemblySha256": "A52A97818BE1013066F776A2F15BB008C7A5623AF1938C1EFB307C252DE5C0A0",
-  "kernelAssemblySha256": "E2F4E053B4557D65D9D009DADA83367F72E965C4E0B0ED9DE2C37B43039F313B",
-  "generatedUtc": "2026-11-14T17:59:14.0382248Z",
-  "pages": 429,
-  "distinctHelpExamples": 265,
+  "helpAssemblySha256": "26F3178F9265D7B978B975E5BF0C0A507D5289F957275CE5B50DECE00F572456",
+  "kernelAssemblySha256": "B107203A6CD49ADE72D68ED75131F9F76A0871C15AF0B7EB52D96B7B30B819D6",
+  "generatedUtc": "2026-11-20T19:04:41.4043868Z",
+  "pages": 428,
+  "distinctHelpExamples": 271,
   "method": "ToolHelp.Example geometry rendered with StudioPreview.Render; explicit SVG recipes for non-preview actions. Not command-execution or solver evidence.",
   "resultCaptures": {
     "curve-from-data": "helix-result",
@@ -14,5 +14,5 @@
     "split-face-direct-modeling": "imprint-result"
   },
   "captureMethod": "Actual commands in an isolated Windows desktop instance; screenshot(viewport=true), fixed isometric view. Raw states, native documents and call records retained in the supplied work directory.",
-  "nativeKernelSha256": "64a70477ed07d75b235c0b01a76a8d80c365b2447ae86622e07f29628f059835"
+  "nativeKernelSha256": "1e1f987ceb8f624ef9a016f54d4f19f08f6efb6a1f779e9b4478802d090b8185"
 }

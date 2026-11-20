@@ -379,16 +379,6 @@
     "topic": "sel-same-linked",
     "sha256": "80d18cec70045aa9b70d06bcfc5c72b27df5ffa052f34bd2754bd6f1e72ea41d"
   },
-  "through": {
-    "src": "/images/tools/through.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Through: Start: solid faces hide the inside compared with Result: hidden edges show through.",
-    "caption": "See through faces to the geometry behind them. Use it to find internal holes and channels, or to pick geometry that is hidden behind a face.",
-    "topic": "xray",
-    "sha256": "4a05d0255a60401c93bf38346e13dd69dc12bd91d212f0572961ce5283cfbd22"
-  },
   "gizmo": {
     "src": "/images/tools/gizmo.svg",
     "width": 760,
@@ -467,24 +457,25 @@
     "topic": "section|Intersection Curve",
     "sha256": "6b1b3e069578b09475ef3a6bbc1f198aa23d6b95f1743cc74925711dd447bc80"
   },
-  "project": {
-    "src": "/images/tools/project.webp",
+  "project-wrap": {
+    "src": "/images/tools/project-wrap.webp",
     "width": 1160,
     "height": 440,
     "kind": "example",
-    "alt": "Project: Start: a curve above a body compared with Result: the curve lying on the face.",
-    "caption": "Drop curves onto a surface, straight along a direction or by pulling to the nearest point. Projected curves can trim the surface or guide an emboss.",
-    "topic": "section|Project",
-    "sha256": "6134a1d647e028b7c673d6cdbce35f144fc10bf26d7c71fe906a4c2f272d9bfe"
+    "alt": "Project / Wrap: Start: a curve above a body compared with Result: the curve lying on the face.",
+    "caption": "Put curves onto a surface: project them straight along a direction, pull them to the nearest point, or wrap a flat curve (a logo, a label, text) on by distance. Wrap needs curves that lie in one plane. The pattern lands where the face is nearest to it and every point is reached by walking its distance over the face, so lengths stay true on planes, cylinders and cones. Use the result to imprint or split a face, or pick the text itself in Emboss.",
+    "topic": "section|Project / Wrap",
+    "sha256": "fb7d0e85b1ff89dac37868498de75827bc8336105f8c2120361c24ecb89950c6"
   },
   "draw-on-surface": {
-    "src": "/images/tools/draw-on-surface.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Draw on Surface: Click points to draw across connected faces; the result can also split faces.",
-    "caption": "Click points to draw across connected faces; the result can also split faces.",
-    "sha256": "7ab4b25391420eb5e8d6b0d3b68472b71277aebf37b779d2c834e19a0e81e33c"
+    "src": "/images/tools/draw-on-surface.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Draw on Surface: Start: a surface compared with Result: a curve lying on it.",
+    "caption": "Draw a curve directly on a surface the way the spline tool draws one: click a few points and a smooth curve passes through them, over the edge onto the next face if need be. Under Result, keep the curve or split the faces it was drawn on. Fewer points make a calmer curve. A spot that cannot be reached without crossing empty space is refused. The curve stays where it was drawn if the body changes later.",
+    "topic": "curve-through|Draw on Surface",
+    "sha256": "947e6654d6c0e73cc662aca899e9af9d7b39153e34c3f688d68c8751287932df"
   },
   "isocurves": {
     "src": "/images/tools/isocurves.webp",
@@ -622,7 +613,7 @@
     "height": 440,
     "kind": "example",
     "alt": "Emboss: An outline over a face compared with The shape raised.",
-    "caption": "Raise text or a sketched shape off a face, or engrave it into the body. ",
+    "caption": "Raise text or a sketched shape off a face, or engrave it into the body. On a curved face the letters follow the surface at an even height; on a flat face this is a straight extrude. Pick a face to limit it to that face.",
     "topic": "emboss",
     "sha256": "e2a39dd961c765b9c463427c21ba52856ea2a68f66a91be4151de65b8e65e68c"
   },
@@ -655,6 +646,16 @@
     "caption": "Drill a round hole into a face of a body. Choose Through All to cut the whole body, or enter a depth for a blind hole.",
     "topic": "hole",
     "sha256": "f32ab6090caab310b38499eefd81d251fbb1c665cb4d620b3d347be588672956"
+  },
+  "thread": {
+    "src": "/images/tools/thread.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Thread: Start: a plain pin compared with Result: a modeled thread.",
+    "caption": "Cut a modeled thread into a round face: the outside of a pin, bolt or boss, or the wall of a hole you already drilled. A pin's diameter is the thread's major diameter and a hole's diameter is the tap drill, so a Ø5 hole threads as M6 × 1. The 60° thread is modeled as real geometry and cut with a flat crest, with no manufacturing allowance. Use Hole to drill a new threaded hole.",
+    "topic": "hole|Thread",
+    "sha256": "9253ececfa61cee97f2a1425083430648e993954dc3b04c6df50ad895942b55b"
   },
   "union": {
     "src": "/images/tools/union.webp",
@@ -822,13 +823,14 @@
     "sha256": "bfb6b79f89e5d232738f1d903c1f05ee741ebc120e22f0d29e9a291159bec301"
   },
   "duplicate": {
-    "src": "/images/tools/duplicate.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Duplicate: Copies are shown apart for clarity; position them as needed.",
-    "caption": "Copies are shown apart for clarity; position them as needed.",
-    "sha256": "e68caf711c7512d9bf336fbbc603ed5532bd4d2de6bcefbce13916fda9a3fa06"
+    "src": "/images/tools/duplicate.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Duplicate: Start: a part compared with Result: the part and its copy.",
+    "caption": "Copy the selected objects. Copy and Paste (Ctrl+C, Ctrl+V) also copy.",
+    "topic": "duplicate",
+    "sha256": "725d438a7b7dd7aaa9e8009993a8962c993938ed92c893b0c6144b6e905c2339"
   },
   "measure": {
     "src": "/images/tools/measure.webp",
@@ -895,10 +897,10 @@
     "width": 1160,
     "height": 440,
     "kind": "example",
-    "alt": "Draft: Start: a part with straight walls compared with Result: walls with no draft in red.",
-    "caption": "Check faces for mold release in a pull direction. A few degrees of draft helps the part leave the mold. Straight walls show as red.",
-    "topic": "draft",
-    "sha256": "e5b1ec0aa82c1c6801393db04fc75fce2d83597c4a2e549c0ae981915306612b"
+    "alt": "Draft: Start: straight walls compared with Result: walls leaning 8 degrees.",
+    "caption": "Lean the walls of a body away from a pull direction so a molded or cast part can release. This changes the shape; to only check an existing part, use Draft Analysis under Analyze. A parting line at the neutral plane leans the walls opposite ways, for a two-part mold.",
+    "topic": "draft|Draft",
+    "sha256": "fe4dccf15390d82f05224562c774f32b8baa280b8f6f73ddedce7b4a0f408a30"
   },
   "split-body": {
     "src": "/images/tools/split-body.webp",
@@ -919,6 +921,36 @@
     "caption": "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too. Finish Editing returns to where you were.",
     "topic": "pushpull",
     "sha256": "f3156d8fa616317a819698971e651257490d6bb87c01ad3c6077ad8591b2baaa"
+  },
+  "zebra-stripes": {
+    "src": "/images/tools/zebra-stripes.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Zebra Stripes: Start: a smooth shape compared with Result: reflection stripes.",
+    "caption": "Show reflection stripes to judge how smooth a surface is. Smooth, continuous stripes mean a smooth surface. A kink or break shows a sudden change.",
+    "topic": "zebra",
+    "sha256": "e6e2e02abeea56fc88658ca13de1f7d2dbfa693741ea56f55ca7553ff1a09de8"
+  },
+  "curvature-map": {
+    "src": "/images/tools/curvature-map.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Curvature Map: Start: a shape compared with Result: colored by curvature.",
+    "caption": "Color surfaces by how sharply they bend. Flat areas stay blue; tight bends turn red. Smooth color changes mean a smooth surface.",
+    "topic": "curvature",
+    "sha256": "6468c6089a26d03df95e4283f22d0549e0f3bc798c8bc80f722fca7874708b50"
+  },
+  "draft-analysis": {
+    "src": "/images/tools/draft-analysis.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Draft Analysis: Start: a part with straight walls compared with Result: walls with no draft in red.",
+    "caption": "Check faces for mold release in a pull direction. A few degrees of draft helps the part leave the mold. Straight walls show as red.",
+    "topic": "draft",
+    "sha256": "e5b1ec0aa82c1c6801393db04fc75fce2d83597c4a2e549c0ae981915306612b"
   },
   "extrude-surface": {
     "src": "/images/tools/extrude-surface.webp",
@@ -1060,6 +1092,16 @@
     "topic": "extend-surface",
     "sha256": "ca429b9dc159fdd43ff27d4792459d189600c373c95b1555fb7bcffaaf9ad662"
   },
+  "match-surface": {
+    "src": "/images/tools/match-surface.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Match Surface: Start: two patches meeting at a kink compared with Result: a smooth joint.",
+    "caption": "Match compatible natural patch boundaries with G0, G1 or G2 continuity. Check Seam reports how well two boundaries meet.",
+    "topic": "nurbs-patch|Match Surface",
+    "sha256": "2dacc0a6d193cb7c195a54cc85c91813b636540a93521047b57d8db273b487d7"
+  },
   "reverse-normal": {
     "src": "/images/tools/reverse-normal.svg",
     "width": 760,
@@ -1075,7 +1117,7 @@
     "height": 440,
     "kind": "example",
     "alt": "Enclosed Body: A sheet over a plate compared with The space between, as a solid.",
-    "caption": "Make solids from the spaces enclosed by surfaces, planes and bodies. ",
+    "caption": "Make solids from the spaces enclosed by surfaces, planes and bodies. With no space picked, every space is kept. You can also type the numbers.",
     "topic": "fill",
     "sha256": "5fdfd46ba4c002ea0f19c5050da6a6321dbce19bd0d9f1f5ce1faf6690a59728"
   },
@@ -1107,36 +1149,6 @@
     "alt": "Convert to NURBS: Convert supported geometry into exact NURBS for further CAD work.",
     "caption": "Convert supported geometry into exact NURBS for further CAD work.",
     "sha256": "c78fd7f0cb6c29be63b8be1dee9fd66c3889fff5acc77fb9c29bd699420bf3fa"
-  },
-  "zebra-stripes": {
-    "src": "/images/tools/zebra-stripes.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Zebra Stripes: Start: a smooth shape compared with Result: reflection stripes.",
-    "caption": "Show reflection stripes to judge how smooth a surface is. Smooth, continuous stripes mean a smooth surface. A kink or break shows a sudden change.",
-    "topic": "zebra",
-    "sha256": "e6e2e02abeea56fc88658ca13de1f7d2dbfa693741ea56f55ca7553ff1a09de8"
-  },
-  "curvature-map": {
-    "src": "/images/tools/curvature-map.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Curvature Map: Start: a shape compared with Result: colored by curvature.",
-    "caption": "Color surfaces by how sharply they bend. Flat areas stay blue; tight bends turn red. Smooth color changes mean a smooth surface.",
-    "topic": "curvature",
-    "sha256": "6468c6089a26d03df95e4283f22d0549e0f3bc798c8bc80f722fca7874708b50"
-  },
-  "draft-analysis": {
-    "src": "/images/tools/draft.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Draft Analysis: Start: a part with straight walls compared with Result: walls with no draft in red.",
-    "caption": "Check faces for mold release in a pull direction. A few degrees of draft helps the part leave the mold. Straight walls show as red.",
-    "topic": "draft",
-    "sha256": "e5b1ec0aa82c1c6801393db04fc75fce2d83597c4a2e549c0ae981915306612b"
   },
   "check-seam": {
     "src": "/images/tools/check-seam.svg",
@@ -1327,16 +1339,6 @@
     "topic": "chamfer|Bevel",
     "sha256": "02c0159320c47a2f6ce2492679aab5d37b6707c5daff0db2578b0942d82d1268"
   },
-  "delete": {
-    "src": "/images/tools/delete.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Delete: Select the top face compared with An opening.",
-    "caption": "Delete the selected faces, edges or points. Fill holes caps the opening again.",
-    "topic": "form-delete",
-    "sha256": "65e1d1087da545759a6b0e6d3978e29a6da3ce752259ed23f5cdd83d51d9980e"
-  },
   "split-face": {
     "src": "/images/tools/split-face.webp",
     "width": 1160,
@@ -1386,6 +1388,16 @@
     "caption": "Give the cage wall thickness. Thicken open forms before converting them to a solid.",
     "topic": "form-box|Thicken",
     "sha256": "37a360f716244f8b62929a242d3a0919ae9a3bc633be8569fad116c3920e6e12"
+  },
+  "knife": {
+    "src": "/images/tools/knife.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Knife: Start: a form compared with Result: cut along the plane.",
+    "caption": "Cut a freeform with a plane: every face the plane passes through is split along the cut. The edges the plane crosses get a new point where it crosses them, and each face it passes through becomes two. A plane that only touches the form, or lies along a face, cuts nothing. Use Insert Edge for a loop parallel to existing edges and Knife for a cut at any angle.",
+    "topic": "splitbody|Knife",
+    "sha256": "1216ab3056d6941ddf7cf1c45e7addfe6b1c4459d719d54e2aa2f0c061f93495"
   },
   "insert-edge": {
     "src": "/images/tools/insert-edge.webp",
@@ -1624,25 +1636,25 @@
     "topic": "raise-degree|Raise Degree",
     "sha256": "00347f34865a1edaeed6149190d33405d05e13480e264b73fd0675a30760e6e1"
   },
-  "match-surface": {
-    "src": "/images/tools/match-surface.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Match Surface: Start: two patches meeting at a kink compared with Result: a smooth joint.",
-    "caption": "Match compatible natural patch boundaries with G0, G1 or G2 continuity. Check Seam reports how well two boundaries meet.",
-    "topic": "nurbs-patch|Match Surface",
-    "sha256": "2dacc0a6d193cb7c195a54cc85c91813b636540a93521047b57d8db273b487d7"
-  },
   "edit-feature": {
     "src": "/images/tools/edit-feature.webp",
     "width": 1160,
     "height": 440,
     "kind": "example",
     "alt": "Edit Feature: A hole on the left compared with The hole moved.",
-    "caption": "Pick a hole, slot, pocket, boss or fillet and move, copy, resize, retype or delete it. Holes can become counterbores, countersinks or modeled threads.",
+    "caption": "Pick a hole, slot, pocket, boss, fillet or chamfer and move, copy, resize, retype or delete it. Holes can become counterbores, countersinks or modeled threads; a fillet and a chamfer swap with Change type.",
     "topic": "movehole",
     "sha256": "413072d700da4e92e4d478d9af5df03e7603d7b222ce79b0eb577ac819db36e7"
+  },
+  "edit-distance": {
+    "src": "/images/tools/edit-distance.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Edit Distance: Start: the hole near one end compared with Result: the distance typed, the hole moved.",
+    "caption": "Set the distance between two faces or features by typing it: the first pick moves to match. Symmetric moves both picks by half the change. A hole is measured from its centre line.",
+    "topic": "measure|Edit Distance",
+    "sha256": "4e2069eea4d4834e8c878feb6c6156e3cae540340a90c8eb73b965f8a3591988"
   },
   "replace-face": {
     "src": "/images/tools/replace-face.webp",
@@ -1732,6 +1744,16 @@
     "caption": "Join neighbouring faces on the same surface into one face, on a solid or a surface. Merging removes edges left over from imports and booleans.",
     "topic": "replaceface|Merge Faces",
     "sha256": "14d3d1132a77a91d8d8deed4300e978ebc4a45fe2b7baf7ad8dec37faae20616"
+  },
+  "edit-face": {
+    "src": "/images/tools/edit-face.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Edit Face: Start: a flat face compared with Result: the face reshaped, its outline kept.",
+    "caption": "Reshape a flat, four-sided face of a solid by moving a grid of control points. Grid cells across and up set how many points there are. Edit feature brings the moved points back.",
+    "topic": "edit-points|Edit Face",
+    "sha256": "2e6d5a21ae4d0930a69d54daf82ec7511c35fbe7f74539aee0bbe8b04b676340"
   },
   "finish-editing": {
     "src": "/images/tools/finish-editing.svg",
@@ -1841,13 +1863,14 @@
     "sha256": "9cd6133b81b45c19585af168287b0f4f1a17dcf266720c8797abe1258261f5c0"
   },
   "duplicate-ecad": {
-    "src": "/images/tools/duplicate-ecad.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Duplicate: Copies are shown apart for clarity; position them as needed.",
-    "caption": "Copies are shown apart for clarity; position them as needed.",
-    "sha256": "e68caf711c7512d9bf336fbbc603ed5532bd4d2de6bcefbce13916fda9a3fa06"
+    "src": "/images/tools/duplicate.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Duplicate: Start: a part compared with Result: the part and its copy.",
+    "caption": "Copy the selected objects. Copy and Paste (Ctrl+C, Ctrl+V) also copy.",
+    "topic": "duplicate",
+    "sha256": "725d438a7b7dd7aaa9e8009993a8962c993938ed92c893b0c6144b6e905c2339"
   },
   "interference": {
     "src": "/images/tools/interference.webp",
@@ -2148,13 +2171,14 @@
     "sha256": "640bba4059d3b7fc4cf46c535f7ee578e8f2189381fa532f903fb76f0d2a9e09"
   },
   "place-on-bed": {
-    "src": "/images/tools/place-on-bed.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Place on bed: Set a CAD solid down using the face you choose.",
-    "caption": "Set a CAD solid down using the face you choose.",
-    "sha256": "833145591e81a14c35c65488b65828854668dc1fe82eb0c3e6d2e0730df9354c"
+    "src": "/images/tools/place-on-bed.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Place on bed: Start: a part resting at an angle compared with Result: the picked face flat on the bed.",
+    "caption": "Set a CAD solid down on the print bed (Z = 0) with the face you pick lying flat. Check overhangs afterwards with FDM check.",
+    "topic": "print-place-on-bed",
+    "sha256": "40bb246c914429bc4ae63c7d2826a599c624da1714a548bd4c23b9da586d9339"
   },
   "fdm-check": {
     "src": "/images/tools/fdm-check.webp",
@@ -2185,6 +2209,15 @@
     "caption": "Find thin or stretched triangles, open and non-manifold edges and self-intersections. Highlights stay on screen after the command closes; use Clear Colors to remove them.",
     "topic": "mesh-quality",
     "sha256": "5767f815d32ebc77cc8bc58bcd436d9174986d808c23d509da11ddad03a456da"
+  },
+  "print-check": {
+    "src": "/images/tools/print-check.svg",
+    "width": 760,
+    "height": 370,
+    "kind": "diagram",
+    "alt": "Print Check: Check watertightness, build fit, support needs and weight before export.",
+    "caption": "Check watertightness, build fit, support needs and weight before export.",
+    "sha256": "90f8bcca895f39904fa33f399107f12292337efdaa84ca21f0ac5013bf5247b6"
   },
   "overhang-orientation": {
     "src": "/images/tools/overhang-orientation.webp",
@@ -2326,16 +2359,6 @@
     "topic": "drawing",
     "sha256": "6499f6cf5717826a52cc49570697d6371a6c8712bb68249886eebff656109061"
   },
-  "solid-to-mesh": {
-    "src": "/images/tools/solid-to-mesh.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Solid to Mesh: A solid compared with A triangle mesh.",
-    "caption": "Turn CAD bodies into triangle meshes. ",
-    "topic": "mesh-from-solid",
-    "sha256": "4fd5c4eb6c359c0f8653ea6073a38669a9c6750d584704c5329a73603361c255"
-  },
   "import-point-cloud": {
     "src": "/images/tools/import-point-cloud.svg",
     "width": 760,
@@ -2345,103 +2368,15 @@
     "caption": "Import adds the supported geometry to the document; exchange files do not recreate Prism history.",
     "sha256": "8ac27b649c73ac3459ecf5fbe1d1e667b2ef2b554a0b66fc55077b360ba07c2d"
   },
-  "reconstruct-surface": {
-    "src": "/images/tools/reconstruct-surface.webp",
+  "reconstruct-mesh": {
+    "src": "/images/tools/reconstruct-mesh.webp",
     "width": 1160,
     "height": 440,
     "kind": "example",
-    "alt": "Reconstruct Surface: A point cloud compared with A mesh.",
+    "alt": "Reconstruct Mesh: A point cloud compared with A mesh.",
     "caption": "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim. ",
-    "topic": "mesh-reconstruct",
-    "sha256": "f5347df094acb960a24d6f9d50d519b2383a2630c108ce369171360cc7ef5f7c"
-  },
-  "print-check": {
-    "src": "/images/tools/print-check.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Print Check: Check watertightness, build fit, support needs and weight before export.",
-    "caption": "Check watertightness, build fit, support needs and weight before export.",
-    "sha256": "90f8bcca895f39904fa33f399107f12292337efdaa84ca21f0ac5013bf5247b6"
-  },
-  "select-region": {
-    "src": "/images/tools/select-region.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Select Region: A mesh compared with A region selected.",
-    "caption": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them. ",
-    "topic": "mesh-select",
-    "sha256": "ca0f6be0a2d0018376478211327b48a085f8fe9eec2fb41c8551127efccbf51e"
-  },
-  "reduce": {
-    "src": "/images/tools/reduce.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Reduce: A dense mesh compared with Fewer triangles, same shape.",
-    "caption": "Simplify a dense mesh while keeping its shape. ",
-    "topic": "mesh-reduce",
-    "sha256": "66b9994a61cdd6842f04e2b621d5befc9322587851870cac9c1f1fb14c4dfabd"
-  },
-  "remesh": {
-    "src": "/images/tools/remesh.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Remesh: Start: uneven, stretched triangles compared with Result: even triangles.",
-    "caption": "Rebuild a mesh with evenly sized triangles. Pick an edge length near the smallest detail you need to keep.",
-    "topic": "mesh-remesh",
-    "sha256": "38a316b574ae5661224a4ddb4548b78cbab9f231cb4ec492444b97af07375e03"
-  },
-  "smooth-mesh": {
-    "src": "/images/tools/smooth-mesh.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Smooth: A noisy scan compared with A smooth mesh.",
-    "caption": "Remove scanner noise without shrinking the part. Too much smoothing rounds off sharp edges.",
-    "topic": "mesh-smooth",
-    "sha256": "3a39e3fd3bf8436d6ba0cea4b68e7bc8da026ca045bf8776f409501934a909d8"
-  },
-  "split": {
-    "src": "/images/tools/split.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Split: Start: a part too big for the bed compared with Result: two pieces that fit.",
-    "caption": "Cut a mesh with a plane and cap the halves. Cut where the pieces are easy to glue, and keep each half inside your build volume.",
-    "topic": "mesh-cut",
-    "sha256": "a79e62f296f5cded1dc07dfd6f4bf5c8bc1fdbea17f4d9e74a5b105bd7da3737"
-  },
-  "offset-mesh": {
-    "src": "/images/tools/offset-mesh.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Offset: A mesh compared with The original and its offset.",
-    "caption": "Grow or shrink the surface of a mesh, for tolerances and clearances. ",
-    "topic": "mesh-offset",
-    "sha256": "07d4f96b03fa2d00ee4902ff5516eaf6688bdaf8ac272cc781ff16ae271ac427"
-  },
-  "mesh-boolean": {
-    "src": "/images/tools/mesh-boolean.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Mesh Boolean: Start: two overlapping meshes compared with Result: one combined mesh.",
-    "caption": "Combine two closed meshes: join, subtract or keep the overlap. Both meshes must be closed; run Repair first if you are told one is open.",
-    "topic": "mesh-boolean",
-    "sha256": "4ec245f1588878c9123c6a0ed020a2066d2e97296a1f941642e5398b8ea6f205"
-  },
-  "clear-colors": {
-    "src": "/images/tools/clear-colors.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Clear Colors: Clear Colors removes mesh analysis coloring.",
-    "caption": "Clear Colors removes mesh analysis coloring.",
-    "sha256": "1344080096f1553c1e60083c218e632bb356081051b65e372f27ed726e59970c"
+    "topic": "mesh-reconstruct|Reconstruct Mesh",
+    "sha256": "9564f540d7d0f6457a285afbcf3832318f1001d546809368090a909fa0fd4892"
   },
   "align": {
     "src": "/images/tools/align.webp",
@@ -2453,65 +2388,14 @@
     "topic": "mesh-align",
     "sha256": "0ad7d5a24ce6bef9ddc3f4f7bb33a0867912466a0e12a051386753d5626324e1"
   },
-  "section-sketch": {
-    "src": "/images/tools/section-sketch.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Section Sketch: A scan and a plane compared with A sketch of the section.",
-    "caption": "Put a plane on the scan and get an editable sketch of fitted lines, arcs and circles. ",
-    "topic": "mesh-section",
-    "sha256": "470edefe6943d8003320fd2ab87c7a0756a5d3242c0fe5d2afc8b14caab5e4c8"
-  },
-  "segment-fit": {
-    "src": "/images/tools/segment-fit.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Segment & Fit: A scan compared with Exact faces.",
-    "caption": "Find planes, cylinders, spheres and cones in a scan, read their sizes, and make them exact surfaces. ",
-    "topic": "mesh-fit",
-    "sha256": "a8cf8f737c61773044c28e4e3ffd16733171b41f8ab8060a7e6687ace75d20f6"
-  },
-  "fit-surface-to-region": {
-    "src": "/images/tools/fit-surface-to-region.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Fit Surface to Region: A selected region compared with A surface fitted to it.",
-    "caption": "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch. ",
-    "topic": "mesh-patch",
-    "sha256": "faa599a0ad4df0b228517a5d03c2c85730054fa6b5b177e5a913aa0fe4ce8d08"
-  },
-  "rebuild-from-scan": {
-    "src": "/images/tools/rebuild-from-scan.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Rebuild from Scan: Start: a scan mesh compared with Result: an exact solid.",
-    "caption": "Automatic reverse engineering: fit all surface types, merge them, build faces and edge curves, sew, and report the deviation to the scan. Clean, aligned scans rebuild best; use Segment & Fit for manual control.",
-    "topic": "mesh-fit|Rebuild from Scan",
-    "sha256": "7a803e47fd72a510f074e0a2828f5fd8566c0591532ce2a8139bb36c4e4484c6"
-  },
-  "freeform-from-scan": {
-    "src": "/images/tools/freeform-from-scan.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Freeform from Scan: A scan mesh compared with A quad cage around it.",
-    "caption": "Wrap an editable quad cage around the scan. ",
-    "topic": "form-scan",
-    "sha256": "ac63f17276ba024bff56c0f81b467925f827f6ce2ad38135eefdbd6de3cf9348"
-  },
-  "mesh-to-solid": {
-    "src": "/images/tools/mesh-to-solid.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Mesh to Solid: A mesh compared with A solid of triangle faces.",
-    "caption": "Last resort: a CAD body with one face per triangle. Heavy and hard to edit; prefer Segment & Fit or Rebuild from Scan.",
-    "topic": "mesh-solid",
-    "sha256": "e11529c84c8fb582007e321ab7e915f7ef63bac6bac1040d82a28c8fe9948fe5"
+  "clear-colors": {
+    "src": "/images/tools/clear-colors.svg",
+    "width": 760,
+    "height": 370,
+    "kind": "diagram",
+    "alt": "Clear Colors: Clear Colors removes mesh analysis coloring.",
+    "caption": "Clear Colors removes mesh analysis coloring.",
+    "sha256": "1344080096f1553c1e60083c218e632bb356081051b65e372f27ed726e59970c"
   },
   "deviation": {
     "src": "/images/tools/deviation.webp",
@@ -2522,6 +2406,116 @@
     "caption": "Compare a scan with its CAD model and show the error as colors. ",
     "topic": "mesh-deviation",
     "sha256": "e4b739aef8af34f605e737f179de5428b35ec755c536af54756a230c82ee154b"
+  },
+  "cleanup": {
+    "src": "/images/tools/cleanup.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Cleanup: Start: a scan with stray fragments compared with Result: one clean mesh, openings left as they were.",
+    "caption": "Tidy a mesh without filling its openings: merge duplicate vertices, drop stray fragments and broken triangles, and make the triangles face the same way. Use Repair to fill the openings as well.",
+    "topic": "mesh-repair|Cleanup",
+    "sha256": "1e7c126481097fb969f7c8e53faa855f0af19bd7fd7e1305c1537c67ced7aa29"
+  },
+  "fill-hole": {
+    "src": "/images/tools/fill-hole.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Fill Hole: Start: a scan with an opening compared with Result: the opening filled.",
+    "caption": "Close one or more openings in a mesh with new triangles that follow the surface around them. Use Repair to fill every small hole at once; Fill Hole is for the ones you pick.",
+    "topic": "mesh-patch|Fill Hole",
+    "sha256": "9a9667ae484439d0bd021b715751efafc0c4054f1a5a0009a302821a7531f34a"
+  },
+  "stitch-seam": {
+    "src": "/images/tools/stitch-seam.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Stitch Seam: Start: two pieces with a gap compared with Result: one mesh, the seam closed.",
+    "caption": "Join two open edges of a mesh across a small gap, so two pieces become one closed mesh. Edges further apart than the gap are left open.",
+    "topic": "mesh-repair|Stitch Seam",
+    "sha256": "f6a7610ed1350a684b4a065fc94528db29b4d9b38fd6f1e52713abfb7ce62e0e"
+  },
+  "edit-region": {
+    "src": "/images/tools/edit-region.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Edit Region: A mesh compared with A region selected.",
+    "caption": "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then smooth, delete and patch, or extract them. Face mode selection does the same for most tools: click a triangle, or double-click for its patch.",
+    "topic": "mesh-select|Edit Region",
+    "sha256": "c6bf0eb70f76e2b722f5d97021a0b05b39c1c2d68c43458f44d71173721588c5"
+  },
+  "draw-faces": {
+    "src": "/images/tools/draw-faces.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Draw Faces: Start: a sheet with a gap compared with Result: the gap covered by drawn faces.",
+    "caption": "Draw new triangles and quads point by point and stitch them into a mesh, for gaps the automatic fill cannot close. Faces drawn against an open edge are stitched to it.",
+    "topic": "form-face|Draw Faces",
+    "sha256": "6d0954ede7a7d95cd2089484ba772250a89e1fdad4be1f29680764be2930cdf4"
+  },
+  "delete-and-patch": {
+    "src": "/images/tools/delete-and-patch.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Delete and Patch: Start: a scan with a bump compared with Result: the area rebuilt smoothly.",
+    "caption": "Remove a bad area of a mesh, such as a spike or a fused fragment, and fill the gap smoothly. Select a little more than the defect so the patch blends in.",
+    "topic": "mesh-patch|Delete and Patch",
+    "sha256": "c80581cdaf8069475004146f325e4bc76df357d83acd9039765a461539136d26"
+  },
+  "smooth-mesh": {
+    "src": "/images/tools/smooth-mesh.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Smooth: A noisy scan compared with A smooth mesh.",
+    "caption": "Remove scanner noise without shrinking the part. Too much smoothing rounds off sharp edges.",
+    "topic": "mesh-smooth",
+    "sha256": "3a39e3fd3bf8436d6ba0cea4b68e7bc8da026ca045bf8776f409501934a909d8"
+  },
+  "extract": {
+    "src": "/images/tools/extract.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Extract: Start: a region selected compared with Result: the region as its own mesh.",
+    "caption": "Copy the selected triangles of a mesh into a separate mesh, leaving the original as it was. Fit a surface to the copy, or export it on its own.",
+    "topic": "mesh-select|Extract",
+    "sha256": "7bbc4afcb0e8330ba1bc95dcaaeed1476594575bdd5f4c8a979de0ca343510b0"
+  },
+  "remesh": {
+    "src": "/images/tools/remesh.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Remesh: Start: uneven, stretched triangles compared with Result: even triangles.",
+    "caption": "Rebuild a mesh with evenly sized triangles. Pick an edge length near the smallest detail you need to keep.",
+    "topic": "mesh-remesh",
+    "sha256": "38a316b574ae5661224a4ddb4548b78cbab9f231cb4ec492444b97af07375e03"
+  },
+  "section-sketch": {
+    "src": "/images/tools/section-sketch.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Section Sketch: A scan and a plane compared with A sketch of the section.",
+    "caption": "Put a plane on the scan and get an editable sketch of fitted lines, arcs and circles. ",
+    "topic": "mesh-section",
+    "sha256": "470edefe6943d8003320fd2ab87c7a0756a5d3242c0fe5d2afc8b14caab5e4c8"
+  },
+  "fit-region": {
+    "src": "/images/tools/fit-region.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Fit Region: A selected region compared with A surface fitted to it.",
+    "caption": "Turn the selected region into a plane, cylinder, sphere, cone or smooth NURBS patch. ",
+    "topic": "mesh-patch",
+    "sha256": "faa599a0ad4df0b228517a5d03c2c85730054fa6b5b177e5a913aa0fe4ce8d08"
   },
   "new-study": {
     "src": "/images/tools/new-study.webp",
@@ -3267,7 +3261,7 @@
     "sha256": "5d9a6c8ff375b09463823d8df4f312ff869711befaf862178379938ed2fb9b87"
   },
   "draft-analysis-mold": {
-    "src": "/images/tools/draft.webp",
+    "src": "/images/tools/draft-analysis.webp",
     "width": 1160,
     "height": 440,
     "kind": "example",
@@ -3513,16 +3507,6 @@
     "topic": "sel-same-linked",
     "sha256": "80d18cec70045aa9b70d06bcfc5c72b27df5ffa052f34bd2754bd6f1e72ea41d"
   },
-  "through-sketch": {
-    "src": "/images/tools/through.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Through: Start: solid faces hide the inside compared with Result: hidden edges show through.",
-    "caption": "See through faces to the geometry behind them. Use it to find internal holes and channels, or to pick geometry that is hidden behind a face.",
-    "topic": "xray",
-    "sha256": "4a05d0255a60401c93bf38346e13dd69dc12bd91d212f0572961ce5283cfbd22"
-  },
   "project-include": {
     "src": "/images/tools/project-include.webp",
     "width": 1160,
@@ -3654,22 +3638,24 @@
     "sha256": "b7e33f18f488b3520dd14fa76a4208c82a35f7826132999ce3ca0ffb4f719150"
   },
   "transform": {
-    "src": "/images/tools/transform.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Transform: Colored axes set the direction. Use the gizmo or enter exact values.",
-    "caption": "Colored axes set the direction. Use the gizmo or enter exact values.",
-    "sha256": "2400c23412ddf384898ce35fea82816fe4a35b5ea4c248d0e43d54d535163060"
+    "src": "/images/tools/transform.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Transform: Start: picked sketch curves compared with Result: moved and turned.",
+    "caption": "Move, rotate or scale the points and curves you selected in a sketch, with the gizmo or by typing exact values. Scale works per axis, so two points can be squashed together along one gizmo axis. No bind step is needed.",
+    "topic": "move|Transform",
+    "sha256": "0321d020ddbaa54e9eeafd3f9b1dadccd94e25751801f59e397f07d737d06cb6"
   },
   "insert-point": {
-    "src": "/images/tools/insert-point.svg",
-    "width": 760,
-    "height": 370,
-    "kind": "diagram",
-    "alt": "Insert Point: The curve gains an editing point; a line is divided into two segments.",
-    "caption": "The curve gains an editing point; a line is divided into two segments.",
-    "sha256": "ae00661f668c08d8cbcc9de39c047fa697cefccfebcefbe8e6831d54ea9e34a7"
+    "src": "/images/tools/insert-point.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Insert Point: Start: a line compared with Result: two lines meeting at the new point.",
+    "caption": "Add a point to a curve you already drew in a sketch: a line becomes two lines, an arc or circle two arcs, and a spline gains a point. A circle splits at the clicked point and the point opposite it. The two halves of a split line stay one straight line.",
+    "topic": "origin-point|Insert Point",
+    "sha256": "58256fa64443d41ae303d849ea27cc58ebbc2e7588377faeda0b21cf8ffaa8e3"
   },
   "extend-sketch": {
     "src": "/images/tools/extend-sketch.webp",
@@ -3976,6 +3962,15 @@
     "caption": "Fit the model to the view.",
     "sha256": "b4f709806a081cb92ceff8fb099e4dab9c49f7848f6bca8ab3c4e89b3e200e07"
   },
+  "zoom-selected": {
+    "src": "/images/tools/zoom-selected.svg",
+    "width": 760,
+    "height": 370,
+    "kind": "diagram",
+    "alt": "Zoom Selected: Zoom Selected centres the selected bodies, faces or edges and fills the view with them.",
+    "caption": "Zoom Selected centres the selected bodies, faces or edges and fills the view with them.",
+    "sha256": "09fdc67a5343d669e58271ed1c06526c3a0c4d8ab89a7d984481bbbdf203bbb8"
+  },
   "set-home": {
     "src": "/images/tools/set-home.svg",
     "width": 760,
@@ -4072,7 +4067,7 @@
     "sha256": "fb84696bf48ddf936971f789754dd423a9d5e030165287ccd3e3f0e91f5f3efb"
   },
   "x-ray": {
-    "src": "/images/tools/through.webp",
+    "src": "/images/tools/x-ray.webp",
     "width": 1160,
     "height": 440,
     "kind": "example",

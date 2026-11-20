@@ -170,6 +170,7 @@ def diagram(slug, label):
         if s in ['glossy','polished-metal','satin']:swatch+='<ellipse cx="131" cy="77" rx="'+('26' if s=='satin' else '13')+'" ry="10" fill="#f3f8ff" opacity="'+('.3' if s=='satin' else '.9')+'"/>'
         if s=='brushed-metal':swatch+=''.join(line(f'M105 {70+i*8}H195',GRAY) for i in range(10))
         return circle(150,105,64,GRAY,'#557289'),swatch,'Current appearance',{'apply-material':'Apply library material','remove-material':'Remove material assignment','find-assigned':'Find assigned material'}.get(s,label),'Finish comparison is schematic, not a measured render. Material assignment also supplies engineering data.' if s not in ['apply-material','remove-material','find-assigned'] else 'Appearance and engineering material data are related but distinct; see the material controls.'
+    if s=='zoom-selected':return window(block(80,35)+circle(225,150,13,GOLD,'#c57c52')),window(circle(150,105,58,GOLD,'#c57c52')),'Selection small in the view','Selection fills the view','Zoom Selected centres the selected bodies, faces or edges and fills the view with them.'
     if s in ['front','back','left','right','top','bottom','isometric','look-at','zoom-extents','set-home','single','two-views','four-views','link-views','grid','data-table']:
         if s in ['single','two-views','four-views','link-views']:
             n=1 if s=='single' else 4 if s in ['four-views','link-views'] else 2
