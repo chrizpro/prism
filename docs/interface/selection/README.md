@@ -65,6 +65,10 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 
 [Checks](../../../Prism.Tests/Headless/Selection/GroupTests.cs).
 
+## Edge mode picks every curve
+
+**Edge** covers curved edges as well as straight ones, as in other CAD programs (owner question and audit request 2026-11-19). In Edge mode a click picks a straight or curved edge of a solid or surface, any curve object (line, arc, circle, spline, polyline) and a curve of a finished sketch. Check: [SEL-H064](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs). Proposed, not built: Ctrl-click a second edge to take the shortest chain of edges between them, and double-click to take a whole tangent chain or loop.
+
 ## Copy, paste and Alt-drag copy
 
 **Status: owner requested 2026-11-13; implemented.**
