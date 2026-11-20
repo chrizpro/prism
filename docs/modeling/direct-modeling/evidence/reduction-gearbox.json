@@ -1,0 +1,294 @@
+{
+  "source_sha256": "038df6534d5ceddfb05071242888e4553cf03bad89f0f30dd9e591fbf97ca2e5",
+  "cases": [
+    {
+      "case": "Check & Repair (inspect)",
+      "status": "passed",
+      "notes": [
+        "Shape check: valid",
+        "Body type: solid, 144 faces",
+        "Open edges: none",
+        "Tiny faces (under 0.05 mm): none",
+        "Sliver faces: none",
+        "Tiny edges: none",
+        "Duplicate faces: none",
+        "Non-manifold edges: 2",
+        "Repair: tick an option to fix problems"
+      ],
+      "volumes_mm3": [
+        1679425.3668
+      ]
+    },
+    {
+      "case": "Push / Pull pad +4 mm",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1683338.6071
+      ]
+    },
+    {
+      "case": "Edit Distance 244 to 260 mm",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1723201.3668
+      ]
+    },
+    {
+      "case": "Offset Face main flange +3 mm",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1692912.9781
+      ]
+    },
+    {
+      "case": "Move Hole / Boss and resize",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1679378.2429
+      ]
+    },
+    {
+      "case": "Delete Face removes the dowel bore",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1680330.1455
+      ]
+    },
+    {
+      "case": "Mirror Feature duplicates the dowel bore",
+      "status": "passed",
+      "notes": {
+        "status": "Mirror Feature complete",
+        "statusIsError": false,
+        "created": [],
+        "objectCount": 1,
+        "changed": [
+          {
+            "name": "Reduction gearbox housing",
+            "volume": 1678520.5881,
+            "volumeDelta": -904.7787,
+            "areaDelta": 351.8584,
+            "faces": "144->145",
+            "edges": "328->331",
+            "size": [
+              244,
+              168,
+              90
+            ],
+            "valid": true
+          }
+        ]
+      },
+      "volumes_mm3": [
+        1678520.5881
+      ]
+    },
+    {
+      "case": "Edit Feature adds a counterbore",
+      "status": "passed",
+      "notes": {
+        "status": "Edit Feature complete",
+        "statusIsError": false,
+        "created": [],
+        "objectCount": 1,
+        "changed": [
+          {
+            "name": "Reduction gearbox housing",
+            "volume": 1679095.4996,
+            "volumeDelta": -329.8672,
+            "areaDelta": 62.8319,
+            "faces": "144->146",
+            "edges": "328->331",
+            "size": [
+              244,
+              168,
+              90
+            ],
+            "valid": true
+          }
+        ]
+      },
+      "volumes_mm3": [
+        1679095.4996
+      ]
+    },
+    {
+      "case": "Edit Pattern changes the pad hole spacing",
+      "status": "passed",
+      "notes": [
+        "Pattern: line",
+        "Instances: 2 \u2192 2"
+      ],
+      "volumes_mm3": [
+        1679426.062
+      ]
+    },
+    {
+      "case": "Edit Pattern 8 to 6 counterbores",
+      "status": "unverified",
+      "notes": "Geometry check failed (volume delta 0.0000 mm3). Reported: ['Pattern: circle', 'Instances: 8 \u2192 6']"
+    },
+    {
+      "case": "Split Face and Merge Faces",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1679425.3668
+      ]
+    },
+    {
+      "case": "Split Body on the center plane",
+      "status": "passed",
+      "notes": [
+        836944.8058,
+        842480.5625
+      ],
+      "volumes_mm3": [
+        836944.8058,
+        842480.5625
+      ]
+    },
+    {
+      "case": "Replace Face on the pad",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1677468.7467
+      ]
+    },
+    {
+      "case": "Extend / Trim Face on the pad",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1680379.0715
+      ]
+    },
+    {
+      "case": "Match Face on the pad",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1677468.7467
+      ]
+    },
+    {
+      "case": "Remove Fillets to R8",
+      "status": "passed",
+      "notes": null,
+      "volumes_mm3": [
+        1680414.2521
+      ]
+    },
+    {
+      "case": "Move Face +6 mm",
+      "status": "passed",
+      "notes": {
+        "status": "Move Face complete",
+        "statusIsError": false,
+        "created": [],
+        "objectCount": 1,
+        "changed": [
+          {
+            "name": "Reduction gearbox housing",
+            "volume": 1695841.3668,
+            "volumeDelta": 16416,
+            "areaDelta": 2040,
+            "faces": "144->146",
+            "edges": "328->334",
+            "size": [
+              250,
+              168,
+              90
+            ],
+            "valid": true,
+            "sizeBefore": [
+              244,
+              168,
+              90
+            ]
+          }
+        ]
+      },
+      "volumes_mm3": [
+        1695841.3668
+      ]
+    },
+    {
+      "case": "Rotate Face 3 degrees",
+      "status": "passed",
+      "notes": {
+        "status": "Rotate Face complete",
+        "statusIsError": false,
+        "created": [],
+        "objectCount": 1,
+        "changed": [
+          {
+            "name": "Reduction gearbox housing",
+            "volume": 1679425.3668,
+            "volumeDelta": 0,
+            "areaDelta": 12.2448,
+            "faces": "144->148",
+            "edges": "328->338",
+            "size": [
+              244.4717,
+              168,
+              90
+            ],
+            "valid": true,
+            "sizeBefore": [
+              244,
+              168,
+              90
+            ]
+          }
+        ]
+      },
+      "volumes_mm3": [
+        1679425.3668
+      ]
+    },
+    {
+      "case": "Draft a wall",
+      "status": "passed",
+      "notes": {
+        "status": "Draft complete",
+        "statusIsError": false,
+        "created": [],
+        "objectCount": 1,
+        "changed": [
+          {
+            "name": "Reduction gearbox housing",
+            "volume": 1686321.3436,
+            "volumeDelta": 6895.9768,
+            "areaDelta": 840.5847,
+            "faces": "144->144",
+            "edges": "328->328",
+            "size": [
+              245.8867,
+              169.8867,
+              90
+            ],
+            "valid": true,
+            "sizeBefore": [
+              244,
+              168,
+              90
+            ]
+          }
+        ]
+      },
+      "volumes_mm3": [
+        1686321.3436
+      ]
+    }
+  ],
+  "desktopSource": "be8a459",
+  "sourceRevision": "7145c16",
+  "sourceModel": "../../../gallery/extras/reduction-gearbox-housing.step"
+}

@@ -10,18 +10,18 @@ import build_examples as study
 cad = study.cad
 
 
-def render_model(path, output):
+def render_model(path, output, *, camera=None, expected_objects=9, samples=128):
     cad.call("file", action="open", path=str(path))
     objects = cad.objects()
-    assert len(objects) == 9
+    assert len(objects) == expected_objects
     for obj in objects:
         assert cad.call("object_info", object=obj.info["id"])["valid"], obj.name
     cad.call("run_command", name="render", commit=False)
-    cad.call("view", yaw=-22, pitch=58, target=[75, 45, 7], distance=253,
-             orthographic=False, grid=False)
+    view = camera or {"yaw": -22, "pitch": 58, "target": [75, 45, 7], "distance": 253}
+    cad.call("view", **view, orthographic=False, grid=False)
     try:
         cad.call("command_set", params={
-            "Picture size": "HD  1280 \u00d7 720", "Quality (samples per pixel)": 128,
+            "Picture size": "HD  1280 \u00d7 720", "Quality (samples per pixel)": samples,
             "Lighting": "Studio (soft white boxes)", "Background": "Studio gradient",
             "Ground plane with shadows": True, "Denoise final image": True, "Start render": True,
         })
