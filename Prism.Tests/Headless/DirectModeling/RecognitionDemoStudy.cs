@@ -94,9 +94,13 @@ public sealed class RecognitionDemoStudy(Xunit.Abstractions.ITestOutputHelper lo
         try { Occ.ExportStep(parts, path); s.ImportStep(path); }
         finally { File.Delete(path); foreach (var p in parts) p.Dispose(); }
         Assert.Equal(9, s.Objects.Count(o => o.Kind == ObjKind.Solid));
+        var boltIds = FastenerFinder.Find(s.Objects).Select(f => f.Body.Id).ToHashSet();
+        var plateId = Plate(s).Id;
         foreach (var o in s.Objects.Where(o => o.Kind == ObjKind.Solid).ToList())
-            s.Update(o.Id, x => x.WithName(x == Plate(s) ? "Mounting plate" : x.Shape!.Count(SubKind.Face) > 12 ? "Hex bolt" : "Nut").WithColor(x == Plate(s) ? 0xFF8FA3B8 : 0xFFC9A227), checkpoint: false);
+            s.Update(o.Id, x => x.WithName(x.Id == plateId ? "Mounting plate" : boltIds.Contains(x.Id) ? "Hex bolt" : "Nut").WithColor(x.Id == plateId ? 0xFF8FA3B8 : 0xFFC9A227), checkpoint: false);
         var plate = Plate(s);
+        Assert.Equal(4, boltIds.Count);
+        Assert.Equal(4, s.Objects.Count(o => o.Name == "Hex bolt"));
 
         // 1. recognise everything
         var lines = FeatureSummary.For(plate, s.Objects).Select(l => l.Text).ToList();
