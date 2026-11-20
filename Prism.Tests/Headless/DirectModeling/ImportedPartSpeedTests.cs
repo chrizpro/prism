@@ -71,6 +71,25 @@ public sealed class ImportedPartSpeedTests(Xunit.Abstractions.ITestOutputHelper 
         Assert.True(after.IsValid);
     }
 
+    [AvaloniaFact(DisplayName = "DIR-H101 | The measured box is exact where curved faces bulge past the vertices and where rounded rims touch the outside")]
+    [Trait("TestId", "DIR-H101")]
+    public void BoxIsExact()
+    {
+        static void Box(Shape s, Vec3 min, Vec3 max)
+        {
+            var p = s.Props();
+            Assert.True((p.Min - min).Length < 1e-6 && (p.Max - max).Length < 1e-6, $"box {p.Min} to {p.Max}, expected {min} to {max}");
+        }
+        using var sphere = Occ.Sphere(7);
+        var c = sphere.Props().Center;
+        Box(sphere, c - new Vec3(7, 7, 7), c + new Vec3(7, 7, 7));
+        using var cylinder = CylinderAt(new Vec3(3, -2, 1), 4, 9);
+        using var fresh = Occ.FromBrep(cylinder.ToBrep());
+        Box(fresh, new Vec3(-1, -6, 1), new Vec3(7, 2, 10));
+        using var plate = SlottedPlate();
+        Box(plate, new Vec3(0, 0, 0), new Vec3(60, 40, 5));
+    }
+
     /// <summary>Times a real imported part. Set PRISM_SPEED_STEP to a STEP file to run it; otherwise it does nothing.</summary>
     [AvaloniaFact(DisplayName = "DIR-H100 | Speed probe for an imported STEP part (runs only with PRISM_SPEED_STEP set)")]
     [Trait("TestId", "DIR-H100")]

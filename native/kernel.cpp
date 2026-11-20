@@ -914,6 +914,31 @@ static void volumeProperties(const TopoDS_Shape& shape, GProp_GProps& props, boo
 }
 
 // props: [volume, area, minx,miny,minz, maxx,maxy,maxz]
+// The exact bounding box. BRepBndLib::AddOptimal searches every face numerically, which took seconds on a plate with
+// hundreds of rounded slot rims. The vertices lie on the shape, so their box is inside the exact one; a face whose quick
+// (never too small) box fits inside it cannot widen the result, and only the faces that reach out are searched.
+static void tightBox(const TopoDS_Shape& shape, Bnd_Box& box) {
+    Bnd_Box inner;
+    for (TopExp_Explorer v(shape, TopAbs_VERTEX); v.More(); v.Next()) inner.Add(BRep_Tool::Pnt(TopoDS::Vertex(v.Current())));
+    TopExp_Explorer faces(shape, TopAbs_FACE);
+    if (inner.IsVoid() || !faces.More()) { BRepBndLib::AddOptimal(shape, box, false, false); return; }
+    double x0, y0, z0, x1, y1, z1; inner.Get(x0, y0, z0, x1, y1, z1);
+    box.Add(inner);
+    for (; faces.More(); faces.Next()) {
+        Bnd_Box quick; BRepBndLib::Add(faces.Current(), quick, false);
+        if (!quick.IsVoid()) {
+            // the quick box is padded by the face tolerance; without the padding it is still never smaller than the face,
+            // and a rim tangent to the top face then reaches exactly the vertices' height instead of looking higher
+            double a0, b0, c0, a1, b1, c1; quick.Get(a0, b0, c0, a1, b1, c1);
+            const double g = quick.GetGap();
+            if (a0 + g >= x0 && b0 + g >= y0 && c0 + g >= z0 && a1 - g <= x1 && b1 - g <= y1 && c1 - g <= z1) continue;
+        }
+        BRepBndLib::AddOptimal(faces.Current(), box, false, false);
+    }
+    // edges that belong to no face (a wire beside a solid in a compound)
+    for (TopExp_Explorer e(shape, TopAbs_EDGE, TopAbs_FACE); e.More(); e.Next()) BRepBndLib::AddOptimal(e.Current(), box, false, false);
+}
+
 CK_API int ck_props(void* s, double* out) {
     TRY
         GProp_GProps v, a;
@@ -922,7 +947,7 @@ CK_API int ck_props(void* s, double* out) {
         // tight box (BRepBndLib::Add alone follows NURBS control polygons, which stick out far past the real surface)
         // Measurement bounds must come from the geometry. Display triangulations carry
         // deflection padding and can inflate NURBS dimensions after the first render.
-        Bnd_Box b; BRepBndLib::AddOptimal(get(s), b, false, false);
+        Bnd_Box b; tightBox(get(s), b);
         out[0] = v.Mass(); out[1] = a.Mass();
         if (b.IsVoid()) { for (int i = 2; i < 8; ++i) out[i] = 0; }
         else b.Get(out[2], out[3], out[4], out[5], out[6], out[7]);
