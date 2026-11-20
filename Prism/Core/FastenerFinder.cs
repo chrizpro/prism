@@ -137,6 +137,13 @@ public static class FastenerFinder
     {
         bool hole = FeatureFinder.Features(n).Any(f => f.Round is { Hole: true } hr && Coaxial(origin, axis, hr.Origin, f.Dir) && hr.Radius > r * 0.75 && hr.Radius < r * 1.3);
         if (!hole) return false;
+        // a nut is small: it stays within a few shank radii of the axis (the plate the bolt goes through also has a hole and many flat sides)
+        var m = n.Mesh;
+        for (int i = 0; i < m.Positions.Length; i += 3)
+        {
+            var p = new Vec3(m.Positions[i], m.Positions[i + 1], m.Positions[i + 2]) - origin;
+            if ((p - axis * Vec3.Dot(p, axis)).Length > 2.5 * r) return false;
+        }
         int flats = 0;
         for (int i = 0; i < n.Shape.Count(SubKind.Face); i++)
         {

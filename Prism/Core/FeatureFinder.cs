@@ -750,18 +750,35 @@ public static class FeatureFinder
     public static int PatternSize(SceneObject body, Feat feat) => Siblings(body, feat, true).Count;
 
     /// <summary>Members of the same regular grid (or line) as the picked feature, from the centres of its matching siblings.</summary>
-    static HashSet<int> LatticeMembers(Vec3 c0, List<Vec3> others)
+    /// <summary>The two shortest steps from the picked feature to its nearest neighbours (V2 null when all lie on one line).</summary>
+    static (Vec3 v1, Vec3? v2) LocalBasis(List<Vec3> d)
     {
-        var res = new HashSet<int>(); if (others.Count == 0) return res;
-        var d = others.Select(o => o - c0).ToList();
-        int i1 = Enumerable.Range(0, d.Count).OrderBy(i => d[i].Length).First(); var v1 = d[i1]; double l1 = v1.Length;
-        if (l1 < 1e-6) return res;
-        int i2 = -1; double best = double.MaxValue;
-        for (int i = 0; i < d.Count; i++)
-        {
-            double len = d[i].Length; if (len < 1e-6 || Vec3.Cross(v1, d[i]).Length < 1e-3 * l1 * len) continue;
-            if (len < best) { best = len; i2 = i; }
-        }
+        var v1 = d.OrderBy(v => v.Length).First(); double l1 = v1.Length; Vec3? v2 = null; double best = double.MaxValue;
+        foreach (var v in d) { double len = v.Length; if (len < 1e-6 || Vec3.Cross(v1, v).Length < 1e-3 * l1 * len || len >= best) continue; best = len; v2 = v; }
+        return (v1, v2);
+    }
+
+    /// <summary>The two shortest steps between any two features of the set (the picked one's neighbour may be missing, as at the short end of a row).</summary>
+    static (Vec3 v1, Vec3? v2) GlobalBasis(List<Vec3> d)
+    {
+        var pts = d.Prepend(Vec3.Zero).ToList();
+        Vec3 v1 = default; double l1 = double.MaxValue;
+        for (int i = 0; i < pts.Count; i++) for (int j = i + 1; j < pts.Count; j++) { var v = pts[j] - pts[i]; if (v.Length > 1e-6 && v.Length < l1 - 1e-9) { l1 = v.Length; v1 = v; } }
+        Vec3? v2 = null; double l2 = double.MaxValue;
+        for (int i = 0; i < pts.Count; i++)
+            for (int j = i + 1; j < pts.Count; j++)
+            {
+                var v = pts[j] - pts[i]; double len = v.Length;
+                if (len < 1e-6 || Vec3.Cross(v1, v).Length < 1e-3 * l1 * len || len >= l2 - 1e-9) continue;
+                l2 = len; v2 = v;
+            }
+        return (v1, v2);
+    }
+
+    /// <summary>Which of <paramref name="d"/> (offsets from the picked feature) sit on the line or grid with steps v1 (and v2).</summary>
+    static HashSet<int> OnLattice(List<Vec3> d, Vec3 v1, Vec3? maybeV2)
+    {
+        double l1 = v1.Length; if (l1 < 1e-6) return [];
         double tol = 1e-3 * l1 + 1e-4;
         var line = new HashSet<int>();
         for (int i = 0; i < d.Count; i++)
@@ -769,9 +786,9 @@ public static class FeatureFinder
             double k = Vec3.Dot(d[i], v1) / (l1 * l1);
             if (Math.Abs(k - Math.Round(k)) * l1 < tol && (d[i] - v1 * Math.Round(k)).Length < tol) line.Add(i);
         }
-        if (i2 < 0) return line;
+        if (maybeV2 is not { } v2) return line;
         // a second direction only counts as a grid when some point lies off both axes (otherwise it is just a stray feature)
-        var v2 = d[i2]; var grid = new HashSet<int>(); bool diagonal = false;
+        var grid = new HashSet<int>(); bool diagonal = false;
         double a11 = Vec3.Dot(v1, v1), a12 = Vec3.Dot(v1, v2), a22 = Vec3.Dot(v2, v2), det = a11 * a22 - a12 * a12;
         for (int i = 0; i < d.Count; i++)
         {
@@ -783,11 +800,29 @@ public static class FeatureFinder
         return diagonal ? grid : line;
     }
 
+    /// <summary>
+    /// The regular line or grid the picked feature belongs to, with its steps. Two readings are tried, the steps to the picked feature's nearest
+    /// neighbours and the shortest steps anywhere in the set, and the set-wide one wins only when it takes in at least two more features (so a
+    /// stray feature never sets the steps).
+    /// </summary>
+    static (HashSet<int> members, Vec3 v1, Vec3? v2) Lattice(Vec3 c0, List<Vec3> others)
+    {
+        if (others.Count == 0) return ([], default, null);
+        var d = others.Select(o => o - c0).ToList();
+        var (a1, a2) = LocalBasis(d); var local = OnLattice(d, a1, a2);
+        var (b1, b2) = GlobalBasis(d); var global = OnLattice(d, b1, b2);
+        // the set-wide steps must explain at least two more features: one stray feature can always be fitted by a slanted step of its own
+        return global.Count >= local.Count + 2 ? (global, b1, b2) : (local, a1, a2);
+    }
+
+    static HashSet<int> LatticeMembers(Vec3 c0, List<Vec3> others) => Lattice(c0, others).members;
+
     /// <summary>Members of the circular pattern through the picked feature about its own axis: equal steps on one circle.</summary>
     static HashSet<int> CircleMembers(Vec3 c0, Vec3 axis, List<Vec3> others)
     {
         var best = new HashSet<int>(); var n = axis.Normalized();
         Vec3 Flat(Vec3 v) => v - n * Vec3.Dot(v, n);
+        double spread = others.Count == 0 ? 0 : others.Max(o => Flat(o - c0).Length);
         for (int a = 0; a < others.Count; a++)
             for (int b = a + 1; b < others.Count; b++)
             {
@@ -795,12 +830,15 @@ public static class FeatureFinder
                 if (cr.Length < 1e-6) continue;
                 var centre = (Vec3.Cross(cr, p) * Vec3.Dot(q, q) + Vec3.Cross(q, cr) * Vec3.Dot(p, p)) * (1 / (2 * Vec3.Dot(cr, cr)));
                 double rad = centre.Length; if (rad < 1e-6) continue;
+                // three nearly collinear features give a huge circle that every point seems to lie on: a ring is no wider than the features' spread
+                if (rad > spread) continue;
                 var ux = (-centre).Normalized(); var uy = Vec3.Cross(n, ux);
                 var members = new Dictionary<int, double>();
                 for (int i = 0; i < others.Count; i++)
                 {
                     var rel = Flat(others[i] - c0) - centre; var ax = Vec3.Dot(others[i] - c0, n);
-                    if (Math.Abs(rel.Length - rad) > 1e-3 * rad + 1e-4 || Math.Abs(ax) > 1e-3 * rad + 1e-4) continue;
+                    double tol = Math.Min(1e-3 * rad, 0.02) + 1e-4;
+                    if (Math.Abs(rel.Length - rad) > tol || Math.Abs(ax) > tol) continue;
                     double ang = Math.Atan2(Vec3.Dot(rel, uy), Vec3.Dot(rel, ux)); if (ang < 0) ang += 2 * Math.PI;
                     members[i] = ang;
                 }
@@ -940,18 +978,12 @@ public static class FeatureFinder
             return new PatternInfo(PatternKind.Circle, idx.Select(i => sib[i]).ToList(), angs.Select(a => ((int)Math.Round(a / step), 0)).ToList(), default, default, c0 + centre, n, step);
         }
         var d = centres.Select(c => c - c0).ToList();
-        var order = Enumerable.Range(0, d.Count).OrderBy(i => d[i].Length).ToList();
-        var v1 = d[order[0]]; double l1 = v1.Length; double tol = 1e-3 * l1 + 1e-4;
         var members = lat.OrderBy(i => i).ToList();
+        var (_, v1, basis2) = Lattice(c0, centres); double l1 = v1.Length; double tol = 1e-3 * l1 + 1e-4;
         bool grid = members.Any(i => (d[i] - v1 * Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1))).Length >= tol);
         if (!grid)
             return new PatternInfo(PatternKind.Line, members.Select(i => sib[i]).ToList(), members.Select(i => ((int)Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1)), 0)).ToList(), v1, default, default, default, 0);
-        Vec3 v2 = default; double best = double.MaxValue;
-        foreach (int i in order)
-        {
-            double len = d[i].Length; if (len < 1e-6 || Vec3.Cross(v1, d[i]).Length < 1e-3 * l1 * len) continue;
-            if (len < best) { best = len; v2 = d[i]; }
-        }
+        var v2 = basis2 ?? throw new InvalidOperationException("a grid has two directions");
         double a11 = Vec3.Dot(v1, v1), a12 = Vec3.Dot(v1, v2), a22 = Vec3.Dot(v2, v2), det = a11 * a22 - a12 * a12;
         var cells = members.Select(i =>
         {
