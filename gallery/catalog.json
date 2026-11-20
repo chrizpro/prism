@@ -758,19 +758,6 @@
       "Sha256": "27c15b2cd601d612929fa9cbfdf5abc48292f33838591789e2076007d6801f55"
     },
     {
-      "Id": "pillow-block-scan",
-      "Name": "Scanned pillow block rebuilt",
-      "Description": "A noisy scan imported with Reduce faces, measured with Smart patch and Fit Region (\u00d836 boss, \u00d820 bore), then rebuilt from two Section Sketches into a solid within 0.15 mm of the scan.",
-      "Workflow": "Mesh / Solid",
-      "Author": "Prism",
-      "License": "MIT",
-      "MinimumVersion": "0.4.0",
-      "Bytes": 1679989,
-      "Sha256": "f9648a8a00b2434934750d6d0093e3b3534631ff7d4e4cc4c32125729283a993",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pillow-block-scan.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pillow-block-scan.png?v=cd4a8a46f4f1c3b3"
-    },
-    {
       "Id": "turned-knob-scan",
       "Name": "Turned knob: fitted primitives",
       "Description": "Smart patch and Fit Region turn a knob scan into trimmed cylinder, cone and sphere surfaces with their diameters, angle and axis.",
@@ -863,26 +850,83 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/spindle-carrier-before-after.png?v=bfa901ff0b504845"
     },
     {
-      "Id": "pump-bracket-before-after",
-      "Name": "Pump bracket before and after",
-      "Description": "A plain STEP pump-mount bracket reworked in 37 Direct Modeling steps: wider base, taller tapered and rounded tower, bigger flange with eight bolt holes, thicker gussets, tapped and engraved. Before on the left, after on the right.",
+      "Id": "pin-fin-cold-plate",
+      "Name": "Pin-fin cold plate",
+      "Description": "Compare the STEP blank on the left with the 24-pin heat sink on the right. Direct Edit raises the pilot boss and Edit Feature copies the cooling pins.",
       "Workflow": "Direct Modeling / Solid",
       "Author": "Prism",
       "License": "MIT",
       "MinimumVersion": "0.4.0",
       "Extras": [
         {
-          "Label": "Source STEP (as imported)",
-          "FileName": "pump-bracket-source.step",
-          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pump-bracket-source.step",
-          "Bytes": 213708,
-          "Sha256": "6ec0700559c97740ae01ade0c9955c46adef04c499d40ffd800550711d9975cc"
+          "Label": "Source STEP blank",
+          "FileName": "pin-fin-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pin-fin-source.step",
+          "Bytes": 82964,
+          "Sha256": "cf17da6554b17bea235f65ce90874c2329e3ed7a8277be3016903613048a0491"
         }
       ],
-      "Bytes": 3003232,
-      "Sha256": "40d8522f22e48c64e05f343e5e41e953a9a4031fb2f358c4d6d67676e3f83c32",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pump-bracket-before-after.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pump-bracket-before-after.png?v=faeba85744c2d200"
+      "Bytes": 155536,
+      "Sha256": "3e18b10d82df898009f1f31499d2e43e18dc2fd2ca95511bb2c480e6156b309a",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pin-fin-cold-plate.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pin-fin-cold-plate.png?v=28886fa1bd547de9"
+    },
+    {
+      "Id": "inline-four-crankcase",
+      "Name": "Inline-four crankcase",
+      "Description": "A gray four-cylinder casting with open bores, machined liners, recessed core plugs, stiffening ribs and a relieved crankcase.",
+      "Workflow": "Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 130604,
+      "Sha256": "d6a604953abe75a6e537cbd4eb4dfbfda029c2df7a40382b9b60945eb8633152",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/inline-four-crankcase.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
+    },
+    {
+      "Id": "multi-groove-sheave",
+      "Name": "Four-groove drive sheave",
+      "Description": "A grooved pulley with six lightening holes. Reduce Faces simplifies the imported mesh while preserving its closed surface.",
+      "Workflow": "Mesh",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source OBJ before editing",
+          "FileName": "multi-groove-sheave-source.obj",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/multi-groove-sheave-source.obj",
+          "Bytes": 819530,
+          "Sha256": "14fbd3e4505f82c9e20dee3e95b119d42d80c22442640f9bb3db8805e7da396e"
+        }
+      ],
+      "Bytes": 806611,
+      "Sha256": "49e77bf6f802d37831a09506add0b4621b991d0714a9b18b161fb21022057561",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/multi-groove-sheave.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/multi-groove-sheave.png?v=2f59350d65d763e4"
+    },
+    {
+      "Id": "centrifugal-impeller",
+      "Name": "Centrifugal impeller",
+      "Description": "Ten swept vanes surround a tapered hub. Fill Holes repairs a missing scan facet in the source OBJ.",
+      "Workflow": "Mesh",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source OBJ before editing",
+          "FileName": "centrifugal-impeller-source.obj",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/centrifugal-impeller-source.obj",
+          "Bytes": 204615,
+          "Sha256": "70a26b0c30f5a9a463418d1744c56e09b64db6f5da41afb2c76ed2d7a2ccffd7"
+        }
+      ],
+      "Bytes": 327434,
+      "Sha256": "45bf7ba8f66bb9db82048e330bf2c9294ab46dbe7aef56b9fb45a9ed4b3678bf",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/centrifugal-impeller.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/centrifugal-impeller.png?v=a4e868af0731f5f5"
     }
   ]
 }

@@ -47,7 +47,7 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
         return new TriMesh(v, mesh.T);
     }
 
-    static string WriteObj(TriMesh mesh, string name)
+    internal static string WriteObj(TriMesh mesh, string name)
     {
         var path = Path.Combine(Path.GetTempPath(), $"{name}-{Guid.NewGuid():N}.obj");
         var sb = new StringBuilder();
@@ -58,7 +58,7 @@ public sealed class MeshGalleryStudies(Xunit.Abstractions.ITestOutputHelper log)
     }
 
     /// <summary>Import Mesh with the given reduction, exactly as the options panel does it.</summary>
-    static SceneObject Import(CadSession session, string path, double keepPercent)
+    internal static SceneObject Import(CadSession session, string path, double keepPercent)
     {
         var prefs = MeshImportPrefs.File;
         MeshImportPrefs.File = Path.Combine(Path.GetTempPath(), $"prism-prefs-{Guid.NewGuid():N}.json");

@@ -29,6 +29,8 @@ Select the cylindrical side and drag the gizmo along the cylinder axis. On a sim
 
 Windows desktop verification, 2026-11-20: [selected wall before dragging](evidence/DIR-H200-before.png) and [after lowering the cap](evidence/DIR-H200-lowered.png). The pointer API measured −4.999998 mm along Z and the volume decreased by 320π mm³ within 1 mm³.
 
+The [pin-fin cold plate](../../../gallery/models/pin-fin-cold-plate.prism) demonstrates this edit in the other direction. Start with the [STEP blank](../../../gallery/extras/pin-fin-source.step), raise its pilot boss 20 mm, then use Edit Feature to copy it across six columns and four rows. The original sits on the left in the comparison document. [Gallery verification](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs).
+
 ## The gizmo
 
 There is no button for it. It is open whenever the tab is open. Click a face, hole, slot, pocket, boss or fillet (one click picks the whole feature) and controls appear on it:
