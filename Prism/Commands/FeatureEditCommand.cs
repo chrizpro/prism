@@ -15,7 +15,7 @@ public sealed class FeatureEditCommand : Command
 {
     readonly SelectionSlot _faces;
     readonly ChoiceParam _action;
-    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _textDepth, _threadDia, _threadPitch, _threadDepth;
+    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _textDepth, _ribT, _threadDia, _threadPitch, _threadDepth;
     readonly ChoiceParam _type, _drag;
     readonly BoolParam _flip, _leftHand, _carry;
 
@@ -33,6 +33,7 @@ public sealed class FeatureEditCommand : Command
         _chamferD2 = Num("Second chamfer distance (0 = equal)", 0, 0, 1e5, 0.5);
         _swapSize = Num("Size after the swap (0 = same setback)", 0, 0, 1e5, 0.5);
         _textDepth = Num("New text depth or height (0 = keep)", 0, 0, 1e5, 0.1);
+        _ribT = Num("New rib thickness (0 = keep)", 0, 0, 1e5, 0.5);
         _type = Choice("New hole type", 1, "Plain", "Counterbore", "Countersink", "Threaded (modeled)");
         _boreDia = Num("Counterbore diameter", 12, 0.01, 1e5, 1);
         _boreDepth = Num("Counterbore depth", 4, 0.01, 1e5, 0.5);
@@ -105,6 +106,7 @@ public sealed class FeatureEditCommand : Command
         _filletR.IsVisible = a == 1 && kinds.Contains(FeatureKind.Fillet);
         _chamferD.IsVisible = _chamferD2.IsVisible = a == 1 && kinds.Contains(FeatureKind.Chamfer);
         _textDepth.IsVisible = a == 1 && kinds.Contains(FeatureKind.Text);
+        _ribT.IsVisible = a == 1 && kinds.Contains(FeatureKind.Rib);
         _drag.IsVisible = move;
         _carry.IsVisible = a is 0 or 1 or 3 && (kinds.Count == 0 || kinds.Any(k => k is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink));
         bool swap = kinds.Count > 0 && kinds.All(k => k is FeatureKind.Fillet or FeatureKind.Chamfer);
@@ -137,7 +139,7 @@ public sealed class FeatureEditCommand : Command
         if (_faces.Items.Count == 0) return null;
         int act = _action.Index; var move = new Vec3(_dx.Value, _dy.Value, _dz.Value);
         if (act is 0 or 2 && move.Length < 1e-9) return null;
-        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0 && _chamferD.Value <= 0 && _textDepth.Value <= 0) return null;
+        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0 && _chamferD.Value <= 0 && _textDepth.Value <= 0 && _ribT.Value <= 0) return null;
         var o = new CommandOutput { Label = $"{_action.Selected} feature", Icon = "movehole" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
@@ -145,7 +147,7 @@ public sealed class FeatureEditCommand : Command
             var feats = grp.Select(i => FeatureFinder.FeatureOf(body, i.Index) ?? throw new FormatException("That face is gone.")).Distinct().ToList();
             // fill: material added where a hole was; strip: a boss cut away; drill: new holes; grow: new bosses
             List<Shape> fill = [], strip = [], drill = [], grow = []; List<int> fillets = []; List<Feat> resizeFillets = []; List<Shape> grooves = [];
-            List<Feat> resizeChamfers = [], toChamfer = [], toFillet = [];
+            List<Feat> resizeChamfers = [], toChamfer = [], toFillet = [], ribs = [];
             foreach (var f in feats)
             {
                 bool boss = Raised(body, f);
@@ -157,6 +159,9 @@ public sealed class FeatureEditCommand : Command
                         if (act == 4) { fillets.AddRange(f.Faces); toChamfer.Add(f); break; }
                         if (act != 3) throw new FormatException("A fillet can be resized, deleted or swapped for a chamfer here. Use Fillet to add a new one.");
                         fillets.AddRange(f.Faces); break;
+                    case FeatureKind.Rib when act == 1:
+                        if (_ribT.Value > 0) ribs.Add(f);
+                        break;
                     case FeatureKind.Chamfer:
                         if (act == 1) { if (_chamferD.Value > 0) { fillets.AddRange(f.Faces); resizeChamfers.Add(f); } break; }
                         if (act == 4) { fillets.AddRange(f.Faces); toFillet.Add(f); break; }
@@ -169,6 +174,9 @@ public sealed class FeatureEditCommand : Command
                             case 0: (boss ? strip : fill).Add(tool); (boss ? grow : drill).Add(Occ.Translate(tool, move)); break;
                             case 2: for (int k = 1; k <= (int)_copies.Value; k++) (boss ? grow : drill).Add(Occ.Translate(tool, move * k)); break;
                             case 3: (boss ? strip : fill).Add(tool); break;
+                            case 4 when f.Kind == FeatureKind.Thread && f.Round is { } tr:
+                                // Change type on a threaded hole removes the thread and leaves the plain bore (its minor diameter, the tap drill)
+                                fill.Add(tool); drill.Add(DirectHelpers.Cylinder(tr.Origin, f.Dir, tr.T0, tr.T1, tr.Radius)); break;
                             case 4 when f.Kind == FeatureKind.Text:
                                 // engraved becomes embossed (or back): the letters are reflected through the face they sit on, which keeps them reading the same way
                                 var ti = FeatureFinder.TextOf(body, f) ?? throw new FormatException("Could not read that text.");
@@ -196,6 +204,19 @@ public sealed class FeatureEditCommand : Command
             {
                 double d = _swapSize.Value > 0 ? _swapSize.Value : RadiusOf(body, toChamfer);
                 start = Resharpened(body, start, toChamfer, (s, e) => Occ.Chamfer(s, e, d));
+            }
+            // a rib keeps its centre plane: each side moves out (or in) by half the change
+            foreach (var rf in ribs)
+            {
+                var rib = FeatureFinder.RibOf(body, rf) ?? throw new FormatException("Could not read that rib.");
+                double half = (_ribT.Value - rib.Thickness) / 2;
+                foreach (int side in new[] { rib.SideA, rib.SideB })
+                {
+                    using var face = body.Shape.Sub(SubKind.Face, side); var info = Occ.FaceInfoOf(face);
+                    var nrm = Vec3.Dot(info.Normal, side == rib.SideA ? rib.Normal : -rib.Normal) < 0 ? -info.Normal.Normalized() : info.Normal.Normalized();
+                    using var again = FindFaceLike(start, face.Props().Center, nrm) ?? throw new FormatException("Could not find the rib's side again.");
+                    start = DirectHelpers.MoveFaceToPlane(start, again, nrm, again.Props().Center + nrm * half, nrm);
+                }
             }
             var result = DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill);
             foreach (var g in grooves) result = Occ.Cut(result, g);
@@ -253,13 +274,31 @@ public sealed class FeatureEditCommand : Command
     /// <summary>The solid a feature occupies: the void of a hole, slot or pocket (to fill or re-cut) or the material of a boss (to remove or re-add).</summary>
     internal static Shape ToolOf(SceneObject body, Feat f)
     {
+        // a threaded hole's void is everything inside its major diameter that is not material: the bore and the helical groove together
+        if (f.Kind == FeatureKind.Thread && FeatureFinder.ThreadOf(body, f) is { } th && f.Round is { } tr)
+        {
+            using var full = DirectHelpers.Cylinder(tr.Origin, f.Dir, tr.T0, tr.T1, th.Major / 2);
+            return Occ.Cut(full, body.Shape);
+        }
         if (f.Round is { } r) return DirectHelpers.Cylinder(r.Origin, f.Dir, r.T0, r.T1, r.Radius);
         var filled = Occ.Defeature(body.Shape, [.. f.Faces]);
         return Raised(body, f) ? Occ.Cut(body.Shape, filled) : Occ.Cut(filled, body.Shape);
     }
 
+    /// <summary>The flat face of <paramref name="body"/> through <paramref name="point"/> with this normal (after an earlier step of the same edit changed the body).</summary>
+    static Shape? FindFaceLike(Shape body, Vec3 point, Vec3 normal)
+    {
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            var face = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(face);
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(face.Props().Center - point, normal)) < 1e-6) return face;
+            face.Dispose();
+        }
+        return null;
+    }
+
     /// <summary>Material standing up from the body (a boss, embossed text) rather than a void cut into it.</summary>
-    internal static bool Raised(SceneObject body, Feat f) => f.Kind == FeatureKind.Boss || f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { Engraved: false };
+    internal static bool Raised(SceneObject body, Feat f) => f.Kind is FeatureKind.Boss or FeatureKind.Rib || f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { Engraved: false };
 
     /// <summary>Stretches a text's solid along the normal of the face it sits on, keeping that face fixed: factor 2 doubles the depth, -1 reflects it to the other side.</summary>
     static Shape AlongNormal(Shape tool, TextInfo t, double factor)

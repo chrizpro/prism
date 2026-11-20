@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer, Text }
+public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer, Text, Thread, Rib }
 
 /// <summary>How a click grows into a selection (the "intent" of a pick in the direct-editing tools).</summary>
 public enum PickIntent { Feature, Face, Tangent, SameSize, Pattern }
@@ -17,7 +17,7 @@ public sealed record Round(Vec3 Origin, double Radius, bool Hole, double T0, dou
 /// <summary>A recognised feature: its faces, what it is, a size key (equal keys mean "same feature again") and where it sits.</summary>
 public sealed record Feat(int Face, FeatureKind Kind, string Key, Vec3 Centre, Vec3 Dir, IReadOnlyList<int> Faces, Round? Round)
 {
-    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", FeatureKind.Text => "Text", _ => "Face" };
+    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", FeatureKind.Text => "Text", FeatureKind.Thread => "Threaded hole", FeatureKind.Rib => "Rib", _ => "Face" };
 }
 
 /// <summary>A chamfer's two setbacks measured from the sharp edge it replaced (along face A and face B), and the angle it makes with face A.</summary>
@@ -28,6 +28,12 @@ public sealed record ChamferSize(double SetbackA, double SetbackB, double AngleD
 
 /// <summary>A round hole's ends: through (open at both ends) or blind, its depth, the drill-point angle when it ends in a cone, and the nearest metric size.</summary>
 public sealed record HoleDetail(bool Through, double Depth, double? PointAngleDeg, string? Standard);
+
+/// <summary>A rib or thin wall: its thickness, the two side faces (outward normals), and how tall it stands from the face it is joined to.</summary>
+public sealed record RibInfo(double Thickness, int SideA, int SideB, Vec3 Normal, double Height);
+
+/// <summary>A modeled thread in a hole: major and minor diameters, pitch, length, and the metric size it matches ("M6 × 1").</summary>
+public sealed record ThreadInfo(double Major, double Minor, double Pitch, double Length, string? Size);
 
 /// <summary>Engraved (cut in) or embossed (raised) text: its depth or height, how many letters, how tall they are, the reading direction, and the plane it sits on (normal and height along it).</summary>
 public sealed record TextInfo(bool Engraved, double Depth, int Letters, double Height, Vec3 Along, Vec3 Normal, double PlaneHeight);
@@ -55,6 +61,8 @@ public static class FeatureFinder
         public int[] FeatureOfFace = [];
         public Dictionary<int, ChamferSize> Chamfers = [];
         public Dictionary<int, TextInfo> Texts = [];
+        public Dictionary<int, ThreadInfo> Threads = [];
+        public Dictionary<int, RibInfo> Ribs = [];
     }
 
     static readonly ConditionalWeakTable<Shape, Analysis> Cache = new();
@@ -321,10 +329,19 @@ public static class FeatureFinder
                     Add(hole ? FeatureKind.Hole : FeatureKind.Boss, group, dir, $"cyl|{info.R1:0.####}|{hole}|{t1 - t0:0.###}", new Round(ax.Origin, info.R1, hole, t0, t1));
                     continue;
                 }
+                if (ThreadAt(a, group, ax.Origin, dir, info.R1) is { } th)
+                {
+                    var faces = group.Concat(th.helix).ToList(); var (u0, u1) = Extent(a, faces, ax.Origin, dir);
+                    a.Threads[faces[0]] = th.info;
+                    Add(FeatureKind.Thread, faces, dir, $"thread|{th.info.Major:0.###}|{th.info.Pitch:0.###}|{u1 - u0:0.###}", new Round(ax.Origin, info.R1, true, u0, u1));
+                    continue;
+                }
             }
             if (Loop(a, f) is { } loop && loop.faces.All(g => a.FeatureOfFace[g] < 0))
             {
                 var faces = loop.faces;
+                // a thin wall standing on the body is a rib, not a block-shaped boss: leave it for the rib pass
+                if (loop.kind == FeatureKind.Boss && faces.Any(g => RibAt(a, g) != null)) continue;
                 // a slot with a rounded rim: the smooth curved faces that run on from its round walls belong to it
                 if (loop.kind == FeatureKind.Slot)
                 {
@@ -336,6 +353,13 @@ public static class FeatureFinder
                 double area = faces.Sum(g => a.Info[g].Area);
                 Add(loop.kind, faces, loop.dir, $"{loop.kind}|{faces.Count}|{area:0.##}");
             }
+        }
+        // Ribs: a narrow flat top between two parallel walls that both stand on the body.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0 || RibAt(a, f) is not { } rib || a.FeatureOfFace[rib.SideA] >= 0 || a.FeatureOfFace[rib.SideB] >= 0) continue;
+            a.Ribs[f] = rib;
+            Add(FeatureKind.Rib, [f, rib.SideA, rib.SideB], rib.Normal, $"rib|{rib.Thickness:0.###}|{rib.Height:0.##}");
         }
         // Chamfers before fillets: a flat strip at an outside corner is not part of any round chain.
         for (int f = 0; f < n; f++)
@@ -576,6 +600,86 @@ public static class FeatureFinder
             for (int c = 0; c < 3; c++) { var r = P(m, m.Indices[3 * t + c]) - origin; r -= dir * Vec3.Dot(r, dir); lo = Math.Min(lo, r.Length); hi = Math.Max(hi, r.Length); }
         return (lo, hi);
     }
+
+    /// <summary>
+    /// A modeled internal thread: round strips of one radius on one axis (the lands left at the minor diameter) with spline faces next to them that
+    /// all lie in a ring just outside that radius (the helical flanks and root). The pitch is the spacing along the axis of the outermost points
+    /// (the thread's root) seen in a narrow slice of angle.
+    /// </summary>
+    static (List<int> helix, ThreadInfo info)? ThreadAt(Analysis a, List<int> strips, Vec3 origin, Vec3 dir, double r)
+    {
+        var rel0 = a.FirstPoint[strips[0]] - origin; rel0 -= dir * Vec3.Dot(rel0, dir);
+        if (Vec3.Dot(a.Normal[strips[0]], rel0) >= 0) return null;               // internal threads only: the strips face the axis
+        var own = strips.ToHashSet(); var helix = new List<int>();
+        for (int i = 0; i < helix.Count + own.Count && i < 200; i++)
+        {
+            var from = i < strips.Count ? strips[i] : helix[i - strips.Count];
+            foreach (var l in a.Adj[from])
+            {
+                if (own.Contains(l.To) || helix.Contains(l.To) || a.Info[l.To].Type is "Plane" or "Cylinder" or "Cone") continue;
+                var (lo, hi) = RadialSpan(a, l.To, origin, dir);
+                if (lo < r * 0.97 || hi > r * 1.6) continue;
+                helix.Add(l.To);
+            }
+        }
+        if (helix.Count == 0) return null;
+        var m = a.Mesh; var (ux, uy) = Meshing.SurfaceMath.Basis(dir); double major = 0;
+        var pts = new List<(double t, double rad, double ang)>();
+        foreach (int f in helix)
+            for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+                for (int c = 0; c < 3; c++)
+                {
+                    var q = P(m, m.Indices[3 * t + c]) - origin; double along = Vec3.Dot(q, dir); var radial = q - dir * along;
+                    pts.Add((along, radial.Length, Math.Atan2(Vec3.Dot(radial, uy), Vec3.Dot(radial, ux)))); major = Math.Max(major, radial.Length);
+                }
+        var roots = pts.Where(p => p.rad > major - 0.04 * (major - r) - 1e-6 && Math.Abs(p.ang) < 0.35).Select(p => p.t).OrderBy(t => t).ToList();
+        var clusters = new List<double>();
+        foreach (var t in roots) if (clusters.Count == 0 || t - clusters[^1] > 0.15 * (major - r) + 0.05) clusters.Add(t); else clusters[^1] = (clusters[^1] + t) / 2;
+        if (clusters.Count < 2) return null;
+        var gaps = Enumerable.Range(1, clusters.Count - 1).Select(k => clusters[k] - clusters[k - 1]).OrderBy(g => g).ToList();
+        double pitch = Math.Round(gaps[gaps.Count / 2] / 0.05) * 0.05;
+        var (t0, t1) = Extent(a, strips.Concat(helix), origin, dir);
+        string? size = null;
+        foreach (var name in new[] { "M2", "M2.5", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M14", "M16", "M20", "M24" })
+            if (StandardHoles.Of(name) is { } st && Math.Abs(st.Nominal - 2 * major) < 0.08 * st.Nominal) { size = $"{name} × {pitch:0.##}"; break; }
+        return (helix, new ThreadInfo(2 * major, 2 * r, pitch, t1 - t0, size));
+    }
+
+    /// <summary>The sizes of a recognised threaded hole, or null for anything else.</summary>
+    public static ThreadInfo? ThreadOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Thread && Get(body).Threads.TryGetValue(feat.Faces[0], out var t) ? t : null;
+
+    /// <summary>
+    /// A rib or wall: a flat top whose two long sides meet parallel walls facing opposite ways at outside corners, the walls being exactly the
+    /// top's width apart and both meeting the body at inside corners further down. Thin next to its height or length (a fifth or less), so the
+    /// end of a thick block is not taken for a rib.
+    /// </summary>
+    static RibInfo? RibAt(Analysis a, int top)
+    {
+        if (a.Info[top].Type != "Plane") return null;
+        if (a.Adj[top].Any(l => l.Class == Edge.Concave)) return null;   // the top stands free; an end face of the rib meets the body below it
+        var nt = a.Normal[top];
+        var walls = a.Adj[top].Where(l => l.Class == Edge.Convex && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], nt)) < 1e-3).Select(l => l.To).ToList();
+        for (int i = 0; i < walls.Count; i++)
+            for (int j = i + 1; j < walls.Count; j++)
+            {
+                int A = walls[i], B = walls[j]; var na = a.Normal[A];
+                if (Vec3.Dot(na, a.Normal[B]) > -0.999) continue;
+                double t = Vec3.Dot(a.Centre[A] - a.Centre[B], na);
+                if (t <= 1e-6) continue;
+                var (w0, w1) = Span(a, top, na); if (Math.Abs(w1 - w0 - t) > 1e-3) continue;
+                bool Stands(int w) => a.Adj[w].Any(l => l.Class == Edge.Concave && l.To != top);
+                if (!Stands(A) || !Stands(B)) continue;
+                var (h0, h1) = Span(a, A, nt); var along = Vec3.Cross(na, nt).Normalized(); var (l0, l1) = Span(a, top, along);
+                if (t > 0.2 * Math.Max(h1 - h0, l1 - l0)) continue;
+                return new RibInfo(t, A, B, na, h1 - h0);
+            }
+        return null;
+    }
+
+    /// <summary>The thickness and sides of a recognised rib, or null for anything else.</summary>
+    public static RibInfo? RibOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Rib && Get(body).Ribs.TryGetValue(feat.Face, out var r) ? r : null;
 
     /// <summary>The setbacks of a recognised chamfer, or null for anything else.</summary>
     public static ChamferSize? ChamferOf(SceneObject body, Feat feat) =>

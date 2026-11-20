@@ -245,6 +245,52 @@ public sealed class FeatureRecognitionTests
         }
     }
 
+    [AvaloniaTheory(DisplayName = "DIR-H113 | A modeled thread is a threaded hole with its size and pitch; it can be deleted or turned back into a plain bore")]
+    [InlineData("read")]
+    [InlineData("Delete")]
+    [InlineData("Change type")]
+    [Trait("TestId", "DIR-H113")]
+    public void ThreadedHole(string action)
+    {
+        // a Ø5 hole threaded M6 × 1 by Edit Feature, then written to STEP and read back
+        using var block = BoxAt(new Vec3(0, 0, 0), 30, 30, 12);
+        using var drill = CylinderAt(new Vec3(15, 15, -1), 2.5, 14);
+        using var plain = Occ.Cut(block, drill);
+        var (s0, b0) = Imported(plain);
+        using var tapped = Edited(s0, b0, f => f.Kind == FeatureKind.Hole, c => { SetChoice(c, "Action", "Change type"); SetChoice(c, "New hole type", "Threaded (modeled)"); });
+        var (session, body) = Imported(tapped);
+        var thread = Assert.Single(FeatureFinder.Features(body), f => f.Kind == FeatureKind.Thread);
+        var info = FeatureFinder.ThreadOf(body, thread)!;
+        Assert.Equal("M6 × 1", info.Size);
+        AssertClose(1, info.Pitch, 1e-9, "pitch"); AssertClose(6, info.Major, 0.05, "major diameter"); AssertClose(12, info.Length, 0.01, "thread length");
+        Assert.DoesNotContain(FeatureFinder.Features(body), f => f.Kind == FeatureKind.Fillet);
+        if (action == "read") return;
+        using var result = Edited(session, body, f => f.Kind == FeatureKind.Thread, c => SetChoice(c, "Action", action));
+        if (action == "Delete") { AssertClose(30 * 30 * 12, result.Props().Volume, 1e-3, "filled"); return; }
+        var check = session.AddObject(result, "Plain", ObjKind.Solid);
+        var bore = Assert.Single(FeatureFinder.Features(check), f => f.Kind == FeatureKind.Hole);
+        AssertClose(info.Minor / 2, bore.Round!.Radius, 1e-4, "plain bore at the minor diameter");
+    }
+
+    [AvaloniaFact(DisplayName = "DIR-H114 | A rib on a plate is recognised with its thickness, and Resize thickens it about its centre plane")]
+    [Trait("TestId", "DIR-H114")]
+    public void RibThickness()
+    {
+        using var plate = BoxAt(new Vec3(0, 0, 0), 60, 40, 5);
+        using var web = BoxAt(new Vec3(10, 18, 5), 30, 4, 20);
+        using var part = Occ.Fuse(plate, web);
+        var (session, body) = Imported(part);
+        var rib = Assert.Single(FeatureFinder.Features(body), f => f.Kind == FeatureKind.Rib);
+        var info = FeatureFinder.RibOf(body, rib)!;
+        AssertClose(4, info.Thickness, 1e-6, "rib thickness"); AssertClose(20, info.Height, 1e-6, "rib height");
+        using var result = Edited(session, body, f => f.Kind == FeatureKind.Rib, c => { SetChoice(c, "Action", "Resize"); SetNumber(c, "New rib thickness (0 = keep)", 6); });
+        AssertClose(part.Props().Volume + 2 * 30 * 20, result.Props().Volume, 1e-3, "thicker rib");
+        var check = session.AddObject(result, "Thicker", ObjKind.Solid);
+        var after = FeatureFinder.RibOf(check, Assert.Single(FeatureFinder.Features(check), f => f.Kind == FeatureKind.Rib))!;
+        AssertClose(6, after.Thickness, 1e-6, "new thickness");
+        AssertClose(20, (check.Shape!.Props().Min.Y + check.Shape.Props().Max.Y) / 2, 1e-6, "plate still centred");
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H104 | Holes report through or blind, depth, drill point and the matching metric size")]
     [Trait("TestId", "DIR-H104")]
     public void HoleEndsAndStandardSizes()
