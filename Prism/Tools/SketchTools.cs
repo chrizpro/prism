@@ -674,9 +674,11 @@ public sealed class RectTool(RectMode mode) : ClickTool
                 int l1 = m.AddLine(a, b, sk.Construction), l2 = m.AddLine(b, cc, sk.Construction), l3 = m.AddLine(cc, d, sk.Construction), l4 = m.AddLine(d, a, sk.Construction); rect.AddRange([l1, l2, l3, l4]);
                 if(Math.Abs(angle)<1e-9){m.Add(CType.Horizontal, refs: l1);m.Add(CType.Horizontal, refs: l3);m.Add(CType.Vertical, refs: l2);m.Add(CType.Vertical, refs: l4);}
                 else {m.Add(CType.Parallel,refs:[l1,l3]);m.Add(CType.Parallel,refs:[l2,l4]);m.Add(CType.Perpendicular,refs:[l1,l2]);}
-                int diag = m.AddLine(a, cc, true);                 // construction diagonal keeps the rectangle centred on the click
-                rect.Add(diag);
+                // two construction diagonals, both halved by the centre point, keep the rectangle centred on the click
+                int diag = m.AddLine(a, cc, true), diag2 = m.AddLine(b, d, true);
+                rect.Add(diag); rect.Add(diag2);
                 m.Add(CType.Midpoint, 0, 0, false, ctr, diag);
+                m.Add(CType.Midpoint, 0, 0, false, ctr, diag2);
             }
             else
             {

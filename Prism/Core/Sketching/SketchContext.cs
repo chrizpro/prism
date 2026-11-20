@@ -306,9 +306,9 @@ public sealed partial class SketchContext
             foreach (var pid in SelPoints.ToList())
                 foreach (var e in Model.Entities.Where(en => Model.PointsOf(en).Contains(pid)).ToList()) SelEntities.Add(e.Id);
             foreach (var id in SelEntities.ToList()) Model.RemoveEntity(id);
-            // Remove an orphaned center-rectangle control diagonal after its boundary is deleted.
+            // Remove a center rectangle's control diagonals once its boundary is deleted (no ordinary curve of the rectangle is left).
             foreach(var e in Model.Entities.Where(e=>e.Construction&&e.Group?.StartsWith("Rectangle ",StringComparison.Ordinal)==true).ToList())
-                if(!Model.Entities.Any(other=>other.Group==e.Group&&other.Id!=e.Id)&&Model.Constraints.Any(c=>c.Type==CType.Midpoint&&c.Refs.Length==2&&c.Refs[1]==e.Id))Model.RemoveEntity(e.Id);
+                if(!Model.Entities.Any(other=>other.Group==e.Group&&other.Id!=e.Id&&!other.Construction)&&Model.Constraints.Any(c=>c.Type==CType.Midpoint&&c.Refs.Length==2&&c.Refs[1]==e.Id))Model.RemoveEntity(e.Id);
             foreach(int point in SelPoints.ToList())Model.DropPointIfUnshared(point);
             SelEntities.Clear(); SelPoints.Clear();
             Model.PruneUnusedPoints(Model.Points.Select(p=>p.Id).ToList());

@@ -8,7 +8,7 @@ Open Sketch from Solid, select Rectangle, and choose a placement mode from the t
 | Center | Center and a corner | Typed full width and height, Orientation, Rotate preview, Shift to square |
 | 3-Point | Two base endpoints and the signed perpendicular width | Typed base length and angle, then width. H and V lock the base. Shift locks it to the nearest axis. |
 
-Center adds a construction diagonal and a midpoint constraint. A degenerate rectangle keeps the placed points without creating zero-length sides.
+Center adds both construction diagonals, each halved by the centre point (owner request 2026-11-19; it had one). Construction lines never act as cutting curves for Trim, so the diagonals do not split curves drawn across them. A degenerate rectangle keeps the placed points without creating zero-length sides.
 
 ## Verification
 

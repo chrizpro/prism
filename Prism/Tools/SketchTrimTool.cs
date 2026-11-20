@@ -120,7 +120,7 @@ public sealed class TrimPlan
 public sealed class TrimTool : SketchTool
 {
     public override string Name => "Trim";
-    public override string Prompt => "Trim: click the part of a line, arc or circle you want to remove. It is cut back to the nearest crossing curves on each side; a curve nothing crosses is deleted.";
+    public override string Prompt => "Trim: click the part of a line, arc or circle you want to remove. It is cut back to the nearest crossing curves on each side (construction lines do not count); a curve nothing crosses is deleted.";
 
     TrimPlan? _hover;
 
@@ -137,6 +137,9 @@ public sealed class TrimTool : SketchTool
         foreach (var o in m.Entities)
         {
             if (o.Id == eid || o.Type == EntType.Point) continue;
+            // construction lines (a rectangle's diagonals, centre lines) are references: they never cut real geometry, though a
+            // construction curve being trimmed is still cut by anything it crosses
+            if (o.Construction && !e.Construction) continue;
             foreach (var prim in SketchCross.Prims(m, o))
                 foreach (var (x, y) in SketchCross.Hit(target, prim))
                 {
