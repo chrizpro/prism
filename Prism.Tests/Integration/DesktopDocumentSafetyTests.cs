@@ -14,6 +14,9 @@ public class DesktopDocumentSafetyTests
     {
         await using var mcp = new DesktopMcp("SAV-I001", "Light", recoveryIntervalMinutes: 1);
         await mcp.Initialize();
+        var startup = await mcp.Call("get_state");
+        Assert.False((bool?)startup["dirty"]);
+        Assert.Empty(startup["objects"]!.AsArray());
         await mcp.Call("document_new");
         var made = await mcp.Call("run_command", new { name = "box" });
         string body = (string)Assert.Single(made["created"]!.AsArray())!["name"]!;
