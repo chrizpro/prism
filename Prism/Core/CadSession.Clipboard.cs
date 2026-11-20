@@ -21,8 +21,8 @@ public sealed partial class CadSession
     // Pieces of a model (selected faces or edges) copied instead of whole objects: pasted as a new surface or curve (owner direction 2026-11-16)
     static List<(Shape Shape, string Name, ObjKind Kind)> _clipboardParts = [];
 
-    public bool CanCopy => ActiveCommand == null && Sketch == null && CopyableSelection().Count > 0;
-    public bool CanPaste => ActiveCommand == null && Sketch == null && (_clipboard.Count > 0 || _clipboardParts.Count > 0);
+    public bool CanCopy => ActiveCommand == null && (Sketch != null ? Sketch.SelEntities.Count > 0 : CopyableSelection().Count > 0 || _selection.Any(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex));
+    public bool CanPaste => ActiveCommand == null && (Sketch != null ? _sketchClip != null : _clipboard.Count > 0 || _clipboardParts.Count > 0);
 
     /// <summary>
     /// The selected faces and edges of solids, surfaces and curves, one new object per source object: a face copy is a surface (the faces of one body stay
@@ -34,14 +34,15 @@ public sealed partial class CadSession
         foreach (var group in _selection.Where(i => i.Kind is SelKind.Face or SelKind.Edge).GroupBy(i => i.Obj))
         {
             if (Find(group.Key) is not { Tri: null, Form: null, HasBrep: true } source) continue;
-            foreach (var kind in new[] { SelKind.Face, SelKind.Edge })
+            foreach (var kind in new[] { SelKind.Face, SelKind.Edge, SelKind.Vertex })
             {
                 var items = group.Where(i => i.Kind == kind).Distinct().ToList();
                 if (items.Count == 0) continue;
                 var shapes = items.Select(i => ShapeOf(i)).OfType<Shape>().ToList();
                 if (shapes.Count == 0) continue;
-                Shape joined = shapes.Count == 1 ? Occ.Copy(shapes[0]) : kind == SelKind.Face ? Occ.Sew(shapes, 0.01, false) : Occ.Profile(shapes, false);
-                parts.Add((joined, kind == SelKind.Face ? $"{source.Name} face" : $"{source.Name} edge", kind == SelKind.Face ? ObjKind.Surface : ObjKind.Curve));
+                // vertices paste as points (a curve object holding points, as Points Along Curve makes)
+                Shape joined = shapes.Count == 1 ? Occ.Copy(shapes[0]) : kind == SelKind.Face ? Occ.Sew(shapes, 0.01, false) : kind == SelKind.Vertex ? Occ.Compound(shapes) : Occ.Profile(shapes, false);
+                parts.Add((joined, kind == SelKind.Face ? $"{source.Name} face" : kind == SelKind.Vertex ? $"{source.Name} points" : $"{source.Name} edge", kind == SelKind.Face ? ObjKind.Surface : ObjKind.Curve));
             }
         }
         return parts;
@@ -50,6 +51,7 @@ public sealed partial class CadSession
     /// <summary>Remember the selected objects, or the selected faces and edges. They are copied now, so later edits or deleting the originals change nothing.</summary>
     public bool CopySelection()
     {
+        if (Sketch != null) return CopySketchSelection();
         var parts = CopyComponents();
         if (parts.Count > 0)
         {
@@ -67,6 +69,7 @@ public sealed partial class CadSession
     /// <summary>Add copies of what was copied, in the same place, and select them so they can be moved away.</summary>
     public List<SceneObject> Paste()
     {
+        if (Sketch != null) { if (_sketchClip != null) PasteSketch(); else Say("Copy sketch curves first.", true); return []; }
         if (_clipboard.Count == 0 && _clipboardParts.Count == 0) { Say("Nothing has been copied.", true); return []; }
         if (_clipboardParts.Count > 0)
         {
