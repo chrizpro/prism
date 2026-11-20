@@ -1,11 +1,10 @@
-"""Which of Prism's commands do the visual scripts exercise? Prints a count per family and lists what is not touched yet.
+"""Which explicitly registered commands do the visual scripts reference? Prints a count per family and lists gaps.
 
     python tests/visual/coverage.py            # summary
     python tests/visual/coverage.py --list     # every uncovered command
 
-A command counts as covered when a scenario starts it by its automation name (``name="..."``) or through the cadkit helper of the same name
-(``cad.extrude``, ``cad.fillet`` ...). Touching a command is not the same as testing every option: the feature-matrix scenarios vary the options,
-the others only run the command once. Read the list as "what has had no automated look at all".
+A reference counts when a scenario names the command or uses its corresponding cadkit helper.
+The runtime startup sweep also checks automatically registered commands. Run the scenarios for execution evidence.
 """
 import re
 import sys
@@ -32,8 +31,8 @@ for n in sorted(names):
     else:
         families[f][2].append(n)
 total = sum(f[0] for f in families.values())
-print(f"{total} of {len(names)} registered commands are exercised with real inputs by the visual scripts ({100 * total // len(names)}%)")
-print("The sweep scenario command__every-command-opens-and-cancels also starts and cancels all of them, so a crash on opening is caught for every command.\n")
+print(f"Visual script references found for {total} of {len(names)} explicitly registered commands ({100 * total // len(names)}%)")
+print("The separate command__every-command-opens-and-cancels scenario checks the live registry, including automatically registered commands.\n")
 for f, (done, count, missing) in sorted(families.items(), key=lambda kv: -kv[1][1]):
     print(f"{f:22s} {done:3d} / {count:3d}")
 if "--list" in sys.argv:

@@ -141,6 +141,8 @@ Feature recognition now looks for holes, bosses, slots and pockets before it gro
 
 Status: built and covered by DIR-H091 to DIR-H097 in `EditFaceTests.cs`; not yet tried by hand in the running app. Differences from the proposal below: **flat faces only** in this first version (a curved four-sided face is refused with a message), and there is **no Add detail** yet, so the grid size is set with Grid cells across and up (changing it rebuilds the grid and resets the points). Edit feature brings the moved points back. Moving a point through the far side of the solid is refused. Falloff with the influence radius is the shared control-point behavior and is not separately tested. It replaces Sculpt Face, which left the ribbon on 2026-11-17. The model is Fusion's **Edit Face**: the picked face becomes a grid of control points, you move the points, and leaving the editor turns the result back into a face of the solid. The aim is that it is easy to use: a grid you can see on the face, points you can grab, and a result that is a smooth surface.
 
+**Windows desktop verification, 2026-11-18.** On `v0.4-work` at `b6c43909`, clicking an inner point on the top of a 30 × 30 × 10 mm box and setting it 2 mm higher produced a valid solid with volume 9,112.5 mm³ (up from 9,000 mm³). Two maintained ribbon checks detected missing hover help for Edit Face. [Issue #142](https://github.com/chrizpro/prism/issues/142).
+
 **Using it**
 1. **Direct Modeling → Shape → Edit Face** (where Sculpt Face was). Click one face of a solid.
 2. The face shows a grid of control points drawn over it. The default is 3 × 3 cells, which is 4 × 4 points. The outer ring of points is locked and drawn greyed, because the face's outline stays where it is; the inner points can be moved.
