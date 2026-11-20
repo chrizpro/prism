@@ -1931,7 +1931,9 @@ public sealed class TransformCommand : Command
     {
         _kind = kind;
         // datum planes and reference images are objects too: Move, Rotate, Scale and Mirror take them (they used to be refused, so the gizmo moved nothing)
-        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject | SelFilter.Plane, Multi = true });
+        // anything that can be selected can be moved (owner rule 2026-11-20): whole objects, and faces, edges or points, which move what they
+        // belong to; flat faces of a solid move on their own and the solid follows
+        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject | SelFilter.Plane | SelFilter.Face | SelFilter.Edge | SelFilter.Vertex | SelFilter.MeshFace, Multi = true });
         switch (kind)
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
@@ -2040,7 +2042,46 @@ public sealed class TransformCommand : Command
     {
         if (!Complete) return null;
         var o = new CommandOutput();
-        foreach (var obj in ObjectsOf(_objs).Distinct())
+        // parts of a solid: its flat faces slide (Move only), an edge or corner alone cannot move without tearing the body
+        var solidParts = _objs.Items.Where(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex && S.Find(i.Obj) is { Kind: ObjKind.Solid, HasBrep: true }).ToList();
+        if (solidParts.Count > 0)
+        {
+            if (solidParts.Any(i => i.Kind != SelKind.Face))
+                throw new FormatException("An edge or corner of a solid cannot move on its own. Pick its faces (they slide and the solid follows), or the whole body, or copy the edges first (Ctrl+C, Ctrl+V) and move the copy.");
+            if (_kind != Kind.Move || _copy.Value)
+                throw new FormatException("Rotate, scale and mirror work on whole objects. To tilt a face of a solid use Move Face's tilt; to move it, use Move.");
+            var move = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value);
+            foreach (var grp in solidParts.GroupBy(i => i.Obj))
+            {
+                var body = S.Find(grp.Key)!; var result = body.Shape;
+                foreach (var it in grp)
+                {
+                    using var face = body.Shape.Sub(SubKind.Face, it.Index); var info = Occ.FaceInfoOf(face);
+                    if (info.Type != "Plane") throw new FormatException("Only flat faces of a solid move on their own. For a hole, slot or boss use Edit Feature's Move.");
+                    var n = info.Normal.Normalized(); var at = S.PlaneOf(it)?.Origin ?? face.Props().Center;
+                    if (Math.Abs(Vec3.Dot(move, n)) < 1e-9) continue;   // sliding a face along itself changes nothing
+                    var again = result == body.Shape ? face : FindPlanarFace(result, at, n) ?? throw new FormatException("Could not find a face again after moving another one.");
+                    result = DirectHelpers.MoveFaceToPlane(result, again, n, at + move, n);
+                }
+                o.Replace.Add((body, result));
+            }
+        }
+        // picked triangles of a mesh: Move carries their corners and the triangles around them stretch to follow
+        foreach (var grp in _objs.Items.Where(i => i.Kind == SelKind.MeshFace).GroupBy(i => i.Obj))
+        {
+            if (S.Find(grp.Key) is not { Tri: { } tri } mesh || _objs.Items.Any(i => i.Obj == grp.Key && i.Kind == SelKind.Object)) continue;
+            if (_kind != Kind.Move || _copy.Value) throw new FormatException("Rotate, scale and mirror work on whole meshes. To move picked triangles, use Move.");
+            var move = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); var v = (float[])tri.V.Clone(); var done = new HashSet<int>();
+            foreach (var it in grp)
+                for (int c = 0; c < 3; c++)
+                {
+                    int vi = tri.T[3 * it.Index + c]; if (!done.Add(vi)) continue;
+                    v[3 * vi] += (float)move.X; v[3 * vi + 1] += (float)move.Y; v[3 * vi + 2] += (float)move.Z;
+                }
+            o.ReplaceMeshes.Add((mesh, new Meshing.TriMesh(v, tri.T)));
+        }
+        var parts = solidParts.Select(i => i.Obj).Concat(_objs.Items.Where(i => i.Kind == SelKind.MeshFace).Select(i => i.Obj)).ToHashSet();
+        foreach (var obj in ObjectsOf(_objs).Where(x => !parts.Contains(x.Id) || _objs.Items.Any(i => i.Obj == x.Id && i.Kind == SelKind.Object)).Distinct())
         {
             if (obj.Form != null) { AddFormResult(o, obj); continue; }
             if (obj.Tri is { } tri) { AddMeshResult(o, obj, tri); continue; }
@@ -2057,6 +2098,17 @@ public sealed class TransformCommand : Command
             else o.Replace.Add((obj, r));
         }
         return o;
+    }
+
+    static Shape? FindPlanarFace(Shape body, Vec3 point, Vec3 normal)
+    {
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            var f = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(f);
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(f.Props().Center - point, normal)) < 1e-6) return f;
+            f.Dispose();
+        }
+        return null;
     }
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }

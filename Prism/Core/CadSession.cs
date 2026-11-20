@@ -487,6 +487,8 @@ public sealed partial class CadSession : ObservableObject
             CommitCommand(); ClearSelection();
             return;
         }
+        // a corner of a curve made of straight pieces goes, and its neighbours join up (the curve itself goes when fewer than two points are left)
+        if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex) && DeleteCurveCorners()) return;
         // a corner point is not something Delete can take away, and it must never take the whole body with it
         if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex)) { Say("A corner point cannot be deleted on its own. Select a face, an edge or the object.", true); return; }
         var ids = _selection.Where(i => i.Kind != SelKind.Vertex).Select(s => s.Obj).Distinct().ToHashSet();
@@ -541,7 +543,46 @@ public sealed partial class CadSession : ObservableObject
         ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
         : o.Form != null
         ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
-        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData, o.Look).WithFaceStyles(o.FaceStyles);
+        // the sketch model is cloned (a copy sharing it would change when the original is edited); a datum plane or image keeps its data
+        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData?.Clone(), o.Look, null, o.Kind == ObjKind.Plane ? o.Asm : null).WithFaceStyles(o.FaceStyles);
+
+    /// <summary>
+    /// Deletes selected corners of curve objects whose pieces are all straight: the points are taken out and the rest rejoined in order. False
+    /// (nothing done) when any selected corner belongs to something else.
+    /// </summary>
+    bool DeleteCurveCorners()
+    {
+        var groups = _selection.GroupBy(i => i.Obj).ToList();
+        var plans = new List<(SceneObject obj, List<Vec3> pts, bool closed)>();
+        foreach (var g in groups)
+        {
+            if (Find(g.Key) is not { Kind: ObjKind.Curve, HasBrep: true } curve) return false;
+            int n = curve.Shape.Count(SubKind.Edge); if (n == 0) return false;
+            var pts = new List<Vec3>();
+            for (int e = 0; e < n; e++)
+            {
+                using var edge = curve.Shape.Sub(SubKind.Edge, e); var info = Occ.EdgeInfoOf(edge);
+                if (info.Type != "Line") return false;
+                if (pts.Count == 0) pts.Add(info.Start);
+                else if ((pts[^1] - info.Start).Length > 1e-6) return false;   // not one chain in order
+                pts.Add(info.End);
+            }
+            bool closed = pts.Count > 2 && (pts[0] - pts[^1]).Length < 1e-6; if (closed) pts.RemoveAt(pts.Count - 1);
+            var gone = g.Select(i => VertexPoint(i)).OfType<Vec3>().ToList();
+            pts.RemoveAll(p => gone.Any(q => (p - q).Length < 1e-6));
+            plans.Add((curve, pts, closed));
+        }
+        Checkpoint("Delete points", "delete");
+        foreach (var (obj, pts, closed) in plans)
+        {
+            int i = Objects.FindIndex(o => o.Id == obj.Id);
+            if (pts.Count < 2) Objects = Objects.RemoveAt(i);
+            else Objects = Objects.SetItem(i, obj.WithShape(Occ.Polyline(pts, closed && pts.Count > 2)));
+        }
+        ClearSelection(); RaiseScene();
+        Say("Deleted the point(s); the neighbouring segments now join.");
+        return true;
+    }
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
     // ------------------------------------------------------------ selection

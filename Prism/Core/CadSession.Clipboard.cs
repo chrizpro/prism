@@ -11,7 +11,8 @@ public sealed partial class CadSession
     // shared by every open document, so a part can be pasted into another tab
     static List<SceneObject> _clipboard = [];
 
-    static bool Copyable(SceneObject o) => !o.IsAnnotation && !o.IsReference && o.Asm == null;
+    // datum planes and reference images copy too; joints, animations and toolpaths belong to an assembly or a CAM setup and are made there
+    static bool Copyable(SceneObject o) => (!o.IsAnnotation || o.Kind == ObjKind.Plane) && !o.IsReference && (o.Asm == null || o.Kind == ObjKind.Plane);
 
     List<SceneObject> CopyableSelection() => _selection.Select(i => Find(i.Obj)).Where(o => o != null && Copyable(o!)).Select(o => o!).Distinct().ToList();
 
