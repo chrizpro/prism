@@ -4375,3 +4375,35 @@ def mesh_draw_faces_target_and_snap():
     cad.call("command_cancel")
     return [("MSH-I009 | Target triangle", face), ("Edge snap", edge), ("Vertex snap", vertex),
             ("Checks", text_panel(checks))]
+
+
+# ---------------------------------------------------------------- Direct Modeling on an imported STEP: the pump-mount bracket rework
+@scenario("direct__imported-step-bracket-rework-37-steps", columns=2)
+def direct_bracket_rework():
+    """The gallery replay (gallery/test_pump_bracket_direct.py): a history-free STEP bracket reworked by 37 measured Direct Modeling steps
+    (move_face, push_pull, offset_face, draft_face, rotate_face, feature_edit, edit_pattern, move_hole, edit_distance, mirror_feature,
+    remove_fillets, delete_face, hole, thread, emboss, fillet, chamfer), plus the probes for the behaviour that needed a workaround."""
+    import test_pump_bracket_direct as pb
+    pb.report["steps"].clear()
+    pb.report["known_issues"].clear()
+    source = ROOT / "gallery/extras/pump-bracket-source.step"
+    pb.probe_known_issues(source)
+    pb.import_bracket(source)
+    before = render(-38, 24)
+    failed = None
+    try:
+        pb.rework(source)
+    except (AssertionError, cad.CadError) as e:
+        failed = f"FAIL  stopped after {len(pb.report['steps'])} steps: {str(e)[:160]}"
+    after = render(-38, 24)
+    lines = ["Pump-mount bracket: STEP import reworked by Direct Modeling"]
+    lines += [f"{'PASS' if s['status'] == 'passed' else 'FAIL'}  {s['step']}" + (f"  (workaround: {s['workaround']})" if s.get("workaround") else "")
+              for s in pb.report["steps"]]
+    if failed:
+        lines.append(failed)
+    if "final" in pb.report:
+        f = pb.report["final"]
+        ok = f["freeEdges"] == 0 and f["size"] == [280, 130, 190] and abs(f["volume"] - 1366045) < 50
+        lines.append(f"{'PASS' if ok else 'FAIL'}  final solid: {f['faces']} faces, volume {f['volume']:.0f} (expect 1366045), size {f['size']}, free edges {f['freeEdges']}")
+    lines += [f"KNOWN ISSUE (not filed yet): {k['issue']}" for k in pb.report["known_issues"]]
+    return [("STEP import", before), ("after 37 Direct Modeling steps", after), ("checks", text_panel(lines))]
