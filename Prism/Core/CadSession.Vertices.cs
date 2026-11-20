@@ -13,7 +13,8 @@ public sealed partial class CadSession
     const int MaxVertices = 4000;
     static readonly ConditionalWeakTable<MeshData, Vec3[]> VertexCache = new();
 
-    static bool HasVertices(SceneObject o) => o.HasBrep && o.Tri == null && !o.IsAnnotation && o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Curve;
+    // sketches too (text is a sketch): in Vertex mode their corner points are picked like any other (owner rule 2026-11-20)
+    static bool HasVertices(SceneObject o) => o.HasBrep && o.Tri == null && !o.IsAnnotation && o.Kind is ObjKind.Solid or ObjKind.Surface or ObjKind.Curve or ObjKind.Sketch;
 
     /// <summary>The corner points of a body, in the kernel's vertex order. Empty for meshes, forms and very large bodies.</summary>
     public IReadOnlyList<Vec3> VertexPoints(SceneObject o)

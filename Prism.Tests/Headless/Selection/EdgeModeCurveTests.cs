@@ -57,4 +57,32 @@ public sealed class EdgeModeCurveTests(Xunit.Abstractions.ITestOutputHelper log)
         }
         Assert.Empty(missed);
     }
+
+    [AvaloniaFact(DisplayName = "SEL-H065 | The selection mode holds everywhere: on the Direct Modeling tab Edge mode picks edges (the face gizmo steps aside), and Vertex mode picks corners of text")]
+    [Trait("TestId", "SEL-H065")]
+    public void ModeHoldsOnDirectTabAndForText()
+    {
+        var vm = new Prism.ViewModels.MainViewModel();
+        var s = vm.Session;
+        var box = s.AddObject(BoxAt(new Vec3(0, 0, 0), 10, 10, 10), "Box", ObjKind.Solid);
+        var text = CreateRectangleSketch(s, Plane3.XY, 6, 3, 20, 0);   // stands in for a text outline: a sketch of straight segments
+        vm.EnterDirectEdit(Prism.ViewModels.DirectWorkflow.Solid);
+        Assert.IsType<Prism.Commands.DirectEditCommand>(s.ActiveCommand);
+        s.ZoomExtents();
+
+        vm.SetSelectionMode(SelMode.Edge);
+        Assert.Null(s.ActiveCommand);
+        Assert.Equal(SelFilter.Edge, s.ActiveFilter);
+        var at = s.Camera.Project(OnEdge(box))!.Value;
+        var hit = s.Pick(at.x, at.y, s.ActiveFilter);
+        Assert.True(hit is { Item.Kind: SelKind.Edge } && hit.Value.Item.Obj == box.Id, "an edge of the box, not a face");
+
+        vm.SetSelectionMode(SelMode.Vertex);
+        var corner = s.Camera.Project(new Vec3(26, 3, 0))!.Value;
+        var v = s.Pick(corner.x, corner.y, s.ActiveFilter);
+        Assert.True(v is { Item.Kind: SelKind.Vertex } && v.Value.Item.Obj == text.Id, $"a corner of the sketch, got {v?.Item}");
+
+        vm.SetSelectionMode(SelMode.Face);
+        Assert.IsType<Prism.Commands.DirectEditCommand>(s.ActiveCommand);   // the gizmo is back for faces
+    }
 }

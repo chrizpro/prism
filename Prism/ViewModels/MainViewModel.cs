@@ -494,7 +494,14 @@ public sealed partial class MainViewModel : ViewModelBase
         }
         if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,SelMode.Vertex=>FormMode.Vertex,_=>FormMode.Face});
-        else Session.Mode=mode;
+        else
+        {
+            // the Direct Modeling gizmo only takes faces: in Edge or Vertex mode it steps aside so edges and points can be selected, and it
+            // comes back when the mode returns to Face or Object
+            Session.Mode=mode;   // set first: cancelling the gizmo restarts it unless the mode already says edges or points
+            if (mode is SelMode.Edge or SelMode.Vertex && Session.ActiveCommand is DirectEditCommand) Session.CancelCommand();
+            if (mode is SelMode.Face or SelMode.Object) StartDirectGizmo();
+        }
     }
     public bool IsSelectionMode(SelMode mode)=>Session.ActiveCommand is EditFormCommand form ? form.SelMode==(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face}) : Session.Mode==mode;
 

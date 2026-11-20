@@ -53,6 +53,7 @@ public sealed partial class MainViewModel
     void StartDirectGizmo()
     {
         if (!IsDirectEditing || _startingGizmo || Session.ActiveCommand != null || Session.Sketch != null) return;
+        if (_directWorkflow is not (DirectWorkflow.Freeform or DirectWorkflow.Nurbs) && Session.Mode is Prism.Core.SelMode.Edge or Prism.Core.SelMode.Vertex) return;   // the face gizmo waits while edges or points are being picked
         _startingGizmo = true;
         // Solid and surface faces take the gizmo; a freeform is edited by its cage and NURBS by their control points.
         try

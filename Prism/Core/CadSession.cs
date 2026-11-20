@@ -749,7 +749,11 @@ public sealed partial class CadSession : ObservableObject
                 // a slot that takes edges by rule (single edge, chain, partial loop) offers no edges while picking faces. Whole curves and
                 // sketches (text, an outline) are objects, not edges of a body, so they stay pickable in every mode.
                 var f = slot.PickFilter;
-                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
+                if (Mode == SelMode.Face && slot.HasSelectionRules) return f & ~SelFilter.Edge;
+                // The selection mode is honoured wherever it can be (owner rule 2026-11-20): when the slot takes what the mode names, only that is
+                // picked. A slot that takes something else keeps its own filter, since that is the only thing its step can use.
+                var wanted = Mode switch { SelMode.Face => SelFilter.Face | SelFilter.MeshFace, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.None };
+                return wanted != SelFilter.None && (f & wanted) != 0 ? f & (wanted | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum) : f;
             }
             return Mode switch { SelMode.Face => SelFilter.Face | SelFilter.MeshFace, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
