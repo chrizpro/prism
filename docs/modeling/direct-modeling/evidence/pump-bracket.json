@@ -1,0 +1,500 @@
+{
+  "steps": [
+    {
+      "step": "Remove Fillets: four R12 base corners",
+      "status": "passed",
+      "faces": 59,
+      "volume_mm3": 1004916.1,
+      "size_mm": [
+        220,
+        130,
+        150
+      ],
+      "notes": "Remove Fillets complete"
+    },
+    {
+      "step": "Delete Face: the rim chamfer (8 faces)",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1006700.3,
+      "size_mm": [
+        220,
+        130,
+        150
+      ],
+      "workaround": "the chamfer is not recognised, so its faces are deleted and healed",
+      "notes": "Delete Face complete"
+    },
+    {
+      "step": "Move Face: base end +30 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1076900.3,
+      "size_mm": [
+        250,
+        130,
+        150
+      ],
+      "notes": "Move Face complete"
+    },
+    {
+      "step": "Move Face: base end -30 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1147100.3,
+      "size_mm": [
+        280,
+        130,
+        150
+      ],
+      "notes": "Move Face complete"
+    },
+    {
+      "step": "Edit Feature Move: foot slot and counterbore +30 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1147100.3,
+      "size_mm": [
+        280,
+        130,
+        150
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Feature Move: foot slot and counterbore -30 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1147100.3,
+      "size_mm": [
+        280,
+        130,
+        150
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Push / Pull: tower top +40 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1287900.3,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Push / Pull complete"
+    },
+    {
+      "step": "Edit Feature Move: boss, bore and bolt circle up 25 mm",
+      "status": "passed",
+      "faces": 51,
+      "volume_mm3": 1287900.3,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Pattern: bolt circle 6 -> 8",
+      "status": "passed",
+      "faces": 53,
+      "volume_mm3": 1285505.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": [
+        "Pattern: circle",
+        "Instances: 6 → 8"
+      ]
+    },
+    {
+      "step": "Move Hole: each bolt hole 14 mm outward (PCD 78 -> 106)",
+      "status": "passed",
+      "faces": 53,
+      "volume_mm3": 1289063.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ]
+    },
+    {
+      "step": "Move Hole: bore 60 -> 80 mm",
+      "status": "passed",
+      "faces": 53,
+      "volume_mm3": 1212094.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Move Hole / Boss complete"
+    },
+    {
+      "step": "Offset Face: boss 96 -> 130 mm",
+      "status": "passed",
+      "faces": 63,
+      "volume_mm3": 1355893.2,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "workaround": "the bore and bolt holes inside the boss are drilled again below",
+      "notes": "Offset Face complete"
+    },
+    {
+      "step": "Hole: bore drilled again, 80 mm",
+      "status": "passed",
+      "faces": 62,
+      "volume_mm3": 1290548.1,
+      "size_mm": [
+        280,
+        130,
+        190
+      ]
+    },
+    {
+      "step": "Hole: 8 x 9 mm (M8 clearance) on PCD 106",
+      "status": "passed",
+      "faces": 54,
+      "volume_mm3": 1278756.6,
+      "size_mm": [
+        280,
+        130,
+        190
+      ]
+    },
+    {
+      "step": "Draft: tower sides 3 degrees inward",
+      "status": "passed",
+      "faces": 54,
+      "volume_mm3": 1244647.1,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Draft complete"
+    },
+    {
+      "step": "Move Face: gusset right 10 -> 16 mm",
+      "status": "passed",
+      "faces": 55,
+      "volume_mm3": 1264849.2,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "workaround": "gussets are not recognised as ribs, so the outer face is moved",
+      "notes": "Move Face complete"
+    },
+    {
+      "step": "Move Face: gusset left 10 -> 16 mm",
+      "status": "passed",
+      "faces": 56,
+      "volume_mm3": 1285051.3,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "workaround": "gussets are not recognised as ribs, so the outer face is moved",
+      "notes": "Move Face complete"
+    },
+    {
+      "step": "Push / Pull: flange spigot +12 mm",
+      "status": "passed",
+      "faces": 56,
+      "volume_mm3": 1377904.2,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Push / Pull complete"
+    },
+    {
+      "step": "Fillet: tower top corners R35",
+      "status": "passed",
+      "faces": 58,
+      "volume_mm3": 1367676.9,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Fillet complete"
+    },
+    {
+      "step": "Fillet: base corners R20",
+      "status": "passed",
+      "faces": 62,
+      "volume_mm3": 1361496.4,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Fillet complete"
+    },
+    {
+      "step": "Chamfer: flange and bore rims 2 mm",
+      "status": "passed",
+      "faces": 64,
+      "volume_mm3": 1360176.9,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Chamfer complete"
+    },
+    {
+      "step": "Edit Feature Move: slots 3 mm back",
+      "status": "passed",
+      "faces": 64,
+      "volume_mm3": 1360176.9,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Feature Resize: slots longer",
+      "status": "passed",
+      "faces": 64,
+      "volume_mm3": 1357584.9,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Feature Change type: counterbores -> countersinks",
+      "status": "passed",
+      "faces": 62,
+      "volume_mm3": 1358707.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Feature Change type: dowels -> M8 tapped",
+      "status": "passed",
+      "faces": 62,
+      "volume_mm3": 1358476.2,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Edit Feature Delete: cable pocket",
+      "status": "passed",
+      "faces": 53,
+      "volume_mm3": 1370784.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Edit Feature complete"
+    },
+    {
+      "step": "Thread: cut the M8 threads",
+      "status": "passed",
+      "faces": 89,
+      "volume_mm3": 1370547.8,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "workaround": "Change type did not model the thread",
+      "notes": "Thread complete"
+    },
+    {
+      "step": "Hole: M10 tapped lifting hole in the tower top",
+      "status": "passed",
+      "faces": 104,
+      "volume_mm3": 1369572.6,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Hole complete"
+    },
+    {
+      "step": "Mirror Feature: second lifting hole",
+      "status": "passed",
+      "faces": 119,
+      "volume_mm3": 1368597.4,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Mirror Feature complete"
+    },
+    {
+      "step": "Hole: 14 mm sensor port",
+      "status": "passed",
+      "faces": 120,
+      "volume_mm3": 1365826.5,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Hole complete"
+    },
+    {
+      "step": "Mirror Feature: second sensor port",
+      "status": "passed",
+      "faces": 121,
+      "volume_mm3": 1363055.7,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Mirror Feature complete"
+    },
+    {
+      "step": "Edit Distance: right port 40 -> 28 mm from the end",
+      "status": "passed",
+      "faces": 121,
+      "volume_mm3": 1363055.7,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": [
+        "Distance now: 40 mm",
+        "Moved by: 12 mm"
+      ]
+    },
+    {
+      "step": "Edit Distance: left port 40 -> 28 mm from the end",
+      "status": "passed",
+      "faces": 121,
+      "volume_mm3": 1363055.7,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": [
+        "Distance now: 40 mm",
+        "Moved by: 12 mm"
+      ]
+    },
+    {
+      "step": "Emboss: engrave PX-280 on the back of the tower",
+      "status": "passed",
+      "faces": 169,
+      "volume_mm3": 1362433.0,
+      "size_mm": [
+        280,
+        130,
+        190
+      ]
+    },
+    {
+      "step": "Fillet: tower root R6",
+      "status": "passed",
+      "faces": 171,
+      "volume_mm3": 1364656.9,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Fillet complete"
+    },
+    {
+      "step": "Fillet: gusset roots R4",
+      "status": "passed",
+      "faces": 179,
+      "volume_mm3": 1366213.3,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Fillet complete"
+    },
+    {
+      "step": "Fillet: base top rim R1",
+      "status": "passed",
+      "faces": 187,
+      "volume_mm3": 1366045.0,
+      "size_mm": [
+        280,
+        130,
+        190
+      ],
+      "notes": "Fillet complete"
+    }
+  ],
+  "known_issues": [
+    {
+      "issue": "Move Face on an end face bounded by corner rounds and a chamfer pulls out a tab only as wide as the flat strip; the rounds and chamfer stay behind",
+      "observed": "volume gained 50880 mm3 = 30 mm x 1696 mm2 (the flat strip alone; the whole end is 2340 mm2)"
+    },
+    {
+      "issue": "Direct Edit refuses an end face together with its corner rounds, so a rounded end cannot be stretched in one step",
+      "observed": "Direct Edit failed: Pick either whole features or plain faces to move, not both at once.. Slots: Click a face or feature (a hole, slot, pocket, boss or fillet) "
+    },
+    {
+      "issue": "A chamfer that runs around a rounded outline is not recognised as a chamfer (Edit Feature: plain face)",
+      "observed": "Edit Feature failed: That is a plain face, not a feature. Use Move Face or Push / Pull to change it.. Slots: Feature to "
+    },
+    {
+      "issue": "Triangular gussets are not recognised as ribs, so Edit Feature cannot resize them",
+      "observed": "Edit Feature failed: That is a plain face, not a feature. Use Move Face or Push / Pull to change it.. Slots: Feature to "
+    },
+    {
+      "issue": "Growing a boss (Offset Face, and Edit Feature Resize) fills every hole that passes through it",
+      "observed": "65344 mm3 more than the added ring; the bore inside the boss alone is 65345 mm3"
+    },
+    {
+      "issue": "Edit Feature Change type -> 'Threaded (modeled)' makes a plain bore at the minor diameter, with no thread",
+      "observed": "2 single cylinder faces of radius 3.323 mm"
+    },
+    {
+      "issue": "Rotate Face tilts the front face but leaves the R20 corner rounds upright, leaving a notch at each corner",
+      "observed": "2 corner rounds still vertical cylinders after a 20 degree tilt; the tilt was undone"
+    }
+  ],
+  "source_sha256": "6ec0700559c97740ae01ade0c9955c46adef04c499d40ffd800550711d9975cc",
+  "final": {
+    "volume": 1366044.95677,
+    "faces": 187,
+    "edges": 504,
+    "size": [
+      280,
+      130,
+      190
+    ],
+    "freeEdges": 0
+  }
+}

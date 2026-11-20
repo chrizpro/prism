@@ -8,6 +8,10 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Pump-mount bracket rework
+
+A plain 63-face STEP bracket reworked into a visibly different part by Direct Modeling alone: wider base, taller tapered and rounded tower, bigger flange with eight bolts, thicker gussets, tapped and engraved. [Source STEP](extras/pump-bracket-source.step) · [Before](extras/pump-bracket-imported.prism) · [After](models/pump-bracket-revised.prism) · [Comparison](previews/pump-bracket-revised.png) · [Steps, checks and known issues](../docs/modeling/direct-modeling/README.md#pump-mount-bracket-rework-2026-11-20)
+
 ## Reduction gearbox housing
 
 A single 144-face STEP casting for testing Direct Modeling across stepped bores, fastener patterns, slots, ribs, pockets and machined faces. [STEP](extras/reduction-gearbox-housing.step) · [Fresh import](extras/reduction-gearbox-imported.prism) · [Revised model](models/reduction-gearbox-revised.prism) · [Comparison](previews/reduction-gearbox-revised.png) · [Feature checks](../docs/modeling/direct-modeling/README.md#reduction-gearbox-housing).
