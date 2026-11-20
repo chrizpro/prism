@@ -410,6 +410,11 @@ public sealed partial class CadSession : ObservableObject
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithForm(form));
         }
+        foreach (var (old, shape, model, plane) in output.ReplaceSketches)
+        {
+            int i = list.FindIndex(o => o.Id == old.Id);
+            if (i >= 0) list = list.SetItem(i, model != null ? old.WithSketch(shape, model, plane) : old.WithShapeAndPlane(shape, plane));
+        }
         foreach (var (old, tri) in output.ReplaceMeshes)
         {
             int i = list.FindIndex(o => o.Id == old.Id);

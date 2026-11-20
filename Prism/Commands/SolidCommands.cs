@@ -1930,7 +1930,8 @@ public sealed class TransformCommand : Command
     public TransformCommand(Kind kind)
     {
         _kind = kind;
-        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject, Multi = true });
+        // datum planes and reference images are objects too: Move, Rotate, Scale and Mirror take them (they used to be refused, so the gizmo moved nothing)
+        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject | SelFilter.Plane, Multi = true });
         switch (kind)
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
@@ -2043,6 +2044,7 @@ public sealed class TransformCommand : Command
         {
             if (obj.Form != null) { AddFormResult(o, obj); continue; }
             if (obj.Tri is { } tri) { AddMeshResult(o, obj, tri); continue; }
+            if (obj is { SketchPlane: not null } and ({ Kind: ObjKind.Sketch, SketchData: not null } or { Kind: ObjKind.Plane }) && !_copy.Value && !PerAxis && AddSketchResult(o, obj)) continue;
             var center = (_pivot?.Index ?? 0) == 0 ? obj.Shape.Props().Center : Vec3.Zero;
             Shape r = _kind switch
             {
@@ -2058,6 +2060,57 @@ public sealed class TransformCommand : Command
     }
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
+
+    /// <summary>
+    /// A sketch moves by moving its plane, so it stays an editable sketch: Move and Rotate carry the plane, Mirror reflects it, and a uniform Scale
+    /// scales the drawing (points, radii and the lengths in its dimensions) about the pivot. Replacing only the geometry would drop the sketch's
+    /// data and leave its plane behind.
+    /// </summary>
+    bool AddSketchResult(CommandOutput o, SceneObject obj)
+    {
+        var pl = obj.SketchPlane!.Value; var model = obj.SketchData?.Clone();
+        var center = (_pivot?.Index ?? 0) == 0 ? obj.Shape.Props().Center : Vec3.Zero;
+        Func<Vec3, Vec3> Point, Dir;
+        switch (_kind)
+        {
+            case Kind.Move: { var d = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); Point = p => p + d; Dir = v => v; break; }
+            case Kind.Rotate:
+            {
+                var ax = _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
+                double a = _angle!.Value * Math.PI / 180, c = Math.Cos(a), s = Math.Sin(a);
+                Dir = v => v * c + Vec3.Cross(ax, v) * s + ax * (Vec3.Dot(ax, v) * (1 - c));
+                var turn = Dir; Point = p => center + turn(p - center);
+                break;
+            }
+            case Kind.Mirror:
+            {
+                var n = _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX;
+                Dir = v => v - n * (2 * Vec3.Dot(v, n)); Point = Dir;
+                break;
+            }
+            default:
+            {
+                double k = _factor!.Value;
+                if (model == null) { Point = p => center + (p - center) * k; Dir = v => v; break; }   // a datum plane keeps its directions; its origin moves with the scale
+                foreach (var pt in model.Points) { pt.X *= k; pt.Y *= k; pt.Z *= k; }
+                foreach (var e in model.Entities) e.R *= k;
+                foreach (var c in model.Constraints)
+                    if (c.Type is Core.Sketching.CType.Distance or Core.Sketching.CType.LineLength or Core.Sketching.CType.HDistance or Core.Sketching.CType.VDistance
+                        or Core.Sketching.CType.Radius or Core.Sketching.CType.Diameter or Core.Sketching.CType.PointLineDistance) c.Value *= k;
+                Point = p => center + (p - center) * k; Dir = v => v;
+                break;
+            }
+        }
+        Shape moved = _kind switch
+        {
+            Kind.Move => Occ.Translate(obj.Shape, new(_dx!.Value, _dy!.Value, _dz!.Value)),
+            Kind.Rotate => Occ.Rotate(obj.Shape, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
+            Kind.Scale => Occ.Scale(obj.Shape, center, _factor!.Value),
+            _ => Occ.Mirror(obj.Shape, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
+        };
+        o.ReplaceSketches.Add((obj, moved, model, new Plane3(Point(pl.Origin), Dir(pl.U), Dir(pl.V))));
+        return true;
+    }
 
     void AddMeshResult(CommandOutput o, SceneObject obj, Meshing.TriMesh tri)
     {

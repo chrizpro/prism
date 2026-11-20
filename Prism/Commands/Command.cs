@@ -182,6 +182,11 @@ public sealed class CommandOutput
     public List<(SceneObject Old, Shape New)> Replace { get; } = [];
     public List<(SceneObject Old, Core.Form.SubdMesh New)> ReplaceForms { get; } = [];
     public List<(SceneObject Old, Meshing.TriMesh New)> ReplaceMeshes { get; } = [];
+    /// <summary>
+    /// Objects that carry a plane, replaced together with it: a sketch (new geometry, sketch model and plane, so it stays editable) or, with no
+    /// model, a datum plane or reference image (new geometry and the plane it stands for).
+    /// </summary>
+    public List<(SceneObject Old, Shape New, Core.Sketching.SketchModel? Model, Plane3 Plane)> ReplaceSketches { get; } = [];
     public List<SceneObject> Remove { get; } = [];
     /// <summary>Shapes shown only in the preview as a faint volume, such as the tool that is cutting.</summary>
     public List<Shape> Ghosts { get; } = [];

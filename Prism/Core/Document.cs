@@ -51,6 +51,9 @@ public sealed class SceneObject
     public SceneObject WithFaceStyles(FaceStyle?[]? styles) => styles == FaceStyles ? this : new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm)
     { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, FaceStyles = styles, Group = Group };
     /// <summary>The same body under a new id, so no earlier history step made it (Remove history). Shape, display mesh, look and face styles are kept; history tracking is off.</summary>
+    /// <summary>Same object with new geometry and a new plane (a datum plane or reference image that was moved); kind and everything else kept.</summary>
+    public SceneObject WithShapeAndPlane(Shape s, Plane3 plane) => new(Id, Name, s, Kind, Color, Visible, plane, Form, SketchData, Look, Tri, Asm)
+    { FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, Group = Group };
     public SceneObject AsPlainCopy() => new(Guid.NewGuid(), Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm)
     { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = false, FaceStyles = FaceStyles, Group = Group };
     public Material? Material => Look.PhysicalSnapshot ?? Materials.Find(Look.MaterialId);
