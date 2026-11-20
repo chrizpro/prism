@@ -8,6 +8,10 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Open-brace spindle carrier gallery candidate
+
+A solid spindle upright becomes a wide, slotted carrier with tapered braces and open windows. [Source STEP](extras/spindle-carrier-source.step) · [Fresh import](extras/spindle-carrier-imported.prism) · [Revised model](models/spindle-carrier-revised.prism) · [Matched-camera preview](previews/spindle-carrier-revised.png) · [Workflow and verification](../docs/modeling/direct-modeling/README.md#open-brace-spindle-carrier).
+
 ## Reduction gearbox housing
 
 A single 144-face STEP casting for testing Direct Modeling across stepped bores, fastener patterns, slots, ribs, pockets and machined faces. [STEP](extras/reduction-gearbox-housing.step) · [Fresh import](extras/reduction-gearbox-imported.prism) · [Revised model](models/reduction-gearbox-revised.prism) · [Comparison](previews/reduction-gearbox-revised.png) · [Feature checks](../docs/modeling/direct-modeling/README.md#reduction-gearbox-housing).

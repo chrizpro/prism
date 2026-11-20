@@ -1,0 +1,245 @@
+{
+  "source_sha256": "1eacd2bed1a922d43674841e1f2340a3e67339c0dbaa45a627a1e9bf28874515",
+  "before": {
+    "id": "944182d0",
+    "name": "Spindle carrier",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#A6A9AE",
+    "min": [
+      -67,
+      -47,
+      0
+    ],
+    "max": [
+      67,
+      47,
+      145
+    ],
+    "faces": 54,
+    "edges": 126,
+    "wires": 86,
+    "volume": 668337.9249,
+    "area": 85898.5228,
+    "size": [
+      134,
+      94,
+      145
+    ],
+    "center": [
+      0,
+      0,
+      72.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 0.32,
+      "gloss": 0.64,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "after_machining": {
+    "id": "944182d0",
+    "name": "Spindle carrier",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#A6A9AE",
+    "min": [
+      -101,
+      -47,
+      0
+    ],
+    "max": [
+      101,
+      47,
+      147
+    ],
+    "faces": 64,
+    "edges": 177,
+    "wires": 87,
+    "volume": 823578.0991,
+    "area": 110788.5902,
+    "size": [
+      202,
+      94,
+      147
+    ],
+    "center": [
+      0,
+      0,
+      73.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 0.32,
+      "gloss": 0.64,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "after_bore_offset": {
+    "id": "944182d0",
+    "name": "Spindle carrier",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#A6A9AE",
+    "min": [
+      -101,
+      -47,
+      0
+    ],
+    "max": [
+      101,
+      47,
+      147
+    ],
+    "faces": 64,
+    "edges": 177,
+    "wires": 87,
+    "volume": 803220.5787,
+    "area": 110449.2982,
+    "size": [
+      202,
+      94,
+      147
+    ],
+    "center": [
+      0,
+      0,
+      73.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 0.32,
+      "gloss": 0.64,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "after_seat": {
+    "id": "944182d0",
+    "name": "Spindle carrier",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#A6A9AE",
+    "min": [
+      -101,
+      -47,
+      0
+    ],
+    "max": [
+      101,
+      47,
+      147
+    ],
+    "faces": 66,
+    "edges": 180,
+    "wires": 90,
+    "volume": 796359.3403,
+    "area": 110625.2274,
+    "size": [
+      202,
+      94,
+      147
+    ],
+    "center": [
+      0,
+      0,
+      73.5
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 0.32,
+      "gloss": 0.64,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "after": {
+    "id": "944182d0",
+    "name": "Spindle carrier",
+    "kind": "Solid",
+    "visible": true,
+    "color": "#A6A9AE",
+    "min": [
+      -101,
+      -47,
+      -3
+    ],
+    "max": [
+      101,
+      47,
+      147
+    ],
+    "faces": 66,
+    "edges": 180,
+    "wires": 90,
+    "volume": 851340.4333,
+    "area": 112817.6699,
+    "size": [
+      202,
+      94,
+      150
+    ],
+    "center": [
+      0,
+      0,
+      72
+    ],
+    "valid": true,
+    "appearance": {
+      "materialId": null,
+      "material": null,
+      "metal": 0.32,
+      "gloss": 0.64,
+      "pattern": "Automatic",
+      "patternScale_mm": 12,
+      "patternAngle_deg": 0,
+      "physicalDataRevision": null,
+      "physicalDataPinned": false,
+      "physicalProperties": null
+    }
+  },
+  "desktopSource": "be8a459",
+  "throughWindowProbes": {
+    "x_mm": [
+      -66,
+      66
+    ],
+    "z_min_mm": 46,
+    "cross_section_mm": [
+      4,
+      4
+    ],
+    "axis": "Y",
+    "obstruction_solids": [
+      0,
+      0
+    ]
+  }
+}
