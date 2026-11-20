@@ -1127,6 +1127,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void StartCommand(Command cmd)
     {
+        AdoptMeshFaceSelection();
         if(ProtectPendingCommand && ActiveCommand is { } current && CommandCatalog.KeyOf(current)==CommandCatalog.KeyOf(cmd))
         {
             KeepPending();Say($"Continue {current.DisplayTitle} with its current options.");RaiseState();
@@ -2465,6 +2466,29 @@ public sealed partial class CadSession : ObservableObject
     {
         if (RegionSel == null || RegionSel.ObjectId != o.Id || !ReferenceEquals(RegionSel.Mesh, o.Tri)) { DropRegion(); RegionSel = new Meshing.MeshSelection(o.Id, o.Tri!); }
         return RegionSel;
+    }
+
+    /// <summary>
+    /// Triangles picked in Face mode become the mesh region every Mesh tool reads (Fit Region, Extract, Delete and the rest), so a tool works on what
+    /// is selected without going through Edit Region first (owner request 2026-11-20). Only when they all belong to one mesh.
+    /// </summary>
+    public void AdoptMeshFaceSelection()
+    {
+        var picked = _selection.Where(i => i.Kind == SelKind.MeshFace).ToList();
+        if (picked.Count == 0 || picked.Select(i => i.Obj).Distinct().Count() != 1 || Find(picked[0].Obj) is not { Tri: { } tri } mesh) return;
+        var region = RegionFor(mesh);
+        region.Clear(); region.Add(picked.Select(i => i.Index).Where(t => t >= 0 && t < tri.TriCount));
+        if (!_selection.Contains(SelItem.Of(mesh))) _selection.Add(SelItem.Of(mesh));   // tools that ask for the mesh find it picked
+        RefreshRegion();
+    }
+
+    /// <summary>A double-click on a mesh triangle in Face mode takes the whole smooth patch around it, as Edit Region's Smart patch does.</summary>
+    public List<SelItem> MeshPatchAt(SelItem triangle)
+    {
+        if (triangle.Kind != SelKind.MeshFace || Find(triangle.Obj) is not { Tri: { } tri }) return [triangle];
+        var sel = new Meshing.MeshSelection(triangle.Obj, tri);
+        try { return sel.SmartFit(triangle.Index, 0.2, 20, out _).Select(t => new SelItem(triangle.Obj, SelKind.MeshFace, t)).ToList(); }
+        catch (Exception e) when (e is not OutOfMemoryException) { return [triangle]; }
     }
 
     public void DropRegion()

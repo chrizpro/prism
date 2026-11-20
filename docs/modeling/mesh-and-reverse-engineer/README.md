@@ -90,6 +90,16 @@ If automation fits the wrong local shape, use Edit Region and Convert Mesh to ch
 
 **Owner decisions, 2026-11-19:** Reduce faces offers both a percentage and a triangle count and is off unless turned on. Draw Faces' Fit to surface is on by default. Section Sketch adds tangency automatically and estimates its tolerance from the scan's noise. The owner then asked for the Mesh tab to handle a wide range of scans without deviating much from the existing tools, and for a demonstration of importing a mesh and using Smart patch to create a surface or solid. Fit Region (MSH-P05) delivers that. Draw Faces stays in Edit Region's menu with the rim fixes below. Still open: the triangle count that triggers the reduction suggestion (2 million is used for now).
 
+### Selecting triangles without Edit Region (owner report 2026-11-20)
+
+The owner had to open Edit Region to give Fit Region its triangles and could not get faces selected. Mesh tools read a region of their own, separate from the ordinary selection, so triangles picked in **Face** mode did nothing for them. Now:
+
+- In **Face** mode a click picks one triangle and a **double-click takes the whole smooth patch** around it (the same rule as Edit Region's Smart patch, tolerance 0.2 mm, edge angle 20°); Shift adds, Ctrl takes away.
+- Whatever triangles are selected when a Mesh tool starts become its region, so Fit Region, Extract and the other region tools work straight from the ordinary selection.
+- Check: [MSH-H153](../../../Prism.Tests/Headless/Mesh/MeshFitRegionTests.cs).
+
+**Edit Region stays for now** (owner direction): its brush, rectangle and lasso painting, grow and shrink, invert and the Smart patch settings are not yet available from the ordinary selection. Proposed next, for review: give Face mode on meshes those extras (grow, shrink, invert in the right-click menu; brush as a selection method), then retire Edit Region once nothing is lost. Not reproduced headlessly: the owner's report that faces could not be selected inside Edit Region (clicks there picked a patch in the tests); a screenshot would help.
+
 ### Fit Region (MSH-P05)
 
 **Mesh → Convert → Fit Region** fits one shape to the triangles picked with Edit Region (Smart patch, brush, rectangle or lasso).

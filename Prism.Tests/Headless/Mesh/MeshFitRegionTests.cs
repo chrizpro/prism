@@ -145,4 +145,32 @@ public sealed class MeshFitRegionTests
         else
             AssertClose(2 * Math.Atan(6.0 / 12) * 180 / Math.PI, Number(Result(command, "Included angle").Replace("°", "")), 0.2, "cone angle " + rows);
     }
+
+    [AvaloniaFact(DisplayName = "MSH-H153 | Double-click a scan triangle in Face mode takes its whole patch, and Fit Region uses that selection with no Edit Region step")]
+    [Trait("TestId", "MSH-H153")]
+    public void FaceModeSelectionFeedsFitRegion()
+    {
+        var s = new CadSession();
+        using var box = BoxAt(new Vec3(0, 0, 0), 30, 20, 12);
+        var mesh = s.AddObject(null, "Scan", ObjKind.Mesh);
+        var raw = MeshOps.Weld(MeshAnalysis.FromMeshData(box.Tessellate()), 1e-6);
+        s.Update(mesh.Id, o => o.WithTri(MeshRemesh.Remesh(raw, new MeshRemesh.Options(2, 3))), checkpoint: false);   // scan-like: even 2 mm triangles
+        s.ZoomExtents();
+        s.Mode = SelMode.Face;
+        var at = s.Camera.Project(new Vec3(15, 10, 12))!.Value;
+        s.PointerDown(new PointerInfo(at.x, at.y, true, false, false, false, 2));
+        s.PointerUp(new PointerInfo(at.x, at.y, false, false, false, false, 2));
+        var picked = s.Selection.Where(i => i.Kind == SelKind.MeshFace).ToList();
+        Assert.True(picked.Count > 50, $"the whole top patch, got {picked.Count} triangles");
+        var tri = s.Find(mesh.Id)!.Tri!;
+        Assert.All(picked, i => { for (int c = 0; c < 3; c++) Assert.Equal(12, tri.P(tri.T[3 * i.Index + c]).Z, 4); });
+        s.StartCommand(() => new MeshFitSurfaceCommand());
+        var command = s.ActiveCommand!;
+        SetChoice(command, "Fit", "Plane");
+        Assert.Equal(picked.Count, s.RegionSel!.Tris.Count);   // the Face-mode pick became the region the tool reads
+        s.CommitCommand();
+        Assert.True(s.Objects.Any(o => o.Kind == ObjKind.Plane), $"status: {s.Status} | active {s.ActiveCommand?.Title} | slots {string.Join(";", command.Slots.Select(x => x.Label + "=" + x.Items.Count + (x.Optional ? "(opt)" : "") + (x.IsVisible ? "" : "(hidden)")))} | objects: {string.Join(",", s.Objects.Select(o => o.Kind + " " + o.Name))}");
+        var plane = Assert.Single(s.Objects, o => o.Kind == ObjKind.Plane);
+        AssertClose(12, plane.SketchPlane!.Value.Origin.Z, 0.01, "plane fitted to the double-clicked patch");
+    }
 }

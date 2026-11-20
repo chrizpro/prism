@@ -35,7 +35,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
     }
 
     public override string Title => "Fit Region";
-    public override string Hint => "Uses the triangles picked with Edit Region. Exact shapes (plane, cylinder, sphere, cone) suit mechanical faces and report their size, axis and position; the smooth patch follows organic regions and is trimmed to the outline you picked.";
+    public override string Hint => "Uses the selected triangles: pick them in Face mode (double-click a triangle to take its whole smooth patch) or with Edit Region. Exact shapes (plane, cylinder, sphere, cone) suit mechanical faces and report their size, axis and position; the smooth patch follows organic regions and is trimmed to the outline you picked.";
     public override string Icon => "mesh-patch";
     public override string OkText => "Create";
 
@@ -64,7 +64,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         Results.Clear(); _outlines = []; _samples = [];
         var sel = S.RegionSel;
         var obj = sel == null ? null : S.Find(sel.ObjectId);
-        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "use Mesh > Edit Region first", 2); return null; }
+        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "select triangles in Face mode (double-click takes a whole patch), or use Edit Region", 2); return null; }
         var sub = sel.Extract();
         Row("Region", $"{Count(sub.TriCount)} triangles, {N(sub.Area(), "mm²")}");
 

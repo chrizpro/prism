@@ -292,6 +292,16 @@ public sealed partial class CadSession
             return;
         }
         if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return; }
+        if (p.Clicks >= 2 && hit.Value.Item.Kind == SelKind.MeshFace)
+        {
+            // double-click on a scan: the smooth patch the triangle belongs to (Shift adds, Ctrl takes away)
+            var patch = MeshPatchAt(hit.Value.Item);
+            if (p.Ctrl) _selection.RemoveAll(patch.Contains);
+            else { if (!p.Shift) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace); foreach (var it in patch) if (!_selection.Contains(it)) _selection.Add(it); }
+            SelectionChanged?.Invoke(); Invalidate();
+            Say($"Selected a patch of {patch.Count:#,0} triangles. Mesh tools such as Fit Region use it directly.");
+            return;
+        }
         SetSelection(hit.Value.Item, p.Ctrl || p.Shift);
         if (hit.Value.Item.Kind == SelKind.Vertex && VertexPoint(hit.Value.Item) is { } corner)
             Say($"{Describe(hit.Value.Item)} at X {corner.X:0.###}, Y {corner.Y:0.###}, Z {corner.Z:0.###} mm");
