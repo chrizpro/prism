@@ -9,6 +9,9 @@ using Prism.Meshing;
 namespace Prism.Commands;
 
 /// <summary>Base for tools that work on triangle meshes (scans, imports, converted solids).</summary>
+/// <summary>A Mesh tool that works on the selected triangles (the mesh region): while it is open, Face-mode clicks keep editing those triangles.</summary>
+public interface IUsesMeshRegion { }
+
 public abstract class MeshCommand : Command
 {
     protected readonly SelectionSlot Src;

@@ -96,7 +96,9 @@ The owner had to open Edit Region to give Fit Region its triangles and could not
 
 - In **Face** mode a click picks one triangle and a **double-click takes the whole smooth patch** around it (the same rule as Edit Region's Smart patch, tolerance 0.2 mm, edge angle 20°); Shift adds, Ctrl takes away.
 - Whatever triangles are selected when a Mesh tool starts become its region, so Fit Region, Extract and the other region tools work straight from the ordinary selection.
-- Check: [MSH-H153](../../../Prism.Tests/Headless/Mesh/MeshFitRegionTests.cs).
+- While Fit Region is open, Face-mode clicks keep editing the triangles (click, double-click, Shift, Ctrl as above; a click on empty space clears them) and the tool updates. Clearing the selection also clears the highlighted region.
+- A region with very few triangles, such as a flat face of a CAD export made of two triangles, is split into smaller triangles on the same surface before fitting, so it fits a plane instead of reporting no match (owner report 2026-11-20).
+- Checks: [MSH-H153, MSH-H154](../../../Prism.Tests/Headless/Mesh/MeshFitRegionTests.cs).
 
 **Edit Region stays for now** (owner direction): its brush, rectangle and lasso painting, grow and shrink, invert and the Smart patch settings are not yet available from the ordinary selection. Proposed next, for review: give Face mode on meshes those extras (grow, shrink, invert in the right-click menu; brush as a selection method), then retire Edit Region once nothing is lost. Not reproduced headlessly: the owner's report that faces could not be selected inside Edit Region (clicks there picked a patch in the tests); a screenshot would help.
 

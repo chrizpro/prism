@@ -173,4 +173,34 @@ public sealed class MeshFitRegionTests
         var plane = Assert.Single(s.Objects, o => o.Kind == ObjKind.Plane);
         AssertClose(12, plane.SketchPlane!.Value.Origin.Z, 0.01, "plane fitted to the double-clicked patch");
     }
+
+    [AvaloniaFact(DisplayName = "MSH-H154 | A flat face of a CAD export (two triangles) fits a plane, and with Fit Region open its triangles can be added, removed and cleared by clicking")]
+    [Trait("TestId", "MSH-H154")]
+    public void CoarseFaceFitsAndSelectionEditsWhileOpen()
+    {
+        var s = new CadSession();
+        using var box = BoxAt(new Vec3(0, 0, 0), 30, 20, 12);
+        var mesh = s.AddObject(null, "Export", ObjKind.Mesh);
+        s.Update(mesh.Id, o => o.WithTri(MeshOps.Weld(MeshAnalysis.FromMeshData(box.Tessellate()), 1e-6)), checkpoint: false);   // two triangles per side, as a CAD export
+        s.ZoomExtents(); s.Mode = SelMode.Face;
+        var top = s.Camera.Project(new Vec3(15, 10, 12))!.Value;
+        void Click(double x, double y, bool ctrl = false, int clicks = 1) { s.PointerDown(new PointerInfo(x, y, true, false, ctrl, false, clicks)); s.PointerUp(new PointerInfo(x, y, false, false, ctrl, false, clicks)); }
+        Click(top.x, top.y, clicks: 2);
+        Assert.Equal(2, s.Selection.Count(i => i.Kind == SelKind.MeshFace));
+        s.StartCommand(() => new MeshFitSurfaceCommand());
+        Assert.Equal(2, s.RegionSel!.Tris.Count);
+        SetChoice(s.ActiveCommand!, "Fit", "Plane");
+        // with the tool open, a Ctrl-click takes one triangle out and a click on empty space clears the region
+        Click(top.x, top.y, ctrl: true);
+        Assert.Equal(1, s.RegionSel!.Tris.Count);
+        Click(5, 5);
+        Assert.True(s.RegionSel == null || s.RegionSel.IsEmpty);
+        Click(top.x, top.y, clicks: 2);
+        Assert.Equal(2, s.RegionSel!.Tris.Count);
+        s.CommitCommand();
+        var plane = Assert.Single(s.Objects, o => o.Kind == ObjKind.Plane);
+        AssertClose(12, plane.SketchPlane!.Value.Origin.Z, 0.01, "plane fitted to the two-triangle face");
+        s.ClearSelection();
+        Assert.True(s.RegionSel == null || s.RegionSel.IsEmpty, "clearing the selection clears the highlighted region");
+    }
 }

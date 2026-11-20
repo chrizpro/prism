@@ -12,7 +12,7 @@ namespace Prism.Commands;
 /// (as a surface trimmed to the region, a closed solid, or only its reference plane/axis) or a smooth NURBS patch.
 /// See docs/modeling/mesh-and-reverse-engineer/README.md (MSH-P05).
 /// </summary>
-public sealed class MeshFitSurfaceCommand : MeshCommand
+public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
 {
     readonly ChoiceParam _type, _create;
     readonly BoolParam _refs;
@@ -178,6 +178,10 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         var rows = new List<ResultLine>();
         void R(string a, string b, int lvl = 0) => rows.Add(new ResultLine(a, b, lvl));
         int type = _type.Index;
+        // A CAD export often makes a flat face of two big triangles: too few to fit. Splitting each triangle into four keeps the surface exactly
+        // where it is and gives the fitters points to work with (owner report 2026-11-20: a two-triangle face gave "no match").
+        int levels = 0; for (int count = sub.TriCount; count < 64 && levels < 4; count *= 4) levels++;
+        if (levels > 0) sub = MeshOps.Subdivide(sub, levels);
 
         // ---- analytic shapes
         if (type <= 4)

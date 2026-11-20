@@ -330,6 +330,7 @@ public sealed partial class CadSession : ObservableObject
         var list = items.ToList();
         if (list.SequenceEqual(_selection)) return;
         _selection.Clear(); _selection.AddRange(list.Distinct());
+        ReleaseAdoptedRegion();
         SelectionChanged?.Invoke(); Invalidate();
     }
 
@@ -594,7 +595,7 @@ public sealed partial class CadSession : ObservableObject
 
     partial void OnModeChanged(SelMode value) { ClearSelection(); RaiseState(); }
 
-    public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); SelectionChanged?.Invoke(); Invalidate(); }
+    public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); ReleaseAdoptedRegion(); SelectionChanged?.Invoke(); Invalidate(); }
     public void SelectObjects(IEnumerable<Guid> ids, bool additive = false)
     {
         if (!additive) _selection.Clear();
@@ -605,6 +606,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (additive) { if (!_selection.Remove(item)) _selection.Add(item); }
         else { _selection.Clear(); _selection.Add(item); }
+        ReleaseAdoptedRegion();
         SelectionChanged?.Invoke(); Invalidate();
         if (!additive && item.Kind == SelKind.Datum) ShowDatumOrientation(item);
     }
@@ -2472,6 +2474,43 @@ public sealed partial class CadSession : ObservableObject
     /// Triangles picked in Face mode become the mesh region every Mesh tool reads (Fit Region, Extract, Delete and the rest), so a tool works on what
     /// is selected without going through Edit Region first (owner request 2026-11-20). Only when they all belong to one mesh.
     /// </summary>
+    bool _regionFromSelection;
+
+    /// <summary>A region that came from selected triangles goes when those triangles are no longer selected (so clearing the selection clears the highlight).</summary>
+    void ReleaseAdoptedRegion()
+    {
+        if (!_regionFromSelection || _selection.Any(i => i.Kind == SelKind.MeshFace)) return;
+        _regionFromSelection = false; DropRegion();
+    }
+
+    /// <summary>
+    /// While a tool that reads the mesh region is open, a Face-mode click edits the selected triangles: a click takes one, a double-click its
+    /// patch, Shift adds, Ctrl takes away, a click on empty space clears them. The region follows and the tool updates. False when this click
+    /// is not one of those (another mode, or no such tool).
+    /// </summary>
+    bool EditRegionByClick(PointerInfo p)
+    {
+        if (Mode != SelMode.Face || ActiveCommand is not Prism.Commands.IUsesMeshRegion) return false;
+        var hit = Pick(p.X, p.Y, SelFilter.MeshFace);
+        if (hit is { Item.Kind: SelKind.MeshFace } h)
+        {
+            var take = p.Clicks >= 2 ? MeshPatchAt(h.Item) : [h.Item];
+            if (p.Ctrl) _selection.RemoveAll(take.Contains);
+            else
+            {
+                if (!p.Shift) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace);
+                foreach (var it in take) if (!_selection.Contains(it)) _selection.Add(it);
+            }
+        }
+        else if (!p.Shift && !p.Ctrl) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace);
+        else return true;
+        if (_selection.Any(i => i.Kind == SelKind.MeshFace)) AdoptMeshFaceSelection();
+        else { _regionFromSelection = false; RegionSel?.Clear(); RefreshRegion(); }
+        SelectionChanged?.Invoke();
+        ActiveCommand?.OnChanged(); Invalidate();
+        return true;
+    }
+
     public void AdoptMeshFaceSelection()
     {
         var picked = _selection.Where(i => i.Kind == SelKind.MeshFace).ToList();
@@ -2479,6 +2518,7 @@ public sealed partial class CadSession : ObservableObject
         var region = RegionFor(mesh);
         region.Clear(); region.Add(picked.Select(i => i.Index).Where(t => t >= 0 && t < tri.TriCount));
         if (!_selection.Contains(SelItem.Of(mesh))) _selection.Add(SelItem.Of(mesh));   // tools that ask for the mesh find it picked
+        _regionFromSelection = true;
         RefreshRegion();
     }
 
