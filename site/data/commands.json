@@ -120,7 +120,7 @@
  {
   "name": "boundary_fill",
   "title": "Enclosed Body",
-  "hint": "Pick surfaces, planes or bodies that together close off a space (for example a surface that cuts a block in two, or planes around a shape). Each enclosed space becomes a solid; list the ones you want in 'Spaces to keep'.",
+  "hint": "Step 1: pick every surface, plane or body that helps close off a space (for example a surface that cuts a block in two, or planes around a shape). Step 2: each enclosed space gets its own colour and number; click the spaces you want to keep (Alt-click reaches one behind another) and press Create solids. With none picked, every space is kept.",
   "slots": [
    {
     "label": "Surfaces, planes and bodies that enclose the space",
@@ -133,7 +133,31 @@
    {
     "label": "Spaces to keep (blank = all)",
     "type": "text",
-    "default": ""
+    "default": "",
+    "help": "The numbers shown in the viewport. Leave it empty to keep every space. Clicking a space in step 2 fills this in for you."
+   },
+   {
+    "label": "Keep every space",
+    "type": "action"
+   },
+   {
+    "label": "Swap kept and left-out spaces",
+    "type": "action"
+   },
+   {
+    "label": "Working on",
+    "type": "choice",
+    "default": "1  Pick the surfaces that enclose the space",
+    "options": [
+     "1  Pick the surfaces that enclose the space",
+     "2  Pick the spaces to keep"
+    ]
+   },
+   {
+    "label": "Delete the surfaces and bodies used afterward",
+    "type": "boolean",
+    "default": true,
+    "help": "Removes the surfaces, solids and sketches you picked in step 1 once the new solids exist, since they only served to enclose the spaces and would otherwise sit on top of them. Planes, and single faces of a body, are references and are never deleted. Undo brings them back."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -1276,10 +1300,19 @@
    {
     "label": "Work zero (G54)",
     "type": "choice",
-    "default": "Stock lower-left, top",
+    "default": "Stock lower-left corner",
     "options": [
-     "Stock lower-left, top",
-     "Model origin"
+     "Stock lower-left corner",
+     "Model origin",
+     "Stock lower-middle",
+     "Stock lower-right",
+     "Stock left-middle",
+     "Stock center",
+     "Stock right-middle",
+     "Stock upper-left",
+     "Stock upper-middle",
+     "Stock upper-right",
+     "Picked point"
     ]
    },
    {
@@ -1321,6 +1354,39 @@
     "unit": "mm",
     "min": 0.5,
     "max": 100
+   },
+   {
+    "label": "Work zero height (Z)",
+    "type": "choice",
+    "default": "Top of stock",
+    "options": [
+     "Top of stock",
+     "Bottom of stock",
+     "Model origin"
+    ]
+   },
+   {
+    "label": "Picked zero X",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Picked zero Y",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Machine X axis points",
+    "type": "choice",
+    "default": "Along model +X",
+    "options": [
+     "Along model +X",
+     "Along model +Y",
+     "Along model −X",
+     "Along model −Y"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -2699,7 +2765,7 @@
  {
   "name": "cnc_stock_review",
   "title": "CNC Stock Review",
-  "hint": "Sample stock removal in visible milling operation order. Compare the result with the selected setup model: orange is remaining material, red is a possible gouge, blue is cut stock. Grid sampling excludes undercuts, fixtures, machine kinematics and exact cutter geometry. Tool dimensions apply to all operations.",
+  "hint": "Play removal to step through the stock in 5% increments of feed-based program time, or set Program position and Run checks. Orange is remaining material, red is a possible gouge, blue is cut stock. This is sampled 3-axis screening, not machine or fixture simulation.",
   "slots": [
    {
     "label": "Model",
@@ -2752,6 +2818,18 @@
     "unit": "%",
     "min": 0,
     "max": 100
+   },
+   {
+    "label": "Play removal",
+    "type": "action"
+   },
+   {
+    "label": "Pause removal",
+    "type": "action"
+   },
+   {
+    "label": "Next removal step",
+    "type": "action"
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -2894,8 +2972,15 @@
  {
   "name": "component_envelope",
   "title": "Component Envelope",
-  "hint": "Place an approximate package or keepout for enclosure checks. Coordinates use world XY; elevation is the mounting face. For accurate connectors or packages, import a STEP model.",
-  "slots": [],
+  "hint": "Place an approximate package or keepout for enclosure checks. Click a flat board face to put it on that board; Center X and Y then become offsets from the middle of that face. With no board face, coordinates use world XY and elevation is the mounting face. For accurate connectors or packages, import a STEP model.",
+  "slots": [
+   {
+    "label": "Board face",
+    "accepts": "Face",
+    "multi": false,
+    "optional": true
+   }
+  ],
   "params": [
    {
     "label": "Reference designator",
@@ -3183,6 +3268,24 @@
     "accepts": "AnyCurve, Edge",
     "multi": false,
     "optional": false
+   },
+   {
+    "label": "First point (a corner or a point)",
+    "accepts": "Datum, Vertex",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Second point (a corner or a point)",
+    "accepts": "Datum, Vertex",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Third point (a corner or a point)",
+    "accepts": "Datum, Vertex",
+    "multi": false,
+    "optional": true
    }
   ],
   "params": [
@@ -3840,6 +3943,23 @@
     "default": ""
    },
    {
+    "label": "Use a table from the Data panel",
+    "type": "choice",
+    "default": "None: type or paste the points below",
+    "options": [
+     "None: type or paste the points below"
+    ],
+    "help": "The sheets of the Data panel, which saves with the document. Pick one to take the points from its first numeric columns (x, y, z). Open the panel to type, paste from Excel or open a CSV."
+   },
+   {
+    "label": "Open the Data panel",
+    "type": "action"
+   },
+   {
+    "label": "New table for this curve",
+    "type": "action"
+   },
+   {
     "label": "Scale",
     "type": "number",
     "default": 1,
@@ -4037,7 +4157,7 @@
  {
   "name": "curve_intersect",
   "title": "Curve Intersect",
-  "hint": "Select curves on two different, nonparallel planes. Each curve projects along its plane normal; their shared 3D curve becomes a sweep rail, loft guide or freeform reference. Sources are kept.",
+  "hint": "Select curves on two different, nonparallel planes. Each curve projects along its plane normal; their shared 3D curve becomes a sweep rail, loft guide or freeform reference. The source curves are deleted afterward unless you turn that off.",
   "slots": [
    {
     "label": "First planar curve or sketch",
@@ -4060,6 +4180,11 @@
    },
    {
     "label": "Show projection guides",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Delete the source curves afterward",
     "type": "boolean",
     "default": true
    }
@@ -4213,8 +4338,8 @@
  },
  {
   "name": "curve_project",
-  "title": "Project Curve",
-  "hint": "Project curves onto a surface or face: straight along a direction, or by pulling each point to the nearest spot on the surface.",
+  "title": "Project / Wrap Curve",
+  "hint": "Put curves onto a surface or face. Along a direction projects straight, like a shadow; Pull normal drops each point to the nearest spot on the surface; Wrap lays a flat curve (a logo, a label, text) on by distance, the way a label wraps a bottle, so its lengths stay true on planes, cylinders and cones, with Slide and Rotate to place it.",
   "slots": [
    {
     "label": "Curves to project",
@@ -4236,7 +4361,8 @@
     "default": "Along a direction",
     "options": [
      "Along a direction",
-     "Pull normal to the surface"
+     "Pull normal to the surface",
+     "Wrap (lay on by distance)"
     ]
    },
    {
@@ -4251,6 +4377,31 @@
      "Back (-Y)",
      "Front (+Y)"
     ]
+   },
+   {
+    "label": "Slide across",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Slide along",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Rotate",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   },
+   {
+    "label": "Keep the original curves",
+    "type": "boolean",
+    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -4387,6 +4538,23 @@
     "label": "…or read a file or sheet",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Use a table from the Data panel",
+    "type": "choice",
+    "default": "None: type or paste the points below",
+    "options": [
+     "None: type or paste the points below"
+    ],
+    "help": "The sheets of the Data panel, which saves with the document. Pick one to take the points from its first numeric columns (x, y, z). Open the panel to type, paste from Excel or open a CSV."
+   },
+   {
+    "label": "Open the Data panel",
+    "type": "action"
+   },
+   {
+    "label": "New table for this curve",
+    "type": "action"
    },
    {
     "label": "Scale",
@@ -5162,6 +5330,135 @@
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
+  "name": "edit_distance",
+  "title": "Edit Distance",
+  "hint": "Click what to move (a flat face, or a hole, slot, pocket or boss: one click picks the whole feature), then what to measure from. The panel shows the distance between them; type a new one, or drag the arrow, and the first pick moves to match. Symmetric moves both picks by half the change.",
+  "slots": [
+   {
+    "label": "Move (a flat face, or a hole, slot, pocket or boss)",
+    "accepts": "Face",
+    "multi": true,
+    "optional": false
+   },
+   {
+    "label": "Measured from (a flat face or a feature)",
+    "accepts": "Face",
+    "multi": true,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Distance",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000000
+   },
+   {
+    "label": "Symmetric (move both sides)",
+    "type": "boolean",
+    "default": false
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "edit_face",
+  "title": "Edit Face",
+  "hint": "Click a flat, four-sided face of a solid. It shows a grid of points: the grey outer ring is locked so the outline stays, and you move the inner points (click one, Shift adds, drag a box for several) with the gizmo. An influence radius makes neighbouring points follow. Apply puts the smooth surface back into the solid.",
+  "slots": [
+   {
+    "label": "Face to reshape",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Influence radius",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 1000000
+   },
+   {
+    "label": "Falloff",
+    "type": "choice",
+    "default": "Smooth",
+    "options": [
+     "Smooth",
+     "Linear",
+     "Sharp"
+    ]
+   },
+   {
+    "label": "Gizmo (W move, E rotate, R scale)",
+    "type": "choice",
+    "default": "Move",
+    "options": [
+     "Move",
+     "Rotate",
+     "Scale"
+    ]
+   },
+   {
+    "label": "Point X",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Point Y",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Point Z",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Move points",
+    "type": "choice",
+    "default": "Along the face normal",
+    "options": [
+     "Along the face normal",
+     "Any direction"
+    ]
+   },
+   {
+    "label": "Grid cells across",
+    "type": "integer",
+    "default": 3,
+    "min": 2,
+    "max": 8
+   },
+   {
+    "label": "Grid cells up",
+    "type": "integer",
+    "default": 3,
+    "min": 2,
+    "max": 8
+   },
+   {
+    "label": "Reset points",
+    "type": "action"
+   },
+   {
+    "label": "Point offsets",
+    "type": "text",
+    "default": ""
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
   "name": "edit_form",
   "title": "Edit Freeform",
   "hint": "Pick a form, then click vertices, edges or faces. Double-click for a loop; Shift adds to the selection. Drag the gizmo to transform. Insert Edge: click edges to add loops.",
@@ -5690,7 +5987,7 @@
  {
   "name": "edit_pattern",
   "title": "Edit Pattern",
-  "hint": "Click any feature that belongs to a pattern. For a line or grid, set the spacing and the number of instances along each direction; for a circle, the angular step and the count. “Remove instance” deletes one instance by its number (counted from the first in the pattern, the clicked feature included). The clicked feature stays where it is. Leave a field at 0 to keep its current value.",
+  "hint": "Click any feature that belongs to a pattern. For a line, set the spacing and the count; for a grid, the spacing along its rows, the spacing between rows, the count per row and the number of rows, and whether every other row is shifted half a step (staggered, like a pegboard); for a circle, the angular step and the count. “Remove instance” deletes one instance by its number (counted from the first in the pattern, the clicked feature included). The clicked feature stays where it is. Leave a field at 0 to keep its current value.",
   "slots": [
    {
     "label": "A feature of the pattern (click any hole, slot, pocket or boss in it)",
@@ -5747,6 +6044,16 @@
     "unit": "",
     "min": 0,
     "max": 100000
+   },
+   {
+    "label": "Every other row",
+    "type": "choice",
+    "default": "As it is",
+    "options": [
+     "As it is",
+     "Shifted half a step",
+     "Not shifted"
+    ]
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -5824,7 +6131,7 @@
  {
   "name": "emboss",
   "title": "Emboss",
-  "hint": "Sketch text or a shape on a face of your body, choose it here, and set how far it stands proud (Emboss) or sinks in (Engrave). Reverse direction flips it if it goes the wrong way.",
+  "hint": "Sketch text or a shape in front of a face of your body (or on it), choose it here, and set how far it stands proud (Emboss) or sinks in (Engrave). On a curved face the shape follows the surface at an even height; on a flat face it is a straight extrude. Pick a face to limit it to that face. Reverse direction flips a straight extrude that goes the wrong way.",
   "slots": [
    {
     "label": "Sketch (text or shape)",
@@ -5835,6 +6142,12 @@
    {
     "label": "Target body (found automatically)",
     "accepts": "Solid",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Face to emboss onto (optional)",
+    "accepts": "Face",
     "multi": false,
     "optional": true
    }
@@ -5872,6 +6185,17 @@
      "Cut",
      "Intersect"
     ]
+   },
+   {
+    "label": "Method",
+    "type": "choice",
+    "default": "Automatic",
+    "options": [
+     "Automatic",
+     "Straight (extrude)",
+     "Follow the surface"
+    ],
+    "help": "Automatic follows the surface on a curved face and extrudes straight on a flat one. Follow the surface carries the shape onto the face whatever its shape; Straight always extrudes it flat along the sketch's direction."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -6226,10 +6550,10 @@
  {
   "name": "feature_edit",
   "title": "Edit Feature",
-  "hint": "Click any face of a hole, slot, pocket, boss or fillet: the whole feature is picked. Then choose what to do. Move slides it by the X / Y / Z you type. Copy makes copies at that spacing. Resize changes the diameter of a round hole or boss, the width and length of a slot, or the radius of a straight fillet. Change type turns a hole into a plain hole, a counterbore or a countersink. Delete removes it and closes the gap. Drag the arrow in the view, or type the distances. “Select by” can pick every feature of the same size or a whole pattern at once.",
+  "hint": "Click any face of a hole, slot, pocket, boss or fillet: the whole feature is picked. Then choose what to do. Move slides it by the X / Y / Z you type. Copy makes copies at that spacing. Resize changes the diameter of a round hole or boss, the width and length of a slot, the radius of a fillet or the distances of a chamfer. Change type turns a hole into a plain hole, a counterbore, a countersink or a threaded hole, a chamfer into a fillet and a fillet into a chamfer. Delete removes it and closes the gap. Drag the arrow in the view, or type the distances. “Select by” can pick every feature of the same size or a whole pattern at once.",
   "slots": [
    {
-    "label": "Feature to edit (click a hole, slot, pocket, boss or fillet)",
+    "label": "Feature to edit (click a hole, slot, pocket, boss, fillet, chamfer or text)",
     "accepts": "Face",
     "multi": true,
     "optional": false
@@ -6300,6 +6624,46 @@
    },
    {
     "label": "New fillet radius (0 = keep)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "New chamfer distance (0 = keep)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "Second chamfer distance (0 = equal)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "Size after the swap (0 = same setback)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "New text depth or height (0 = keep)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "New rib thickness (0 = keep)",
     "type": "number",
     "default": 0,
     "unit": "mm",
@@ -6392,6 +6756,11 @@
      "Y",
      "Z"
     ]
+   },
+   {
+    "label": "Bolts and nuts in the hole follow it",
+    "type": "boolean",
+    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -6501,6 +6870,16 @@
     "type": "text",
     "default": "",
     "help": "One entry per picked edge, in the order picked, separated by commas: 3, 5, 2 gives each edge its own radius, and 3-5 grows that edge from 3 to 5. An edge with no entry uses Radius. Leave blank for one radius on every edge."
+   },
+   {
+    "label": "Shape",
+    "type": "choice",
+    "default": "Round (rounded corner)",
+    "options": [
+     "Round (rounded corner)",
+     "Cove (concave scoop)"
+    ],
+    "help": "Round takes the corner off. Cove cuts a quarter-round scoop into it instead, centred on the edge, so the walls meet it at right angles (on a square edge). A cove works on straight edges and uses Radius only."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -6828,21 +7207,21 @@
     "type": "integer",
     "default": 2,
     "min": 1,
-    "max": 20
+    "max": 64
    },
    {
     "label": "Faces Y",
     "type": "integer",
     "default": 2,
     "min": 1,
-    "max": 20
+    "max": 64
    },
    {
     "label": "Faces Z",
     "type": "integer",
     "default": 2,
     "min": 1,
-    "max": 20
+    "max": 64
    },
    {
     "label": "Position X",
@@ -6861,6 +7240,20 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Smoothness (0 shows the plain cage)",
+    "type": "integer",
+    "default": 3,
+    "min": 0,
+    "max": 4,
+    "help": "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with."
+   },
+   {
+    "label": "Sharp edges (keep corners and rims crisp when smoothed)",
+    "type": "boolean",
+    "default": false,
+    "help": "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -6890,14 +7283,14 @@
     "type": "integer",
     "default": 8,
     "min": 3,
-    "max": 48
+    "max": 96
    },
    {
     "label": "Rings",
     "type": "integer",
     "default": 3,
     "min": 1,
-    "max": 30
+    "max": 100
    },
    {
     "label": "Caps",
@@ -6921,6 +7314,28 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Smoothness (0 shows the plain cage)",
+    "type": "integer",
+    "default": 3,
+    "min": 0,
+    "max": 4,
+    "help": "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with."
+   },
+   {
+    "label": "Sharp edges (keep corners and rims crisp when smoothed)",
+    "type": "boolean",
+    "default": false,
+    "help": "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth."
+   },
+   {
+    "label": "Cap rings (0 = one face per cap)",
+    "type": "integer",
+    "default": 0,
+    "min": 0,
+    "max": 30,
+    "help": "Divides each flat end into this many rings of faces before the middle face, so the end has points to shape and does not stay one large face. 0 keeps each end a single face."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7038,6 +7453,93 @@
     "unit": "mm",
     "min": -20,
     "max": 20
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "form_knife",
+  "title": "Knife",
+  "hint": "Click points across the form to draw the cut: it follows the line you see, splitting every face it crosses. Click the form first, then each point; clicks snap to points and edge midpoints. Backspace (or undo) takes the last point back, and OK makes the cut. Cut through also cuts the faces turned away. Or choose A plane to cut along a plane or a flat face.",
+  "slots": [
+   {
+    "label": "Freeform to cut",
+    "accepts": "Form",
+    "multi": false,
+    "optional": false
+   },
+   {
+    "label": "Cutting plane or flat face (optional)",
+    "accepts": "Face, Plane",
+    "multi": false,
+    "optional": true
+   }
+  ],
+  "params": [
+   {
+    "label": "Cut with",
+    "type": "choice",
+    "default": "A line drawn across the form",
+    "options": [
+     "A line drawn across the form",
+     "A plane"
+    ]
+   },
+   {
+    "label": "Points of the cut (set by clicking)",
+    "type": "text",
+    "default": "",
+    "advanced": true,
+    "help": "One point per line: where you clicked, then where the camera was. Clear the text to start the line again."
+   },
+   {
+    "label": "Cut through (also the faces turned away)",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Run the cut on to the edges at both ends",
+    "type": "boolean",
+    "default": true,
+    "help": "Carries the cut from each end of your line on to the edge of the face that end is in. It does not go on into other faces: end the line on a point or an edge of the cage to cut exactly the faces you drew across. \"Cut through\" is a different setting: it also cuts the faces turned away from you."
+   },
+   {
+    "label": "Snap to points and edge midpoints",
+    "type": "boolean",
+    "default": true,
+    "help": "Clicks near a cage point, an edge midpoint or an edge take it exactly, even where the smooth surface is not under the pointer (the cage corners stand outside it). The point a click would take shows as a white dot."
+   },
+   {
+    "label": "Constrain the angle (45° steps)",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Or cut across",
+    "type": "choice",
+    "default": "Left to right (X)",
+    "options": [
+     "Left to right (X)",
+     "Front to back (Y)",
+     "Bottom to top (Z)"
+    ]
+   },
+   {
+    "label": "Position along that direction",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Crease the cut",
+    "type": "number",
+    "default": 0,
+    "unit": "",
+    "min": 0,
+    "max": 5,
+    "help": "0 leaves the cut as plain edges. A sharpness above 0 makes it a crease, so the smooth surface keeps a line there."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7170,14 +7672,14 @@
     "type": "integer",
     "default": 4,
     "min": 1,
-    "max": 40
+    "max": 100
    },
    {
     "label": "Faces along",
     "type": "integer",
     "default": 4,
     "min": 1,
-    "max": 40
+    "max": 100
    },
    {
     "label": "Position X",
@@ -7196,6 +7698,20 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Smoothness (0 shows the plain cage)",
+    "type": "integer",
+    "default": 3,
+    "min": 0,
+    "max": 4,
+    "help": "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with."
+   },
+   {
+    "label": "Sharp edges (keep corners and rims crisp when smoothed)",
+    "type": "boolean",
+    "default": false,
+    "help": "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7326,7 +7842,7 @@
     "type": "integer",
     "default": 3,
     "min": 1,
-    "max": 12
+    "max": 32
    },
    {
     "label": "Position X",
@@ -7345,6 +7861,42 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Smoothness (0 shows the plain cage)",
+    "type": "integer",
+    "default": 3,
+    "min": 0,
+    "max": 4,
+    "help": "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with."
+   },
+   {
+    "label": "Sharp edges (keep corners and rims crisp when smoothed)",
+    "type": "boolean",
+    "default": false,
+    "help": "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth."
+   },
+   {
+    "label": "Faces X (0 = same as per side)",
+    "type": "integer",
+    "default": 0,
+    "min": 0,
+    "max": 64,
+    "help": "Give a direction its own number of faces (for example more around the equator than over the poles). Leave all three at 0 for the even quad-ball."
+   },
+   {
+    "label": "Faces Y (0 = same as per side)",
+    "type": "integer",
+    "default": 0,
+    "min": 0,
+    "max": 64
+   },
+   {
+    "label": "Faces Z (0 = same as per side)",
+    "type": "integer",
+    "default": 0,
+    "min": 0,
+    "max": 64
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7422,14 +7974,14 @@
     "type": "integer",
     "default": 12,
     "min": 3,
-    "max": 48
+    "max": 96
    },
    {
     "label": "Segments of tube",
     "type": "integer",
     "default": 6,
     "min": 3,
-    "max": 32
+    "max": 64
    },
    {
     "label": "Position X",
@@ -7448,6 +8000,20 @@
     "type": "number",
     "default": 0,
     "unit": "mm"
+   },
+   {
+    "label": "Smoothness (0 shows the plain cage)",
+    "type": "integer",
+    "default": 3,
+    "min": 0,
+    "max": 4,
+    "help": "How many times the cage is subdivided to draw the smooth surface: 0 shows the cage faces as they are, 4 is the smoothest. It can be changed later in Edit Freeform. More faces in the cage (the counts above) give you more points to shape with."
+   },
+   {
+    "label": "Sharp edges (keep corners and rims crisp when smoothed)",
+    "type": "boolean",
+    "default": false,
+    "help": "Makes the edges where faces meet at a corner (a box's edges, a cylinder's cap rims) sharp, so smoothing rounds the faces but not those edges. Gentle bends, like the sides of a round cylinder, stay smooth."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7701,15 +8267,223 @@
     "options": [
      "Untitled",
      "Untitled 2",
-     "helix-result",
-     "scaled-sweep-result",
-     "sew-merge-result",
+     "Untitled 3",
+     "Untitled 4",
+     "Untitled 5",
      "Untitled 6",
-     "helix-result",
-     "scaled-sweep-result",
-     "sew-merge-result",
-     "surface-fillet-result",
-     "imprint-result"
+     "Untitled 7",
+     "Untitled 8",
+     "motor-mount-direct-edit",
+     "Untitled 10",
+     "Untitled 11",
+     "Untitled 12",
+     "Untitled 13",
+     "Untitled 14",
+     "Untitled 15",
+     "Untitled 16",
+     "Untitled 17",
+     "Untitled 18",
+     "Untitled 19",
+     "Untitled 20",
+     "Untitled 21",
+     "Untitled 22",
+     "Untitled 23",
+     "Untitled 24",
+     "Untitled 25",
+     "Untitled 26",
+     "Untitled 27",
+     "Untitled 28",
+     "Untitled 29",
+     "Untitled 30",
+     "Untitled 31",
+     "Untitled 32",
+     "Untitled 33",
+     "Untitled 34",
+     "Untitled 35",
+     "Untitled 36",
+     "Untitled 37",
+     "Untitled 38",
+     "Untitled 39",
+     "Untitled 40",
+     "Untitled 41",
+     "Untitled 42",
+     "Untitled 43",
+     "wrench",
+     "Untitled 45",
+     "Untitled 46",
+     "Untitled 47",
+     "Untitled 48",
+     "Untitled 49",
+     "Untitled 50",
+     "Untitled 51",
+     "Untitled 52",
+     "Untitled 53",
+     "Untitled 54",
+     "Untitled 55",
+     "Untitled 56",
+     "Untitled 57",
+     "Untitled 58",
+     "Untitled 59",
+     "Untitled 60",
+     "Untitled 61",
+     "Untitled 62",
+     "Untitled 63",
+     "Untitled 64",
+     "Untitled 65",
+     "Untitled 66",
+     "Untitled 67",
+     "Untitled 68",
+     "Untitled 69",
+     "Untitled 70",
+     "Untitled 71",
+     "Untitled 72",
+     "Untitled 73",
+     "Untitled 74",
+     "Untitled 75",
+     "Untitled 76",
+     "Untitled 77",
+     "Untitled 78",
+     "Untitled 79",
+     "Untitled 80",
+     "Untitled 81",
+     "Untitled 82",
+     "Untitled 83",
+     "Untitled 84",
+     "Untitled 85",
+     "Untitled 86",
+     "Untitled 87",
+     "Untitled 88",
+     "Untitled 89",
+     "Untitled 90",
+     "Untitled 91",
+     "Untitled 92",
+     "Untitled 93",
+     "Untitled 94",
+     "Untitled 95",
+     "Untitled 96",
+     "Untitled 97",
+     "Untitled 98",
+     "Untitled 99",
+     "Untitled 100",
+     "Untitled 101",
+     "Untitled 102",
+     "Untitled 103",
+     "Untitled 104",
+     "Untitled 105",
+     "Untitled 106",
+     "Untitled 107",
+     "Untitled 108",
+     "Untitled 109",
+     "Untitled 110",
+     "Untitled 111",
+     "Untitled 112",
+     "Untitled 113",
+     "Untitled 114",
+     "Untitled 115",
+     "Untitled 116",
+     "Untitled 117",
+     "Untitled 118",
+     "Untitled 119",
+     "Untitled 120",
+     "Untitled 121",
+     "Untitled 122",
+     "Untitled 123",
+     "Untitled 124",
+     "Untitled 125",
+     "Untitled 126",
+     "Untitled 127",
+     "Untitled 128",
+     "Untitled 129",
+     "Untitled 130",
+     "Untitled 131",
+     "Untitled 132",
+     "Untitled 133",
+     "Untitled 134",
+     "Untitled 135",
+     "Untitled 136",
+     "Untitled 137",
+     "Untitled 138",
+     "Untitled 139",
+     "Untitled 140",
+     "Untitled 141",
+     "Untitled 142",
+     "Untitled 143",
+     "Untitled 144",
+     "Untitled 145",
+     "Untitled 146",
+     "Untitled 147",
+     "Untitled 148",
+     "Untitled 149",
+     "Untitled 150",
+     "Untitled 151",
+     "Untitled 152",
+     "Untitled 153",
+     "Untitled 154",
+     "Untitled 155",
+     "Untitled 156",
+     "Untitled 157",
+     "Untitled 158",
+     "Untitled 159",
+     "Untitled 160",
+     "Untitled 161",
+     "Untitled 162",
+     "Untitled 163",
+     "Untitled 164",
+     "Untitled 165",
+     "Untitled 166",
+     "Untitled 167",
+     "Untitled 168",
+     "Untitled 169",
+     "Untitled 170",
+     "Untitled 171",
+     "Untitled 172",
+     "Untitled 173",
+     "Untitled 174",
+     "Untitled 175",
+     "Untitled 176",
+     "Untitled 177",
+     "Untitled 178",
+     "Untitled 179",
+     "Untitled 180",
+     "Untitled 181",
+     "Untitled 182",
+     "Untitled 183",
+     "Untitled 184",
+     "Untitled 185",
+     "Untitled 186",
+     "Untitled 187",
+     "Untitled 188",
+     "Untitled 189",
+     "Untitled 190",
+     "Untitled 191",
+     "Untitled 192",
+     "Untitled 193",
+     "Untitled 194",
+     "Untitled 195",
+     "Untitled 196",
+     "Untitled 197",
+     "Untitled 198",
+     "Untitled 199",
+     "Untitled 200",
+     "Untitled 201",
+     "Untitled 202",
+     "Untitled 203",
+     "Untitled 204",
+     "Untitled 205",
+     "Untitled 206",
+     "Untitled 207",
+     "Untitled 208",
+     "Untitled 209",
+     "Untitled 210",
+     "Untitled 211",
+     "Untitled 212",
+     "Untitled 213",
+     "Untitled 214",
+     "Untitled 215",
+     "Untitled 216",
+     "Untitled 217",
+     "Untitled 218",
+     "Untitled 219"
     ]
    },
    {
@@ -7797,6 +8571,12 @@
     "label": "Keep tool bodies",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Keep the tools' parts inside too",
+    "type": "boolean",
+    "default": true,
+    "help": "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -7839,6 +8619,12 @@
     "label": "Keep the original curves",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Delete the two originals afterwards",
+    "type": "boolean",
+    "default": false,
+    "help": "Removes the surfaces, planes or bodies you picked once the curve exists. Faces of a body cannot be removed on their own, so they stay."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -8528,6 +9314,18 @@
     "accepts": "Solid",
     "multi": false,
     "optional": true
+   },
+   {
+    "label": "Face to match at the start",
+    "accepts": "SurfaceObj, Face",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Face to match at the end",
+    "accepts": "SurfaceObj, Face",
+    "multi": false,
+    "optional": true
    }
   ],
   "params": [
@@ -8570,6 +9368,35 @@
      "Cut",
      "Intersect"
     ]
+   },
+   {
+    "label": "Start tangency",
+    "type": "choice",
+    "default": "Free",
+    "options": [
+     "Free",
+     "Square to the profile",
+     "Match a face"
+    ]
+   },
+   {
+    "label": "End tangency",
+    "type": "choice",
+    "default": "Free",
+    "options": [
+     "Free",
+     "Square to the profile",
+     "Match a face"
+    ]
+   },
+   {
+    "label": "Tangent strength",
+    "type": "number",
+    "default": 0.25,
+    "unit": "",
+    "min": 0.05,
+    "max": 1,
+    "help": "How far the loft keeps to the chosen direction before turning toward the next profile, as a fraction of the distance to that profile. Larger holds the direction longer."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -8589,6 +9416,18 @@
     "label": "Guide rails (optional, one or two)",
     "accepts": "CurveObj, Edge",
     "multi": true,
+    "optional": true
+   },
+   {
+    "label": "Face to match at the start",
+    "accepts": "SurfaceObj, Face",
+    "multi": false,
+    "optional": true
+   },
+   {
+    "label": "Face to match at the end",
+    "accepts": "SurfaceObj, Face",
+    "multi": false,
     "optional": true
    }
   ],
@@ -8621,6 +9460,35 @@
     "max": 40,
     "advanced": true,
     "help": "Number of intermediate sections used to follow the rails."
+   },
+   {
+    "label": "Start tangency",
+    "type": "choice",
+    "default": "Free",
+    "options": [
+     "Free",
+     "Square to the profile",
+     "Match a face"
+    ]
+   },
+   {
+    "label": "End tangency",
+    "type": "choice",
+    "default": "Free",
+    "options": [
+     "Free",
+     "Square to the profile",
+     "Match a face"
+    ]
+   },
+   {
+    "label": "Tangent strength",
+    "type": "number",
+    "default": 0.25,
+    "unit": "",
+    "min": 0.05,
+    "max": 1,
+    "help": "How far the loft keeps to the chosen direction before turning toward the next profile, as a fraction of the distance to that profile. Larger holds the direction longer."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -8664,7 +9532,7 @@
  {
   "name": "match_surface",
   "title": "Match Surface",
-  "hint": "Match one natural patch boundary to a fixed reference. Compatible untrimmed, non-rational patches only. G1 changes two control rows; G2 changes three. Check the preview for folds before accepting.",
+  "hint": "Match one natural boundary of an untrimmed, non-rational patch to a fixed reference. The reference can be a trimmed face or a face of a solid: the boundary is fitted to its nearest edge, and the patch gets extra control points where it needs them. G1 changes two control rows; G2 changes three. Check the preview for folds before accepting.",
   "slots": [
    {
     "label": "Surface to change",
@@ -8699,7 +9567,8 @@
      "U min",
      "U max",
      "V min",
-     "V max"
+     "V max",
+     "Nearest edge (any face)"
     ]
    },
    {
@@ -9210,6 +10079,21 @@
     "default": true
    },
    {
+    "label": "Follow the rim between corners",
+    "type": "boolean",
+    "default": true
+   },
+   {
+    "label": "Use the longer way around the rim",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Fit to surface",
+    "type": "boolean",
+    "default": true
+   },
+   {
     "label": "Undo last face",
     "type": "action"
    }
@@ -9408,8 +10292,8 @@
  },
  {
   "name": "mesh_fit_surface",
-  "title": "Fit Surface to Region",
-  "hint": "Uses the triangles picked with Edit Region. Exact shapes (plane, cylinder, sphere, cone) are best for mechanical faces; the smooth patch follows organic regions and is trimmed to the outline you picked.",
+  "title": "Fit Region",
+  "hint": "Uses the selected triangles: pick them in Face mode (double-click a triangle to take its whole smooth patch) or with Edit Region. Exact shapes (plane, cylinder, sphere, cone) suit mechanical faces and report their size, axis and position; the smooth patch follows organic regions and is trimmed to the outline you picked.",
   "slots": [
    {
     "label": "Mesh (the selected region is used)",
@@ -9470,6 +10354,21 @@
     "default": 10,
     "min": 4,
     "max": 60
+   },
+   {
+    "label": "Create",
+    "type": "choice",
+    "default": "Surface trimmed to the region",
+    "options": [
+     "Surface trimmed to the region",
+     "Closed solid",
+     "Reference geometry only"
+    ]
+   },
+   {
+    "label": "Add reference geometry (plane or axis)",
+    "type": "boolean",
+    "default": true
    },
    {
     "label": "Preview result",
@@ -10083,6 +10982,11 @@
     "min": 0.01
    },
    {
+    "label": "Estimate the fit tolerance from the scan's noise",
+    "type": "boolean",
+    "default": true
+   },
+   {
     "label": "Fit tolerance",
     "type": "number",
     "default": 0.05,
@@ -10180,6 +11084,11 @@
     "default": 5,
     "unit": "mm",
     "min": 0.01
+   },
+   {
+    "label": "Estimate the fit tolerance from the scan's noise",
+    "type": "boolean",
+    "default": true
    },
    {
     "label": "Fit tolerance",
@@ -10606,7 +11515,7 @@
   "slots": [
    {
     "label": "Objects",
-    "accepts": "AnyObject",
+    "accepts": "Face, Edge, Plane, AnyObject, Vertex, MeshFace",
     "multi": true,
     "optional": false
    }
@@ -10750,14 +11659,222 @@
     "options": [
      "Untitled",
      "Untitled 2",
-     "helix-result",
-     "scaled-sweep-result",
-     "sew-merge-result",
+     "Untitled 3",
+     "Untitled 4",
+     "Untitled 5",
      "Untitled 6",
-     "helix-result",
-     "scaled-sweep-result",
-     "sew-merge-result",
-     "surface-fillet-result"
+     "Untitled 7",
+     "Untitled 8",
+     "motor-mount-direct-edit",
+     "Untitled 10",
+     "Untitled 11",
+     "Untitled 12",
+     "Untitled 13",
+     "Untitled 14",
+     "Untitled 15",
+     "Untitled 16",
+     "Untitled 17",
+     "Untitled 18",
+     "Untitled 19",
+     "Untitled 20",
+     "Untitled 21",
+     "Untitled 22",
+     "Untitled 23",
+     "Untitled 24",
+     "Untitled 25",
+     "Untitled 26",
+     "Untitled 27",
+     "Untitled 28",
+     "Untitled 29",
+     "Untitled 30",
+     "Untitled 31",
+     "Untitled 32",
+     "Untitled 33",
+     "Untitled 34",
+     "Untitled 35",
+     "Untitled 36",
+     "Untitled 37",
+     "Untitled 38",
+     "Untitled 39",
+     "Untitled 40",
+     "Untitled 41",
+     "Untitled 42",
+     "Untitled 43",
+     "wrench",
+     "Untitled 45",
+     "Untitled 46",
+     "Untitled 47",
+     "Untitled 48",
+     "Untitled 49",
+     "Untitled 50",
+     "Untitled 51",
+     "Untitled 52",
+     "Untitled 53",
+     "Untitled 54",
+     "Untitled 55",
+     "Untitled 56",
+     "Untitled 57",
+     "Untitled 58",
+     "Untitled 59",
+     "Untitled 60",
+     "Untitled 61",
+     "Untitled 62",
+     "Untitled 63",
+     "Untitled 64",
+     "Untitled 65",
+     "Untitled 66",
+     "Untitled 67",
+     "Untitled 68",
+     "Untitled 69",
+     "Untitled 70",
+     "Untitled 71",
+     "Untitled 72",
+     "Untitled 73",
+     "Untitled 74",
+     "Untitled 75",
+     "Untitled 76",
+     "Untitled 77",
+     "Untitled 78",
+     "Untitled 79",
+     "Untitled 80",
+     "Untitled 81",
+     "Untitled 82",
+     "Untitled 83",
+     "Untitled 84",
+     "Untitled 85",
+     "Untitled 86",
+     "Untitled 87",
+     "Untitled 88",
+     "Untitled 89",
+     "Untitled 90",
+     "Untitled 91",
+     "Untitled 92",
+     "Untitled 93",
+     "Untitled 94",
+     "Untitled 95",
+     "Untitled 96",
+     "Untitled 97",
+     "Untitled 98",
+     "Untitled 99",
+     "Untitled 100",
+     "Untitled 101",
+     "Untitled 102",
+     "Untitled 103",
+     "Untitled 104",
+     "Untitled 105",
+     "Untitled 106",
+     "Untitled 107",
+     "Untitled 108",
+     "Untitled 109",
+     "Untitled 110",
+     "Untitled 111",
+     "Untitled 112",
+     "Untitled 113",
+     "Untitled 114",
+     "Untitled 115",
+     "Untitled 116",
+     "Untitled 117",
+     "Untitled 118",
+     "Untitled 119",
+     "Untitled 120",
+     "Untitled 121",
+     "Untitled 122",
+     "Untitled 123",
+     "Untitled 124",
+     "Untitled 125",
+     "Untitled 126",
+     "Untitled 127",
+     "Untitled 128",
+     "Untitled 129",
+     "Untitled 130",
+     "Untitled 131",
+     "Untitled 132",
+     "Untitled 133",
+     "Untitled 134",
+     "Untitled 135",
+     "Untitled 136",
+     "Untitled 137",
+     "Untitled 138",
+     "Untitled 139",
+     "Untitled 140",
+     "Untitled 141",
+     "Untitled 142",
+     "Untitled 143",
+     "Untitled 144",
+     "Untitled 145",
+     "Untitled 146",
+     "Untitled 147",
+     "Untitled 148",
+     "Untitled 149",
+     "Untitled 150",
+     "Untitled 151",
+     "Untitled 152",
+     "Untitled 153",
+     "Untitled 154",
+     "Untitled 155",
+     "Untitled 156",
+     "Untitled 157",
+     "Untitled 158",
+     "Untitled 159",
+     "Untitled 160",
+     "Untitled 161",
+     "Untitled 162",
+     "Untitled 163",
+     "Untitled 164",
+     "Untitled 165",
+     "Untitled 166",
+     "Untitled 167",
+     "Untitled 168",
+     "Untitled 169",
+     "Untitled 170",
+     "Untitled 171",
+     "Untitled 172",
+     "Untitled 173",
+     "Untitled 174",
+     "Untitled 175",
+     "Untitled 176",
+     "Untitled 177",
+     "Untitled 178",
+     "Untitled 179",
+     "Untitled 180",
+     "Untitled 181",
+     "Untitled 182",
+     "Untitled 183",
+     "Untitled 184",
+     "Untitled 185",
+     "Untitled 186",
+     "Untitled 187",
+     "Untitled 188",
+     "Untitled 189",
+     "Untitled 190",
+     "Untitled 191",
+     "Untitled 192",
+     "Untitled 193",
+     "Untitled 194",
+     "Untitled 195",
+     "Untitled 196",
+     "Untitled 197",
+     "Untitled 198",
+     "Untitled 199",
+     "Untitled 200",
+     "Untitled 201",
+     "Untitled 202",
+     "Untitled 203",
+     "Untitled 204",
+     "Untitled 205",
+     "Untitled 206",
+     "Untitled 207",
+     "Untitled 208",
+     "Untitled 209",
+     "Untitled 210",
+     "Untitled 211",
+     "Untitled 212",
+     "Untitled 213",
+     "Untitled 214",
+     "Untitled 215",
+     "Untitled 216",
+     "Untitled 217",
+     "Untitled 218"
     ]
    }
   ],
@@ -11025,7 +12142,7 @@
   "slots": [
    {
     "label": "Objects",
-    "accepts": "AnyObject",
+    "accepts": "Face, Edge, Plane, AnyObject, Vertex, MeshFace",
     "multi": true,
     "optional": false
    }
@@ -11524,7 +12641,7 @@
   "slots": [
    {
     "label": "Objects to pattern",
-    "accepts": "Solid, SurfaceObj, CurveObj",
+    "accepts": "Solid, SurfaceObj, CurveObj, Form",
     "multi": true,
     "optional": false
    },
@@ -11629,7 +12746,7 @@
   "slots": [
    {
     "label": "Objects to pattern",
-    "accepts": "Solid, SurfaceObj, CurveObj",
+    "accepts": "Solid, SurfaceObj, CurveObj, Form",
     "multi": true,
     "optional": false
    },
@@ -11746,7 +12863,7 @@
   "slots": [
    {
     "label": "Objects to pattern",
-    "accepts": "Solid, SurfaceObj, CurveObj",
+    "accepts": "Solid, SurfaceObj, CurveObj, Form",
     "multi": true,
     "optional": false
    },
@@ -11843,7 +12960,7 @@
   "slots": [
    {
     "label": "Objects to pattern",
-    "accepts": "Solid, SurfaceObj, CurveObj",
+    "accepts": "Solid, SurfaceObj, CurveObj, Form",
     "multi": true,
     "optional": false
    },
@@ -11979,7 +13096,7 @@
   "slots": [
    {
     "label": "Objects to pattern",
-    "accepts": "Solid, SurfaceObj, CurveObj",
+    "accepts": "Solid, SurfaceObj, CurveObj, Form",
     "multi": true,
     "optional": false
    },
@@ -12519,7 +13636,7 @@
  {
   "name": "rebuild_surface",
   "title": "Rebuild Surface",
-  "hint": "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.",
+  "hint": "Rebuild a surface as one smooth patch through an even grid of points; a surface of several faces is rebuilt one patch per face and joined again. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.",
   "slots": [
    {
     "label": "Surface or face",
@@ -12547,6 +13664,15 @@
     "label": "Keep the original",
     "type": "boolean",
     "default": true
+   },
+   {
+    "label": "Join tolerance for several faces (0 = automatic)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100,
+    "help": "A surface made of several faces is rebuilt one patch per face and the patches are joined again along their shared edges. Automatic is 0.2% of the surface's size."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -13369,7 +14495,7 @@
   "slots": [
    {
     "label": "Objects",
-    "accepts": "AnyObject",
+    "accepts": "Face, Edge, Plane, AnyObject, Vertex, MeshFace",
     "multi": true,
     "optional": false
    }
@@ -13490,7 +14616,7 @@
   "slots": [
    {
     "label": "Objects",
-    "accepts": "AnyObject",
+    "accepts": "Face, Edge, Plane, AnyObject, Vertex, MeshFace",
     "multi": true,
     "optional": false
    }
@@ -13605,6 +14731,71 @@
    {
     "label": "Add detail (more points)",
     "type": "action"
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "sculpt_face",
+  "title": "Sculpt Face",
+  "hint": "Pick a flat, four-sided face of a solid, then set the height and size of the bump. The face's outline stays where it is, so the neighbouring faces meet the new surface at a sharp edge. If the result would not be a valid solid, nothing changes.",
+  "slots": [
+   {
+    "label": "Flat face to sculpt",
+    "accepts": "Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Height (negative pushes in)",
+    "type": "number",
+    "default": 3,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Bump radius",
+    "type": "number",
+    "default": 15,
+    "unit": "mm",
+    "min": 0.1,
+    "max": 100000
+   },
+   {
+    "label": "Falloff",
+    "type": "choice",
+    "default": "Smooth",
+    "options": [
+     "Smooth",
+     "Linear",
+     "Sharp"
+    ]
+   },
+   {
+    "label": "Move the bump across",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Move the bump up",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -100000,
+    "max": 100000
+   },
+   {
+    "label": "Detail (more points)",
+    "type": "integer",
+    "default": 3,
+    "min": 1,
+    "max": 5
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -13732,13 +14923,19 @@
  {
   "name": "shell",
   "title": "Shell",
-  "hint": "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness.",
+  "hint": "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness. To make some walls thicker or thinner, pick them in the optional slot and set their thickness.",
   "slots": [
    {
     "label": "Faces to remove",
     "accepts": "Solid, Face",
     "multi": true,
     "optional": false
+   },
+   {
+    "label": "Faces with a different wall (optional)",
+    "accepts": "Face",
+    "multi": true,
+    "optional": true
    }
   ],
   "params": [
@@ -13757,6 +14954,13 @@
      "Inside",
      "Outside"
     ]
+   },
+   {
+    "label": "Wall thickness on those faces",
+    "type": "number",
+    "default": 4,
+    "unit": "mm",
+    "min": 0.001
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -13826,13 +15030,19 @@
  {
   "name": "sim_force",
   "title": "Force",
-  "hint": "Pick the faces the force pushes on, enter its size and direction. It is spread evenly over the faces.",
+  "hint": "Pick the faces the force pushes on, enter its size, and choose its direction: into the face, along an axis, a custom vector (X, Y, Z), tilted from the face normal, or along an edge or plane. It is spread evenly over the faces, or over a circle or rectangle you place on one flat face (Apply to).",
   "slots": [
    {
     "label": "Faces to load",
     "accepts": "Face",
     "multi": true,
     "optional": false
+   },
+   {
+    "label": "Direction taken from (edge, plane or face)",
+    "accepts": "Face, Edge, Plane",
+    "multi": false,
+    "optional": true
    }
   ],
   "params": [
@@ -13855,8 +15065,120 @@
      "+Z",
      "-X",
      "-Y",
-     "-Z"
+     "-Z",
+     "Custom: type X, Y, Z",
+     "Tilted from the face normal",
+     "Along an edge, or a plane's normal"
     ]
+   },
+   {
+    "label": "Direction X",
+    "type": "number",
+    "default": 0,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Direction Y",
+    "type": "number",
+    "default": 0,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Direction Z",
+    "type": "number",
+    "default": -1,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Tilt from the face normal (0° straight in, 90° along the face)",
+    "type": "number",
+    "default": 30,
+    "unit": "°",
+    "min": 0,
+    "max": 90,
+    "help": "Straight into a flat face is 0°. Raising it leans the load toward sliding across the face (90° is pure shear). Turn around the normal chooses which way it leans."
+   },
+   {
+    "label": "Turn around the face normal",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   },
+   {
+    "label": "Reverse the direction",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Apply to",
+    "type": "choice",
+    "default": "The whole face",
+    "options": [
+     "The whole face",
+     "A circle on the face",
+     "A rectangle on the face"
+    ]
+   },
+   {
+    "label": "Centre across the face",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000,
+    "help": "How far the centre of the area is from the middle of the face, along the face's own X reference (the part of the model's +X lying in the face; +Y for a face square to X)."
+   },
+   {
+    "label": "Centre up the face",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000,
+    "help": "How far the centre of the area is from the middle of the face, at right angles to 'across', counter-clockwise seen from outside the face."
+   },
+   {
+    "label": "Circle radius",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle width",
+    "type": "number",
+    "default": 10,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle height",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle turn",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
    },
    {
     "label": "The force is the total over all picked faces",
@@ -13869,8 +15191,15 @@
  {
   "name": "sim_gravity",
   "title": "Gravity",
-  "hint": "The part's own weight. Gravity pulls along the chosen direction; 1 g is Earth gravity.",
-  "slots": [],
+  "hint": "The part's own weight. Gravity pulls along the chosen direction (an axis, a custom vector, or an edge or plane); 1 g is Earth gravity.",
+  "slots": [
+   {
+    "label": "Direction taken from (edge, plane or face)",
+    "accepts": "Face, Edge, Plane",
+    "multi": false,
+    "optional": true
+   }
+  ],
   "params": [
    {
     "label": "Gravity",
@@ -13890,8 +15219,59 @@
      "+Z",
      "-X",
      "-Y",
-     "-Z"
+     "-Z",
+     "Custom: type X, Y, Z",
+     "Along an edge, or a plane's normal"
     ]
+   },
+   {
+    "label": "Direction X",
+    "type": "number",
+    "default": 0,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Direction Y",
+    "type": "number",
+    "default": 0,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Direction Z",
+    "type": "number",
+    "default": -1,
+    "unit": "",
+    "min": -1000000000,
+    "max": 1000000000,
+    "help": "The components of the direction in the model's X, Y and Z axes. Only their ratio matters: 1, 1, 0 and 5, 5, 0 point the same way. The size of the load is set separately."
+   },
+   {
+    "label": "Tilt from the face normal (0° straight in, 90° along the face)",
+    "type": "number",
+    "default": 30,
+    "unit": "°",
+    "min": 0,
+    "max": 90,
+    "help": "Straight into a flat face is 0°. Raising it leans the load toward sliding across the face (90° is pure shear). Turn around the normal chooses which way it leans."
+   },
+   {
+    "label": "Turn around the face normal",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   },
+   {
+    "label": "Reverse the direction",
+    "type": "boolean",
+    "default": false
    },
    {
     "label": "The force is the total over all picked faces",
@@ -13904,7 +15284,7 @@
  {
   "name": "sim_pressure",
   "title": "Pressure",
-  "hint": "Pick faces that are pressed on (positive pushes into the part), enter the pressure in MPa (N/mm²).",
+  "hint": "Pick faces that are pressed on (positive pushes into the part), enter the pressure in MPa (N/mm²). To press on only part of a flat face, set Apply to a circle or rectangle.",
   "slots": [
    {
     "label": "Faces to load",
@@ -13929,6 +15309,66 @@
     "options": [
      "-"
     ]
+   },
+   {
+    "label": "Apply to",
+    "type": "choice",
+    "default": "The whole face",
+    "options": [
+     "The whole face",
+     "A circle on the face",
+     "A rectangle on the face"
+    ]
+   },
+   {
+    "label": "Centre across the face",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000,
+    "help": "How far the centre of the area is from the middle of the face, along the face's own X reference (the part of the model's +X lying in the face; +Y for a face square to X)."
+   },
+   {
+    "label": "Centre up the face",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": -1000000,
+    "max": 1000000,
+    "help": "How far the centre of the area is from the middle of the face, at right angles to 'across', counter-clockwise seen from outside the face."
+   },
+   {
+    "label": "Circle radius",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle width",
+    "type": "number",
+    "default": 10,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle height",
+    "type": "number",
+    "default": 5,
+    "unit": "mm",
+    "min": 0.001,
+    "max": 1000000
+   },
+   {
+    "label": "Rectangle turn",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
    },
    {
     "label": "The force is the total over all picked faces",
@@ -14347,7 +15787,7 @@
  {
   "name": "split_body",
   "title": "Split Body",
-  "hint": "Pick the body, then what cuts it. Each piece becomes its own body.",
+  "hint": "Pick the body, then what cuts it: a plane, face, surface, solid or a sketch. A sketch cuts straight through the body along its plane's normal: a line across the whole body gives two pieces, a closed shape inside the outline gives the plug it encloses and the body with a pocket. A line that stops inside the body is refused. Each piece becomes its own body.",
   "slots": [
    {
     "label": "Body to split",
@@ -14357,12 +15797,18 @@
    },
    {
     "label": "Splitting tool (plane, face, surface or solid)",
-    "accepts": "Solid, SurfaceObj, Face, Plane",
+    "accepts": "Solid, SurfaceObj, AnyCurve, Face, Plane",
     "multi": false,
     "optional": false
    }
   ],
-  "params": [],
+  "params": [
+   {
+    "label": "Delete the cutting tool afterward",
+    "type": "boolean",
+    "default": true
+   }
+  ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
  },
  {
@@ -14392,6 +15838,11 @@
      "Split (cut across the face)",
      "Imprint (mark curves on the face)"
     ]
+   },
+   {
+    "label": "Delete the cutting tool afterward",
+    "type": "boolean",
+    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14404,7 +15855,7 @@
    {
     "label": "Surface to split",
     "accepts": "SurfaceObj, Face",
-    "multi": false,
+    "multi": true,
     "optional": false
    },
    {
@@ -14424,6 +15875,11 @@
      "Separate surfaces"
     ],
     "help": "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color."
+   },
+   {
+    "label": "Delete the cutting tool afterward",
+    "type": "boolean",
+    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14431,7 +15887,7 @@
  {
   "name": "subtract",
   "title": "Subtract",
-  "hint": "Pick the base body, then the bodies to combine with it.",
+  "hint": "Pick the body to cut from, then the bodies to cut with. A surface can cut a surface too: an open tube or sheet is closed off in your mind's eye, whatever part of the target lies inside it is removed, and the cut is filled with the tool's walls (or left open by turning that off).",
   "slots": [
    {
     "label": "Body to cut from",
@@ -14451,6 +15907,12 @@
     "label": "Keep tool bodies",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Fill the cut with the tool's walls",
+    "type": "boolean",
+    "default": true,
+    "help": "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14535,6 +15997,18 @@
     "optional": true
    },
    {
+    "label": "Guide curve: the profile grows and shrinks with its distance (optional)",
+    "accepts": "CurveObj, Edge",
+    "multi": true,
+    "optional": true
+   },
+   {
+    "label": "Second guide curve (optional)",
+    "accepts": "CurveObj, Edge",
+    "multi": true,
+    "optional": true
+   },
+   {
     "label": "Target body (found automatically)",
     "accepts": "Solid",
     "multi": false,
@@ -14542,6 +16016,15 @@
    }
   ],
   "params": [
+   {
+    "label": "Between two guides",
+    "type": "choice",
+    "default": "Resize evenly",
+    "options": [
+     "Resize evenly",
+     "Stretch between the guides"
+    ]
+   },
    {
     "label": "Profile orientation",
     "type": "choice",
@@ -14572,6 +16055,15 @@
     "label": "Scale along the path (optional)",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Twist along the path",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -3600,
+    "max": 3600,
+    "help": "Turns the profile steadily about the path as it travels, by this many degrees from start to end (right-handed for a positive angle). Builds the result through 40 sections along the path."
    },
    {
     "label": "Operation",
@@ -14646,9 +16138,30 @@
     "accepts": "CurveObj, Edge",
     "multi": true,
     "optional": true
+   },
+   {
+    "label": "Guide curve: the profile grows and shrinks with its distance (optional)",
+    "accepts": "CurveObj, Edge",
+    "multi": true,
+    "optional": true
+   },
+   {
+    "label": "Second guide curve (optional)",
+    "accepts": "CurveObj, Edge",
+    "multi": true,
+    "optional": true
    }
   ],
   "params": [
+   {
+    "label": "Between two guides",
+    "type": "choice",
+    "default": "Resize evenly",
+    "options": [
+     "Resize evenly",
+     "Stretch between the guides"
+    ]
+   },
    {
     "label": "Profile orientation",
     "type": "choice",
@@ -14679,6 +16192,15 @@
     "label": "Scale along the path (optional)",
     "type": "text",
     "default": ""
+   },
+   {
+    "label": "Twist along the path",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -3600,
+    "max": 3600,
+    "help": "Turns the profile steadily about the path as it travels, by this many degrees from start to end (right-handed for a positive angle). Builds the result through 40 sections along the path."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14686,12 +16208,12 @@
  {
   "name": "thicken",
   "title": "Thicken",
-  "hint": "Pick a surface to turn into a solid, then pull the orange arrow or type a thickness. Negative thickness goes the other way.",
+  "hint": "Pick a surface to turn into a solid, then pull the orange arrow or type a thickness. Negative thickness goes the other way. Pick faces of a solid instead to grow them outward (positive) or cut them inward (negative) by that thickness.",
   "slots": [
    {
     "label": "Surface",
-    "accepts": "SurfaceObj",
-    "multi": false,
+    "accepts": "SurfaceObj, Face",
+    "multi": true,
     "optional": false
    }
   ],
@@ -14704,6 +16226,65 @@
    },
    {
     "label": "Keep the original surface",
+    "type": "boolean",
+    "default": false
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "thread",
+  "title": "Thread",
+  "hint": "Pick the round face of a bolt, pin or boss for an external thread, or the wall of a hole you already drilled for an internal one. The thread takes its size from the face: a pin's diameter is the thread's major diameter, and a hole's diameter is the tap drill. The pitch is the standard coarse one for that size, or type your own. The thread starts at the higher end of the face (tick Start at the other end to swap) and runs the length you set, the whole face by default. Cutting a thread takes a few seconds, so the live preview is off: tick Preview to see it before you press OK, and expect a pause each time you change something.",
+  "slots": [
+   {
+    "label": "Round faces to thread",
+    "accepts": "Face",
+    "multi": true,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Pitch",
+    "type": "choice",
+    "default": "Standard coarse metric",
+    "options": [
+     "Standard coarse metric",
+     "Custom"
+    ]
+   },
+   {
+    "label": "Custom pitch",
+    "type": "number",
+    "default": 1.5,
+    "unit": "mm",
+    "min": 0.05,
+    "max": 100
+   },
+   {
+    "label": "Thread length (0 = whole face)",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "Start this far in from the end",
+    "type": "number",
+    "default": 0,
+    "unit": "mm",
+    "min": 0,
+    "max": 100000
+   },
+   {
+    "label": "Start at the other end",
+    "type": "boolean",
+    "default": false
+   },
+   {
+    "label": "Left-hand thread",
     "type": "boolean",
     "default": false
    }
@@ -14817,6 +16398,11 @@
      "The front side (where the tool's normal points, or outside a solid)",
      "The back side (the other side, or inside a solid)"
     ]
+   },
+   {
+    "label": "Delete the cutting tool afterward",
+    "type": "boolean",
+    "default": true
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14844,6 +16430,12 @@
     "label": "Keep tool bodies",
     "type": "boolean",
     "default": false
+   },
+   {
+    "label": "Fill the cut with the tool's walls",
+    "type": "boolean",
+    "default": true,
+    "help": "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open."
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
@@ -14891,13 +16483,19 @@
  {
   "name": "warp",
   "title": "Warp",
-  "hint": "Pick bodies, surfaces, curves, forms or meshes, then choose Bend, Twist, Taper or Stretch along an axis. The part of the shape before the start stays put and the part beyond the end moves rigidly with it. Higher smoothness gives solids and surfaces more control points to follow a strong bend.",
+  "hint": "Pick bodies, surfaces, curves, forms or meshes, then choose Bend, Twist, Taper or Stretch along an axis. The part of the shape before the start stays put and the part beyond the end moves rigidly with it. Higher smoothness gives solids and surfaces more control points to follow a strong bend. To change only some faces of a solid, pick them under Faces to warp instead: each stays inside its own outline, the other faces are untouched, and the body is left alone if the result would not be a valid solid.",
   "slots": [
    {
     "label": "What to warp",
     "accepts": "Solid, SurfaceObj, CurveObj, Form, MeshObj",
     "multi": true,
-    "optional": false
+    "optional": true
+   },
+   {
+    "label": "Faces to warp (instead of the whole body)",
+    "accepts": "Face",
+    "multi": true,
+    "optional": true
    }
   ],
   "params": [
@@ -14981,6 +16579,53 @@
     "unit": "mm",
     "min": 0.001,
     "max": 5
+   }
+  ],
+  "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
+ },
+ {
+  "name": "wrap_curve",
+  "title": "Wrap Curve",
+  "hint": "Lay flat curves onto a surface by distance: the curve is placed where the surface is nearest to it, then every point is reached by walking that far over the surface. Lengths stay true on planes, cylinders and cones. Slide and rotate move the pattern on the face.",
+  "slots": [
+   {
+    "label": "Flat curves to wrap",
+    "accepts": "AnyCurve, Edge",
+    "multi": true,
+    "optional": false
+   },
+   {
+    "label": "Surface to wrap onto",
+    "accepts": "Solid, SurfaceObj, Face",
+    "multi": false,
+    "optional": false
+   }
+  ],
+  "params": [
+   {
+    "label": "Slide across",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Slide along",
+    "type": "number",
+    "default": 0,
+    "unit": "mm"
+   },
+   {
+    "label": "Rotate",
+    "type": "number",
+    "default": 0,
+    "unit": "°",
+    "min": -360,
+    "max": 360
+   },
+   {
+    "label": "Keep the original curves",
+    "type": "boolean",
+    "default": false
    }
   ],
   "note": "Slots and parameters some commands add only once started are not listed; run_command with commit:false shows them."
