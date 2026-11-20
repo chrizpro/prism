@@ -10,7 +10,7 @@ Models and scripts are MIT licensed under the repository [license](../LICENSE). 
 
 ## What is here
 
-Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, CAM, Mold, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
+Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, Direct Modeling, Mesh, CAM, Mold, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
 
 | Workflow | Models (catalog ID) |
 | --- | --- |
@@ -35,6 +35,9 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | NURBS | Porcelain spoon rest (`porcelain-spoon-rest`) |
 | NURBS | Three-lobed handbell (`three-lobed-handbell`) |
 | NURBS | Streamlined train nose (`streamlined-train-nose`) |
+| Mesh / Solid | Scanned pillow block rebuilt (`pillow-block-scan`) |
+| Mesh / Surface | Turned knob scan with fitted primitives (`turned-knob-scan`) |
+| Direct Modeling / Solid | Motor mount revised without history (`motor-mount-direct-edit`) |
 
 Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 
@@ -100,6 +103,16 @@ Both builders share `demo_session.py`. Build the current Desktop into `artifacts
 `python gallery/build_arc_soap_mold.py --phase geometry --discovery <automation.json>` creates **Arc soap** and its two cavity-up tooling halves ([#136](https://github.com/chrizpro/prism/issues/136)); run `--phase cam` next for two named CAM setups with facing, peck drilling, 3D roughing and ball finishing. `--phase verify` repeats saved-setup/source reviews, sampled stock checks and viewport captures without rebuilding geometry or paths. Native checkpoints and setup sheets go under `artifacts/arc-soap-mold/`. The final project and separate two-solid `.prism_mld` copy are in `gallery/models/`. Native solids only, no Freeform or renderer. [Canonical scope and actual evidence](../docs/interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study).
 
 `python gallery/build_serein_phone.py --discovery <automation.json>` builds **Serein S1** ([#137](https://github.com/chrizpro/prism/issues/137)), a 45-component solid-modeled phone with inset display, detailed rear optics, side controls and actual port/speaker cuts. Pillow and NumPy generate the original embedded wallpaper; the rest uses native MCP/cadkit solids. Checkpoints and actual front/rear Prism screenshots go to `artifacts/serein-phone/`. The rear capture temporarily rotates the assembly for viewport lighting and reopens the saved original afterward. No Freeform or renderer. [Canonical scope, verification and bug findings](../docs/interface/gallery/README.md#serein-s1-phone--november-16-native-study).
+
+## Mesh and Direct Modeling studies (2026-11-19)
+
+These studies are built by maintained headless tests, which assert what each step recovers. Run them with `PRISM_GALLERY_OUT` set to a folder to save the documents: `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter "TestId=GAL-H201|TestId=GAL-H202|TestId=GAL-H203"`.
+
+- **Scanned pillow block** ([GAL-H201](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). The scan is synthetic: an 80 × 50 × 10 mm base with two Ø8 holes and a Ø36 boss with a Ø20 bore, 40 mm tall, remeshed to 0.8 mm with 0.03 mm normal noise. It is imported with Reduce faces at 60%. Smart patch and Fit Region read the top face at Z = 10, the boss as Ø36 and the bore as Ø20 (each within 0.05 mm). Two Section Sketches at 5 and 25 mm are extruded and joined, the rebuilt volume is within 1% of the original, and at least 99% of the scan lies within 0.15 mm of it in Deviation. The rebuilt part sits beside the scan; the sketches are kept hidden for editing, and the fitted bore surface is hidden.
+- **Turned knob scan** ([GAL-H202](../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs)). A Ø30 grip, a cone narrowing to Ø16 over 14 mm and an R8 dome, scanned at 0.6 mm with 0.025 mm noise. Smart patch picks each face, and Fit Region returns trimmed surfaces: Ø30 grip, a 53.13° included-angle cone (within 0.3°) and a Ø16 dome centred on the axis. The scan is moved 40 mm aside so the coloured surfaces read on their own.
+- **Motor mount revision** ([GAL-H203](../Prism.Tests/Headless/DirectModeling/DirectGalleryStudies.cs)). A history-free plate, as from STEP, is lengthened 15 mm with Move Face, its bore opened from Ø30 to Ø32 with Offset Face, one corner hole closed with Delete Face, and the pad's walls given 6° with Draft. The original stays beside it as "As imported".
+
+These are workflow demonstrations on synthetic scans, not measurements of real parts.
 
 ## November 16 rendered additions
 

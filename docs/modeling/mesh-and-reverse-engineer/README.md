@@ -7,7 +7,7 @@ The owner approved the combined Mesh tab and the conversion workflow on 2026-11-
 | Prepare | Import Mesh (with Import Point Cloud and Reconstruct Mesh in its menu), Align |
 | Analyze | Mesh Quality (with Clear Colors in its menu), Deviation |
 | Repair | Repair, Edit Region, Remesh |
-| Convert | Section Sketch |
+| Convert | Section Sketch, Fit Region |
 
 Select, Datum, Transform, Inspect and Appearance remain available as shared sections. Print Check, Wall Thickness and Overhang & Orientation are available in CAM's print preparation. Use File → Export for mesh files. Superseded tools, including standalone Reduce and the triangle-by-triangle Mesh to Solid, use the command legacy attribute and remain available to existing scripts and saved feature recipes.
 
@@ -86,7 +86,50 @@ To build your own parametric part:
 
 If automation fits the wrong local shape, use Edit Region and Convert Mesh to choose the intended surface type. For unwanted mesh bumps, use Edit Region → Delete and patch or Smooth selected triangles. Deviation helps review the result; it does not change the geometry.
 
+## Mesh polish (approved and delivered 2026-11-19)
+
+**Owner decisions, 2026-11-19:** Reduce faces offers both a percentage and a triangle count and is off unless turned on. Draw Faces' Fit to surface is on by default. Section Sketch adds tangency automatically and estimates its tolerance from the scan's noise. The owner then asked for the Mesh tab to handle a wide range of scans without deviating much from the existing tools, and for a demonstration of importing a mesh and using Smart patch to create a surface or solid. Fit Region (MSH-P05) delivers that. Draw Faces stays in Edit Region's menu with the rim fixes below. Still open: the triangle count that triggers the reduction suggestion (2 million is used for now).
+
+### Fit Region (MSH-P05)
+
+**Mesh → Convert → Fit Region** fits one shape to the triangles picked with Edit Region (Smart patch, brush, rectangle or lasso).
+
+- **Fit:** Automatic, Plane, Cylinder, Sphere, Cone, a smooth NURBS patch inside the outline, or a rectangular NURBS grid. An explicit shape is always fitted to the whole region. Automatic takes the simplest shape whose error is close to the best and within the tolerance, otherwise a smooth patch.
+- **Accuracy:** the fit minimises the true distance from the region's vertices to the shape (Levenberg–Marquardt) and ignores points more than three times the noise away, such as the edge of a neighbouring face. Detection on triangle centres alone read a Ø12 hole as Ø11.963 with 0.11° tilt. The vertex fit reads Ø12 ± 0.01 with under 0.05° tilt.
+- **Readout:** diameter, axis point and direction, length along the axis, included angle and apex for a cone, centre for a sphere, point and normal for a plane, tilt from the nearest world axis, RMS and largest error.
+- **Create:** a surface trimmed to the region (default: a plane keeps the holes inside its outline, a cylinder or cone wall has no caps), a closed solid (for a cutting or joining body), or reference geometry only. **Add reference geometry** (default on) adds a construction plane for a plane and an orange axis line for a cylinder or cone.
+- Smart patch now also recognises cones and long curved faces bounded by sharp edges. When segmentation misses, it floods across smooth edges up to the first sharp one and keeps the flood if one cylinder, cone or sphere fits all of it.
+
+A hole a Smart patch click cannot reach is still easiest to rebuild with Section Sketch: sketch the hole, then extrude or cut it.
+
+### Section Sketch cleanup (MSH-P04)
+
+- **Estimate the fit tolerance from the scan's noise** (default on). Each outline is resampled and its noise measured from how the points scatter, so steady curvature does not count as noise. The tolerance is four times the noise, at least 0.01 mm and at most 0.5% of the outline. Outlines with too few points use the typed tolerance. The panel shows the tolerance, the noise and the number of lines and arcs before Apply. A noisy box section that produced 33 lines and 32 arcs at a fixed tolerance gives 4 lines.
+- **Fit Section Curve** in the sketch: pick a start and an end on the orange trace. Curves lying along that span are replaced by one fitted line, arc or spline. A click near an existing curve end (green dot) starts exactly there and shares that point, so the profile stays connected. Curves with curve constraints are kept and counted. Selecting one curve first replaces only that curve, as before.
+- **Make tangent to neighbouring curves** (default on): when a new line or arc continues a line or arc within 10°, a tangent constraint is added. Splines are not constrained.
+- Lines are total-least-squares fits. Arcs are least-squares circles through the chosen end points. Splines use the fewest through points whose curve stays within the tolerance: they start from local averages and are corrected toward the samples.
+- The panel reports the last fit's largest deviation, its tolerance, how many curves it replaced and how many tangencies it added.
+
+### Import Mesh: reduction and large files (MSH-P01, MSH-P02)
+
+- **Reduce faces** (off by default) keeps a percentage of the triangles or reduces to a triangle count for the whole file, shared between bodies by size. Open rims stay in place. It runs in the background after units, up axis, welding and repair. The result row and message show the count before and after. The setting is remembered with the other options. Scripts pass `reduce_percent` or `reduce_to` to `mesh_import`.
+- Above 2,000,000 triangles the panel suggests Reduce faces. When the mesh would need more than about 70% of the free memory, the panel warns before Import. Running out of memory is reported as a message instead of closing the app.
+- OBJ files are read line by line, so a file is no longer limited to one .NET string (about 1 GB of text). A 5.1-million-triangle, 196 MB OBJ read in 3 to 4.5 s.
+- Reductions of meshes over 1,000,000 triangles to under a third first merge vertices on a grid to about three times the target, then run the careful reduction. The 5.1-million-triangle grid reduced to 10% in 29 s with 0.84 GB, instead of 102 s with 2.5 GB, and without non-manifold edges. Cancel takes effect between the two stages.
+
+### Draw Faces: follow the rim and fit to surface (MSH-P03)
+
+- **Follow the rim between corners** (default on): when two consecutive corners are vertices of the same open rim, the side between them follows the rim the shorter way and stitches every rim edge it passes. **Use the longer way around the rim** switches direction. Faces may therefore have many corners. Three clicks on a rim close the whole opening.
+- **Fit to surface** (default on) splits the new faces to the size of the mesh around them and places their inner points on the surface fitted to that mesh, as Fill Hole → Smooth does. Points on the outline do not move. If the fitted patch would fold or overlap, the flat patch is kept and the panel says so.
+- The stitch preview draws rim edges that are still open in red.
+
+### Remesh speed
+
+Remeshing a CAD-exported mesh was very slow. It checked whether a vertex lies on an open border by walking every neighbour each time, which was quadratic around the many-neighbour vertices that split slivers leave behind, and each collapse scanned every fixed (sharp) edge. Boundary status is now kept per pass and a collapse looks only at the fixed edges at its own vertex. The 113 Mesh headless tests pass without changes to their expectations. The pillow-block gallery study, whose fake scan remeshes a 5,064-sliver CAD export to 56,800 triangles at 0.8 mm, now runs in about 70 s instead of 19 minutes; almost all of that time is still the remesh, because the slivers first split into about 350,000 triangles. Projecting onto a copy of the input with its long edges split was also tried: it gave no further speed-up on this part and changed results through rounding (REV-H102), so it was dropped.
+
 ## Maintained tests
+
+[Fit Region tests](../../../Prism.Tests/Headless/Mesh/MeshFitRegionTests.cs) cover trimmed planes, uncapped cylinders with axis readout, the Create choices, and noisy spheres and cones. [Section cleanup tests](../../../Prism.Tests/Headless/Mesh/SectionCleanupTests.cs) cover span refits, tangency, spline smoothing and noise-based tolerance. [Import reduction tests](../../../Prism.Tests/Headless/Mesh/MeshImportReduceTests.cs) cover Reduce faces, the options panel and the streamed OBJ reader. [Draw Faces rim tests](../../../Prism.Tests/Headless/Mesh/MeshDrawFacesRimTests.cs) cover following a rim and fitting to a cylinder. [Gallery studies](../../../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs) run the pillow block and turned knob scans end to end.
 
 [Section Sketch and mesh selection tests](../../../Prism.Tests/Headless/Mesh/MeshSectionAndSelectionTests.cs) check repeated Apply and Done, angled sections, refitting and nominal dimensioning through save and reopen, and single-triangle selection, deletion and Undo.
 

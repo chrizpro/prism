@@ -665,6 +665,45 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/fold-stand-drawing.png?v=91c6b0e866fc2e48",
       "Bytes": 5150226,
       "Sha256": "27c15b2cd601d612929fa9cbfdf5abc48292f33838591789e2076007d6801f55"
+    },
+    {
+      "Id": "pillow-block-scan",
+      "Name": "Scanned pillow block rebuilt",
+      "Description": "A noisy scan imported with Reduce faces, measured with Smart patch and Fit Region (\u00d836 boss, \u00d820 bore), then rebuilt from two Section Sketches into a solid within 0.15 mm of the scan.",
+      "Workflow": "Mesh / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 1679989,
+      "Sha256": "f9648a8a00b2434934750d6d0093e3b3534631ff7d4e4cc4c32125729283a993",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pillow-block-scan.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pillow-block-scan.png?v=cd4a8a46f4f1c3b3"
+    },
+    {
+      "Id": "turned-knob-scan",
+      "Name": "Turned knob: fitted primitives",
+      "Description": "Smart patch and Fit Region turn a knob scan into trimmed cylinder, cone and sphere surfaces with their diameters, angle and axis.",
+      "Workflow": "Mesh / Surface",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 1221539,
+      "Sha256": "ed058b38cad6295f909932728e16cea5e75e927d88479891c0da7842ede74a1a",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/turned-knob-scan.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/turned-knob-scan.png?v=781f38ccb7c152ab"
+    },
+    {
+      "Id": "motor-mount-direct-edit",
+      "Name": "Motor mount revised by direct editing",
+      "Description": "A plate with no feature history, lengthened, rebored, a hole closed and its pad drafted with Move, Offset, Delete and Draft Face. The original sits beside it.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 92303,
+      "Sha256": "6fd5d9eaed6a6a7c7502f1ade691d509a6e6ac9d5211e520e6c13481266407b6",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/motor-mount-direct-edit.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/motor-mount-direct-edit.png?v=4a4188a2fb146d0c"
     }
   ]
 }

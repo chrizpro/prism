@@ -147,7 +147,20 @@ public static class MeshRemesh
             return (a + ab * t - p).Length;
         }
         double Len(int a, int b) => (_p[a] - _p[b]).Length;
-        bool IsBoundaryVertex(int v) { foreach (int x in _vn[v]) if (_edges[Key(v, x)].Count == 1) return true; return false; }
+        // Boundary status per vertex, refreshed at the start of each pass. Walking a vertex's neighbours every time was quadratic
+        // around the high-valence vertices that split CAD slivers leave behind.
+        bool[] _bnd = [];
+        void MarkBoundary()
+        {
+            _bnd = new bool[_p.Count];
+            foreach (var (k, l) in _edges) if (l.Count == 1) { _bnd[KA(k)] = true; _bnd[KB(k)] = true; }
+        }
+        bool IsBoundaryVertex(int v)
+        {
+            if (v < _bnd.Length) return _bnd[v];
+            foreach (int x in _vn[v]) if (_edges[Key(v, x)].Count == 1) return true;
+            return false;
+        }
 
         // ------------------------------------------------------------- driver
         public void Run()
@@ -224,6 +237,7 @@ public static class MeshRemesh
         // ------------------------------------------------------------- collapse
         void Collapse()
         {
+            MarkBoundary();
             var cand = _edges.Keys.Where(k => Len(KA(k), KB(k)) < _low).OrderBy(k => Len(KA(k), KB(k))).ToList();
             foreach (long k in cand)
             {
@@ -278,7 +292,8 @@ public static class MeshRemesh
                     if ((v0 == a || v0 == b || v1 == a || v1 == b) && (P(v0) - P(v1)).Length > _high) return false;
                 }
             }
-            // do it
+            // do it; the fixed edges at a are found through its neighbours (scanning every fixed edge made large remeshes quadratic)
+            var fixedAtA = _vn[a].Where(x => _fixedEdges.Contains(Key(a, x))).ToArray();
             foreach (int t in onEdge.ToArray()) RemoveTri(t);
             foreach (int t in _vt[a].ToArray())
             {
@@ -286,19 +301,20 @@ public static class MeshRemesh
                 RemoveTri(t);
                 AddTri(x == a ? b : x, y == a ? b : y, z == a ? b : z);
             }
-            foreach (long fk in _fixedEdges.Where(e => KA(e) == a || KB(e) == a).ToArray())
+            foreach (int x in fixedAtA)
             {
-                _fixedEdges.Remove(fk);
-                int x = KA(fk) == a ? KB(fk) : KA(fk);
+                _fixedEdges.Remove(Key(a, x));
                 if (x != b) _fixedEdges.Add(Key(b, x));
             }
             _p[b] = np;
+            if (a < _bnd.Length && _bnd[a] && b < _bnd.Length) _bnd[b] = true;
             return true;
         }
 
         // ------------------------------------------------------------- flip
         void Flip()
         {
+            MarkBoundary();
             foreach (long k in _edges.Keys.ToList())
             {
                 if (!_edges.TryGetValue(k, out var l) || l.Count != 2 || _fixedEdges.Contains(k)) continue;
@@ -350,6 +366,7 @@ public static class MeshRemesh
 
         void Smooth()
         {
+            MarkBoundary();
             for (int v = 0; v < _p.Count; v++)
             {
                 if (_vt[v].Count == 0 || _cls[v] == 2) continue;
