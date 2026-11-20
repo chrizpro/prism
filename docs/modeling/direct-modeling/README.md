@@ -262,6 +262,16 @@ The Windows desktop smoke test started each case with a fresh STEP import. Eight
 
 Rebuild with [BuildGearcaseStep.cs](../../../gallery/BuildGearcaseStep.cs) via `dotnet run --file gallery/BuildGearcaseStep.cs -- <output.step>` with Prism's native libraries on the search path. Run [test_gearcase_direct.py](../../../gallery/test_gearcase_direct.py) with `--step`, `--out` and the private desktop `--discovery` path. Add `--preview` to create the two native models and comparison in the output folder.
 
+### Open-brace spindle carrier
+
+The owner approved a square spindle carrier that turns into an open-brace design with a visibly wider base. The [source STEP](../../../gallery/extras/spindle-carrier-source.step) opens as a single solid with a 134 mm footprint, a Ø58 mm through-bore, eight counterbores and two round mounting holes. [Fresh import](../../../gallery/extras/spindle-carrier-imported.prism).
+
+The [revised carrier](../../../gallery/models/spindle-carrier-revised.prism) has a 202 mm slotted base, tapered shoulders, two rounded triangular through-windows, a Ø74 mm bore with a Ø82 mm seat and six countersinks. The workflow joins widening stock to the imported solid and cuts the new pattern, windows and slots. **Offset Face** enlarges the cylindrical bore from Ø70 to Ø74 mm before the seat is cut. **Move Face** shifts the underside down 3 mm. The circular pattern was replaced with Boolean tooling for this revision after the gearbox test exposed the separate [Edit Pattern limitation](https://github.com/chrizpro/prism/issues/44).
+
+On Windows desktop source `be8a459`, the script checked single-solid validity and positive volume after the Boolean and direct-edit operations. It measured the base width, bore and seat radii, verified the two slots and six countersinks and checked both through-windows with 4 mm square probes. It then reopened both native saves for matching monochrome renders. [Recorded measurements and STEP hash](evidence/spindle-carrier.json) · [Comparison](../../../gallery/previews/spindle-carrier-revised.png) · [Direct Modeling verification #40](https://github.com/chrizpro/prism/issues/40).
+
+To rebuild, run [BuildSpindleCarrierStep.cs](../../../gallery/BuildSpindleCarrierStep.cs) with `dotnet run --file gallery/BuildSpindleCarrierStep.cs -- <output-folder>` and Prism's native libraries on the search path. Then run [revise_spindle_carrier.py](../../../gallery/revise_spindle_carrier.py) with the same `--folder` and a private desktop `--discovery` path.
+
 ### Pump-mount bracket rework (2026-11-20)
 
 A stress test of Direct Modeling on a history-free STEP: turn a plain pump-mount bracket into a visibly different part using only edits to the imported geometry. The [source STEP](../../../gallery/extras/pump-bracket-source.step) is one 63-face solid, 220 × 130 × 150 mm: a chamfered base with R12 corners, a square tower, a Ø96 flange boss with a Ø60 bore and six Ø6.6 holes on a 78 mm circle, two 10 mm triangular gussets, slotted and counterbored feet, two dowels and a cable pocket. Compare the [fresh import](../../../gallery/extras/pump-bracket-imported.prism) with the [revised model](../../../gallery/models/pump-bracket-revised.prism) (history-free, saved from the revised STEP) in the [same-camera comparison](../../../gallery/previews/pump-bracket-revised.png).

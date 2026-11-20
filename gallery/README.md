@@ -8,6 +8,10 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## Open-brace spindle carrier gallery candidate
+
+A solid spindle upright becomes a wide, slotted carrier with tapered braces and open windows. [Source STEP](extras/spindle-carrier-source.step) · [Fresh import](extras/spindle-carrier-imported.prism) · [Revised model](models/spindle-carrier-revised.prism) · [Matched-camera preview](previews/spindle-carrier-revised.png) · [Workflow and verification](../docs/modeling/direct-modeling/README.md#open-brace-spindle-carrier).
+
 ## Pump-mount bracket rework
 
 A plain 63-face STEP bracket reworked into a visibly different part by Direct Modeling alone: wider base, taller tapered and rounded tower, bigger flange with eight bolts, thicker gussets, tapped and engraved. [Source STEP](extras/pump-bracket-source.step) · [Before](extras/pump-bracket-imported.prism) · [After](models/pump-bracket-revised.prism) · [Comparison](previews/pump-bracket-revised.png) · [Steps, checks and known issues](../docs/modeling/direct-modeling/README.md#pump-mount-bracket-rework-2026-11-20)
