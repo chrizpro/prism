@@ -13,7 +13,7 @@ namespace Prism.Help;
 public static partial class ToolHelp
 {
     static ToolHelpExample? ExampleButtons(ToolHelpTopic topic, string id)
-        => Pictures(topic, id) is { } example ? new(example.Before with { WholeView = true }, example.After with { WholeView = true }) : null;
+        => (Pictures(topic, id) ?? MorePictures(topic, id)) is { } example ? new(example.Before with { WholeView = true }, example.After with { WholeView = true }) : null;
 
     static ToolHelpExample? Pictures(ToolHelpTopic topic, string id)
     {
