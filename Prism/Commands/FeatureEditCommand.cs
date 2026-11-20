@@ -17,7 +17,7 @@ public sealed class FeatureEditCommand : Command
     readonly ChoiceParam _action;
     readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _textDepth, _threadDia, _threadPitch, _threadDepth;
     readonly ChoiceParam _type, _drag;
-    readonly BoolParam _flip, _leftHand;
+    readonly BoolParam _flip, _leftHand, _carry;
 
     public FeatureEditCommand()
     {
@@ -44,6 +44,7 @@ public sealed class FeatureEditCommand : Command
         _threadDepth = Num("Thread depth (0 = full hole)", 0, 0, 1e5, 0.5);
         _leftHand = Check("Left-hand thread", false);
         _drag = Choice("Drag handle along", 0, "X", "Y", "Z");
+        _carry = Check("Bolts and nuts in the hole follow it", true);
     }
 
     /// <summary>Start with these faces picked and this action chosen (the context menu uses it). Action: 0 Move, 1 Resize, 2 Copy, 3 Delete, 4 Change type.</summary>
@@ -105,6 +106,7 @@ public sealed class FeatureEditCommand : Command
         _chamferD.IsVisible = _chamferD2.IsVisible = a == 1 && kinds.Contains(FeatureKind.Chamfer);
         _textDepth.IsVisible = a == 1 && kinds.Contains(FeatureKind.Text);
         _drag.IsVisible = move;
+        _carry.IsVisible = a is 0 or 1 or 3 && (kinds.Count == 0 || kinds.Any(k => k is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink));
         bool swap = kinds.Count > 0 && kinds.All(k => k is FeatureKind.Fillet or FeatureKind.Chamfer);
         bool flipText = kinds.Count > 0 && kinds.All(k => k == FeatureKind.Text);   // text flips between engraved and embossed, nothing to set
         bool retype = a == 4 && !swap && !flipText; int t = _type.Index;
@@ -198,10 +200,54 @@ public sealed class FeatureEditCommand : Command
             var result = DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill);
             foreach (var g in grooves) result = Occ.Cut(result, g);
             o.Replace.Add((body, result));
+            if (_carry.Value && act is 0 or 1 or 3) CarryFasteners(o, body, feats, act, move);
             foreach (var g in feats.GroupBy(f => f.Name))
                 Results.Add(new ResultLine(g.Key + (g.Count() > 1 ? "s" : ""), $"{_action.Selected.ToLowerInvariant()}: {g.Count()}"));
         }
         return o;
+    }
+
+    /// <summary>
+    /// Bolts, screws and nuts found in the edited holes go with them: moved by the same distance, removed with the hole, or scaled across their axis
+    /// to the new size (from one metric size to the next when both diameters are standard, otherwise by the ratio of the diameters).
+    /// </summary>
+    void CarryFasteners(CommandOutput o, SceneObject body, List<Feat> feats, int act, Vec3 move)
+    {
+        var done = new HashSet<Guid>(o.Replace.Select(r => r.Old.Id));
+        int moved = 0;
+        foreach (var f in feats)
+        {
+            if (FastenerFinder.Bore(body, f) is not { } bore) continue;
+            foreach (var fast in FastenerFinder.In(S.Objects, body, f))
+            {
+                var parts = fast.Nuts.Prepend(fast.Body).Where(p => done.Add(p.Id)).ToList();
+                if (parts.Count == 0) continue;
+                moved += parts.Count;
+                if (act == 3) { o.Remove.AddRange(parts); continue; }
+                if (act == 0) { foreach (var p in parts) o.Replace.Add((p, Occ.Translate(p.Shape, move))); continue; }
+                if (_dia.Value <= 0 || f.Round == null) continue;
+                double oldD = 2 * bore.Radius, newD = _dia.Value;
+                string? Size(double d) => StandardHoles.Match(d)?.Split(' ')[0];
+                double k = Size(oldD) is { } s0 && Size(newD) is { } s1 && StandardHoles.Of(s0) is { } a0 && StandardHoles.Of(s1) is { } a1 ? a1.Nominal / a0.Nominal : newD / oldD;
+                // each part grows evenly about where it bears on the plate (under a bolt's head, a nut's face), so it stays seated and its round
+                // faces stay exact cylinders; a bolt one size up is also longer, as the next size usually is
+                var ax = fast.Axis.Normalized();
+                double hole0 = Vec3.Dot(bore.Origin + f.Dir.Normalized() * bore.T0 - fast.Origin, ax), hole1 = Vec3.Dot(bore.Origin + f.Dir.Normalized() * bore.T1 - fast.Origin, ax);
+                foreach (var p in parts)
+                {
+                    var pm = p.Mesh; double sum = 0; int cnt = 0;
+                    for (int v = 0; v < pm.Positions.Length; v += 3)
+                    {
+                        var q = new Vec3(pm.Positions[v], pm.Positions[v + 1], pm.Positions[v + 2]) - fast.Origin; double t = Vec3.Dot(q, ax);
+                        if ((q - ax * t).Length > bore.Radius * 1.05) { sum += t; cnt++; }
+                    }
+                    double headT = cnt > 0 ? sum / cnt : hole1;
+                    double bearT = Math.Abs(headT - hole0) < Math.Abs(headT - hole1) ? hole0 : hole1;
+                    o.Replace.Add((p, Occ.Scale(p.Shape, fast.Origin + ax * bearT, k)));
+                }
+            }
+        }
+        if (moved > 0) Results.Add(new ResultLine("Fasteners", act == 3 ? $"removed: {moved}" : act == 0 ? $"moved: {moved}" : $"resized: {moved}"));
     }
 
     /// <summary>The solid a feature occupies: the void of a hole, slot or pocket (to fill or re-cut) or the material of a boss (to remove or re-add).</summary>
