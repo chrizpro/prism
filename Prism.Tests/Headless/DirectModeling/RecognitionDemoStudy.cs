@@ -106,7 +106,7 @@ public sealed class RecognitionDemoStudy(Xunit.Abstractions.ITestOutputHelper lo
         var boltIds = FastenerFinder.Find(s.Objects).Select(f => f.Body.Id).ToHashSet();
         var plateId = Plate(s).Id;
         foreach (var o in s.Objects.Where(o => o.Kind == ObjKind.Solid).ToList())
-            s.Update(o.Id, x => x.WithName(x.Id == plateId ? "Mounting plate" : boltIds.Contains(x.Id) ? "Hex bolt" : "Nut").WithColor(x.Id == plateId ? 0xFF8FA3B8 : 0xFFC9A227), checkpoint: false);
+            s.Update(o.Id, x => x.WithName(x.Id == plateId ? "Mounting plate" : boltIds.Contains(x.Id) ? "Hex bolt" : "Nut").WithColor(0xFFA6A9AE), checkpoint: false);
         var plate = Plate(s);
         Assert.Equal(4, boltIds.Count);
         Assert.Equal(4, s.Objects.Count(o => o.Name == "Hex bolt"));

@@ -42,7 +42,7 @@ def render_model(path, output):
 
 def comparison(before, after, destination):
     width, height = 640, 360
-    sheet = Image.new("RGB", (2 * width + 2, height + 112), "#172436")
+    sheet = Image.new("RGB", (2 * width + 2, height + 112), "#222426")
     draw = ImageDraw.Draw(sheet)
     fonts = Path("C:/Windows/Fonts")
     header = ImageFont.truetype(str(fonts / "segoeuib.ttf"), 26)
@@ -53,9 +53,9 @@ def comparison(before, after, destination):
     ):
         with Image.open(path) as image:
             sheet.paste(image.convert("RGB").resize((width, height), Image.Resampling.LANCZOS), (x, 0))
-        draw.text((x + 26, height + 12), label, font=header, fill="#F4F5F1")
-        draw.text((x + 26, height + 49), note, font=detail, fill="#C6D0DC")
-        draw.text((x + 26, height + 75), finish, font=detail, fill="#C6D0DC")
+        draw.text((x + 26, height + 12), label, font=header, fill="#F3F3F3")
+        draw.text((x + 26, height + 49), note, font=detail, fill="#CDD0D2")
+        draw.text((x + 26, height + 75), finish, font=detail, fill="#CDD0D2")
     sheet.save(destination, optimize=True)
 
 
