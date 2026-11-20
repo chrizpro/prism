@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer }
+public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer, Text }
 
 /// <summary>How a click grows into a selection (the "intent" of a pick in the direct-editing tools).</summary>
 public enum PickIntent { Feature, Face, Tangent, SameSize, Pattern }
@@ -17,7 +17,7 @@ public sealed record Round(Vec3 Origin, double Radius, bool Hole, double T0, dou
 /// <summary>A recognised feature: its faces, what it is, a size key (equal keys mean "same feature again") and where it sits.</summary>
 public sealed record Feat(int Face, FeatureKind Kind, string Key, Vec3 Centre, Vec3 Dir, IReadOnlyList<int> Faces, Round? Round)
 {
-    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", _ => "Face" };
+    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", FeatureKind.Text => "Text", _ => "Face" };
 }
 
 /// <summary>A chamfer's two setbacks measured from the sharp edge it replaced (along face A and face B), and the angle it makes with face A.</summary>
@@ -28,6 +28,9 @@ public sealed record ChamferSize(double SetbackA, double SetbackB, double AngleD
 
 /// <summary>A round hole's ends: through (open at both ends) or blind, its depth, the drill-point angle when it ends in a cone, and the nearest metric size.</summary>
 public sealed record HoleDetail(bool Through, double Depth, double? PointAngleDeg, string? Standard);
+
+/// <summary>Engraved (cut in) or embossed (raised) text: its depth or height, how many letters, how tall they are, the reading direction, and the plane it sits on (normal and height along it).</summary>
+public sealed record TextInfo(bool Engraved, double Depth, int Letters, double Height, Vec3 Along, Vec3 Normal, double PlaneHeight);
 
 /// <summary>
 /// Works out what the faces of a body are: holes, bosses, slots, pockets and fillet chains, and which of them repeat in lines, grids or circles.
@@ -51,6 +54,7 @@ public static class FeatureFinder
         public List<Feat> Features = [];
         public int[] FeatureOfFace = [];
         public Dictionary<int, ChamferSize> Chamfers = [];
+        public Dictionary<int, TextInfo> Texts = [];
     }
 
     static readonly ConditionalWeakTable<Shape, Analysis> Cache = new();
@@ -92,6 +96,9 @@ public static class FeatureFinder
         var m = a.Mesh; double q = Math.Max((m.Max - m.Min).Length * 2e-5, 1e-6);
         var at = new Dictionary<(long, long, long), List<(int face, int vi)>>();
         var triOf = new int[m.Positions.Length / 3];
+        // every triangle edge, keyed by its two end points: an edge two faces share lies on their common B-rep edge, with one triangle on each side
+        var segs = new Dictionary<((long, long, long), (long, long, long)), List<(int face, int tri, int va, int vb)>>();
+        (long, long, long) KeyOf(Vec3 p) => ((long)Math.Round(p.X / q), (long)Math.Round(p.Y / q), (long)Math.Round(p.Z / q));
         for (int f = 0; f < n && f + 1 < m.FaceTriStart.Length; f++)
         {
             Vec3 sum = new(0, 0, 0); double w = 0; var seen = new HashSet<int>(); bool first = true;
@@ -99,6 +106,14 @@ public static class FeatureFinder
             {
                 Vec3 A = P(m, m.Indices[3 * t]), B = P(m, m.Indices[3 * t + 1]), C = P(m, m.Indices[3 * t + 2]);
                 double area = Vec3.Cross(B - A, C - A).Length * 0.5; sum += (A + B + C) * (area / 3); w += area;
+                for (int c = 0; c < 3; c++)
+                {
+                    int i0 = m.Indices[3 * t + c], i1 = m.Indices[3 * t + (c + 1) % 3];
+                    var k0 = KeyOf(P(m, i0)); var k1 = KeyOf(P(m, i1));
+                    var sk = k0.CompareTo(k1) <= 0 ? (k0, k1) : (k1, k0);
+                    if (!segs.TryGetValue(sk, out var sl)) segs[sk] = sl = [];
+                    sl.Add((f, t, i0, i1));
+                }
                 for (int c = 0; c < 3; c++)
                 {
                     int vi = m.Indices[3 * t + c]; triOf[vi] = t; if (!seen.Add(vi)) continue;
@@ -110,7 +125,13 @@ public static class FeatureFinder
                 }
             }
             a.Centre[f] = w > 1e-12 ? sum * (1 / w) : a.FirstPoint[f];
-            if (a.Info[f].Type == "Plane") a.Normal[f] = a.Info[f].Normal.Normalized();
+            // the plane's own normal, turned to face out of the body: a reversed face (after a mirror, or from some exporters) reports its
+            // surface's normal, which then points into the material; the display mesh's normals always point out
+            if (a.Info[f].Type == "Plane")
+            {
+                var pn = a.Info[f].Normal.Normalized();
+                a.Normal[f] = !first && Vec3.Dot(pn, a.Normal[f]) < 0 ? -pn : pn;
+            }
         }
         var pairs = new Dictionary<(int, int), (int count, double minDot, Vec3 mid, Vec3 nA, Vec3 nB, int tA, int tB)>();
         foreach (var list in at.Values)
@@ -128,6 +149,19 @@ public static class FeatureFinder
                 }
         }
         Vec3 TriCentre(int t) => (P(m, m.Indices[3 * t]) + P(m, m.Indices[3 * t + 1]) + P(m, m.Indices[3 * t + 2])) * (1.0 / 3);
+        Vec3 TriNormal(int t) => N(m, m.Indices[3 * t]) + N(m, m.Indices[3 * t + 1]) + N(m, m.Indices[3 * t + 2]);
+        // Inside or outside corner, voted along the whole shared edge: at the middle of each shared triangle edge, does the triangle on the other
+        // side rise in front of this face (inside corner) or fall behind it (outside corner)? Judging at a single point went wrong at the inward
+        // corners of letter outlines and on circular edges.
+        var votes = new Dictionary<(int, int), double>();
+        foreach (var list in segs.Values)
+        {
+            if (list.Count != 2 || list[0].face == list[1].face) continue;
+            var (x, y) = list[0].face < list[1].face ? (list[0], list[1]) : (list[1], list[0]);
+            var mid0 = (P(m, x.va) + P(m, x.vb)) * 0.5; double len = (P(m, x.va) - P(m, x.vb)).Length;
+            double sv = Vec3.Dot(TriCentre(y.tri) - mid0, TriNormal(x.tri).Normalized()) + Vec3.Dot(TriCentre(x.tri) - mid0, TriNormal(y.tri).Normalized());
+            votes[(x.face, y.face)] = votes.GetValueOrDefault((x.face, y.face)) + Math.Sign(sv) * len;
+        }
         foreach (var (key, e) in pairs)
         {
             if (e.count < 2) continue;
@@ -137,7 +171,7 @@ public static class FeatureFinder
             else
             {
                 // convex: the next bit of each face lies behind the other's tangent plane; concave: in front of it (judged right at the edge, so big faces do not matter)
-                double s = Vec3.Dot(TriCentre(e.tB) - mid, e.nA) + Vec3.Dot(TriCentre(e.tA) - mid, e.nB);
+                double s = votes.TryGetValue((fa, fb), out var v) && Math.Abs(v) > 1e-12 ? v : Vec3.Dot(TriCentre(e.tB) - mid, e.nA) + Vec3.Dot(TriCentre(e.tA) - mid, e.nB);
                 cls = s > 0 ? Edge.Concave : Edge.Convex;
             }
             a.Adj[fa].Add(new Link(fb, cls, e.count)); a.Adj[fb].Add(new Link(fa, cls, e.count));
@@ -327,7 +361,100 @@ public static class FeatureFinder
             Add(FeatureKind.Face, [f], nrm, key);
         }
         MergeSteppedHoles(a, n, (k, fc, d, key, r) => Add(k, fc, d, key, r));
+        FindText(a, n);
     }
+
+    /// <summary>
+    /// Engraved or embossed text: letters cut to one depth below a flat face (or raised to one height above it). Each letter is a floor (or a top)
+    /// whose every neighbour is a wall running along the face's normal, and whose walls end on faces lying in one plane (the face the text is
+    /// on, and the islands inside letters such as O). Letters close together at the same depth make one word. A lone pocket is not text: it
+    /// takes at least two letters and at least one with the many walls or curved walls that letter outlines have.
+    /// </summary>
+    static void FindText(Analysis a, int n)
+    {
+        var letters = new List<(int top, List<int> walls, Vec3 nrm, double rim, double depth, bool engraved, double size, Vec3 centre)>();
+        for (int f = 0; f < n; f++)
+        {
+            if (a.Info[f].Type != "Plane" || a.Adj[f].Count < 3) continue;
+            var nf = a.Normal[f];
+            var walls = a.Adj[f].Select(l => l.To).Distinct().ToList();
+            var cls = a.Adj[f].Select(l => l.Class).Distinct().ToList();
+            if (cls.Count != 1 || cls[0] == Edge.Tangent) continue;
+            bool engraved = cls[0] == Edge.Concave;
+            if (walls.Any(w => Math.Abs(Vec3.Dot(a.Normal[w], nf)) > 0.05 || a.Info[w].Type is "Cylinder" && a.Axis[w] is { } ax && Vec3.Cross(ax.Dir.Normalized(), nf).Length > 1e-3)) continue;
+            var wallSet = walls.ToHashSet(); wallSet.Add(f);
+            var rims = new HashSet<int>(); bool ok = true;
+            foreach (int w in walls)
+                foreach (var l in a.Adj[w])
+                {
+                    if (wallSet.Contains(l.To)) continue;
+                    if (a.Info[l.To].Type != "Plane" || Vec3.Dot(a.Normal[l.To], nf) < 0.999 || l.Class != (engraved ? Edge.Convex : Edge.Concave)) { ok = false; break; }
+                    rims.Add(l.To);
+                }
+            if (!ok || rims.Count == 0) continue;
+            double h0 = Vec3.Dot(a.Centre[rims.First()], nf);
+            if (rims.Any(r => Math.Abs(Vec3.Dot(a.Centre[r], nf) - h0) > 1e-4)) continue;
+            double depth = engraved ? h0 - Vec3.Dot(a.Centre[f], nf) : Vec3.Dot(a.Centre[f], nf) - h0;
+            if (depth <= 1e-6) continue;
+            var (u, v) = Meshing.SurfaceMath.Basis(nf);
+            var (u0, u1) = Span(a, f, u); var (v0, v1) = Span(a, f, v);
+            letters.Add((f, walls, nf, h0, depth, engraved, Math.Max(u1 - u0, v1 - v0), a.Centre[f]));
+        }
+        if (letters.Count < 2) return;
+        // words: letters on the same plane at the same depth, each within a few letter sizes of another
+        var group = Enumerable.Range(0, letters.Count).ToArray();
+        int Root(int i) { while (group[i] != i) i = group[i] = group[group[i]]; return i; }
+        for (int i = 0; i < letters.Count; i++)
+            for (int j = i + 1; j < letters.Count; j++)
+            {
+                var (p, q) = (letters[i], letters[j]);
+                if (p.engraved != q.engraved || Vec3.Dot(p.nrm, q.nrm) < 0.999 || Math.Abs(p.rim - q.rim) > 1e-4 || Math.Abs(p.depth - q.depth) > 1e-3) continue;
+                if ((p.centre - q.centre).Length > 2.5 * Math.Max(p.size, q.size)) continue;
+                group[Root(i)] = Root(j);
+            }
+        var merges = new List<(List<int> faces, TextInfo info)>();
+        foreach (var word in Enumerable.Range(0, letters.Count).GroupBy(Root).Select(g => g.Select(i => letters[i]).ToList()))
+        {
+            if (word.Count < 2) continue;
+            bool letterLike = word.Any(l => l.walls.Count >= 8 || l.walls.Any(w => a.Info[w].Type != "Plane"));
+            if (!letterLike) continue;
+            var nrm = word[0].nrm; var (bu, bv) = Meshing.SurfaceMath.Basis(nrm);
+            // reading direction: the long way of the letters' spread
+            var cs = word.Select(l => l.centre).ToList(); var mid = cs.Aggregate(Vec3.Zero, (s, c) => s + c) * (1.0 / cs.Count);
+            double suu = 0, suv = 0, svv = 0;
+            foreach (var c in cs) { double x = Vec3.Dot(c - mid, bu), y = Vec3.Dot(c - mid, bv); suu += x * x; suv += x * y; svv += y * y; }
+            double ang = 0.5 * Math.Atan2(2 * suv, suu - svv);
+            var along = (bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized(); var up = Vec3.Cross(nrm, along).Normalized();
+            var faces = word.SelectMany(l => l.walls.Prepend(l.top)).Distinct().ToList();
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (int f in faces) { var (s0, s1) = Span(a, f, up); lo = Math.Min(lo, s0); hi = Math.Max(hi, s1); }
+            merges.Add((faces, new TextInfo(word[0].engraved, word[0].depth, word.Count, hi - lo, along, nrm, word[0].rim)));
+        }
+        if (merges.Count == 0) return;
+        var drop = merges.SelectMany(m => m.faces).ToHashSet();
+        var keep = a.Features.Where(ft => !ft.Faces.Any(drop.Contains)).ToList();
+        // a feature that lost only some of its faces to the text keeps the rest as plain faces
+        var orphans = a.Features.Where(ft => ft.Faces.Any(drop.Contains)).SelectMany(ft => ft.Faces).Where(f => !drop.Contains(f)).ToList();
+        a.Features.Clear(); a.FeatureOfFace = Enumerable.Repeat(-1, n).ToArray();
+        foreach (var ft in keep) { foreach (int g in ft.Faces) a.FeatureOfFace[g] = a.Features.Count; a.Features.Add(ft); }
+        foreach (int f in orphans)
+        {
+            var nrm = a.Info[f].Type == "Plane" ? a.Normal[f] : Vec3.UnitZ;
+            a.FeatureOfFace[f] = a.Features.Count; a.Features.Add(new Feat(f, FeatureKind.Face, $"face|{f}", a.Centre[f], nrm, [f], null));
+        }
+        foreach (var (faces, info) in merges)
+        {
+            Vec3 c = Vec3.Zero; double w = 0;
+            foreach (int f in faces) { double ar = Math.Max(a.Info[f].Area, 1e-9); c += a.Centre[f] * ar; w += ar; }
+            foreach (int f in faces) a.FeatureOfFace[f] = a.Features.Count;
+            a.Texts[faces[0]] = info;
+            a.Features.Add(new Feat(faces[0], FeatureKind.Text, $"text|{info.Engraved}|{info.Depth:0.###}|{info.Letters}|{info.Height:0.##}", c * (1 / w), info.Normal, faces, null));
+        }
+    }
+
+    /// <summary>What a recognised piece of text is: engraved or embossed, its depth or height, how many letters, and how tall they stand.</summary>
+    public static TextInfo? TextOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Text && Get(body).Texts.TryGetValue(feat.Face, out var t) ? t : null;
 
     /// <summary>
     /// Joins a round hole to what steps or flares it: a flat annulus square to the axis between two coaxial holes of different radius is a counterbore

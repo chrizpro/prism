@@ -1,5 +1,6 @@
 using Avalonia.Headless.XUnit;
 using Prism.Core;
+using Prism.Core.Sketching;
 using Prism.Kernel;
 using Xunit;
 using static Prism.HeadlessTests.Support.ModelingScenario;
@@ -186,6 +187,62 @@ public sealed class FeatureRecognitionTests
             for (int a = 0; a < (b % 2 == 0 ? 4 : 3); a++)
                 expected.Add([30 + 40 * a + (b % 2 == 0 || what == "unstagger" ? 0 : 20), 20 + (what == "row spacing" ? 25 : 20) * b]);
         Assert.Equal(expected.OrderBy(c => c[1]).ThenBy(c => c[0]).Select(c => $"{c[0]},{c[1]}"), HoleCentres(edited).Select(c => $"{c[0]},{c[1]}"));
+    }
+
+    /// <summary>The solid of the word "SLIM" (Arial, 10 mm capitals) from z0 to z1, starting at x = 10, y = 10.</summary>
+    static Shape Letters(double z0, double z1)
+    {
+        var outlines = TextOutline.Build("SLIM", "Arial", false, 10);
+        Shape? all = null;
+        foreach (var c in outlines)
+        {
+            using var wire = Occ.Polyline(c.Select(p => new Vec3(10 + p.u, 10 + p.v, z0)).ToList(), true);
+            using var face = Occ.Profile([wire], true);
+            var letter = Occ.Extrude(face, new Vec3(0, 0, z1 - z0));
+            if (all == null) all = letter; else { var f = Occ.Fuse(all, letter); all.Dispose(); letter.Dispose(); all = f; }
+        }
+        return all!;
+    }
+
+    [AvaloniaTheory(DisplayName = "DIR-H110 | Engraved text is one feature with its depth and letter count; it can be deleted, deepened, embossed or moved")]
+    [InlineData("read")]
+    [InlineData("Delete")]
+    [InlineData("Resize")]
+    [InlineData("Change type")]
+    [InlineData("Move")]
+    [Trait("TestId", "DIR-H110")]
+    public void EngravedText(string action)
+    {
+        using var plate = BoxAt(new Vec3(0, 0, 0), 80, 30, 5);
+        using var cutter = Letters(4.2, 6);
+        using var part = Occ.Cut(plate, cutter);
+        using var deep = Letters(0, 0.8); double letters = deep.Props().Volume;   // the letters' own volume per 0.8 mm
+        var (session, body) = Imported(part);
+        var text = Assert.Single(FeatureFinder.Features(body), f => f.Kind == FeatureKind.Text);
+        var info = FeatureFinder.TextOf(body, text)!;
+        Assert.True(info.Engraved); Assert.Equal(4, info.Letters);
+        AssertClose(0.8, info.Depth, 1e-4, "depth");
+        Assert.True(info.Height > 9.9 && info.Height < 11, $"letter height {info.Height}");   // 10 mm capitals; round letters such as S overshoot a little
+        Assert.True(Math.Abs(info.Along.X) > 0.99, $"reads along X, got {info.Along}");
+        if (action == "read") return;
+        using var result = Edited(session, body, f => f.Kind == FeatureKind.Text, c =>
+        {
+            SetChoice(c, "Action", action);
+            if (action == "Resize") SetNumber(c, "New text depth or height (0 = keep)", 1.6);
+            if (action == "Move") SetNumber(c, "Move X", 5);
+        });
+        double block = 80 * 30 * 5;
+        double expected = action switch { "Delete" => block, "Resize" => block - 2 * letters, "Change type" => block + letters, _ => block - letters };
+        AssertClose(expected, result.Props().Volume, 1e-2, $"{action} volume");
+        if (action is "Change type" or "Move")
+        {
+            var check = session.AddObject(result, "Edited", ObjKind.Solid);
+            var after = Assert.Single(FeatureFinder.Features(check), f => f.Kind == FeatureKind.Text);
+            var ti = FeatureFinder.TextOf(check, after)!;
+            Assert.Equal(action == "Move", ti.Engraved);
+            if (action == "Move") AssertClose(text.Centre.X + 5, after.Centre.X, 1e-3, "text moved");
+            else AssertClose(5, ti.PlaneHeight, 1e-4, "embossed on the top face");
+        }
     }
 
     [AvaloniaFact(DisplayName = "DIR-H104 | Holes report through or blind, depth, drill point and the matching metric size")]

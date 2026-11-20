@@ -15,13 +15,13 @@ public sealed class FeatureEditCommand : Command
 {
     readonly SelectionSlot _faces;
     readonly ChoiceParam _action;
-    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _threadDia, _threadPitch, _threadDepth;
+    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _textDepth, _threadDia, _threadPitch, _threadDepth;
     readonly ChoiceParam _type, _drag;
     readonly BoolParam _flip, _leftHand;
 
     public FeatureEditCommand()
     {
-        _faces = Slot(new SelectionSlot { Label = "Feature to edit (click a hole, slot, pocket, boss, fillet or chamfer)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
+        _faces = Slot(new SelectionSlot { Label = "Feature to edit (click a hole, slot, pocket, boss, fillet, chamfer or text)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
         _action = Choice("Action", 0, "Move", "Resize", "Copy", "Delete", "Change type");
         _dx = Num("Move X", 0); _dy = Num("Move Y", 0); _dz = Num("Move Z", 0);
         _copies = Num("Number of copies", 1, 1, 200, 1);
@@ -32,6 +32,7 @@ public sealed class FeatureEditCommand : Command
         _chamferD = Num("New chamfer distance (0 = keep)", 0, 0, 1e5, 0.5);
         _chamferD2 = Num("Second chamfer distance (0 = equal)", 0, 0, 1e5, 0.5);
         _swapSize = Num("Size after the swap (0 = same setback)", 0, 0, 1e5, 0.5);
+        _textDepth = Num("New text depth or height (0 = keep)", 0, 0, 1e5, 0.1);
         _type = Choice("New hole type", 1, "Plain", "Counterbore", "Countersink", "Threaded (modeled)");
         _boreDia = Num("Counterbore diameter", 12, 0.01, 1e5, 1);
         _boreDepth = Num("Counterbore depth", 4, 0.01, 1e5, 0.5);
@@ -102,9 +103,11 @@ public sealed class FeatureEditCommand : Command
         _width.IsVisible = _length.IsVisible = a == 1 && (kinds.Count == 0 || kinds.Contains(FeatureKind.Slot));
         _filletR.IsVisible = a == 1 && kinds.Contains(FeatureKind.Fillet);
         _chamferD.IsVisible = _chamferD2.IsVisible = a == 1 && kinds.Contains(FeatureKind.Chamfer);
+        _textDepth.IsVisible = a == 1 && kinds.Contains(FeatureKind.Text);
         _drag.IsVisible = move;
         bool swap = kinds.Count > 0 && kinds.All(k => k is FeatureKind.Fillet or FeatureKind.Chamfer);
-        bool retype = a == 4 && !swap; int t = _type.Index;
+        bool flipText = kinds.Count > 0 && kinds.All(k => k == FeatureKind.Text);   // text flips between engraved and embossed, nothing to set
+        bool retype = a == 4 && !swap && !flipText; int t = _type.Index;
         _swapSize.IsVisible = a == 4 && swap;
         _type.IsVisible = retype; _flip.IsVisible = retype && t != 0;
         _boreDia.IsVisible = _boreDepth.IsVisible = retype && t == 1;
@@ -132,7 +135,7 @@ public sealed class FeatureEditCommand : Command
         if (_faces.Items.Count == 0) return null;
         int act = _action.Index; var move = new Vec3(_dx.Value, _dy.Value, _dz.Value);
         if (act is 0 or 2 && move.Length < 1e-9) return null;
-        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0 && _chamferD.Value <= 0) return null;
+        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0 && _chamferD.Value <= 0 && _textDepth.Value <= 0) return null;
         var o = new CommandOutput { Label = $"{_action.Selected} feature", Icon = "movehole" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
@@ -143,7 +146,7 @@ public sealed class FeatureEditCommand : Command
             List<Feat> resizeChamfers = [], toChamfer = [], toFillet = [];
             foreach (var f in feats)
             {
-                bool boss = f.Kind == FeatureKind.Boss;
+                bool boss = Raised(body, f);
                 switch (f.Kind)
                 {
                     case FeatureKind.Face: throw new FormatException("That is a plain face, not a feature. Use Move Face or Push / Pull to change it.");
@@ -164,6 +167,10 @@ public sealed class FeatureEditCommand : Command
                             case 0: (boss ? strip : fill).Add(tool); (boss ? grow : drill).Add(Occ.Translate(tool, move)); break;
                             case 2: for (int k = 1; k <= (int)_copies.Value; k++) (boss ? grow : drill).Add(Occ.Translate(tool, move * k)); break;
                             case 3: (boss ? strip : fill).Add(tool); break;
+                            case 4 when f.Kind == FeatureKind.Text:
+                                // engraved becomes embossed (or back): the letters are reflected through the face they sit on, which keeps them reading the same way
+                                var ti = FeatureFinder.TextOf(body, f) ?? throw new FormatException("Could not read that text.");
+                                (boss ? strip : fill).Add(tool); (boss ? drill : grow).Add(AlongNormal(tool, ti, -1)); break;
                             case 4: fillets.AddRange(f.Faces); drill.Add(RetypedHole(body, f, out var groove)); if (groove != null) grooves.Add(groove); break;   // the old hole is healed away, then the new one is cut
                             default:
                                 var resized = Resized(body, f);
@@ -202,7 +209,22 @@ public sealed class FeatureEditCommand : Command
     {
         if (f.Round is { } r) return DirectHelpers.Cylinder(r.Origin, f.Dir, r.T0, r.T1, r.Radius);
         var filled = Occ.Defeature(body.Shape, [.. f.Faces]);
-        return f.Kind == FeatureKind.Boss ? Occ.Cut(body.Shape, filled) : Occ.Cut(filled, body.Shape);
+        return Raised(body, f) ? Occ.Cut(body.Shape, filled) : Occ.Cut(filled, body.Shape);
+    }
+
+    /// <summary>Material standing up from the body (a boss, embossed text) rather than a void cut into it.</summary>
+    internal static bool Raised(SceneObject body, Feat f) => f.Kind == FeatureKind.Boss || f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { Engraved: false };
+
+    /// <summary>Stretches a text's solid along the normal of the face it sits on, keeping that face fixed: factor 2 doubles the depth, -1 reflects it to the other side.</summary>
+    static Shape AlongNormal(Shape tool, TextInfo t, double factor)
+    {
+        // a reflection through a linear map would turn the solid inside out; the kernel's mirror keeps its faces facing outwards
+        if (Math.Abs(factor + 1) < 1e-12) return Occ.Mirror(tool, t.Normal.Normalized() * t.PlaneHeight, t.Normal);
+        var n = t.Normal.Normalized(); double k = factor - 1;
+        double[] m = [1 + k * n.X * n.X, k * n.X * n.Y, k * n.X * n.Z, k * n.Y * n.X, 1 + k * n.Y * n.Y, k * n.Y * n.Z, k * n.Z * n.X, k * n.Z * n.Y, 1 + k * n.Z * n.Z];
+        var p0 = n * t.PlaneHeight;
+        var mp = new Vec3(m[0] * p0.X + m[1] * p0.Y + m[2] * p0.Z, m[3] * p0.X + m[4] * p0.Y + m[5] * p0.Z, m[6] * p0.X + m[7] * p0.Y + m[8] * p0.Z);
+        return Occ.Affine(tool, m, p0 - mp);
     }
 
     /// <summary>The feature after Resize, or null when the typed sizes do not apply to it.</summary>
@@ -218,7 +240,12 @@ public sealed class FeatureEditCommand : Command
             if (_width.Value <= 0 && _length.Value <= 0) return null;
             return SlotTool(body, f, _width.Value, _length.Value);
         }
-        throw new FormatException($"Resize works on round holes and bosses and on slots. For a {f.Name.ToLowerInvariant()}, move its walls with Move Face.");
+        if (f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { } text)
+        {
+            if (_textDepth.Value <= 0) return null;
+            return AlongNormal(ToolOf(body, f), text, _textDepth.Value / text.Depth);
+        }
+        throw new FormatException($"Resize works on round holes and bosses, slots and text. For a {f.Name.ToLowerInvariant()}, move its walls with Move Face.");
     }
 
     /// <summary>A slot (two round ends joined by two flat walls) with a new width and length, same centre, direction and depth.</summary>

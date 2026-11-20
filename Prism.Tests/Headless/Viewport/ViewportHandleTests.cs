@@ -310,7 +310,7 @@ public class ViewportHandleTests
         var plate = session.AddObject(Occ.Cut(BoxAt(new Vec3(-30, -30, 0), 60, 60, 10), CylinderAt(new Vec3(0, 0, -5), 5, 20)), "Plate", ObjKind.Solid);
         var hole = FeatureFinder.Features(plate).Single(f => f.Kind == FeatureKind.Hole);
         var edit = Begin(session, () => new FeatureEditCommand());
-        Pick(edit, "Feature to edit (click a hole, slot, pocket, boss or fillet)", new SelItem(plate.Id, SelKind.Face, hole.Faces[0]));
+        Pick(edit, "Feature to edit (click a hole, slot, pocket, boss, fillet, chamfer or text)", new SelItem(plate.Id, SelKind.Face, hole.Faces[0]));
         SetChoice(edit, "Action", "Resize");
         var h = Assert.Single(edit.Handles);
         Assert.Equal("New diameter (0 = keep)", h.Param.Label);
