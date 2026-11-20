@@ -66,7 +66,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | NURBS | Streamlined train nose (`streamlined-train-nose`) |
 | Mesh / Solid | Scanned pillow block rebuilt (`pillow-block-scan`) |
 | Mesh / Surface | Turned knob scan with fitted primitives (`turned-knob-scan`) |
-| Direct Modeling / Solid | Motor mount revised without history (`motor-mount-direct-edit`) |
+| Direct Modeling / Solid | Motor mount revised without history (`motor-mount-direct-edit`), mounting plate (`mounting-plate-before-after`), gearbox housing (`reduction-gearbox-before-after`), spindle carrier (`spindle-carrier-before-after`) and pump bracket (`pump-bracket-before-after`): each an assembly of the STEP import (left) and the revised part (right) |
 
 Sheet-metal parts are plain silver and the cardboard box is brown corrugated board, so a model's colors say what it is made of. Building scripts live next to this file as `build_<name>.py`; each asserts the sizes and volumes it expects, so running one is also a quick check that the modeling tools still work.
 

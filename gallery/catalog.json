@@ -786,15 +786,103 @@
     {
       "Id": "motor-mount-direct-edit",
       "Name": "Motor mount revised by direct editing",
-      "Description": "A plate with no feature history, lengthened, rebored, a hole closed and its pad drafted with Move, Offset, Delete and Draft Face. The original sits beside it.",
+      "Description": "A plate with no feature history, lengthened, rebored, a hole closed and its pad drafted with Move, Offset, Delete and Draft Face. The STEP import sits on the left, the revised part on the right.",
       "Workflow": "Direct Modeling / Solid",
       "Author": "Prism",
       "License": "MIT",
       "MinimumVersion": "0.4.0",
-      "Bytes": 92303,
-      "Sha256": "6fd5d9eaed6a6a7c7502f1ade691d509a6e6ac9d5211e520e6c13481266407b6",
+      "Bytes": 162055,
+      "Sha256": "a8490944f919c4edb6be33899d1cd974444021f55e7de35c80e50984fe52235c",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/motor-mount-direct-edit.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/motor-mount-direct-edit.png?v=4a4188a2fb146d0c"
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/motor-mount-direct-edit.png?v=f4c9c03f8f324b1c"
+    },
+    {
+      "Id": "mounting-plate-before-after",
+      "Name": "Mounting plate before and after",
+      "Description": "A STEP plate with bolts reworked without history: holes resized from M6 to M8 with their bolts and nuts, staggered slots straightened, chamfer swapped for a round, text raised, rib thickened and the plate widened. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "mounting-plate-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/mounting-plate-source.step",
+          "Bytes": 1159522,
+          "Sha256": "c6acab4cb52c5b12d4f04cdc916578df08a58a702a708f50dcd7299a4eadfb5c"
+        }
+      ],
+      "Bytes": 1047610,
+      "Sha256": "3a5f09d175e5f2efc005339b0c5dd53cdf4fa675b97f29f773d3ae9d90dacafa",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/mounting-plate-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/mounting-plate-before-after.png?v=17eba0121b25a0b0"
+    },
+    {
+      "Id": "reduction-gearbox-before-after",
+      "Name": "Gearbox housing before and after",
+      "Description": "A 144-face STEP gearbox casting edited by Direct Modeling: the base widened to 260 mm, the flange and service pad raised, a dowel hole mirrored and the other one counterbored. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "reduction-gearbox-housing.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/reduction-gearbox-housing.step",
+          "Bytes": 475698,
+          "Sha256": "038df6534d5ceddfb05071242888e4553cf03bad89f0f30dd9e591fbf97ca2e5"
+        }
+      ],
+      "Bytes": 502918,
+      "Sha256": "21862df8451c609a9ea8430a755c295fb8f3ea74e04385074aed30fe2cc60998",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/reduction-gearbox-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/reduction-gearbox-before-after.png?v=1f6c106b8cbc23c8"
+    },
+    {
+      "Id": "spindle-carrier-before-after",
+      "Name": "Spindle carrier before and after",
+      "Description": "A square spindle carrier from STEP turned into an open-brace design: a 202 mm slotted base, tapered shoulders, two through-windows, a larger bore with a seat and six countersinks, from Direct Modeling edits and cuts on the imported solid. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "spindle-carrier-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/spindle-carrier-source.step",
+          "Bytes": 172563,
+          "Sha256": "1eacd2bed1a922d43674841e1f2340a3e67339c0dbaa45a627a1e9bf28874515"
+        }
+      ],
+      "Bytes": 202669,
+      "Sha256": "7a39b37cf9bbd60eb2722f137fa5b1e897e2de8963ec937fdf6caf45fe80f909",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/spindle-carrier-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/spindle-carrier-before-after.png?v=bfa901ff0b504845"
+    },
+    {
+      "Id": "pump-bracket-before-after",
+      "Name": "Pump bracket before and after",
+      "Description": "A plain STEP pump-mount bracket reworked in 37 Direct Modeling steps: wider base, taller tapered and rounded tower, bigger flange with eight bolt holes, thicker gussets, tapped and engraved. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "pump-bracket-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pump-bracket-source.step",
+          "Bytes": 213708,
+          "Sha256": "6ec0700559c97740ae01ade0c9955c46adef04c499d40ffd800550711d9975cc"
+        }
+      ],
+      "Bytes": 3003232,
+      "Sha256": "40d8522f22e48c64e05f343e5e41e953a9a4031fb2f358c4d6d67676e3f83c32",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pump-bracket-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pump-bracket-before-after.png?v=faeba85744c2d200"
     }
   ]
 }
