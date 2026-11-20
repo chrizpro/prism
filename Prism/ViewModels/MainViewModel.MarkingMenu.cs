@@ -172,6 +172,7 @@ public sealed partial class MainViewModel
             {
                 bool tracked = solids.All(o => o.TrackHistory);
                 list.Add(new(tracked ? "Stop tracking history" : "Track history", () => SetTrackHistory(solids.Select(o => o.Id), !tracked)));
+                list.Add(new("Remove history (keep the shape)", () => s.SelectItems(s.RemoveHistoryFrom(solids.Select(o => o.Id)).Select(id => new SelItem(id, SelKind.Object, 0)))));
             }
             list.Add(new("Duplicate", () => s.Duplicate()));
             list.Add(new("Hide", () => { foreach (var o in objs) ToggleVisible(o.Id, false); }));

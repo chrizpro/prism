@@ -626,6 +626,15 @@ public partial class MainView : UserControl
         items.Add(Mi("Go to this step", () => vm.GoToHistory(it)));
         if (!it.IsStart) items.Add(Mi(it.IsPinned ? "Rename checkpoint…" : "Name as checkpoint…", () => ShowPinFlyout(it)));
         if (it.IsPinned) items.Add(Mi("Remove checkpoint", () => vm.PinStep(it, "")));
+        if (!it.IsStart) items.Add(Mi("Bake history up to here…", async () =>
+        {
+            int merged = vm.Session.StepsBakedAt(it.Node);
+            var ask = new ConfirmWindow("Bake history?",
+                $"{merged} step{(merged == 1 ? "" : "s")} up to and including “{it.Node.Label}” (and any side branches) become one starting point. " +
+                "They can no longer be undone or edited; the steps after it stay editable. Saving afterwards makes a smaller file. " +
+                "This cannot be undone, except by reopening the saved file.", "Bake history");
+            if (TopLevel.GetTopLevel(this) is Window owner && await ask.ShowDialog<bool>(owner)) vm.Session.BakeHistory(it.Node);
+        }));
 
         var restorable = vm.RestorableAt(it).Take(10).ToList();
         if (restorable.Count > 0)
