@@ -124,6 +124,9 @@ public sealed partial class MainViewModel
         bool isFeature = feat != null && feat.Kind != FeatureKind.Face; string name = isFeature ? feat!.Name.ToLowerInvariant() : "face";
         void Edit(int action) { var c = new FeatureEditCommand { Factory = () => new FeatureEditCommand() }; s.StartCommand(c); if (s.ActiveCommand == c) c.Preset(faces, action); }
         list.Add(MenuSpec.Sep);
+        // look at just these faces (owner request 2026-11-20): the rest of the body and the other bodies are hidden until Show all faces
+        list.Add(new(faces.Count == 1 ? "Isolate this face" : $"Isolate these {faces.Count} faces", () => s.IsolateFaces(faces)));
+        if (s.FacesIsolated) list.Add(new("Show all faces", () => s.ClearFaceIsolation()));
         if (isFeature)
         {
             var body = s.Find(faces[0].Obj)!; int pattern = FeatureFinder.PatternSize(body, feat!);

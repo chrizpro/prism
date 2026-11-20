@@ -58,6 +58,23 @@ public sealed class EdgeModeCurveTests(Xunit.Abstractions.ITestOutputHelper log)
         Assert.Empty(missed);
     }
 
+    [AvaloniaFact(DisplayName = "SEL-H066 | Right-click on selected faces offers Isolate these faces, which shows only those faces, and Show all faces brings the body back")]
+    [Trait("TestId", "SEL-H066")]
+    public void IsolateFacesFromTheContextMenu()
+    {
+        var vm = new Prism.ViewModels.MainViewModel();
+        var s = vm.Session;
+        var box = s.AddObject(BoxAt(new Vec3(0, 0, 0), 10, 10, 10), "Box", ObjKind.Solid);
+        s.SelectItems([new SelItem(box.Id, SelKind.Face, 0), new SelItem(box.Id, SelKind.Face, 1)]);
+        var isolate = Assert.Single(vm.BuildTraditionalMenu(), m => m.Label == "Isolate these 2 faces");
+        isolate.Run!();
+        Assert.True(s.FacesIsolated);
+        Assert.True(s.ShownFaces(s.Find(box.Id)!) is { } shown && shown.SetEquals([0, 1]));
+        var showAll = Assert.Single(vm.BuildTraditionalMenu(), m => m.Label == "Show all faces");
+        showAll.Run!();
+        Assert.False(s.FacesIsolated);
+    }
+
     [AvaloniaFact(DisplayName = "SEL-H065 | The selection mode holds everywhere: on the Direct Modeling tab Edge mode picks edges (the face gizmo steps aside), and Vertex mode picks corners of text")]
     [Trait("TestId", "SEL-H065")]
     public void ModeHoldsOnDirectTabAndForText()

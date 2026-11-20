@@ -20,6 +20,7 @@ In a multi-plane sketch everything visible is pickable: curves on inactive drawi
 
 **Isolate** (View tab) with whole objects selected hides every other object, as before. With **faces** selected it shows only those faces: the other faces of the same bodies and every other solid, surface, form and mesh are hidden. Curves, sketches and planes stay visible as references. A whole object selected together with faces keeps all its faces. **Show All** brings everything back.
 
+- **Right-click** on selected faces of a solid offers **Isolate these faces** (owner request 2026-11-20), and **Show all faces** while faces are isolated ([SEL-H066](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs)).
 - It is a way of looking, not an edit. Nothing in the document changes, it is not saved and it is not an undo step. Commands still work on the whole body.
 - A hidden face cannot be clicked, hovered or taken by a rectangle, lasso or paint stroke; the pick passes through to what is behind it. Only the edges that border a shown face are drawn and pickable.
 - When an isolated body changes shape its face numbers no longer mean the same faces, so that body is shown whole again.
