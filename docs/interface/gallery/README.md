@@ -108,6 +108,26 @@ Owner asked on 2026-11-08 ([#86](https://github.com/chrizpro/prism/issues/86)) f
 
 Gallery verification on 2026-11-09, Windows workstation. `dotnet test` on the Unit and Headless projects with `-c Release --filter Feature=Gallery` passed all 15 tests (8 Unit, 7 Headless). `python gallery/update_catalog.py --check` verified the model sizes, hashes and preview revisions.
 
+### Transport studies
+
+The owner authorized gallery publication of the four transport studies on 2026-11-19. Windows Prism reopened and checked 108 solids and six closed seat forms for the planar coupe, 65 objects for the Vermilion GT, 47 for the Tideline airliner and 61 for the Evergreen Express. The gallery uses actual Prism renders. [Models and rebuild scripts](../../../gallery/README.md#transport-studies).
+
+The planar coupe builder uses the ruled-loft correction tracked in [#150](https://github.com/chrizpro/prism/issues/150). It is available on [the coupe branch](https://github.com/chrizpro/prism/tree/codex/planar-coupe). The published coupe already contains the saved solid geometry. [Gallery open coverage](../../../Prism.Tests/Headless/Gallery/GalleryViewTests.cs).
+
+**Fluids demos.** The CAE gallery includes a symmetric pipe network that opens with live calculations and a short water duct for 3D Flow Study and Pipe Flow. [Setup instructions and Windows evidence](../../cae/fluids/README.md#gallery-demos).
+
+### Cantilever beam
+
+The owner requested a simple reusable CAE demo for the live gallery on 2026-11-19. This one 200 × 25 × 12 mm A36 steel bar opens in Static with a fixed left end, a 50 N downward force on the right end and a 4 mm target mesh size. **Saved CAE setups** provides natural frequencies with the left end fixed and steady conduction with the ends held at 100 °C and 20 °C. The remaining faces are insulated. Modal and thermal use CalculiX. Prism recomputes the results when you run each study.
+
+| Study | Hand calculation | Windows desktop result |
+| --- | --- | --- |
+| Static bending | 0.18519 mm tip deflection and 50 N support reaction | 0.18458 mm maximum displacement and 50 N reaction |
+| Natural frequencies | 244.61 Hz first bending mode | 245.07 Hz first mode |
+| Steady conduction | Linear temperature profile, 60 °C at the midpoint | 60.00 °C at the midpoint and less than 0.00001 °C profile error across 8,805 nodes |
+
+The builder solved all three and checked persistence by reopening the file and solving the saved Static setup again on Windows at desktop revision `038d801`. [Actual displacement plot](../../../gallery/previews/cae-cantilever.png) · [Measured solver results and model hash](evidence/cae-cantilever.json) · [Build and verification script](../../../gallery/build_cae_cantilever.py) · [Gallery workflow #61](https://github.com/chrizpro/prism/issues/61) · [Existing gallery open tests](../../../Prism.Tests/Headless/Gallery/GalleryViewTests.cs).
+
 **Combination wrench** (workflow `CAE / Solid`, so it is listed under both CAE and Solid; [#85](https://github.com/chrizpro/prism/issues/85)) is an 8 mm chrome-vanadium plate wrench for 13 mm nuts: an open end angled 15° off the handle, a tapered handle and a hex box end, with rounded corners. Its file holds five saved static studies (about 12,900 elements each), a natural-frequency setup and a thermal setup, and reopens on the Static tab with the 300 N open-end torque case active, ready to Run. Results with the part as built: 300 N through the open end gives 169 MPa and 0.46 mm (safety factor 1.48 against A36-class yield), through the box end 161 MPa and 0.69 mm (1.55), a 900 N cheater-pipe overload 506 MPa (0.49, yields), a 5 MPa hammer blow on the ring end 26 MPa, self weight 3.9 MPa and 0.012 mm; displacement scales linearly with the force. The first natural frequency with the jaw held is 182 Hz (then 517, 1083, 2427, 2684 and 2988 Hz). Steady conduction from a 100 °C jaw to a 20 °C ring end spans exactly 20 to 100 °C. Fatigue for 0-to-peak torque cycling has a safety factor of 1.29 at 10⁶ cycles. Topology optimization (Generative, 55% target) keeps 52.6% of the block and the part stiff. Study results are not stored in the file. [Source script](../../../gallery/build_wrench.py), [render](evidence/wrench-render.png). An illustration, not a certified tool design.
 
 Owner asked on 2026-11-08 ([#84](https://github.com/chrizpro/prism/issues/84)) to try CNC CAM on a wooden product. **Maple serving board** (workflow `CAM / Solid`, so it lists under CAM) is a 300 × 160 × 18 mm board with R25 corners, a 4 mm deep juice well and a through hand slot, with a saved CAM setup (6 mm wood end mill, 3 mm stock allowance, G54 at the stock's lower-left top corner) and four toolpaths: face, pocket the well, pocket the slot through, tabbed profile. About 17 minutes of machining; stock review finds no gouges, rapid contacts or holder contacts. Planning it exposed three CAM bugs fixed in the same change (button parameters through MCP, Post's folder path, a false rapid contact on spoilboard retracts). [Source script](../../../gallery/build_serving_board.py), [GAL-I009](../../../Prism.Tests/Integration/DesktopGalleryTests.cs) (written, not run on this Linux workstation), [render](evidence/serving-board-render.png). Decorative: feeds, speeds and tabs are placeholders, so prove out any program on scrap.
