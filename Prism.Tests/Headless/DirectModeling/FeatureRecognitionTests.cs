@@ -141,6 +141,53 @@ public sealed class FeatureRecognitionTests
         else Assert.Contains(feats, f => f.Kind == (start == "chamfer" ? FeatureKind.Fillet : FeatureKind.Chamfer));
     }
 
+    /// <summary>A pegboard-like plate: 4 rows of Ø6 holes 20 mm apart, 40 mm along each row, odd rows shifted 20 mm and one hole shorter.</summary>
+    static Shape StaggeredBoard()
+    {
+        using var plate = BoxAt(new Vec3(0, 0, 0), 180, 100, 5);
+        Shape part = Occ.Translate(plate, Vec3.Zero);
+        for (int b = 0; b < 4; b++)
+            for (int a = 0; a < (b % 2 == 0 ? 4 : 3); a++)
+            {
+                using var drill = CylinderAt(new Vec3(30 + 40 * a + (b % 2 == 0 ? 0 : 20), 20 + 20 * b, -1), 3, 7);
+                var cut = Occ.Cut(part, drill); part.Dispose(); part = cut;
+            }
+        return part;
+    }
+
+    static double[][] HoleCentres(SceneObject body) =>
+        FeatureFinder.Features(body).Where(f => f.Kind == FeatureKind.Hole).Select(f => new[] { Math.Round(f.Round!.Origin.X, 3), Math.Round(f.Round.Origin.Y, 3) })
+            .OrderBy(c => c[1]).ThenBy(c => c[0]).ToArray();
+
+    [AvaloniaTheory(DisplayName = "DIR-H109 | A staggered grid reads as rows, and Edit Pattern changes the row spacing or removes the stagger")]
+    [InlineData("read")]
+    [InlineData("row spacing")]
+    [InlineData("unstagger")]
+    [Trait("TestId", "DIR-H109")]
+    public void StaggeredRows(string what)
+    {
+        var (session, body) = Imported(StaggeredBoard());
+        var first = FeatureFinder.Features(body).Where(f => f.Kind == FeatureKind.Hole).OrderBy(f => f.Centre.Y).ThenBy(f => f.Centre.X).First();
+        Assert.Equal("14 holes in staggered rows: 40 mm apart along X, 4 rows 20 mm apart along Y, every other row shifted 20 mm", FeatureFinder.PatternText(body, first));
+        if (what == "read") return;
+        var command = StartCommand(session, body, () => new Prism.Commands.EditPatternCommand());
+        command.ConfigureInputs(() =>
+        {
+            Assert.True(command.Slots[0].TryAdd(new SelItem(body.Id, SelKind.Face, first.Face)));
+            if (what == "row spacing") SetNumber(command, "Spacing 2", 25);
+            else SetChoice(command, "Every other row", "Not shifted");
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        var shape = Assert.Single(output.Replace).New; AssertValidSolid(shape);
+        var edited = session.AddObject(shape, "Edited", ObjKind.Solid);
+        var expected = new List<double[]>();
+        for (int b = 0; b < 4; b++)
+            for (int a = 0; a < (b % 2 == 0 ? 4 : 3); a++)
+                expected.Add([30 + 40 * a + (b % 2 == 0 || what == "unstagger" ? 0 : 20), 20 + (what == "row spacing" ? 25 : 20) * b]);
+        Assert.Equal(expected.OrderBy(c => c[1]).ThenBy(c => c[0]).Select(c => $"{c[0]},{c[1]}"), HoleCentres(edited).Select(c => $"{c[0]},{c[1]}"));
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H104 | Holes report through or blind, depth, drill point and the matching metric size")]
     [Trait("TestId", "DIR-H104")]
     public void HoleEndsAndStandardSizes()

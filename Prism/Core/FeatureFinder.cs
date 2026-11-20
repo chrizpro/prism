@@ -597,6 +597,97 @@ public static class FeatureFinder
         public int MaxB => Cells.Count == 0 ? 0 : Math.Max(0, Cells.Max(c => c.B));
     }
 
+    /// <summary>
+    /// A grid read the way a person describes it: rows along <c>Along</c> with <c>Step</c> between neighbours, rows <c>RowSpacing</c> apart along
+    /// <c>Across</c>, and every other row shifted by <c>Shift</c> along the rows (0 for a plain grid, half the step for a staggered one).
+    /// <c>Cells</c> give (place in its row, row) for each of the pattern's other members, in the order of <see cref="PatternInfo.Others"/>;
+    /// the picked feature is (0, 0), and odd rows are the shifted ones.
+    /// </summary>
+    public sealed record PatternRows(Vec3 Along, double Step, Vec3 Across, double RowSpacing, double Shift, IReadOnlyList<(int A, int B)> Cells)
+    {
+        public bool Staggered => Shift > 1e-6;
+    }
+
+    /// <summary>
+    /// The rows reading of a grid pattern, or null when it has none (a line, a circle, or a slanted lattice that is not rows of equal steps with at
+    /// most every other row shifted). Row directions along a world axis are preferred, then those with the most features per row, then shorter steps.
+    /// </summary>
+    public static PatternRows? RowsOf(PatternInfo p)
+    {
+        if (p.Kind != PatternKind.Grid) return null;
+        var d = new List<Vec3> { Vec3.Zero };
+        for (int i = 0; i < p.Others.Count; i++) d.Add(p.V1 * p.Cells[i].A + p.V2 * p.Cells[i].B);
+        double tol = 1e-3 * Math.Min(p.V1.Length, p.V2.Length) + 1e-4;
+        var normal = Vec3.Cross(p.V1, p.V2).Normalized();
+        var cands = new List<Vec3>();
+        for (int i = -2; i <= 2; i++)
+            for (int j = -2; j <= 2; j++)
+            {
+                var u = p.V1 * i + p.V2 * j; if (u.Length < 1e-6) continue;
+                // one candidate per direction, the shortest lattice step along it (a longer multiple would skip every other feature)
+                int same = cands.FindIndex(c => Vec3.Cross(c, u).Length < 1e-6 * c.Length * u.Length);
+                if (same < 0) cands.Add(u); else if (u.Length < cands[same].Length - 1e-9) cands[same] = u;
+            }
+        PatternRows? best = null; (int axis, double perRow, double len) bestScore = (int.MaxValue, 0, 0);
+        foreach (var u in cands)
+        {
+            // point both directions the way their largest component is positive, so the reading does not depend on which feature was clicked
+            var along = Positive(u.Normalized()); var across = Positive(Vec3.Cross(normal, along).Normalized()); double step = u.Length;
+            var ts = d.Select(v => Vec3.Dot(v, across)).ToList();
+            var rowTs = ts.OrderBy(t => t).Aggregate(new List<double>(), (acc, t) => { if (acc.Count == 0 || t - acc[^1] > tol) acc.Add(t); return acc; });
+            if (rowTs.Count < 2) continue;
+            double spacing = Enumerable.Range(1, rowTs.Count - 1).Min(k => rowTs[k] - rowTs[k - 1]);
+            if (spacing < tol || rowTs.Any(t => Math.Abs(t / spacing - Math.Round(t / spacing)) * spacing > tol)) continue;
+            // offsets along the row, relative to the picked feature's row: even rows must sit on whole steps, odd rows on whole steps plus one shift
+            double? shift = null; bool ok = true; var cells = new List<(int, int)>();
+            for (int k = 0; k < d.Count && ok; k++)
+            {
+                int b = (int)Math.Round(ts[k] / spacing); double x = Vec3.Dot(d[k], along);
+                double frac = x / step - Math.Floor(x / step + tol / step); if (frac * step > step - tol) frac = 0;
+                double off = frac * step;
+                if (b % 2 == 0) { if (off > tol) ok = false; }
+                else if (shift == null) shift = off;
+                else if (Math.Abs(off - shift.Value) > tol) ok = false;
+                if (k > 0) cells.Add(((int)Math.Round((x - (b % 2 != 0 ? shift ?? 0 : 0)) / step), b));
+            }
+            if (!ok) continue;
+            int axis = Math.Abs(along.X) > 0.9999 ? 0 : Math.Abs(along.Y) > 0.9999 ? 1 : Math.Abs(along.Z) > 0.9999 ? 2 : 3;
+            double perRow = (double)d.Count / rowTs.Count;
+            var score = (axis, perRow, step);
+            bool better = best == null || score.axis < bestScore.axis
+                || score.axis == bestScore.axis && (score.perRow > bestScore.perRow + 1e-9 || Math.Abs(score.perRow - bestScore.perRow) < 1e-9 && score.step < bestScore.len - tol);
+            if (!better) continue;
+            best = new PatternRows(along, step, across, spacing, shift is { } s2 && s2 > tol ? s2 : 0, cells);
+            bestScore = (score.axis, score.perRow, score.step);
+        }
+        return best;
+    }
+
+    static Vec3 Positive(Vec3 v)
+    {
+        double ax = Math.Abs(v.X), ay = Math.Abs(v.Y), az = Math.Abs(v.Z);
+        double big = ax >= ay - 1e-9 && ax >= az - 1e-9 ? v.X : ay >= az - 1e-9 ? v.Y : v.Z;
+        return big < 0 ? -v : v;
+    }
+
+    /// <summary>A sentence describing the pattern a feature belongs to, such as "50 slots in staggered rows: 40 mm apart along X, rows 20 mm apart along Y, every other row shifted 20 mm".</summary>
+    public static string? PatternText(SceneObject body, Feat feat)
+    {
+        var p = PatternOf(body, feat); if (p.Kind == PatternKind.None) return null;
+        int n = p.Others.Count + 1; string what = n + " " + feat.Name.ToLowerInvariant() + (n > 1 ? "s" : "");
+        string Axis(Vec3 v) => Math.Abs(v.X) > 0.9999 ? "X" : Math.Abs(v.Y) > 0.9999 ? "Y" : Math.Abs(v.Z) > 0.9999 ? "Z" : $"({v.X:0.###}, {v.Y:0.###}, {v.Z:0.###})";
+        switch (p.Kind)
+        {
+            case PatternKind.Circle: return $"{what} on a circle, {p.Step * 180 / Math.PI:0.###}° apart";
+            case PatternKind.Line: return $"{what} in a line, {p.V1.Length:0.###} mm apart along {Axis(p.V1.Normalized())}";
+            default:
+                if (RowsOf(p) is not { } r) return $"{what} in a grid, steps {p.V1.Length:0.###} and {p.V2.Length:0.###} mm";
+                int rows = r.Cells.Select(c => c.B).Append(0).Distinct().Count();
+                return $"{what} in {(r.Staggered ? "staggered " : "")}rows: {r.Step:0.###} mm apart along {Axis(r.Along)}, {rows} rows {r.RowSpacing:0.###} mm apart along {Axis(r.Across)}"
+                    + (r.Staggered ? $", every other row shifted {r.Shift:0.###} mm" : "");
+        }
+    }
+
     /// <summary>The line, grid or circle of equal features that <paramref name="feat"/> belongs to (Kind None when it stands alone).</summary>
     public static PatternInfo PatternOf(SceneObject body, Feat feat)
     {

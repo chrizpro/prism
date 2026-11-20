@@ -102,6 +102,10 @@ public sealed class ImportedPartSpeedTests(Xunit.Abstractions.ITestOutputHelper 
         session.ImportStep(path);
         var body = session.Objects.Single(o => o.Kind == ObjKind.Solid);
         Step($"import, {body.Shape!.Count(SubKind.Face)} faces");
+        var feats = FeatureFinder.Features(body);
+        Step("recognise: " + string.Join(", ", feats.GroupBy(f => f.Name).Select(g => $"{g.Count()} {g.Key}")));
+        foreach (var g in feats.Where(f => f.Kind != FeatureKind.Face).GroupBy(f => f.Key))
+            if (FeatureFinder.PatternText(body, g.First()) is { } text) log.WriteLine("           pattern: " + text);
         body.Shape.Props(); Step("first measurement");
         body.Shape.Props(); Step("second measurement");
         _ = body.Mesh.TriangleCount; Step("display mesh");

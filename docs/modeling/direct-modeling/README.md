@@ -208,7 +208,9 @@ Acceptance criteria (approved 2026-11-19), each on a part built in code, exporte
 - Edit Pattern changes the count and spacing in each direction, adds or removes single members, and turns the stagger on or off.
 - Mirrored pairs: two equal features placed symmetrically about a plane are recognised as a pair, and editing one edits the other unless the user chooses only the one picked.
 
-Acceptance criteria (unapproved): the pegboard reports staggered rows with the steps above; changing its row spacing to 25 mm moves every slot accordingly and keeps them one pattern; on code-built parts, rectangular, circular and mirrored hole sets report their counts and steps and edit as described.
+**Status 2026-11-19, built and covered:** grids are read as rows (a row direction along a world axis first, then the most features per row, then the shortest step), with the stagger found when every other row is shifted. The owner's pegboard reads "50 slots in staggered rows: 40 mm apart along X, 10 rows 20 mm apart along Y, every other row shifted 20 mm". Edit Pattern on a grid now sets Spacing along the rows, Spacing 2 between rows, the count per row and the number of rows, and **Every other row** (as it is, shifted half a step, not shifted); rows keep their own start and length, so shorter shifted rows stay shorter. Checks: [DIR-H109](../../../Prism.Tests/Headless/DirectModeling/FeatureRecognitionTests.cs); DIR-H100 prints the reading for any STEP file. Not yet: mirrored pairs.
+
+Acceptance criteria (approved 2026-11-19): the pegboard reports staggered rows with the steps above; changing its row spacing to 25 mm moves every slot accordingly and keeps them one pattern; on code-built parts, rectangular, circular and mirrored hole sets report their counts and steps and edit as described.
 
 ### 3. Recognised features list (phase 2)
 
