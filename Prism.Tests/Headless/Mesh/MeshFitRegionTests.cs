@@ -200,6 +200,10 @@ public sealed class MeshFitRegionTests
         s.CommitCommand();
         var plane = Assert.Single(s.Objects, o => o.Kind == ObjKind.Plane);
         AssertClose(12, plane.SketchPlane!.Value.Origin.Z, 0.01, "plane fitted to the two-triangle face");
+        // the construction plane covers the 30 x 20 face with a small margin, not a square well past it
+        var sides = Enumerable.Range(0, plane.Shape.Count(SubKind.Edge)).Select(e => { using var ed = plane.Shape.Sub(SubKind.Edge, e); var i = Occ.EdgeInfoOf(ed); return (i.End - i.Start).Length; }).OrderBy(l => l).ToList();
+        Assert.InRange(sides[^1], 30, 34);
+        Assert.InRange(sides[0], 20, 24);
         s.ClearSelection();
         Assert.True(s.RegionSel == null || s.RegionSel.IsEmpty, "clearing the selection clears the highlighted region");
     }

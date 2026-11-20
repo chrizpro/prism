@@ -137,12 +137,31 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
         {
             case PrimKind.Plane:
             {
-                var c = sub.Centroid();
-                var on = c - r.Axis * Vec3.Dot(c - r.Origin, r.Axis);
-                var (u, v) = SurfaceMath.Basis(r.Axis);
-                double half = Math.Max(sub.Size.Length * 0.6, 5);
-                var pl = new Plane3(on, u, v);
-                var rect = Occ.Polyline([pl.PointAt(-half, -half), pl.PointAt(half, -half), pl.PointAt(half, half), pl.PointAt(-half, half)], true);
+                // The plane covers the face it was fitted to (owner request 2026-11-20: it was a square well past the face): its sides follow the
+                // face, chosen from the world axes laid on the plane and the face's own long direction, whichever gives the tightest rectangle,
+                // with a small margin so its border shows beyond the face's edge.
+                var nrm = r.Axis.Normalized(); var c = sub.Centroid();
+                var on = c - nrm * Vec3.Dot(c - r.Origin, nrm);
+                var dirs = new List<Vec3>();
+                foreach (var w in new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }) { var d = w - nrm * Vec3.Dot(w, nrm); if (d.Length > 1e-3) dirs.Add(d.Normalized()); }
+                {
+                    double xx = 0, xy = 0, yy = 0; var (bu, bv) = SurfaceMath.Basis(nrm);
+                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, bu), y = Vec3.Dot(q, bv); xx += x * x; xy += x * y; yy += y * y; }
+                    double ang = 0.5 * Math.Atan2(2 * xy, xx - yy); dirs.Add((bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized());
+                }
+                (Vec3 u, Vec3 v, double u0, double u1, double v0, double v1) best = default; double bestArea = double.MaxValue;
+                foreach (var u in dirs)
+                {
+                    var v = Vec3.Cross(nrm, u).Normalized(); double a0 = double.MaxValue, a1 = double.MinValue, b0 = double.MaxValue, b1 = double.MinValue;
+                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, u), y = Vec3.Dot(q, v); a0 = Math.Min(a0, x); a1 = Math.Max(a1, x); b0 = Math.Min(b0, y); b1 = Math.Max(b1, y); }
+                    double area = (a1 - a0) * (b1 - b0);
+                    if (area < bestArea - 1e-9) { bestArea = area; best = (u, v, a0, a1, b0, b1); }
+                }
+                double margin = Math.Max(0.05 * Math.Max(best.u1 - best.u0, best.v1 - best.v0), 1);
+                var centre = on + best.u * ((best.u0 + best.u1) / 2) + best.v * ((best.v0 + best.v1) / 2);
+                double hu = (best.u1 - best.u0) / 2 + margin, hv = (best.v1 - best.v0) / 2 + margin;
+                var pl = new Plane3(centre, best.u, best.v);
+                var rect = Occ.Polyline([pl.PointAt(-hu, -hv), pl.PointAt(hu, -hv), pl.PointAt(hu, hv), pl.PointAt(-hu, hv)], true);
                 refs.Add(new NewObject(rect, "Fitted plane", ObjKind.Plane, Plane: pl));
                 break;
             }
