@@ -216,6 +216,8 @@ Acceptance criteria (approved 2026-11-19): the pegboard reports staggered rows w
 
 A **Features** group under each solid in the Browser lists what was found, grouped by type and size, for example "Holes: 8 × Ø6.6 through (M6 clearance), 4 × M5 tapped", "Slots: 50 × 5 × 15 mm, staggered pattern", "Fillets: R1 (64 edges)", "Chamfers: 1 mm × 45° (4 edges)", "Text: engraved 0.5 mm", "Fasteners: 4 × M6 × 20 hex bolt". Clicking a line selects those features; right-click offers the same actions as Edit Feature. The list is recomputed after each edit and shown only for solids.
 
+**Status 2026-11-19, built and covered:** each solid (not assembly components, and not bodies over 4,000 faces) has a collapsed **Features** folder in the Browser listing what was recognised, grouped by type and size, with patterns described in words and fasteners in its holes; clicking a line selects those faces. Right-click actions on a line are not built yet: select it, then use Edit Feature or right-click in the view. Check: [DIR-H117](../../../Prism.Tests/Headless/DirectModeling/FeatureRecognitionTests.cs).
+
 ### 4. Live rules while moving faces (phase 3, separate proposal)
 
 Optional rules, as in NX and Solid Edge, applied when a face moves with the gizmo or Move Face: faces that were coplanar stay together, concentric holes stay concentric, tangent faces stay tangent, symmetric features stay symmetric. Each rule can be switched off in the panel. This is the hardest part; it would get its own proposal with worked examples before work starts.

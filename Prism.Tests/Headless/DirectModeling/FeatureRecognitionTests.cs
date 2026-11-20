@@ -291,6 +291,31 @@ public sealed class FeatureRecognitionTests
         AssertClose(20, (check.Shape!.Props().Min.Y + check.Shape.Props().Max.Y) / 2, 1e-6, "plate still centred");
     }
 
+    [AvaloniaFact(DisplayName = "DIR-H117 | Each solid lists its recognised features in the Browser, grouped by type and size; a line selects its faces")]
+    [Trait("TestId", "DIR-H117")]
+    public void FeaturesList()
+    {
+        var lines = FeatureSummary.For(Imported(StaggeredBoard()).body);
+        var holes = Assert.Single(lines);
+        Assert.Equal("14 × Ø6 through (M6 nominal) — in staggered rows: 40 mm apart along X, 4 rows 20 mm apart along Y, every other row shifted 20 mm", holes.Text);
+        Assert.Equal(14, holes.Faces.Count);
+
+        using var box = BoxAt(new Vec3(0, 0, 0), 50, 30, 10);   // the word runs from x = 10.6 to 41.5
+        using var bevel = Occ.Chamfer(box, Edges(box, e => Along(e, p => Math.Abs(p.Z - 10) < 1e-6 && Math.Abs(p.Y) < 1e-6)), 1);
+        using var round = Occ.Fillet(bevel, Edges(bevel, e => Along(e, p => Math.Abs(p.Z) < 1e-6)), 2);
+        using var engraved = Letters(9.2, 11); using var part = Occ.Cut(round, engraved);
+        var vm = new Prism.ViewModels.MainViewModel();
+        var path = Path.Combine(Path.GetTempPath(), $"features-{Guid.NewGuid():N}.step");
+        try { Occ.ExportStep([part], path); vm.Session.ImportStep(path); } finally { File.Delete(path); }
+        vm.RebuildBrowser();
+        var folder = Assert.Single(vm.AllBrowserNodes(), n => n.IsFolder && n.Title == "Features");
+        var texts = folder.Children.Select(c => c.Title).ToList();
+        Assert.Contains("Chamfer 1 mm × 45° (1 face)", texts);
+        Assert.Contains(texts, t => t.StartsWith("Fillets R2 ("));
+        Assert.Contains(texts, t => t.StartsWith("Text: 4 letters") && t.EndsWith("engraved 0.8 mm"));
+        Assert.All(folder.Children, c => Assert.True(c.Kind == Prism.ViewModels.NodeKind.Feature && c.FeatureFaces!.Count > 0));
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H104 | Holes report through or blind, depth, drill point and the matching metric size")]
     [Trait("TestId", "DIR-H104")]
     public void HoleEndsAndStandardSizes()

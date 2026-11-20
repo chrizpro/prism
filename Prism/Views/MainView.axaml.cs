@@ -454,6 +454,9 @@ public partial class MainView : UserControl
         var selectedNodes = SelectedNodes();
         if (selectedNodes.Count == 1 && selectedNodes[0].IsActiveSketchDatum) { vm.UseDatumNode(selectedNodes[0]); return; }
         var items = selectedNodes.Select(n => n.SelectionItem).Where(i => i != null).Select(i => i!.Value).ToList();
+        // a recognised-feature row stands for its faces
+        foreach (var feature in selectedNodes.Where(n => n.Kind == NodeKind.Feature && n.FeatureFaces != null))
+            foreach (int face in feature.FeatureFaces!) { var it = new Prism.Core.SelItem(feature.ObjectId, Prism.Core.SelKind.Face, face); if (!items.Contains(it)) items.Add(it); }
         // a group row stands for everything in the group
         foreach (var group in selectedNodes.Where(n => n.IsGroup))
             foreach (var member in vm.Session.GroupMembers(group.Title)) { var it = Prism.Core.SelItem.Of(member); if (!items.Contains(it)) items.Add(it); }
