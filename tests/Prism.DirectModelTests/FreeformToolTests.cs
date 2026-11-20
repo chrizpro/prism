@@ -92,7 +92,7 @@ static class FreeformToolTests
             check(titles.TakeLast(3).SequenceEqual(new[] { "Transform", "Inspect", "Appearance" }), $"{tab.Title} ends with Transform, Inspect, Appearance");
         }
         var left = new[] { "Select", "Datum", "References", "Curves" };
-        foreach (var name in new[] { "Solid", "Surface", "NURBS", "Freeform", "Home" })
+        foreach (var name in new[] { "Solid", "Surface", "NURBS", "Freeform" })
             check(vm.Tabs.Single(t => t.Title == name).Groups.Select(g => g.Title).Take(4).SequenceEqual(left), $"{name} starts with Select, Datum, References, Curves");
         var nurbs = vm.Tabs.Single(t => t.Title == "NURBS").Groups.Single(g => g.Title == "References").Items.OfType<RibbonButton>().First();
         check(nurbs.Label.Replace("\n", " ") == "Create Sketch" && nurbs.Shortcut == "K", "NURBS calls its sketch Create Sketch, with K as its key");

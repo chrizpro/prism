@@ -91,7 +91,16 @@ public sealed class RecognitionDemoStudy(Xunit.Abstractions.ITestOutputHelper lo
         var parts = new List<Shape> { Plate() };
         foreach (var (x, y) in new[] { (12.0, 12.0), (128.0, 12.0), (12.0, 60.0), (128.0, 60.0) }) { var (b, n) = BoltAndNut(x, y); parts.Add(b); parts.Add(n); }
         var s = new CadSession();
-        try { Occ.ExportStep(parts, path); s.ImportStep(path); }
+        try
+        {
+            Occ.ExportStep(parts, path);
+            s.ImportStep(path);
+            if (Environment.GetEnvironmentVariable("PRISM_GALLERY_OUT") is { Length: > 0 } folder)
+            {
+                Directory.CreateDirectory(folder);
+                File.Copy(path, Path.Combine(folder, "mounting-plate-source.step"), overwrite: true);
+            }
+        }
         finally { File.Delete(path); foreach (var p in parts) p.Dispose(); }
         Assert.Equal(9, s.Objects.Count(o => o.Kind == ObjKind.Solid));
         var boltIds = FastenerFinder.Find(s.Objects).Select(f => f.Body.Id).ToHashSet();

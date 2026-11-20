@@ -86,8 +86,8 @@ static class ScanTests
         var after = s.Find(meshObj.Id)!.Tri!;
         check(after.TriCount != globe.TriCount && after.Topology().HoleLoops.Count == 0 && s.Status.Contains("patched 1 opening"), "Delete and patch works from Select Region: " + s.Status);
         s.CancelCommand();
-        foreach (var name in new[] { "Mesh", "Reverse Engineer" })
-            check(vm.Tabs.Single(t => t.Title == name).Buttons.Any(b => b.Label.Replace("\n", " ") == "Select Region"), $"{name} has Select Region");
+        var editRegion = vm.Tabs.Single(t => t.Title == "Mesh").Buttons.Single(b => b.Id == "split:mesh-region");
+        check(editRegion.Menu.Any(b => b.Label.Replace("\n", " ") == "Edit Region"), "Mesh offers Edit Region");
 
         // ---- Section Sketch
         var plate = Occ.Cut(Occ.Box(60, 40, 10), Occ.Translate(Occ.Cylinder(6, 30), new Vec3(0, 0, -10)));

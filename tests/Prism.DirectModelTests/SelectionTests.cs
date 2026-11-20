@@ -60,7 +60,9 @@ static class SelectionTests
         {
             var select = vm.Tabs.Single(t => t.Title == tab).Groups.Single(g => g.Title == "Select");
             var buttons = select.Items.OfType<Prism.Ribbon.RibbonButton>().ToList();
-            check(buttons.Any(b => b.Id == "split:selection-method" && b.Menu.Count == 2) && buttons.Any(b => b.Label == "Invert") && buttons.Any(b => b.Label == "Through"), $"the {tab} tab's Select section has the Rectangle/Lasso dropdown, Invert and Through");
+            check(buttons.Any(b => b.Id == "split:selection-method" &&
+                b.Menu.Select(item => item.Label).SequenceEqual(new[] { "Rectangle", "Lasso", "Paint" })) &&
+                buttons.Any(b => b.Label == "Invert"), $"the {tab} tab offers Rectangle, Lasso, Paint and Invert");
         }
 
         s.Method = SelectMethod.Click;
@@ -88,7 +90,10 @@ static class SelectionTests
         var picked = RegionSelect.Collect(s, everything, SelMode.Object, true);
         check(picked.Any(i => i.Obj == wire.Id), "a rectangle picks curves");
         check(picked.Any(i => i.Obj == cage.Id), "a rectangle picks Freeform bodies");
-        check(RegionSelect.Collect(s, everything, SelMode.Face, true).All(i => i.Obj == block.Id), "in Face mode it leaves curves and Freeform bodies alone");
+        var facePicks = RegionSelect.Collect(s, everything, SelMode.Face, true);
+        check(facePicks.Any(i => i.Obj == block.Id && i.Kind == SelKind.Face) &&
+              facePicks.Any(i => i.Obj == cage.Id && i.Kind == SelKind.Face) &&
+              facePicks.All(i => i.Obj != wire.Id), "Face mode selects solid and cage faces and skips curves");
 
         // Invert and the lasso inside Edit Freeform
         s.SelectObjects([cage.Id]);

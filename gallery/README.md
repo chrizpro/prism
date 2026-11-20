@@ -8,6 +8,10 @@ Curated native examples for the [startup gallery](../docs/interface/gallery/READ
 
 Models and scripts are MIT licensed under the repository [license](../LICENSE). These are concept examples, not certified engineering designs. Claude created the camera lens, the Meridian orrery, the Fold tablet stand, the cardboard box and the lotus dish; Codex created the other initial studies through Prism's actual modeling API. The gallery covers Solid, Freeform, Surface/NURBS, Assembly and Sheet Metal construction.
 
+## STEP mounting plate gallery candidate
+
+A nine-body mounting plate with four bolts and nuts, a slot pattern and a stiffening rib. Compare the fresh STEP import with the revised model in the split preview. [Source STEP](extras/mounting-plate-source.step) · [Before](extras/mounting-plate-imported.prism) · [After](models/mounting-plate-revised.prism) · [Preview](previews/mounting-plate-revised.png) · [Direct Modeling steps and verification](../docs/modeling/direct-modeling/README.md#step-mounting-plate-gallery-candidate).
+
 ## What is here
 
 Models are grouped by the main Prism workflow they show, and the app's startup gallery lists them in sections in this order, three per section until expanded: Solid, Surface, Freeform, NURBS, Sheet Metal, Assembly, Direct Modeling, Mesh, CAM, Mold, CAE, ECAD. A model is listed under **every** workflow in its Workflow field (`CAE / Solid` appears under both CAE and Solid, `Solid / Assembly` under Solid and Assembly); the catalog's **Workflow** field uses the same names, joined with " / " when a model combines several (for example `Freeform / Solid`). Use the names of the workspace tabs: Solid, Surface, NURBS, Freeform, Sheet Metal, Assembly, and later CAM, CAE or Render. `python gallery/update_catalog.py --check` fails if a model in `catalog.json` is missing from this index.
