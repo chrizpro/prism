@@ -16,13 +16,15 @@ The headless cases check exact-body bounds and volume for translation, world-ori
 
 [Warp tests](../../../Prism.Tests/Headless/Solid/WarpTests.cs) check Stretch with start/end ranges, Taper, Twist, Bend of a line centred on the origin, a stretched solid and Bend of a stored NURBS surface patch (WRP-H008).
 
-## Copy and paste in general — Direction approved 2026-11-16; table below still awaiting review; not built yet
+## Copy and paste in general — Approved 2026-11-16; owner asked 2026-11-19 for it to work on pretty much anything; partly built
 
 **Owner direction 2026-11-16:** copy and paste should mostly work on what is selected, including faces and edges, and possibly something unique with vertices. This could eventually replace the dedicated *Extract Edges* tool, which stays unchanged for now. The table of what each selection pastes as, and the open decisions, still need the owner's review.
 
 Owner request 2026-11-16: allow copy and paste wherever it helps, not only on Freeform faces (see [Freeform copy and paste](../freeform/README.md#copy-and-paste-of-faces-and-in-general)).
 
 **Today** (read from [CadSession.Clipboard.cs](../../../Prism/Core/CadSession.Clipboard.cs) on 2026-11-16, not tried by hand). `Ctrl+C` and `Ctrl+V` copy and paste **whole objects** only. They are shared by every open document, so a part can go to another tab, and Alt-drag with Move leaves a copy behind. They do nothing while a command panel is open or while sketching, and they ignore annotations, reference parts and assembly components. Faces, edges, sketch entities and Freeform cage parts cannot be copied.
+
+**Status 2026-11-20, built and covered:** objects, faces of solids and surfaces (a surface), edges (a curve), vertices (points), mesh triangles (a new mesh of those triangles) and, while sketching, sketch curves with the constraints and dimensions between them (pasted into the open sketch, shifted a little and selected; constraints to curves left behind and Fixed constraints are dropped). Checks: [SEL-H028, SEL-H060 to SEL-H063](../../../Prism.Tests/Headless/Selection/ClipboardTests.cs). The owner's 2026-11-19 request settles the open decisions below with the recommended answers. Not built yet: Freeform cage faces (they are only selectable inside Edit Freeform), pasting sketch curves into another sketch from outside it, and Ctrl+Shift+V at the pointer.
 
 **Proposal: copy whatever is selected, at the level it is selected.** One rule: Ctrl+C copies what you have selected, Ctrl+V pastes it as the nearest useful thing, in the same place, selected so the gizmo can move it. Ctrl+Shift+V pastes at the pointer.
 

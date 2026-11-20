@@ -112,4 +112,56 @@ public class ClipboardTests
             Assert.Equal([SelItem.Of(copy)], session.Selection);
         }
     }
+
+    [AvaloniaFact(DisplayName = "SEL-H062 | While sketching, Copy and Paste duplicate the selected curves with the constraints between them, shifted and selected")]
+    [Trait("TestId", "SEL-H062")]
+    public void SketchCurvesCopyAndPaste()
+    {
+        var session = new CadSession();
+        session.EnterSketch(Plane3.XY, alignView: true);
+        var sk = session.Sketch!; var m = sk.Model;
+        int a = m.AddPoint(0, 0), b = m.AddPoint(20, 0), c = m.AddPoint(20, 10);
+        int l1 = m.AddLine(a, b), l2 = m.AddLine(b, c);
+        m.Add(Prism.Core.Sketching.CType.Horizontal, refs: l1);
+        m.Add(Prism.Core.Sketching.CType.LineLength, 20, 0, true, l1);
+        int circle = m.AddCircle(m.AddPoint(40, 0), 5);
+        sk.SelEntities.Add(l1); sk.SelEntities.Add(l2);
+        Assert.True(session.CanCopy);
+        Assert.True(session.CopySelection());
+        Assert.True(session.CanPaste);
+        session.Paste();
+        Assert.Equal(4, m.Entities.Count(e => e.Type == Prism.Core.Sketching.EntType.Line));
+        Assert.Single(m.Entities, e => e.Type == Prism.Core.Sketching.EntType.Circle && e.Id == circle);
+        Assert.Equal(2, sk.SelEntities.Count);
+        Assert.DoesNotContain(l1, sk.SelEntities);
+        Assert.Equal(2, m.Constraints.Count(k => k.Type == Prism.Core.Sketching.CType.Horizontal));
+        Assert.Equal(2, m.Constraints.Count(k => k.Type == Prism.Core.Sketching.CType.LineLength));
+        var copy = m.E(sk.SelEntities.First());
+        Assert.True(m.PointsOf(copy).All(p => m.P(p).X > 0.5 || m.P(p).Y < -0.5), "the copy is shifted off the original");
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H063 | Copying vertices pastes points, and copying mesh triangles pastes a new mesh of just those triangles")]
+    [Trait("TestId", "SEL-H063")]
+    public void VerticesAndMeshTriangles()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new Vec3(0, 0, 0), 10, 10, 10);
+        session.SelectItems([new SelItem(body.Id, SelKind.Vertex, 0), new SelItem(body.Id, SelKind.Vertex, 1)]);
+        Assert.True(session.CopySelection());
+        var points = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Curve, points.Kind);
+        Assert.Equal(2, points.Shape!.Count(SubKind.Vertex));
+
+        var mesh = session.AddObject(null, "Scan", ObjKind.Mesh);
+        session.Update(mesh.Id, o => o.WithTri(Prism.Meshing.MeshAnalysis.FromMeshData(body.Mesh)), checkpoint: false);
+        mesh = session.Find(mesh.Id)!;
+        int total = mesh.Tri!.TriCount;
+        session.SelectItems([new SelItem(mesh.Id, SelKind.MeshFace, 0), new SelItem(mesh.Id, SelKind.MeshFace, 1), new SelItem(mesh.Id, SelKind.MeshFace, 2)]);
+        Assert.True(session.CanCopy);
+        Assert.True(session.CopySelection());
+        var piece = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Mesh, piece.Kind);
+        Assert.Equal(3, piece.Tri!.TriCount);
+        Assert.Equal(total, session.Find(mesh.Id)!.Tri!.TriCount);
+    }
 }

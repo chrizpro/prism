@@ -20,9 +20,26 @@ public sealed partial class CadSession
 
     // Pieces of a model (selected faces or edges) copied instead of whole objects: pasted as a new surface or curve (owner direction 2026-11-16)
     static List<(Shape Shape, string Name, ObjKind Kind)> _clipboardParts = [];
+    // selected triangles of meshes, pasted as new meshes (one per source mesh)
+    static List<(Meshing.TriMesh Mesh, string Name, uint Color)> _clipboardMeshes = [];
 
-    public bool CanCopy => ActiveCommand == null && (Sketch != null ? Sketch.SelEntities.Count > 0 : CopyableSelection().Count > 0 || _selection.Any(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex));
-    public bool CanPaste => ActiveCommand == null && (Sketch != null ? _sketchClip != null : _clipboard.Count > 0 || _clipboardParts.Count > 0);
+    List<(Meshing.TriMesh, string, uint)> CopyMeshFaces()
+    {
+        var res = new List<(Meshing.TriMesh, string, uint)>();
+        foreach (var group in _selection.Where(i => i.Kind == SelKind.MeshFace).GroupBy(i => i.Obj))
+        {
+            if (Find(group.Key) is not { Tri: { } tri } source) continue;
+            var tris = group.Select(i => i.Index).Where(t => t >= 0 && t < tri.TriCount).Distinct().ToList();
+            if (tris.Count == 0) continue;
+            var idx = new int[tris.Count * 3];
+            for (int k = 0; k < tris.Count; k++) for (int c = 0; c < 3; c++) idx[3 * k + c] = tri.T[3 * tris[k] + c];
+            res.Add((Meshing.MeshOps.Compact((float[])tri.V.Clone(), idx), $"{source.Name} piece", source.Color));
+        }
+        return res;
+    }
+
+    public bool CanCopy => ActiveCommand == null && (Sketch != null ? Sketch.SelEntities.Count > 0 : CopyableSelection().Count > 0 || _selection.Any(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex or SelKind.MeshFace));
+    public bool CanPaste => ActiveCommand == null && (Sketch != null ? _sketchClip != null : _clipboard.Count > 0 || _clipboardParts.Count > 0 || _clipboardMeshes.Count > 0);
 
     /// <summary>
     /// The selected faces and edges of solids, surfaces and curves, one new object per source object: a face copy is a surface (the faces of one body stay
@@ -31,7 +48,7 @@ public sealed partial class CadSession
     List<(Shape Shape, string Name, ObjKind Kind)> CopyComponents()
     {
         var parts = new List<(Shape, string, ObjKind)>();
-        foreach (var group in _selection.Where(i => i.Kind is SelKind.Face or SelKind.Edge).GroupBy(i => i.Obj))
+        foreach (var group in _selection.Where(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex).GroupBy(i => i.Obj))
         {
             if (Find(group.Key) is not { Tri: null, Form: null, HasBrep: true } source) continue;
             foreach (var kind in new[] { SelKind.Face, SelKind.Edge, SelKind.Vertex })
@@ -52,16 +69,22 @@ public sealed partial class CadSession
     public bool CopySelection()
     {
         if (Sketch != null) return CopySketchSelection();
-        var parts = CopyComponents();
+        var parts = CopyComponents(); var meshes = CopyMeshFaces();
+        if (meshes.Count > 0 && parts.Count == 0)
+        {
+            _clipboardMeshes = meshes; _clipboardParts = []; _clipboard = [];
+            Say($"Copied {meshes.Sum(m => m.Item1.TriCount)} triangle(s). Paste with Ctrl+V to get them as a new mesh.");
+            return true;
+        }
         if (parts.Count > 0)
         {
-            _clipboardParts = parts; _clipboard = [];
+            _clipboardParts = parts; _clipboard = []; _clipboardMeshes = [];
             Say($"Copied {parts.Count} piece(s) of the model. Paste with Ctrl+V to get them as new {(parts.All(p => p.Kind == ObjKind.Surface) ? "surfaces" : parts.All(p => p.Kind == ObjKind.Curve) ? "curves" : "surfaces and curves")}.");
             return true;
         }
         var objs = CopyableSelection();
         if (objs.Count == 0) { Say("Select an object, face or edge to copy.", true); return false; }
-        _clipboard = objs.Select(o => CloneObject(o, o.Name)).ToList(); _clipboardParts = [];
+        _clipboard = objs.Select(o => CloneObject(o, o.Name)).ToList(); _clipboardParts = []; _clipboardMeshes = [];
         Say($"Copied {objs.Count} object(s). Paste with Ctrl+V.");
         return true;
     }
@@ -70,7 +93,17 @@ public sealed partial class CadSession
     public List<SceneObject> Paste()
     {
         if (Sketch != null) { if (_sketchClip != null) PasteSketch(); else Say("Copy sketch curves first.", true); return []; }
-        if (_clipboard.Count == 0 && _clipboardParts.Count == 0) { Say("Nothing has been copied.", true); return []; }
+        if (_clipboard.Count == 0 && _clipboardParts.Count == 0 && _clipboardMeshes.Count == 0) { Say("Nothing has been copied.", true); return []; }
+        if (_clipboardMeshes.Count > 0)
+        {
+            Checkpoint("Paste", "duplicate");
+            var made = _clipboardMeshes.Select(m => new SceneObject(Guid.NewGuid(), NextName(m.Name), null, ObjKind.Mesh, m.Color, true, null, null, null, null, m.Mesh)).ToList();
+            Objects = Objects.AddRange(made);
+            _selection.Clear(); foreach (var c in made) _selection.Add(SelItem.Of(c));
+            RaiseScene(); SelectionChanged?.Invoke();
+            Say($"Pasted {made.Count} mesh piece(s) where they were copied from. Move them with the gizmo.");
+            return made;
+        }
         if (_clipboardParts.Count > 0)
         {
             Checkpoint("Paste", "duplicate");
