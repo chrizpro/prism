@@ -47,6 +47,31 @@ public sealed class SketchTrimTests
         Assert.True(cy + r * Math.Sin(mid) > 44.99, "the arc that stays is the one above the rectangle");
     }
 
+    [AvaloniaFact(DisplayName = "SKT-H069 | Insert Point snaps to a line's midpoint or a crossing, so one piece can be deleted without Trim")]
+    [Trait("TestId", "SKT-H069")]
+    public void InsertPointSnapsAndSplits()
+    {
+        var s = new CadSession();
+        s.EnterSketch(Plane3.XY, alignView: true);
+        var sk = s.Sketch!; var m = sk.Model;
+        int line = m.AddLine(m.AddPoint(0, 0), m.AddPoint(40, 0));
+        m.AddLine(m.AddPoint(30, -10), m.AddPoint(30, 10));                // crosses it at x = 30
+        foreach (var (target, expect) in new[] { (20.0, 20.0), (30.0, 30.0) })
+        {
+            var at = s.Camera.Project(sk.Plane.PointAt(target, 0))!.Value;
+            var snapped = InsertPointTool.Snap(s, sk, m.E(line), at.x + 3, at.y + 2);
+            Assert.NotNull(snapped);
+            Assert.Equal(expect, snapped.Value.u, 6); Assert.Equal(0, snapped.Value.v, 6);
+        }
+        int mid = InsertOps.Insert(m, line, 20, 0);
+        Assert.Equal(20, m.P(mid).X, 9);
+        var halves = m.Entities.Where(e => e.Type == EntType.Line && m.PointsOf(e).Contains(mid)).ToList();
+        Assert.Equal(2, halves.Count);
+        m.RemoveEntity(halves.Single(e => m.PointsOf(e).Any(p => m.P(p).X > 39)).Id);
+        var kept = Assert.Single(m.Entities, e => e.Type == EntType.Line && m.PointsOf(e).Contains(mid));
+        Assert.Equal(new[] { 0.0, 20.0 }, m.PointsOf(kept).Select(p => m.P(p).X).Order());
+    }
+
     [AvaloniaFact(DisplayName = "SKT-H068 | Construction lines never cut normal geometry, but a construction line is still trimmed where normal curves cross it")]
     [Trait("TestId", "SKT-H068")]
     public void ConstructionDoesNotCut()

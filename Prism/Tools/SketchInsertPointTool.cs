@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Prism.Core.Sketching;
 using Prism.Kernel;
@@ -103,6 +104,7 @@ public sealed class InsertPointTool : SketchTool
         int eid = sk.PickEntity(s, p.X, p.Y, 9);
         if (eid < 0 || sk.Model.EntityOrNull(eid) is not { } e || !InsertOps.CanInsert(e)) { s.Say("Click a line, arc, circle or spline to add a point.", true); return true; }
         if (sk.PlanePoint(s, p.X, p.Y) is not { } uv) return true;
+        if (Snap(s, sk, e, p.X, p.Y) is { } snapped) uv = snapped;
         (int index, Vec3 point)? spot = e.Type == EntType.Spline ? SplineOps.ScreenInsertSpot(s, sk, e, p.X, p.Y) : null;
         int made = -1;
         if (sk.Edit(s, "Inserting that point", () => made = InsertOps.Insert(sk.Model, eid, uv.u, uv.v, spot)) && made >= 0)
@@ -114,13 +116,46 @@ public sealed class InsertPointTool : SketchTool
         return true;
     }
 
+    (double u, double v)? _snap;
+
+    /// <summary>
+    /// The point on the curve a click near (px, py) should take: the curve's midpoint or a place another curve crosses it, when one is within
+    /// 10 pixels on screen. Null means "exactly where clicked".
+    /// </summary>
+    public static (double u, double v)? Snap(CadSession s, SketchContext sk, SkEntity e, double px, double py)
+    {
+        var m = sk.Model; var spots = new List<(double u, double v)>();
+        if (e.Type == EntType.Line) { var a = m.P(e.A); var b = m.P(e.B); spots.Add(((a.X + b.X) / 2, (a.Y + b.Y) / 2)); }
+        else if (e.Type == EntType.Arc) { var (cx, cy, r, a0, sw) = m.ArcGeometry(e); spots.Add((cx + r * Math.Cos(a0 + sw / 2), cy + r * Math.Sin(a0 + sw / 2))); }
+        foreach (var mine in SketchCross.Prims(m, e))
+            foreach (var o in m.Entities)
+            {
+                if (o.Id == e.Id || o.Type == EntType.Point) continue;
+                foreach (var prim in SketchCross.Prims(m, o)) spots.AddRange(SketchCross.Hit(mine, prim));
+            }
+        (double u, double v)? best = null; double bestD = 10;
+        foreach (var (u, v) in spots)
+        {
+            if (s.Camera.Project(sk.Plane.PointAt(u, v)) is not { } at) continue;
+            double d = Math.Sqrt((at.x - px) * (at.x - px) + (at.y - py) * (at.y - py));
+            if (d < bestD) { bestD = d; best = (u, v); }
+        }
+        return best;
+    }
+
     public override void PointerMove(CadSession s, PointerInfo p)
     {
         var sk = Sk(s);
         int he = sk.PickEntity(s, p.X, p.Y, 9);
         sk.HoverEntity = he >= 0 && sk.Model.EntityOrNull(he) is { } e && InsertOps.CanInsert(e) ? he : -1;
+        _snap = sk.HoverEntity >= 0 ? Snap(s, sk, sk.Model.E(sk.HoverEntity), p.X, p.Y) : null;
         sk.HoverPoint = -1; sk.Cursor = null;
         if (sk.PlanePoint(s, p.X, p.Y) is { } c) s.Cursor3 = sk.Plane.PointAt(c.u, c.v);
         s.Invalidate();
+    }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_snap is { } at && s.Sketch is { } sk) o.AddDot(sk.Plane.PointAt(at.u, at.v), 0xFF2BC4D1, 9);
     }
 }

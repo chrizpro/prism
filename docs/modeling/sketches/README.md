@@ -28,6 +28,8 @@ The owner approved promoting Spline, Trim and Offset on 2026-11-10. [Tracking is
 | Brainstorm | Grease Pencil and Eraser in a split button |
 | Exit | Finish Sketch, Cancel |
 
+**Insert Point instead of Trim (owner request 2026-11-19).** Insert Point splits a line, arc or circle where you click, so one piece can then be selected and deleted. A click within 10 pixels of the curve's midpoint or of a place another curve crosses it snaps there (a dot shows the spot before you click). Trim ignores construction lines: they never cut normal curves. Checks: [SKT-H067 to SKT-H069](../../../Prism.Tests/Headless/Sketch/SketchTrimTests.cs). Points Along Curve (NURBS tab) works on straight edges and lines as well as curves.
+
 The [maintained Sketch suite](../../../Prism.Tests/Headless/Sketch/) covers Rectangle, Line, Ellipse, Arc, Polygon and Spline modes. Existing standalone [Sketch 2D](../../../tests/Prism.Sketch2DTests/Program.cs), [Sketch Space](../../../tests/Prism.SketchSpaceTests/Program.cs), [sketch panel](../../../tests/Prism.SketchPanelWorkflowTests/Program.cs) and [solver](../../../tests/Prism.SketchConstraintTests/) checks provide additional evidence. [Contextual coverage issue #38](https://github.com/chrizpro/prism/issues/38).
 
 Remaining option-level work includes drawing modifiers and numeric fields, Slot and Text controls, Project / Include modes, sketch modifications, each constraint's allowed picks and solve/failure cases, dimension modes, and contextual finish/cancel. The existing executable suites cover some of these paths. Record their evidence separately from maintained coverage.
