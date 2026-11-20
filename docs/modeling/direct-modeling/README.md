@@ -176,3 +176,64 @@ The owner reported that an imported pegboard (`Skadis_Raster (1).step`: 220 × 2
 Two changes. A shape now keeps its measurements, and a moved copy inherits them (same volume and area, box moved). And the exact box, which took 3.6 s of the 4 s, now searches only the faces that can widen it: the vertices give a box inside the exact one, and a face whose quick box (without its tolerance padding) fits inside that box is skipped. On the pegboard it takes 0.14 s and gives the same box to the last digit; volume and area are computed exactly as before. Measured headlessly on the same file: import 6.9 s to 3.1 s; Move 0.1 s plus 1.7 s to rebuild the display mesh; Move Face on the top about 6 s in all (the edit itself is about 4.7 s), of which measuring the new shape is 0.5 s instead of 4.3 s. Checks: [DIR-H098, DIR-H099, DIR-H101](../../../Prism.Tests/Headless/DirectModeling/ImportedPartSpeedTests.cs) (kept and inherited numbers match a fresh measurement; exact boxes for a sphere, a cylinder and a plate with rounded slot rims); DIR-H100 times any STEP file given in `PRISM_SPEED_STEP`. Not yet tried by hand in the app.
 
 Still open: the moved body's display mesh is rebuilt rather than moved, and Move Face on the top split the board from 626 to 834 faces.
+
+## Feature recognition, editable patterns and baking history (owner-approved 2026-11-19; in progress)
+
+**Owner request, 2026-11-19:** direct modeling should recognise everything it can on an imported part (holes, text, fillets, chamfers, bolts in holes, patterns) so it can be edited, taking ideas from NX and Solid Edge; and the user should be able to bake or remove history when a part gets too heavy. **Approved 2026-11-19:** the owner approved this plan and added smooth, KeyCreator-style editing (from a KeyCreator direct-modeling video), in particular editing by a dimension (section 6). Live rules (section 4) still need their own proposal. Each section records its status as it is built.
+
+**Where Prism is today** (measured on the owner's 626-face pegboard STEP and in the code): holes, bosses, slots, pockets, fillets, counterbores and countersinks are recognised, one click picks the whole feature, and Edit Feature moves, resizes, copies, deletes or converts them (fillets can be resized). Line, grid and circular patterns are found: all 50 pegboard slots in 0.6 s. Gaps: no chamfers, threads, text, fasteners or ribs; the pegboard's rounded outer edge is mis-read as one 24-face "slot"; a staggered grid is reported as two diagonal steps instead of rows; nothing lists what was found; and history can only be switched off per body before editing, never baked afterwards.
+
+**Ideas taken from NX and Solid Edge:** Solid Edge's *Recognize Holes* and *Recognize Patterns* turn imported geometry into hole and pattern features listed in PathFinder. NX synchronous modeling labels chamfers, resizes blends and chamfers, and edits patterns of faces. Both keep *live rules* (stay coplanar, concentric, tangent, symmetric) while faces move. NX *Remove Parameters* and Solid Edge's move to synchronous drop history from a body.
+
+### 1. Recognise more (phase 1)
+
+| Feature | How it is recognised | What you can do with it |
+|---|---|---|
+| Chamfer | a narrow flat (or conical, on a round edge) strip joining two faces at convex edges, with equal or unequal setbacks | Resize the distance or distances, swap to a fillet of matching size, delete it (the edges go sharp) |
+| Fillet (existing) | as now, with its radius in the readout | as now; also swap to a chamfer |
+| Hole, refined | through or blind, depth, drill-point angle, counterbore and countersink sizes; the size matched to the nearest metric clearance or tap-drill size ("Ø6.6, M6 clearance, through") | as now; Change type keeps the matched size |
+| Threaded hole or stud | helical faces inside a hole or on a boss | Read the diameter and pitch ("M6 × 1"), delete the thread to leave a plain bore, change the size |
+| Bolt, screw, pin or nut in a hole | a separate body on a hole's axis that passes through it: a shank that fits the hole, with a head or nut wider than the hole | Moving, resizing or deleting the hole carries the fastener with it; select all fasteners of one size |
+| Text, engraved or embossed | many small faces whose walls all rise the same depth from one flat or gently curved face, with letter-like outlines (many separate loops close together, rich in splines and arcs) | Pick the whole word with one click; move it, change its depth, flip engraved and embossed, delete it, or replace it with new text in the same place (the original characters cannot be read back from the geometry) |
+| Rib or wall | two parallel flat faces closer together than about a fifth of their size, joined to the body along one side | Change the thickness about its centre plane |
+| Outer round or chamfer around a plate | a ring of rounds or chamfers along the outside of a body | Recognised as a fillet or chamfer chain, never as a slot (fixes the pegboard) |
+
+**Status 2026-11-19, built and covered:** chamfers (flat, equal or unequal, with both setbacks and the angle; and a cone on a boss's edge), hole ends (through or blind, depth, drill-point angle) and the nearest metric size (tap drill and clearance sizes first, then nominal), and the rounded-outline fix (a ring of faces is a hole only when its walls face its axis). Two recogniser bugs were fixed on the way: inside and outside corners were judged at the average of an edge's points, which on a circular edge is its centre, and a drill point's cone was taken for a countersink. Checks: [DIR-H102 to DIR-H104](../../../Prism.Tests/Headless/DirectModeling/FeatureRecognitionTests.cs). Not yet built in this section: threads, fasteners, text, ribs, and the chamfer and fillet swap actions.
+
+Acceptance criteria (approved 2026-11-19), each on a part built in code, exported to STEP and imported again so no history survives: every listed feature is recognised with its sizes read within 0.01 mm (0.1° for angles); one click picks the whole feature; each action in the table changes exactly that feature and leaves a valid solid with the expected volume change; the pegboard's outer edge is a fillet chain and its 50 slots stay one pattern; recognising the 626-face pegboard stays under 1 s.
+
+### 2. Patterns you can edit (phase 1)
+
+- Rectangular, staggered (alternate rows shifted, as on the pegboard), circular and along-a-line patterns are described the way a person would: "50 slots in rows 40 mm apart along X; rows 20 mm apart, every other row shifted 20 mm".
+- Edit Pattern changes the count and spacing in each direction, adds or removes single members, and turns the stagger on or off.
+- Mirrored pairs: two equal features placed symmetrically about a plane are recognised as a pair, and editing one edits the other unless the user chooses only the one picked.
+
+Acceptance criteria (unapproved): the pegboard reports staggered rows with the steps above; changing its row spacing to 25 mm moves every slot accordingly and keeps them one pattern; on code-built parts, rectangular, circular and mirrored hole sets report their counts and steps and edit as described.
+
+### 3. Recognised features list (phase 2)
+
+A **Features** group under each solid in the Browser lists what was found, grouped by type and size, for example "Holes: 8 × Ø6.6 through (M6 clearance), 4 × M5 tapped", "Slots: 50 × 5 × 15 mm, staggered pattern", "Fillets: R1 (64 edges)", "Chamfers: 1 mm × 45° (4 edges)", "Text: engraved 0.5 mm", "Fasteners: 4 × M6 × 20 hex bolt". Clicking a line selects those features; right-click offers the same actions as Edit Feature. The list is recomputed after each edit and shown only for solids.
+
+### 4. Live rules while moving faces (phase 3, separate proposal)
+
+Optional rules, as in NX and Solid Edge, applied when a face moves with the gizmo or Move Face: faces that were coplanar stay together, concentric holes stay concentric, tangent faces stay tangent, symmetric features stay symmetric. Each rule can be switched off in the panel. This is the hardest part; it would get its own proposal with worked examples before work starts.
+
+### 5. Bake or remove history
+
+- **Bake history** (right-click a step in the Design history panel, or the panel menu for the whole document): everything up to that step becomes one starting point. Steps before it can no longer be edited or undone; steps after it are kept and stay editable. A confirmation says how many steps will be merged and that this cannot be undone except by reopening the saved file.
+- **Remove history from body** (right-click a solid): the body keeps its shape and becomes a plain body, like an imported part. Its earlier feature steps stop being editable; other bodies keep their history. Direct edits keep working on it.
+- The history panel shows how many steps and stored snapshots the document carries, so the user can see when baking would help.
+
+Acceptance criteria (unapproved): after Bake history on a document, the history holds one starting step plus the steps after the baked one, every body keeps its shape (equal volume and box), saving produces a smaller file, and Undo stops at the baked step. After Remove history from body, editing an earlier feature of another body still replays correctly and does not change the plain body.
+
+### 6. Edit Distance (KeyCreator-style editing by dimension)
+
+**Direct Modeling → Edit → Edit Distance.** Pick what to move (a face, or any face of a hole, slot, pocket or boss, which picks the whole feature) and what to measure from (a flat face, a hole's axis or a datum). The panel shows the current distance; type a new one and the picked side moves by the difference along the measuring direction, the body stretching to follow as Move Face and Edit Feature's Move already do. Parallel flat faces measure square to the faces; a hole, slot or boss measures from its axis (centre to face, or centre to centre). **Symmetric** moves both sides by half the change each. If the picked feature is part of a pattern, **Also edit** offers the whole pattern, as the other face tools do.
+
+Acceptance criteria (approved with the plan): on a plate with a hole 20 mm from one edge, setting the distance to 35 mm moves the hole 15 mm and keeps its diameter; between two parallel faces 40 mm apart, setting 30 mm moves the picked face 10 mm closer and the volume drops accordingly; Symmetric moves both faces 5 mm; a distance between non-parallel flat faces is refused with a message; the result is one undo step.
+
+### Demo plan
+
+A mounting-plate study built in code, exported to STEP and imported again so no history remains: a plate with outer chamfers and rounds, a circular pattern of counterbored holes with bolts in them, a staggered slot pattern, an engraved part number and a rib. The demo recognises everything and lists it, then resizes the bolt circle (the bolts follow), changes the slot pattern's count, swaps a chamfer for a fillet, replaces the engraved text, thickens the rib and bakes the history. It becomes a Direct Modeling gallery study with screenshots.
+
+**Order of work:** 1 (recognition), 6 (Edit Distance), 2 (patterns), 5 (history), 3 (the Browser list), then the demo. 4 only after its own proposal.

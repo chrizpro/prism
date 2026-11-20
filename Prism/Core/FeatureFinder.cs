@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink }
+public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer }
 
 /// <summary>How a click grows into a selection (the "intent" of a pick in the direct-editing tools).</summary>
 public enum PickIntent { Feature, Face, Tangent, SameSize, Pattern }
@@ -17,8 +17,17 @@ public sealed record Round(Vec3 Origin, double Radius, bool Hole, double T0, dou
 /// <summary>A recognised feature: its faces, what it is, a size key (equal keys mean "same feature again") and where it sits.</summary>
 public sealed record Feat(int Face, FeatureKind Kind, string Key, Vec3 Centre, Vec3 Dir, IReadOnlyList<int> Faces, Round? Round)
 {
-    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", _ => "Face" };
+    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", _ => "Face" };
 }
+
+/// <summary>A chamfer's two setbacks measured from the sharp edge it replaced (along face A and face B), and the angle it makes with face A.</summary>
+public sealed record ChamferSize(double SetbackA, double SetbackB, double AngleDeg, int FaceA, int FaceB, double Length)
+{
+    public bool EqualSetbacks => Math.Abs(SetbackA - SetbackB) < 1e-3;
+}
+
+/// <summary>A round hole's ends: through (open at both ends) or blind, its depth, the drill-point angle when it ends in a cone, and the nearest metric size.</summary>
+public sealed record HoleDetail(bool Through, double Depth, double? PointAngleDeg, string? Standard);
 
 /// <summary>
 /// Works out what the faces of a body are: holes, bosses, slots, pockets and fillet chains, and which of them repeat in lines, grids or circles.
@@ -41,6 +50,7 @@ public static class FeatureFinder
         public required MeshData Mesh;
         public List<Feat> Features = [];
         public int[] FeatureOfFace = [];
+        public Dictionary<int, ChamferSize> Chamfers = [];
     }
 
     static readonly ConditionalWeakTable<Shape, Analysis> Cache = new();
@@ -112,14 +122,16 @@ public static class FeatureFinder
                     var (fa, va) = list[i]; var (fb, vb) = list[j]; if (fa == fb) continue;
                     if (fa > fb) { (fa, fb) = (fb, fa); (va, vb) = (vb, va); }
                     var na = N(m, va); var nb = N(m, vb); double dot = Vec3.Dot(na, nb);
-                    pairs[(fa, fb)] = pairs.TryGetValue((fa, fb), out var e) ? (e.count + 1, Math.Min(e.minDot, dot), e.mid + P(m, va), e.nA, e.nB, e.tA, e.tB) : (1, dot, P(m, va), na, nb, triOf[va], triOf[vb]);
+                    // keep the first shared point and its two triangles: the convex/concave judgement is made right there (an average of
+                    // the points would sit on the axis of a circular edge, far from the edge)
+                    pairs[(fa, fb)] = pairs.TryGetValue((fa, fb), out var e) ? (e.count + 1, Math.Min(e.minDot, dot), e.mid, e.nA, e.nB, e.tA, e.tB) : (1, dot, P(m, va), na, nb, triOf[va], triOf[vb]);
                 }
         }
         Vec3 TriCentre(int t) => (P(m, m.Indices[3 * t]) + P(m, m.Indices[3 * t + 1]) + P(m, m.Indices[3 * t + 2])) * (1.0 / 3);
         foreach (var (key, e) in pairs)
         {
             if (e.count < 2) continue;
-            var (fa, fb) = key; var mid = e.mid * (1.0 / e.count);
+            var (fa, fb) = key; var mid = e.mid;
             Edge cls;
             if (e.minDot > 0.9945) cls = Edge.Tangent;
             else
@@ -181,6 +193,17 @@ public static class FeatureFinder
         // closed: every face joins two others of the ring
         foreach (int f in comp)
             if (a.Adj[f].Count(l => set.Contains(l.To) && (l.Class == Edge.Tangent || l.Class == (boss ? Edge.Convex : Edge.Concave))) < 2) return null;
+        // A ring joined only by smooth edges reads both ways, so the walls decide: a hole's walls face in towards its axis, a boss's face out.
+        // Without this the rounded outline of a plate is taken for one huge hole or slot.
+        Vec3 mid = new(0, 0, 0); double w = 0;
+        foreach (int f in comp) { double ar = Math.Max(a.Info[f].Area, 1e-9); mid += a.Centre[f] * ar; w += ar; }
+        mid *= 1 / w; double inward = 0;
+        foreach (int f in comp)
+        {
+            var r = mid - a.Centre[f]; r -= d * Vec3.Dot(r, d);
+            if (r.Length > 1e-9) inward += Vec3.Dot(a.Normal[f], r.Normalized()) * a.Info[f].Area;
+        }
+        if (boss ? inward > 0 : inward < 0) return null;
         return comp;
     }
 
@@ -280,6 +303,14 @@ public static class FeatureFinder
                 Add(loop.kind, faces, loop.dir, $"{loop.kind}|{faces.Count}|{area:0.##}");
             }
         }
+        // Chamfers before fillets: a flat strip at an outside corner is not part of any round chain.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0 || ChamferAt(a, f) is not { } ch) continue;
+            a.Chamfers[f] = ch;
+            var (lo, hi) = ch.SetbackA <= ch.SetbackB ? (ch.SetbackA, ch.SetbackB) : (ch.SetbackB, ch.SetbackA);
+            Add(FeatureKind.Chamfer, [f], a.Normal[f], $"chamfer|{lo:0.###}|{hi:0.###}");
+        }
         // Second pass: fillet chains and plain faces.
         for (int f = 0; f < n; f++)
         {
@@ -333,6 +364,7 @@ public static class FeatureFinder
             {
                 var h = holes.FirstOrDefault(x => Coaxial(x.Round!, x.Dir, ax.Origin, ax.Dir));
                 if (h == null) continue;
+                if (RadialSpan(a, f, ax.Origin, ax.Dir.Normalized()).lo < 0.05 * h.Round!.Radius) continue;   // a cone that closes to a tip is a drill point, not a countersink
                 taken.Add(a.FeatureOfFace[h.Face]);
                 merges.Add((FeatureKind.Countersink, [.. h.Faces, f], h.Dir, $"csink|{h.Round!.Radius:0.####}|{a.Info[f].Area:0.###}"));
             }
@@ -343,6 +375,107 @@ public static class FeatureFinder
         a.Features.Clear(); a.FeatureOfFace = Enumerable.Repeat(-1, n).ToArray();
         foreach (var ft in keep) { foreach (int g in ft.Faces) a.FeatureOfFace[g] = a.Features.Count; a.Features.Add(ft); }
         foreach (var m in merges) add(m.kind, m.faces, m.dir, m.key, null);
+    }
+
+    /// <summary>
+    /// A flat strip that replaced a sharp outside edge between two faces: both of its long sides meet those faces at outside corners, it leans
+    /// part-way between them, and it is narrow next to its length. The setbacks follow from its width and the two angles (law of sines in the
+    /// section square to the edge). A cone joining a boss's wall to its top at outside corners is a chamfer on a round edge.
+    /// </summary>
+    static ChamferSize? ChamferAt(Analysis a, int f)
+    {
+        var info = a.Info[f];
+        if (info.Type == "Cone" && a.Axis[f] is { } cax) return RoundChamfer(a, f, cax);
+        if (info.Type != "Plane") return null;
+        var nf = a.Normal[f];
+        if (a.Adj[f].Any(l => l.Class != Edge.Convex)) return null;
+        var sides = a.Adj[f].Where(l => a.Info[l.To].Type == "Plane").OrderByDescending(l => l.Shared).ToList();
+        if (sides.Count < 2) return null;
+        for (int i = 0; i < sides.Count; i++)
+            for (int j = i + 1; j < sides.Count; j++)
+            {
+                int fa = sides[i].To, fb = sides[j].To; Vec3 na = a.Normal[fa], nb = a.Normal[fb];
+                var e = Vec3.Cross(na, nb); if (e.Length < 0.1) continue;     // the two faces must meet at a real angle
+                e = e.Normalized(); if (Math.Abs(Vec3.Dot(nf, e)) > 1e-3) continue;
+                double ba = Math.Acos(Math.Clamp(Vec3.Dot(nf, na), -1, 1)), bb = Math.Acos(Math.Clamp(Vec3.Dot(nf, nb), -1, 1));
+                if (ba < 0.17 || bb < 0.17) continue;                          // under about 10 degrees it is a slight bend, not a chamfer
+                double turn = Math.Acos(Math.Clamp(Vec3.Dot(na, nb), -1, 1));  // how far the normal turns across the edge
+                if (Math.Abs(ba + bb - turn) > 1e-3) continue;                 // the strip must lean between the two faces
+                var u = Vec3.Cross(e, nf).Normalized();
+                var (w0, w1) = Span(a, f, u); var (l0, l1) = Span(a, f, e);
+                double width = w1 - w0, length = l1 - l0;
+                if (width <= 1e-6 || (width > 0.5 * length && width > 0.08 * (a.Mesh.Max - a.Mesh.Min).Length)) continue;
+                if (info.Area > 0.5 * Math.Min(a.Info[fa].Area, a.Info[fb].Area)) continue;
+                // section square to the edge: the old sharp corner's angle is pi - turn, and the strip meets face A at angle ba
+                double corner = Math.PI - turn, atB = Math.PI - corner - ba;
+                double setA = width * Math.Sin(atB) / Math.Sin(corner), setB = width * Math.Sin(ba) / Math.Sin(corner);
+                return new ChamferSize(setA, setB, ba * 180 / Math.PI, fa, fb, length);
+            }
+        return null;
+    }
+
+    static ChamferSize? RoundChamfer(Analysis a, int f, (Vec3 Origin, Vec3 Dir) ax)
+    {
+        var d = ax.Dir.Normalized(); int wall = -1, top = -1;
+        foreach (var l in a.Adj[f])
+        {
+            if (l.Class != Edge.Convex) return null;
+            var t = a.Info[l.To].Type;
+            if (t == "Cylinder" && a.Axis[l.To] is { } w && Vec3.Cross(w.Dir.Normalized(), d).Length < 1e-4) wall = l.To;
+            else if (t == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999) top = l.To;
+        }
+        if (wall < 0 || top < 0) return null;
+        // only on a boss: the same cone at the mouth of a hole is a countersink, which belongs to the hole
+        var out_ = a.FirstPoint[wall] - ax.Origin; out_ -= d * Vec3.Dot(out_, d);
+        if (Vec3.Dot(a.Normal[wall], out_) <= 0) return null;
+        var (r0, r1) = RadialSpan(a, f, ax.Origin, d); var (t0, t1) = Span(a, f, d);
+        double setTop = r1 - r0, setWall = t1 - t0;
+        if (setTop <= 1e-6 || setWall <= 1e-6) return null;
+        return new ChamferSize(setWall, setTop, Math.Atan2(setTop, setWall) * 180 / Math.PI, wall, top, 2 * Math.PI * r1);
+    }
+
+    static (double lo, double hi) Span(Analysis a, int f, Vec3 dir)
+    {
+        var m = a.Mesh; double lo = double.MaxValue, hi = double.MinValue;
+        for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+            for (int c = 0; c < 3; c++) { double v = Vec3.Dot(P(m, m.Indices[3 * t + c]), dir); lo = Math.Min(lo, v); hi = Math.Max(hi, v); }
+        return (lo, hi);
+    }
+
+    static (double lo, double hi) RadialSpan(Analysis a, int f, Vec3 origin, Vec3 dir)
+    {
+        var m = a.Mesh; double lo = double.MaxValue, hi = double.MinValue;
+        for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+            for (int c = 0; c < 3; c++) { var r = P(m, m.Indices[3 * t + c]) - origin; r -= dir * Vec3.Dot(r, dir); lo = Math.Min(lo, r.Length); hi = Math.Max(hi, r.Length); }
+        return (lo, hi);
+    }
+
+    /// <summary>The setbacks of a recognised chamfer, or null for anything else.</summary>
+    public static ChamferSize? ChamferOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Chamfer && Get(body).Chamfers.TryGetValue(feat.Face, out var c) ? c : null;
+
+    /// <summary>
+    /// How a round hole ends. It is blind when a flat floor square to its axis or a coaxial cone (a drill point) closes one end, through otherwise.
+    /// Depth is the length of the round wall; the standard is the nearest metric clearance, tapping or nominal size.
+    /// </summary>
+    public static HoleDetail? HoleOf(SceneObject body, Feat feat)
+    {
+        if (feat.Round is not { Hole: true } r) return null;
+        var a = Get(body); var d = feat.Dir.Normalized(); var own = feat.Faces.ToHashSet();
+        bool floor = false; double? point = null;
+        foreach (int f in feat.Faces)
+            foreach (var l in a.Adj[f])
+            {
+                if (own.Contains(l.To)) continue;
+                var info = a.Info[l.To];
+                if (info.Type == "Plane" && l.Class == Edge.Concave && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999) floor = true;
+                else if (info.Type == "Cone" && a.Axis[l.To] is { } c && Vec3.Cross(c.Dir.Normalized(), d).Length < 1e-4)
+                {
+                    var (r0, r1) = RadialSpan(a, l.To, r.Origin, d); var (t0, t1) = Span(a, l.To, d);
+                    if (r0 < 0.05 * r.Radius) point = 2 * Math.Atan2(r1 - r0, Math.Max(t1 - t0, 1e-9)) * 180 / Math.PI;
+                }
+            }
+        return new HoleDetail(!floor && point == null, r.T1 - r.T0, point, StandardHoles.Match(2 * r.Radius));
     }
 
     static (double t0, double t1) Extent(Analysis a, IEnumerable<int> faces, Vec3 origin, Vec3 dir)
@@ -504,5 +637,40 @@ public static class FeatureFinder
             return ((int)Math.Round((r1 * a22 - r2 * a12) / det), (int)Math.Round((a11 * r2 - a12 * r1) / det));
         }).ToList();
         return new PatternInfo(PatternKind.Grid, members.Select(i => sib[i]).ToList(), cells, v1, v2, default, default, 0);
+    }
+}
+
+/// <summary>Metric hole sizes (ISO 273 clearance, coarse-thread tap drills, nominal), for naming what a recognised hole is for.</summary>
+public static class StandardHoles
+{
+    static readonly (string M, double Nominal, double Fine, double Medium, double Coarse, double Tap)[] Table =
+    [
+        ("M2", 2, 2.2, 2.4, 2.6, 1.6), ("M2.5", 2.5, 2.7, 2.9, 3.1, 2.05), ("M3", 3, 3.2, 3.4, 3.6, 2.5), ("M4", 4, 4.3, 4.5, 4.8, 3.3),
+        ("M5", 5, 5.3, 5.5, 5.8, 4.2), ("M6", 6, 6.4, 6.6, 7, 5), ("M8", 8, 8.4, 9, 10, 6.8), ("M10", 10, 10.5, 11, 12, 8.5),
+        ("M12", 12, 13, 13.5, 14.5, 10.2), ("M14", 14, 15, 15.5, 16.5, 12), ("M16", 16, 17, 17.5, 18.5, 14), ("M20", 20, 21, 22, 24, 17.5),
+        ("M24", 24, 25, 26, 28, 21),
+    ];
+
+    /// <summary>"M6 clearance (medium)", "M6 tap drill", "M6 nominal" and so on, or null when the diameter is none of them (within 0.03 mm).</summary>
+    public static string? Match(double diameter)
+    {
+        const double tol = 0.03;
+        // a hole of 5 mm is far more often an M6 tap drill than an M5 pin hole, so the drilling sizes are tried before the nominal ones
+        foreach (var t in Table)
+        {
+            if (Math.Abs(diameter - t.Tap) < tol) return $"{t.M} tap drill";
+            if (Math.Abs(diameter - t.Medium) < tol) return $"{t.M} clearance (medium)";
+            if (Math.Abs(diameter - t.Fine) < tol) return $"{t.M} clearance (close)";
+            if (Math.Abs(diameter - t.Coarse) < tol) return $"{t.M} clearance (loose)";
+        }
+        foreach (var t in Table) if (Math.Abs(diameter - t.Nominal) < tol) return $"{t.M} nominal";
+        return null;
+    }
+
+    /// <summary>The diameters for a size such as "M6": clearance (medium), tap drill and nominal; null for an unknown size.</summary>
+    public static (double Clearance, double TapDrill, double Nominal)? Of(string size)
+    {
+        foreach (var t in Table) if (t.M.Equals(size, StringComparison.OrdinalIgnoreCase)) return (t.Medium, t.Tap, t.Nominal);
+        return null;
     }
 }
