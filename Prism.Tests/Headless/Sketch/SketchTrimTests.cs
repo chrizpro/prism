@@ -87,4 +87,48 @@ public sealed class SketchTrimTests
         Assert.False(cut.DeleteAll);
         Assert.Equal(line, cut.Lo!.Value.Cutter);
     }
+
+    /// <summary>The owner's sketch of 2026-11-20: an ellipse whose centre lies on the top edge of a rectangle exactly as wide as the ellipse, with both
+    /// construction diagonals. The top edge ends on the ellipse's two side vertices and the rectangle's sides touch it there.</summary>
+    static (CadSession s, SketchModel m, int ellipse, int diagonal) EllipseSetup()
+    {
+        var s = new CadSession();
+        s.EnterSketch(Plane3.XY, alignView: true);
+        var m = s.Sketch!.Model;
+        int a = m.AddPoint(-50, -60), b = m.AddPoint(50, -60), c = m.AddPoint(50, 40), d = m.AddPoint(-50, 40);
+        m.AddLine(a, b); m.AddLine(b, c); m.AddLine(c, d); m.AddLine(d, a);
+        int diagonal = m.AddLine(a, c, true); m.AddLine(b, d, true);
+        int ellipse = m.AddEllipse(m.AddPoint(0, 40), m.AddPoint(50, 40), 38);
+        return (s, m, ellipse, diagonal);
+    }
+
+    [AvaloniaFact(DisplayName = "SKT-H070 | Trim removes the lower half of an ellipse inside a rectangle back to where the top edge meets it; the upper half stays as a curve")]
+    [Trait("TestId", "SKT-H070")]
+    public void EllipseLowerHalfTrims()
+    {
+        var (s, m, ellipse, _) = EllipseSetup();
+        Assert.True(TrimTool.Run(s, ellipse, 0, 2));
+        Assert.DoesNotContain(m.Entities, e => e.Type == EntType.Ellipse);
+        var kept = Assert.Single(m.Entities, e => e.Type == EntType.Spline);
+        var pts = kept.Pts.Select(m.P).ToList();
+        var ends = new[] { pts[0], pts[^1] }.Select(p => (Math.Round(p.X, 3), Math.Round(p.Y, 3))).OrderBy(p => p.Item1).ToArray();
+        Assert.Equal(new[] { (-50.0, 40.0), (50.0, 40.0) }, ends);
+        Assert.All(pts, p => Assert.True(p.Y >= 40 - 1e-6, "only the upper half stays"));
+        Assert.Contains(pts, p => Math.Abs(p.X) < 4 && Math.Abs(p.Y - 78) < 0.5);
+    }
+
+    [AvaloniaFact(DisplayName = "SKT-H071 | Trim leaves construction lines alone: a click on a diagonal changes nothing")]
+    [Trait("TestId", "SKT-H071")]
+    public void ConstructionLinesAreNotTrimmed()
+    {
+        var (s, m, _, diagonal) = EllipseSetup();
+        var sk = s.Sketch!;
+        sk.SetTool(s, new TrimTool());
+        int before = m.Entities.Count;
+        var at = s.Camera.Project(sk.Plane.PointAt(-25, -35))!.Value;   // on the diagonal from (-50, -60) to (50, 40), away from other curves
+        s.PointerDown(new PointerInfo(at.x, at.y, true, false, false, false));
+        s.PointerUp(new PointerInfo(at.x, at.y, false, false, false, false));
+        Assert.Equal(before, m.Entities.Count);
+        Assert.NotNull(m.EntityOrNull(diagonal));
+    }
 }

@@ -27,7 +27,8 @@ public sealed class FdmPreparationTests
         Assert.Equal(new[] { "Place on bed", "FDM check", "Troubleshoot geometry", "Export for printing" },
             buttons.Select(button => button.Label));
         Assert.Equal(5, buttons[2].Menu!.Count);
-        Assert.False(buttons[2].IsSplit);
+        Assert.Contains(buttons[2].Active!, buttons[2].Menu!);   // a list button runs its last pick or first tool (RIB-H006)
+        Assert.Equal("Troubleshoot geometry", buttons[2].Label);
         buttons[0].Invoke();
         Assert.IsType<PlaceOnBedCommand>(vm.Session.ActiveCommand);
     }

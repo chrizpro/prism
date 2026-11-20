@@ -50,6 +50,9 @@ public sealed partial class CadSession
         _region.Points.Add((p.X, p.Y));
     }
 
+    /// <summary>How far (pixels, each direction) a press may wander and still count as a click.</summary>
+    const double ClickSlop = 10;
+
     bool RegionMove(PointerInfo p)
     {
         if (_region == null) return false;
@@ -65,7 +68,10 @@ public sealed partial class CadSession
     {
         if (_region == null) return false;
         var region = _region; bool moved = _regionMoved; var done = _regionDone; _region = null; _regionMoved = false; _regionDone = null;
-        if (!moved) { if (done == null) ClickAt(_regionDown); return true; }
+        // a hand rarely stays perfectly still while clicking: a press that wandered only a few pixels is still a click, so Shift-click adds the face,
+        // edge or point under the pointer instead of drawing a tiny box with nothing inside (owner report 2026-11-20)
+        if (moved && done == null && Math.Abs(p.X - _regionStart.x) < ClickSlop && Math.Abs(p.Y - _regionStart.y) < ClickSlop) moved = false;
+        if (!moved) { if (done == null) ClickAt(_regionDown with { Shift = _regionDown.Shift || p.Shift, Ctrl = _regionDown.Ctrl || p.Ctrl }); return true; }
         RegionMovePoint(region, p);
         if (done != null) done(region, p); else ApplyRegion(region, p);
         Invalidate();

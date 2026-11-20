@@ -32,7 +32,9 @@ public class CurveRibbonTests
         Assert.DoesNotContain(tab.Groups, g => g.Title == "Edit curves");
         var curves = Assert.Single(tab.Groups.Single(g => g.Title == "Curves").Items.OfType<RibbonButton>());
         Assert.Equal("menu:curves", curves.Id);
-        Assert.False(curves.IsSplit);
+        // owner rule 2026-11-20 (RIB-H006): a click runs its last pick or first tool, and the button keeps its own name
+        Assert.Contains(curves.Active!, curves.Menu!);
+        Assert.Equal("Curves", curves.Label.Replace('\n', ' '));
         var labels = curves.Menu!.Select(b => b.Label).ToList();
         foreach (var tool in new[] { "Isocurves", "Contour", "Extract Edges", "Rebuild\nCurve", "Points Along\nCurve" })
             Assert.Contains(tool, labels);

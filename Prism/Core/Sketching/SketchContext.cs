@@ -617,12 +617,12 @@ public sealed partial class SketchContext
         return best;
     }
 
-    public int PickEntity(CadSession s, double px, double py, double tolPx = 8)
+    public int PickEntity(CadSession s, double px, double py, double tolPx = 8, Func<SkEntity, bool>? accept = null)
     {
         var cam = s.Camera; int best = -1; double bd = tolPx;
         foreach (var (e, pts) in Model.Polylines(Plane))
         {
-            if (!EntityVisible(e)) continue;
+            if (!EntityVisible(e) || accept != null && !accept(e)) continue;
             for (int i = 0; i + 1 < pts.Count; i++)
             {
                 var a = cam.Project(pts[i]); var b = cam.Project(pts[i + 1]); if (a == null || b == null) continue;
