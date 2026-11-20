@@ -19,3 +19,7 @@
 - [Home orientation](view-home/README.md)
 - [Inspect and Appearance](inspection/README.md)
 - [Feedback, bug and crash reporting](reporting/README.md)
+
+## Buttons with a list (owner rule 2026-11-20)
+
+Every ribbon button with a list behaves the same. A click anywhere on the button runs its action: the one picked last, or, when nothing has been picked yet, the first item that can run. Only the arrow opens the list (the right end of a small button, the label line of a large one), as does a right-click. Picking from the list runs that action at once and makes it the one the button runs next; the choice is remembered between sessions. Before, plain lists (Export As and others) only opened, and small split buttons such as Face / Edge / Vertex opened their list on a click on the name. Check: [RIB-H006](../../Prism.Tests/Headless/Ribbon/RibbonListButtonTests.cs).
