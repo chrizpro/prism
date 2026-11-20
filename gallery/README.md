@@ -1,6 +1,6 @@
 # Made with Prism
 
-**Publication update, 2026-11-18:** the catalog now contains 48 models, including twelve new Surface, Freeform, and NURBS studies. Use Refresh in Prism to fetch the catalog.
+**Publication update, 2026-11-18:** twelve new Surface, Freeform, and NURBS studies joined the catalog (`catalog.json` lists every model). Use Refresh in Prism to fetch the catalog.
 
 **Publication update, 2026-11-16:** this catalog contains 36 downloadable models, including the recent bicycle, car, lamp, wood studies, helicopter, toaster, phone and soap mold/CAM. Use Refresh in Prism to fetch the current catalog. Earlier delivery notes below describe their initial preparation.
 

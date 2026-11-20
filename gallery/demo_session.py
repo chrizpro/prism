@@ -14,7 +14,10 @@ def connect(discovery=None):
     OUT.mkdir(parents=True, exist_ok=True)
     current=ROOT/'artifacts/cnc-wheel/final-bin/Prism.Desktop.exe'
     os.environ.setdefault('PRISM_EXE', str(current if current.exists() else ROOT/'artifacts/arc-lamp/bin/Prism.Desktop.exe'))
-    os.environ.setdefault('PRISM_MCP', str(ROOT/'artifacts/arc-lamp/mcp/Prism.Mcp.dll'))
+    # the bridge from the current build wins; the arc-lamp copy is only a fallback when none has been built
+    fresh = [ROOT/f'Prism.Mcp/bin/{c}/net10.0/Prism.Mcp.dll' for c in ('Release', 'Debug')]
+    if not any(p.is_file() for p in fresh) and 'PRISM_MCP' not in os.environ:
+        os.environ['PRISM_MCP'] = str(ROOT/'artifacts/arc-lamp/mcp/Prism.Mcp.dll')
     return study.connect_mcp(discovery or OUT/'automation.json')
 
 def hide(*objects):

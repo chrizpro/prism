@@ -24,7 +24,10 @@ def connect_mcp(discovery):
     candidates = [ROOT / f"Prism.Mcp/bin/{config}/net10.0/Prism.Mcp.dll" for config in ("Release", "Debug")]
     candidates.append(ROOT / "artifacts/gallery/bin/Prism.Mcp.dll")
     if os.environ.get("PRISM_MCP"):
-        candidates.insert(0, Path(os.environ["PRISM_MCP"]))
+        chosen = Path(os.environ["PRISM_MCP"])
+        if not chosen.is_file():
+            raise FileNotFoundError(f"PRISM_MCP names a bridge that does not exist: {chosen}")
+        candidates.insert(0, chosen)
     binary = next((path for path in candidates if path.is_file()), None)
     if binary is None:
         raise FileNotFoundError("Build the bridge first: dotnet build Prism.Mcp -c Release")
