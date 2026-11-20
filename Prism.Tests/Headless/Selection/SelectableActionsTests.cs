@@ -70,4 +70,34 @@ public sealed class SelectableActionsTests(Xunit.Abstractions.ITestOutputHelper 
             Assert.All(problems, p => Assert.True(p.Length > 20, $"{name}: a refusal must say why ({p})"));
         }
     }
+
+    [AvaloniaFact(DisplayName = "SEL-H068 | The ribbon Move grabs what picked parts belong to: pasted edges move as their curve, solid faces open Move to slide them")]
+    [Trait("TestId", "SEL-H068")]
+    public void RibbonMoveTakesParts()
+    {
+        var vm = new Prism.ViewModels.MainViewModel(); var s = vm.Session;
+        var box = s.AddObject(BoxAt(new Vec3(0, 0, 0), 10, 10, 10), "Box", ObjKind.Solid);
+        s.SelectItems([new SelItem(box.Id, SelKind.Edge, 0), new SelItem(box.Id, SelKind.Edge, 1)]);
+        s.CopySelection();
+        var curve = Assert.Single(s.Paste());
+        s.SelectItems([new SelItem(curve.Id, SelKind.Edge, 0), new SelItem(curve.Id, SelKind.Edge, 1)]);   // picked in Edge mode
+        vm.MoveWithGizmo();
+        Assert.Equal([SelItem.Of(curve)], s.Datum!.Targets);
+        // what a gizmo drag does to its targets: a curve and a sketch both move (a sketch keeps its sketch data and its plane moves)
+        var sketch = CreateRectangleSketch(s, Plane3.XY, 5, 5, 30, 0);
+        var by = Prism.Core.Assembly.Xform.FromFrame(new Vec3(5, 0, 0), Vec3.UnitX, Vec3.UnitZ) * Prism.Core.Assembly.Xform.FromFrame(Vec3.Zero, Vec3.UnitX, Vec3.UnitZ).Inverse();
+        double c0 = s.Find(curve.Id)!.Shape!.Props().Center.X, k0 = s.Find(sketch.Id)!.Shape!.Props().Center.X;
+        s.TransformTarget(SelItem.Of(curve), by, checkpoint: true);
+        s.TransformTarget(SelItem.Of(sketch), by, checkpoint: true);
+        AssertClose(c0 + 5, s.Find(curve.Id)!.Shape!.Props().Center.X, 1e-6, "curve moved by the gizmo");
+        AssertClose(k0 + 5, s.Find(sketch.Id)!.Shape!.Props().Center.X, 1e-6, "sketch moved by the gizmo");
+        Assert.NotNull(s.Find(sketch.Id)!.SketchData);
+        AssertClose(5, s.Find(sketch.Id)!.SketchPlane!.Value.Origin.X, 1e-9, "sketch plane moved");
+        vm.CloseGizmoPanel(); s.HideDatumGizmo();
+
+        s.SelectItems([new SelItem(box.Id, SelKind.Face, 0)]);
+        vm.MoveWithGizmo();
+        var move = Assert.IsType<TransformCommand>(s.ActiveCommand);
+        Assert.Single(move.Slots[0].Items);
+    }
 }

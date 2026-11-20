@@ -28,6 +28,14 @@ public partial class CadSession
     SceneObject? _datumCarrier;
     SelItem? _lastTypedMove; DateTime _lastTypedMoveAt;
 
+    SceneObject? FindDatumCarrier()
+    {
+        if (_datumCarrier is { } carrier && Objects.Contains(carrier)) return carrier;
+        return _datumCarrier = Objects.FirstOrDefault(o => o.Kind == ObjKind.Sketch
+            && o.SketchData is { Sections.Count: 0, Entities.Count: 0 }
+            && o.HasBrep && o.Shape.Kind == ShapeKind.Vertex);
+    }
+
     /// <summary>
     /// The object that owns model-space datums. It is an ordinary Sketch-kind object whose
     /// <see cref="SceneObject.SketchData"/> only carries <see cref="SketchModel.Datums"/>: picking,
@@ -36,11 +44,7 @@ public partial class CadSession
     /// </summary>
     public SceneObject DatumCarrier()
     {
-        if (_datumCarrier is { } c && Objects.Contains(c)) return c;
-        _datumCarrier = Objects.FirstOrDefault(o => o.Kind == ObjKind.Sketch
-            && o.SketchData is { Sections.Count: 0, Entities.Count: 0 }
-            && o.HasBrep && o.Shape.Kind == ShapeKind.Vertex);
-        if (_datumCarrier != null) return _datumCarrier;
+        if (FindDatumCarrier() is { } carrier) return carrier;
         var model = new SketchModel();
         _datumCarrier = AddObject(Occ.Vertex(Vec3.Zero), "Datums", ObjKind.Sketch, plane: Plane3.XY, sketch: model);
         return _datumCarrier;
@@ -100,9 +104,8 @@ public partial class CadSession
     /// <summary>The datum that was placed last by <see cref="AddModelDatum"/>, as a selectable item.</summary>
     public SelItem? LastModelDatum()
     {
-        var carrier = DatumCarrier();
-        int n = carrier.SketchData!.Datums.Count;
-        return n == 0 ? null : new SelItem(carrier.Id, SelKind.Datum, n - 1);
+        if (FindDatumCarrier() is not { } carrier || carrier.SketchData!.Datums.Count == 0) return null;
+        return new SelItem(carrier.Id, SelKind.Datum, carrier.SketchData.Datums.Count - 1);
     }
 
     /// <summary>
@@ -164,7 +167,10 @@ public partial class CadSession
             for (int i = 0; i < moved.V.Count; i++) moved.V[i] = delta.Apply(moved.V[i]);
             Update(item.Obj, obj => obj.WithForm(moved), checkpoint: checkpoint, label: "Move");
         }
-        else if (o.SketchData != null) { /* sketch bodies and the datum carrier keep their own frames */ }
+        else if (o is { Kind: ObjKind.Sketch, SketchData: { } model, SketchPlane: { } sp, HasBrep: true } && o.Shape is { } drawn)
+            // a sketch (text included) moves by moving its plane, so it stays an editable sketch where it lands
+            Update(item.Obj, obj => obj.WithSketch(delta.Apply(drawn), model.Clone(), new Plane3(delta.Apply(sp.Origin), delta.Rotate(sp.U), delta.Rotate(sp.V))), checkpoint: checkpoint, label: "Move");
+        else if (o.SketchData != null) { /* the datum carrier keeps its own frames: its datums move one by one */ }
         else if (o.HasBrep && o.Shape is { } shape)
             Update(item.Obj, obj => obj.Kind == ObjKind.Plane && obj.SketchPlane is { } pl
                 ? obj.WithShape(delta.Apply(shape)).WithPlane(new Plane3(delta.Apply(pl.Origin), delta.Rotate(pl.U), delta.Rotate(pl.V)))

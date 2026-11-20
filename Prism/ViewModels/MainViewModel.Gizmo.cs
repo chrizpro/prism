@@ -137,9 +137,14 @@ public sealed partial class MainViewModel
     public void MoveWithGizmo()
     {
         if(Session.ActiveCommand!=null||Session.Sketch!=null){Session.Say("Finish or cancel the active tool first.",true);return;}
+        // Everything selectable moves (owner rule 2026-11-20). Faces of a solid and mesh triangles move on their own, which the Move command does
+        // (it slides the faces and stretches the mesh, and explains what cannot move); every other picked part moves the object it belongs to.
+        bool SolidPart(SelItem it)=>it.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex&&Session.Find(it.Obj) is {Kind:ObjKind.Solid};
+        if(Session.Selection.Any(it=>it.Kind==SelKind.MeshFace||SolidPart(it))){Session.StartCommand(()=>new TransformCommand(TransformCommand.Kind.Move));return;}
         Session.ShowDatumGizmo(Session.ViewportCursor??Vec3.Zero);
         Session.Datum!.MoveMode=true;
-        var sel=Session.Selection.Where(it=>it.Kind is SelKind.Object or SelKind.Datum).ToList();
+        var sel=Session.Selection.Select(it=>it.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex?SelItem.Of(Session.Find(it.Obj)!):it)
+            .Where(it=>it.Kind is SelKind.Object or SelKind.Datum).Distinct().ToList();
         if(sel.Count>0)Session.Datum.BindTargets(Session,sel);
         Session.Say(sel.Count>0?"Drag the gizmo handles — or type exact values in the panel.":"Click anything to grab it, then drag the gizmo. Esc releases, another Esc hides it.");
         OpenGizmoPanel();RefreshGizmoPanel();
