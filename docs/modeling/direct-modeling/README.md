@@ -168,3 +168,11 @@ Status: built and covered by DIR-H091 to DIR-H097 in `EditFaceTests.cs`; not yet
 10. Moving along the normal keeps every moved point on its original line along the normal.
 
 **Reuse:** Sculpt Face's face-to-net and net-to-face conversion, and the control-point selection, gizmo and falloff of Edit Control Points. When this lands, Sculpt Face and its tests (DIR-H072 to DIR-H077) are retired.
+
+## Large imported parts: speed (owner report 2026-11-19)
+
+The owner reported that an imported pegboard (`Skadis_Raster (1).step`: 220 × 220 × 5.1 mm, about 60 slots with rounded rims, 626 faces) was almost impossible to work with. Measured in the running app: moving the whole body 10 mm took 26 s, Move Face on the top 30 s, Delete Face on one slot 11 s, and a single click to select about 4.4 s. A trace showed that measuring the body (volume, area and exact box) took about 4 s on this part and was repeated for the selection panel, the Move preview, the display mesh and the automation reply, never kept.
+
+A shape now keeps its measurements, and a moved copy inherits them (same volume and area, box moved). Measured headlessly on the same file: Move takes 0.1 s plus 1.7 s to rebuild the display mesh; Move Face on the top takes about 10 s, 4.3 s of which is the one measurement of the new shape. Checks: [DIR-H098, DIR-H099](../../../Prism.Tests/Headless/DirectModeling/ImportedPartSpeedTests.cs); DIR-H100 times any STEP file given in `PRISM_SPEED_STEP`. Not yet tried by hand in the app.
+
+Still open: the measurement itself integrates area to a relative precision of 1e-9, which is what makes it slow on hundreds of curved faces; the moved body's display mesh is rebuilt rather than moved; and Move Face on the top split the board from 626 to 834 faces.

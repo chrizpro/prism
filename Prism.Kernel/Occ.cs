@@ -23,11 +23,25 @@ public sealed class Shape : IDisposable
     public bool HasSolids => Count(SubKind.Solid) > 0;
     public bool HasFaces => Count(SubKind.Face) > 0;
 
+    // Boxed so that a read never sees half of another thread's write. The shape is immutable, so the answer never changes.
+    object? _props;
+
+    /// <summary>Volume, area and tight bounding box. Exact integration takes seconds on a part with hundreds of curved faces,
+    /// and the selection panel, previews and display meshing all ask for it, so the first answer is kept.</summary>
     public unsafe ShapeProps Props()
     {
+        if (_props is ShapeProps cached) return cached;
         double* p = stackalloc double[8];
         Native.ck_props(Handle, p);
-        return new(p[0], p[1], new(p[2], p[3], p[4]), new(p[5], p[6], p[7]));
+        var props = new ShapeProps(p[0], p[1], new(p[2], p[3], p[4]), new(p[5], p[6], p[7]));
+        _props = props;
+        return props;
+    }
+
+    /// <summary>Gives a moved copy the measurements of its source: volume and area are unchanged and the box moves with it.</summary>
+    internal void InheritMovedProps(Shape source, Vec3 by)
+    {
+        if (source._props is ShapeProps p) _props = p with { Min = p.Min + by, Max = p.Max + by };
     }
 
     /// <summary>Direct children of a compound (used when importing files).</summary>
@@ -333,7 +347,12 @@ public static unsafe class Occ
     // ---- transforms
     /// <summary>An independent copy of the geometry with no stored triangulation.</summary>
     public static Shape Copy(Shape s) => Wrap(Native.ck_copy(s.Handle));
-    public static Shape Translate(Shape s, Vec3 v) => Wrap(Native.ck_translate(s.Handle, v.X, v.Y, v.Z));
+    public static Shape Translate(Shape s, Vec3 v)
+    {
+        var moved = Wrap(Native.ck_translate(s.Handle, v.X, v.Y, v.Z));
+        moved.InheritMovedProps(s, v);
+        return moved;
+    }
     /// <summary>Rotate by the row-major 3x3 matrix m, then move by t.</summary>
     public static Shape Transform(Shape s, double[] m, Vec3 t) { var tt = new[] { t.X, t.Y, t.Z }; fixed (double* pm = m) fixed (double* pt = tt) return Wrap(Native.ck_transform(s.Handle, pm, pt)); }
     public static Shape Compound(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_compound(p, shapes.Count)); }
