@@ -47,6 +47,38 @@ public class DirectEditTests
         return FeatureFinder.Features(body).Where(f => f.Kind == FeatureKind.Hole).Select(f => Math.Round(f.Centre.X, 3)).Order().ToArray();
     }
 
+    [AvaloniaTheory(DisplayName = "DIR-H201 | Apply stays in Direct Edit and Done exits with or without a final edit")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("TestId", "DIR-H201")]
+    public void ApplyAndDone(bool finalEdit)
+    {
+        var vm = new Prism.ViewModels.MainViewModel();
+        var session = vm.Session;
+        var box = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        vm.EnterDirectEdit();
+        var edit = Assert.IsType<DirectEditCommand>(session.ActiveCommand);
+        Pick(edit, edit.Slots[0].Label, FaceFacing(box, Vec3.UnitZ));
+        SetNumber(edit, "Pull (positive moves faces out)", 2);
+        edit.RepeatApply.Run();
+        var next = Assert.IsType<DirectEditCommand>(session.ActiveCommand);
+        Assert.NotSame(edit, next);
+        Assert.Equal("Done", next.CommitText);
+        box = session.Find(box.Id)!;
+        AssertNear(12, box.Shape.Props().Max.Z, "first edit");
+        if (finalEdit)
+        {
+            Pick(next, next.Slots[0].Label, FaceFacing(box, Vec3.UnitX));
+            SetNumber(next, "Pull (positive moves faces out)", 3);
+        }
+        session.AcceptCommandPanel();
+        Assert.False(vm.IsDirectEditing);
+        Assert.Null(session.ActiveCommand);
+        AssertNear(finalEdit ? 13 : 10, session.Find(box.Id)!.Shape.Props().Max.X, "final edit");
+        session.Undo();
+        AssertNear(finalEdit ? 1200 : 1000, session.Find(box.Id)!.Shape.Props().Volume, "volume after undo");
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H200 | Dragging Z on the side of a tilted boss lowers the sloped cap along the cylinder axis")]
     [Trait("TestId", "DIR-H200")]
     public void LowerTiltedBossByItsWall()

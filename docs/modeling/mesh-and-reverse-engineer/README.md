@@ -17,6 +17,8 @@ The owner approved manual mesh repair and the revised ribbon on 2026-11-18 for [
 
 Open the source OBJ from the gallery card to repeat either edit. For the four-groove sheave, choose **Remesh → Reduce Faces**, keep 55% and apply. For the ten-vane impeller, **Fill Holes** closes one missing facet. Both finished meshes are closed and their volumes are within 1.5% of the original exact solids. [Gallery index](../../../gallery/README.md#what-is-here) · [GAL-H212](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs).
 
+The turned-knob study reconstructs one closed CAD body from the measured grip diameter, taper, cone apex, dome centre and radius. Its native document keeps the fitted patches hidden for inspection and shows the finished solid beside the scan. [GAL-H202](../../../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs).
+
 ## Mesh Quality
 
 Pick a mesh to see triangle statistics and defect highlights. **Preview result** restores the display after **Clear defect display** and runs the self-intersection check for large meshes when enabled. The heat map also appears in Wireframe. Use **Mesh Quality → Clear Colors** to remove the display from the ribbon. [Viewport fixes #148](https://github.com/chrizpro/prism/issues/148).

@@ -2,6 +2,76 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "inline-four-crankcase",
+      "Name": "Inline-four engine block",
+      "Description": "A gray four-cylinder casting with open bores, machined liners, recessed core plugs, stiffening ribs and a relieved crankcase.",
+      "Workflow": "Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 130604,
+      "Sha256": "d6a604953abe75a6e537cbd4eb4dfbfda029c2df7a40382b9b60945eb8633152",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/inline-four-crankcase.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
+    },
+    {
+      "Id": "keyed-shaft-coupling",
+      "Name": "Keyed shaft coupling rework",
+      "Description": "A tall keyed STEP hub becomes a low-profile shaft flange with ten large openings. Compare both solids or download the original coupling blank.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Original coupling blank (STEP)",
+          "FileName": "shaft-coupling-blank.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/shaft-coupling-blank.step",
+          "Bytes": 43479,
+          "Sha256": "124bccfb4e41037861c60b23b7185c5b3f582e7a391cb3058ecf4aadd92f6564"
+        }
+      ],
+      "Bytes": 88561,
+      "Sha256": "cdd989398a3ff1235e47a47aa992e0f8d69334d27d65fdd25d30b6420a26c767",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/keyed-shaft-coupling.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/keyed-shaft-coupling.png?v=f95b1bc6d20d36f1"
+    },
+    {
+      "Id": "pin-fin-cold-plate",
+      "Name": "Pin-fin cold plate",
+      "Description": "Compare the STEP blank on the left with the 24-pin heat sink on the right. Direct Edit raises the pilot boss and Edit Feature copies the cooling pins.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP blank",
+          "FileName": "pin-fin-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pin-fin-source.step",
+          "Bytes": 82964,
+          "Sha256": "cf17da6554b17bea235f65ce90874c2329e3ed7a8277be3016903613048a0491"
+        }
+      ],
+      "Bytes": 155536,
+      "Sha256": "3e18b10d82df898009f1f31499d2e43e18dc2fd2ca95511bb2c480e6156b309a",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pin-fin-cold-plate.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pin-fin-cold-plate.png?v=28886fa1bd547de9"
+    },
+    {
+      "Id": "turned-knob-scan",
+      "Name": "Turned knob rebuilt from scan",
+      "Description": "Compare the source scan with a finished solid rebuilt from its measured grip, taper and dome. The fitted surfaces remain available in the browser.",
+      "Workflow": "Mesh / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 1236518,
+      "Sha256": "28193c8fbc6451b04a72f0bf648b7e0c1bdc4fcda20fa69e3e3265da19a62e58",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/turned-knob-scan.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/turned-knob-scan.png?v=e5863383ec1d1b3f"
+    },
+    {
       "Id": "planar-coupe",
       "Name": "Planar coupe",
       "Description": "A teal two-seater with folded coachwork, perforated alloy wheels and separate glazing.",
@@ -758,19 +828,6 @@
       "Sha256": "27c15b2cd601d612929fa9cbfdf5abc48292f33838591789e2076007d6801f55"
     },
     {
-      "Id": "turned-knob-scan",
-      "Name": "Turned knob: fitted primitives",
-      "Description": "Smart patch and Fit Region turn a knob scan into trimmed cylinder, cone and sphere surfaces with their diameters, angle and axis.",
-      "Workflow": "Mesh / Surface",
-      "Author": "Prism",
-      "License": "MIT",
-      "MinimumVersion": "0.4.0",
-      "Bytes": 1221539,
-      "Sha256": "ed058b38cad6295f909932728e16cea5e75e927d88479891c0da7842ede74a1a",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/turned-knob-scan.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/turned-knob-scan.png?v=781f38ccb7c152ab"
-    },
-    {
       "Id": "motor-mount-direct-edit",
       "Name": "Motor mount revised by direct editing",
       "Description": "A plate with no feature history, lengthened, rebored, a hole closed and its pad drafted with Move, Offset, Delete and Draft Face. The STEP import sits on the left, the revised part on the right.",
@@ -848,41 +905,6 @@
       "Sha256": "7a39b37cf9bbd60eb2722f137fa5b1e897e2de8963ec937fdf6caf45fe80f909",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/spindle-carrier-before-after.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/spindle-carrier-before-after.png?v=bfa901ff0b504845"
-    },
-    {
-      "Id": "pin-fin-cold-plate",
-      "Name": "Pin-fin cold plate",
-      "Description": "Compare the STEP blank on the left with the 24-pin heat sink on the right. Direct Edit raises the pilot boss and Edit Feature copies the cooling pins.",
-      "Workflow": "Direct Modeling / Solid",
-      "Author": "Prism",
-      "License": "MIT",
-      "MinimumVersion": "0.4.0",
-      "Extras": [
-        {
-          "Label": "Source STEP blank",
-          "FileName": "pin-fin-source.step",
-          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pin-fin-source.step",
-          "Bytes": 82964,
-          "Sha256": "cf17da6554b17bea235f65ce90874c2329e3ed7a8277be3016903613048a0491"
-        }
-      ],
-      "Bytes": 155536,
-      "Sha256": "3e18b10d82df898009f1f31499d2e43e18dc2fd2ca95511bb2c480e6156b309a",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pin-fin-cold-plate.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pin-fin-cold-plate.png?v=28886fa1bd547de9"
-    },
-    {
-      "Id": "inline-four-crankcase",
-      "Name": "Inline-four crankcase",
-      "Description": "A gray four-cylinder casting with open bores, machined liners, recessed core plugs, stiffening ribs and a relieved crankcase.",
-      "Workflow": "Solid",
-      "Author": "Prism",
-      "License": "MIT",
-      "MinimumVersion": "0.4.0",
-      "Bytes": 130604,
-      "Sha256": "d6a604953abe75a6e537cbd4eb4dfbfda029c2df7a40382b9b60945eb8633152",
-      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/inline-four-crankcase.prism",
-      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
     },
     {
       "Id": "multi-groove-sheave",

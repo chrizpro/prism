@@ -22,6 +22,7 @@ public sealed class DirectEditCommand : Command
 
     public DirectEditCommand()
     {
+        RepeatApply = Add(new ActionParam { Label = "Apply", Run = ApplyAndContinue });
         _faces = Slot(new SelectionSlot { Label = "Click a face or feature (a hole, slot, pocket, boss or fillet)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
         _dx = Num("Move X", 0); _dy = Num("Move Y", 0); _dz = Num("Move Z", 0);
         _offset = Num("Pull (positive moves faces out)", 0);
@@ -31,7 +32,28 @@ public sealed class DirectEditCommand : Command
 
     public override string Title => "Direct Edit";
     public override string Icon => "pushpull";
-    public override string OkText => "Apply";
+    public override string OkText => "Done";
+    public override ActionParam RepeatApply { get; }
+    internal Action? LeaveWorkspace { get; set; }
+
+    void ApplyAndContinue()
+    {
+        if (S.ActiveCommand != this) return;
+        S.CommitCommand();
+        if (S.ActiveCommand == null) S.StartCommand(() => new DirectEditCommand());
+    }
+
+    internal void Done()
+    {
+        if (Params.OfType<NumberParam>().Any(p => Math.Abs(p.Value) > 1e-9))
+        {
+            S.CommitCommand();
+            if (S.ActiveCommand == this) return; // keep a failed edit available for correction
+        }
+        else S.CancelCommand();
+        LeaveWorkspace?.Invoke();
+    }
+
     // Switching to another tool never asks "discard unfinished work?" for something that is only a selection.
     public override bool HasInputChanges => false;
     // A direct edit is a plain undo step; the Edit Feature command and the others keep their own recipes.

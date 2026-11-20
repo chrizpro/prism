@@ -18,7 +18,7 @@ public class IndustrialGalleryStudies
     const uint Casting = 0xFF788089, Machined = 0xFFB9BEC3;
     static string? Folder => Environment.GetEnvironmentVariable("PRISM_INDUSTRIAL_OUT");
 
-    static void Publish(CadSession session, string id, double yaw, double pitch)
+    internal static void Publish(CadSession session, string id, double yaw, double pitch)
     {
         if (Folder is not { } folder) return;
         Directory.CreateDirectory(folder);
@@ -141,6 +141,67 @@ public class IndustrialGalleryStudies
         session.AddObject(block, "Inline-four crankcase", ObjKind.Solid, Casting);
         Assert.Equal(9, session.Objects.Count);
         Publish(session, "inline-four-crankcase", 28, 32);
+    }
+
+    [AvaloniaFact(DisplayName = "GAL-H213 | A STEP coupling blank becomes a low-profile perforated shaft flange")]
+    [Trait("TestId", "GAL-H213")]
+    public void ShaftCoupling()
+    {
+        var blank = Occ.Fuse(CylinderAt(Vec3.Zero, 54, 10), CylinderAt(new(0, 0, 10), 23, 32));
+        blank = Occ.Cut(blank, CylinderAt(new(0, 0, -1), 11, 44));
+        // Keyway through the hub and five pilot holes on the bolt circle.
+        blank = Occ.Cut(blank, BoxAt(new(-3, 9, -1), 6, 5, 44));
+        for (int i = 0; i < 5; i++)
+        {
+            double angle = i * 2 * Math.PI / 5;
+            blank = Occ.Cut(blank, CylinderAt(new(39 * Math.Cos(angle), 39 * Math.Sin(angle), -1), 3, 12));
+        }
+        string step = Path.Combine(Folder ?? Path.GetTempPath(), Folder == null ? $"{Guid.NewGuid()}.step" : "shaft-coupling-blank.step");
+        Directory.CreateDirectory(Path.GetDirectoryName(step)!);
+        Shape imported;
+        try { Occ.ExportStep([blank], step); imported = Occ.ImportStep(step); }
+        finally { if (Folder == null) File.Delete(step); }
+        var session = new CadSession();
+        var body = session.AddObject(imported, "Revised keyed flange", ObjKind.Solid, Machined);
+        SelItem[] Holes(double r) => FeatureFinder.Features(body)
+            .Where(f => f.Kind == FeatureKind.Hole && f.Round is { } round && Math.Abs(round.Radius - r) < 0.001)
+            .Select(f => new SelItem(body.Id, SelKind.Face, f.Face)).ToArray();
+        void Commit()
+        {
+            session.CommitCommand();
+            Assert.True(session.ActiveCommand == null, session.Status);
+            body = session.Find(body.Id)!;
+            AssertValidSolid(body.Shape);
+        }
+        var move = Begin(session, () => new MoveFaceCommand());
+        int cap = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).Single(i =>
+        {
+            using var face = body.Shape.Sub(SubKind.Face, i);
+            return face.Props().Min.Z > 41.99;
+        });
+        Pick(move, move.Slots[0].Label, new SelItem(body.Id, SelKind.Face, cap));
+        SetNumber(move, "Move Z", -24);
+        Commit();
+        AssertClose(18, body.Shape.Props().Max.Z, 0.001, "hub height");
+        double shortVolume = body.Shape.Props().Volume;
+        var resize = Begin(session, () => new FeatureEditCommand());
+        resize.Preset(Holes(3), 1);
+        SetNumber(resize, "New diameter (0 = keep)", 18);
+        Commit();
+        var pilots = Holes(9);
+        Assert.Equal(5, pilots.Length);
+        var pattern = Begin(session, () => new EditPatternCommand());
+        Pick(pattern, pattern.Slots[0].Label, pilots[0]);
+        pattern.ConfigureInputs(() =>
+        {
+            SetNumber(pattern, "Number of instances", 10);
+            SetNumber(pattern, "Angular step", 36);
+        });
+        Commit();
+        Assert.Equal(10, Holes(9).Length);
+        AssertClose(shortVolume - Math.PI * 10 * (10 * 81 - 5 * 9), body.Shape.Props().Volume, 0.1, "lightened flange volume");
+        session.AddObject(Occ.Translate(imported, new(-118, 0, 0)), "Imported coupling blank", ObjKind.Solid, Casting);
+        Publish(session, "keyed-shaft-coupling", -10, 34);
     }
 
     static Shape Pulley()

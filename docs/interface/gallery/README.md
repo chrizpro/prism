@@ -1,5 +1,11 @@
 # Startup model gallery
 
+## Finding the engine block and industrial STEP studies
+
+The Solid section opens with **Inline-four engine block**. The Direct Modeling section opens with **Keyed shaft coupling rework** and **Pin-fin cold plate**. Each comparison includes the untouched STEP blank in the download menu. Under Mesh, **Turned knob rebuilt from scan** opens with the scan beside a closed CAD solid. The individual fitted patches are hidden and can be inspected in the browser. [Gallery fixtures](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs) · [Scan reconstruction](../../../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs) · [Owner follow-up #156](https://github.com/chrizpro/prism/issues/156).
+
+Windows Release verification on 2026-11-20 passed 57 selected gallery and Direct Edit tests. Prism reopened the finished knob and the coupling comparison and rendered both previews. GAL-H202 checks the reconstructed volume against the original within 1%. GAL-H213 checks the lowered hub height, ten openings and the volume removed.
+
 ## Industrial studies for v0.4
 
 The owner selected four new studies on 2026-11-20. The pin-fin cold plate compares a one-boss STEP blank with the finished 24-pin heat sink. The inline-four crankcase has four machined liners and four recessed core plugs. Two mesh cards include source OBJs for repeating Reduce Faces on a grooved sheave and hole repair on a centrifugal impeller. The scanned pillow block and pump bracket were retired from the catalog.

@@ -31,6 +31,8 @@ Windows desktop verification, 2026-11-20: [selected wall before dragging](eviden
 
 The [pin-fin cold plate](../../../gallery/models/pin-fin-cold-plate.prism) demonstrates this edit in the other direction. Start with the [STEP blank](../../../gallery/extras/pin-fin-source.step), raise its pilot boss 20 mm, then use Edit Feature to copy it across six columns and four rows. The original sits on the left in the comparison document. [Gallery verification](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs).
 
+The [keyed shaft coupling](../../../gallery/models/keyed-shaft-coupling.prism) starts from a [five-hole STEP blank](../../../gallery/extras/shaft-coupling-blank.step). Move Face lowers the hub by 24 mm, Edit Feature enlarges the pilots from 6 to 18 mm, and Edit Pattern distributes ten openings at 36° spacing. The original and revised flanges open side by side.
+
 ## The gizmo
 
 There is no button for it. It is open whenever the tab is open. Click a face, hole, slot, pocket, boss or fillet (one click picks the whole feature) and controls appear on it:
@@ -41,6 +43,8 @@ There is no button for it. It is open whenever the tab is open. Click a face, ho
 | Pull | orange | Moves every picked face along its own normal. A positive value moves faces out of the part (a boss grows, a hole gets smaller). |
 | Tilt arc | purple | Tilts a single flat face about its own X direction. |
 | Rim handle | teal | On a round hole or boss, sets the radius. |
+
+**Apply** commits the current edit as one undo step and keeps Direct Edit ready for the next pick. **Done** commits a pending edit and returns to the previous tab. After Apply, Done can also leave immediately. An invalid edit stays open for correction. [Owner request #156](https://github.com/chrizpro/prism/issues/156) · [DIR-H201](../../../Prism.Tests/Headless/DirectModeling/DirectEditTests.cs) and [Windows command panel after Apply](evidence/DIR-H201-apply-done.png).
 
 Drag a handle, or type a number while it is showing; the number goes to the control the pointer was last over. Only one handle can be used per edit; use another for the next one. Maintained checks: HDL-H027 in [ViewportHandleTests](../../../Prism.Tests/Headless/Viewport/ViewportHandleTests.cs) and the older [direct gizmo checks](../../../tests/Prism.DirectModelTests/GizmoTests.cs). The same results are available from the older tools (Offset Face, Move Face, Rotate Face and Edit Feature's move), which the gizmo hands the work to.
 

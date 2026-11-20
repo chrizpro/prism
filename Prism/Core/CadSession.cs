@@ -1212,7 +1212,13 @@ public sealed partial class CadSession : ObservableObject
         RaiseState();
     }
 
-    public void AcceptCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(true) != true) CommitCommand(); }
+    public void AcceptCommandPanel()
+    {
+        KeepPending();
+        if (ActiveCommand?.FinishPanelStep(true) == true) return;
+        if (ActiveCommand is Commands.DirectEditCommand direct) direct.Done();
+        else CommitCommand();
+    }
     public void CancelCommandPanel()
     {
         KeepPending();
