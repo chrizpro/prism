@@ -793,7 +793,8 @@ public sealed partial class MainViewModel : ViewModelBase
             Groups =
             [
                 G("Edit",
-                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature. Solid bodies only.", RibbonSize.Large, solidOnly),
+                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss, fillet or chamfer: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread; a fillet and a chamfer swap) or delete it. One click picks the whole feature. Solid bodies only.", RibbonSize.Large, solidOnly),
+                    Cmd("Edit\nDistance", "measure", () => new EditDistanceCommand(), "Pick what to move and what to measure from, read the distance between them and type a new one: the face or feature moves to match.", RibbonSize.Large, solidOnly),
                     Split("split:direct-replace", "Make faces meet a target. Click the icon to run the one shown; click the name (or right-click) for the others.",
                         Cmd("Replace Face", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face.", RibbonSize.Large, solidOnly),
                         Cmd("Match Face", "replaceface", () => new MatchFaceCommand(), "Give faces the plane, cylinder radius or cone angle of a source face.", RibbonSize.Large, solidOnly),

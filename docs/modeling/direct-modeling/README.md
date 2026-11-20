@@ -230,6 +230,8 @@ Acceptance criteria (unapproved): after Bake history on a document, the history 
 
 **Direct Modeling → Edit → Edit Distance.** Pick what to move (a face, or any face of a hole, slot, pocket or boss, which picks the whole feature) and what to measure from (a flat face, a hole's axis or a datum). The panel shows the current distance; type a new one and the picked side moves by the difference along the measuring direction, the body stretching to follow as Move Face and Edit Feature's Move already do. Parallel flat faces measure square to the faces; a hole, slot or boss measures from its axis (centre to face, or centre to centre). **Symmetric** moves both sides by half the change each. If the picked feature is part of a pattern, **Also edit** offers the whole pattern, as the other face tools do.
 
+**Status 2026-11-19, built and covered:** Edit Distance is in the Edit section after Edit Feature, with a hover card. The distance fills in with the current value when both picks are made; the viewport shows the dimension (grey: now, blue: after) and an arrow that drags the value. Checks: [DIR-H106 to DIR-H108](../../../Prism.Tests/Headless/DirectModeling/EditDistanceTests.cs). Not yet: Also edit for patterns, and two features moved symmetrically on the same body (refused with a message). Not tried by hand in the app.
+
 Acceptance criteria (approved with the plan): on a plate with a hole 20 mm from one edge, setting the distance to 35 mm moves the hole 15 mm and keeps its diameter; between two parallel faces 40 mm apart, setting 30 mm moves the picked face 10 mm closer and the volume drops accordingly; Symmetric moves both faces 5 mm; a distance between non-parallel flat faces is refused with a message; the result is one undo step.
 
 ### Demo plan
