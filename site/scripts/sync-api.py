@@ -24,9 +24,21 @@ out = os.path.join(root, "site", "data")
 os.makedirs(out, exist_ok=True)
 
 
+def portable_paths(data):
+    """Do not publish the capture workstation's user-directory paths in API examples."""
+    if isinstance(data, dict):
+        return {key: portable_paths(value) for key, value in data.items()}
+    if isinstance(data, list):
+        return [portable_paths(value) for value in data]
+    if isinstance(data, str):
+        generated = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~/.local/share")), "Prism", "generated")
+        return data.replace(generated, "Prism/generated").replace(os.path.expanduser("~") + os.sep, "")
+    return data
+
+
 def write(file, data):
     with open(os.path.join(out, file), "w", encoding="utf-8", newline="\n") as f:
-        json.dump(data, f, indent=1, ensure_ascii=False)
+        json.dump(portable_paths(data), f, indent=1, ensure_ascii=False)
         f.write("\n")
 
 

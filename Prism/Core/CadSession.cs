@@ -171,7 +171,7 @@ public sealed partial class CadSession : ObservableObject
 
     [ObservableProperty] public partial string Status { get; set; } = "Ready";
     [ObservableProperty] public partial bool StatusIsError { get; set; }
-    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.Shaded;
+    [ObservableProperty] public partial DisplayMode Display { get; set; } = DisplayMode.ShadedEdges;
     /// <summary>See-through bodies: faces turn translucent so hidden edges and inner shapes show.</summary>
     [ObservableProperty] public partial bool XRay { get; set; }
     [ObservableProperty] public partial bool Zebra { get; set; }
@@ -330,6 +330,7 @@ public sealed partial class CadSession : ObservableObject
         var list = items.ToList();
         if (list.SequenceEqual(_selection)) return;
         _selection.Clear(); _selection.AddRange(list.Distinct());
+        ReleaseAdoptedRegion();
         SelectionChanged?.Invoke(); Invalidate();
     }
 
@@ -392,7 +393,7 @@ public sealed partial class CadSession : ObservableObject
 
     static string IconForKind(ObjKind k) => k switch { ObjKind.Mesh => "mesh", ObjKind.Surface => "nurbs-patch", ObjKind.Curve => "curve-through", ObjKind.Form => "form-box", ObjKind.Plane => "origin-plane", _ => "box" };
 
-    public void Apply(CommandOutput output)
+    public void Apply(CommandOutput output, bool selectCreated = true)
     {
         Checkpoint(output.Label ?? "Edit", output.Icon ?? "box");
         var list = Objects;
@@ -410,10 +411,17 @@ public sealed partial class CadSession : ObservableObject
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithForm(form));
         }
+        foreach (var (old, shape, model, plane) in output.ReplaceSketches)
+        {
+            int i = list.FindIndex(o => o.Id == old.Id);
+            if (i >= 0) list = list.SetItem(i, model != null ? old.WithSketch(shape, model, plane) : old.WithShapeAndPlane(shape, plane));
+        }
         foreach (var (old, tri) in output.ReplaceMeshes)
         {
             int i = list.FindIndex(o => o.Id == old.Id);
             if (i >= 0) list = list.SetItem(i, old.WithTri(tri));
+            _selection.RemoveAll(item => item.Obj == old.Id && item.Kind == SelKind.MeshFace);
+            if (Hover is { Kind: SelKind.MeshFace } face && face.Obj == old.Id) Hover = null;
         }
         foreach (var r in output.Remove) list = list.RemoveAll(o => o.Id == r.Id);
         var created = new List<SceneObject>();
@@ -421,13 +429,13 @@ public sealed partial class CadSession : ObservableObject
         {
             var k = n.Tri != null ? ObjKind.Mesh : n.Kind ?? (n.Form != null ? ObjKind.Form : SceneObject.Classify(n.Shape!));
             uint c = n.Color ?? Palette.DefaultFor(k, list.Count(o => o.Kind == ObjKind.Solid));
-            var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, null, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
+            var obj = new SceneObject(Guid.NewGuid(), NextName(n.NamePrefix), n.Shape, k, c, true, n.Plane, n.Form, n.Sketch, n.Look, n.Tri, n.Asm) { FlatMap=n.FlatMap };
             if (n.IsReference) obj = obj.WithReference(true);
             if (n.IsMoldHalf) obj = obj.WithMoldHalf();
             list = list.Add(obj); created.Add(obj);
         }
         Objects = list;
-        if (created.Count > 0) { _selection.Clear(); foreach (var o in created) _selection.Add(SelItem.Of(o)); }
+        if (selectCreated && created.Count > 0) { _selection.Clear(); foreach (var o in created) _selection.Add(SelItem.Of(o)); }
         PruneSelection();
         RaiseScene();
         SelectionChanged?.Invoke();
@@ -444,6 +452,32 @@ public sealed partial class CadSession : ObservableObject
 
     public void DeleteSelection()
     {
+        var meshFaces = _selection.Where(item => item.Kind == SelKind.MeshFace).ToList();
+        if (meshFaces.Count > 0)
+        {
+            if (ActiveCommand != null || Sketch != null) return;
+            // a mesh tool adds the mesh itself next to its picked triangles (AdoptMeshFaceSelection); that is the same request, not a second one
+            var owners = meshFaces.Select(i => i.Obj).ToHashSet();
+            _selection.RemoveAll(i => i.Kind == SelKind.Object && owners.Contains(i.Obj));
+            if (meshFaces.Count != _selection.Count) { Say("Select mesh triangles on their own to delete them.", true); return; }
+            var output = new CommandOutput { Label = "Delete mesh faces", Icon = "deleteface" };
+            foreach (var group in meshFaces.GroupBy(item => item.Obj))
+            {
+                if (Find(group.Key) is not { Tri: { } mesh } obj) continue;
+                var remove = group.Select(item => item.Index).Where(i => i >= 0 && i < mesh.TriCount).ToHashSet();
+                if (remove.Count == 0) continue;
+                if (remove.Count == mesh.TriCount)
+                {
+                    Say("Switch to Object selection to delete an entire mesh.", true);
+                    return;
+                }
+                output.ReplaceMeshes.Add((obj, mesh.Subset(Enumerable.Range(0, mesh.TriCount).Where(i => !remove.Contains(i)))));
+            }
+            if (output.ReplaceMeshes.Count == 0) return;
+            Apply(output);
+            Say($"Deleted {meshFaces.Count} mesh face(s).");
+            return;
+        }
         // faces of a solid are selected: Delete removes the feature they belong to (a hole, slot, boss, fillet...), never the whole body.
         // Faces of a surface: Delete removes just those faces and leaves the gap.
         var faces = _selection.Where(i => i.Kind == SelKind.Face).ToList();
@@ -457,6 +491,8 @@ public sealed partial class CadSession : ObservableObject
             CommitCommand(); ClearSelection();
             return;
         }
+        // a corner of a curve made of straight pieces goes, and its neighbours join up (the curve itself goes when fewer than two points are left)
+        if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex) && DeleteCurveCorners()) return;
         // a corner point is not something Delete can take away, and it must never take the whole body with it
         if (_selection.Count > 0 && _selection.All(i => i.Kind == SelKind.Vertex)) { Say("A corner point cannot be deleted on its own. Select a face, an edge or the object.", true); return; }
         var ids = _selection.Where(i => i.Kind != SelKind.Vertex).Select(s => s.Obj).Distinct().ToHashSet();
@@ -511,7 +547,46 @@ public sealed partial class CadSession : ObservableObject
         ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Mesh, o.Color, true, null, null, null, o.Look, o.Tri)
         : o.Form != null
         ? new SceneObject(Guid.NewGuid(), name, null, ObjKind.Form, o.Color, true, null, o.Form.Clone(), null, o.Look)
-        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData, o.Look).WithFaceStyles(o.FaceStyles);
+        // the sketch model is cloned (a copy sharing it would change when the original is edited); a datum plane or image keeps its data
+        : new SceneObject(Guid.NewGuid(), name, Occ.Translate(o.Shape, Vec3.Zero), o.Kind, o.Color, true, o.SketchPlane, null, o.SketchData?.Clone(), o.Look, null, o.Kind == ObjKind.Plane ? o.Asm : null).WithFaceStyles(o.FaceStyles);
+
+    /// <summary>
+    /// Deletes selected corners of curve objects whose pieces are all straight: the points are taken out and the rest rejoined in order. False
+    /// (nothing done) when any selected corner belongs to something else.
+    /// </summary>
+    bool DeleteCurveCorners()
+    {
+        var groups = _selection.GroupBy(i => i.Obj).ToList();
+        var plans = new List<(SceneObject obj, List<Vec3> pts, bool closed)>();
+        foreach (var g in groups)
+        {
+            if (Find(g.Key) is not { Kind: ObjKind.Curve, HasBrep: true } curve) return false;
+            int n = curve.Shape.Count(SubKind.Edge); if (n == 0) return false;
+            var pts = new List<Vec3>();
+            for (int e = 0; e < n; e++)
+            {
+                using var edge = curve.Shape.Sub(SubKind.Edge, e); var info = Occ.EdgeInfoOf(edge);
+                if (info.Type != "Line") return false;
+                if (pts.Count == 0) pts.Add(info.Start);
+                else if ((pts[^1] - info.Start).Length > 1e-6) return false;   // not one chain in order
+                pts.Add(info.End);
+            }
+            bool closed = pts.Count > 2 && (pts[0] - pts[^1]).Length < 1e-6; if (closed) pts.RemoveAt(pts.Count - 1);
+            var gone = g.Select(i => VertexPoint(i)).OfType<Vec3>().ToList();
+            pts.RemoveAll(p => gone.Any(q => (p - q).Length < 1e-6));
+            plans.Add((curve, pts, closed));
+        }
+        Checkpoint("Delete points", "delete");
+        foreach (var (obj, pts, closed) in plans)
+        {
+            int i = Objects.FindIndex(o => o.Id == obj.Id);
+            if (pts.Count < 2) Objects = Objects.RemoveAt(i);
+            else Objects = Objects.SetItem(i, obj.WithShape(Occ.Polyline(pts, closed && pts.Count > 2)));
+        }
+        ClearSelection(); RaiseScene();
+        Say("Deleted the point(s); the neighbouring segments now join.");
+        return true;
+    }
 
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
     // ------------------------------------------------------------ selection
@@ -523,7 +598,7 @@ public sealed partial class CadSession : ObservableObject
 
     partial void OnModeChanged(SelMode value) { ClearSelection(); RaiseState(); }
 
-    public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); SelectionChanged?.Invoke(); Invalidate(); }
+    public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); ReleaseAdoptedRegion(); SelectionChanged?.Invoke(); Invalidate(); }
     public void SelectObjects(IEnumerable<Guid> ids, bool additive = false)
     {
         if (!additive) _selection.Clear();
@@ -534,6 +609,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (additive) { if (!_selection.Remove(item)) _selection.Add(item); }
         else { _selection.Clear(); _selection.Add(item); }
+        ReleaseAdoptedRegion();
         SelectionChanged?.Invoke(); Invalidate();
         if (!additive && item.Kind == SelKind.Datum) ShowDatumOrientation(item);
     }
@@ -552,7 +628,8 @@ public sealed partial class CadSession : ObservableObject
         switch (it.Kind)
         {
             case SelKind.Datum: return DatumOf(it) is { } datum && (f.HasFlag(SelFilter.Datum) || (datum.Kind==Sketching.SketchDatumKind.Axis?f.HasFlag(SelFilter.Axis):datum.Kind==Sketching.SketchDatumKind.Plane&&f.HasFlag(SelFilter.Plane)));
-            case SelKind.Face: return f.HasFlag(SelFilter.Face);
+            case SelKind.Face: return f.HasFlag(SelFilter.Face) && Find(it.Obj) is not { Kind: ObjKind.Mesh };
+            case SelKind.MeshFace: return f.HasFlag(SelFilter.MeshFace) && Find(it.Obj)?.Tri is { } tri && it.Index >= 0 && it.Index < tri.TriCount;
             case SelKind.Edge: return f.HasFlag(SelFilter.Edge);
             case SelKind.Vertex: return f.HasFlag(SelFilter.Vertex);
             case SelKind.Entity: return (f.HasFlag(SelFilter.Edge) || f.HasFlag(SelFilter.SketchObj)) && Find(it.Obj) is { Kind: ObjKind.Sketch };
@@ -602,6 +679,29 @@ public sealed partial class CadSession : ObservableObject
     }
 
     /// <summary>The sketch entity a baked edge index belongs to (emission order: root entities, then each section's), as an Entity pick. Null when not a sketch edge.</summary>
+    /// <summary>
+    /// The curves of a shared NURBS sketch that no earlier feature uses, as entity picks. A whole-sketch pick of that sketch means these only, so
+    /// a new surface never takes the curves an earlier one was made from. Null for any other pick, or when every curve is already used.
+    /// </summary>
+    public List<SelItem>? UnusedSketchCurves(SelItem sketchPick)
+    {
+        if (sketchPick.Kind != SelKind.Object || Find(sketchPick.Obj) is not { Kind: ObjKind.Sketch, SketchData: { SharedNurbsCurves: true } sd }) return null;
+        var used = new HashSet<(int id, int sec)>();
+        for (var n = Current; n != null; n = n.Parent)
+            if (n.Recipe != null)
+                foreach (var slot in n.Recipe.Slots)
+                    foreach (var it in slot)
+                        if (it.Obj == sketchPick.Obj && it.Kind == SelKind.Entity) used.Add((it.Index, it.Index2));
+        var items = new List<SelItem>();
+        for (int sec = 0; sec <= sd.Sections.Count; sec++)
+        {
+            var model = sec == 0 ? sd : sd.Sections[sec - 1].Model;
+            foreach (var e in model.Entities)
+                if (!e.Construction && !used.Contains((e.Id, sec))) items.Add(new SelItem(sketchPick.Obj, SelKind.Entity, e.Id, sec));
+        }
+        return items.Count > 0 ? items : null;
+    }
+
     public SelItem? SketchEntityOf(SelItem edge)
     {
         if (edge.Kind != SelKind.Edge || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
@@ -629,7 +729,9 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public List<SelItem>? SketchComponentItems(SelItem edge)
     {
-        if (SketchEntityOf(edge) is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
+        // a sketch curve that is already an Entity pick is its own starting point
+        SelItem? start = edge.Kind == SelKind.Entity ? edge : SketchEntityOf(edge);
+        if (start is not { } first || Find(edge.Obj) is not { SketchData: { } sd, SketchPlane: { } root }) return null;
         Sketching.SketchModel model; Plane3 plane;
         if (first.Index2 <= 0) { model = sd; plane = root; }
         else if (first.Index2 - 1 < sd.Sections.Count) { var sec = sd.Sections[first.Index2 - 1]; model = sec.Model; plane = sec.Plane; }
@@ -652,7 +754,7 @@ public sealed partial class CadSession : ObservableObject
         if (it.Kind == SelKind.Origin) return OriginNames[Math.Clamp(it.Index, 0, 6)];
         var o = Find(it.Obj);
         if (o == null) return "?";
-        return it.Kind switch { SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
+        return it.Kind switch { SelKind.MeshFace => $"Triangle {it.Index + 1} of {o.Name}", SelKind.Face => $"Face {it.Index + 1} of {o.Name}", SelKind.Edge => $"Edge {it.Index + 1} of {o.Name}", SelKind.Vertex => $"Vertex {it.Index + 1} of {o.Name}", SelKind.Entity => $"Curve {it.Index} of {o.Name}", _ => o.Name };
     }
 
     /// <summary>Polyline of a picked edge (from the tessellation), in order.</summary>
@@ -693,9 +795,13 @@ public sealed partial class CadSession : ObservableObject
                 // a slot that takes edges by rule (single edge, chain, partial loop) offers no edges while picking faces. Whole curves and
                 // sketches (text, an outline) are objects, not edges of a body, so they stay pickable in every mode.
                 var f = slot.PickFilter;
-                return Mode == SelMode.Face && slot.HasSelectionRules ? f & ~SelFilter.Edge : f;
+                if (Mode == SelMode.Face && slot.HasSelectionRules) return f & ~SelFilter.Edge;
+                // The selection mode is honoured wherever it can be (owner rule 2026-11-20): when the slot takes what the mode names, only that is
+                // picked. A slot that takes something else keeps its own filter, since that is the only thing its step can use.
+                var wanted = Mode switch { SelMode.Face => SelFilter.Face | SelFilter.MeshFace, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.None };
+                return wanted != SelFilter.None && (f & wanted) != 0 ? f & (wanted | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum) : f;
             }
-            return Mode switch { SelMode.Face => SelFilter.Face, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
+            return Mode switch { SelMode.Face => SelFilter.Face | SelFilter.MeshFace, SelMode.Edge => SelFilter.Edge, SelMode.Vertex => SelFilter.Vertex, _ => SelFilter.AnyObject | SelFilter.Plane | SelFilter.Axis | SelFilter.Datum };
         }
     }
 
@@ -705,8 +811,9 @@ public sealed partial class CadSession : ObservableObject
         if (OriginVisible[i]) return true;
         SyncSuppression();
         if (_originSuppressed.Contains(i)) return false;
-        var f = ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None;
-        return (i < 3 && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
+        var slot = ActiveCommand?.ActiveSlot;
+        var f = slot?.PickFilter ?? SelFilter.None;
+        return (i < 3 && slot?.RevealHiddenPlanes == true && f.HasFlag(SelFilter.Plane)) || (i is >= 3 and < 6 && f.HasFlag(SelFilter.Axis));
     }
 
     /// <summary>A construction plane is drawn and pickable while switched on, or while a command is asking for a plane and the user has not hidden it this time.</summary>
@@ -715,7 +822,7 @@ public sealed partial class CadSession : ObservableObject
         if (obj.Kind != ObjKind.Plane || obj.Visible) return obj.Visible;
         SyncSuppression();
         if (_planeSuppressed.Contains(obj.Id)) return false;
-        return (ActiveCommand?.ActiveSlot?.PickFilter ?? SelFilter.None).HasFlag(SelFilter.Plane);
+        return ActiveCommand?.ActiveSlot is { RevealHiddenPlanes: true } slot && slot.PickFilter.HasFlag(SelFilter.Plane);
     }
 
     /// <summary>The browser eye for a construction plane: a persistent switch like any object, except that hiding a plane a command only revealed is remembered until that command ends.</summary>
@@ -883,7 +990,7 @@ public sealed partial class CadSession : ObservableObject
     {
         var cam = Camera;
         bool wantEdges = filter.HasFlag(SelFilter.Edge) || (filter & SelFilter.AnyCurve) != 0;
-        bool wantFaces = filter.HasFlag(SelFilter.Face) || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
+        bool wantFaces = (filter & (SelFilter.Face | SelFilter.MeshFace)) != 0 || filter.HasFlag(SelFilter.MeshObj) || filter.HasFlag(SelFilter.Solid) || filter.HasFlag(SelFilter.SurfaceObj) || filter.HasFlag(SelFilter.Form);
         // while a command is collecting picks its preview hides the original bodies; they stay pickable so more edges, faces or spots can be added
         bool picking = ActiveCommand?.ActiveSlot != null;
         var vis = Objects.Where(o => (picking || !HiddenIds.Contains(o.Id)) && ShownByIsolation(o)).ToList();
@@ -892,7 +999,9 @@ public sealed partial class CadSession : ObservableObject
         PickResult? fr = null;
         if (face is { } f)
         {
-            var item = filter.HasFlag(SelFilter.Face) ? new SelItem(f.obj.Id, SelKind.Face, f.face) : SelItem.Of(f.obj);
+            var item = f.obj.Kind == ObjKind.Mesh
+                ? filter.HasFlag(SelFilter.MeshFace) ? new SelItem(f.obj.Id, SelKind.MeshFace, f.face) : SelItem.Of(f.obj)
+                : filter.HasFlag(SelFilter.Face) ? new SelItem(f.obj.Id, SelKind.Face, f.face) : SelItem.Of(f.obj);
             double depth = cam.Project(f.point)?.depth ?? 1;
             fr = new PickResult(item, f.point, f.normal, depth);
         }
@@ -933,7 +1042,8 @@ public sealed partial class CadSession : ObservableObject
     }
 
     static bool FaceEligible(SceneObject o, SelFilter f) =>
-        !o.IsAnnotation && f.HasFlag(SelFilter.Face) || (o.Kind == ObjKind.Solid && f.HasFlag(SelFilter.Solid)) || (o.Kind == ObjKind.Surface && f.HasFlag(SelFilter.SurfaceObj)) || (o.Kind == ObjKind.Form && f.HasFlag(SelFilter.Form)) || (o.Kind == ObjKind.Mesh && f.HasFlag(SelFilter.MeshObj));
+        o.Kind == ObjKind.Mesh ? (f & (SelFilter.MeshFace | SelFilter.MeshObj)) != 0 :
+        !o.IsAnnotation && f.HasFlag(SelFilter.Face) || (o.Kind == ObjKind.Solid && f.HasFlag(SelFilter.Solid)) || (o.Kind == ObjKind.Surface && f.HasFlag(SelFilter.SurfaceObj)) || (o.Kind == ObjKind.Form && f.HasFlag(SelFilter.Form));
     static bool EdgeEligible(SceneObject o, SelFilter f) => o.Kind switch
     {
         ObjKind.Curve => f.HasFlag(SelFilter.CurveObj) || f.HasFlag(SelFilter.Edge),
@@ -944,6 +1054,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void UpdateHover(double px, double py)
     {
+        ActiveCommand?.HoverScreen(this, px, py);
         if (ActiveTool != null && ActiveTool is not null && ToolOwnsPointer) { if (Hover != null) { Hover = null; Invalidate(); } return; }
         var r = Pick(px, py, ActiveFilter);
         var h = r?.Item;
@@ -1022,6 +1133,7 @@ public sealed partial class CadSession : ObservableObject
 
     public void StartCommand(Command cmd)
     {
+        AdoptMeshFaceSelection();
         if(ProtectPendingCommand && ActiveCommand is { } current && CommandCatalog.KeyOf(current)==CommandCatalog.KeyOf(cmd))
         {
             KeepPending();Say($"Continue {current.DisplayTitle} with its current options.");RaiseState();
@@ -1100,7 +1212,13 @@ public sealed partial class CadSession : ObservableObject
         RaiseState();
     }
 
-    public void AcceptCommandPanel() { KeepPending();if (ActiveCommand?.FinishPanelStep(true) != true) CommitCommand(); }
+    public void AcceptCommandPanel()
+    {
+        KeepPending();
+        if (ActiveCommand?.FinishPanelStep(true) == true) return;
+        if (ActiveCommand is Commands.DirectEditCommand direct) direct.Done();
+        else CommitCommand();
+    }
     public void CancelCommandPanel()
     {
         KeepPending();
@@ -1128,7 +1246,9 @@ public sealed partial class CadSession : ObservableObject
         _handleDrag = false;
         // Direct edits are plain undo steps unless the body they change has history tracking turned on.
         bool tracked = res.Replace.Any(r => r.Old.TrackHistory);
-        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked ? null : c.Capture();
+        // Moving, turning or scaling whole bodies does not depend on face numbers, so it is always recorded: editing an earlier feature (a component's size) must not drop where the parts were put.
+        bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
+        var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
@@ -1297,7 +1417,9 @@ public sealed partial class CadSession : ObservableObject
             ViewChanged?.Invoke();
             return;
         }
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         var res = cmd.TryBuild();
+        clock.Stop();
         CommandError = cmd.Error;
         if (!cmd.TiltDone && cmd.Handle is { } hs) { cmd.TiltDone = true; TiltToHandle(hs); }
         if (res != null)
@@ -1310,7 +1432,15 @@ public sealed partial class CadSession : ObservableObject
             foreach (var gshape in res.Ghosts) Preview.Add(new PreviewItem(gshape, ObjKind.Solid) { Ghost = true });
         }
         ViewChanged?.Invoke();
+        // A preview that takes seconds freezes the app on every change, so on a heavy part it is switched off after the first slow one.
+        if (cmd.SupportsPreview && cmd.PreviewEnabled && !cmd.Committing && clock.Elapsed.TotalSeconds > SlowPreviewSeconds)
+        {
+            cmd.PreviewEnabled = false;
+            Say($"The preview took {clock.Elapsed.TotalSeconds:0} s on this part, so it is off. Press Apply to make the change, or tick Preview to see it first.");
+        }
     }
+    /// <summary>A live preview that takes longer than this is switched off for the rest of that command.</summary>
+    public const double SlowPreviewSeconds = 3;
 
     // ------------------------------------------------------------ sketch
     public SketchContext? Sketch { get; private set; }
@@ -1403,9 +1533,12 @@ public sealed partial class CadSession : ObservableObject
 
     static PreviewItem? ContextGhostOf(SceneObject o)
     {
-        if (o.Tri is { } t) return new PreviewItem(t) { Context = true, NoEdges = true };
-        if (o.Form is { } f) return new PreviewItem(f) { Context = true, NoEdges = true };
-        return o.HasBrep ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : null;
+        // by preference the later objects keep their own colour instead of the faint see-through look
+        bool faint = AppSettings.Current.SketchContextTranslucent;
+        if (o.Tri is { } t) return faint ? new PreviewItem(t) { Context = true, NoEdges = true } : new PreviewItem(t, o.Color);
+        if (o.Form is { } f) return faint ? new PreviewItem(f) { Context = true, NoEdges = true } : new PreviewItem(f, o.Color);
+        if (!o.HasBrep) return null;
+        return faint ? new PreviewItem(o.Shape, o.Kind) { Context = true, NoEdges = true } : new PreviewItem(o.Shape, o.Kind, o.Color);
     }
 
     /// <summary>When set, the next finished sketch is also projected onto this face (drawing on a curved surface).</summary>
@@ -1893,7 +2026,7 @@ public sealed partial class CadSession : ObservableObject
     /// </summary>
     public Plane3 DisplayGridPlane() =>
         (Ortho || Camera.Orthographic) && Camera.AxisFacingPlane() is { } facing ? facing
-        : Sketch?.GridPlane ?? ActiveCommand?.WorkPlane ?? ViewPlane();
+        : Sketch?.GridPlane ?? ActiveCommand?.GridPlane ?? ViewPlane();
 
     /// <summary>In orthographic mode, and while sketching, both axes of the grid plane being looked at are drawn: X red, Y green, Z blue.</summary>
     void BuildPlaneAxesOverlay(Overlay o)
@@ -1904,6 +2037,16 @@ public sealed partial class CadSession : ObservableObject
         uint ColorOf(Vec3 a) => Math.Abs(a.X) > 0.9 ? 0xFFE5484D : Math.Abs(a.Y) > 0.9 ? 0xFF3FCF8E : 0xFF4C94FF;
         o.AddLine(pl.Origin - pl.U * ext, pl.Origin + pl.U * ext, ColorOf(pl.U), 1.8f);
         o.AddLine(pl.Origin - pl.V * ext, pl.Origin + pl.V * ext, ColorOf(pl.V), 1.8f);
+    }
+
+    void DrawMeshFace(Overlay overlay, SelItem item, uint fill, uint outline)
+    {
+        if (Find(item.Obj) is not { Visible: true, Tri: { } mesh } || HiddenIds.Contains(item.Obj)
+            || !ShownByIsolation(item) || item.Index < 0 || item.Index >= mesh.TriCount) return;
+        var (a, b, c) = mesh.Tri(item.Index);
+        var p = mesh.P(a); var q = mesh.P(b); var r = mesh.P(c);
+        overlay.AddTri(p, q, r, fill);
+        overlay.AddPolyline([p, q, r], outline, 1.6f, closed: true);
     }
 
     public void BuildOverlay(Overlay o)
@@ -1932,6 +2075,10 @@ public sealed partial class CadSession : ObservableObject
                 }
             }
         }
+        foreach (var item in _selection)
+            if (item.Kind == SelKind.MeshFace) DrawMeshFace(o, item, 0x99FFA34F, 0xFFFFA34F);
+        if (Hover is { Kind: SelKind.MeshFace } hovered && !_selection.Contains(hovered))
+            DrawMeshFace(o, hovered, 0x704BA9FF, 0xFF4BA9FF);
         Sketch?.BuildOverlay(this, o);
         DefectOverlay?.Invoke(o);
         ActiveCommand?.BuildOverlay(this, o);
@@ -2318,6 +2465,7 @@ public sealed partial class CadSession : ObservableObject
         public float Min { get; init; }
         public float Max { get; init; } = 1;
         public bool IsSelection { get; init; }
+        public bool ShowInWireframe { get; init; }
     }
     public Dictionary<Guid, ScalarField> Fields { get; } = [];
 
@@ -2330,6 +2478,67 @@ public sealed partial class CadSession : ObservableObject
     {
         if (RegionSel == null || RegionSel.ObjectId != o.Id || !ReferenceEquals(RegionSel.Mesh, o.Tri)) { DropRegion(); RegionSel = new Meshing.MeshSelection(o.Id, o.Tri!); }
         return RegionSel;
+    }
+
+    /// <summary>
+    /// Triangles picked in Face mode become the mesh region every Mesh tool reads (Fit Region, Extract, Delete and the rest), so a tool works on what
+    /// is selected without going through Edit Region first (owner request 2026-11-20). Only when they all belong to one mesh.
+    /// </summary>
+    bool _regionFromSelection;
+
+    /// <summary>A region that came from selected triangles goes when those triangles are no longer selected (so clearing the selection clears the highlight).</summary>
+    void ReleaseAdoptedRegion()
+    {
+        if (!_regionFromSelection || _selection.Any(i => i.Kind == SelKind.MeshFace)) return;
+        _regionFromSelection = false; DropRegion();
+    }
+
+    /// <summary>
+    /// While a tool that reads the mesh region is open, a Face-mode click edits the selected triangles: a click takes one, a double-click its
+    /// patch, Shift adds, Ctrl takes away, a click on empty space clears them. The region follows and the tool updates. False when this click
+    /// is not one of those (another mode, or no such tool).
+    /// </summary>
+    bool EditRegionByClick(PointerInfo p)
+    {
+        if (Mode != SelMode.Face || ActiveCommand is not Prism.Commands.IUsesMeshRegion) return false;
+        var hit = Pick(p.X, p.Y, SelFilter.MeshFace);
+        if (hit is { Item.Kind: SelKind.MeshFace } h)
+        {
+            var take = p.Clicks >= 2 ? MeshPatchAt(h.Item) : [h.Item];
+            if (p.Ctrl) _selection.RemoveAll(take.Contains);
+            else
+            {
+                if (!p.Shift) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace);
+                foreach (var it in take) if (!_selection.Contains(it)) _selection.Add(it);
+            }
+        }
+        else if (!p.Shift && !p.Ctrl) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace);
+        else return true;
+        if (_selection.Any(i => i.Kind == SelKind.MeshFace)) AdoptMeshFaceSelection();
+        else { _regionFromSelection = false; RegionSel?.Clear(); RefreshRegion(); }
+        SelectionChanged?.Invoke();
+        ActiveCommand?.OnChanged(); Invalidate();
+        return true;
+    }
+
+    public void AdoptMeshFaceSelection()
+    {
+        var picked = _selection.Where(i => i.Kind == SelKind.MeshFace).ToList();
+        if (picked.Count == 0 || picked.Select(i => i.Obj).Distinct().Count() != 1 || Find(picked[0].Obj) is not { Tri: { } tri } mesh) return;
+        var region = RegionFor(mesh);
+        region.Clear(); region.Add(picked.Select(i => i.Index).Where(t => t >= 0 && t < tri.TriCount));
+        if (!_selection.Contains(SelItem.Of(mesh))) _selection.Add(SelItem.Of(mesh));   // tools that ask for the mesh find it picked
+        _regionFromSelection = true;
+        RefreshRegion();
+    }
+
+    /// <summary>A double-click on a mesh triangle in Face mode takes the whole smooth patch around it, as Edit Region's Smart patch does.</summary>
+    public List<SelItem> MeshPatchAt(SelItem triangle)
+    {
+        if (triangle.Kind != SelKind.MeshFace || Find(triangle.Obj) is not { Tri: { } tri }) return [triangle];
+        var sel = new Meshing.MeshSelection(triangle.Obj, tri);
+        try { return sel.SmartFit(triangle.Index, 0.2, 20, out _).Select(t => new SelItem(triangle.Obj, SelKind.MeshFace, t)).ToList(); }
+        catch (Exception e) when (e is not OutOfMemoryException) { return [triangle]; }
     }
 
     public void DropRegion()
@@ -2351,10 +2560,10 @@ public sealed partial class CadSession : ObservableObject
         else RegionSel.Refresh();
         RegionChanged?.Invoke(); Invalidate();
     }
-    public void SetField(SceneObject o, Meshing.TriMesh source, MeshData display, int mode, float min, float max, int palette = 0)
+    public void SetField(SceneObject o, Meshing.TriMesh source, MeshData display, int mode, float min, float max, int palette = 0, bool showInWireframe = false)
     {
         display.Scalars ??= new float[display.VertexCount];
-        Fields[o.Id] = new ScalarField { Source = source, Display = display, Mode = mode, Min = min, Max = max, Palette = palette };
+        Fields[o.Id] = new ScalarField { Source = source, Display = display, Mode = mode, Min = min, Max = max, Palette = palette, ShowInWireframe = showInWireframe };
         Invalidate();
     }
     public void ClearField(Guid id) { if (Fields.Remove(id)) Invalidate(); }
@@ -2406,6 +2615,49 @@ public sealed partial class CadSession : ObservableObject
         }
         else if (Layout == ViewLayout.Quad && MaximizedView is { } m && LinkViews) SyncViews(Cameras[m]);
         Invalidate();
+    }
+
+    /// <summary>The box around everything selected: whole bodies, or just the picked faces, edges and corner points. Null when nothing selected has a place in space.</summary>
+    public (Vec3 min, Vec3 max)? SelectionBounds()
+    {
+        var lo = new Vec3(double.MaxValue, double.MaxValue, double.MaxValue); var hi = -lo; bool any = false;
+        void Add(Vec3 p)
+        {
+            lo = new(Math.Min(lo.X, p.X), Math.Min(lo.Y, p.Y), Math.Min(lo.Z, p.Z)); hi = new(Math.Max(hi.X, p.X), Math.Max(hi.Y, p.Y), Math.Max(hi.Z, p.Z)); any = true;
+        }
+        foreach (var it in Selection)
+        {
+            var o = Find(it.Obj); if (o == null) continue;
+            switch (it.Kind)
+            {
+                case SelKind.Face:
+                    var m = o.Mesh;
+                    if (it.Index + 1 >= m.FaceTriStart.Length) { Add(m.Min); Add(m.Max); break; }
+                    for (int t = m.FaceTriStart[it.Index]; t < m.FaceTriStart[it.Index + 1]; t++)
+                        for (int k = 0; k < 3; k++) { int a = m.Indices[3 * t + k] * 3; Add(new Vec3(m.Positions[a], m.Positions[a + 1], m.Positions[a + 2])); }
+                    break;
+                case SelKind.Edge: foreach (var p in EdgePoints(it)) Add(p); break;
+                case SelKind.Vertex: if (VertexPoint(it) is { } v) Add(v); break;
+                default: Add(o.Mesh.Min); Add(o.Mesh.Max); break;
+            }
+        }
+        return any ? (lo, hi) : null;
+    }
+
+    /// <summary>Bring what is selected to the middle of every visible view, filling it as Zoom Extents fills the whole model.</summary>
+    public bool ZoomSelection()
+    {
+        if (Sketch != null) { Say("Zoom Selected works on bodies, faces and edges. Zoom Extents fits the sketch.", true); return false; }
+        if (SelectionBounds() is not { } b) { Say("Select something first, then zoom to it. Zoom Extents fits everything.", true); return false; }
+        var (lo, hi) = b;
+        // a lone corner point or a hair-thin edge would zoom in absurdly far: keep at least a 10 mm box
+        var mid = (lo + hi) * 0.5; var half = new Vec3(Math.Max((hi.X - lo.X) / 2, 5), Math.Max((hi.Y - lo.Y) / 2, 5), Math.Max((hi.Z - lo.Z) / 2, 5));
+        var keep = Camera;
+        foreach (var c in VisibleCameras.ToList()) { Camera = c; Camera.Fit(mid - half, mid + half); Camera.Distance *= 1.15; }
+        Camera = keep;
+        if (VisibleViews > 1 && LinkViews) { double d = VisibleCameras.Max(c => c.Distance); foreach (var c in VisibleCameras) c.Distance = d; }
+        Invalidate();
+        return true;
     }
 
     void ZoomExtentsActive()

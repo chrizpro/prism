@@ -51,6 +51,36 @@ public class SolidRibbonTests
         Assert.Null(vm.Session.ActiveCommand);
     }
 
+    // Freeform and NURBS no longer have a Direct Edit button (owner request 2026-11-16); their own ribbons already show Edit Freeform, Edit Points and Sculpt.
+    [AvaloniaTheory(DisplayName = "SOL-H053 | Direct Edit opens from Surface and disables tools that need a solid")]
+    [Trait("TestId", "SOL-H053")]
+    [InlineData("Surface", false, false)]
+    public void DirectEditOpensFromEveryModelingTab(string tabTitle, bool freeform, bool nurbs)
+    {
+        var vm = new MainViewModel();
+        var origin = vm.Tabs.Single(tab => tab.Title == tabTitle);
+        vm.SelectedTab = origin;
+        Buttons(origin.Buttons).Single(button => button.Id.StartsWith("direct-edit:")).Invoke();
+        Assert.True(vm.IsDirectEditing);
+        Assert.Equal("Direct Modeling", vm.SelectedTab?.Title);
+        if (freeform) Assert.IsType<EditFormCommand>(vm.Session.ActiveCommand);
+        else if (nurbs) Assert.IsType<EditPointsCommand>(vm.Session.ActiveCommand);
+        else Assert.IsType<DirectEditCommand>(vm.Session.ActiveCommand);
+
+        var direct = Buttons(vm.SelectedTab!.Buttons).ToList();
+        foreach (var button in direct) button.Refresh();
+        RibbonButton Named(string label) => direct.Single(button => button.Label.Replace("\n", " ") == label);
+        Assert.False(Named("Edit Feature").IsEnabled);
+        Assert.False(Named("Draft").IsEnabled);
+        // Edit Freeform, Edit Points and Sculpt were removed from this tab (owner request 2026-11-16): nothing opens it from those workflows any more
+        Assert.DoesNotContain(direct, button => button.Label.Replace("\n", " ") is "Edit Freeform" or "Edit Points" or "Sculpt");
+        Assert.Contains(direct, button => button.Label.Replace("\n", " ") == "Check and Repair" && button.IsEnabled);      // listed in more than one group since an earlier merge
+
+        vm.SelectedTab.Buttons.Single(button => button.Icon == "finish").Invoke();
+        Assert.False(vm.IsDirectEditing);
+        Assert.Same(origin, vm.SelectedTab);
+    }
+
     [AvaloniaFact(DisplayName = "SOL-H052 | Solid selection controls switch pick mode and rectangle selection")]
     [Trait("TestId", "SOL-H052")]
     public void SelectionControlsChangeSessionMode()
@@ -72,9 +102,7 @@ public class SolidRibbonTests
         buttons.Single(button => button.Label == "Lasso").Invoke();
         Assert.Equal(SelectMethod.Lasso, vm.Session.Method);
 
-        bool previous = vm.Session.XRay;
-        buttons.Single(button => button.Label == "Through").Invoke();
-        Assert.Equal(!previous, vm.Session.XRay);
+        Assert.DoesNotContain(buttons, button => button.Label == "Through");
 
         var first = Support.ModelingScenario.CreateBoxBody(vm.Session, Vec3.Zero, 2, 2, 2);
         var second = Support.ModelingScenario.CreateBoxBody(vm.Session, new Vec3(5, 0, 0), 2, 2, 2);

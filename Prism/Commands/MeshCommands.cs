@@ -9,6 +9,9 @@ using Prism.Meshing;
 namespace Prism.Commands;
 
 /// <summary>Base for tools that work on triangle meshes (scans, imports, converted solids).</summary>
+/// <summary>A Mesh tool that works on the selected triangles (the mesh region): while it is open, Face-mode clicks keep editing those triangles.</summary>
+public interface IUsesMeshRegion { }
+
 public abstract class MeshCommand : Command
 {
     protected readonly SelectionSlot Src;
@@ -70,27 +73,30 @@ public sealed class MeshRepairCommand : MeshCommand
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
         recipe.Values.Count == Params.Count - 1 ? InsertValue(recipe, Params.IndexOf(_scope), 0) : recipe;
 
-    public MeshRepairCommand(bool holesOnly = false) : base("Meshes", true)
+    readonly bool _cleanupOnly;
+
+    public MeshRepairCommand(bool holesOnly = false, bool cleanupOnly = false) : base("Meshes", true)
     {
         _scope = Choice("Repair scope", 0, "Entire mesh", "Selected region");
-        _scope.HelpText = "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Select Region. Shared vertices stay in place.";
+        _scope.HelpText = "Selected region changes only selected triangles. A hole closes only when its complete rim is selected with Edit Region. Shared vertices stay in place.";
         _weld = Check("Merge duplicate vertices", !holesOnly);
         _weldTol = Num("Merge distance", 0.001, 0, 10, 0.001);
         _clean = Check("Remove degenerate and duplicate triangles", !holesOnly);
         _shells = Check("Remove tiny floating shells", false);
         _minShell = Add(new IntParam { Label = "Shells smaller than (triangles)", Value = 100, Min = 1, Max = 1000000 });
         _orient = Check("Fix flipped and inconsistent normals", !holesOnly);
-        _holes = Check("Fill holes", true);
+        _cleanupOnly = cleanupOnly;
+        _holes = Check("Fill holes", !cleanupOnly);
         _maxHole = Add(new IntParam { Label = "Largest hole to fill (edges)", Value = 250, Min = 3, Max = 100000 });
         Src.Section = _scope.Section = "Scope";
         foreach (var parameter in new Param[] { _weld, _weldTol, _clean, _shells, _minShell, _orient }) parameter.Section = "Cleanup";
         _holes.Section = _maxHole.Section = "Hole filling";
-        _title = holesOnly ? "Fill Holes" : "Repair Mesh";
+        _title = cleanupOnly ? "Mesh Cleanup" : holesOnly ? "Fill Holes" : "Repair Mesh";
     }
 
     readonly string _title;
     public override string Title => _title;
-    public override string Hint => "Repair the entire mesh or the region chosen with Select Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.";
+    public override string Hint => _cleanupOnly ? "Clean up duplicate vertices, bad triangles and flipped normals. Open rims are preserved." : "Repair the entire mesh or the region chosen with Edit Region. Green rims show holes that will close. Selected-region repair preserves outside geometry and fills only completely selected rims.";
     public override string Icon => "mesh-repair";
     public override string OkText => "Repair";
 
@@ -104,7 +110,7 @@ public sealed class MeshRepairCommand : MeshCommand
         }
     }
 
-    protected override void UpdateVisibility() { _weldTol.IsVisible = _weld.Value; _minShell.IsVisible = _shells.Value; _maxHole.IsVisible = _holes.Value; }
+    protected override void UpdateVisibility() { _weldTol.IsVisible = _weld.Value; _minShell.IsVisible = _shells.Value; _holes.IsVisible = !_cleanupOnly; _maxHole.IsVisible = !_cleanupOnly && _holes.Value; }
 
     protected override CommandOutput? Build()
     {
@@ -116,7 +122,7 @@ public sealed class MeshRepairCommand : MeshCommand
         if (_scope.Index == 1 && (objs.Count != 1 || region == null || region.IsEmpty ||
             region.ObjectId != objs[0].Id || !ReferenceEquals(region.Mesh, objs[0].Tri) ||
             region.Tris.Any(t => t < 0 || t >= region.Mesh.TriCount)))
-            throw new InvalidOperationException("Use Select Region on this mesh first, then return to Repair. The region must still match the current mesh.");
+            throw new InvalidOperationException("Use Edit Region on this mesh first, then return to Repair. The region must still match the current mesh.");
         var o = new CommandOutput { Label = "Repair mesh", Icon = "mesh-repair" };
         foreach (var obj in objs)
         {
@@ -141,7 +147,7 @@ public sealed class MeshRepairCommand : MeshCommand
                 if (_orient.Value) { var r = MeshOps.FixOrientation(m); m = r.mesh; flipped = r.flipped; }
             }
             int filled = 0, skipped = 0;
-            if (_holes.Value)
+            if (!_cleanupOnly && _holes.Value)
             {
                 var source = m;
                 var r = MeshOps.FillHoles(m, _maxHole.Value, include, loop => _filledRims.Add(loop.Select(source.P).ToArray()));
@@ -153,7 +159,7 @@ public sealed class MeshRepairCommand : MeshCommand
             string p = objs.Count > 1 ? obj.Name + ": " : "";
             Row(p + "Triangles", $"{Count(before.Triangles)} → {Count(after.Triangles)}");
             Row(p + "Holes", $"{before.HoleLoops} → {after.HoleLoops}" + (skipped > 0 ? $"  ({skipped} too large or could not be patched)" : ""), after.HoleLoops == 0 ? 1 : 2);
-            if (_holes.Value) Row(p + "Hole preview", $"{filled} to fill (green rims)" + (_scope.Index == 1 ? $"; {protectedHoles} outside the selected region left open" : ""));
+            if (!_cleanupOnly && _holes.Value) Row(p + "Hole preview", $"{filled} to fill (green rims)" + (_scope.Index == 1 ? $"; {protectedHoles} outside the selected region left open" : ""));
             if (before.NonManifoldEdges + after.NonManifoldEdges > 0) Row(p + "Non-manifold edges", $"{before.NonManifoldEdges} → {after.NonManifoldEdges}", after.NonManifoldEdges == 0 ? 1 : 3);
             if (flipped > 0) Row(p + "Triangles re-oriented", Count(flipped));
             Row(p + "Result", after.Printable ? "Watertight and printable" : after.Closed ? "Closed, but check normals / non-manifold edges" : "Still open", after.Printable ? 1 : 2);
@@ -258,6 +264,7 @@ public sealed class MeshCheckCommand : MeshCommand
 }
 
 // ================================================================= Decimate
+[Legacy("Use Remesh with Reduce Faces.")]
 public sealed class MeshDecimateCommand : MeshCommand
 {
     readonly ChoiceParam _mode;
@@ -287,17 +294,23 @@ public sealed class MeshDecimateCommand : MeshCommand
         var obj = Meshes().FirstOrDefault(); if (obj == null) return null;
         var m = obj.Tri!;
         int target = _mode.Index == 0 ? (int)(m.TriCount * _percent.Value / 100) : _target.Value;
-        target = Math.Clamp(target, 4, m.TriCount);
+        target = Math.Clamp(target, Math.Min(4, m.TriCount), m.TriCount);
         var res = Cached(Key(obj.Id, m.TriCount, target, _keepBoundary.Value), () => MeshOps.Decimate(m, target, _keepBoundary.Value));
         if (res == null) { Row("Triangles now", Count(m.TriCount)); Row("Target", Count(target)); return null; }
-        Row("Triangles", $"{Count(m.TriCount)} → {Count(res.TriCount)}  ({100.0 * res.TriCount / m.TriCount:0.#}%)", 1);
-        var step = Math.Max(1, res.VertexCount / 4000);
-        var dev = MeshAnalysis.Deviation(Sample(res, step), m, 0.1);
-        Row("Shape change (RMS)", N(dev.Rms, "mm")); Row("Shape change (max)", N(dev.AbsMax, "mm"), dev.AbsMax < m.Size.Length * 0.002 ? 1 : 2);
+        foreach (var row in ReductionReport(m, res)) Results.Add(row);
         var o = new CommandOutput { Label = "Reduce mesh", Icon = Icon };
         if (_keep.Value) o.Add.Add(new(null, StripNumber(obj.Name), ObjKind.Mesh, obj.Color, null, null, obj.Look, res));
         else o.ReplaceMeshes.Add((obj, res));
         return o;
+    }
+
+    internal static IEnumerable<ResultLine> ReductionReport(TriMesh original, TriMesh reduced)
+    {
+        yield return new("Triangles", $"{Count(original.TriCount)} → {Count(reduced.TriCount)}  ({100.0 * reduced.TriCount / original.TriCount:0.#}%)", 1);
+        var step = Math.Max(1, reduced.VertexCount / 4000);
+        var deviation = MeshAnalysis.Deviation(Sample(reduced, step), original, 0.1);
+        yield return new("Shape change (RMS)", N(deviation.Rms, "mm"));
+        yield return new("Shape change (max)", N(deviation.AbsMax, "mm"), deviation.AbsMax < original.Size.Length * 0.002 ? 1 : 2);
     }
 
     static TriMesh Sample(TriMesh m, int step) { var v = new List<float>(); for (int i = 0; i < m.VertexCount; i += step) { v.Add(m.V[3 * i]); v.Add(m.V[3 * i + 1]); v.Add(m.V[3 * i + 2]); } return new TriMesh([.. v], []); }
@@ -305,6 +318,7 @@ public sealed class MeshDecimateCommand : MeshCommand
 }
 
 // ================================================================= Smooth / refine / offset
+[Legacy("Use Edit Region.")]
 public sealed class MeshSmoothCommand : MeshCommand
 {
     readonly IntParam _iter, _refine;
@@ -352,6 +366,7 @@ public sealed class MeshSmoothCommand : MeshCommand
     }
 }
 
+[Legacy("Use Convert Mesh and the editing tools for its output.")]
 public sealed class MeshOffsetCommand : MeshCommand
 {
     readonly NumberParam _d;
@@ -381,6 +396,7 @@ public sealed class MeshOffsetCommand : MeshCommand
 }
 
 // ================================================================= Cut
+[Legacy("Use Convert Mesh and the editing tools for its output.")]
 public sealed class MeshCutCommand : MeshCommand
 {
     readonly ChoiceParam _plane, _keep;
@@ -707,6 +723,7 @@ public sealed class MeshDeviationCommand : MeshCommand
 }
 
 // ================================================================= Segment and fit
+[Legacy("Use Convert Mesh.")]
 public sealed class MeshSegmentCommand : MeshCommand
 {
     readonly NumberParam _tol, _angle;
@@ -926,6 +943,7 @@ public sealed class MeshAlignCommand : MeshCommand
 // ================================================================= Convert
 public sealed record SolidResult(TriMesh Mesh, Shape Shape);
 
+[Legacy("Use Convert Mesh.")]
 public sealed class MeshToSolidCommand : MeshCommand
 {
     readonly ChoiceParam _result;
@@ -967,6 +985,7 @@ public sealed class MeshToSolidCommand : MeshCommand
     }
 }
 
+[Legacy("Export a mesh file, or run the existing solid_to_mesh script command to create a mesh body.")]
 public sealed class SolidToMeshCommand : Command
 {
     readonly SelectionSlot _src;

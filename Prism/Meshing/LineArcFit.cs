@@ -87,7 +87,7 @@ public static class LineArcFit
     }
 
     // algebraic (Kasa-style, centred) circle fit
-    static (double cx, double cy, double r)? FitCircleFast(List<(double x, double y)> pts)
+    internal static (double cx, double cy, double r)? FitCircleFast(List<(double x, double y)> pts)
     {
         int n = pts.Count; double mx = 0, my = 0; foreach (var p in pts) { mx += p.x; my += p.y; } mx /= n; my /= n;
         double suu = 0, suv = 0, svv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
@@ -200,6 +200,114 @@ public static class LineArcFit
             res.Add(new SketchSeg(true, a, (sg.c.x + sg.r * Math.Cos(am), sg.c.y + sg.r * Math.Sin(am)), b, sg.c, sg.r, sw * 180 / Math.PI));
         }
         return res;
+    }
+
+    /// <summary>
+    /// Estimated scanner noise (standard deviation, mm) of a measured section. Each point's signed offset from the chord of its
+    /// neighbours is constant along a smooth curve, so the second difference of those offsets cancels curvature and leaves noise;
+    /// the median keeps corners from counting. Returns 0 when there are too few points.
+    /// </summary>
+    public static double NoiseSigma(IReadOnlyList<(double x, double y)> input, bool closed)
+    {
+        // Section points interpolate the mesh's vertices, so close neighbours share their noise. Resample at three times the mean
+        // spacing to get nearly independent samples first.
+        var pts = Resample(input, closed);
+        int n = pts.Count;
+        if (n < MinNoiseSamples) return double.NaN;
+        (double x, double y) At(int i) => pts[closed ? ((i % n) + n) % n : i];
+        int lo = closed ? 0 : 1, hi = closed ? n : n - 1;
+        var d = new Dictionary<int, double>();
+        for (int i = lo; i < hi; i++)
+        {
+            var a = At(i - 1); var b = At(i); var c = At(i + 1);
+            double cx = c.x - a.x, cy = c.y - a.y, len = Math.Sqrt(cx * cx + cy * cy);
+            if (len < 1e-12) continue;
+            // signed distance of the middle point from the neighbours' chord (left of the travel direction is positive)
+            d[i] = ((b.x - a.x) * -cy + (b.y - a.y) * cx) / len;
+        }
+        var e = new List<double>();
+        foreach (var (i, di) in d)
+        {
+            int p = closed ? ((i - 1) % n + n) % n : i - 1, q = closed ? (i + 1) % n : i + 1;
+            if (d.TryGetValue(p, out var dp) && d.TryGetValue(q, out var dq)) e.Add(Math.Abs(di - (dp + dq) / 2));
+        }
+        if (e.Count < MinNoiseSamples / 2) return double.NaN;
+        e.Sort();
+        // for independent noise of deviation s the residual has deviation 2.09 s, and the median of its size is 0.6745 of that
+        return e[e.Count / 2] / 1.411;
+    }
+
+    /// <summary>Fewer resampled points than this give no noise estimate (<see cref="NoiseSigma"/> returns NaN).</summary>
+    public const int MinNoiseSamples = 20;
+
+    static List<(double x, double y)> Resample(IReadOnlyList<(double x, double y)> pts, bool closed)
+    {
+        var path = pts.ToList();
+        if (closed && path.Count > 2) path.Add(path[0]);
+        double total = 0; for (int i = 1; i < path.Count; i++) total += Dist(path[i - 1], path[i]);
+        if (path.Count < 3 || total <= 0) return [.. pts];
+        double step = 3 * total / (path.Count - 1);
+        var res = new List<(double x, double y)> { path[0] };
+        double carry = 0;
+        for (int i = 1; i < path.Count; i++)
+        {
+            double len = Dist(path[i - 1], path[i]), at = step - carry;
+            while (at <= len)
+            {
+                double f = at / len;
+                res.Add((path[i - 1].x + (path[i].x - path[i - 1].x) * f, path[i - 1].y + (path[i].y - path[i - 1].y) * f));
+                at += step;
+            }
+            carry = len - (at - step);
+        }
+        if (closed && res.Count > 1 && Dist(res[0], res[^1]) < step * 0.5) res.RemoveAt(res.Count - 1);
+        return res;
+    }
+
+    /// <summary>
+    /// A fit tolerance from the noise: four standard deviations (nearly every point lies inside), at least 0.01 mm and at most
+    /// 0.5% of the outline's size. When the outline is too sparse to measure its noise, the fallback is used.
+    /// </summary>
+    public static double ToleranceFromNoise(double sigma, double size = double.PositiveInfinity, double fallback = 0.05) =>
+        double.IsNaN(sigma) ? fallback : Math.Clamp(4 * sigma, 0.01, Math.Max(0.01, size * 0.005));
+
+    /// <summary>Diagonal of an outline's bounding box.</summary>
+    public static double Size(IReadOnlyList<(double x, double y)> pts) =>
+        pts.Count == 0 ? 0 : Dist((pts.Min(p => p.x), pts.Min(p => p.y)), (pts.Max(p => p.x), pts.Max(p => p.y)));
+
+    /// <summary>
+    /// Least-squares circle through two fixed end points: the centre moves along their perpendicular bisector to minimise the
+    /// radial error of the samples. Null when the samples are straight or the ends coincide.
+    /// </summary>
+    public static (double cx, double cy, double r)? FitArcThroughEnds((double x, double y) a, (double x, double y) b, IReadOnlyList<(double x, double y)> pts)
+    {
+        double mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dx = b.x - a.x, dy = b.y - a.y, half = Math.Sqrt(dx * dx + dy * dy) / 2;
+        if (half < 1e-9 || pts.Count < 3) return null;
+        double nx = -dy / (2 * half), ny = dx / (2 * half);
+        double Cost(double t)
+        {
+            double cx = mx + nx * t, cy = my + ny * t, r = Math.Sqrt(half * half + t * t), s = 0;
+            foreach (var p in pts) { double e = Math.Sqrt((p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)) - r; s += e * e; }
+            return s;
+        }
+        // start from the free fit's centre, then golden-section search along the bisector
+        double t0 = 0;
+        if (FitCircleFast(pts.ToList()) is { } free) t0 = (free.cx - mx) * nx + (free.cy - my) * ny;
+        double span = Math.Max(Math.Abs(t0), half) * 4, lo = t0 - span, hi = t0 + span;
+        // coarse scan protects against a poor start on shallow arcs
+        double best = t0, bestCost = Cost(t0);
+        for (int k = 0; k <= 64; k++) { double t = lo + (hi - lo) * k / 64, c = Cost(t); if (c < bestCost) { bestCost = c; best = t; } }
+        double step = (hi - lo) / 64; lo = best - step; hi = best + step;
+        const double g = 0.6180339887498949;
+        double x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = Cost(x1), f2 = Cost(x2);
+        for (int it = 0; it < 100 && hi - lo > 1e-10 * Math.Max(1, Math.Abs(best)); it++)
+        {
+            if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = Cost(x1); }
+            else { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = Cost(x2); }
+        }
+        double tb = (lo + hi) / 2;
+        if (Math.Abs(tb) > 1e6 * half) return null;      // effectively straight
+        return (mx + nx * tb, my + ny * tb, Math.Sqrt(half * half + tb * tb));
     }
 
     /// <summary>Largest distance from any input point to the fitted lines and arcs.</summary>

@@ -1,4 +1,4 @@
-# Reverse Engineer manual test checklist
+# Mesh conversion manual test checklist
 
 See the [feature guide](../../modeling/mesh-and-reverse-engineer/README.md). Record the Prism build and any result that differs from the expected behavior.
 
@@ -7,5 +7,5 @@ See the [feature guide](../../modeling/mesh-and-reverse-engineer/README.md). Rec
 - [ ] Run Deviation between the scan and the fitted geometry. Confirm you can identify the largest visible mismatch and clear the display.
 - [ ] From a cylinder section, edit the generated circle sketch and add a diameter dimension. Extrude with the intended extent, then edit the dimension and confirm the solid rebuilds. Save/reopen and repeat the edit.
 - [ ] Take an axial section of a tube. Remove the profile on one side of the axis, dimension the remaining profile and revolve it. Confirm wall thickness, diameter and height; run Deviation against the original scan.
-- [ ] Verify Fit Surface to Region is directly accessible under Fit Surfaces and Mesh to Solid is under Rebuild → Fallback. Check that descriptions distinguish editable sketches, fitted/direct-edit CAD, a freeform cage and triangle-based conversion.
+- [ ] Use Convert Mesh to preview Solid, Surface, Freeform and NURBS. Check both deviation directions and open edge markers. Confirm an open Solid result requires consent to apply as Surface. Verify the selected region can fit a primitive without modifying the scan.
 - [ ] Try a real scan with uneven noise, holes and thin features. Check which regions automation misses; correct one region manually and compare before/after with Deviation. Record the source mesh, tolerances and units.

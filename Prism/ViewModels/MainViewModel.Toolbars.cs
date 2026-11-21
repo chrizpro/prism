@@ -19,7 +19,7 @@ public sealed partial class MainViewModel
     /// <summary>Ribbon command ids, in order. "|" is a divider. Anything the ribbon can do can sit here.</summary>
     public static readonly string[] DefaultQuickBar =
     [
-        "zoom-extents|Zoom Extents", "look-at|Look At", "view-iso|Isometric", "ortho|Orthographic", "|",
+        "zoom-extents|Zoom Extents", "zoom-selected|Zoom Selected", "look-at|Look At", "view-iso|Isometric", "ortho|Orthographic", "|",
         "shaded|Shaded", "shaded-edges|Shaded + edges", "wireframe|Wireframe", "xray|X-ray", "|",
         "grid|Grid", "section|Section View", "measure|Measure",
     ];

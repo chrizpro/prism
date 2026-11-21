@@ -331,7 +331,12 @@ public partial class MainView : UserControl
         menu.Open(control); e.Handled = true;
     }
     void OnDocTab(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.ActivateDocument(t); }
-    void OnDocClose(object? s, RoutedEventArgs e) { if (s is Control { Tag: DocumentTab t }) Vm?.CloseDocument(t); e.Handled = true; }
+    async void OnDocClose(object? s, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (s is not Control { Tag: DocumentTab t } || Vm is not { } vm || TopLevel.GetTopLevel(this) is not Window window) return;
+        await vm.CloseDocumentWithPromptAsync(t, tab => new SaveChangesWindow(tab.Title, tab.Session.FilePath, tab.Session.Sketch != null || tab.Session.ActiveCommand != null).ShowDialog<DocumentCloseDecision>(window));
+    }
     void OnDocNew(object? s, RoutedEventArgs e) => Vm?.NewDocumentTab();
 
     void Attach()
@@ -449,6 +454,9 @@ public partial class MainView : UserControl
         var selectedNodes = SelectedNodes();
         if (selectedNodes.Count == 1 && selectedNodes[0].IsActiveSketchDatum) { vm.UseDatumNode(selectedNodes[0]); return; }
         var items = selectedNodes.Select(n => n.SelectionItem).Where(i => i != null).Select(i => i!.Value).ToList();
+        // a recognised-feature row stands for its faces
+        foreach (var feature in selectedNodes.Where(n => n.Kind == NodeKind.Feature && n.FeatureFaces != null))
+            foreach (int face in feature.FeatureFaces!) { var it = new Prism.Core.SelItem(feature.ObjectId, Prism.Core.SelKind.Face, face); if (!items.Contains(it)) items.Add(it); }
         // a group row stands for everything in the group
         foreach (var group in selectedNodes.Where(n => n.IsGroup))
             foreach (var member in vm.Session.GroupMembers(group.Title)) { var it = Prism.Core.SelItem.Of(member); if (!items.Contains(it)) items.Add(it); }
@@ -621,6 +629,15 @@ public partial class MainView : UserControl
         items.Add(Mi("Go to this step", () => vm.GoToHistory(it)));
         if (!it.IsStart) items.Add(Mi(it.IsPinned ? "Rename checkpoint…" : "Name as checkpoint…", () => ShowPinFlyout(it)));
         if (it.IsPinned) items.Add(Mi("Remove checkpoint", () => vm.PinStep(it, "")));
+        if (!it.IsStart) items.Add(Mi("Bake history up to here…", async () =>
+        {
+            int merged = vm.Session.StepsBakedAt(it.Node);
+            var ask = new ConfirmWindow("Bake history?",
+                $"{merged} step{(merged == 1 ? "" : "s")} up to and including “{it.Node.Label}” (and any side branches) become one starting point. " +
+                "They can no longer be undone or edited; the steps after it stay editable. Saving afterwards makes a smaller file. " +
+                "This cannot be undone, except by reopening the saved file.", "Bake history");
+            if (TopLevel.GetTopLevel(this) is Window owner && await ask.ShowDialog<bool>(owner)) vm.Session.BakeHistory(it.Node);
+        }));
 
         var restorable = vm.RestorableAt(it).Take(10).ToList();
         if (restorable.Count > 0)

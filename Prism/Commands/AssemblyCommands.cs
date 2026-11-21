@@ -244,6 +244,15 @@ public sealed class JointCommand : Command
         }
         _labelA = ShowRole(parent!, 1, "First part");
         _labelB = ShowRole(child!, 2, "Second part");
+        // Two things that make a part look as if it has vanished: it is moved inside the other one, or the other one moves instead.
+        if (child.Component!.Grounded && !parent!.Component!.Grounded)
+            Results.Add(new ResultLine("Grounded", $"{child.Name} is grounded, so it stays where it is and {parent.Name} moves instead. Un-ground {child.Name} (Assemble > Ground), or pick the parts the other way round.", 2));
+        else if (!AsPositioned)
+        {
+            double overlap = Overlap(parent!, child, placements);
+            if (overlap > 1e-3)
+                Results.Add(new ResultLine("Overlap", $"{child.Name} now overlaps {parent.Name} by {overlap:0.##} mm³, so part of it may be hidden inside. Choose Flip, or pick a face on {child.Name} that faces {parent.Name}.", 2));
+        }
         if (AsPositioned) Results.Add(new ResultLine("Placement", "Both parts stay where they are"));
         else Results.Add(new ResultLine("Direction", j.Flip ? "flipped (faces meet)" : "same direction"));
         foreach (var note in notes) Results.Add(new ResultLine("Solver", note));
@@ -254,6 +263,22 @@ public sealed class JointCommand : Command
             _axisFrame = _type is JointType.Planar or JointType.Ball ? frame * Xform.RotZ(azimuth * Math.PI / 180) : frame;
         }
         return o;
+    }
+
+    /// <summary>How much of the two parts lies in the same place once the joint has put them there (mm³). Skipped when either is very heavy or they are clearly apart.</summary>
+    double Overlap(SceneObject parent, SceneObject child, Dictionary<string, Xform> placements)
+    {
+        try
+        {
+            using var a = placements[parent.Component!.Key].Apply(S.LocalShapeOf(parent));
+            using var b = placements[child.Component!.Key].Apply(S.LocalShapeOf(child));
+            var pa = a.Props(); var pb = b.Props();
+            if (!a.HasSolids || !b.HasSolids || a.Count(SubKind.Face) > 1500 || b.Count(SubKind.Face) > 1500) return 0;
+            if (pa.Max.X < pb.Min.X || pb.Max.X < pa.Min.X || pa.Max.Y < pb.Min.Y || pb.Max.Y < pa.Min.Y || pa.Max.Z < pb.Min.Z || pb.Max.Z < pa.Min.Z) return 0;
+            using var common = Occ.Common(a, b);
+            return common.HasSolids ? common.Props().Volume : 0;
+        }
+        catch (KernelException) { return 0; }
     }
 
     public override void BuildOverlay(CadSession s, Overlay o)

@@ -1,0 +1,272 @@
+{
+  "date": "2026-11-16",
+  "commit": "1ede4c8",
+  "catalogEntries": 36,
+  "verifiedDownloads": [
+    {
+      "name": "maple-observatory model",
+      "bytes": 32752358,
+      "sha256": "826915dd46494555f81f1efd5e78e33c1a1d805b766ff934194a90f2455fd932"
+    },
+    {
+      "name": "maple-observatory preview",
+      "bytes": 193184,
+      "sha256": "c370b4c41331c6def5c4caa5304059c629a99f66dc88b2e2d62ed77823eb7ab0"
+    },
+    {
+      "name": "maple-observatory extra maple-observatory-router-plan.md",
+      "bytes": 3786,
+      "sha256": "00cd7868d1f0abe30adf238a45d663a4aa6b9a3a630531dc06c476a6bb1dd46b"
+    },
+    {
+      "name": "maple-observatory extra maple-observatory-part-plan.csv",
+      "bytes": 20686,
+      "sha256": "bca30670bfdad7de8564a5c28f9243ec98587c024d41074873cdfbcf1c58d920"
+    },
+    {
+      "name": "deco-mantel-clock model",
+      "bytes": 7072953,
+      "sha256": "19e1b820b52b6830a266c4b7e16ec215dbad782a124aa4de0aa4bbbf7215a178"
+    },
+    {
+      "name": "deco-mantel-clock preview",
+      "bytes": 179738,
+      "sha256": "3f271fd272f1cade3cca79da98f06bf66a59a1b8fab76cb1c66f0e319e546c83"
+    },
+    {
+      "name": "maple-walnut-guitar model",
+      "bytes": 10155244,
+      "sha256": "5ca350401bfd1208a55e13342a27ad97afeedc262cc4cd9052ecbff89a6f2d30"
+    },
+    {
+      "name": "maple-walnut-guitar preview",
+      "bytes": 147734,
+      "sha256": "6faa7ef8864828d775c1b3a7353c69049c34f22d445c559049f15dbb5b2f77ce"
+    },
+    {
+      "name": "horizon-h4 model",
+      "bytes": 39200331,
+      "sha256": "04e3aaf70ff080f6427a021c5c92f1110b318497827324bf06513509d8ca2b89"
+    },
+    {
+      "name": "horizon-h4 preview",
+      "bytes": 191178,
+      "sha256": "adfbe6d0684ba75b670d4f2cf97c92ce2e1c25798f00a5bef8659f2f112e1306"
+    },
+    {
+      "name": "linen-t2-toaster model",
+      "bytes": 4121193,
+      "sha256": "f0d848e35bd9a15d51a4932ed961af30f2144bd5fd0a9c8ca2df88367f00759c"
+    },
+    {
+      "name": "linen-t2-toaster preview",
+      "bytes": 181772,
+      "sha256": "3aad6cafb2ad4265cbed726ee54f6b0a216b4da4937e6a04aef7bf371ed47d8d"
+    },
+    {
+      "name": "serein-s1-phone model",
+      "bytes": 6930040,
+      "sha256": "d11d2035e2664b444c19e4400d0fe344c59907144f04f150f4013f3315a371e6"
+    },
+    {
+      "name": "serein-s1-phone preview",
+      "bytes": 156487,
+      "sha256": "dba5117c78d0beb4fae5f13c22ea859ac3ce726fdd83f44f3b18afc5fb566515"
+    },
+    {
+      "name": "arc-soap-mold-cam model",
+      "bytes": 4582216,
+      "sha256": "af06a01d033784eff75c3eb693d580339c9d2e9de14735bf0c25735c5d11836f"
+    },
+    {
+      "name": "arc-soap-mold-cam preview",
+      "bytes": 113099,
+      "sha256": "e75ef84a9167f18c3b361e097ded6f9e734fa3ca53a984712df63f096b84da16"
+    },
+    {
+      "name": "walnut-valet model",
+      "bytes": 13895017,
+      "sha256": "6f0e3015669b78f643ad6cd3d7b0e508387281129e7ddb61cf47bf4067f076fb"
+    },
+    {
+      "name": "walnut-valet preview",
+      "bytes": 215509,
+      "sha256": "46fbb38543fc841a001f2bd344513570f464cec13a762b9ad994151371dac920"
+    },
+    {
+      "name": "ridge-all-terrain model",
+      "bytes": 49621935,
+      "sha256": "01ec5e69d03e5b68bb6368e6c0e6ccd14248a70d338320be7af10c47ff705757"
+    },
+    {
+      "name": "ridge-all-terrain preview",
+      "bytes": 229282,
+      "sha256": "d8afb6f988529552d4c8ac8c1703a3b7e83c84a149f921c9fffc4178d161960d"
+    },
+    {
+      "name": "arc-desk-lamp model",
+      "bytes": 11214617,
+      "sha256": "255c612bbab982e1015191371af21ffa68bfe7c91dbe29045ab85ed3e58a278b"
+    },
+    {
+      "name": "arc-desk-lamp preview",
+      "bytes": 135891,
+      "sha256": "a04a8f4195f94c625b9d1d99e4220efca98d76f211017c078a7249182a021743"
+    },
+    {
+      "name": "bellavista-1964 model",
+      "bytes": 35775944,
+      "sha256": "9c3f1c658d8373585fcb492736ece5b8a7d84d3e2324dab8c7a374585b5a392f"
+    },
+    {
+      "name": "bellavista-1964 preview",
+      "bytes": 240932,
+      "sha256": "5619c5c4aae43d7633a3d70022d37cfc805f8303614edb95d43f9b629f251b7a"
+    },
+    {
+      "name": "aster-road model",
+      "bytes": 17256271,
+      "sha256": "61f12a240766645f9efda88c8d456504d2314bafa0607db7067307458d6b65ba"
+    },
+    {
+      "name": "aster-road preview",
+      "bytes": 182428,
+      "sha256": "49f7278d9b881d643014eee0743e6e988d0b59a527066b84245f0ad5993b9d12"
+    },
+    {
+      "name": "kestrel-r07 preview",
+      "bytes": 260273,
+      "sha256": "7aba0bbb2318de33228a45a3c0eb4500f37a572c0bcb3de4f1e8b09d2644e213"
+    },
+    {
+      "name": "peregrine-s4 preview",
+      "bytes": 276476,
+      "sha256": "acfb6cf416832ecf06b600b391f5e17413f4cf2bb93600674754ef4024964e70"
+    },
+    {
+      "name": "apex-r07 preview",
+      "bytes": 163153,
+      "sha256": "8cdbe3bed4476e42838cd6cd1ff81bf9a91e5486b934704e1587b8f371f250cc"
+    },
+    {
+      "name": "relay-s1 preview",
+      "bytes": 162211,
+      "sha256": "3aa36647c18acc50c06553c2ccb6d6b4b7ab85ff7a23e5cad56a93f7b1a24aca"
+    },
+    {
+      "name": "meridian-orrery preview",
+      "bytes": 211912,
+      "sha256": "56d5dc1880d963bfa3d6464fa33a3755918ab9dcff65ef49cf777d8a1ec25d9a"
+    },
+    {
+      "name": "meridian-orrery extra meridian-orrery-animation.mp4",
+      "bytes": 563065,
+      "sha256": "3348840b50ddd61c5c41d8326f2b2297f99a6139487254be09926f4e522e5687"
+    },
+    {
+      "name": "meridian-orrery extra meridian-orrery-exploded.png",
+      "bytes": 326205,
+      "sha256": "a570f5b233a3158a86ae46c8a411cf9b8e75516d86232a64857bfc4f6d4334eb"
+    },
+    {
+      "name": "cardboard-box preview",
+      "bytes": 91404,
+      "sha256": "555df98f8658c71648abc02b0ec4af5e2f77323bab8a20a5196d83ca926b9cda"
+    },
+    {
+      "name": "lotus-dish preview",
+      "bytes": 160508,
+      "sha256": "50fa5b6d9d12d6294ffd8b366d3aa084369a313d2a88070bac57aacfe93e7a8a"
+    },
+    {
+      "name": "serving-board preview",
+      "bytes": 174199,
+      "sha256": "5a42ddd12251845ffe7e95eaf9f15616e823709fcfc70c56bb6af28116daee78"
+    },
+    {
+      "name": "fold-stand preview",
+      "bytes": 153309,
+      "sha256": "84aacbb543fa5b593154b5cba95123031fe608b3f70dc5c7687e54f9bda35749"
+    },
+    {
+      "name": "comet-racer preview",
+      "bytes": 236187,
+      "sha256": "a2a0146d01c4a8ff55abf6c96980a8cc313e44cbb093a71cabcc69bac9340751"
+    },
+    {
+      "name": "skylark-aircraft preview",
+      "bytes": 198761,
+      "sha256": "2883da76b39cab79b47b0709d8abb0256998473111cc823f9638f325f33cdf2f"
+    },
+    {
+      "name": "atelier-table preview",
+      "bytes": 210507,
+      "sha256": "0eb80aa2efa3f6d2b0d31e43ef8716b093733fc2361c8d43a67f0e0a0bcf63dc"
+    },
+    {
+      "name": "halo-pendant preview",
+      "bytes": 30595,
+      "sha256": "1fd5a2065cac13ea53f6470ad238c24aa7e8a3f192afa64c1bd992b0153e166e"
+    },
+    {
+      "name": "cove-chair preview",
+      "bytes": 185919,
+      "sha256": "9b93d1012969aec174628d5a8e1219212717b6eca4c2fd9c62175e3cd74c0a74"
+    },
+    {
+      "name": "camera-lens preview",
+      "bytes": 235594,
+      "sha256": "edcf97942ba59f8de97a5a8f0b6cec1d009aa14622c7ddb67e5fe8f2d09cdeb6"
+    },
+    {
+      "name": "azure-bottle preview",
+      "bytes": 234012,
+      "sha256": "4ddbec9b0326c907d20ec1edaf477e52a7e6837601c88ff43d4abd3dc46154bc"
+    },
+    {
+      "name": "arc-mouse preview",
+      "bytes": 27788,
+      "sha256": "6e6956b3885296cd68f266e70f9463c111be335ee77b1f91ad093e427195878e"
+    },
+    {
+      "name": "transition-duct preview",
+      "bytes": 147188,
+      "sha256": "5ba0a2af5b25781c1135c11035333042e3dc78133610cdfdadbfedfdf81f7736"
+    },
+    {
+      "name": "wrench preview",
+      "bytes": 48899,
+      "sha256": "8e68b29d7db1505347bcfedd8e96105963fc0baeda3e2c226c5e143cbe2df807"
+    },
+    {
+      "name": "relief-plaque preview",
+      "bytes": 115756,
+      "sha256": "67dbcc5b2e8b7c7892d194cac19bdc2f4e124a46bd1b8a458d68db8df1c0736b"
+    },
+    {
+      "name": "relief-plaque extra relief-lotus.png",
+      "bytes": 29153,
+      "sha256": "05c0729c8638f5563b75228e394270d2b60c9cd018313551bb24e9e228198076"
+    },
+    {
+      "name": "injection-mold preview",
+      "bytes": 159830,
+      "sha256": "3f871a82fcab939be472c7f09dcee9aab1f3479ed0994f12eb3f886ae0256eb5"
+    },
+    {
+      "name": "wrench-drawing preview",
+      "bytes": 20369,
+      "sha256": "1e111284b7c35f1b917332fb3ccff30369bcd5afe2264b73307aa9a13f31dfda"
+    },
+    {
+      "name": "serving-board-drawing preview",
+      "bytes": 24751,
+      "sha256": "24d0d79b07eeddec2f2b70ec98810a74923c6a2774e2c779adab341ad4665644"
+    },
+    {
+      "name": "fold-stand-drawing preview",
+      "bytes": 36657,
+      "sha256": "91c6b0e866fc2e48f3f1242a82382ede28e1e3d7c0ea0628e8d7ee543cecce72"
+    }
+  ]
+}

@@ -35,7 +35,9 @@ public sealed class CommandChoiceView : UserControl
             int index = i;
             string option = parameter.Options[i];
             var content = new Grid { ColumnDefinitions = new ColumnDefinitions("24,*"), ColumnSpacing = 5 };
-            Control glyph = parameter.IsResult
+            Control glyph = parameter.OptionIcons is { } icons
+                ? new IconView { Icon = icons(option) }
+                : parameter.IsResult
                 ? new IconView { Icon = option switch { "Join" => "union", "Cut" => "subtract", "Intersect" => "intersect", _ => "box" } }
                 : new OptionGlyph(option, parameter.IsAngular);
             glyph.Width = 22; glyph.Height = 22; glyph.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;

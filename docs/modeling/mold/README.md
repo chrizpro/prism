@@ -48,3 +48,7 @@ Draft, undercut and parting-line analysis, gates, runners, vents, ejector pins, 
 Windows verification on 2026-11-09 with the fix applied to `fb99758`. MOLD-H006 passed in the 61-test Headless selection. It checked the file-picker filter and verified the native source's visible 8 mm cube arrived as a separate 512 mm³ reference body.
 
 MOLD-H007 passed in the 89-test Windows Headless selection for Mold, Section, DocumentSafety and CAM. A 20 mm block with a 4 mm cubic casting produced two tooling solids totaling 7,936 mm³. The test checked the full assembly save, mold-only Save As, and import into an existing document.
+
+## Arc soap demonstration
+
+Owner-authorized 2026-11-16 ([#136](https://github.com/chrizpro/prism/issues/136)): the [Arc soap gallery study](../../interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study) uses solid fillets and shallow Boolean recesses, Create Mold at the bar's widest section, and separate cavity-up orientations for +Z machining. Its full project preserves the master and eight CAM operations; the `.prism_mld` export was inspected and contains only the two tooling solids. Actual Windows save/reopen, positive-volume validity and sampled CAM evidence are recorded in the gallery guide. No product behavior changed; no renderer or test suite was run for this model-only delivery.

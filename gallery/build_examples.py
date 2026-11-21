@@ -21,7 +21,18 @@ import cadkit.api as api
 
 def connect_mcp(discovery):
     env = dict(os.environ, PRISM_AUTOMATION_DISCOVERY=str(Path(discovery).resolve()))
-    bridge = subprocess.Popen(["dotnet", str(ROOT / "artifacts/gallery/bin/Prism.Mcp.dll")],
+    candidates = [ROOT / f"Prism.Mcp/bin/{config}/net10.0/Prism.Mcp.dll" for config in ("Release", "Debug")]
+    candidates.append(ROOT / "artifacts/gallery/bin/Prism.Mcp.dll")
+    if os.environ.get("PRISM_MCP"):
+        chosen = Path(os.environ["PRISM_MCP"])
+        if not chosen.is_file():
+            raise FileNotFoundError(f"PRISM_MCP names a bridge that does not exist: {chosen}")
+        candidates.insert(0, chosen)
+    binary = next((path for path in candidates if path.is_file()), None)
+    if binary is None:
+        raise FileNotFoundError("Build the bridge first: dotnet build Prism.Mcp -c Release")
+    (ROOT / "artifacts/gallery").mkdir(parents=True, exist_ok=True)
+    bridge = subprocess.Popen(["dotnet", str(binary)],
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               text=True, encoding="utf-8", env=env, creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
     log = open(ROOT / "artifacts/gallery/modeling-mcp.jsonl", "a", encoding="utf-8")
@@ -41,7 +52,7 @@ def connect_mcp(discovery):
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
 
-    def call(tool, **args):
+    def call(tool, /, **args):
         # Obj instances and tuples are normalized by cadkit before reaching here.
         result = request("tools/call", dict(name="call_api", arguments=dict(name=tool, arguments=args)))
         text = next((c["text"] for c in result["content"] if c["type"] == "text"), "{}")

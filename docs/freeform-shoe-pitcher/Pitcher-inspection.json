@@ -1,0 +1,112 @@
+{
+  "profile": {
+    "objects": [
+      "Celadon pitcher"
+    ],
+    "min": [
+      -108.9187,
+      -85.0232,
+      2
+    ],
+    "max": [
+      169.883,
+      85.0232,
+      189.7963
+    ],
+    "size": [
+      278.8017,
+      170.0464,
+      187.7963
+    ],
+    "sections": {
+      "axis": "z",
+      "order": "[min,max] extents along x and y; centroid is [x,y]; area in mm2 (signed; trust it only for closed shapes)",
+      "cuts": [
+        {
+          "at": 40,
+          "x": [
+            -91.71,
+            134.119
+          ],
+          "y": [
+            -81.622,
+            81.622
+          ],
+          "area": 3236.24,
+          "centroid": [
+            35.008,
+            0
+          ],
+          "outlines": 2
+        },
+        {
+          "at": 92,
+          "x": [
+            -88.904,
+            168.852
+          ],
+          "y": [
+            -79.113,
+            79.113
+          ],
+          "area": 2475.71,
+          "centroid": [
+            35.517,
+            0
+          ],
+          "outlines": 3
+        },
+        {
+          "at": 150,
+          "x": [
+            -81.608,
+            160.023
+          ],
+          "y": [
+            -64.839,
+            64.839
+          ],
+          "area": 3573.11,
+          "centroid": [
+            62.132,
+            0
+          ],
+          "outlines": 2
+        }
+      ]
+    }
+  },
+  "cage": {
+    "vertexCount": 472,
+    "faceCount": 456,
+    "creaseCount": 0,
+    "symmetry": "off",
+    "asymmetry": 0,
+    "smoothLevel": 3,
+    "closed": true,
+    "min": [
+      -110.8326,
+      -87.0252,
+      2
+    ],
+    "max": [
+      173,
+      87.0252,
+      190.9202
+    ],
+    "topology": {
+      "boundaryEdges": 0,
+      "nonManifoldEdges": 0,
+      "windingConflicts": 0,
+      "connectedComponents": 1,
+      "eulerCharacteristic": 0,
+      "cageValid": true,
+      "invalidFaces": 0,
+      "degenerateFaces": 0,
+      "nonFiniteVertices": 0,
+      "isolatedVertices": 0,
+      "disconnectedVertexFans": 0,
+      "extraordinaryVertices": 48
+    }
+  }
+}

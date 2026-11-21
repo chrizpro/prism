@@ -22,6 +22,7 @@ public sealed class DirectEditCommand : Command
 
     public DirectEditCommand()
     {
+        RepeatApply = Add(new ActionParam { Label = "Apply", Run = ApplyAndContinue });
         _faces = Slot(new SelectionSlot { Label = "Click a face or feature (a hole, slot, pocket, boss or fillet)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
         _dx = Num("Move X", 0); _dy = Num("Move Y", 0); _dz = Num("Move Z", 0);
         _offset = Num("Pull (positive moves faces out)", 0);
@@ -31,7 +32,28 @@ public sealed class DirectEditCommand : Command
 
     public override string Title => "Direct Edit";
     public override string Icon => "pushpull";
-    public override string OkText => "Apply";
+    public override string OkText => "Done";
+    public override ActionParam RepeatApply { get; }
+    internal Action? LeaveWorkspace { get; set; }
+
+    void ApplyAndContinue()
+    {
+        if (S.ActiveCommand != this) return;
+        S.CommitCommand();
+        if (S.ActiveCommand == null) S.StartCommand(() => new DirectEditCommand());
+    }
+
+    internal void Done()
+    {
+        if (Params.OfType<NumberParam>().Any(p => Math.Abs(p.Value) > 1e-9))
+        {
+            S.CommitCommand();
+            if (S.ActiveCommand == this) return; // keep a failed edit available for correction
+        }
+        else S.CancelCommand();
+        LeaveWorkspace?.Invoke();
+    }
+
     // Switching to another tool never asks "discard unfinished work?" for something that is only a selection.
     public override bool HasInputChanges => false;
     // A direct edit is a plain undo step; the Edit Feature command and the others keep their own recipes.
@@ -45,6 +67,8 @@ public sealed class DirectEditCommand : Command
         try
         {
             var it = _faces.Items[0];
+            // a surface has no features to recognise: its faces are pulled along their normals
+            if (S.Find(it.Obj) is { Kind: ObjKind.Surface, HasBrep: true } sheet) return (sheet, null);
             if (DirectHelpers.BodyOf(S, it) is not { } body) return null;
             var f = FeatureFinder.FeatureOf(body, it.Index);
             return (body, f is { Kind: FeatureKind.Face } ? null : f);
@@ -94,7 +118,7 @@ public sealed class DirectEditCommand : Command
                     var radial = Xform.AnyPerpendicular(feature.Dir).Normalized();
                     list.Add(new HandleSpec(round.Origin + feature.Dir.Normalized() * (round.T1), radial, _radius, 1, Colour: SizeColour));
                 }
-                if (feature == null && _faces.Items.Count == 1 && S.PlaneOf(it) is { } pl && Occ.FaceInfoOf(S.ShapeOf(it)!).Type == "Plane")
+                if (feature == null && body.Kind == ObjKind.Solid && _faces.Items.Count == 1 && S.PlaneOf(it) is { } pl && Occ.FaceInfoOf(S.ShapeOf(it)!).Type == "Plane")
                 {
                     var size = body.Mesh.Max - body.Mesh.Min;
                     list.Add(new HandleSpec(frame?.point ?? centre, pl.U, _rotate, 1, pl.Normal, Math.Max(size.Length * 0.12, 1), true, TurnColour));
@@ -114,6 +138,7 @@ public sealed class DirectEditCommand : Command
             try
             {
                 var (body, feature) = first; var frame = Anchor(_faces.Items[0]);
+                if (body.Kind != ObjKind.Solid) return null;     // moving and turning faces needs a solid; a surface face only pulls
                 var centre = feature?.Centre ?? frame?.point ?? CenterOf(body.Shape);
                 NumberParam?[] move = [_dx, _dy, _dz];
                 // one control per direction: while the pull arrow leaves the same spot along a world axis, it stands in for that axis's arrow
@@ -156,6 +181,8 @@ public sealed class DirectEditCommand : Command
         int ops = (moving ? 1 : 0) + (pulling ? 1 : 0) + (tilting ? 1 : 0) + (sizing ? 1 : 0);
         if (ops == 0) return null;
         if (ops > 1) throw new FormatException("Use one handle at a time: move, pull, tilt or resize.");
+        if (!pulling && S.Find(_faces.Items[0].Obj) is { Kind: ObjKind.Surface })
+            throw new FormatException("On a surface, pull the face along its normal. Moving, tilting and resizing need a solid.");
 
         CommandOutput result;
         if (sizing)
@@ -171,6 +198,9 @@ public sealed class DirectEditCommand : Command
         }
         else if (pulling) result = Run(new OffsetFaceCommand { Factory = () => new OffsetFaceCommand() }, null, ("Offset distance", _offset.Value));
         else if (tilting) result = Run(new RotateFaceCommand { Factory = () => new RotateFaceCommand() }, null, ("Rotation angle", _rotate.Value));
+        else if (_faces.Items.Count == 1 && First() is { } picked &&
+            FeatureFinder.BossEnds(picked.body, _faces.Items[0].Index, move) != null)
+            result = Run(new MoveFaceCommand { Factory = () => new MoveFaceCommand() }, null, ("Move X", move.X), ("Move Y", move.Y), ("Move Z", move.Z));
         else if (PickedFeature(out bool all))
         {
             if (!all) throw new FormatException("Pick either whole features or plain faces to move, not both at once.");

@@ -1,0 +1,3265 @@
+{
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "applicationSource": "c9a5773",
+  "method": "Actual Prism MCP/API native validity, positive volume and save/reopen. Revised guitar captured in the normal shaded viewport in a fresh automation host. No render, test suite, CAM setup or native rebuild for the guitar revision.",
+  "models": [
+    {
+      "id": "maple-observatory",
+      "solids": 116,
+      "valid": true,
+      "savedAndReopened": true,
+      "bytes": 30640089,
+      "parts": [
+        {
+          "name": "Maple presentation plinth",
+          "min": [
+            -150,
+            -115,
+            0
+          ],
+          "max": [
+            150,
+            115,
+            8
+          ],
+          "volume": 551314.0907,
+          "faces": 26
+        },
+        {
+          "name": "Central hall",
+          "min": [
+            -58,
+            -45,
+            12
+          ],
+          "max": [
+            58,
+            82,
+            108
+          ],
+          "volume": 1402937.3807,
+          "faces": 26
+        },
+        {
+          "name": "West wing",
+          "min": [
+            -133,
+            -42,
+            12
+          ],
+          "max": [
+            -58,
+            80,
+            77
+          ],
+          "volume": 581178,
+          "faces": 51
+        },
+        {
+          "name": "West foundation band",
+          "min": [
+            -134,
+            -43,
+            12
+          ],
+          "max": [
+            -57,
+            81,
+            18
+          ],
+          "volume": 57237.5137,
+          "faces": 26
+        },
+        {
+          "name": "West cornice 1",
+          "min": [
+            -134,
+            -43,
+            77
+          ],
+          "max": [
+            -57,
+            81,
+            80
+          ],
+          "volume": 28618.5833,
+          "faces": 26
+        },
+        {
+          "name": "West cornice 2",
+          "min": [
+            -136,
+            -45,
+            80
+          ],
+          "max": [
+            -55,
+            83,
+            83
+          ],
+          "volume": 31077.5833,
+          "faces": 26
+        },
+        {
+          "name": "West cornice 3",
+          "min": [
+            -138,
+            -47,
+            83
+          ],
+          "max": [
+            -53,
+            85,
+            85
+          ],
+          "volume": 22412.7083,
+          "faces": 26
+        },
+        {
+          "name": "East wing",
+          "min": [
+            58,
+            -42,
+            12
+          ],
+          "max": [
+            133,
+            80,
+            77
+          ],
+          "volume": 581178,
+          "faces": 51
+        },
+        {
+          "name": "East foundation band",
+          "min": [
+            57,
+            -43,
+            12
+          ],
+          "max": [
+            134,
+            81,
+            18
+          ],
+          "volume": 57237.5137,
+          "faces": 26
+        },
+        {
+          "name": "East cornice 1",
+          "min": [
+            57,
+            -43,
+            77
+          ],
+          "max": [
+            134,
+            81,
+            80
+          ],
+          "volume": 28618.5833,
+          "faces": 26
+        },
+        {
+          "name": "East cornice 2",
+          "min": [
+            55,
+            -45,
+            80
+          ],
+          "max": [
+            136,
+            83,
+            83
+          ],
+          "volume": 31077.5833,
+          "faces": 26
+        },
+        {
+          "name": "East cornice 3",
+          "min": [
+            53,
+            -47,
+            83
+          ],
+          "max": [
+            138,
+            85,
+            85
+          ],
+          "volume": 22412.7083,
+          "faces": 26
+        },
+        {
+          "name": "Hall foundation band",
+          "min": [
+            -59,
+            -46,
+            12
+          ],
+          "max": [
+            59,
+            83,
+            18
+          ],
+          "volume": 91270.2437,
+          "faces": 26
+        },
+        {
+          "name": "Hall cornice 1",
+          "min": [
+            -59,
+            -46,
+            104
+          ],
+          "max": [
+            59,
+            83,
+            107
+          ],
+          "volume": 45634.8333,
+          "faces": 26
+        },
+        {
+          "name": "Hall cornice 2",
+          "min": [
+            -61,
+            -48,
+            107
+          ],
+          "max": [
+            61,
+            85,
+            110
+          ],
+          "volume": 48645.8333,
+          "faces": 26
+        },
+        {
+          "name": "Hall cornice 3",
+          "min": [
+            -63,
+            -50,
+            110
+          ],
+          "max": [
+            63,
+            87,
+            113
+          ],
+          "volume": 51752.8333,
+          "faces": 26
+        },
+        {
+          "name": "Entry stair 1",
+          "min": [
+            -69,
+            -109,
+            8
+          ],
+          "max": [
+            69,
+            -42,
+            11
+          ],
+          "volume": 27700.704,
+          "faces": 26
+        },
+        {
+          "name": "Entry stair 2",
+          "min": [
+            -66,
+            -103,
+            11
+          ],
+          "max": [
+            66,
+            -42,
+            14
+          ],
+          "volume": 24120.864,
+          "faces": 26
+        },
+        {
+          "name": "Entry stair 3",
+          "min": [
+            -63,
+            -96,
+            14
+          ],
+          "max": [
+            63,
+            -42,
+            17
+          ],
+          "volume": 20379.204,
+          "faces": 26
+        },
+        {
+          "name": "Entry stair 4",
+          "min": [
+            -60,
+            -88,
+            17
+          ],
+          "max": [
+            60,
+            -42,
+            20
+          ],
+          "volume": 16529.724,
+          "faces": 26
+        },
+        {
+          "name": "West walnut hipped roof",
+          "min": [
+            -138,
+            -47,
+            85
+          ],
+          "max": [
+            -53,
+            85,
+            103
+          ],
+          "volume": 85200,
+          "faces": 6
+        },
+        {
+          "name": "East walnut hipped roof",
+          "min": [
+            53,
+            -47,
+            85
+          ],
+          "max": [
+            138,
+            85,
+            103
+          ],
+          "volume": 85200,
+          "faces": 6
+        },
+        {
+          "name": "Recessed maple dome drum",
+          "min": [
+            -46,
+            -26,
+            113
+          ],
+          "max": [
+            46,
+            66,
+            132
+          ],
+          "volume": 119644.2951,
+          "faces": 83
+        },
+        {
+          "name": "Drum lower moulding",
+          "min": [
+            -49,
+            -29,
+            112
+          ],
+          "max": [
+            49,
+            69,
+            115
+          ],
+          "volume": 22628.8919,
+          "faces": 3
+        },
+        {
+          "name": "Drum upper moulding",
+          "min": [
+            -49,
+            -29,
+            131
+          ],
+          "max": [
+            49,
+            69,
+            134
+          ],
+          "volume": 22628.8919,
+          "faces": 3
+        },
+        {
+          "name": "Walnut hemispherical dome",
+          "min": [
+            -45,
+            -25,
+            134
+          ],
+          "max": [
+            45,
+            65,
+            179
+          ],
+          "volume": 190851.7537,
+          "faces": 2
+        },
+        {
+          "name": "West front window 1 walnut recess",
+          "min": [
+            -78.25,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            -65.75,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West front window 1 maple frame",
+          "min": [
+            -80.5,
+            -43.8,
+            31
+          ],
+          "max": [
+            -63.5,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West front window 1 projecting sill",
+          "min": [
+            -82,
+            -45,
+            30.5
+          ],
+          "max": [
+            -62,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West rear window 1 walnut recess",
+          "min": [
+            -78.25,
+            76.1,
+            33.3
+          ],
+          "max": [
+            -65.75,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West rear window 1 maple frame",
+          "min": [
+            -80.5,
+            79.6,
+            31
+          ],
+          "max": [
+            -63.5,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West rear window 1 projecting sill",
+          "min": [
+            -82,
+            79.5,
+            30.5
+          ],
+          "max": [
+            -62,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West front window 2 walnut recess",
+          "min": [
+            -101.75,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            -89.25,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West front window 2 maple frame",
+          "min": [
+            -104,
+            -43.8,
+            31
+          ],
+          "max": [
+            -87,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West front window 2 projecting sill",
+          "min": [
+            -105.5,
+            -45,
+            30.5
+          ],
+          "max": [
+            -85.5,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West rear window 2 walnut recess",
+          "min": [
+            -101.75,
+            76.1,
+            33.3
+          ],
+          "max": [
+            -89.25,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West rear window 2 maple frame",
+          "min": [
+            -104,
+            79.6,
+            31
+          ],
+          "max": [
+            -87,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West rear window 2 projecting sill",
+          "min": [
+            -105.5,
+            79.5,
+            30.5
+          ],
+          "max": [
+            -85.5,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West front window 3 walnut recess",
+          "min": [
+            -125.25,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            -112.75,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West front window 3 maple frame",
+          "min": [
+            -127.5,
+            -43.8,
+            31
+          ],
+          "max": [
+            -110.5,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West front window 3 projecting sill",
+          "min": [
+            -129,
+            -45,
+            30.5
+          ],
+          "max": [
+            -109,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West rear window 3 walnut recess",
+          "min": [
+            -125.25,
+            76.1,
+            33.3
+          ],
+          "max": [
+            -112.75,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West rear window 3 maple frame",
+          "min": [
+            -127.5,
+            79.6,
+            31
+          ],
+          "max": [
+            -110.5,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West rear window 3 projecting sill",
+          "min": [
+            -129,
+            79.5,
+            30.5
+          ],
+          "max": [
+            -109,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West side window 1 walnut recess",
+          "min": [
+            -129.9,
+            -26.25,
+            33.3
+          ],
+          "max": [
+            -129.1,
+            -13.75,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West side window 1 maple frame",
+          "min": [
+            -134.8,
+            -28.5,
+            31
+          ],
+          "max": [
+            -132.6,
+            -11.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West side window 1 projecting sill",
+          "min": [
+            -136,
+            -30,
+            30.5
+          ],
+          "max": [
+            -132.5,
+            -10,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West side window 2 walnut recess",
+          "min": [
+            -129.9,
+            9.75,
+            33.3
+          ],
+          "max": [
+            -129.1,
+            22.25,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West side window 2 maple frame",
+          "min": [
+            -134.8,
+            7.5,
+            31
+          ],
+          "max": [
+            -132.6,
+            24.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West side window 2 projecting sill",
+          "min": [
+            -136,
+            6,
+            30.5
+          ],
+          "max": [
+            -132.5,
+            26,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "West side window 3 walnut recess",
+          "min": [
+            -129.9,
+            45.75,
+            33.3
+          ],
+          "max": [
+            -129.1,
+            58.25,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "West side window 3 maple frame",
+          "min": [
+            -134.8,
+            43.5,
+            31
+          ],
+          "max": [
+            -132.6,
+            60.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "West side window 3 projecting sill",
+          "min": [
+            -136,
+            42,
+            30.5
+          ],
+          "max": [
+            -132.5,
+            62,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East front window 1 walnut recess",
+          "min": [
+            65.75,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            78.25,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East front window 1 maple frame",
+          "min": [
+            63.5,
+            -43.8,
+            31
+          ],
+          "max": [
+            80.5,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East front window 1 projecting sill",
+          "min": [
+            62,
+            -45,
+            30.5
+          ],
+          "max": [
+            82,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East rear window 1 walnut recess",
+          "min": [
+            65.75,
+            76.1,
+            33.3
+          ],
+          "max": [
+            78.25,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East rear window 1 maple frame",
+          "min": [
+            63.5,
+            79.6,
+            31
+          ],
+          "max": [
+            80.5,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East rear window 1 projecting sill",
+          "min": [
+            62,
+            79.5,
+            30.5
+          ],
+          "max": [
+            82,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East front window 2 walnut recess",
+          "min": [
+            89.25,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            101.75,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East front window 2 maple frame",
+          "min": [
+            87,
+            -43.8,
+            31
+          ],
+          "max": [
+            104,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East front window 2 projecting sill",
+          "min": [
+            85.5,
+            -45,
+            30.5
+          ],
+          "max": [
+            105.5,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East rear window 2 walnut recess",
+          "min": [
+            89.25,
+            76.1,
+            33.3
+          ],
+          "max": [
+            101.75,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East rear window 2 maple frame",
+          "min": [
+            87,
+            79.6,
+            31
+          ],
+          "max": [
+            104,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East rear window 2 projecting sill",
+          "min": [
+            85.5,
+            79.5,
+            30.5
+          ],
+          "max": [
+            105.5,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East front window 3 walnut recess",
+          "min": [
+            112.75,
+            -38.9,
+            33.3
+          ],
+          "max": [
+            125.25,
+            -38.1,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East front window 3 maple frame",
+          "min": [
+            110.5,
+            -43.8,
+            31
+          ],
+          "max": [
+            127.5,
+            -41.6,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East front window 3 projecting sill",
+          "min": [
+            109,
+            -45,
+            30.5
+          ],
+          "max": [
+            129,
+            -41.5,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East rear window 3 walnut recess",
+          "min": [
+            112.75,
+            76.1,
+            33.3
+          ],
+          "max": [
+            125.25,
+            76.9,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East rear window 3 maple frame",
+          "min": [
+            110.5,
+            79.6,
+            31
+          ],
+          "max": [
+            127.5,
+            81.8,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East rear window 3 projecting sill",
+          "min": [
+            109,
+            79.5,
+            30.5
+          ],
+          "max": [
+            129,
+            83,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East side window 1 walnut recess",
+          "min": [
+            129.1,
+            -26.25,
+            33.3
+          ],
+          "max": [
+            129.9,
+            -13.75,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East side window 1 maple frame",
+          "min": [
+            132.6,
+            -28.5,
+            31
+          ],
+          "max": [
+            134.8,
+            -11.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East side window 1 projecting sill",
+          "min": [
+            132.5,
+            -30,
+            30.5
+          ],
+          "max": [
+            136,
+            -10,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East side window 2 walnut recess",
+          "min": [
+            129.1,
+            9.75,
+            33.3
+          ],
+          "max": [
+            129.9,
+            22.25,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East side window 2 maple frame",
+          "min": [
+            132.6,
+            7.5,
+            31
+          ],
+          "max": [
+            134.8,
+            24.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East side window 2 projecting sill",
+          "min": [
+            132.5,
+            6,
+            30.5
+          ],
+          "max": [
+            136,
+            26,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "East side window 3 walnut recess",
+          "min": [
+            129.1,
+            45.75,
+            33.3
+          ],
+          "max": [
+            129.9,
+            58.25,
+            61.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "East side window 3 maple frame",
+          "min": [
+            132.6,
+            43.5,
+            31
+          ],
+          "max": [
+            134.8,
+            60.5,
+            64
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "East side window 3 projecting sill",
+          "min": [
+            132.5,
+            42,
+            30.5
+          ],
+          "max": [
+            136,
+            62,
+            32.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "Hall rear window 1 walnut recess",
+          "min": [
+            -41.25,
+            78.1,
+            55.3
+          ],
+          "max": [
+            -28.75,
+            78.9,
+            83.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "Hall rear window 1 maple frame",
+          "min": [
+            -43.5,
+            81.6,
+            53
+          ],
+          "max": [
+            -26.5,
+            83.8,
+            86
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "Hall rear window 1 projecting sill",
+          "min": [
+            -45,
+            81.5,
+            52.5
+          ],
+          "max": [
+            -25,
+            85,
+            54.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "Hall rear window 2 walnut recess",
+          "min": [
+            -6.25,
+            78.1,
+            55.3
+          ],
+          "max": [
+            6.25,
+            78.9,
+            83.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "Hall rear window 2 maple frame",
+          "min": [
+            -8.5,
+            81.6,
+            53
+          ],
+          "max": [
+            8.5,
+            83.8,
+            86
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "Hall rear window 2 projecting sill",
+          "min": [
+            -10,
+            81.5,
+            52.5
+          ],
+          "max": [
+            10,
+            85,
+            54.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "Hall rear window 3 walnut recess",
+          "min": [
+            28.75,
+            78.1,
+            55.3
+          ],
+          "max": [
+            41.25,
+            78.9,
+            83.7
+          ],
+          "volume": 284,
+          "faces": 6
+        },
+        {
+          "name": "Hall rear window 3 maple frame",
+          "min": [
+            26.5,
+            81.6,
+            53
+          ],
+          "max": [
+            43.5,
+            83.8,
+            86
+          ],
+          "volume": 404.8,
+          "faces": 10
+        },
+        {
+          "name": "Hall rear window 3 projecting sill",
+          "min": [
+            25,
+            81.5,
+            52.5
+          ],
+          "max": [
+            45,
+            85,
+            54.5
+          ],
+          "volume": 138.0027,
+          "faces": 26
+        },
+        {
+          "name": "Arched walnut double door",
+          "min": [
+            -15.6,
+            -42,
+            20.3
+          ],
+          "max": [
+            15.6,
+            -39,
+            65.6
+          ],
+          "volume": 3911.239,
+          "faces": 11
+        },
+        {
+          "name": "Maple arched door surround",
+          "min": [
+            -18.5,
+            -46.3,
+            18.5
+          ],
+          "max": [
+            18.5,
+            -43.8,
+            68.5
+          ],
+          "volume": 852.453,
+          "faces": 10
+        },
+        {
+          "name": "Door leaf -1 raised panel 1",
+          "min": [
+            -13,
+            -42.35,
+            24
+          ],
+          "max": [
+            -1.5,
+            -41.75,
+            34
+          ],
+          "volume": 67.8903,
+          "faces": 26
+        },
+        {
+          "name": "Door leaf -1 raised panel 2",
+          "min": [
+            -13,
+            -42.35,
+            37
+          ],
+          "max": [
+            -1.5,
+            -41.75,
+            47
+          ],
+          "volume": 67.8903,
+          "faces": 26
+        },
+        {
+          "name": "Door leaf -1 raised panel 3",
+          "min": [
+            -13,
+            -42.35,
+            50
+          ],
+          "max": [
+            -1.5,
+            -41.75,
+            59
+          ],
+          "volume": 61.0415,
+          "faces": 26
+        },
+        {
+          "name": "Walnut door pull -1",
+          "min": [
+            -2.65,
+            -43.45,
+            40.35
+          ],
+          "max": [
+            -1.35,
+            -42.15,
+            41.65
+          ],
+          "volume": 1.1503,
+          "faces": 1
+        },
+        {
+          "name": "Door leaf 1 raised panel 1",
+          "min": [
+            1.5,
+            -42.35,
+            24
+          ],
+          "max": [
+            13,
+            -41.75,
+            34
+          ],
+          "volume": 67.8903,
+          "faces": 26
+        },
+        {
+          "name": "Door leaf 1 raised panel 2",
+          "min": [
+            1.5,
+            -42.35,
+            37
+          ],
+          "max": [
+            13,
+            -41.75,
+            47
+          ],
+          "volume": 67.8903,
+          "faces": 26
+        },
+        {
+          "name": "Door leaf 1 raised panel 3",
+          "min": [
+            1.5,
+            -42.35,
+            50
+          ],
+          "max": [
+            13,
+            -41.75,
+            59
+          ],
+          "volume": 61.0415,
+          "faces": 26
+        },
+        {
+          "name": "Walnut door pull 1",
+          "min": [
+            1.35,
+            -43.45,
+            40.35
+          ],
+          "max": [
+            2.65,
+            -42.15,
+            41.65
+          ],
+          "volume": 1.1503,
+          "faces": 1
+        },
+        {
+          "name": "Turned maple column 4",
+          "min": [
+            36,
+            -78,
+            22
+          ],
+          "max": [
+            52,
+            -62,
+            65
+          ],
+          "volume": 4362.5124,
+          "faces": 13
+        },
+        {
+          "name": "Column 1 square plinth",
+          "min": [
+            -51,
+            -77,
+            20
+          ],
+          "max": [
+            -37,
+            -63,
+            22
+          ],
+          "volume": 388.3333,
+          "faces": 26
+        },
+        {
+          "name": "Column 1 abacus",
+          "min": [
+            -52,
+            -78,
+            65
+          ],
+          "max": [
+            -36,
+            -62,
+            67
+          ],
+          "volume": 506.024,
+          "faces": 26
+        },
+        {
+          "name": "Turned maple column 1",
+          "min": [
+            -52,
+            -78,
+            22
+          ],
+          "max": [
+            -36,
+            -62,
+            65
+          ],
+          "volume": 4362.5124,
+          "faces": 13
+        },
+        {
+          "name": "Column 2 square plinth",
+          "min": [
+            -22,
+            -77,
+            20
+          ],
+          "max": [
+            -8,
+            -63,
+            22
+          ],
+          "volume": 388.3333,
+          "faces": 26
+        },
+        {
+          "name": "Column 2 abacus",
+          "min": [
+            -23,
+            -78,
+            65
+          ],
+          "max": [
+            -7,
+            -62,
+            67
+          ],
+          "volume": 506.024,
+          "faces": 26
+        },
+        {
+          "name": "Turned maple column 2",
+          "min": [
+            -23,
+            -78,
+            22
+          ],
+          "max": [
+            -7,
+            -62,
+            65
+          ],
+          "volume": 4362.5124,
+          "faces": 13
+        },
+        {
+          "name": "Column 3 square plinth",
+          "min": [
+            8,
+            -77,
+            20
+          ],
+          "max": [
+            22,
+            -63,
+            22
+          ],
+          "volume": 388.3333,
+          "faces": 26
+        },
+        {
+          "name": "Column 3 abacus",
+          "min": [
+            7,
+            -78,
+            65
+          ],
+          "max": [
+            23,
+            -62,
+            67
+          ],
+          "volume": 506.024,
+          "faces": 26
+        },
+        {
+          "name": "Turned maple column 3",
+          "min": [
+            7,
+            -78,
+            22
+          ],
+          "max": [
+            23,
+            -62,
+            65
+          ],
+          "volume": 4362.5124,
+          "faces": 13
+        },
+        {
+          "name": "Column 4 square plinth",
+          "min": [
+            37,
+            -77,
+            20
+          ],
+          "max": [
+            51,
+            -63,
+            22
+          ],
+          "volume": 388.3333,
+          "faces": 26
+        },
+        {
+          "name": "Column 4 abacus",
+          "min": [
+            36,
+            -78,
+            65
+          ],
+          "max": [
+            52,
+            -62,
+            67
+          ],
+          "volume": 506.024,
+          "faces": 26
+        },
+        {
+          "name": "Portico entablature 1",
+          "min": [
+            -60,
+            -85,
+            67
+          ],
+          "max": [
+            60,
+            -42,
+            71
+          ],
+          "volume": 20619.2083,
+          "faces": 26
+        },
+        {
+          "name": "Portico entablature 2",
+          "min": [
+            -61,
+            -86,
+            71
+          ],
+          "max": [
+            61,
+            -41,
+            73
+          ],
+          "volume": 10958.9583,
+          "faces": 26
+        },
+        {
+          "name": "Portico entablature 3",
+          "min": [
+            -63,
+            -88,
+            73
+          ],
+          "max": [
+            63,
+            -39,
+            75
+          ],
+          "volume": 12325.9583,
+          "faces": 26
+        },
+        {
+          "name": "Recessed maple pediment",
+          "min": [
+            -64,
+            -86,
+            75
+          ],
+          "max": [
+            64,
+            -44,
+            104
+          ],
+          "volume": 76710,
+          "faces": 9
+        },
+        {
+          "name": "Walnut portico roof",
+          "min": [
+            -64,
+            -88,
+            75
+          ],
+          "max": [
+            64,
+            -42,
+            107.5
+          ],
+          "volume": 20608,
+          "faces": 8
+        }
+      ],
+      "sha256": "e8daa902ddacd0d8342b2463f04e2d2d189ecc325619c44970d7ced3a0ccd12c"
+    },
+    {
+      "id": "deco-mantel-clock",
+      "solids": 92,
+      "valid": true,
+      "savedAndReopened": true,
+      "bytes": 7072953,
+      "parts": [
+        {
+          "name": "Stepped walnut base 1",
+          "min": [
+            -165,
+            -40,
+            0
+          ],
+          "max": [
+            165,
+            40,
+            7
+          ],
+          "volume": 184449.0997,
+          "faces": 26
+        },
+        {
+          "name": "Stepped walnut base 2",
+          "min": [
+            -159,
+            -37,
+            7
+          ],
+          "max": [
+            159,
+            37,
+            13
+          ],
+          "volume": 140857.1547,
+          "faces": 26
+        },
+        {
+          "name": "Stepped walnut base 3",
+          "min": [
+            -153,
+            -34,
+            13
+          ],
+          "max": [
+            153,
+            34,
+            18
+          ],
+          "volume": 103721.2097,
+          "faces": 26
+        },
+        {
+          "name": "Rounded walnut clock tower",
+          "min": [
+            -78,
+            -32.5,
+            18
+          ],
+          "max": [
+            78,
+            32.5,
+            180
+          ],
+          "volume": 1499815.3909,
+          "faces": 68
+        },
+        {
+          "name": "Left fluted step 1",
+          "min": [
+            -105,
+            -32.5,
+            18
+          ],
+          "max": [
+            -78,
+            32.5,
+            144
+          ],
+          "volume": 218031.266,
+          "faces": 21
+        },
+        {
+          "name": "Left fluted step 2",
+          "min": [
+            -130,
+            -32.5,
+            18
+          ],
+          "max": [
+            -105,
+            32.5,
+            114
+          ],
+          "volume": 153783.266,
+          "faces": 21
+        },
+        {
+          "name": "Left fluted step 3",
+          "min": [
+            -150,
+            -32.5,
+            18
+          ],
+          "max": [
+            -130,
+            32.5,
+            84
+          ],
+          "volume": 84465.266,
+          "faces": 21
+        },
+        {
+          "name": "Right fluted step 1",
+          "min": [
+            78,
+            -32.5,
+            18
+          ],
+          "max": [
+            105,
+            32.5,
+            144
+          ],
+          "volume": 218031.266,
+          "faces": 21
+        },
+        {
+          "name": "Right fluted step 2",
+          "min": [
+            105,
+            -32.5,
+            18
+          ],
+          "max": [
+            130,
+            32.5,
+            114
+          ],
+          "volume": 153783.266,
+          "faces": 21
+        },
+        {
+          "name": "Right fluted step 3",
+          "min": [
+            130,
+            -32.5,
+            18
+          ],
+          "max": [
+            150,
+            32.5,
+            84
+          ],
+          "volume": 84465.266,
+          "faces": 21
+        },
+        {
+          "name": "Warm ivory dial",
+          "min": [
+            -55.5,
+            -35.8,
+            34.5
+          ],
+          "max": [
+            55.5,
+            -33.8,
+            145.5
+          ],
+          "volume": 19353.7815,
+          "faces": 3
+        },
+        {
+          "name": "Brass dial bezel",
+          "min": [
+            -60,
+            -37,
+            30
+          ],
+          "max": [
+            60,
+            -33.8,
+            150
+          ],
+          "volume": 4325.948,
+          "faces": 4
+        },
+        {
+          "name": "Applied hour numeral 01",
+          "min": [
+            20.5887,
+            -36.15,
+            124.0391
+          ],
+          "max": [
+            22.983,
+            -35.85,
+            130.5657
+          ],
+          "volume": 1.9568,
+          "faces": 9
+        },
+        {
+          "name": "Applied hour numeral 02",
+          "min": [
+            35.6125,
+            -36.15,
+            108.3
+          ],
+          "max": [
+            39.9104,
+            -35.85,
+            114.8266
+          ],
+          "volume": 3.3238,
+          "faces": 8
+        },
+        {
+          "name": "Applied hour numeral 03",
+          "min": [
+            41.4813,
+            -36.15,
+            86.6847
+          ],
+          "max": [
+            45.7378,
+            -35.85,
+            93.3266
+          ],
+          "volume": 3.1766,
+          "faces": 9
+        },
+        {
+          "name": "Applied hour numeral 04",
+          "min": [
+            35.4544,
+            -36.15,
+            65.3
+          ],
+          "max": [
+            39.9503,
+            -35.85,
+            71.8
+          ],
+          "volume": 3.1624,
+          "faces": 16
+        },
+        {
+          "name": "Applied hour numeral 05",
+          "min": [
+            19.9769,
+            -36.15,
+            49.45
+          ],
+          "max": [
+            24.2866,
+            -35.85,
+            55.9722
+          ],
+          "volume": 3.5198,
+          "faces": 11
+        },
+        {
+          "name": "Applied hour numeral 06",
+          "min": [
+            -1.5586,
+            -36.15,
+            43.6892
+          ],
+          "max": [
+            2.7334,
+            -35.85,
+            50.3266
+          ],
+          "volume": 3.8796,
+          "faces": 6
+        },
+        {
+          "name": "Applied hour numeral 07",
+          "min": [
+            -22.9699,
+            -36.15,
+            49.5609
+          ],
+          "max": [
+            -18.7622,
+            -35.85,
+            55.9767
+          ],
+          "volume": 2.431,
+          "faces": 9
+        },
+        {
+          "name": "Applied hour numeral 08",
+          "min": [
+            -38.7711,
+            -36.15,
+            65.1892
+          ],
+          "max": [
+            -34.488,
+            -35.85,
+            71.8266
+          ],
+          "volume": 3.9676,
+          "faces": 6
+        },
+        {
+          "name": "Applied hour numeral 09",
+          "min": [
+            -44.5231,
+            -36.15,
+            86.6891
+          ],
+          "max": [
+            -40.2489,
+            -35.85,
+            93.3266
+          ],
+          "volume": 3.8393,
+          "faces": 6
+        },
+        {
+          "name": "Applied hour numeral 10",
+          "min": [
+            -40.0503,
+            -36.15,
+            108.1891
+          ],
+          "max": [
+            -31.3733,
+            -35.85,
+            114.8266
+          ],
+          "volume": 5.4859,
+          "faces": 13
+        },
+        {
+          "name": "Applied hour numeral 11",
+          "min": [
+            -24.3113,
+            -36.15,
+            124.0391
+          ],
+          "max": [
+            -16.8668,
+            -35.85,
+            130.5657
+          ],
+          "volume": 3.9136,
+          "faces": 18
+        },
+        {
+          "name": "Applied hour numeral 12",
+          "min": [
+            -2.8113,
+            -36.15,
+            129.8
+          ],
+          "max": [
+            5.8214,
+            -35.85,
+            136.3266
+          ],
+          "volume": 5.2804,
+          "faces": 17
+        },
+        {
+          "name": "Hour index 00",
+          "min": [
+            -0.4,
+            -36.2,
+            141.5
+          ],
+          "max": [
+            0.4,
+            -35.9,
+            144.5
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 01",
+          "min": [
+            5.3809,
+            -36.2,
+            142.6929
+          ],
+          "max": [
+            5.835,
+            -35.9,
+            144.0193
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 02",
+          "min": [
+            10.8628,
+            -36.2,
+            141.8086
+          ],
+          "max": [
+            11.4461,
+            -35.9,
+            143.1467
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 03",
+          "min": [
+            16.2257,
+            -36.2,
+            140.3566
+          ],
+          "max": [
+            16.9318,
+            -35.9,
+            141.6918
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 04",
+          "min": [
+            21.4109,
+            -36.2,
+            138.3528
+          ],
+          "max": [
+            22.232,
+            -35.9,
+            139.6706
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 05",
+          "min": [
+            25.4036,
+            -36.2,
+            134.4003
+          ],
+          "max": [
+            27.5964,
+            -35.9,
+            137.3984
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 06",
+          "min": [
+            31.0232,
+            -36.2,
+            132.7839
+          ],
+          "max": [
+            32.0462,
+            -35.9,
+            134.0237
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 07",
+          "min": [
+            35.345,
+            -36.2,
+            129.2796
+          ],
+          "max": [
+            36.4527,
+            -35.9,
+            130.4598
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 08",
+          "min": [
+            39.2796,
+            -36.2,
+            125.345
+          ],
+          "max": [
+            40.4598,
+            -35.9,
+            126.4527
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 09",
+          "min": [
+            42.7839,
+            -36.2,
+            121.0232
+          ],
+          "max": [
+            44.0237,
+            -35.9,
+            122.0462
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 10",
+          "min": [
+            44.4003,
+            -36.2,
+            115.4036
+          ],
+          "max": [
+            47.3984,
+            -35.9,
+            117.5964
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 11",
+          "min": [
+            48.3528,
+            -36.2,
+            111.4109
+          ],
+          "max": [
+            49.6706,
+            -35.9,
+            112.232
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 12",
+          "min": [
+            50.3566,
+            -36.2,
+            106.2257
+          ],
+          "max": [
+            51.6918,
+            -35.9,
+            106.9318
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 13",
+          "min": [
+            51.8086,
+            -36.2,
+            100.8628
+          ],
+          "max": [
+            53.1467,
+            -35.9,
+            101.4461
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 14",
+          "min": [
+            52.6929,
+            -36.2,
+            95.3809
+          ],
+          "max": [
+            54.0193,
+            -35.9,
+            95.835
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 15",
+          "min": [
+            51.5,
+            -36.2,
+            89.6
+          ],
+          "max": [
+            54.5,
+            -35.9,
+            90.4
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 16",
+          "min": [
+            52.6929,
+            -36.2,
+            84.165
+          ],
+          "max": [
+            54.0193,
+            -35.9,
+            84.6191
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 17",
+          "min": [
+            51.8086,
+            -36.2,
+            78.5539
+          ],
+          "max": [
+            53.1467,
+            -35.9,
+            79.1372
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 18",
+          "min": [
+            50.3566,
+            -36.2,
+            73.0682
+          ],
+          "max": [
+            51.6918,
+            -35.9,
+            73.7743
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 19",
+          "min": [
+            48.3528,
+            -36.2,
+            67.768
+          ],
+          "max": [
+            49.6706,
+            -35.9,
+            68.5891
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 20",
+          "min": [
+            44.4003,
+            -36.2,
+            62.4036
+          ],
+          "max": [
+            47.3984,
+            -35.9,
+            64.5964
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 21",
+          "min": [
+            42.7839,
+            -36.2,
+            57.9538
+          ],
+          "max": [
+            44.0237,
+            -35.9,
+            58.9768
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 22",
+          "min": [
+            39.2796,
+            -36.2,
+            53.5473
+          ],
+          "max": [
+            40.4598,
+            -35.9,
+            54.655
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 23",
+          "min": [
+            35.345,
+            -36.2,
+            49.5402
+          ],
+          "max": [
+            36.4527,
+            -35.9,
+            50.7204
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 24",
+          "min": [
+            31.0232,
+            -36.2,
+            45.9763
+          ],
+          "max": [
+            32.0462,
+            -35.9,
+            47.2161
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 25",
+          "min": [
+            25.4036,
+            -36.2,
+            42.6016
+          ],
+          "max": [
+            27.5964,
+            -35.9,
+            45.5997
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 26",
+          "min": [
+            21.4109,
+            -36.2,
+            40.3294
+          ],
+          "max": [
+            22.232,
+            -35.9,
+            41.6472
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 27",
+          "min": [
+            16.2257,
+            -36.2,
+            38.3082
+          ],
+          "max": [
+            16.9318,
+            -35.9,
+            39.6434
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 28",
+          "min": [
+            10.8628,
+            -36.2,
+            36.8533
+          ],
+          "max": [
+            11.4461,
+            -35.9,
+            38.1914
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 29",
+          "min": [
+            5.3809,
+            -36.2,
+            35.9807
+          ],
+          "max": [
+            5.835,
+            -35.9,
+            37.3071
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 30",
+          "min": [
+            -0.4,
+            -36.2,
+            35.5
+          ],
+          "max": [
+            0.4,
+            -35.9,
+            38.5
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 31",
+          "min": [
+            -5.835,
+            -36.2,
+            35.9807
+          ],
+          "max": [
+            -5.3809,
+            -35.9,
+            37.3071
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 32",
+          "min": [
+            -11.4461,
+            -36.2,
+            36.8533
+          ],
+          "max": [
+            -10.8628,
+            -35.9,
+            38.1914
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 33",
+          "min": [
+            -16.9318,
+            -36.2,
+            38.3082
+          ],
+          "max": [
+            -16.2257,
+            -35.9,
+            39.6434
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 34",
+          "min": [
+            -22.232,
+            -36.2,
+            40.3294
+          ],
+          "max": [
+            -21.4109,
+            -35.9,
+            41.6472
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 35",
+          "min": [
+            -27.5964,
+            -36.2,
+            42.6016
+          ],
+          "max": [
+            -25.4036,
+            -35.9,
+            45.5997
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 36",
+          "min": [
+            -32.0462,
+            -36.2,
+            45.9763
+          ],
+          "max": [
+            -31.0232,
+            -35.9,
+            47.2161
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 37",
+          "min": [
+            -36.4527,
+            -36.2,
+            49.5402
+          ],
+          "max": [
+            -35.345,
+            -35.9,
+            50.7204
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 38",
+          "min": [
+            -40.4598,
+            -36.2,
+            53.5473
+          ],
+          "max": [
+            -39.2796,
+            -35.9,
+            54.655
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 39",
+          "min": [
+            -44.0237,
+            -36.2,
+            57.9538
+          ],
+          "max": [
+            -42.7839,
+            -35.9,
+            58.9768
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 40",
+          "min": [
+            -47.3984,
+            -36.2,
+            62.4036
+          ],
+          "max": [
+            -44.4003,
+            -35.9,
+            64.5964
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 41",
+          "min": [
+            -49.6706,
+            -36.2,
+            67.768
+          ],
+          "max": [
+            -48.3528,
+            -35.9,
+            68.5891
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 42",
+          "min": [
+            -51.6918,
+            -36.2,
+            73.0682
+          ],
+          "max": [
+            -50.3566,
+            -35.9,
+            73.7743
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 43",
+          "min": [
+            -53.1467,
+            -36.2,
+            78.5539
+          ],
+          "max": [
+            -51.8086,
+            -35.9,
+            79.1372
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 44",
+          "min": [
+            -54.0193,
+            -36.2,
+            84.165
+          ],
+          "max": [
+            -52.6929,
+            -35.9,
+            84.6191
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 45",
+          "min": [
+            -54.5,
+            -36.2,
+            89.6
+          ],
+          "max": [
+            -51.5,
+            -35.9,
+            90.4
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 46",
+          "min": [
+            -54.0193,
+            -36.2,
+            95.3809
+          ],
+          "max": [
+            -52.6929,
+            -35.9,
+            95.835
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 47",
+          "min": [
+            -53.1467,
+            -36.2,
+            100.8628
+          ],
+          "max": [
+            -51.8086,
+            -35.9,
+            101.4461
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 48",
+          "min": [
+            -51.6918,
+            -36.2,
+            106.2257
+          ],
+          "max": [
+            -50.3566,
+            -35.9,
+            106.9318
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 49",
+          "min": [
+            -49.6706,
+            -36.2,
+            111.4109
+          ],
+          "max": [
+            -48.3528,
+            -35.9,
+            112.232
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 50",
+          "min": [
+            -47.3984,
+            -36.2,
+            115.4036
+          ],
+          "max": [
+            -44.4003,
+            -35.9,
+            117.5964
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 51",
+          "min": [
+            -44.0237,
+            -36.2,
+            121.0232
+          ],
+          "max": [
+            -42.7839,
+            -35.9,
+            122.0462
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 52",
+          "min": [
+            -40.4598,
+            -36.2,
+            125.345
+          ],
+          "max": [
+            -39.2796,
+            -35.9,
+            126.4527
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 53",
+          "min": [
+            -36.4527,
+            -36.2,
+            129.2796
+          ],
+          "max": [
+            -35.345,
+            -35.9,
+            130.4598
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 54",
+          "min": [
+            -32.0462,
+            -36.2,
+            132.7839
+          ],
+          "max": [
+            -31.0232,
+            -35.9,
+            134.0237
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour index 55",
+          "min": [
+            -27.5964,
+            -36.2,
+            134.4003
+          ],
+          "max": [
+            -25.4036,
+            -35.9,
+            137.3984
+          ],
+          "volume": 0.72,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 56",
+          "min": [
+            -22.232,
+            -36.2,
+            138.3528
+          ],
+          "max": [
+            -21.4109,
+            -35.9,
+            139.6706
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 57",
+          "min": [
+            -16.9318,
+            -36.2,
+            140.3566
+          ],
+          "max": [
+            -16.2257,
+            -35.9,
+            141.6918
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 58",
+          "min": [
+            -11.4461,
+            -36.2,
+            141.8086
+          ],
+          "max": [
+            -10.8628,
+            -35.9,
+            143.1467
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Minute index 59",
+          "min": [
+            -5.835,
+            -36.2,
+            142.6929
+          ],
+          "max": [
+            -5.3809,
+            -35.9,
+            144.0193
+          ],
+          "volume": 0.1248,
+          "faces": 6
+        },
+        {
+          "name": "Hour hand",
+          "min": [
+            -24.5746,
+            -37,
+            85.6576
+          ],
+          "max": [
+            5.1282,
+            -36.4,
+            107.2073
+          ],
+          "volume": 71.28,
+          "faces": 7
+        },
+        {
+          "name": "Minute hand",
+          "min": [
+            -4.8551,
+            -37.6,
+            86.5907
+          ],
+          "max": [
+            37.2391,
+            -37,
+            111.5
+          ],
+          "volume": 57.96,
+          "faces": 7
+        },
+        {
+          "name": "Brass hand pin",
+          "min": [
+            -3.3,
+            -38.4,
+            86.7
+          ],
+          "max": [
+            3.3,
+            -37,
+            93.3
+          ],
+          "volume": 47.8967,
+          "faces": 3
+        },
+        {
+          "name": "Rear walnut mechanism cover",
+          "min": [
+            -34,
+            32.5,
+            56
+          ],
+          "max": [
+            34,
+            34.5,
+            124
+          ],
+          "volume": 7263.3622,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 1",
+          "min": [
+            19.0061,
+            34.5,
+            109.0061
+          ],
+          "max": [
+            22.0061,
+            35.3,
+            112.0061
+          ],
+          "volume": 5.6549,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 2",
+          "min": [
+            -22.0061,
+            34.5,
+            109.0061
+          ],
+          "max": [
+            -19.0061,
+            35.3,
+            112.0061
+          ],
+          "volume": 5.6549,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 3",
+          "min": [
+            -22.0061,
+            34.5,
+            67.9939
+          ],
+          "max": [
+            -19.0061,
+            35.3,
+            70.9939
+          ],
+          "volume": 5.6549,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 4",
+          "min": [
+            19.0061,
+            34.5,
+            67.9939
+          ],
+          "max": [
+            22.0061,
+            35.3,
+            70.9939
+          ],
+          "volume": 5.6549,
+          "faces": 3
+        }
+      ],
+      "sha256": "19e1b820b52b6830a266c4b7e16ec215dbad782a124aa4de0aa4bbbf7215a178"
+    },
+    {
+      "id": "maple-walnut-guitar",
+      "solids": 7,
+      "valid": true,
+      "savedAndReopened": true,
+      "bytes": 10155244,
+      "parts": [
+        {
+          "name": "Sculpted walnut back",
+          "min": [
+            -166.0021,
+            -245,
+            0
+          ],
+          "max": [
+            166.0053,
+            211.0963,
+            34
+          ],
+          "volume": 3211690.3837,
+          "faces": 104
+        },
+        {
+          "name": "Carved maple top",
+          "min": [
+            -166.0297,
+            -245.0333,
+            34
+          ],
+          "max": [
+            163.8211,
+            211.1389,
+            44
+          ],
+          "volume": 913919.0536,
+          "faces": 63
+        },
+        {
+          "name": "Recessed walnut control cavity cover",
+          "min": [
+            58.6,
+            -187.4,
+            0.3
+          ],
+          "max": [
+            132.4,
+            -56.6,
+            2.1
+          ],
+          "volume": 16901.9872,
+          "faces": 14
+        },
+        {
+          "name": "Rear cover screw 1",
+          "min": [
+            68.9,
+            -176.1,
+            -0.3
+          ],
+          "max": [
+            73.1,
+            -171.9,
+            0.3
+          ],
+          "volume": 8.3127,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 2",
+          "min": [
+            117.9,
+            -176.1,
+            -0.3
+          ],
+          "max": [
+            122.1,
+            -171.9,
+            0.3
+          ],
+          "volume": 8.3127,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 3",
+          "min": [
+            68.9,
+            -71.1,
+            -0.3
+          ],
+          "max": [
+            73.1,
+            -66.9,
+            0.3
+          ],
+          "volume": 8.3127,
+          "faces": 3
+        },
+        {
+          "name": "Rear cover screw 4",
+          "min": [
+            117.9,
+            -71.1,
+            -0.3
+          ],
+          "max": [
+            122.1,
+            -66.9,
+            0.3
+          ],
+          "volume": 8.3127,
+          "faces": 3
+        }
+      ],
+      "sha256": "5ca350401bfd1208a55e13342a27ad97afeedc262cc4cd9052ecbff89a6f2d30",
+      "revision": "Owner-requested rounded bouts, tighter waist and asymmetric horns, 2026-11-16",
+      "viewport": "guitar-revised-viewport.png"
+    }
+  ]
+}

@@ -95,12 +95,49 @@ public sealed class CurveFilletCommand : Command
         _keep.IsVisible = S == null || !_curve.Items.Any(IsBodyEdge);
     }
 
+    /// <summary>How close two separate surfaces' edges must be to count as one shared edge (mm).</summary>
+    const double MeetTolerance = 0.05;
+
+    /// <summary>
+    /// Edges picked on two or more separate surfaces: sew the surfaces where they meet, find the shared edges and round or cut them.
+    /// The surfaces become one. Edges that do not meet within <see cref="MeetTolerance"/> are refused, because there is nothing to round between them.
+    /// </summary>
+    void FilletAcrossSurfaces(CommandOutput o, List<SelItem> picked, double size)
+    {
+        var objs = picked.Select(i => S.Find(i.Obj)!).Distinct().ToList();
+        if (objs.Any(x => x.Kind != ObjKind.Surface)) throw new FormatException("Rounding between separate pieces works on surfaces. Pick the edges of one body, or of surfaces that meet.");
+        Shape sewn;
+        try { sewn = Occ.Sew(objs.Select(x => x.Shape).ToList(), MeetTolerance, false); }
+        catch (KernelException) { throw new FormatException($"Those surfaces could not be joined where they meet (within {MeetTolerance} mm). Move them together, or Sew them first."); }
+        var targets = new List<int>();
+        foreach (var item in picked)
+        {
+            var box = (S.ShapeOf(item) ?? throw new FormatException("That edge is gone.")).Props();
+            for (int i = 0; i < sewn.Count(SubKind.Edge); i++)
+            {
+                var e = sewn.Sub(SubKind.Edge, i).Props();
+                if (e.Min.DistanceTo(box.Min) < MeetTolerance && e.Max.DistanceTo(box.Max) < MeetTolerance) { targets.Add(i); break; }
+            }
+        }
+        // only edges the two surfaces share can be rounded: an edge used by one face is an open border
+        var open = Occ.FreeEdges(sewn).ToHashSet();
+        var shared = targets.Distinct().Where(i => !open.Contains(i)).ToArray();
+        if (shared.Length == 0) throw new FormatException($"Those edges do not meet within {MeetTolerance} mm, so there is nothing to round between them. Pick the two edges where the surfaces touch, or move the surfaces together.");
+        Shape result;
+        try { result = Chamfer ? Occ.Chamfer(sewn, shared, size) : Occ.Fillet(sewn, shared, size); }
+        catch (KernelException e) { throw new FormatException(e.Message + " The surfaces were joined where they meet; try a smaller size."); }
+        o.Remove.AddRange(objs);
+        o.Add.Add(new(result, Chamfer ? "Chamfered surface" : "Filleted surface", ObjKind.Surface));
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         double size = Chamfer ? _distance.Value : _radius.Value;
         var o = new CommandOutput();
-        foreach (var body in _curve.Items.Where(IsBodyEdge).GroupBy(i => i.Obj))
+        var bodyEdges = _curve.Items.Where(IsBodyEdge).ToList();
+        if (bodyEdges.Select(i => i.Obj).Distinct().Count() > 1) FilletAcrossSurfaces(o, bodyEdges, size);
+        else foreach (var body in bodyEdges.GroupBy(i => i.Obj))
         {
             var obj = S.Find(body.Key)!; var edges = body.Select(i => i.Index).Distinct().ToArray();
             try { o.Replace.Add((obj, Chamfer ? Occ.Chamfer(obj.Shape, edges, size) : Occ.Fillet(obj.Shape, edges, size))); }
@@ -119,6 +156,7 @@ public sealed class CurveFilletCommand : Command
 }
 
 /// <summary>Parallel copy of a flat curve.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class OffsetCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -142,6 +180,7 @@ public sealed class OffsetCurveCommand : Command
 }
 
 /// <summary>A curve that joins two curves with position, tangent or curvature continuity.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class BlendCurveCommand : Command
 {
     readonly SelectionSlot _a, _b;
@@ -186,6 +225,7 @@ public sealed class BlendCurveCommand : Command
 }
 
 /// <summary>Join curves that touch end to end into one.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class JoinCurvesCommand : Command
 {
     readonly SelectionSlot _curves;
@@ -210,6 +250,7 @@ public sealed class JoinCurvesCommand : Command
 }
 
 /// <summary>Break a curve into its segments.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class ExplodeCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -236,6 +277,7 @@ public sealed class ExplodeCurveCommand : Command
 }
 
 /// <summary>Keep part of a curve.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class TrimCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -328,6 +370,7 @@ public sealed class SplitCurveCommand : Command
 }
 
 /// <summary>Make a curve longer.</summary>
+[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
 public sealed class ExtendCurveCommand : Command
 {
     readonly SelectionSlot _curve;
@@ -438,24 +481,114 @@ public sealed class ProjectCurveCommand : Command
 {
     readonly SelectionSlot _curves, _target;
     readonly ChoiceParam _method, _dir;
+    readonly NumberParam _shiftX, _shiftY, _turn;
+    readonly BoolParam _keep;
     public ProjectCurveCommand()
     {
         _curves = Slot(new SelectionSlot { Label = "Curves to project", Filter = NurbsUtil.CurveIn, Multi = true });
         _target = Slot(new SelectionSlot { Label = "Surface to project onto", Filter = NurbsUtil.SurfaceIn });
-        _method = Choice("Method", 0, "Along a direction", "Pull normal to the surface");
+        _method = Choice("Method", 0, "Along a direction", "Pull normal to the surface", "Wrap (lay on by distance)");
         _dir = Choice("Direction", 0, NurbsUtil.DirectionNames);
+        // appended after the others, so a step saved before Wrap joined this tool keeps its values
+        _shiftX = Num("Slide across", 0); _shiftY = Num("Slide along", 0); _turn = Num("Rotate", 0, -360, 360, 5, "°");
+        _keep = Check("Keep the original curves", true);
+        _keep.IsVisible = _shiftX.IsVisible = _shiftY.IsVisible = _turn.IsVisible = false;
     }
-    public override string Title => "Project Curve";
+    public override string Title => "Project / Wrap Curve";
     public override string Icon => "section";
-    public override string Hint => "Project curves onto a surface or face: straight along a direction, or by pulling each point to the nearest spot on the surface.";
-    protected override void UpdateVisibility() { if (_dir != null && _method != null) _dir.IsVisible = _method.Index == 0; }
+    public override string Hint => "Put curves onto a surface or face. Along a direction projects straight, like a shadow; Pull normal drops each point to the nearest spot on the surface; Wrap lays a flat curve (a logo, a label, text) on by distance, the way a label wraps a bottle, so its lengths stay true on planes, cylinders and cones, with Slide and Rotate to place it.";
+    protected override void UpdateVisibility()
+    {
+        if (_dir == null || _method == null) return;
+        bool wrap = _method.Index == 2;
+        _dir.IsVisible = _method.Index == 0;
+        _shiftX.IsVisible = _shiftY.IsVisible = _turn.IsVisible = _keep.IsVisible = wrap;
+    }
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
+        if (_method.Index == 2) { Results.Clear(); return WrapCurveCommand.Wrap(S, _curves.Items, _target.Items[0], _shiftX.Value, _shiftY.Value, _turn.Value, _keep.Value, Results); }
         var curves = Occ.Compound(_curves.Items.Select(i => NurbsUtil.Curve(S, i)).ToList());
         var projected = Occ.ProjectCurve(curves, NurbsUtil.OfItem(S, _target.Items[0]), NurbsUtil.DirectionOf(_dir.Index), _method.Index == 1);
         Results.Clear(); Results.Add(new ResultLine("Projected segments", projected.Count(SubKind.Edge).ToString()));
         return NurbsUtil.Curves([projected], "Projected curve");
+    }
+}
+
+/// <summary>Lay flat curves onto a surface by distance, so lengths along the curve stay true (a circle wrapped on a cylinder stays as long around).</summary>
+[Legacy("Now the Wrap method of Project / Wrap Curve. Kept for saved files and scripts.")]
+public sealed class WrapCurveCommand : Command
+{
+    readonly SelectionSlot _curves, _target;
+    readonly NumberParam _shiftX, _shiftY, _turn;
+    readonly BoolParam _keep;
+    public WrapCurveCommand()
+    {
+        _curves = Slot(new SelectionSlot { Label = "Flat curves to wrap", Filter = NurbsUtil.CurveIn, Multi = true });
+        _target = Slot(new SelectionSlot { Label = "Surface to wrap onto", Filter = NurbsUtil.SurfaceIn });
+        _shiftX = Num("Slide across", 0);
+        _shiftY = Num("Slide along", 0);
+        _turn = Num("Rotate", 0, -360, 360, 5, "°");
+        _keep = Check("Keep the original curves", false);
+    }
+    public override string Title => "Wrap Curve";
+    public override string Icon => "section";
+    public override string Hint => "Lay flat curves onto a surface by distance: the curve is placed where the surface is nearest to it, then every point is reached by walking that far over the surface. Lengths stay true on planes, cylinders and cones. Slide and rotate move the pattern on the face.";
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        Results.Clear();
+        return Wrap(S, _curves.Items, _target.Items[0], _shiftX.Value, _shiftY.Value, _turn.Value, _keep.Value, Results);
+    }
+
+    /// <summary>The wrapping itself, shared with Project Curve's Wrap method.</summary>
+    internal static CommandOutput Wrap(CadSession S, IReadOnlyList<SelItem> curveItems, SelItem targetItem, double shiftX, double shiftY, double turnDegrees, bool keepOriginals, System.Collections.Generic.ICollection<ResultLine> Results)
+    {
+        var target = NurbsUtil.OfItem(S, targetItem);
+        var edges = new List<List<Vec3>>();
+        foreach (var item in curveItems)
+            foreach (var samples in Occ.CurveSamples(NurbsUtil.Curve(S, item), 120, 64))
+                edges.Add([.. samples.Select(s => s.p)]);
+        var all = edges.SelectMany(e => e).ToList();
+        if (all.Count < 2) throw new FormatException("Pick curves to wrap.");
+
+        // The flat frame: the plane the curves lie in, with X as close to the world X as that plane allows.
+        var centre = all.Aggregate(Vec3.Zero, (a, p) => a + p) * (1.0 / all.Count);
+        var normal = Vec3.Zero;
+        foreach (var e in edges) for (int i = 1; i < e.Count; i++) normal += Vec3.Cross(e[i - 1] - centre, e[i] - centre);
+        if (normal.Length < 1e-9)
+        {
+            // a straight line has no plane of its own: use the one that holds it and the world Z
+            var along = (all[^1] - all[0]).Normalized();
+            normal = Vec3.Cross(along, Math.Abs(along.Z) < 0.9 ? Vec3.UnitZ : Vec3.UnitX);
+        }
+        normal = normal.Normalized();
+        foreach (var e in edges) foreach (var p in e) if (Math.Abs(Vec3.Dot(p - centre, normal)) > 1e-3 * Math.Max(1, (all.Max(q => q.DistanceTo(centre)))))
+            throw new FormatException("These curves are not flat. Wrap works on curves that lie in one plane; project a curve onto a plane first.");
+        var xAxis = Vec3.UnitX - normal * Vec3.Dot(Vec3.UnitX, normal);
+        if (xAxis.Length < 1e-6) xAxis = Vec3.UnitY - normal * Vec3.Dot(Vec3.UnitY, normal);
+        xAxis = xAxis.Normalized(); var yAxis = Vec3.Cross(normal, xAxis);
+        double a = turnDegrees * Math.PI / 180, ca = Math.Cos(a), sa = Math.Sin(a);
+
+        var wrapped = new List<Shape>(); double flatLength = 0, wrappedLength = 0;
+        foreach (var e in edges)
+        {
+            var flat = e.Select(p =>
+            {
+                double x = Vec3.Dot(p - centre, xAxis), y = Vec3.Dot(p - centre, yAxis);
+                return (x: x * ca - y * sa + shiftX, y: x * sa + y * ca + shiftY);
+            }).ToList();
+            var pts = Occ.WrapPoints(target, centre, xAxis, flat);
+            for (int i = 1; i < pts.Length; i++) { flatLength += e[i].DistanceTo(e[i - 1]); wrappedLength += pts[i].DistanceTo(pts[i - 1]); }
+            bool closed = pts[0].DistanceTo(pts[^1]) < 1e-6 && pts.Length > 3;
+            wrapped.Add(Occ.Spline(closed ? pts[..^1] : pts, closed));
+        }
+        Results.Add(new ResultLine("Length before", $"{flatLength:G6} mm"));
+        Results.Add(new ResultLine("Length after", $"{wrappedLength:G6} mm"));
+        var output = NurbsUtil.Curves([Occ.Compound(wrapped)], "Wrapped curve");
+        if (!keepOriginals) NurbsUtil.RemoveSources(S, output, curveItems);
+        return output;
     }
 }
 
@@ -592,6 +725,7 @@ public sealed class CurveCurvatureCommand : Command
 
 // =================================================================== surfaces
 /// <summary>A surface spanning two to four boundary curves.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class EdgeSurfaceCommand : Command
 {
     readonly SelectionSlot _edges;
@@ -608,6 +742,7 @@ public sealed class EdgeSurfaceCommand : Command
 }
 
 /// <summary>A surface joining an edge of one surface to an edge of another with controlled continuity.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class BlendSurfaceCommand : Command
 {
     /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
@@ -708,16 +843,19 @@ public sealed class RebuildSurfaceCommand : Command
     readonly SelectionSlot _src;
     readonly IntParam _u, _v;
     readonly BoolParam _keep;
+    readonly NumberParam _join;
     public RebuildSurfaceCommand()
     {
         _src = Slot(new SelectionSlot { Label = "Surface or face", Filter = SelFilter.SurfaceObj | SelFilter.Face });
         _u = Add(new IntParam { Label = "Points in U", Value = 8, Min = 4, Max = 60 });
         _v = Add(new IntParam { Label = "Points in V", Value = 8, Min = 4, Max = 60 });
         _keep = Check("Keep the original", true);
+        _join = Num("Join tolerance for several faces (0 = automatic)", 0, 0, 100, 0.01);
+        _join.HelpText = "A surface made of several faces is rebuilt one patch per face and the patches are joined again along their shared edges. Automatic is 0.2% of the surface's size.";
     }
     public override string Title => "Rebuild Surface";
     public override string Icon => "raise-degree";
-    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.";
+    public override string Hint => "Rebuild a surface as one smooth patch through an even grid of points; a surface of several faces is rebuilt one patch per face and joined again. Fewer points give a lighter, fairer surface; more points follow the original more closely. The grid of points it passes through is drawn on the surface and follows the counts you set.";
     (SelItem item, int u, int v, Vec3[] points)? _gridCache;
 
     /// <summary>The grid of points the new surface is fitted through, drawn as it changes with Points in U and V.</summary>
@@ -746,21 +884,52 @@ public sealed class RebuildSurfaceCommand : Command
         foreach (var p in pts) o.AddDot(p, 0xFFFFFFFF, 5);
     }
 
-    protected override CommandOutput? Build()
+    /// <summary>How far the rebuilt surface is from the original: exact distance from points sampled on the original to the rebuilt surface.</summary>
+    static double Deviation(Shape original, Shape rebuilt)
     {
-        if (!Complete) return null;
-        var item = _src.Items[0]; var face = NurbsUtil.OfItem(S, item);
-        var grid = Occ.SurfaceSamples(face, _u.Value, _v.Value);
-        var rebuilt = Occ.FitSurface(grid, _u.Value, _v.Value);
-        // how far the result is from the original: exact distance from points sampled on the original to the rebuilt surface
         double worst = 0;
-        foreach (var p in Occ.SurfaceSamples(face, 15, 15))
+        foreach (var p in Occ.SurfaceSamples(original, 15, 15))
         {
             using var point = Occ.Vertex(p);
             worst = Math.Max(worst, Occ.Distance(point, rebuilt).Distance);
         }
+        return worst;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        if (!Complete) return null;
+        var item = _src.Items[0]; var whole = NurbsUtil.OfItem(S, item);
+        Results.Clear();
+        int faceCount = whole.Count(SubKind.Face);
+        Shape rebuilt; double worst = 0;
+        if (faceCount <= 1)
+        {
+            rebuilt = Occ.FitSurface(Occ.SurfaceSamples(whole, _u.Value, _v.Value), _u.Value, _v.Value);
+            worst = Deviation(whole, rebuilt);
+        }
+        else
+        {
+            // one patch per face, then joined where they meet; the faces of the original that met stay met
+            var patches = new List<Shape>();
+            for (int f = 0; f < faceCount; f++)
+            {
+                using var face = whole.Sub(SubKind.Face, f);
+                var patch = Occ.FitSurface(Occ.SurfaceSamples(face, _u.Value, _v.Value), _u.Value, _v.Value);
+                worst = Math.Max(worst, Deviation(face, patch));
+                patches.Add(patch);
+            }
+            var size = whole.Props(); double diagonal = (size.Max - size.Min).Length;
+            double tolerance = _join.Value > 0 ? _join.Value : Math.Max(0.002 * diagonal, 1e-4);
+            rebuilt = Occ.Sew(patches, tolerance, false);
+            foreach (var patch in patches) patch.Dispose();
+            int openBefore = Occ.FreeEdges(whole).Length, openAfter = Occ.FreeEdges(rebuilt).Length;
+            Results.Add(new ResultLine("Faces rebuilt", $"{faceCount}, joined to {rebuilt.Count(SubKind.Face)} face(s)"));
+            Results.Add(new ResultLine("Open edges", $"{openBefore}  →  {openAfter}", openAfter > openBefore ? 2 : 1));
+            if (openAfter > openBefore) Results.Add(new ResultLine("Some faces did not join", "Raise the join tolerance, or use more points so the patches follow the original more closely.", 2));
+        }
         var bounds = rebuilt.Props(); double diag = (bounds.Max - bounds.Min).Length;
-        Results.Clear(); Results.Add(new ResultLine("Largest deviation (approx.)", $"{worst:0.###} mm", worst < diag * 0.01 ? 1 : 2));
+        Results.Add(new ResultLine("Largest deviation (approx.)", $"{worst:0.###} mm", worst < diag * 0.01 ? 1 : 2));
         var o = SurfaceUtil.Single(rebuilt, "Rebuilt surface");
         if (!_keep.Value) NurbsUtil.RemoveSources(S, o, [item]);
         return o;
@@ -769,6 +938,7 @@ public sealed class RebuildSurfaceCommand : Command
 
 // =================================================================== network surface and deformers
 /// <summary>A smooth surface inside a closed outline that is also pinned to curves running across it.</summary>
+[Legacy("Now modes of Boundary Surface (0.4). Kept for saved files and scripts.")]
 public sealed class NetworkSurfaceCommand : Command
 {
     readonly SelectionSlot _outline, _across;

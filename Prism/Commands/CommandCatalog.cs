@@ -41,6 +41,8 @@ public static class CommandCatalog
                 key = typeof(DivideCurveCommand).FullName + "|Points Along Curve";
             if (key == typeof(DuplicateEdgeCommand).FullName + "|Duplicate Edge")
                 key = typeof(DuplicateEdgeCommand).FullName + "|Extract Edges";
+            if (key == typeof(MeshRegionCommand).FullName + "|Select Region")
+                key = typeof(MeshRegionCommand).FullName + "|Edit Region";
             return _map.TryGetValue(key, out var make) ? make : null;
         }
     }

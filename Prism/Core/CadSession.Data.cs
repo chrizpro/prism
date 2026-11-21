@@ -11,6 +11,10 @@ public sealed partial class CadSession
     public List<DataSheet> DataSheets { get; } = [];
     public event Action? DataChanged;
 
+    /// <summary>A command asks for the Data panel to be shown (to type or paste a table for it).</summary>
+    public event Action? DataPanelRequested;
+    public void RequestDataPanel() => DataPanelRequested?.Invoke();
+
     /// <summary>Tell the panels the tables changed. Tables are saved with the document but are not an undo step.</summary>
     public void RaiseData() { Dirty = true; DataChanged?.Invoke(); }
 

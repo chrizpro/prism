@@ -11,6 +11,14 @@ namespace Prism.Commands;
 // =================================================================== helpers shared by the direct-modeling tools
 static class DirectHelpers
 {
+    /// <summary>A point that lies on the face: one of its corners. A box centre is off the plane of a slanted face, so it cannot find or place one.</summary>
+    public static Vec3 PointOn(Shape face)
+    {
+        if (face.Count(SubKind.Vertex) == 0) return face.Props().Center;
+        using var v = face.Sub(SubKind.Vertex, 0);
+        return v.Props().Center;
+    }
+
     public static SceneObject? BodyOf(CadSession s, SelItem it) { var o = s.Find(it.Obj); return o != null && o.Kind == ObjKind.Solid && o.HasBrep ? o : null; }
 
     public static IEnumerable<IGrouping<Guid, SelItem>> ByBody(IEnumerable<SelItem> items) => items.Where(i => i.Kind == SelKind.Face).GroupBy(i => i.Obj);
@@ -407,7 +415,7 @@ public sealed class DraftFaceCommand : Command
     readonly SelectionSlot _faces, _neutral;
     readonly NumberParam _angle;
     readonly BoolParam _flip;
-    readonly ChoiceParam _scope;
+    readonly ChoiceParam _scope, _parting;
 
     public DraftFaceCommand()
     {
@@ -416,6 +424,7 @@ public sealed class DraftFaceCommand : Command
         _angle = Num("Draft angle", 3, -45, 45, 0.5, "°");
         _flip = Check("Reverse pull direction", false);
         _scope = Choice("Also edit", 0, DirectHelpers.ScopeOptions); _scope.IsVisible = false;   // for scripts: people choose with "Select by"
+        _parting = Choice("Parting line", 0, "None (all walls lean one way)", "At the neutral plane (walls lean opposite ways)");
     }
 
     public override string Title => "Draft";
@@ -448,7 +457,32 @@ public sealed class DraftFaceCommand : Command
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
             var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Draft works on solid bodies.");
-            o.Replace.Add((body, Occ.Draft(body.Shape, DirectHelpers.Scope(S, body, grp, _scope.Index, Results).Select(i => i.Index).Distinct().ToArray(), pull, -_angle.Value, pl.Origin, pl.Normal)));
+            var items = DirectHelpers.Scope(S, body, grp, _scope.Index, Results).GroupBy(i => i.Index).Select(g => g.First()).ToList();
+            if (_parting.Index == 1)
+            {
+                // Walls above the neutral plane lean one way and walls below it the other, so both halves of a two-piece mould release (a positive angle narrows the part toward each end).
+                // A face on the plane itself, or one that crosses it, cannot say which side it belongs to: ask for it to be split there first.
+                var angles = new double[items.Count];
+                for (int k = 0; k < items.Count; k++)
+                {
+                    var bounds = (S.ShapeOf(items[k]) ?? throw new FormatException("That face is gone.")).Props();
+                    double side = Vec3.Dot(bounds.Center - pl.Origin, pl.Normal);
+                    double span = Math.Max(Math.Abs(bounds.Max.X - bounds.Min.X), Math.Max(Math.Abs(bounds.Max.Y - bounds.Min.Y), Math.Abs(bounds.Max.Z - bounds.Min.Z)));
+                    if (Math.Abs(side) < 1e-6 * Math.Max(1, span)) throw new FormatException("A picked wall lies on the parting line. Split it there with Split Face first, or pick walls either side of it.");
+                    // a wall that reaches both sides would lean one way along its whole height: refuse it rather than make an undercut
+                    double lo = double.MaxValue, hi = double.MinValue, tol = 1e-6 * Math.Max(1, span);
+                    foreach (var x in new[] { bounds.Min.X, bounds.Max.X })
+                        foreach (var y in new[] { bounds.Min.Y, bounds.Max.Y })
+                            foreach (var z in new[] { bounds.Min.Z, bounds.Max.Z })
+                            { double d = Vec3.Dot(new Vec3(x, y, z) - pl.Origin, pl.Normal); lo = Math.Min(lo, d); hi = Math.Max(hi, d); }
+                    if (lo < -tol && hi > tol) throw new FormatException("A picked wall crosses the parting line. Split it there with Split Face first, then draft the two halves.");
+                    angles[k] = side > 0 ? _angle.Value : -_angle.Value;   // with a positive angle both ends of the part shrink away from the parting line
+                }
+                o.Replace.Add((body, Occ.DraftSigned(body.Shape, items.Select(i => i.Index).ToArray(), angles, pull, pl.Origin, pl.Normal)));
+                Results.Add(new ResultLine("Faces drafted", $"{items.Count}  by ±{_angle.Value:0.##}° either side of the parting line"));
+                continue;
+            }
+            o.Replace.Add((body, Occ.Draft(body.Shape, items.Select(i => i.Index).ToArray(), pull, -_angle.Value, pl.Origin, pl.Normal)));
             Results.Add(new ResultLine("Faces drafted", $"{grp.Count()}  by {_angle.Value:0.##}°"));
         }
         return o;
@@ -571,6 +605,17 @@ public sealed class MoveFaceCommand : Command
             }
             var body = DirectHelpers.BodyOf(S, grp.First()) ?? throw new FormatException("Move Face works on solid bodies and on faces of a surface.");
             var result = body.Shape;
+            if (_faces.Items.Count == 1 && Math.Abs(_tilt.Value) < 1e-9 && _scope.Index == 0 &&
+                FeatureFinder.BossEnds(body, grp.First().Index, move) is { } ends)
+            {
+                using var cap = body.Shape.Sub(SubKind.Face, ends.Cap);
+                double offset = Vec3.Dot(move, ends.Outward);
+                if (ends.Clearance + offset < -1e-7)
+                    throw new FormatException("The boss cap would pass through its shoulder.");
+                using var swept = Occ.Extrude(cap, move);
+                o.Replace.Add((body, offset < 0 ? Occ.Cut(body.Shape, swept) : Occ.Fuse(body.Shape, swept)));
+                continue;
+            }
             var plan = new List<(Shape face, Vec3 n, Vec3 pt, Vec3 nt)>();
             foreach (var it in DirectHelpers.Scope(S, body, grp, _scope.Index, Results))
             {
@@ -600,17 +645,40 @@ public sealed class MoveFaceCommand : Command
 public sealed class SplitBodyCommand : Command
 {
     readonly SelectionSlot _body, _tool;
+    readonly BoolParam _deleteTool;
 
     public SplitBodyCommand()
     {
         _body = Slot(new SelectionSlot { Label = "Body to split", Filter = SelFilter.Solid });
-        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
+        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj });
+        _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
+
+    /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 0 ? recipe with { Values = [false] } : recipe;
+
+    /// <summary>
+    /// A sketch or curve cuts along its own plane's normal, straight through the whole body in both directions: a line across the body divides it in two,
+    /// and a closed loop inside the body's outline divides it into the plug the loop encloses and the rest. A line that stops inside the body separates nothing and is refused.
+    /// </summary>
+    Shape SweepThroughBody(SelItem item, SceneObject body)
+    {
+        var plane = S.PlaneOf(item) ?? S.Find(item.Obj)?.SketchPlane ?? throw new FormatException("A curve needs a plane to cut along. Pick a sketch, or a curve drawn in a sketch.");
+        var normal = plane.Normal.Normalized();
+        using var curves = SurfaceUtil.CurveShape(S, item);
+        var bp = body.Shape.Props(); var cp = curves.Props();
+        double span = (bp.Size.Length + cp.Size.Length + bp.Center.DistanceTo(cp.Center) + 1) * 2;
+        using var start = Occ.Translate(curves, -normal * span);
+        return Occ.Extrude(start, normal * (span * 2));
+    }
+
+    protected override void UpdateVisibility() =>
+        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _body.Items.Count > 0 ? S.Find(_body.Items[0].Obj) : null) != null;
 
     public override string Title => "Split Body";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the body, then what cuts it. Each piece becomes its own body.";
+    public override string Hint => "Pick the body, then what cuts it: a plane, face, surface, solid or a sketch. A sketch cuts straight through the body along its plane's normal: a line across the whole body gives two pieces, a closed shape inside the outline gives the plug it encloses and the body with a pocket. A line that stops inside the body is refused. Each piece becomes its own body.";
 
     protected override CommandOutput? Build()
     {
@@ -618,11 +686,15 @@ public sealed class SplitBodyCommand : Command
         if (_body.Items.Count == 0 || _tool.Items.Count == 0) return null;
         var body = S.Find(_body.Items[0].Obj) ?? throw new FormatException("That body is gone.");
         if (body.Kind != ObjKind.Solid || !body.HasBrep) throw new FormatException("Split Body works on solid bodies.");
-        var tool = ToolShapes.For(S, _tool.Items[0]);
+        bool sketchTool = S.Find(_tool.Items[0].Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve } && _tool.Items[0].Kind == SelKind.Object;
+        var tool = sketchTool ? SweepThroughBody(_tool.Items[0], body) : ToolShapes.For(S, _tool.Items[0]);
         var pieces = Occ.Split(body.Shape, tool);
         int n = pieces.Count(SubKind.Solid);
-        if (n < 2) throw new FormatException("The tool does not cut all the way through the body. Extend it so it crosses the body completely.");
+        if (n < 2) throw new FormatException(sketchTool
+            ? "That line stops inside the body, so it cannot divide it. Draw it across the whole body (past the outline on both sides), or use a closed shape that lies inside the outline."
+            : "The tool does not cut all the way through the body. Extend it so it crosses the body completely.");
         var o = new CommandOutput { Label = "Split body", Icon = "splitbody" };
+        if (_deleteTool.Value && ToolShapes.Throwaway(S, _tool.Items[0], body) is { } used) o.Remove.Add(used);
         o.Replace.Add((body, pieces.Sub(SubKind.Solid, 0)));
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Solid, i), "Split piece", ObjKind.Solid));
         Results.Add(new ResultLine("Pieces", n.ToString()));

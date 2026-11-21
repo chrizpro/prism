@@ -34,6 +34,8 @@ To try the difference, sketch a closed rectangle and preview **Extrude → Symme
 
 ## Modify
 
+The 0.4 branch adds [per-edge radii, chamfer styles, parting-line Draft and Imprint](/guide/modeling-04). See the visual guide for controls and current limits. The screenshots below show the earlier UI.
+
 - **Fillet** rounds edges; give an end radius to vary it along each edge. **Chamfer** bevels them.
 - **Hole** drills plain or modeled threaded holes (M3 to M12 presets or custom pitch), blind or through all, from a face or the top of a body. Drag the circle drawn in the viewport, anywhere on its edge, to set the diameter by hand.
 - **Shell** hollows a body, removing the faces you pick. **Draft** tilts faces for molding. **Split Body** cuts a body with a plane, face or another body.
@@ -42,7 +44,7 @@ To try the difference, sketch a closed rectangle and preview **Extrude → Symme
 
 <GuideImage image="solid-shell-result" />
 
-<GuideImage image="diagram-solid-chamfer" />
+<GuideImage image="diagram-v04-chamfer" />
 
 ## Combine, pattern and transform
 

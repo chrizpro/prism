@@ -75,6 +75,10 @@ public sealed partial class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         MoldSources.Documents = () => Documents.Where(d => !ReferenceEquals(d, ActiveDocument)).Select(d => (d.Title, d.Session)).ToList();
+        // every list button remembers what was picked last (split buttons already did through their own ids)
+        static string PickKey(RibbonButton b) => b.Id.Length > 0 ? b.Id : "list:" + b.Label.Replace("\n", " ");
+        RibbonButton.RememberPick = (b, v) => { AppSettings.Current.LastPicks[PickKey(b)] = v.Label.Replace("\n", " "); AppSettings.Save(false); };
+        RibbonButton.RecallPick = b => AppSettings.Current.LastPicks.TryGetValue(PickKey(b), out var last) ? last : null;
         BuildRibbon();
         HookMaterials();
         AttachSession(Session);
@@ -115,6 +119,7 @@ public sealed partial class MainViewModel : ViewModelBase
         var s = Session;
         if (IsDrawingWorkspace && (s.ActiveCommand != null || s.Sketch != null)) SetWorkspace("design");
         ActiveCommand = s.ActiveCommand;
+        if (IsDirectEditing && ActiveCommand is DirectEditCommand direct) direct.LeaveWorkspace = ExitDirectEdit;
         IsSketching = s.Sketch != null;
         RebuildQuickBar();
         UpdatePanels(); RebuildSketchPanel(); RefreshToolOptions(); RebuildBrowser();
@@ -421,12 +426,14 @@ public sealed partial class MainViewModel : ViewModelBase
         IsToggle = chk != null, Shortcut = shortcut, Id = id,
     };
 
-    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large)
+    RibbonButton Cmd(string label, string icon, Func<Command> make, string desc, RibbonSize size = RibbonSize.Large, Func<bool>? when = null)
     {
         CommandCatalog.Register(make);
-        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, () => !IsSketching, () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
+        var button = Btn(label, icon, () => Session.StartCommand(make), desc, size, when == null ? () => !IsSketching : () => !IsSketching && when(), () => ReferenceEquals(Session.ActiveCommand?.Factory, make));
         // Some unrelated tools share an icon (for example Sweep and Sweep 2 rails).
         button.ExampleResolver = () => Help.ToolHelp.ForCommand(make())?.Icon;
+        // Retired commands stay registered (saved files and scripts still reach them) but no button is shown for them.
+        button.IsLegacy = LegacyAttribute.IsLegacy(make().GetType());
         return button;
     }
     /// <summary>A sketch tool button (shows as pressed while any mode of that tool family is active).</summary>
@@ -475,9 +482,31 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public void SetSelectionMode(SelMode mode)
     {
+        if (mode == SelMode.Face && SelectedTab?.Title == "Mesh")
+        {
+            // Section Sketch applies each cut immediately. The open panel only holds its next preview.
+            if (Session.ActiveCommand is MeshQualityCommand or MeshSectionSketchPanelCommand)
+                Session.CancelCommandPanel();
+            if (Session.ActiveCommand is { } command)
+            {
+                Session.Say($"Finish or close {command.DisplayTitle} before selecting mesh triangles.");
+                return;
+            }
+            Session.SetFreeTool(null);
+            Session.Mode = SelMode.Face;
+            Session.Say("Click a mesh triangle to select it. Shift-click to add triangles, then press Delete.");
+            return;
+        }
         if(Session.ActiveCommand?.HasPanelStep==true)return;
         if(Session.ActiveCommand is EditFormCommand form)form.SetSelectionMode(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,SelMode.Vertex=>FormMode.Vertex,_=>FormMode.Face});
-        else Session.Mode=mode;
+        else
+        {
+            // the Direct Modeling gizmo only takes faces: in Edge or Vertex mode it steps aside so edges and points can be selected, and it
+            // comes back when the mode returns to Face or Object
+            Session.Mode=mode;   // set first: cancelling the gizmo restarts it unless the mode already says edges or points
+            if (mode is SelMode.Edge or SelMode.Vertex && Session.ActiveCommand is DirectEditCommand) Session.CancelCommand();
+            if (mode is SelMode.Face or SelMode.Object) StartDirectGizmo();
+        }
     }
     public bool IsSelectionMode(SelMode mode)=>Session.ActiveCommand is EditFormCommand form ? form.SelMode==(mode switch {SelMode.Object=>FormMode.Object,SelMode.Edge=>FormMode.Edge,_=>FormMode.Face}) : Session.Mode==mode;
 
@@ -537,7 +566,7 @@ public sealed partial class MainViewModel : ViewModelBase
         "Go back into a feature you made (Extrude, Revolve, Fillet, Shell...) and change its numbers or picks. The model rolls back to just before it; OK puts it back and rebuilds the steps that came after. You can also right-click a step in the History.",
         RibbonSize.Large, () => CanEditFeature);
 
-    static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items] };
+    static RibbonGroup G(string title, params RibbonItem[] items) => new() { Title = title, Items = [.. items.Where(i => i is not RibbonButton { IsLegacy: true })] };
 
     RibbonGroup DatumGroup() => G("Datum", Split("split:datum", "Open gizmo options or place datum points, axes and planes.",
         Btn("Gizmo", "gizmo", OpenGizmoFromRibbon, "Position and bind the gizmo; adjust its handles and snapping.", RibbonSize.Large, null, () => Session.FreeTool is DatumPickTool { Kind: SketchDatumKind.Gizmo }, id: "move|Gizmo"),
@@ -564,19 +593,19 @@ public sealed partial class MainViewModel : ViewModelBase
         RibbonButton LegacyCurveId(RibbonButton button, string id) { button.Id = id; return button; }
         RibbonButton CurveMenu(string id, string label, string icon, string description, params RibbonButton[] tools) => new()
         {
-            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools],
+            Id = id, Label = label, Icon = icon, Description = description, Menu = [.. tools.Where(t => t is { IsLegacy: false })],
         };
         // One dropdown holds every curve tool that works outside a sketch, so the modeling ribbons stay short. Flat curves are
         // filleted, chamfered, offset, trimmed and extended with the Sketch tab's own tools while a sketch is open.
         // The menu is one level deep so search and customization can reach every tool.
-        RibbonGroup CurvesGrp(bool fromSurfaces = true, bool fillet = true) => G("Curves", CurveMenu("menu:curves", "Curves", "curve-through",
+        RibbonGroup CurvesGrp(bool fromSurfaces = true, bool fillet = true, bool wrap = false) => G("Curves", CurveMenu("menu:curves", "Curves", "curve-through",
             "Create and edit curves outside a sketch: draw through points or on a surface, take curves from surfaces, then blend, join, trim, extend, offset or rebuild them.",
             new RibbonButton?[]
             {
                 Cmd("Curve", "curve-through", () => new CurveByPointsCommand(true), "Click points in space. The curve passes through them, or is pulled toward them as control points."),
                 Cmd("Curve from\nData", "curve-equation", () => new EquationCurveCommand(false), "Make a curve from formulas of t or a table of x,y,z points typed, pasted or read from a file."),
                 Cmd("Intersection\nCurve", "section", () => new IntersectCurvesCommand(), "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes."),
-                fromSurfaces ? Cmd("Project", "section", () => new ProjectCurveCommand(), "Drop curves onto a surface, straight or by pulling to the nearest point.") : null,
+                fromSurfaces || wrap ? Cmd("Project /\nWrap", "section", () => new ProjectCurveCommand(), "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.") : null,
                 fromSurfaces ? Cmd("Draw on\nSurface", "curve-through", () => new DrawOnSurfaceCommand(), "Click points on any surface, surface body, freeform form or NURBS surface. The curve follows the surface, over edges onto neighbouring faces. It can also split the face along the curve.") : null,
                 fromSurfaces ? Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface.") : null,
                 fromSurfaces ? Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.") : null,
@@ -591,13 +620,27 @@ public sealed partial class MainViewModel : ViewModelBase
                 Cmd("Rebuild\nCurve", "raise-degree", () => new RebuildCurveCommand(), "Redraw a curve with a chosen number of points."),
                 LegacyCurveId(Cmd("Points Along\nCurve", "origin-point", () => new DivideCurveCommand(), "Place points at equal distances along a curve; keep the curve intact and report its length."), "origin-point|Divide"),
             }.OfType<RibbonButton>().ToArray()));
+        // Surface-quality checks beside the modeling tools, so continuity can be judged while working. The same commands as the Analyze tab.
+        RibbonGroup AnalyzeGrp(bool seam = true) => G("Analyze", CurveMenu("menu:analyze", "Analyze", "zebra",
+            "Check surface quality while you model: reflection stripes, curvature colors, draft angles and the continuity of a seam between two surfaces.",
+            Btn("Zebra\nStripes", "zebra", () => { Session.Analysis = CadSession.AnalysisKind.None; Session.Zebra = !Session.Zebra; }, "Reflection stripes: smooth, continuous stripes mean a smooth surface.", RibbonSize.Large, null, () => Session.Zebra),
+            Cmd("Curvature\nMap", "curvature", () => new CurvatureCommand(), "Color surfaces by curvature."),
+            Cmd("Draft\nAnalysis", "draft", () => new DraftCommand(), "Check faces for mold release in a pull direction."),
+            seam ? Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.") : null));
+        // Patterns repeat solids, surfaces and curves alike, so every tab that makes them can offer the same group.
+        RibbonGroup PatternGrp() => G("Pattern",
+            Cmd("Linear", "pattern-linear", () => new LinearPatternCommand(), "Repeat objects along one, two or three directions (grids and blocks)."),
+            Cmd("Circular", "pattern-circular", () => new CircularPatternCommand(), "Repeat objects around an axis, with optional concentric rings."),
+            Cmd("Along\nCurve", "pattern-curve", () => new CurvePatternCommand(), "Repeat objects along a curve or edge chain, turning each copy to follow it."),
+            Cmd("Fill", "pattern-fill", () => new FillPatternCommand(), "Fill a face or closed sketch with copies."),
+            Cmd("Table", "pattern-table", () => new TablePatternCommand(), "Place copies at positions you type: irregular layouts."));
         RibbonButton SweepSplit(string id) => Split(id, "Build a surface by carrying a section along a path: sweep a profile, with an optional second rail, or pipe a round tube. Click the name (or right-click) for the other.",
             Cmd("Sweep", "sweep-surface", () => new SweepCommand(true), "Carry a profile along a path. Add a second rail to steer how it turns."),
             Cmd("Pipe", "sweep-surface", () => new PipeCommand(), "A round, optionally tapered tube along a path curve; set the radius, or make it a solid."));
         RibbonGroup SelectGrp() => G("Select",
             Sel("Object", "sel-object", SelMode.Object, "Pick whole bodies, surfaces and curves."),
             Followed(Split(RibbonSize.Small, "split:selection-components", "Select faces, edges or Freeform vertices. Click the name to choose a mode.",
-                Sel("Face", "sel-face", SelMode.Face, "Pick individual faces."),
+                Sel("Face", "sel-face", SelMode.Face, "Pick individual CAD faces or mesh triangles."),
                 Sel("Edge", "sel-edge", SelMode.Edge, "Pick individual edges."),
                 VertexSelection())),
             Followed(Split(RibbonSize.Small, "split:selection-method", "Select by dragging in the view: a rectangle, a lasso or a paint stroke. A rectangle dragged left to right takes what is fully inside it; right to left (or a lasso) takes whatever it touches; paint takes whatever the stroke crosses. Shift adds, Ctrl removes. With Through on, it also picks what is hidden behind.",
@@ -611,8 +654,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Followed(Split(RibbonSize.Small, "split:select-same", "Add to the selection the faces that share something with the selected faces. Click the name for Same Color; the arrow offers the others.",
                 Btn("Same Color", "sel-same-color", () => Session.SelectSameFaces(CadSession.FaceMatch.SameColor), "Add every face of the same body that has the same color and finish as a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
                 Btn("Adjacent", "sel-same-adjacent", () => Session.SelectSameFaces(CadSession.FaceMatch.Adjacent), "Add the faces that share an edge with a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
-                Btn("Linked", "sel-same-linked", () => Session.SelectSameFaces(CadSession.FaceMatch.Linked), "Add every face of the body a selected face belongs to.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)))),
-            Btn("Through", "xray", () => Session.XRay = !Session.XRay, "Select through the part: rectangle and lasso also pick faces, edges and bodies hidden behind others, on both sides. Alt-click steps through what is under the pointer, front to back. Turns X-ray display on while it is active.", small, () => !IsSketching, () => Session.XRay));
+                Btn("Linked", "sel-same-linked", () => Session.SelectSameFaces(CadSession.FaceMatch.Linked), "Add every face of the body a selected face belongs to.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)))));
         RibbonButton SelMethod(string label, string icon, SelectMethod method, string desc) =>
             Btn(label, icon, () => { if (IsSketching) SetSketchSelectMethod((int)method - 1); else Session.Method = Session.Method == method ? SelectMethod.Click : method; }, desc, RibbonSize.Small,
                 () => IsSketching || Session.ActiveCommand?.HasPanelStep != true, () => IsSketching ? IsSketchSelectMethod((int)method - 1) : Session.Method == method);
@@ -685,6 +727,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Emboss", "emboss", () => new EmbossCommand(), "Raise text or a sketched shape off a face, or engrave it into the body.")),
                 G("Modify",
                     Cmd("Hole", "hole", () => new HoleCommand(), "Create plain or modeled threaded holes on a body or face, with blind or through-all depth."),
+                    Cmd("Thread", "hole", () => new ThreadCommand(), "Cut a modeled thread into a pin, bolt or boss (external) or a hole you already drilled (internal)."),
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
                     Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges.")),
                 G("Combine",
@@ -719,7 +762,7 @@ public sealed partial class MainViewModel : ViewModelBase
             Title = "Solid",
             Groups =
             [
-                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false),
+                SketchGrp(), PlanesGrp(false), CurvesGrp(fromSurfaces: false, wrap: true),
                 G("Primitives", PrimitiveSplit()),
                 G("Features",
                     Cmd("Extrude", "extrude", () => new ExtrudeCommand(), "Push a sketch profile or face into a solid. Join, cut or intersect with an existing body."),
@@ -729,13 +772,14 @@ public sealed partial class MainViewModel : ViewModelBase
                         Cmd("Emboss", "emboss", () => new EmbossCommand(), "Raise text or a sketched shape off a face, or engrave it into the body."))),
                 G("Modify",
                     Cmd("Hole", "hole", () => new HoleCommand(), "Create plain or modeled threaded holes on a body or face, with blind or through-all depth."),
+                    Cmd("Thread", "hole", () => new ThreadCommand(), "Cut a modeled thread into a pin, bolt or boss (external) or a hole you already drilled (internal)."),
                     Cmd("Fillet", "fillet", () => new FilletCommand(), "Round off selected edges."),
                     Cmd("Chamfer", "chamfer", () => new ChamferCommand(), "Bevel selected edges."),
                     Cmd("Shell", "shell", () => new ShellCommand(), "Hollow out a body, optionally opening faces."),
                     Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
                     Cmd("Split\nBody", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.")),
                 G("Direct Edit",
-                    Btn("Direct\nEdit", "pushpull", EnterDirectEdit, "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.", RibbonSize.Large, () => !IsSketching)),
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Solid), "Edit the geometry you already have, with no history needed: drag faces, holes and bosses with a gizmo. Works on imported parts too.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:solid")),
                 G("Combine",
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body out of another."),
@@ -747,33 +791,40 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Along\nCurve", "pattern-curve", () => new CurvePatternCommand(), "Repeat objects along a curve or edge chain, turning each copy to follow it."),
                     Cmd("Fill", "pattern-fill", () => new FillPatternCommand(), "Fill a face or closed sketch with copies: square, hex, ring or spiral layouts, with a margin from the edge."),
                     Cmd("Table", "pattern-table", () => new TablePatternCommand(), "Place copies at positions you type: irregular layouts.")),
+                AnalyzeGrp(false),
                 SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
 
         // Opened by the Direct Edit button on the Solid tab, like Sketch: its own tab with its own Finish button.
+        var solidOnly = DirectFor(DirectWorkflow.Solid);
+        var facesWorkflow = DirectFor(DirectWorkflow.Solid, DirectWorkflow.Surface, DirectWorkflow.Nurbs);
         _directTab = new RibbonTab
         {
             Title = "Direct Modeling", ContextLabel = "DIRECT EDIT", AccentColor = "#E8743D", IsVisible = false,
             Groups =
             [
                 G("Edit",
-                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss or fillet: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread) or delete it. One click picks the whole feature."),
+                    Cmd("Edit\nFeature", "movehole", () => new FeatureEditCommand(), "Pick a hole, slot, pocket, boss, fillet or chamfer: move, copy, resize, change the type (plain, counterbore, countersink, modeled thread; a fillet and a chamfer swap) or delete it. One click picks the whole feature. Solid bodies only.", RibbonSize.Large, solidOnly),
+                    Cmd("Edit\nDistance", "measure", () => new EditDistanceCommand(), "Pick what to move and what to measure from, read the distance between them and type a new one: the face or feature moves to match.", RibbonSize.Large, solidOnly),
                     Split("split:direct-replace", "Make faces meet a target. Click the icon to run the one shown; click the name (or right-click) for the others.",
-                        Cmd("Replace Face", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face."),
-                        Cmd("Match Face", "replaceface", () => new MatchFaceCommand(), "Give faces the plane, cylinder radius or cone angle of a source face."),
-                        Cmd("Extend / Trim Face", "pushpull", () => new ExtendTrimFaceCommand(), "Grow or shrink flat faces until they meet a target plane or face.")),
+                        Cmd("Replace Face", "replaceface", () => new ReplaceFaceCommand(), "Make faces lie on another plane or face.", RibbonSize.Large, solidOnly),
+                        Cmd("Match Face", "replaceface", () => new MatchFaceCommand(), "Give faces the plane, cylinder radius or cone angle of a source face.", RibbonSize.Large, solidOnly),
+                        Cmd("Extend / Trim Face", "pushpull", () => new ExtendTrimFaceCommand(), "Grow or shrink flat faces until they meet a target plane or face.", RibbonSize.Large, solidOnly)),
                     Split("split:direct-split", "Divide a face or a body. Click the icon to run the one shown; click the name (or right-click) for the other.",
-                        Cmd("Split Face", "splitbody", () => new SplitFaceCommand(), "Divide a face along a plane, edge or sketch; the shape stays the same."),
-                        Cmd("Split Body", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.")),
-                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction."),
+                        Cmd("Split Face", "splitbody", () => new SplitFaceCommand(), "Divide a face along a plane, edge or sketch; the shape stays the same.", RibbonSize.Large, solidOnly),
+                        Cmd("Split Body", "splitbody", () => new SplitBodyCommand(), "Cut a body into separate pieces with a plane, face or surface.", RibbonSize.Large, solidOnly)),
+                    Cmd("Draft", "draft", () => new DraftFaceCommand(), "Lean walls away from a pull direction.", RibbonSize.Large, solidOnly),
                     Split("split:direct-pattern", "Change or copy repeated features. Click the icon to run the one shown; click the name (or right-click) for the other.",
-                        Cmd("Edit Pattern", "pattern-linear", () => new EditPatternCommand(), "Change the spacing or count of a line, grid or circle of features, or drop one."),
-                        Cmd("Mirror Feature", "mirror", () => new MirrorFeatureCommand(), "Copy holes, slots, pockets or bosses across a plane or flat face."))),
+                        Cmd("Edit Pattern", "pattern-linear", () => new EditPatternCommand(), "Change the spacing or count of a line, grid or circle of features, or drop one.", RibbonSize.Large, solidOnly),
+                        Cmd("Mirror Feature", "mirror", () => new MirrorFeatureCommand(), "Copy holes, slots, pockets or bosses across a plane or flat face.", RibbonSize.Large, solidOnly))),
                 G("Repair",
-                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up."),
-                    Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Cap an open loop of edges with a flat face or smooth patch so the body closes."),
-                    Cmd("Merge\nFaces", "replaceface", () => new MergeFacesCommand(), "Join neighbouring faces on the same surface into one.")),
+                    Cmd("Check and\nRepair", "check", () => new CheckRepairCommand(), "Check an imported body for open edges, tiny or sliver faces, duplicates and bad edges, then heal, sew or clean it up.", RibbonSize.Large, facesWorkflow),
+                    Cmd("Fill /\nCap", "patch", () => new FillCapCommand(), "Cap an open loop of edges with a flat face or smooth patch so the body closes.", RibbonSize.Large, facesWorkflow),
+                    Cmd("Merge\nFaces", "replaceface", () => new MergeFacesCommand(), "Join neighbouring faces on the same surface into one.", RibbonSize.Large, facesWorkflow)),
+                G("Shape",
+                    Cmd("Edit\nFace", "edit-points", () => new EditFaceCommand(), "Reshape a flat, four-sided face of a solid by moving a grid of control points. The outline stays where it is; the neighbouring faces meet the new surface at a sharp edge. Solid bodies only.", RibbonSize.Large, solidOnly),
+                    Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch a whole body or surface along an axis, or only chosen faces of a solid (pick them under Faces to warp; flat, four-sided faces, outline kept).", RibbonSize.Large, facesWorkflow)),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
                 G("Exit", Btn("Finish\nEditing", "finish", ExitDirectEdit, "Leave Direct Edit and go back to where you were.", RibbonSize.Large)),
             ],
@@ -803,15 +854,20 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Unsew", "unstitch", () => new UnstitchCommand(), "Take a sewn shell, or just some of its faces, apart into separate surfaces."),
                     Cmd("Untrim", "untrim", () => new UntrimCommand(), "Undo a trim: restore the whole natural surface, or just fill the holes in a face."),
                     Cmd("Extend", "extend-surface", () => new ExtendSurfaceCommand(), "Grow a surface past one of its edges, continuing its shape."),
+                    Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Reshape a surface edge to meet another surface or face smoothly: touching (G0), tangent (G1) or curvature-continuous (G2). The other face can be trimmed, or a face of a solid."),
                     Cmd("Reverse\nNormal", "reverse-normal", () => new ReverseNormalCommand(), "Turn a surface around so its other side faces out."),
                     Cmd("Enclosed\nBody", "fill", () => new BoundaryFillCommand(), "Make solids from the spaces enclosed by surfaces, planes and bodies."),
                     Cmd("Flatten /\nRefold", "flatten", () => new FlattenCommand(), "Flatten a surface and keep the layout, or return to wrap curves, sheets and solids onto its source or another surface."),
                     Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch bodies, surfaces, curves, forms or meshes along an axis.")),
+                G("Direct Edit",
+                    Btn("Direct\nEdit", "pushpull", () => EnterDirectEdit(DirectWorkflow.Surface), "Edit surfaces you already have, with no history needed: pull or offset faces, delete or merge them, check and repair. Tools that need a solid are disabled.", RibbonSize.Large, () => !IsSketching, id: "direct-edit:surface")),
                 G("Convert", Btn("Convert to\nNURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session), "Convert the selection to editable NURBS geometry.", RibbonSize.Large, hasSel)),
                 G("Combine",
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                PatternGrp(),
+                AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -844,13 +900,14 @@ public sealed partial class MainViewModel : ViewModelBase
                     FormAct("Subdivide", "form-subdivide", "Subdivide", "Split the selected faces into smaller faces, or every face when none are selected."),
                     ToolMenu("More", "form-edit", "Less frequent editing tools. Selection helpers such as Grow and Shrink stay in the Edit Freeform panel.",
                         FormAct("Bevel", "chamfer", "Bevel selection", "Bevel the selected edges: flat, or tight with support loops either side. Type and width are in the panel.", small),
-                        FormAct("Delete", "form-delete", "Delete selection", "Delete the selected faces, edges or points.", small),
                         FormAct("Split face", "form-subdivide", "Split face between", "Cut a face in two between two selected corners.", small),
                         FormAct("Smooth", "form-flip", "Smooth selection", "Relax the selected points toward their neighbours.", small),
                         FormAct("Flatten", "form-face", "Flatten selection", "Press the selected points onto a plane.", small),
                         FormAct("Fill holes", "form-face", "Fill holes", "Cap open borders with faces.", small),
-                        FormAct("Thicken", "form-box", "Thicken", "Give the cage wall thickness (Bevel width).", small))),
+                        FormAct("Thicken", "form-box", "Thicken", "Give the cage wall thickness (Bevel width).", small),
+                        Cmd("Warp", "warp", () => new WarpCommand(), "Bend, twist, taper or stretch the form along an axis.", small))),
                 G("Loops",
+                    Cmd("Knife", "splitbody", () => new FormKnifeCommand(), "Cut the form with a plane: every face it passes through is split along the cut."),
                     FormAct("Insert\nEdge", "form-loop", "Insert edge", "Click an edge to add an edge loop across it. The tool stays on for more clicks until you press Esc or pick another tool. Count and position are in the panel.", RibbonSize.Large, () => Session.ActiveCommand is EditFormCommand {LoopArmed:true}),
                     FormAct("Inset", "form-face", "Inset selected faces", "Shrink the selected faces into a smaller face with a ring of new faces around it. Amount, depth and 'each face on its own' are in the panel."),
                     FormAct("Select\nLoop", "form-loop", "Select edge loop or ring", "Select a whole edge loop or edge ring from the selected edge. Choose Loop (end to end) or Ring (parallel across quads) under 'Edge selection' in the panel; Alt+L and Alt+R pick directly."),
@@ -868,6 +925,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     FormAct("Flip normals", "form-flip", "Flip", "Reverse which side of the form is the outside.", small)),
                 G("Symmetry",
                     FormAct("Mirror\nand weld", "form-mirror", "Mirror", "Reflect the form across a plane and join the halves at the seam.")),
+                PatternGrp(),
+                AnalyzeGrp(false),
                 G("Quality",
                     Cmd("Check\nQuality", "form-edit", () => new FormQualityCommand(), "Mark poles, triangles and n-gons, see how stretched the quads are and how the curvature varies, and color the surface by its distance to a reference.", RibbonSize.Large)),
                 G("Finish",
@@ -915,6 +974,8 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Union", "union", () => new BooleanCommand(BooleanCommand.Kind.Union), "Merge bodies and surfaces into one."),
                     Cmd("Subtract", "subtract", () => new BooleanCommand(BooleanCommand.Kind.Subtract), "Cut one body or surface out of another."),
                     Cmd("Intersect", "intersect", () => new BooleanCommand(BooleanCommand.Kind.Intersect), "Keep only the shared volume.")),
+                PatternGrp(),
+                AnalyzeGrp(),
                 TransformGrp(), SelectGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -1086,64 +1147,46 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
 
-        // ---- Mesh (3D printing and reverse engineering)
-        RibbonButton RegionBtn() => Cmd("Select\nRegion", "mesh-select", () => new MeshRegionCommand(), "Pick triangles on a mesh with smart patch, brush, rectangle or lasso, then delete and patch them, or extract them.");
-        RibbonButton ClearColorsBtn() => Btn("Clear\nColors", "clear-analysis", () => Session.ClearAnalysis(), "Remove analysis colors from meshes.", RibbonSize.Large);
+        // ---- Mesh
+        RibbonButton MeshMenu(string id, string description, RibbonButton primary, params RibbonButton[] alternatives) => new()
+        {
+            Id = id, Label = primary.Label, Icon = primary.Icon, Description = description,
+            IsSplit = true, Current = primary, Menu = [primary, .. alternatives],
+            CanExecute = primary.CanExecute,
+        };
+        var meshRepair = MeshMenu("split:mesh-repair", "Clean the mesh, fill a chosen rim, or stitch two boundary edges.",
+            Cmd("Cleanup", "mesh-repair", () => new MeshRepairCommand(cleanupOnly: true), "Clean up vertices, triangles and winding without filling openings."),
+            Cmd("Fill Hole", "mesh-patch", () => new MeshBoundaryCommand(), "Pick one or more openings, then fill them together."),
+            Cmd("Stitch Seam", "mesh-repair", () => new MeshBoundaryCommand(stitch: true), "Join two picked boundary edges within a maximum gap."));
+        meshRepair.Label = "Repair";
         var mesh = new RibbonTab
         {
             Title = "Mesh",
             Groups =
             [
-                G("Import & Convert",
-                    Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
-                    Cmd("Solid to\nMesh", "mesh-from-solid", () => new SolidToMeshCommand(), "Turn CAD bodies into triangle meshes."),
-                    Split("split:mesh-cloud", "Bring in a scan as points and turn it into a mesh. Click the name (or right-click) for the other.",
-                        Btn("Import Point\nCloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY) and turn it into a mesh.", RibbonSize.Large, () => !IsSketching),
-                        Btn("Reconstruct\nSurface", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud: clean up, estimate normals, set the detail and trim.", RibbonSize.Large, () => !IsSketching))),
-                G("Check",
-                    Cmd("Mesh\nQuality", "mesh-quality", () => new MeshQualityCommand(), "Triangle quality, self-intersections and persistent defect highlights."),
-                    Cmd("Print\nCheck", "mesh-check", () => new MeshCheckCommand(), "Pre-flight check: watertight, fits your printer, supports, weight.")),
-                G("Repair",
-                    Cmd("Repair", "mesh-repair", () => new MeshRepairCommand(), "Repair the entire mesh or a selected region; preview the holes to fill."),
-                    RegionBtn()),
-                G("Reshape",
-                    Cmd("Reduce", "mesh-reduce", () => new MeshDecimateCommand(), "Simplify a dense mesh while keeping its shape."),
-                    Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Rebuild with even, well-shaped triangles of a chosen size."),
-                    Cmd("Smooth", "mesh-smooth", () => new MeshSmoothCommand(), "Remove scanner noise without shrinking the part.")),
-                G("Modify",
-                    Cmd("Split", "mesh-cut", () => new MeshCutCommand(), "Cut with a plane and cap the halves."),
-                    Cmd("Offset", "mesh-offset", () => new MeshOffsetCommand(), "Grow or shrink the surface (tolerances, clearances)."),
-                    Cmd("Mesh\nBoolean", "mesh-boolean", () => new MeshBooleanCommand(), "Join, subtract or intersect two closed meshes.")),
-                G("Print analysis",
-                    Cmd("Wall\nThickness", "mesh-thickness", () => new MeshThicknessCommand(), "Color the part by wall thickness."),
-                    Cmd("Overhang &\nOrientation", "mesh-overhang", () => new MeshOverhangCommand(), "Find what needs supports and the best way to lay the part down."),
-                    ClearColorsBtn()),
-                TransformGrp(), InspectGrp(), AppearanceGrp(),
-            ],
-        };
-
-        // ---- Reverse Engineer
-        var reverse = new RibbonTab
-        {
-            Title = "Reverse Engineer",
-            Groups =
-            [
                 G("Prepare",
-                    Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Drop on the bed, lay a face flat, or best-fit onto a CAD body."),
-                    RegionBtn()),
-                G("Sketch from Scan",
-                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchCommand(), "Create editable lines, arcs and circles from a scan section. Add dimensions and constraints, then extrude or revolve to build parametric features.")),
-                G("Fit Surfaces",
-                    Cmd("Segment\n& Fit", "mesh-fit", () => new MeshSegmentCommand(), "Identify and measure regions across a scan; optionally create separate fitted CAD surfaces."),
-                    Cmd("Fit Surface\nto Region", "mesh-patch", () => new MeshFitSurfaceCommand(), "Choose a region and fit one exact surface or smooth NURBS patch. This does not recover a feature history.")),
-                G("Rebuild",
-                    Cmd("Rebuild\nfrom Scan", "mesh-fit", () => new MeshRebuildCommand(), "Fit faces and attempt a shell or direct-edit solid. This does not recover the original sketches or feature history."),
-                    Cmd("Freeform\nfrom Scan", "form-scan", () => new FormFromScanCommand(), "Create an editable freeform cage around the scan for manual shape refinement."),
-                    new RibbonButton { Label = "Fallback", Icon = "mesh-solid", Description = "Triangle-by-triangle conversion when fitted rebuilding is unsuitable.", Menu =
-                        [Cmd("Mesh to\nSolid", "mesh-solid", () => new MeshToSolidCommand(), "Last resort: one CAD face per triangle. Heavy, hard to edit, and no recovered feature history.")] }),
-                G("Check",
-                    Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare a scan with its CAD model and show the error as colors."),
-                    ClearColorsBtn()),
+                    MeshMenu("split:mesh-import", "Import a mesh or reconstruct one from a point cloud.",
+                        Btn("Import\nMesh", "mesh-import", ImportMesh, "Bring in a scan or print file: STL, OBJ, PLY or 3MF.", RibbonSize.Large, () => !IsSketching),
+                        Btn("Import Point Cloud", "pointcloud-import", ImportPointCloud, "Bring in a scan as points (XYZ, PTS, CSV, PLY).", RibbonSize.Large, () => !IsSketching),
+                        Btn("Reconstruct Mesh", "mesh-reconstruct", ReconstructSurface, "Build a mesh from the imported point cloud.", RibbonSize.Large, () => !IsSketching)),
+                    Cmd("Align", "mesh-align", () => new MeshAlignCommand(), "Orient the mesh or best-fit it onto a reference.")),
+                G("Analyze",
+                    MeshMenu("split:mesh-quality", "Inspect mesh defects and clear analysis colors.",
+                        Cmd("Mesh\nQuality", "mesh-quality", () => new MeshQualityCommand(), "Find holes, non-manifold edges, self-intersections and poor triangles."),
+                        Btn("Clear Colors", "clear-analysis", () => Session.ClearAnalysis(), "Remove analysis colors from meshes.")),
+                    Cmd("Deviation", "mesh-deviation", () => new MeshDeviationCommand(), "Compare the scan with a CAD body or another mesh.")),
+                G("Repair",
+                    meshRepair,
+                    MeshMenu("split:mesh-region", "Select or repair a mesh region.",
+                        Cmd("Edit\nRegion", "mesh-select", () => new MeshRegionCommand(), "Select, delete, patch, smooth or extract triangles."),
+                        Cmd("Draw Faces", "form-face", () => new MeshDrawFacesCommand(), "Draw triangles and quads and stitch them into the mesh."),
+                        Cmd("Delete and Patch", "mesh-patch", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.DeleteAndPatch), "Select a region to remove and patch."),
+                        Cmd("Smooth", "mesh-smooth", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Smooth), "Select a region to smooth."),
+                        Cmd("Extract", "mesh-select", () => new MeshRegionCommand(MeshRegionCommand.ActionMode.Extract), "Select a region to copy as a separate mesh.")),
+                    Cmd("Remesh", "mesh-remesh", () => new MeshRemeshCommand(), "Redistribute triangles or reduce the triangle count.")),
+                G("Convert",
+                    Cmd("Section\nSketch", "mesh-section", () => new MeshSectionSketchPanelCommand(), "Use a mesh section to start an editable parametric sketch."),
+                    Cmd("Fit\nRegion", "mesh-patch", () => new MeshFitSurfaceCommand(), "Fit a plane, cylinder, sphere, cone or smooth patch to the region picked with Edit Region, and read its size and axis.")),
                 TransformGrp(), InspectGrp(), AppearanceGrp(),
             ],
         };
@@ -1183,7 +1226,9 @@ public sealed partial class MainViewModel : ViewModelBase
                     Btn("Isometric", "view-iso", () => ShowStandardView(-35, 28), "A three-quarter view.", RibbonSize.Large),
                     Btn("Look\nAt", "look-at", () => Session.LookAtSelection(), "Look straight at the selected plane, face or sketch.", RibbonSize.Large, null, null, "N")),
                 G("Navigate",
-                    Btn("Zoom\nExtents", "zoom-extents", () => Session.ZoomExtents(), "Fit everything in the window.", RibbonSize.Large, null, null, "F"),
+                    Split("split:zoom", "Fit the whole model, or just what is selected, in the window.",
+                        Btn("Zoom\nExtents", "zoom-extents", () => Session.ZoomExtents(), "Fit everything in the window.", RibbonSize.Large, null, null, "F"),
+                        Btn("Zoom\nSelected", "zoom-selected", () => Session.ZoomSelection(), "Bring the selected bodies, faces or edges to the middle of the window and fill it with them.", RibbonSize.Large, () => Session.Selection.Count > 0 && !IsSketching)),
                     HomeButton(),
                     Btn("Orthographic", "ortho", () => Session.Ortho = true, "No perspective: parallel projection.", small, null, () => Session.Ortho),
                     Btn("Perspective", "perspective", () => Session.Ortho = false, "Natural perspective projection.", small, null, () => !Session.Ortho)),
@@ -1199,7 +1244,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Disp("Shaded", "shaded", DisplayMode.Shaded, "Surfaces only."),
                     Disp("Shaded + edges", "shaded-edges", DisplayMode.ShadedEdges, "Surfaces with edge lines."),
                     Disp("Wireframe", "wireframe", DisplayMode.Wireframe, "Edges only."),
-                    Btn("X-ray", "xray", () => Session.XRay = !Session.XRay, "Toggle translucent faces in shaded styles to see geometry behind them. Wireframe already shows all edges without faces.", small, null, () => Session.XRay)),
+                    Btn("X-ray", "xray", () => Session.XRay = !Session.XRay, "Toggle translucent faces in shaded styles to see geometry behind them. While it is on, selecting goes through the part too: a rectangle, lasso or paint stroke also picks the faces, edges and bodies hidden behind others, on both sides, and Alt-click steps through what is under the pointer, front to back. Wireframe already shows all edges without faces.", small, null, () => Session.XRay)),
                 G("Show",
                     Btn("Hide", "visibility-off", () => HideSelected(), "Hide the selected objects. With faces selected, hide just those faces; this is saved with the document. Show All brings them back.", small, () => Session.SelectedObjects.Any()),
                     Btn("Isolate", "isolate", () => IsolateSelected(), "Hide everything except the selected objects. With faces selected, show only those faces; Show All brings the rest back.", small, () => Session.SelectedObjects.Any()),
@@ -1337,8 +1382,7 @@ public sealed partial class MainViewModel : ViewModelBase
             ],
         };
         freeform.Groups.Insert(3, G("Continuity",
-            Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Match compatible natural patch boundaries with G0, G1 or G2 constraints."),
-            Cmd("Check\nSeam", "curvature", () => new SurfaceContinuityCommand(), "Inspect sampled continuity between two natural patch boundaries.")));
+            Cmd("Match\nSurface", "nurbs-patch", () => new MatchSurfaceCommand(), "Match compatible natural patch boundaries with G0, G1 or G2 constraints.")));
         form.Groups.Insert(3, G("Validate", Cmd("Check\nCage", "check", () => new CheckCageCommand(), "Check manifold topology, winding, degenerate faces and extraordinary points.")));
         var additive = new RibbonTab {Title="3D FDM",Groups=[
             G("Prepare",Cmd("Place on bed","rotate",()=>new PlaceOnBedCommand(),"Pick the flat face of a CAD solid to set it down at Z = 0."),
@@ -1350,6 +1394,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 Menu=[
                     Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, fix normals and fill holes in imported meshes."),
                     Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Print Check","mesh-check",()=>new MeshCheckCommand(),"Check watertightness, printer fit, supports and weight."),
                     Cmd("Overhang & Orientation","mesh-overhang",()=>new MeshOverhangCommand(),"Find overhangs and compare orientations."),
                     Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
                     Cmd("Check geometry","check",()=>new CheckCommand(),"Inspect model geometry.")
@@ -1377,6 +1422,7 @@ public sealed partial class MainViewModel : ViewModelBase
                     Cmd("Section","section",()=>new SectionCommand(),"Inspect hollow walls and drainage paths."),
                     Cmd("Repair","mesh-repair",()=>new MeshRepairCommand(),"Merge vertices, remove junk, fix normals and fill holes."),
                     Cmd("Mesh Quality","mesh-quality",()=>new MeshQualityCommand(),"Find thin triangles, open edges and self-intersections."),
+                    Cmd("Print Check","mesh-check",()=>new MeshCheckCommand(),"Check watertightness, printer fit, supports and weight."),
                     Cmd("Wall Thickness","mesh-thickness",()=>new MeshThicknessCommand(),"Color the part by wall thickness."),
                     Cmd("Check geometry","check",()=>new CheckCommand(),"Validate exact geometry.")
                 ]
@@ -1477,13 +1523,17 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         foreach(var tab in new[]{thermal,dynamics})tab.Groups.Add(G("Reuse",Cmd("Saved setups","sim-run",()=>new SavedCaeCommand(),"Run a saved thermal or modal case."),Cmd("Recall faces","sim-fixed",()=>new RecallFacesCommand(),"Recall named boundary faces.")));
         foreach (var tab in new[] { home, assemble, render, animate }) tab.Groups.Add(ShareGrp());
-        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, reverse, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
+        foreach (var t in new[] { file, home, solid, surface, form, freeform, direct, sheet, ecad, scriptTab, cam, additive, resin, analyze, mesh, simulate, thermal, dynamics, motion, fluids, assemble, joints, animate, render, mold, _materialsTab, _sketchTab, view }) Tabs.Add(t);
         // Retired from the ribbon but kept in the catalog so history steps saved by older files still re-edit.
         // The ribbon's Move buttons arm the move gizmo instead of a command; keep the param-driven
         // transform reachable from command search.
         CommandCatalog.Register(() => new TransformCommand(TransformCommand.Kind.Move));
         CommandCatalog.Register(() => new EdgeSurfaceCommand());
-        foreach (Func<Command> make in new Func<Command>[] { () => new MeshRepairCommand(true), () => new MeshSectionCommand(), () => new MeshSectionFitCommand() }) CommandCatalog.Register(make);
+        foreach (Func<Command> make in new Func<Command>[] { () => new MeshRepairCommand(true), () => new MeshSectionCommand(), () => new MeshSectionFitCommand(), () => new MeshDecimateCommand(),
+            () => new MeshSmoothCommand(), () => new MeshCutCommand(), () => new MeshOffsetCommand(), () => new MeshBooleanCommand(),
+            () => new MeshToSolidCommand(), () => new MeshSegmentCommand(), () => new MeshRebuildCommand(),
+            () => new MeshFitSurfaceCommand(), () => new FormFromScanCommand(), () => new SolidToMeshCommand(),
+            () => new MeshCheckCommand(), () => new ConvertMeshCommand(), () => new MeshRepairCommand() }) CommandCatalog.Register(make);
         // folded into other tools on the ribbon; scripts and saved steps still reach them
         foreach (Func<Command> make in new Func<Command>[] { () => new SweepTwoRailsCommand(), () => new NetworkSurfaceCommand(), () => new BlendSurfaceCommand(), () => new PatchCommand(), () => new PlanarSurfaceCommand(), () => new RuledSurfaceCommand(), () => new SplitCurveCommand(), () => new DeformCommand(), () => new IntersectSurfacesCommand(), () => new CurveIntersectCommand() }) CommandCatalog.Register(make);
         CommandCatalog.Register(() => new FillOpeningCommand());

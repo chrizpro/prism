@@ -11,7 +11,7 @@ namespace Prism.HeadlessTests.Mesh;
 
 /// <summary>
 /// Characterizes the scan-to-CAD tools: Segment &amp; Fit, Rebuild from Scan, Section Lines &amp; Arcs, Section Sketch and
-/// Select Region, on subdivided box and tessellated cylinder meshes whose exact shapes are known.
+/// Edit Region, on subdivided box and tessellated cylinder meshes whose exact shapes are known.
 /// </summary>
 /// <seealso href="https://github.com/chrizpro/prism/blob/main/docs/modeling/mesh-and-reverse-engineer/README.md">Living guide.</seealso>
 [Trait("Feature", "Mesh")]
@@ -202,7 +202,6 @@ public class ReverseEngineerTests
         Assert.Equal("1", Result(command, "Sketches"));
         Assert.StartsWith("4 lines + 0 arcs", Result(command, "Elements"));
         session.Apply(output);
-        output.After!(session);
         var sketch = Assert.Single(session.Objects, o => o.Kind == ObjKind.Sketch);
         AssertClose(80, Length(sketch.Shape), 1e-3, "Sketch outline length (mm)");
     }
@@ -225,7 +224,7 @@ public class ReverseEngineerTests
         Assert.Equal("1", Result(command, "Outlines"));
         SetChoice(command, "Plane", "Fitted to the selected region");
         Assert.Null(command.TryBuild());
-        Assert.Equal("select an area with Select Region first, then come back", Result(command, "Plane"));
+        Assert.Equal("select an area with Edit Region first, then come back", Result(command, "Plane"));
     }
 
     // ------------------------------------------------------------------ report-only modes
@@ -289,9 +288,9 @@ public class ReverseEngineerTests
         Assert.Equal("4 lines + 0 arcs (from 64 points)", Result(command, "Elements"));
     }
 
-    // ------------------------------------------------------------------ Select Region
+    // ------------------------------------------------------------------ Edit Region
 
-    [AvaloniaFact(DisplayName = "REV-H111 | Select Region 'Select everything', invert and clear update the reported selection")]
+    [AvaloniaFact(DisplayName = "REV-H111 | Edit Region 'Select everything', invert and clear update the reported selection")]
     [Trait("TestId", "REV-H111")]
     public void SelectRegionActions()
     {
@@ -311,7 +310,7 @@ public class ReverseEngineerTests
         Assert.Contains(command.Results, r => r.Label == "Nothing selected");
     }
 
-    [AvaloniaFact(DisplayName = "REV-H112 | Select Region extracts or deletes the selected triangles")]
+    [AvaloniaFact(DisplayName = "REV-H112 | Edit Region extracts or deletes the selected triangles")]
     [Trait("TestId", "REV-H112")]
     public void SelectRegionExtractAndDelete()
     {
@@ -329,7 +328,7 @@ public class ReverseEngineerTests
         Assert.Equal(10, session.Find(mesh.Id)!.Tri!.TriCount);
     }
 
-    [AvaloniaTheory(DisplayName = "REV-H113 | Select Region 'Delete and patch' replaces the selected face with a patch")]
+    [AvaloniaTheory(DisplayName = "REV-H113 | Edit Region 'Delete and patch' replaces the selected face with a patch")]
     [InlineData("Smooth (follows the surface around it)")]
     [InlineData("Flat")]
     [Trait("TestId", "REV-H113")]

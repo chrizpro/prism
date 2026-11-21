@@ -36,6 +36,7 @@ public sealed partial class SketchContext
     public string? SuggestedName { get; set; }
     public Guid? EditingId { get; }
     public SketchTool? Tool { get; private set; }
+    public bool ShowMeshSectionReference { get; set; } = true;
     public SolveResult Result { get; private set; }
     /// <summary>New curves are created as construction geometry (reference only; not part of the profile).</summary>
     public bool Construction { get; set; }
@@ -305,9 +306,9 @@ public sealed partial class SketchContext
             foreach (var pid in SelPoints.ToList())
                 foreach (var e in Model.Entities.Where(en => Model.PointsOf(en).Contains(pid)).ToList()) SelEntities.Add(e.Id);
             foreach (var id in SelEntities.ToList()) Model.RemoveEntity(id);
-            // Remove an orphaned center-rectangle control diagonal after its boundary is deleted.
+            // Remove a center rectangle's control diagonals once its boundary is deleted (no ordinary curve of the rectangle is left).
             foreach(var e in Model.Entities.Where(e=>e.Construction&&e.Group?.StartsWith("Rectangle ",StringComparison.Ordinal)==true).ToList())
-                if(!Model.Entities.Any(other=>other.Group==e.Group&&other.Id!=e.Id)&&Model.Constraints.Any(c=>c.Type==CType.Midpoint&&c.Refs.Length==2&&c.Refs[1]==e.Id))Model.RemoveEntity(e.Id);
+                if(!Model.Entities.Any(other=>other.Group==e.Group&&other.Id!=e.Id&&!other.Construction)&&Model.Constraints.Any(c=>c.Type==CType.Midpoint&&c.Refs.Length==2&&c.Refs[1]==e.Id))Model.RemoveEntity(e.Id);
             foreach(int point in SelPoints.ToList())Model.DropPointIfUnshared(point);
             SelEntities.Clear(); SelPoints.Clear();
             Model.PruneUnusedPoints(Model.Points.Select(p=>p.Id).ToList());
@@ -616,12 +617,12 @@ public sealed partial class SketchContext
         return best;
     }
 
-    public int PickEntity(CadSession s, double px, double py, double tolPx = 8)
+    public int PickEntity(CadSession s, double px, double py, double tolPx = 8, Func<SkEntity, bool>? accept = null)
     {
         var cam = s.Camera; int best = -1; double bd = tolPx;
         foreach (var (e, pts) in Model.Polylines(Plane))
         {
-            if (!EntityVisible(e)) continue;
+            if (!EntityVisible(e) || accept != null && !accept(e)) continue;
             for (int i = 0; i + 1 < pts.Count; i++)
             {
                 var a = cam.Project(pts[i]); var b = cam.Project(pts[i + 1]); if (a == null || b == null) continue;
@@ -721,6 +722,9 @@ public sealed partial class SketchContext
     {
         BuildSpaceOverlay(s, o);
         foreach (var section in _sections) DrawGrease(o, section.Model, section.Plane);
+        if (ShowMeshSectionReference || Tool is FitMeshSectionTool)
+            foreach (var trace in Model.MeshSectionTraces)
+                o.AddPolyline(trace.Points.Select(p => Plane.PointAt(p.X, p.Y)).ToArray(), 0xCFEAA755, 3.8f, trace.Closed);
         var cam = s.Camera;
         var free = Result.FreeEntities;
         bool conflict = !Result.Converged;

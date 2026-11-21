@@ -1,5 +1,7 @@
 # Freeform product studies and MCP test results
 
+Later work: [Freeform for agents](agent-tooling-proposal.md) (diagnosis, new tools, and the iron rebuilt from outlines: `07-iron-from-silhouettes.png`).
+
 Three editable studies were built in the live application using its actual stdio MCP bridge and its Python API. No prebuilt meshes were imported. Existing user work stayed open in its original application instance; testing and rebuilds used a separate instance.
 
 ## Completed models

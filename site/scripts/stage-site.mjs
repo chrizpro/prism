@@ -1,8 +1,9 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
-const source = resolve(root, '.vitepress/dist')
-const destination = resolve(root, 'dist')
+const buildRoot = process.env.PRISM_DOCS_BUILD_ROOT
+const source = buildRoot ? resolve(buildRoot, 'vitepress') : resolve(root, '.vitepress/dist')
+const destination = buildRoot ? resolve(buildRoot, 'dist') : resolve(root, 'dist')
 if (!existsSync(resolve(source, 'index.html'))) throw new Error('Build VitePress before staging the site.')
 // This fixed destination contains generated output only. Empty it so removed pages cannot remain online.
 if (existsSync(destination)) rmSync(destination, { recursive: true, force: true })

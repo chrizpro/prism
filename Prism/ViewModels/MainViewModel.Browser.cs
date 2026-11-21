@@ -19,6 +19,24 @@ public sealed partial class MainViewModel
 
     static string IconFor(ObjKind k) => k switch { ObjKind.Solid => "box", ObjKind.Surface => "nurbs-patch", ObjKind.Curve => "curve-through", ObjKind.Form => "form-box", ObjKind.Mesh => "mesh", ObjKind.Plane => "origin-plane", ObjKind.Joint => "joint-revolute", ObjKind.Animation => "animation", ObjKind.Toolpath => "toolpath", _ => "sketch" };
 
+    /// <summary>
+    /// The recognised features of a solid, grouped by type and size (holes, threads, slots, fillets, chamfers, text, ribs, fasteners in its holes).
+    /// Left out for bodies with very many faces, where recognising them would slow every change down.
+    /// </summary>
+    BrowserNode? FeaturesNode(SceneObject o)
+    {
+        if (o is not { Kind: ObjKind.Solid, HasBrep: true } || o.Component != null) return null;
+        List<FeatureLine> lines;
+        try { if (o.Shape!.Count(Prism.Kernel.SubKind.Face) > 4000) return null; lines = FeatureSummary.For(o, Session.Objects); }
+        catch (Exception e) when (e is Prism.Kernel.KernelException or FormatException) { return null; }
+        if (lines.Count == 0) return null;
+        string key = "features:" + o.Id;
+        var folder = new BrowserNode { Kind = NodeKind.Folder, Title = "Features", Icon = "pattern-linear", ExpansionKey = key, IsExpanded = _folderOpen.GetValueOrDefault(key, false), Badge = lines.Count.ToString() };
+        foreach (var line in lines)
+            folder.Children.Add(new BrowserNode { Kind = NodeKind.Feature, ObjectId = o.Id, Title = line.Text, Icon = line.Icon, FeatureFaces = line.Faces });
+        return folder;
+    }
+
     public void RebuildBrowser()
     {
         var s = Session;
@@ -102,6 +120,7 @@ public sealed partial class MainViewModel
                     n.Children.Add(ConstructionNode(o.Id, model));
                 if (o.SketchData is { } saved && o.Id != s.Sketch?.EditingId)
                     foreach (var datumNode in DatumNodes(o.Id, saved.Datums)) n.Children.Add(datumNode);
+                if (FeaturesNode(o) is { } featuresNode) n.Children.Add(featuresNode);
                 f.Children.Add(n);
             }
             f.SetVisibleSilently(kind == ObjKind.Joint ? f.Children.Any(c => c.IsVisible) : f.Children.All(c => c.IsVisible));
@@ -113,6 +132,19 @@ public sealed partial class MainViewModel
         Group("Meshes", "mesh", ObjKind.Mesh);
         Group("Surfaces", "nurbs-patch", ObjKind.Surface);
         Group("Sketches", "sketch", ObjKind.Sketch);
+        // each visit to a NURBS sketch is its own sketch; the browser shows them as one folder so the list stays short
+        if (roots.FirstOrDefault(r => r.Title == "Sketches") is { } sketchFolder)
+        {
+            var nurbsSketches = sketchFolder.Children.Where(n => n.IsObject && s.Find(n.ObjectId)?.SketchData?.SharedNurbsCurves == true).ToList();
+            if (nurbsSketches.Count > 1)
+            {
+                var folder = new BrowserNode { Kind = NodeKind.Folder, Title = "NURBS Curves", Icon = "curve-through", ExpansionKey = "nurbs-sketches", IsExpanded = filtering || _folderOpen.GetValueOrDefault("nurbs-sketches", true), VisibilityEdited = OnNodeVisibility };
+                foreach (var n in nurbsSketches) { sketchFolder.Children.Remove(n); folder.Children.Add(n); }
+                folder.Badge = folder.Children.Count.ToString();
+                folder.SetVisibleSilently(folder.Children.All(c => c.IsVisible));
+                sketchFolder.Children.Insert(0, folder);
+            }
+        }
         Group("Curves", "curve-through", ObjKind.Curve);
         Group("Construction Planes", "origin-plane", ObjKind.Plane);
         Group("Joints", "joint-revolute", ObjKind.Joint);

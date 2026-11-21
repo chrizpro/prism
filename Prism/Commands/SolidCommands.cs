@@ -841,23 +841,186 @@ public sealed class SweepCommand : BodyCommand
     /// <summary>Picks edges, curves or faces spread around the model, which is hard in an orthographic view: start in perspective at the home view.</summary>
     public override bool WantsHomeView => true;
     readonly bool _surface;
-    readonly SelectionSlot _profile, _path, _rail;
+    readonly SelectionSlot _profile, _path, _rail, _guide, _guide2;
+    readonly ChoiceParam _guideMode;
     readonly ChoiceParam _orient;
-    readonly NumberParam _endScale;
+    readonly NumberParam _endScale, _startScale;
+    readonly TextParam _scaleTable;
     public SweepCommand(bool surface = false)
     {
         _surface = surface;
         _profile = Slot(new SelectionSlot { Label = "Profile", Filter = SelFilter.SketchObj | SelFilter.CurveObj | SelFilter.Face | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _path = Slot(new SelectionSlot { Label = "Path", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1 });
         _rail = Slot(new SelectionSlot { Label = "Second rail (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guide = Slot(new SelectionSlot { Label = "Guide curve: the profile grows and shrinks with its distance (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guide2 = Slot(new SelectionSlot { Label = "Second guide curve (optional)", Filter = SelFilter.CurveObj | SelFilter.Edge, Multi = true, SelectionRuleIndex = 1, Optional = true });
+        _guideMode = Choice("Between two guides", 0, "Resize evenly", "Stretch between the guides");
         _orient = Choice("Profile orientation", 0, "Follow the path", "Keep parallel (no turning)", "Keep upright (Z stays up)");
         _endScale = Num("Scale at the end", 1, 0.01, 100, 0.1, "");
+        _startScale = Num("Scale at the start", 1, 0.01, 100, 0.1, "");
+        _scaleTable = Text("Scale along the path (optional)", "", "position from 0 (start) to 1 (end), a colon, then the scale: 0:1, 0.5:1.6, 1:0.7. Replaces the start and end scale.");
+        _twist = Num("Twist along the path", 0, -3600, 3600, 15, "°");
+        _twist.HelpText = "Turns the profile steadily about the path as it travels, by this many degrees from start to end (right-handed for a positive angle). Builds the result through 40 sections along the path.";
         if (!surface) AddOperation();
+    }
+    readonly NumberParam _twist;
+
+    static List<Vec3> GuidePolyline(Shape guide)
+    {
+        var pts = new List<Vec3>();
+        foreach (var edge in Occ.CurveSamples(guide, 200, 64))
+        {
+            var run = edge.Select(s => s.p).ToList();
+            if (pts.Count > 0 && run[^1].DistanceTo(pts[^1]) < run[0].DistanceTo(pts[^1])) run.Reverse();
+            pts.AddRange(run);
+        }
+        return pts;
+    }
+
+    /// <summary>Points along the path spaced evenly by length, each with the direction of travel there.</summary>
+    static List<(Vec3 p, Vec3 t)> PathStations(Shape path, int count)
+    {
+        var pts = new List<Vec3>();
+        foreach (var edge in Occ.CurveSamples(path, 200, 64))
+        {
+            var run = edge.Select(s => s.p).ToList();
+            if (pts.Count > 0 && run[^1].DistanceTo(pts[^1]) < run[0].DistanceTo(pts[^1])) run.Reverse();     // follow the chain, not each edge's own direction
+            foreach (var p in run) if (pts.Count == 0 || pts[^1].DistanceTo(p) > 1e-9) pts.Add(p);
+        }
+        if (pts.Count < 2) throw new FormatException("The path is too short.");
+        var along = new List<double> { 0 };
+        for (int i = 1; i < pts.Count; i++) along.Add(along[^1] + pts[i].DistanceTo(pts[i - 1]));
+        double total = along[^1];
+        Vec3 At(double s)
+        {
+            s = Math.Clamp(s, 0, total);
+            int i = Math.Clamp(along.BinarySearch(s) is var k && k >= 0 ? k : ~k, 1, pts.Count - 1);
+            double f = (s - along[i - 1]) / Math.Max(along[i] - along[i - 1], 1e-12);
+            return pts[i - 1] + (pts[i] - pts[i - 1]) * f;
+        }
+        var result = new List<(Vec3, Vec3)>(); double d = total / (count * 4);
+        for (int k = 0; k <= count; k++)
+        {
+            double s = total * k / count;
+            var tangent = At(s + d) - At(s - d);
+            if (tangent.Length < 1e-12) throw new FormatException("The path doubles back on itself.");
+            result.Add((At(s), tangent.Normalized()));
+        }
+        return result;
+    }
+
+    // ---- 3x3 helpers (row-major) for the station sweep
+    static double[] Identity() => [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    static double[] Mul(double[] a, double[] b)
+    {
+        var r = new double[9];
+        for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) r[3 * i + j] += a[3 * i + k] * b[3 * k + j];
+        return r;
+    }
+    static Vec3 Apply(double[] m, Vec3 v) => new(m[0] * v.X + m[1] * v.Y + m[2] * v.Z, m[3] * v.X + m[4] * v.Y + m[5] * v.Z, m[6] * v.X + m[7] * v.Y + m[8] * v.Z);
+    /// <summary>Rotation by an angle (radians) about a unit axis.</summary>
+    static double[] Turn(Vec3 axis, double angle)
+    {
+        double c = Math.Cos(angle), s = Math.Sin(angle), t = 1 - c, x = axis.X, y = axis.Y, z = axis.Z;
+        return [t * x * x + c, t * x * y - s * z, t * x * z + s * y, t * x * y + s * z, t * y * y + c, t * y * z - s * x, t * x * z - s * y, t * y * z + s * x, t * z * z + c];
+    }
+    /// <summary>The rotation that swings unit direction a onto unit direction b by the shortest way.</summary>
+    static double[] Swing(Vec3 a, Vec3 b)
+    {
+        var axis = Vec3.Cross(a, b);
+        if (axis.Length < 1e-9) return Vec3.Dot(a, b) > 0 ? Identity() : Turn((Math.Abs(a.X) < 0.9 ? Vec3.Cross(a, Vec3.UnitX) : Vec3.Cross(a, Vec3.UnitY)).Normalized(), Math.PI);
+        return Turn(axis.Normalized(), Math.Acos(Math.Clamp(Vec3.Dot(a, b), -1, 1)));
+    }
+
+    /// <summary>Where a guide crosses the plane through <paramref name="p"/> square to <paramref name="t"/>: the crossing nearest p, or the nearest approach if it never crosses.</summary>
+    static Vec3 CrossingOf(List<Vec3> guide, Vec3 p, Vec3 t)
+    {
+        Vec3? best = null; double bestDistance = double.MaxValue;
+        for (int i = 1; i < guide.Count; i++)
+        {
+            double f0 = Vec3.Dot(guide[i - 1] - p, t), f1 = Vec3.Dot(guide[i] - p, t);
+            if (f0 * f1 > 0 || Math.Abs(f1 - f0) < 1e-12) continue;
+            var q = guide[i - 1] + (guide[i] - guide[i - 1]) * (f0 / (f0 - f1));
+            if (q.DistanceTo(p) < bestDistance) { bestDistance = q.DistanceTo(p); best = q; }
+        }
+        if (best is { } hit) return hit;
+        var near = guide.OrderBy(g => Math.Abs(Vec3.Dot(g - p, t))).First();
+        return near - t * Vec3.Dot(near - p, t);
+    }
+
+    /// <summary>
+    /// A sweep built from 40 sections along the path, lofted smoothly. The profile is carried along without spinning of its own accord, then
+    /// turned by the twist, scaled by the scale list and fitted to the guides: one guide sets the size from its distance, two guides pin two
+    /// points of the profile to them, so it is resized (or stretched between them) and turned as they move.
+    /// </summary>
+    Shape StationSweep(Shape profile, Shape path)
+    {
+        const int Stations = 40;
+        var law = ScaleLaw();
+        double ScaleAt(double t)
+        {
+            if (law is not { } l) return 1;
+            for (int i = 1; i < l.positions.Length; i++)
+                if (t <= l.positions[i] + 1e-12) return l.scales[i - 1] + (l.scales[i] - l.scales[i - 1]) * (t - l.positions[i - 1]) / Math.Max(l.positions[i] - l.positions[i - 1], 1e-12);
+            return l.scales[^1];
+        }
+        var stations = PathStations(path, Stations);
+        var guide1 = _guide.Items.Count > 0 ? GuidePolyline(SlotShape(_guide, false)) : null;
+        var guide2 = _guide2.Items.Count > 0 ? GuidePolyline(SlotShape(_guide2, false)) : null;
+        if (guide2 != null && guide1 == null) throw new FormatException("Pick the first guide curve before the second.");
+        if (guide2 != null && (Math.Abs(_twist.Value) > 1e-9 || law != null)) throw new FormatException("Two guide curves set the size and the turn of the profile themselves. Clear the twist and the scale list.");
+        var p0 = stations[0].p; var t0 = stations[0].t;
+        Vec3? a0 = guide1 == null ? null : CrossingOf(guide1, p0, t0) - p0;
+        Vec3? b0 = guide2 == null ? null : CrossingOf(guide2, p0, t0) - p0;
+        if (a0 is { } av && av.Length < 1e-9) throw new FormatException("The guide curve touches the path at its start, so the profile has no size to follow. Move the guide away from the path.");
+        if (a0 is { } av2 && b0 is { } bv && (bv - av2).Length < 1e-9) throw new FormatException("The two guide curves meet at the start of the path. Keep them apart.");
+
+        var sections = new List<Shape>();
+        var carried = Identity();
+        try
+        {
+            for (int k = 0; k <= Stations; k++)
+            {
+                var (p, t) = stations[k];
+                if (k > 0) carried = Mul(Swing(stations[k - 1].t, t), carried);
+                double fraction = (double)k / Stations;
+                var g = Turn(t, _twist.Value * Math.PI / 180 * fraction);
+                var shift = Vec3.Zero;
+                double scale = ScaleAt(fraction);
+                if (a0 is { } a && b0 is null)
+                {
+                    scale *= (CrossingOf(guide1!, p, t) - p).Length / a.Length;
+                    if (scale < 1e-3) throw new FormatException("The guide curve meets the path, which would shrink the profile to nothing. Keep the guide away from the path.");
+                }
+                if (a0 is { } ac0 && b0 is { } bc0)
+                {
+                    var ac = Apply(carried, ac0); var bc = Apply(carried, bc0);
+                    var ak = CrossingOf(guide1!, p, t) - p; var bk = CrossingOf(guide2!, p, t) - p;
+                    var u = (bc - ac).Normalized(); var uk = bk - ak; double lambda = uk.Length / (bc - ac).Length;
+                    if (lambda < 1e-3) throw new FormatException("The guide curves meet, which would shrink the profile to nothing. Keep them apart.");
+                    uk = uk.Normalized();
+                    double theta = Math.Atan2(Vec3.Dot(t, Vec3.Cross(u, uk)), Vec3.Dot(u, uk));
+                    g = Turn(t, theta);
+                    double l1 = lambda - 1;
+                    g = _guideMode.Index == 1       // stretch only along the line between the guides
+                        ? Mul([1 + l1 * uk.X * uk.X, l1 * uk.X * uk.Y, l1 * uk.X * uk.Z, l1 * uk.Y * uk.X, 1 + l1 * uk.Y * uk.Y, l1 * uk.Y * uk.Z, l1 * uk.Z * uk.X, l1 * uk.Z * uk.Y, 1 + l1 * uk.Z * uk.Z], g)
+                        : Mul([lambda, 0, 0, 0, lambda, 0, 0, 0, lambda], g);
+                    shift = ak - Apply(g, ac);
+                }
+                else g = Mul([scale, 0, 0, 0, scale, 0, 0, 0, scale], g);
+                var m = Mul(g, carried);
+                sections.Add(Occ.Affine(profile, m, p + shift - Apply(m, p0)));
+            }
+            return Occ.Loft(sections, !_surface, false);
+        }
+        finally { foreach (var s in sections) s.Dispose(); }
     }
     public override string Title => _surface ? "Sweep Surface" : "Sweep";
     public override string Hint => "Click one edge of the profile and the connected chain is taken whole (Ctrl-click for a single edge); same for the path. The dropdown next to each pick switches between single edges and connected, tangent or partial chains. Add a second rail to steer how the profile turns; it should touch the profile at the start.";
 
-    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _rail.Items.Count == 0; }
+    protected override void UpdateVisibility() { base.UpdateVisibility(); _orient.IsVisible = _endScale.IsVisible = _startScale.IsVisible = _scaleTable.IsVisible = _twist.IsVisible = _rail.Items.Count == 0;
+        _guide.IsVisible = _rail.Items.Count == 0; _rail.IsVisible = _guide.Items.Count == 0 && _guide2.Items.Count == 0;
+        _guide2.IsVisible = _rail.Items.Count == 0 && _guide.Items.Count > 0; _guideMode.IsVisible = _rail.Items.Count == 0 && _guide2.Items.Count > 0; }
 
     public override HandleSpec? Handle
     {
@@ -907,13 +1070,49 @@ public sealed class SweepCommand : BodyCommand
         return wantFaces ? ProfileUtil.Closed(picked) : Occ.Profile(picked, false);
     }
 
+    /// <summary>The scale law from the table text, or from a start and end scale when they differ from the plain end scale; null for a constant or end-only scale.</summary>
+    (double[] positions, double[] scales)? ScaleLaw()
+    {
+        var points = new List<(double at, double scale)>();
+        foreach (var raw in _scaleTable.Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = raw.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at) || at < 0 || at > 1
+                || !double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var scale) || scale <= 0)
+                throw new FormatException($"'{raw}' is not a position and scale. Use position 0 to 1, a colon, then a scale above 0, for example 0:1, 0.5:1.6, 1:0.7.");
+            points.Add((at, scale));
+        }
+        if (points.Count == 0)
+        {
+            if (Math.Abs(_startScale.Value - 1) < 1e-9) return null;      // only an end scale: the plain linear sweep
+            points = [(0, _startScale.Value), (1, _endScale.Value)];
+        }
+        points = [.. points.OrderBy(p => p.at)];
+        if (points.Select(p => p.at).Distinct().Count() != points.Count) throw new FormatException("Each position in the scale list must be different.");
+        if (points[0].at > 1e-9) points.Insert(0, (0, points[0].scale));
+        if (points[^1].at < 1 - 1e-9) points.Add((1, points[^1].scale));
+        if (points.Count < 2) throw new FormatException("Give at least two positions in the scale list.");
+        return ([.. points.Select(p => p.at)], [.. points.Select(p => p.scale)]);
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var path = SlotShape(_path, false);
+        var law = _rail.Items.Count > 0 ? null : ScaleLaw();
+        if (_rail.Items.Count > 0 && (_guide.Items.Count > 0 || _guide2.Items.Count > 0)) throw new FormatException("Use a second rail or a guide curve, not both.");
+        if (_rail.Items.Count == 0 && (Math.Abs(_twist.Value) > 1e-9 || _guide.Items.Count > 0 || _guide2.Items.Count > 0))
+        {
+            if (_orient.Index != 0) throw new FormatException("Twist and a guide curve need the profile to follow the path. Set Profile orientation to Follow the path.");
+            var twisted = StationSweep(SlotShape(_profile, false), path);
+            if (_surface) { var r = new CommandOutput(); r.Add.Add(new(twisted, "Surface", ObjKind.Surface)); return r; }
+            return Finish(twisted, "Sweep");
+        }
         var shape = _rail.Items.Count > 0
             ? Occ.SweepRails(SlotShape(_profile, false), path, SlotShape(_rail, false), !_surface)
-            : Occ.Sweep2(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
+            : law is { } l
+                ? Occ.SweepLaw(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, l.positions, l.scales, Vec3.UnitZ)
+                : Occ.Sweep2(SlotShape(_profile, !_surface), path, !_surface, _orient.Index, _endScale.Value, Vec3.UnitZ);
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Sweep");
     }
@@ -938,9 +1137,11 @@ public sealed class LoftCommand : BodyCommand
                     _pointPositions.Add(Core.Sketching.SketchModel.To3(plane, model.P(entity.A)));
                 }
     }
-    readonly SelectionSlot _sections, _rails;
+    readonly SelectionSlot _sections, _rails, _startFace, _endFace;
     readonly BoolParam _ruled, _closed;
     readonly IntParam _railSteps;
+    readonly ChoiceParam _startTan, _endTan;
+    readonly NumberParam _tanStrength;
     public LoftCommand(bool surface = false)
     {
         _surface = surface;
@@ -954,6 +1155,13 @@ public sealed class LoftCommand : BodyCommand
         _closed.HelpText = "Connect the last profile back to the first.";
         _railSteps = Add(new IntParam { Label = "Guide rail accuracy (sections along the rail)", Caption = "Rail accuracy", Min = 4, Max = 40, Value = 12, IsAdvanced = true, HelpText = "Number of intermediate sections used to follow the rails." });
         if (!surface) AddOperation();
+        // added after the operation so a saved loft keeps its settings
+        _startTan = Choice("Start tangency", 0, "Free", "Square to the profile", "Match a face");
+        _endTan = Choice("End tangency", 0, "Free", "Square to the profile", "Match a face");
+        _startFace = Slot(new SelectionSlot { Label = "Face to match at the start", Filter = SelFilter.Face | SelFilter.SurfaceObj, Optional = true });
+        _endFace = Slot(new SelectionSlot { Label = "Face to match at the end", Filter = SelFilter.Face | SelFilter.SurfaceObj, Optional = true });
+        _tanStrength = Num("Tangent strength", 0.25, 0.05, 1, 0.05, "");
+        _tanStrength.HelpText = "How far the loft keeps to the chosen direction before turning toward the next profile, as a fraction of the distance to that profile. Larger holds the direction longer.";
     }
     public override string Title => _surface ? "Loft Surface" : "Loft";
     public override string Hint => "Click a curve to take its whole connected chain as one profile (blue, numbered in pick order). Switch to Guide rails to pick one or two rails (orange). The rule list under each slot changes this (Single edges, Connected chain, Tangent chain, Partial loop); Ctrl or Shift always takes one edge; click a picked curve again to remove it. A sketch holding several curves is never taken as a whole.";
@@ -961,7 +1169,51 @@ public sealed class LoftCommand : BodyCommand
     protected override void UpdateVisibility()
     {
         _railSteps.IsVisible = _rails.Items.Count > 0;
+        _startFace.IsVisible = _startTan.Index == 2; _endFace.IsVisible = _endTan.Index == 2;
+        _tanStrength.IsVisible = _startTan.Index > 0 || _endTan.Index > 0;
         base.UpdateVisibility();
+    }
+
+    /// <summary>
+    /// Make the loft leave (or arrive at) an end profile in a chosen direction by adding a helper profile a short way along it, which the loft then passes through.
+    /// Square to the profile moves a copy of a flat profile along its normal; Match a face moves each point of the profile along the way the face leaves its edge.
+    /// </summary>
+    Shape TangencyHelper(Shape profile, Shape neighbour, int mode, SelectionSlot faceSlot, string where)
+    {
+        var toward = neighbour.Props().Center - profile.Props().Center;
+        double distance = toward.Length * _tanStrength.Value;
+        if (mode == 1)
+        {
+            if (GuidedLoft.SectionNormal(profile) is not { } normal) throw new FormatException($"The {where} profile is not flat, so it has no square direction. Choose Match a face or Free.");
+            if (Vec3.Dot(normal, toward) < 0) normal = -normal;
+            return Occ.Translate(profile, normal * distance);
+        }
+        if (faceSlot.Items.Count == 0) throw new FormatException($"Pick the face to match at the {where}.");
+        var face = NurbsUtil.OfItem(S, faceSlot.Items[0]);
+        var edges = Occ.CurveSamples(profile, 24, 64);
+        var all = edges.SelectMany(e => e.Select(x => x.p)).ToList();
+        var directions = Occ.FaceExitDirections(face, all);
+        var moved = new List<Shape>(); int k = 0;
+        foreach (var edge in edges)
+        {
+            var pts = new List<Vec3>();
+            foreach (var sample in edge) pts.Add(sample.p + directions[k++] * distance);
+            var a = pts[0]; var b = pts[^1]; double chord = (b - a).Length;
+            if (chord > 1e-9 && pts.All(q => Vec3.Cross(q - a, (b - a) / chord).Length < 1e-4 * chord + 1e-7)) moved.Add(Occ.Line(a, b));
+            else if (chord < 1e-9) moved.Add(Occ.Spline(pts.Take(pts.Count - 1).ToList(), true));
+            else moved.Add(Occ.Spline(pts));
+        }
+        return Occ.Profile(moved, false);
+    }
+
+    void AddTangency(List<Shape> sections)
+    {
+        if (_startTan.Index == 0 && _endTan.Index == 0) return;
+        if (_rails.Items.Count > 0) throw new FormatException("Tangency works without guide rails. Clear the rails or set both tangencies to Free.");
+        if (_closed.Value || _endPoint.Index > 0) throw new FormatException("Tangency works on an open loft that ends on a profile. Turn off Close the loft and the end point, or set both tangencies to Free.");
+        Shape first = sections[0], second = sections[1], last = sections[^1], before = sections[^2];
+        if (_endTan.Index > 0) sections.Insert(sections.Count - 1, TangencyHelper(last, before, _endTan.Index, _endFace, "end"));
+        if (_startTan.Index > 0) sections.Insert(1, TangencyHelper(first, second, _startTan.Index, _startFace, "start"));
     }
 
     public override bool PickPoint(PickResult hit, bool additive)
@@ -1084,7 +1336,12 @@ public sealed class LoftCommand : BodyCommand
             shape = GuidedLoft.Build(secs, rails, !_surface, _ruled.Value, _railSteps.Value);
             Results.Add(new ResultLine("Guide rails", $"{rails.Count} rail(s) steer the shape through {_railSteps.Value} sections"));
         }
-        else shape = Occ.Loft(secs, !_surface, _ruled.Value);
+        else
+        {
+            AddTangency(secs);
+            shape = Occ.Loft(secs, !_surface, _ruled.Value);
+            if (_startTan.Index > 0 || _endTan.Index > 0) Results.Add(new ResultLine("Tangency", $"start {_startTan.Options[_startTan.Index].ToLowerInvariant()}, end {_endTan.Options[_endTan.Index].ToLowerInvariant()}"));
+        }
         if (_surface) { var r = new CommandOutput(); r.Add.Add(new(shape, "Surface", ObjKind.Surface)); return r; }
         return Finish(shape, "Loft");
     }
@@ -1169,7 +1426,7 @@ static class GuidedLoft
     }
 
     /// <summary>The normal of a flat section, or null when it is not flat (found from the point farthest from the middle and the one farthest from that line).</summary>
-    static Vec3? SectionNormal(Shape w)
+    internal static Vec3? SectionNormal(Shape w)
     {
         var pts = Occ.CurveSamples(w, 17, 64).SelectMany(e => e.Select(s => s.p)).ToList();
         if (pts.Count < 3) return null;
@@ -1315,12 +1572,96 @@ public abstract class EdgeDressCommand : Command
 public sealed class FilletCommand : EdgeDressCommand
 {
     readonly NumberParam _endRadius;
-    public FilletCommand() : base(2) { _endRadius = Num("End radius (0 = same as radius)", 0, 0); }
+    readonly TextParam _perEdge;
+    readonly ChoiceParam _shape;
+    public FilletCommand() : base(2)
+    {
+        _endRadius = Num("End radius (0 = same as radius)", 0, 0);
+        _perEdge = Text("Radius per edge (optional)", "");
+        _perEdge.HelpText = "One entry per picked edge, in the order picked, separated by commas: 3, 5, 2 gives each edge its own radius, and 3-5 grows that edge from 3 to 5. An edge with no entry uses Radius. Leave blank for one radius on every edge.";
+        // last, so steps saved before this choice existed (one value shorter) still line up
+        _shape = Choice("Shape", 0, "Round (rounded corner)", "Cove (concave scoop)");
+        _shape.HelpText = "Round takes the corner off. Cove cuts a quarter-round scoop into it instead, centred on the edge, so the walls meet it at right angles (on a square edge). A cove works on straight edges and uses Radius only.";
+    }
+
+    /// <summary>"3, 5-8, 2" as one (start, end) pair per entry; null when the text is blank or not numbers.</summary>
+    static List<(double start, double end)>? ParseRadii(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var list = new List<(double, double)>();
+        foreach (var raw in text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = raw.Split('-', StringSplitOptions.TrimEntries);
+            if (parts.Length is < 1 or > 2 || !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a) || a <= 0) throw new FormatException($"'{raw}' is not a radius. Use numbers like 3 or 3-5, separated by commas.");
+            double b = a;
+            if (parts.Length == 2 && (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out b) || b <= 0)) throw new FormatException($"'{raw}' is not a radius. Use numbers like 3 or 3-5, separated by commas.");
+            list.Add((a, b));
+        }
+        return list;
+    }
+
+    /// <summary>Steps saved before the Shape choice existed were all round fillets.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) =>
+        recipe.Values.Count == Params.Count - 1 ? recipe with { Values = [.. recipe.Values, 0] } : recipe;
+
+    protected override void UpdateVisibility()
+    {
+        if (_shape == null) return;
+        bool cove = _shape.Index == 1;
+        _endRadius.IsVisible = !cove; _perEdge.IsVisible = !cove;
+    }
+
+    protected override CommandOutput? Build()
+    {
+        var radii = ParseRadii(_perEdge.Value);
+        if (radii == null || _shape.Index == 1) return base.Build();
+        if (!Complete) return null;
+        var o = new CommandOutput();
+        foreach (var g in Edges.Items.GroupBy(i => i.Obj))
+        {
+            var obj = S.Find(g.Key)!;
+            var picked = g.ToList();
+            var start = new double[picked.Count]; var end = new double[picked.Count];
+            for (int i = 0; i < picked.Count; i++)
+            {
+                int order = Edges.Items.IndexOf(picked[i]);
+                var r = order < radii.Count ? radii[order] : (Size.Value, _endRadius.Value > 1e-9 ? _endRadius.Value : Size.Value);
+                (start[i], end[i]) = r;
+            }
+            o.Replace.Add((obj, Occ.FilletEdges(obj.Shape, picked.Select(i => i.Index).ToArray(), start, end)));
+        }
+        return o;
+    }
     public override string Title => "Fillet";
     protected override string SizeLabel => "Radius";
     public override string Hint => "Click edges on a body (click again to deselect). Give an end radius to make the fillet grow or shrink along each edge.";
     protected override Shape Apply(Shape s, int[] edges, double size)
-        => _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+        => _shape.Index == 1 ? Cove(s, edges, size)
+        : _endRadius.Value > 1e-9 && Math.Abs(_endRadius.Value - size) > 1e-9 ? Occ.FilletVariable(s, edges, size, _endRadius.Value) : Occ.Fillet(s, edges, size);
+
+    /// <summary>
+    /// A cove: a round groove of the given radius along each straight edge, the cylinder centred on the edge. On a square convex edge it removes a
+    /// quarter of the cylinder, leaving a concave quarter-round that meets each wall at right angles. (A concave scoop cannot also be tangent to both walls.)
+    /// </summary>
+    static Shape Cove(Shape s, int[] edges, double radius)
+    {
+        var tools = new List<Shape>();
+        foreach (int index in edges)
+        {
+            var edge = s.Sub(SubKind.Edge, index); var info = Occ.EdgeInfoOf(edge);
+            var along = info.End - info.Start;
+            if (along.Length < 1e-9 || Math.Abs(info.Length - along.Length) > 1e-6 * Math.Max(1, info.Length))
+                throw new FormatException("A cove works on straight edges for now. Curved edges are not supported yet.");
+            using var circle = Occ.Circle(info.Start, along.Normalized(), radius);
+            using var disc = Occ.Profile([circle], true);
+            tools.Add(Occ.Extrude(disc, along));
+        }
+        var result = s;
+        foreach (var tool in tools) result = Occ.Cut(result, tool);
+        if (!result.IsValid || !result.HasSolids) throw new FormatException("The cove does not leave a valid solid. Try a smaller radius.");
+        if (result.Props().Volume >= s.Props().Volume - 1e-9) throw new FormatException("The cove removes nothing here. Pick a convex edge of the body and a radius that reaches into it.");
+        return result;
+    }
 
     public override IReadOnlyList<HandleSpec> Handles
     {
@@ -1345,10 +1686,33 @@ public sealed class FilletCommand : EdgeDressCommand
 
 public sealed class ChamferCommand : EdgeDressCommand
 {
-    public ChamferCommand() : base(1.5) { }
+    readonly ChoiceParam _style;
+    readonly NumberParam _second, _angle;
+    readonly BoolParam _swap;
+    public ChamferCommand() : base(1.5)
+    {
+        _style = Choice("Style", 0, "Equal distance", "Two distances", "Distance and angle");
+        _second = Num("Second distance", 1.5, 0.001);
+        _angle = Num("Angle", 45, 1, 89, 1, "°");
+        _swap = Check("Swap the two sides", false);
+    }
     public override string Title => "Chamfer";
     protected override string SizeLabel => "Distance";
-    protected override Shape Apply(Shape s, int[] edges, double size) => Occ.Chamfer(s, edges, size);
+    public override string Hint => "Click edges on a body. Equal distance cuts the same amount from both faces. Two distances, or a distance and an angle, make an uneven chamfer: Swap the two sides if it leans the wrong way.";
+    protected override void UpdateVisibility()
+    {
+        if (_style == null) return;
+        _second.IsVisible = _style.Index == 1;
+        _angle.IsVisible = _style.Index == 2;
+        _swap.IsVisible = _style.Index > 0;
+    }
+    protected override Shape Apply(Shape s, int[] edges, double size) => _style.Index switch
+    {
+        1 => _swap.Value ? Occ.Chamfer2(s, edges, _second.Value, size, 0) : Occ.Chamfer2(s, edges, size, _second.Value, 0),
+        // "swap" for distance and angle measures the distance on the other face, which is the same chamfer seen from the other side: use the complementary angle
+        2 => Occ.Chamfer2(s, edges, size, _swap.Value ? 90 - _angle.Value : _angle.Value, 1),
+        _ => Occ.Chamfer(s, edges, size),
+    };
 }
 
 public sealed class ShellCommand : Command
@@ -1363,9 +1727,13 @@ public sealed class ShellCommand : Command
         _faces = Slot(new SelectionSlot { Label = "Faces to remove", Filter = SelFilter.Face | SelFilter.Solid, Multi = true });
         _t = Num("Wall thickness", 2, 0.001);
         _dir = Choice("Direction", 0, "Inside", "Outside");
+        _own = Slot(new SelectionSlot { Label = "Faces with a different wall (optional)", Filter = SelFilter.Face, Multi = true, Optional = true });
+        _ownT = Num("Wall thickness on those faces", 4, 0.001);
     }
+    readonly SelectionSlot _own;
+    readonly NumberParam _ownT;
     public override string Title => "Shell";
-    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness.";
+    public override string Hint => "Click the faces to open up. Pick the body itself for a closed hollow. Pull the arrow in the viewport or type a number to set the wall thickness. To make some walls thicker or thinner, pick them in the optional slot and set their thickness.";
     public override HandleSpec? Handle
     {
         get
@@ -1385,14 +1753,18 @@ public sealed class ShellCommand : Command
         {
             var obj = S.Find(g.Key)!;
             var faces = g.Where(i => i.Kind == SelKind.Face).Select(i => i.Index).ToArray();
+            var own = _own.Items.Where(i => i.Obj == g.Key && i.Kind == SelKind.Face).Select(i => i.Index).Distinct().ToArray();
+            if (own.Intersect(faces).Any()) throw new FormatException("A face cannot be both opened up and given its own wall thickness.");
+            Shape Make() => own.Length == 0 ? Occ.Shell(obj.Shape, faces, t)
+                : Occ.ShellVariable(obj.Shape, faces, t, own, [.. own.Select(_ => _ownT.Value * (_dir.Index == 0 ? -1 : 1))]);
             if (faces.Length > 0)
             {
-                o.Replace.Add((obj, Occ.Shell(obj.Shape, faces, t)));
+                o.Replace.Add((obj, Make()));
                 continue;
             }
 
             // With no open faces the kernel returns the offset solid. The wall is the difference between the two solids.
-            using var offset = Occ.Shell(obj.Shape, faces, t);
+            using var offset = Make();
             var wall = t < 0 ? Occ.Cut(obj.Shape, offset) : Occ.Cut(offset, obj.Shape);
             o.Replace.Add((obj, wall));
         }
@@ -1406,16 +1778,124 @@ public sealed class BooleanCommand : Command
     public enum Kind { Union, Subtract, Intersect }
     readonly Kind _kind;
     readonly SelectionSlot _target, _tools;
-    readonly BoolParam _keep;
+    readonly BoolParam _keep, _fill;
     public BooleanCommand(Kind kind)
     {
         _kind = kind;
         _target = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Body to cut from" : "Base body", Filter = SelFilter.Solid | SelFilter.SurfaceObj });
         _tools = Slot(new SelectionSlot { Label = kind == Kind.Subtract ? "Tool bodies" : "Other bodies", Filter = SelFilter.Solid | SelFilter.SurfaceObj, Multi = true });
         _keep = Check("Keep tool bodies", false);
+        _fill = Check(kind == Kind.Intersect ? "Keep the tools' parts inside too" : "Fill the cut with the tool's walls", true);
+        _fill.HelpText = "When a surface cuts a surface, the part of the target inside the tool is removed. With this on, the tool's own walls along the cut are kept and joined on, so the result is closed along the cut (like a notched box). Off leaves the cut open.";
     }
     public override string Title => _kind.ToString();
-    public override string Hint => "Pick the base body, then the bodies to combine with it.";
+    public override string Hint => _kind == Kind.Subtract
+        ? "Pick the body to cut from, then the bodies to cut with. A surface can cut a surface too: an open tube or sheet is closed off in your mind's eye, whatever part of the target lies inside it is removed, and the cut is filled with the tool's walls (or left open by turning that off)."
+        : "Pick the base body, then the bodies to combine with it.";
+
+    /// <summary>Steps saved before the fill option existed have one value (keep tools).</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, true] } : recipe;
+
+    protected override void UpdateVisibility()
+    {
+        bool toolSurface = _tools.Items.Any(i => S.Find(i.Obj)?.Kind == ObjKind.Surface);
+        _fill.IsVisible = _kind == Kind.Subtract ? toolSurface : _kind == Kind.Intersect && AllSurfaces(_target.Items.Concat(_tools.Items));
+    }
+
+    /// <summary>
+    /// The space an open surface stands for: a closed surface already is one; an open tube or sheet gets a cap over each of its open loops (flat when the loop is flat),
+    /// so what lies "inside" it can be told from what lies outside.
+    /// </summary>
+    static Shape ClosedVolume(Shape shape, string what)
+    {
+        if (shape.HasSolids) return shape;
+        var attempt = Occ.Sew([shape], 1e-3, true);
+        if (attempt.HasSolids && Math.Abs(Occ.Mass(attempt).Volume) > 1e-6) return attempt;
+        List<List<int>> loops;
+        try { loops = SurfaceUtil.OpeningLoops(shape); }
+        catch (FormatException) { throw new FormatException($"The {what} surface cannot be closed into a space (it has no clear open ends to cap)."); }
+        var all = new List<Shape> { shape };
+        foreach (var loop in loops)
+        {
+            var edges = loop.Select(i => shape.Sub(SubKind.Edge, i)).ToList();
+            Shape? cap = null;
+            try { var f = Occ.Profile(edges, true); if (f.HasFaces) cap = f.Sub(SubKind.Face, 0); } catch (KernelException) { }
+            if (cap == null) { try { cap = Occ.Patch(edges); } catch (KernelException) { } }
+            if (cap == null) throw new FormatException($"One open end of the {what} surface cannot be capped, so it does not enclose a space.");
+            all.Add(cap);
+        }
+        var solid = Occ.Sew(all, 1e-3, true);
+        // a flat sheet capped over its own outline is two faces with no space between them
+        return solid.HasSolids && Math.Abs(Occ.Mass(solid).Volume) > 1e-6 ? solid : throw new FormatException($"The {what} surface does not enclose a space, even with its open ends capped.");
+    }
+
+    bool AllSurfaces(IEnumerable<SelItem> items) { var l = items.ToList(); return l.Count > 0 && l.All(i => S.Find(i.Obj)?.Kind == ObjKind.Surface); }
+
+    /// <summary>
+    /// Union or Intersect when every object is a surface. Each surface is closed in memory only to tell inside from outside; then
+    /// Union keeps, of every surface, the part outside all the others (the merged outer skin, with no walls left inside), and
+    /// Intersect keeps the part of the base inside all the tools, plus (when asked) the part of each tool inside the others.
+    /// </summary>
+    CommandOutput? CombineSurfaces(SceneObject target, List<SceneObject> tools)
+    {
+        var all = new List<SceneObject> { target }; all.AddRange(tools);
+        List<Shape> volumes;
+        // flat sheets and the like enclose no space: they keep the plain fuse / common below
+        try { volumes = all.Select((o, i) => ClosedVolume(o.Shape, i == 0 ? "base" : "other")).ToList(); }
+        catch (FormatException) { return null; }
+        Results.Clear();
+        var pieces = new List<Shape>();
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (i > 0 && _kind == Kind.Intersect && !_fill.Value) break;
+            var part = all[i].Shape;
+            for (int j = 0; j < all.Count && part.Count(SubKind.Face) > 0; j++)
+            {
+                if (j == i) continue;
+                part = _kind == Kind.Union ? Occ.Cut(part, volumes[j]) : Occ.Common(part, volumes[j]);
+            }
+            if (part.Count(SubKind.Face) > 0) pieces.Add(part);
+        }
+        if (pieces.Count == 0) throw new FormatException(_kind == Kind.Union ? "Nothing would be left of the surfaces." : "The surfaces do not overlap, so nothing is shared.");
+        var res = pieces.Count == 1 ? pieces[0] : Occ.Sew(pieces, 1e-3, false);
+        Results.Add(new ResultLine(_kind == Kind.Union ? "Joined" : "Shared", $"{res.Count(SubKind.Face)} face(s)"));
+        var o = new CommandOutput();
+        o.Replace.Add((target, res));
+        if (!_keep.Value) o.Remove.AddRange(tools);
+        return o;
+    }
+
+    /// <summary>Cut with a surface: the target loses whatever lies inside the tool's space, and (when asked) gains the tool's walls that lie inside the target, so the cut is closed.</summary>
+    CommandOutput SubtractWithSurfaces(SceneObject target, List<SceneObject> tools)
+    {
+        Results.Clear();
+        var res = target.Shape; var fills = new List<Shape>();
+        foreach (var t in tools)
+        {
+            var volume = t.Kind == ObjKind.Surface ? ClosedVolume(t.Shape, "tool") : t.Shape;
+            if (_fill.Value && target.Kind == ObjKind.Surface && t.Kind == ObjKind.Surface)
+            {
+                try
+                {
+                    var inside = Occ.Common(t.Shape, ClosedVolume(target.Shape, "target"));
+                    if (inside.Count(SubKind.Face) > 0) fills.Add(inside);
+                }
+                catch (KernelException) { Results.Add(new ResultLine("Fill", "the tool's walls inside the target could not be found, so the cut is left open", 2)); }
+            }
+            res = Occ.Cut(res, volume);
+        }
+        if (res.Count(SubKind.Face) == 0) throw new FormatException("Nothing would be left of the body.");
+        if (fills.Count > 0)
+        {
+            var joined = new List<Shape> { res }; joined.AddRange(fills);
+            res = Occ.Sew(joined, 1e-3, false);
+            Results.Add(new ResultLine("Cut filled with", $"{fills.Sum(f => f.Count(SubKind.Face))} wall piece(s) of the tool"));
+        }
+        var o = new CommandOutput();
+        o.Replace.Add((target, res));
+        if (!_keep.Value) o.Remove.AddRange(tools);
+        return o;
+    }
 
     protected override CommandOutput? Build()
     {
@@ -1423,9 +1903,8 @@ public sealed class BooleanCommand : Command
         var target = S.Find(_target.Items[0].Obj)!;
         var tools = _tools.Items.Select(i => S.Find(i.Obj)!).Where(t => t.Id != target.Id).Distinct().ToList();
         if (tools.Count == 0) return null;
-        // an open surface has no inside: subtracting it removes nothing (and used to delete the tool and report success)
-        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface))
-            throw new FormatException("A surface has no inside to cut away. Subtract a solid, or cut with the surface using Trim, Split Surface or Split Body.");
+        if (_kind == Kind.Subtract && tools.Any(t => t.Kind == ObjKind.Surface)) return SubtractWithSurfaces(target, tools);
+        if (_kind != Kind.Subtract && target.Kind == ObjKind.Surface && tools.All(t => t.Kind == ObjKind.Surface) && CombineSurfaces(target, tools) is { } surfaces) return surfaces;
         var res = target.Shape;
         foreach (var t in tools)
             res = _kind switch { Kind.Union => Occ.Fuse(res, t.Shape), Kind.Subtract => Occ.Cut(res, t.Shape), _ => Occ.Common(res, t.Shape) };
@@ -1451,7 +1930,10 @@ public sealed class TransformCommand : Command
     public TransformCommand(Kind kind)
     {
         _kind = kind;
-        _objs = Slot(new SelectionSlot { Label = "Objects", Filter = SelFilter.AnyObject, Multi = true });
+        // datum planes and reference images are objects too: Move, Rotate, Scale and Mirror take them (they used to be refused, so the gizmo moved nothing)
+        // anything that can be selected can be moved (owner rule 2026-11-20): whole objects, and faces, edges or points, which move what they
+        // belong to; flat faces of a solid move on their own and the solid follows
+        _objs = Slot(new SelectionSlot { Label = "Objects", RevealHiddenPlanes = kind == Kind.Mirror, Filter = SelFilter.AnyObject | SelFilter.Plane | SelFilter.Face | SelFilter.Edge | SelFilter.Vertex | SelFilter.MeshFace, Multi = true });
         switch (kind)
         {
             case Kind.Move: _dx = Num("Δ X", 10); _dy = Num("Δ Y", 0); _dz = Num("Δ Z", 0); break;
@@ -1560,10 +2042,50 @@ public sealed class TransformCommand : Command
     {
         if (!Complete) return null;
         var o = new CommandOutput();
-        foreach (var obj in ObjectsOf(_objs).Distinct())
+        // parts of a solid: its flat faces slide (Move only), an edge or corner alone cannot move without tearing the body
+        var solidParts = _objs.Items.Where(i => i.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex && S.Find(i.Obj) is { Kind: ObjKind.Solid, HasBrep: true }).ToList();
+        if (solidParts.Count > 0)
+        {
+            if (solidParts.Any(i => i.Kind != SelKind.Face))
+                throw new FormatException("An edge or corner of a solid cannot move on its own. Pick its faces (they slide and the solid follows), or the whole body, or copy the edges first (Ctrl+C, Ctrl+V) and move the copy.");
+            if (_kind != Kind.Move || _copy.Value)
+                throw new FormatException("Rotate, scale and mirror work on whole objects. To tilt a face of a solid use Move Face's tilt; to move it, use Move.");
+            var move = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value);
+            foreach (var grp in solidParts.GroupBy(i => i.Obj))
+            {
+                var body = S.Find(grp.Key)!; var result = body.Shape;
+                foreach (var it in grp)
+                {
+                    using var face = body.Shape.Sub(SubKind.Face, it.Index); var info = Occ.FaceInfoOf(face);
+                    if (info.Type != "Plane") throw new FormatException("Only flat faces of a solid move on their own. For a hole, slot or boss use Edit Feature's Move.");
+                    var n = info.Normal.Normalized(); var at = S.PlaneOf(it)?.Origin ?? face.Props().Center;
+                    if (Math.Abs(Vec3.Dot(move, n)) < 1e-9) continue;   // sliding a face along itself changes nothing
+                    var again = result == body.Shape ? face : FindPlanarFace(result, at, n) ?? throw new FormatException("Could not find a face again after moving another one.");
+                    result = DirectHelpers.MoveFaceToPlane(result, again, n, at + move, n);
+                }
+                o.Replace.Add((body, result));
+            }
+        }
+        // picked triangles of a mesh: Move carries their corners and the triangles around them stretch to follow
+        foreach (var grp in _objs.Items.Where(i => i.Kind == SelKind.MeshFace).GroupBy(i => i.Obj))
+        {
+            if (S.Find(grp.Key) is not { Tri: { } tri } mesh || _objs.Items.Any(i => i.Obj == grp.Key && i.Kind == SelKind.Object)) continue;
+            if (_kind != Kind.Move || _copy.Value) throw new FormatException("Rotate, scale and mirror work on whole meshes. To move picked triangles, use Move.");
+            var move = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); var v = (float[])tri.V.Clone(); var done = new HashSet<int>();
+            foreach (var it in grp)
+                for (int c = 0; c < 3; c++)
+                {
+                    int vi = tri.T[3 * it.Index + c]; if (!done.Add(vi)) continue;
+                    v[3 * vi] += (float)move.X; v[3 * vi + 1] += (float)move.Y; v[3 * vi + 2] += (float)move.Z;
+                }
+            o.ReplaceMeshes.Add((mesh, new Meshing.TriMesh(v, tri.T)));
+        }
+        var parts = solidParts.Select(i => i.Obj).Concat(_objs.Items.Where(i => i.Kind == SelKind.MeshFace).Select(i => i.Obj)).ToHashSet();
+        foreach (var obj in ObjectsOf(_objs).Where(x => !parts.Contains(x.Id) || _objs.Items.Any(i => i.Obj == x.Id && i.Kind == SelKind.Object)).Distinct())
         {
             if (obj.Form != null) { AddFormResult(o, obj); continue; }
             if (obj.Tri is { } tri) { AddMeshResult(o, obj, tri); continue; }
+            if (obj is { SketchPlane: not null } and ({ Kind: ObjKind.Sketch, SketchData: not null } or { Kind: ObjKind.Plane }) && !_copy.Value && !PerAxis && AddSketchResult(o, obj)) continue;
             var center = (_pivot?.Index ?? 0) == 0 ? obj.Shape.Props().Center : Vec3.Zero;
             Shape r = _kind switch
             {
@@ -1578,7 +2100,69 @@ public sealed class TransformCommand : Command
         return o;
     }
 
+    static Shape? FindPlanarFace(Shape body, Vec3 point, Vec3 normal)
+    {
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            var f = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(f);
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(f.Props().Center - point, normal)) < 1e-6) return f;
+            f.Dispose();
+        }
+        return null;
+    }
+
     static string StripNumber(string n) { int i = n.LastIndexOf(' '); return i > 0 && int.TryParse(n[(i + 1)..], out _) ? n[..i] : n; }
+
+    /// <summary>
+    /// A sketch moves by moving its plane, so it stays an editable sketch: Move and Rotate carry the plane, Mirror reflects it, and a uniform Scale
+    /// scales the drawing (points, radii and the lengths in its dimensions) about the pivot. Replacing only the geometry would drop the sketch's
+    /// data and leave its plane behind.
+    /// </summary>
+    bool AddSketchResult(CommandOutput o, SceneObject obj)
+    {
+        var pl = obj.SketchPlane!.Value; var model = obj.SketchData?.Clone();
+        var center = (_pivot?.Index ?? 0) == 0 ? obj.Shape.Props().Center : Vec3.Zero;
+        Func<Vec3, Vec3> Point, Dir;
+        switch (_kind)
+        {
+            case Kind.Move: { var d = new Vec3(_dx!.Value, _dy!.Value, _dz!.Value); Point = p => p + d; Dir = v => v; break; }
+            case Kind.Rotate:
+            {
+                var ax = _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ;
+                double a = _angle!.Value * Math.PI / 180, c = Math.Cos(a), s = Math.Sin(a);
+                Dir = v => v * c + Vec3.Cross(ax, v) * s + ax * (Vec3.Dot(ax, v) * (1 - c));
+                var turn = Dir; Point = p => center + turn(p - center);
+                break;
+            }
+            case Kind.Mirror:
+            {
+                var n = _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX;
+                Dir = v => v - n * (2 * Vec3.Dot(v, n)); Point = Dir;
+                break;
+            }
+            default:
+            {
+                double k = _factor!.Value;
+                if (model == null) { Point = p => center + (p - center) * k; Dir = v => v; break; }   // a datum plane keeps its directions; its origin moves with the scale
+                foreach (var pt in model.Points) { pt.X *= k; pt.Y *= k; pt.Z *= k; }
+                foreach (var e in model.Entities) e.R *= k;
+                foreach (var c in model.Constraints)
+                    if (c.Type is Core.Sketching.CType.Distance or Core.Sketching.CType.LineLength or Core.Sketching.CType.HDistance or Core.Sketching.CType.VDistance
+                        or Core.Sketching.CType.Radius or Core.Sketching.CType.Diameter or Core.Sketching.CType.PointLineDistance) c.Value *= k;
+                Point = p => center + (p - center) * k; Dir = v => v;
+                break;
+            }
+        }
+        Shape moved = _kind switch
+        {
+            Kind.Move => Occ.Translate(obj.Shape, new(_dx!.Value, _dy!.Value, _dz!.Value)),
+            Kind.Rotate => Occ.Rotate(obj.Shape, center, _axis!.Index == 0 ? Vec3.UnitX : _axis.Index == 1 ? Vec3.UnitY : Vec3.UnitZ, _angle!.Value),
+            Kind.Scale => Occ.Scale(obj.Shape, center, _factor!.Value),
+            _ => Occ.Mirror(obj.Shape, Vec3.Zero, _plane!.Index == 0 ? Vec3.UnitZ : _plane.Index == 1 ? Vec3.UnitY : Vec3.UnitX),
+        };
+        o.ReplaceSketches.Add((obj, moved, model, new Plane3(Point(pl.Origin), Dir(pl.U), Dir(pl.V))));
+        return true;
+    }
 
     void AddMeshResult(CommandOutput o, SceneObject obj, Meshing.TriMesh tri)
     {

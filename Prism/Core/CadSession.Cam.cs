@@ -18,10 +18,10 @@ public sealed partial class CadSession
         CamSetups.RemoveAll(s=>s.Name==setup.Name);CamSetups.Add(setup);CamSetup=setup;Dirty=true;Invalidate();
     }
     public CamSetup? SetupFor(ToolpathInfo path)=>path.SetupSignature==null?null:
-        (CamSetup?.Signature()==path.SetupSignature?CamSetup:CamSetups.FirstOrDefault(s=>s.Signature()==path.SetupSignature));
+        (CamSetup?.Matches(path.SetupSignature)==true?CamSetup:CamSetups.FirstOrDefault(s=>s.Matches(path.SetupSignature)));
     public IEnumerable<SceneObject> MillingProgram()=>Objects.Where(o=>o.Visible&&o.Asm is ToolpathInfo{IsPrint:false}).OrderBy(o=>((ToolpathInfo)o.Asm!).ProgramOrder);
     public IEnumerable<SceneObject> ActiveMillingProgram()=>MillingProgram().Where(o=>
-        o.Asm is ToolpathInfo p&&(p.SetupSignature==null||p.SetupName!=null&&p.SetupName==CamSetup?.Name||p.SetupName==null&&p.SetupSignature==CamSetup?.Signature()));
+        o.Asm is ToolpathInfo p&&(p.SetupSignature==null||p.SetupName!=null&&p.SetupName==CamSetup?.Name||p.SetupName==null&&CamSetup?.Matches(p.SetupSignature)==true));
     public PathTimeline? CamTimeline {get;private set;}
     public Guid? CamPathId {get;private set;}
     public double CamSeconds {get;private set;}
@@ -66,7 +66,7 @@ public sealed partial class CadSession
         var a=setup.StockMin;var b=setup.StockMax;if(a.Length!=3||b.Length!=3)return;
         Vec3 P(int i)=>new((i&1)==0?a[0]:b[0],(i&2)==0?a[1]:b[1],(i&4)==0?a[2]:b[2]);
         for(int i=0;i<8;i++)foreach(int bit in new[]{1,2,4})if((i&bit)==0)overlay.AddLine(P(i),P(i|bit),0xAA35B6FF,1);
-        var zero=setup.Origin();double length=Math.Max((P(7)-P(0)).Length*.1,3);overlay.AddLine(zero,zero+Vec3.UnitX*length,0xFFFF6B6F);overlay.AddLine(zero,zero+Vec3.UnitY*length,0xFF3FCF8E);overlay.AddLine(zero,zero+Vec3.UnitZ*length,0xFF4C94FF);overlay.AddLabel(zero,"G54 · "+setup.Name);
+        var zero=setup.Origin();double length=Math.Max((P(7)-P(0)).Length*.1,3);var(tc,ts)=CamSetup.Quarter(setup.ZeroTurns);overlay.AddLine(zero,zero+new Vec3(tc,ts,0)*length,0xFFFF6B6F);overlay.AddLine(zero,zero+new Vec3(-ts,tc,0)*length,0xFF3FCF8E);overlay.AddLine(zero,zero+Vec3.UnitZ*length,0xFF4C94FF);overlay.AddLabel(zero,"G54 · "+setup.Name);
     }
     void DrawCamTool(Overlay overlay)
     {

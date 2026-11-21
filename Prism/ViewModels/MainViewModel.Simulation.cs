@@ -25,6 +25,22 @@ public sealed class SimRow
 /// <summary>Study setup, running and results display.</summary>
 public sealed partial class MainViewModel
 {
+    /// <summary>Where a load acts, for its row in the Simulation panel: its faces, or the circle or rectangle on one face.</summary>
+    internal static string LoadWhere(Load l) => l.Region switch
+    {
+        LoadRegionShape.Circle => $"a {2 * l.RegionA:0.##} mm circle on a face",
+        LoadRegionShape.Rectangle => $"a {l.RegionA:0.##} × {l.RegionB:0.##} mm rectangle on a face",
+        _ => $"{l.Faces.Count} face(s)",
+    };
+
+    /// <summary>Which way a force acts, for its row: into the face, or toward a unit direction. Followed by a space so it reads in a sentence.</summary>
+    internal static string LoadWay(Load l)
+    {
+        if (l.AlongNormal) return "into the face ";
+        var d = l.Direction.Normalized();
+        return $"toward ({d.X:0.###}, {d.Y:0.###}, {d.Z:0.###}) ";
+    }
+
     public ObservableCollection<SimRow> SimRows { get; } = [];
     public ObservableCollection<ResultLine> SimStats { get; } = [];
     public ObservableCollection<string> SimNotes { get; } = [];
@@ -103,10 +119,10 @@ public sealed partial class MainViewModel
                     Id = l.Id, Title = l.Name, Glyph = l.Kind switch { LoadKind.Pressure => "sim-pressure", LoadKind.Torque => "sim-torque", LoadKind.Gravity => "sim-gravity", _ => "sim-force" },
                     Detail = l.Kind switch
                     {
-                        LoadKind.Pressure => $"{l.Value:0.##} MPa on {l.Faces.Count} face(s)",
+                        LoadKind.Pressure => $"{l.Value:0.##} MPa on {LoadWhere(l)}",
                         LoadKind.Torque => $"{l.Value:0.##} N·mm",
                         LoadKind.Gravity => $"{l.Value:0.##} g",
-                        _ => $"{l.Value:0.##} N on {l.Faces.Count} face(s)",
+                        _ => $"{l.Value:0.##} N {LoadWay(l)}on {LoadWhere(l)}",
                     },
                 });
         }

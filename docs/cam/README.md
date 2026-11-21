@@ -33,6 +33,40 @@ The owner approved the **Setup → Toolpaths → Review → Export** ribbon orde
 
 Windows verification on 2026-11-10: 77 targeted CAM and ribbon cases passed. CAM-H004 checks section order, Toolpaths menu membership and posting through the ribbon to a folder and a file. CAM-I003 opened Post G-code from Export in the desktop build and wrote a 33-line GRBL facing program containing G21, G54 and feed moves. [Desktop capture](evidence/CAM-I003-subtractive-export.png). Controller interpretation and machining remain manual checks.
 
+### Work zero choices (CAM-P1 owner-approved 2026-11-17; CAM-P2 withdrawn)
+
+The owner approved CAM-P1 and withdrew CAM-P2 (start position) on 2026-11-17, so P2 stays only as a record and is not planned. Status: CAM-P1 is implemented and covered by CAM-H001 and CAM-H014 to CAM-H016 in `CamWorkflowTests.cs`. The setup lists the nine stock points, Model origin and Picked point (click the model or type X and Y) for X/Y, and a separate height choice. Setups saved before keep their zero. Paths made before still match their setup. While CAM Setup is open the viewport shows the stock box, nine dots for the stock points (click one to choose it) and the work zero axes with its coordinates (CAM-H017). The visual check in the running app is still to do. Today a setup offers only **Stock lower-left, top** or **Model origin** for G54, and the Post G-code dialog repeats a similar list (plus **Saved CAM setup**). The program has no chosen start or end position: each operation begins with a rapid to the clearance plane and the program stops where the last cut ended.
+
+**CAM-P1. Work zero (G54) choices in the setup.**
+- X/Y: a 3×3 grid of stock points (four corners, four edge midpoints, center), **Model origin**, or **Pick a point** (a point the owner clicks on the model or types in model coordinates).
+- Z: **Top of stock**, **Bottom of stock** or **Model origin**.
+- The saved setup stores the result. Post G-code reads it from the setup, so the two cannot disagree. Post may still override with an explicit choice, and the result line states the work zero in model coordinates as it does today.
+- Posted coordinates are measured from the chosen point. Changing it after generating paths does not invalidate them, because only the posted numbers change; the setup sheet and stock review show the new zero.
+
+**CAM-P2. Start and end position (interpretation of "where the tool starts": please confirm).**
+- The setup has an optional **Start position**: X, Y and Z in work coordinates. Choices: **None** (today's behavior), a stock corner or center at the clearance height, or **Pick a point**.
+- When set, the program rapids to the clearance plane first, then to the start position's X/Y, before the first operation, and returns there after the last operation. Z never goes below the clearance plane on the way.
+- Tool changes between operations also return to the start position, so a person can reach the spindle.
+- Toolpath playback, stock review and the G-code start from the same position.
+
+**Acceptance criteria**
+1. A setup with work zero at stock center, top posts the same moves as a lower-left setup, shifted by half the stock width and depth.
+2. With Z zero at the bottom of stock, the top of the stock is at a positive Z equal to its thickness in the posted program, cuts end at positive Z values, and the setup sheet says which Z zero was used.
+3. A picked point outside the stock bounds is accepted and stated in the result, because a vise or fixture reference can be off the stock. A point that is not a finite number is refused with a message.
+4. With a start position set, the first motion in the posted program is a rapid at the clearance plane to its X/Y, and the last motion returns to it. With None, the output is unchanged from today.
+5. A start position at clearance height produces no lateral rapid below the clearance plane.
+6. Existing saved setups open unchanged and keep their current work zero.
+
+### Playing stock removal
+
+The owner-approved wood demo (#131, 2026-11-15) requires showing the block being cut. **Stock Review → Play removal** starts from the current Program position, or restarts at zero after 100%. It recomputes the swept-cutter stock at 5% increments of feed-based program time; the marker identifies the current tool position. **Pause removal** stops the timer; **Next removal step** advances one interval. Changing Program position still needs Run checks for an individual review. Closing the command stops playback. This is a stepped sampled review, not real-time machine playback, and larger programs may compute slowly. Full-program toolpath lines are suppressed while this command is open so the stock surface remains readable; operations remain visible and included in the simulation.
+
+The Walnut valet gallery demo uses a 1.8 mm grid, 8 mm holder diameter, 40 mm flute/holder clearance length and 0.3 mm comparison tolerance. These review settings describe the demo tool envelope; they are entered in Stock Review and are not saved as part of the CAM setup. Its four paths retain their individual cutter diameters. [Maintained CAM checks](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) cover stepping/restart and uncluttered stock display; [GAL-I014](../../Prism.Tests/Integration/DesktopCncPatternGalleryTests.cs) exercises actual timer playback, saved paths and stock reduction. Windows verification on 2026-11-15 passed GAL-I014 with actual desktop timer playback and stock reduction; the final scoped Headless run passed 111 CAM/appearance/pattern cases (82 CAM cases).
+
+### Sampled 3D finishing clearance
+
+During the owner-approved walnut tray demo ([#131](https://github.com/chrizpro/prism/issues/131)), the nearest height-map lookup could choose a low sample beside a steep wall and underestimate cutter clearance. 3D Finish now takes the highest compensated height in the adjacent grid neighborhood, retaining a conservative sampled band near transitions. Flat stretches retain their height; narrow grooves and steep walls can retain additional material. [CNC-H020](../../Prism.Tests/Headless/Cam/CncOperationTests.cs) checks both flat and ball cutters and their interpolated segments against an off-grid step's analytic envelope. Windows verification on 2026-11-15 passed all 81 Headless CAM cases; GAL-I014 passed on the saved four-operation tray, with zero sampled gouges, rapid contacts and holder contacts at its documented review settings. This remains sampled screening, with the stock-review and machine checks described below.
+
 ### Constant-Z Finish
 
 Owner approved 2026-11-10 ([#116](https://github.com/chrizpro/prism/issues/116)). In **Subtractive → Toolpaths**, **Constant-Z Finish** traces a fresh horizontal contour at each depth. Use it after roughing for steep walls. **3D Finish** still runs parallel passes over shallow surfaces.
@@ -117,3 +151,17 @@ Fixed on 2026-11-05:
 The standalone suites cover the legacy 3D-print Slice tool and additional print formats. The maintained FDM tests cover review and the 3MF file boundary.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+## Arc soap mold CAM demonstration
+
+Owner-authorized 2026-11-16 ([#136](https://github.com/chrizpro/prism/issues/136)): the [Arc soap tooling study](../interface/gallery/README.md#arc-soap-mold-and-cam--november-16-native-study) has two cavity-up +Z setups, each with facing, registration-hole peck drilling, raster roughing and ball-nose finishing. Both saved setup/source reviews accepted their four paths after reopen. Sampled stock review completed with zero reported gouges, rapid contacts or holder contacts at the documented grids; conservative finishing material remains around small details. The gallery guide records exact review settings, native files and actual Prism screenshots. No physical machining, renderer or test suite was run, and no CAM behavior changed.
+
+## Known roughing stock-top comparison issue
+
+Confirmed 2026-11-16 during the Arc soap mold study ([#138](https://github.com/chrizpro/prism/issues/138)): a tooling half rotated 180° had serialized stock top 26.00000000000001 mm. Entering a roughing top of 26 mm was refused by the strict stock-top comparison; 26.01 mm succeeded with all other settings unchanged. The saved gallery paths use the latter workaround. [Actual rejected/accepted preview evidence](../interface/gallery/evidence/modeling-bug-findings.json). This is an unresolved numerical comparison bug; no product fix or regression pass is claimed. Existing [CAM program coverage](../../Prism.Tests/Headless/Cam/CamProgramTests.cs) remains unchanged.
+
+## Multi-part router jobs — proposed extension
+
+Owner requested planning the observatory's parts for a **600 × 400 mm** demo bed on 2026-11-16 ([#140](https://github.com/chrizpro/prism/issues/140)). Current named setups each bind one model body; 3D roughing/finishing and Stock Review use that body. Multiple 2D outlines can be machined, but shared-sheet multi-part stock review and assembly-linked bed layouts are not a complete supported workflow.
+
+Proposed for owner review ([#141](https://github.com/chrizpro/prism/issues/141)): linked part instances on a stock/fixture layout, quantities and labels, one named setup per physical bed load or flip, a common work zero, multi-body source freshness and stock review, operation ordering across parts, and separate posted programs/setup sheets. Manual placement should precede optional automatic nesting. No new product behavior or requirements tests are implemented by this proposal. The [observatory inventory and router work breakdown](../../gallery/extras/maple-observatory-router-plan.md) records fabrication decisions needed before toolpath generation.

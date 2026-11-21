@@ -16,7 +16,9 @@ const total = toolCount()
 
 # Tool reference
 
-Every tool on every ribbon, {{ total }} in all, has its own page: what it does, the inputs it asks for, each setting with its default, and how to run it from a script. Pick a ribbon below to see its tools. Pages are generated from the application, so they match the shipped ribbons; a customized ribbon may arrange tools differently.
+Every tool on every ribbon, {{ total }} in all, has its own illustrated page: a before-and-after example, a focused action diagram or an actual Prism result, plus what it does, the inputs it asks for, each setting with its default, and how to run it from a script. Pick a ribbon below to see its tools. Pages are generated from the application, so they match the shipped ribbons; a customized ribbon may arrange tools differently.
+
+Pictures are labeled by source. Help examples and diagrams explain the tool; analysis colors in those examples are schematic, not solved-study evidence. Click any image to see it full size.
 
 New to Prism? Read [how a command works](/guide/solid#how-a-command-works) first. Looking for one tool? Use search (<kbd>Ctrl</kbd>+<kbd>K</kbd>) or the [tool finder](/reference/ribbons). Sections that repeat on many ribbons, such as Select and Transform, are on [Shared tools](/tools/shared).
 

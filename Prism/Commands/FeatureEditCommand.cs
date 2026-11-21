@@ -15,13 +15,13 @@ public sealed class FeatureEditCommand : Command
 {
     readonly SelectionSlot _faces;
     readonly ChoiceParam _action;
-    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _threadDia, _threadPitch, _threadDepth;
+    readonly NumberParam _dx, _dy, _dz, _copies, _dia, _width, _length, _boreDia, _boreDepth, _sinkDia, _sinkAngle, _filletR, _chamferD, _chamferD2, _swapSize, _textDepth, _ribT, _threadDia, _threadPitch, _threadDepth;
     readonly ChoiceParam _type, _drag;
-    readonly BoolParam _flip, _leftHand;
+    readonly BoolParam _flip, _leftHand, _carry;
 
     public FeatureEditCommand()
     {
-        _faces = Slot(new SelectionSlot { Label = "Feature to edit (click a hole, slot, pocket, boss or fillet)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
+        _faces = Slot(new SelectionSlot { Label = "Feature to edit (click a hole, slot, pocket, boss, fillet, chamfer or text)", Filter = SelFilter.Face, Multi = true, SmartPick = true });
         _action = Choice("Action", 0, "Move", "Resize", "Copy", "Delete", "Change type");
         _dx = Num("Move X", 0); _dy = Num("Move Y", 0); _dz = Num("Move Z", 0);
         _copies = Num("Number of copies", 1, 1, 200, 1);
@@ -29,6 +29,11 @@ public sealed class FeatureEditCommand : Command
         _width = Num("New slot width (0 = keep)", 0, 0, 1e5, 1);
         _length = Num("New slot length (0 = keep)", 0, 0, 1e5, 1);
         _filletR = Num("New fillet radius (0 = keep)", 0, 0, 1e5, 0.5);
+        _chamferD = Num("New chamfer distance (0 = keep)", 0, 0, 1e5, 0.5);
+        _chamferD2 = Num("Second chamfer distance (0 = equal)", 0, 0, 1e5, 0.5);
+        _swapSize = Num("Size after the swap (0 = same setback)", 0, 0, 1e5, 0.5);
+        _textDepth = Num("New text depth or height (0 = keep)", 0, 0, 1e5, 0.1);
+        _ribT = Num("New rib thickness (0 = keep)", 0, 0, 1e5, 0.5);
         _type = Choice("New hole type", 1, "Plain", "Counterbore", "Countersink", "Threaded (modeled)");
         _boreDia = Num("Counterbore diameter", 12, 0.01, 1e5, 1);
         _boreDepth = Num("Counterbore depth", 4, 0.01, 1e5, 0.5);
@@ -40,6 +45,17 @@ public sealed class FeatureEditCommand : Command
         _threadDepth = Num("Thread depth (0 = full hole)", 0, 0, 1e5, 0.5);
         _leftHand = Check("Left-hand thread", false);
         _drag = Choice("Drag handle along", 0, "X", "Y", "Z");
+        _carry = Check("Bolts and nuts in the hole follow it", true);
+    }
+
+    // Recipes restore by position. Before v0.4 the list had no chamfer, swap-size, text-depth or rib fields (inserted after the fillet radius)
+    // and no "Bolts and nuts follow it" box at the end, so such a recipe has six fewer values: put five zeros back at their place.
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe)
+    {
+        if (recipe.Values.Count != Params.Count - 6) return recipe;
+        int at = Params.IndexOf(_chamferD);
+        for (int i = 0; i < 5; i++) recipe = InsertValue(recipe, at, 0.0);
+        return recipe;
     }
 
     /// <summary>Start with these faces picked and this action chosen (the context menu uses it). Action: 0 Move, 1 Resize, 2 Copy, 3 Delete, 4 Change type.</summary>
@@ -87,7 +103,7 @@ public sealed class FeatureEditCommand : Command
     public override string Title => "Edit Feature";
     public override string Icon => "movehole";
     public override string OkText => "Apply";
-    public override string Hint => "Click any face of a hole, slot, pocket, boss or fillet: the whole feature is picked. Then choose what to do. Move slides it by the X / Y / Z you type. Copy makes copies at that spacing. Resize changes the diameter of a round hole or boss, the width and length of a slot, or the radius of a straight fillet. Change type turns a hole into a plain hole, a counterbore or a countersink. Delete removes it and closes the gap. Drag the arrow in the view, or type the distances. “Select by” can pick every feature of the same size or a whole pattern at once.";
+    public override string Hint => "Click any face of a hole, slot, pocket, boss or fillet: the whole feature is picked. Then choose what to do. Move slides it by the X / Y / Z you type. Copy makes copies at that spacing. Resize changes the diameter of a round hole or boss, the width and length of a slot, the radius of a fillet or the distances of a chamfer. Change type turns a hole into a plain hole, a counterbore, a countersink or a threaded hole, a chamfer into a fillet and a fillet into a chamfer. Delete removes it and closes the gap. Drag the arrow in the view, or type the distances. “Select by” can pick every feature of the same size or a whole pattern at once.";
 
     protected override void UpdateVisibility()
     {
@@ -98,8 +114,15 @@ public sealed class FeatureEditCommand : Command
         _dia.IsVisible = a == 1 && (kinds.Count == 0 || kinds.Any(k => k is FeatureKind.Hole or FeatureKind.Boss));
         _width.IsVisible = _length.IsVisible = a == 1 && (kinds.Count == 0 || kinds.Contains(FeatureKind.Slot));
         _filletR.IsVisible = a == 1 && kinds.Contains(FeatureKind.Fillet);
+        _chamferD.IsVisible = _chamferD2.IsVisible = a == 1 && kinds.Contains(FeatureKind.Chamfer);
+        _textDepth.IsVisible = a == 1 && kinds.Contains(FeatureKind.Text);
+        _ribT.IsVisible = a == 1 && kinds.Contains(FeatureKind.Rib);
         _drag.IsVisible = move;
-        bool retype = a == 4; int t = _type.Index;
+        _carry.IsVisible = a is 0 or 1 or 3 && (kinds.Count == 0 || kinds.Any(k => k is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink));
+        bool swap = kinds.Count > 0 && kinds.All(k => k is FeatureKind.Fillet or FeatureKind.Chamfer);
+        bool flipText = kinds.Count > 0 && kinds.All(k => k == FeatureKind.Text);   // text flips between engraved and embossed, nothing to set
+        bool retype = a == 4 && !swap && !flipText; int t = _type.Index;
+        _swapSize.IsVisible = a == 4 && swap;
         _type.IsVisible = retype; _flip.IsVisible = retype && t != 0;
         _boreDia.IsVisible = _boreDepth.IsVisible = retype && t == 1;
         _sinkDia.IsVisible = _sinkAngle.IsVisible = retype && t == 2;
@@ -126,7 +149,7 @@ public sealed class FeatureEditCommand : Command
         if (_faces.Items.Count == 0) return null;
         int act = _action.Index; var move = new Vec3(_dx.Value, _dy.Value, _dz.Value);
         if (act is 0 or 2 && move.Length < 1e-9) return null;
-        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0) return null;
+        if (act == 1 && _dia.Value <= 0 && _width.Value <= 0 && _length.Value <= 0 && _filletR.Value <= 0 && _chamferD.Value <= 0 && _textDepth.Value <= 0 && _ribT.Value <= 0) return null;
         var o = new CommandOutput { Label = $"{_action.Selected} feature", Icon = "movehole" };
         foreach (var grp in DirectHelpers.ByBody(_faces.Items))
         {
@@ -134,15 +157,25 @@ public sealed class FeatureEditCommand : Command
             var feats = grp.Select(i => FeatureFinder.FeatureOf(body, i.Index) ?? throw new FormatException("That face is gone.")).Distinct().ToList();
             // fill: material added where a hole was; strip: a boss cut away; drill: new holes; grow: new bosses
             List<Shape> fill = [], strip = [], drill = [], grow = []; List<int> fillets = []; List<Feat> resizeFillets = []; List<Shape> grooves = [];
+            List<Feat> resizeChamfers = [], toChamfer = [], toFillet = [], ribs = [];
             foreach (var f in feats)
             {
-                bool boss = f.Kind == FeatureKind.Boss;
+                bool boss = Raised(body, f);
                 switch (f.Kind)
                 {
                     case FeatureKind.Face: throw new FormatException("That is a plain face, not a feature. Use Move Face or Push / Pull to change it.");
                     case FeatureKind.Fillet:
                         if (act == 1) { if (_filletR.Value > 0) { fillets.AddRange(f.Faces); resizeFillets.Add(f); } break; }
-                        if (act != 3) throw new FormatException("A fillet can be resized or deleted here. Use Fillet to add a new one.");
+                        if (act == 4) { fillets.AddRange(f.Faces); toChamfer.Add(f); break; }
+                        if (act != 3) throw new FormatException("A fillet can be resized, deleted or swapped for a chamfer here. Use Fillet to add a new one.");
+                        fillets.AddRange(f.Faces); break;
+                    case FeatureKind.Rib when act == 1:
+                        if (_ribT.Value > 0) ribs.Add(f);
+                        break;
+                    case FeatureKind.Chamfer:
+                        if (act == 1) { if (_chamferD.Value > 0) { fillets.AddRange(f.Faces); resizeChamfers.Add(f); } break; }
+                        if (act == 4) { fillets.AddRange(f.Faces); toFillet.Add(f); break; }
+                        if (act != 3) throw new FormatException("A chamfer can be resized, deleted or swapped for a fillet here. Use Chamfer to add a new one.");
                         fillets.AddRange(f.Faces); break;
                     default:
                         var tool = ToolOf(body, f);
@@ -151,6 +184,13 @@ public sealed class FeatureEditCommand : Command
                             case 0: (boss ? strip : fill).Add(tool); (boss ? grow : drill).Add(Occ.Translate(tool, move)); break;
                             case 2: for (int k = 1; k <= (int)_copies.Value; k++) (boss ? grow : drill).Add(Occ.Translate(tool, move * k)); break;
                             case 3: (boss ? strip : fill).Add(tool); break;
+                            case 4 when f.Kind == FeatureKind.Thread && f.Round is { } tr:
+                                // Change type on a threaded hole removes the thread and leaves the plain bore (its minor diameter, the tap drill)
+                                fill.Add(tool); drill.Add(DirectHelpers.Cylinder(tr.Origin, f.Dir, tr.T0, tr.T1, tr.Radius)); break;
+                            case 4 when f.Kind == FeatureKind.Text:
+                                // engraved becomes embossed (or back): the letters are reflected through the face they sit on, which keeps them reading the same way
+                                var ti = FeatureFinder.TextOf(body, f) ?? throw new FormatException("Could not read that text.");
+                                (boss ? strip : fill).Add(tool); (boss ? drill : grow).Add(AlongNormal(tool, ti, -1)); break;
                             case 4: fillets.AddRange(f.Faces); drill.Add(RetypedHole(body, f, out var groove)); if (groove != null) grooves.Add(groove); break;   // the old hole is healed away, then the new one is cut
                             default:
                                 var resized = Resized(body, f);
@@ -161,22 +201,125 @@ public sealed class FeatureEditCommand : Command
                 }
             }
             var start = fillets.Count > 0 ? Occ.Defeature(body.Shape, [.. fillets.Distinct()]) : body.Shape;
-            if (resizeFillets.Count > 0) start = ResizedFillets(body, start, resizeFillets);
+            if (resizeFillets.Count > 0) start = Resharpened(body, start, resizeFillets, (s, e) => Occ.Fillet(s, e, _filletR.Value));
+            if (resizeChamfers.Count > 0)
+                start = Resharpened(body, start, resizeChamfers, (s, e) => _chamferD2.Value > 0 ? Occ.Chamfer2(s, e, _chamferD.Value, _chamferD2.Value, 0) : Occ.Chamfer(s, e, _chamferD.Value));
+            if (toFillet.Count > 0)
+            {
+                double r = _swapSize.Value > 0 ? _swapSize.Value : toFillet.Min(f => FeatureFinder.ChamferOf(body, f) is { } c ? Math.Min(c.SetbackA, c.SetbackB) : double.MaxValue);
+                if (r is <= 0 or double.MaxValue) throw new FormatException("Could not read that chamfer's size. Type the fillet radius in Size after the swap.");
+                start = Resharpened(body, start, toFillet, (s, e) => Occ.Fillet(s, e, r));
+            }
+            if (toChamfer.Count > 0)
+            {
+                double d = _swapSize.Value > 0 ? _swapSize.Value : RadiusOf(body, toChamfer);
+                start = Resharpened(body, start, toChamfer, (s, e) => Occ.Chamfer(s, e, d));
+            }
+            // a rib keeps its centre plane: each side moves out (or in) by half the change
+            foreach (var rf in ribs)
+            {
+                var rib = FeatureFinder.RibOf(body, rf) ?? throw new FormatException("Could not read that rib.");
+                double half = (_ribT.Value - rib.Thickness) / 2;
+                foreach (int side in new[] { rib.SideA, rib.SideB })
+                {
+                    using var face = body.Shape.Sub(SubKind.Face, side); var info = Occ.FaceInfoOf(face);
+                    var nrm = Vec3.Dot(info.Normal, side == rib.SideA ? rib.Normal : -rib.Normal) < 0 ? -info.Normal.Normalized() : info.Normal.Normalized();
+                    using var again = FindFaceLike(start, DirectHelpers.PointOn(face), nrm) ?? throw new FormatException("Could not find the rib's side again.");
+                    start = DirectHelpers.MoveFaceToPlane(start, again, nrm, DirectHelpers.PointOn(again) + nrm * half, nrm);
+                }
+            }
             var result = DirectHelpers.Batch(DirectHelpers.Batch(start, fill, strip), grow, drill);
             foreach (var g in grooves) result = Occ.Cut(result, g);
             o.Replace.Add((body, result));
+            if (_carry.Value && act is 0 or 1 or 3) CarryFasteners(o, body, feats, act, move);
             foreach (var g in feats.GroupBy(f => f.Name))
                 Results.Add(new ResultLine(g.Key + (g.Count() > 1 ? "s" : ""), $"{_action.Selected.ToLowerInvariant()}: {g.Count()}"));
         }
         return o;
     }
 
+    /// <summary>
+    /// Bolts, screws and nuts found in the edited holes go with them: moved by the same distance, removed with the hole, or scaled across their axis
+    /// to the new size (from one metric size to the next when both diameters are standard, otherwise by the ratio of the diameters).
+    /// </summary>
+    void CarryFasteners(CommandOutput o, SceneObject body, List<Feat> feats, int act, Vec3 move)
+    {
+        var done = new HashSet<Guid>(o.Replace.Select(r => r.Old.Id));
+        int moved = 0;
+        foreach (var f in feats)
+        {
+            if (FastenerFinder.Bore(body, f) is not { } bore) continue;
+            foreach (var fast in FastenerFinder.In(S.Objects, body, f))
+            {
+                var parts = fast.Nuts.Prepend(fast.Body).Where(p => done.Add(p.Id)).ToList();
+                if (parts.Count == 0) continue;
+                moved += parts.Count;
+                if (act == 3) { o.Remove.AddRange(parts); continue; }
+                if (act == 0) { foreach (var p in parts) o.Replace.Add((p, Occ.Translate(p.Shape, move))); continue; }
+                if (_dia.Value <= 0 || f.Round == null) continue;
+                double oldD = 2 * bore.Radius, newD = _dia.Value;
+                string? Size(double d) => StandardHoles.Match(d)?.Split(' ')[0];
+                double k = Size(oldD) is { } s0 && Size(newD) is { } s1 && StandardHoles.Of(s0) is { } a0 && StandardHoles.Of(s1) is { } a1 ? a1.Nominal / a0.Nominal : newD / oldD;
+                // each part grows evenly about where it bears on the plate (under a bolt's head, a nut's face), so it stays seated and its round
+                // faces stay exact cylinders; a bolt one size up is also longer, as the next size usually is
+                var ax = fast.Axis.Normalized();
+                double hole0 = Vec3.Dot(bore.Origin + f.Dir.Normalized() * bore.T0 - fast.Origin, ax), hole1 = Vec3.Dot(bore.Origin + f.Dir.Normalized() * bore.T1 - fast.Origin, ax);
+                foreach (var p in parts)
+                {
+                    var pm = p.Mesh; double sum = 0; int cnt = 0;
+                    for (int v = 0; v < pm.Positions.Length; v += 3)
+                    {
+                        var q = new Vec3(pm.Positions[v], pm.Positions[v + 1], pm.Positions[v + 2]) - fast.Origin; double t = Vec3.Dot(q, ax);
+                        if ((q - ax * t).Length > bore.Radius * 1.05) { sum += t; cnt++; }
+                    }
+                    double headT = cnt > 0 ? sum / cnt : hole1;
+                    double bearT = Math.Abs(headT - hole0) < Math.Abs(headT - hole1) ? hole0 : hole1;
+                    o.Replace.Add((p, Occ.Scale(p.Shape, fast.Origin + ax * bearT, k)));
+                }
+            }
+        }
+        if (moved > 0) Results.Add(new ResultLine("Fasteners", act == 3 ? $"removed: {moved}" : act == 0 ? $"moved: {moved}" : $"resized: {moved}"));
+    }
+
     /// <summary>The solid a feature occupies: the void of a hole, slot or pocket (to fill or re-cut) or the material of a boss (to remove or re-add).</summary>
     internal static Shape ToolOf(SceneObject body, Feat f)
     {
+        // a threaded hole's void is everything inside its major diameter that is not material: the bore and the helical groove together
+        if (f.Kind == FeatureKind.Thread && FeatureFinder.ThreadOf(body, f) is { } th && f.Round is { } tr)
+        {
+            using var full = DirectHelpers.Cylinder(tr.Origin, f.Dir, tr.T0, tr.T1, th.Major / 2);
+            return Occ.Cut(full, body.Shape);
+        }
         if (f.Round is { } r) return DirectHelpers.Cylinder(r.Origin, f.Dir, r.T0, r.T1, r.Radius);
         var filled = Occ.Defeature(body.Shape, [.. f.Faces]);
-        return f.Kind == FeatureKind.Boss ? Occ.Cut(body.Shape, filled) : Occ.Cut(filled, body.Shape);
+        return Raised(body, f) ? Occ.Cut(body.Shape, filled) : Occ.Cut(filled, body.Shape);
+    }
+
+    /// <summary>The flat face of <paramref name="body"/> through <paramref name="point"/> with this normal (after an earlier step of the same edit changed the body).</summary>
+    static Shape? FindFaceLike(Shape body, Vec3 point, Vec3 normal)
+    {
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            var face = body.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(face);
+            if (info.Type == "Plane" && Vec3.Cross(info.Normal.Normalized(), normal).Length < 1e-6 && Math.Abs(Vec3.Dot(DirectHelpers.PointOn(face) - point, normal)) < 1e-6) return face;
+            face.Dispose();
+        }
+        return null;
+    }
+
+    /// <summary>Material standing up from the body (a boss, embossed text) rather than a void cut into it.</summary>
+    internal static bool Raised(SceneObject body, Feat f) => f.Kind is FeatureKind.Boss or FeatureKind.Rib || f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { Engraved: false };
+
+    /// <summary>Stretches a text's solid along the normal of the face it sits on, keeping that face fixed: factor 2 doubles the depth, -1 reflects it to the other side.</summary>
+    static Shape AlongNormal(Shape tool, TextInfo t, double factor)
+    {
+        // a reflection through a linear map would turn the solid inside out; the kernel's mirror keeps its faces facing outwards
+        if (Math.Abs(factor + 1) < 1e-12) return Occ.Mirror(tool, t.Normal.Normalized() * t.PlaneHeight, t.Normal);
+        var n = t.Normal.Normalized(); double k = factor - 1;
+        double[] m = [1 + k * n.X * n.X, k * n.X * n.Y, k * n.X * n.Z, k * n.Y * n.X, 1 + k * n.Y * n.Y, k * n.Y * n.Z, k * n.Z * n.X, k * n.Z * n.Y, 1 + k * n.Z * n.Z];
+        var p0 = n * t.PlaneHeight;
+        var mp = new Vec3(m[0] * p0.X + m[1] * p0.Y + m[2] * p0.Z, m[3] * p0.X + m[4] * p0.Y + m[5] * p0.Z, m[6] * p0.X + m[7] * p0.Y + m[8] * p0.Z);
+        return Occ.Affine(tool, m, p0 - mp);
     }
 
     /// <summary>The feature after Resize, or null when the typed sizes do not apply to it.</summary>
@@ -192,7 +335,12 @@ public sealed class FeatureEditCommand : Command
             if (_width.Value <= 0 && _length.Value <= 0) return null;
             return SlotTool(body, f, _width.Value, _length.Value);
         }
-        throw new FormatException($"Resize works on round holes and bosses and on slots. For a {f.Name.ToLowerInvariant()}, move its walls with Move Face.");
+        if (f.Kind == FeatureKind.Text && FeatureFinder.TextOf(body, f) is { } text)
+        {
+            if (_textDepth.Value <= 0) return null;
+            return AlongNormal(ToolOf(body, f), text, _textDepth.Value / text.Depth);
+        }
+        throw new FormatException($"Resize works on round holes and bosses, slots and text. For a {f.Name.ToLowerInvariant()}, move its walls with Move Face.");
     }
 
     /// <summary>A slot (two round ends joined by two flat walls) with a new width and length, same centre, direction and depth.</summary>
@@ -274,23 +422,34 @@ public sealed class FeatureEditCommand : Command
     }
 
     // ---------------------------------------------------------------- fillet radius
-    /// <summary>
-    /// Re-fillet fillets (single rounds, rounded corners, rims; several at once so neighbours that meet are rounded together) with a new radius: the old faces were already removed, so the sharp edges they rounded are back.
-    /// They are the edges the removal created (not on the original body) that run alongside the removed faces; round them again together.
-    /// </summary>
-    Shape ResizedFillets(SceneObject body, Shape current, List<Feat> feats)
+    /// <summary>The largest radius of the picked fillets (a torus's tube radius, otherwise the round's radius).</summary>
+    static double RadiusOf(SceneObject body, IEnumerable<Feat> feats)
     {
-        var m = body.Mesh; var original = body.Shape;
-        double r = 0; var pts = new List<Vec3>();
+        double r = 0;
         foreach (int i in feats.SelectMany(f => f.Faces))
         {
-            var info = Occ.FaceInfoOf(original.Sub(SubKind.Face, i));
+            using var face = body.Shape.Sub(SubKind.Face, i); var info = Occ.FaceInfoOf(face);
             r = Math.Max(r, info.Type == "Torus" ? info.R2 : info.R1);
+        }
+        if (r <= 0) throw new FormatException("Could not read that fillet. Delete it and add a new Fillet instead.");
+        return r;
+    }
+
+    /// <summary>
+    /// Rounds or bevels again the edges that picked fillets or chamfers replaced. Their faces were already removed, so the sharp edges are back:
+    /// they are the edges the removal created (not on the original body) that run alongside the removed faces. All of them are redone together,
+    /// so neighbours that meet are treated as one.
+    /// </summary>
+    static Shape Resharpened(SceneObject body, Shape current, List<Feat> feats, Func<Shape, int[], Shape> redo)
+    {
+        var m = body.Mesh; var original = body.Shape;
+        double size = feats.Max(f => FeatureFinder.ChamferOf(body, f) is { } c ? Math.Max(c.SetbackA, c.SetbackB) : f.Kind == FeatureKind.Fillet ? RadiusOf(body, [f]) : 0);
+        var pts = new List<Vec3>();
+        foreach (int i in feats.SelectMany(f => f.Faces))
             for (int t = m.FaceTriStart[i]; t < m.FaceTriStart[i + 1]; t++)
                 for (int c = 0; c < 3; c++) { int vi = m.Indices[3 * t + c] * 3; pts.Add(new Vec3(m.Positions[vi], m.Positions[vi + 1], m.Positions[vi + 2])); }
-        }
-        if (r <= 0 || pts.Count == 0) throw new FormatException("Could not read that fillet. Delete it and add a new Fillet instead.");
-        double reach = 2.5 * r + 0.01;
+        if (size <= 0 || pts.Count == 0) throw new FormatException("Could not read that feature's size. Delete it and add it again instead.");
+        double reach = 2.5 * size + 0.01;
         bool Near(Vec3 p) { foreach (var q in pts) if ((q - p).Length <= reach) return true; return false; }
         var oldEdges = new List<Vec3>();
         for (int e = 0; e < original.Count(SubKind.Edge); e++) { var ei = Occ.EdgeInfoOf(original.Sub(SubKind.Edge, e)); oldEdges.Add((ei.Start + ei.End) * 0.5); oldEdges.Add(ei.Start); }
@@ -302,7 +461,7 @@ public sealed class FeatureEditCommand : Command
             if (WasThere(mid, ei.Start) || !Near(ei.Start) || !Near(ei.End)) continue;
             found.Add(e);
         }
-        if (found.Count == 0) throw new FormatException("Could not find the sharp edges this fillet rounded. Delete it and add a new Fillet instead.");
-        return Occ.Fillet(current, [.. found], _filletR.Value);
+        if (found.Count == 0) throw new FormatException("Could not find the sharp edges that feature replaced. Delete it and add it again instead.");
+        return redo(current, [.. found]);
     }
 }

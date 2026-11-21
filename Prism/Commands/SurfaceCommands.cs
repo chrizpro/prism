@@ -143,20 +143,55 @@ public sealed class ThickenCommand : Command
 {
     readonly SelectionSlot _src;
     readonly NumberParam _t;
+    readonly BoolParam _keep;
     public ThickenCommand()
     {
-        _src = Slot(new SelectionSlot { Label = "Surface", Filter = SelFilter.SurfaceObj });
+        _src = Slot(new SelectionSlot { Label = "Surface", Filter = SelFilter.SurfaceObj | SelFilter.Face, Multi = true });
         _t = Num("Thickness", 3);
+        _keep = Check("Keep the original surface", false);
     }
     public override string Title => "Thicken";
-    public override string Hint => "Pick a surface to turn into a solid, then pull the orange arrow or type a thickness. Negative thickness goes the other way.";
+    public override string Hint => "Pick a surface to turn into a solid, then pull the orange arrow or type a thickness. Negative thickness goes the other way. Pick faces of a solid instead to grow them outward (positive) or cut them inward (negative) by that thickness.";
     public override HandleSpec? Handle => _src.Items.Count == 0 ? null : SurfaceHandle(_src.Items[0], _t);
+
+    /// <summary>Faces of a solid: a slab of the given thickness is added on the outside of each face (positive) or cut out of the inside (negative).</summary>
+    CommandOutput ThickenFaces()
+    {
+        var o = new CommandOutput();
+        double t = _t.Value;
+        if (Math.Abs(t) < 1e-9) throw new FormatException("Give a thickness other than zero.");
+        foreach (var group in _src.Items.Where(i => i.Kind == SelKind.Face).GroupBy(i => i.Obj))
+        {
+            var obj = S.Find(group.Key)!;
+            if (obj.Kind != ObjKind.Solid) throw new FormatException("Thickening faces works on solids. Pick a surface object to turn it into a solid.");
+            var slabs = new List<Shape>();
+            foreach (var item in group)
+            {
+                var face = S.ShapeOf(item) ?? throw new FormatException("That face is gone.");
+                var normal = (S.FaceFrame(item) ?? throw new FormatException("That face has no direction.")).normal.Normalized();
+                var slab = Occ.Thicken(face, Math.Abs(t));
+                // the offset can go either way relative to the face: put the slab outside it for a positive thickness and inside it for a negative one
+                if (Math.Sign(Vec3.Dot(slab.Props().Center - face.Props().Center, normal)) != Math.Sign(t)) { slab.Dispose(); slab = Occ.Thicken(face, -Math.Abs(t)); }
+                if (!slab.IsValid) throw new FormatException("That face could not be thickened. A very tight bend or a sharp point in it can stop it; try a smaller thickness.");
+                slabs.Add(slab);
+            }
+            var body = obj.Shape;
+            foreach (var slab in slabs) body = t > 0 ? Occ.Fuse(body, slab) : Occ.Cut(body, slab);
+            if (!body.IsValid) throw new FormatException("Thickening those faces gave an invalid solid. Try a smaller thickness.");
+            try { body = Occ.UnifyFaces(body, Enumerable.Range(0, body.Count(SubKind.Face)).ToArray()); }
+            catch (KernelException) { /* the faces stay split where they were joined; the solid is still right */ }
+            o.Replace.Add((obj, body));
+        }
+        return o;
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
+        if (_src.Items.Any(i => i.Kind == SelKind.Face)) return ThickenFaces();
         var obj = S.Find(_src.Items[0].Obj)!;
         var o = new CommandOutput();
-        o.Remove.Add(obj);
+        if (!_keep.Value) o.Remove.Add(obj);
         var thick = Occ.Thicken(obj.Shape, _t.Value);
         if (!thick.IsValid) throw new FormatException("Thickening gave an invalid solid. The surface probably has a sharp point, a very tight bend (tighter than the thickness) or overlapping edges: smooth those out, or use a smaller thickness.");
         o.Add.Add(new(thick, "Thickened", ObjKind.Solid));
@@ -168,22 +203,40 @@ public sealed class SewCommand : Command
 {
     readonly SelectionSlot _surfaces;
     readonly NumberParam _tol;
-    readonly BoolParam _solid;
+    readonly BoolParam _solid, _keep;
+    readonly ChoiceParam _result;
     public SewCommand()
     {
         _surfaces = Slot(new SelectionSlot { Label = "Surfaces", Filter = SelFilter.SurfaceObj, Multi = true });
         _tol = Num("Tolerance", 0.01, 1e-6, 10, 0.01);
         _solid = Check("Make solid if closed", true);
+        _keep = Check("Keep the originals", false);
+        _result = Choice("Result", 0, "Stitch (keep each face)", "Merge into one patch where they lie on the same surface");
     }
     public override string Title => "Knit";
-    public override string Hint => "Pick the surfaces to join along their shared edges.";
+    public override string Hint => "Pick the surfaces to join along their shared edges. Choose Merge to also fuse neighbouring faces that lie on the same surface (two halves of a flat sheet become one face); faces that meet at a crease stay separate.";
     protected override CommandOutput? Build()
     {
         if (_surfaces.Items.Count < 1) return null;
         var objs = ObjectsOf(_surfaces).ToList();
         var res = Occ.Sew(objs.Select(o => o.Shape).ToList(), _tol.Value, _solid.Value);
+        Results.Clear();
+        if (_result.Index == 1)
+        {
+            int before = res.Count(SubKind.Face);
+            try { res = Occ.UnifyFaces(res, Enumerable.Range(0, before).ToArray()); }
+            catch (KernelException) { Results.Add(new ResultLine("Merge", "the faces could not be merged, so they stay stitched", 2)); }
+            Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        }
+        if (_solid.Value && !res.HasSolids)
+        {
+            int free = 0; try { free = Occ.FreeEdges(res).Length; } catch (KernelException) { }
+            Results.Add(new ResultLine("Not a solid", free > 0
+                ? $"{free} edge{(free == 1 ? " is" : "s are")} still open, so the result stays a surface. Raise Tolerance if the gaps are tiny, or add the missing surface."
+                : "the joined faces do not enclose a single closed volume, so the result stays a surface.", 2));
+        }
         var o = new CommandOutput();
-        o.Remove.AddRange(objs);
+        if (!_keep.Value) o.Remove.AddRange(objs);
         o.Add.Add(new(res, res.HasSolids ? "Body" : "Knit"));
         return o;
     }

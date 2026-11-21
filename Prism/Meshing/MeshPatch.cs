@@ -49,6 +49,81 @@ public static class MeshPatch
         return new Result(MeshOps.Compact(v, [.. tris]), openings, added);
     }
 
+    public static TriMesh FillBoundary(TriMesh mesh, int[] rim, bool smooth) => FillBoundaries(mesh, [rim], smooth);
+
+    public static TriMesh FillBoundaries(TriMesh mesh, IEnumerable<int[]> rims, bool smooth)
+    {
+        var verts = Enumerable.Range(0, mesh.VertexCount).Select(mesh.P).ToList();
+        var tris = mesh.T.ToList();
+        var neighbours = smooth ? Neighbours(tris) : null;
+        foreach (var rim in rims)
+        {
+            var loop = rim.Reverse().ToArray();
+            var patch = Cap(loop, verts);
+            if (neighbours != null)
+            {
+                double size = Enumerable.Range(0, loop.Length).Average(i => verts[loop[i]].DistanceTo(verts[loop[(i + 1) % loop.Length]]));
+                Refine(patch, verts, size);
+                Fair(patch, loop.ToHashSet(), neighbours, verts);
+            }
+            tris.AddRange(patch);
+        }
+        var colors = mesh.VertexColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, verts.Count - mesh.VertexCount)).ToArray();
+        var faces = mesh.FaceColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, tris.Count / 3 - mesh.TriCount)).ToArray();
+        return new TriMesh(Coordinates(verts), [.. tris], colors, faces);
+    }
+
+    /// <summary>
+    /// Draw Faces' Fit to surface (MSH-P03): split the triangles from <paramref name="firstNew"/> on to the size of the mesh around
+    /// them and place their inner points on the curved surface fitted to that mesh, exactly as Fill Hole → Smooth does.
+    /// Points on the patch's outline (the seam and any edge left open) do not move.
+    /// </summary>
+    public static TriMesh FitNewFaces(TriMesh mesh, int firstNew)
+    {
+        if (firstNew >= mesh.TriCount || firstNew <= 0) return mesh;
+        var verts = Enumerable.Range(0, mesh.VertexCount).Select(mesh.P).ToList();
+        var old = mesh.T.Take(firstNew * 3).ToList();
+        var patch = mesh.T.Skip(firstNew * 3).ToList();
+        var outline = EdgeTris(patch).Where(e => e.Value.Count == 1).SelectMany(e => new[] { e.Key.Item1, e.Key.Item2 }).ToHashSet();
+        var touching = old.Where(outline.Contains).ToHashSet();
+        // the size of the mesh's own edges next to the patch
+        double sum = 0; int n = 0;
+        for (int i = 0; i < old.Count; i += 3)
+            for (int k = 0; k < 3; k++)
+            {
+                int a = old[i + k], b = old[i + (k + 1) % 3];
+                if (!touching.Contains(a) && !touching.Contains(b)) continue;
+                sum += verts[a].DistanceTo(verts[b]); n++;
+            }
+        if (n == 0) return mesh;
+        Refine(patch, verts, sum / n);
+        Fair(patch, outline, Neighbours(old), verts);
+        var colors = mesh.VertexColors?.Concat(Enumerable.Repeat(0xFFC8D0DAu, verts.Count - mesh.VertexCount)).ToArray();
+        var faces = mesh.FaceColors is { } fc ? fc.Take(firstNew).Concat(Enumerable.Repeat(fc.Length > firstNew ? fc[firstNew] : 0xFFC8D0DAu, patch.Count / 3)).ToArray() : null;
+        return new TriMesh(Coordinates(verts), [.. old, .. patch], colors, faces);
+    }
+
+    /// <summary>Virtual flat caps for ray picking the space inside each opening.</summary>
+    internal static (TriMesh Mesh, int[] RimByTriangle) BoundaryPickMesh(TriMesh mesh, IReadOnlyList<int[]> rims)
+    {
+        var verts = new List<Vec3>();
+        var tris = new List<int>();
+        var rimByTriangle = new List<int>();
+        for (int i = 0; i < rims.Count; i++)
+        {
+            var rim = rims[i];
+            int start = verts.Count;
+            verts.AddRange(rim.Select(mesh.P));
+            var cap = Cap(Enumerable.Range(start, rim.Length).Reverse().ToArray(), verts);
+            tris.AddRange(cap);
+            rimByTriangle.AddRange(Enumerable.Repeat(i, cap.Count / 3));
+        }
+        return (new TriMesh(Coordinates(verts), [.. tris]), [.. rimByTriangle]);
+    }
+
+    static float[] Coordinates(IEnumerable<Vec3> points) =>
+        points.SelectMany(p => new[] { (float)p.X, (float)p.Y, (float)p.Z }).ToArray();
+
     static Dictionary<int, HashSet<int>> Neighbours(List<int> t)
     {
         var res = new Dictionary<int, HashSet<int>>();

@@ -8,6 +8,8 @@ Reference pictures are embedded plane objects for tracing and measurement; they 
 
 [Headless image tests](../../../Prism.Tests/Headless/Images/ImageCalibrationTests.cs) exercise the two-point calculation, selection over an origin plane and import preview data. On 2026-11-05, `dotnet test Prism.Tests/Headless/Prism.HeadlessTests.csproj -c Release --filter 'Feature=Images' --no-restore` passed three tests on Windows at base revision `b1d0a23846c821683c41d789b7e9fe52f76addf7` plus uncommitted local changes. Viewport rendering is not covered by those tests.
 
+On Windows at `b6c43909` on 2026-11-18, [desktop automation](../../../tests/visual/scenarios.py) reproduced [#143](https://github.com/chrizpro/prism/issues/143). Supplying the picture and a new width in the same `run_command` call left the image at 50 × 25 mm. Opening `edit_image` with the picture, then setting Width to 80 with `command_set` and committing, produced 80 × 40 mm.
+
 ## Interactive placement and editing
 
 The owner approved this scope on 2026-11-05 ([issue #69](https://github.com/chrizpro/prism/issues/69)). Following owner feedback, Import and Edit use the shared gizmo display and picking: choose **Move**, **Rotate** or **Scale** in the command's Gizmo selector, or press **T**, **R** or **S** with viewport focus. Arrows move in the picture plane; the ring rotates in that plane; the centre square scales uniformly about the centre. Shared gizmo display and snapping settings apply. The corresponding panel values update during dragging; cancel discards the preview and apply commits the change. Set Scale remains available for a known distance. The offset panel value controls normal-axis placement during import.

@@ -100,4 +100,31 @@ public class SavedHistoryUpgradeTests
         var choice = again.Params.OfType<ChoiceParam>().Single(p => p.Label == "Placement");
         Assert.Equal("Snap to picks", choice.Options[choice.Index]);
     }
+
+    [AvaloniaFact(DisplayName = "SOL-H179 | An Edit Feature step saved before v0.4 replays with its hole settings, not shifted by the new chamfer and rib fields")]
+    [Trait("TestId", "SOL-H179")]
+    public void FeatureEditRecipeKeepsHoleSettings()
+    {
+        var session = new CadSession();
+        var edit = Begin(session, () => new FeatureEditCommand());
+        // the pre-v0.4 order: action, move X/Y/Z, copies, diameter, slot width, slot length, fillet radius, hole type, counterbore diameter and depth,
+        // countersink diameter and angle, other side, thread diameter, pitch and depth, left-hand, drag handle
+        edit.Restore(new FeatureRecipe(() => new FeatureEditCommand(), "Edit feature", [4, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1, 12.5, 4.5, 12.0, 90.0, false, 6.0, 1.0, 0.0, false, 0], []));
+        Assert.Equal(12.5, Number(edit, "Counterbore diameter"));
+        Assert.Equal(4.5, Number(edit, "Counterbore depth"));
+        Assert.Equal(0, Number(edit, "New rib thickness (0 = keep)"));
+        var type = edit.Params.OfType<ChoiceParam>().Single(p => p.Label == "New hole type");
+        Assert.Equal("Counterbore", type.Options[type.Index]);
+        Assert.True(edit.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Bolts and nuts")).Value);
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H180 | A Split Face step saved before it had options keeps its cutting tool when it replays")]
+    [Trait("TestId", "SOL-H180")]
+    public void SplitFaceRecipeKeepsTool()
+    {
+        var session = new CadSession();
+        var split = Begin(session, () => new SplitFaceCommand());
+        split.Restore(new FeatureRecipe(() => new SplitFaceCommand(), "Split face", [], []));
+        Assert.False(split.Params.OfType<BoolParam>().Single().Value);
+    }
 }

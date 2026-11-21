@@ -82,8 +82,13 @@ public sealed class GreaseStroke
 
 public readonly record struct GreasePoint(double U, double V, double Depth = 0);
 
+public readonly record struct MeshSectionSample(double X, double Y);
+
+public sealed record MeshSectionTrace(bool Closed, MeshSectionSample[] Points);
+
 public sealed class SketchModel
 {
+    public List<MeshSectionTrace> MeshSectionTraces { get; set; } = [];
     public List<GreaseStroke> GreaseStrokes { get; set; } = [];
     public List<SketchSection> Sections { get; set; } = [];
     public List<SketchDatum> Datums { get; set; } = [];
@@ -108,11 +113,36 @@ public sealed class SketchModel
     public SketchModel Clone()
     {
         var m = new SketchModel { GreaseStrokes = GreaseStrokes.Select(stroke => stroke.Clone()).ToList(), NextId = NextId, ShowConstruction = ShowConstruction, SpatialEditing = SpatialEditing, SharedNurbsCurves = SharedNurbsCurves, FreePointEditing = FreePointEditing, FlatDrawing = FlatDrawing, Sections = Sections.Select(s => s.Clone()).ToList(), Datums = Datums.Select(d => d.Clone()).ToList() };
+        m.MeshSectionTraces.AddRange(MeshSectionTraces.Select(trace => trace with { Points = [.. trace.Points] }));
         m.Points.Clear(); m.Constraints.Clear();
         foreach (var p in Points) m.Points.Add(new SkPoint { Id = p.Id, X = p.X, Y = p.Y, Z = p.Z });
         foreach (var e in Entities) m.Entities.Add(new SkEntity { Id = e.Id, Type = e.Type, Construction = e.Construction, A = e.A, B = e.B, C = e.C, R = e.R, Pts = [.. e.Pts], Closed = e.Closed, ControlPoints = e.ControlPoints, Group = e.Group });
         foreach (var c in Constraints) m.Constraints.Add(new SkConstraint { Id = c.Id, Type = c.Type, Refs = (int[])c.Refs.Clone(), Value = c.Value, V2 = c.V2, IsDimension = c.IsDimension, Name = c.Name, Formula = c.Formula, Hidden = c.Hidden, Disabled = c.Disabled, LabelU=c.LabelU,LabelV=c.LabelV });
         return m;
+    }
+
+    /// <summary>Copy another sketch's points, curves and constraints into this one under fresh ids, leaving the other sketch alone. Its origin maps onto this origin.</summary>
+    public void Absorb(SketchModel other)
+    {
+        var copy = other.Clone();
+        var pm = new Dictionary<int, int> { [0] = 0 };
+        var em = new Dictionary<int, int>();
+        foreach (var p in copy.Points.Where(p => p.Id != 0)) { int id = NextId++; pm[p.Id] = id; p.Id = id; Points.Add(p); }
+        foreach (var e in copy.Entities)
+        {
+            int id = NextId++; em[e.Id] = id; e.Id = id;
+            if (e.A >= 0) e.A = pm[e.A]; if (e.B >= 0) e.B = pm[e.B]; if (e.C >= 0) e.C = pm[e.C];
+            e.Pts = e.Pts.Select(i => pm[i]).ToList();
+            Entities.Add(e);
+        }
+        foreach (var c in copy.Constraints.Where(c => !c.Hidden))
+        {
+            var mask = RefIsPoint(c.Type, c.Refs.Length);
+            c.Refs = c.Refs.Select((r, i) => mask[i] ? pm[r] : em[r]).ToArray();
+            c.Id = NextId++;
+            Constraints.Add(c);
+        }
+        GreaseStrokes.AddRange(copy.GreaseStrokes);
     }
 
     /// <summary>Display changes must not become sketch-edit sources when replaying feature history.</summary>

@@ -92,9 +92,7 @@
         </Border>
         <ScrollViewer Name="PanelScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="12,0,12,12" Spacing="2">
-                <TextBlock Text="{Binding ActiveCommand.PanelHint}" Classes="soft" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,13"/>
-                <Button Content="Show tool example" IsVisible="{Binding HasActiveToolExample}" Click="OnHelp" HorizontalAlignment="Stretch" Margin="0,0,0,10"/>
-                <ItemsControl ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
+                <ItemsControl Margin="0,11,0,0" ItemsSource="{Binding ActiveCommand.WorkflowSections}"/>
                 <Button Classes="studioAction" Content="Gizmo…" IsVisible="{Binding ActiveCommand.HasGizmoOptions}" Click="OnGizmo" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
                 <ItemsControl ItemsSource="{Binding ActiveCommand.Results}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
@@ -117,9 +115,11 @@
                     <CheckBox Content="Preview" IsChecked="{Binding ActiveCommand.PreviewEnabled}" IsVisible="{Binding ActiveCommand.SupportsPreview}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="Enter · Esc" Classes="faint" FontSize="11" VerticalAlignment="Center"/>
                 </Grid>
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                     <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
-                    <Button Grid.Column="2" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
+                    <Button Grid.Column="2" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                            IsVisible="{Binding ActiveCommand.RepeatApply, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    <Button Grid.Column="3" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
                 </Grid>
             </StackPanel>
         </Border>

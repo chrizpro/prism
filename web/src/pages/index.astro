@@ -4,11 +4,12 @@ import Base from '../layouts/Base.astro'
 import FeatureCard from '../components/FeatureCard.astro'
 import { features } from '../data/features'
 import { tabs, workspaces, uniqueTools } from '../data/catalog'
-import { docs, href, version } from '../config'
+import { docs, href } from '../config'
 import heroShot from '../assets/shots/lens-app.png'
 import render from '../assets/shots/lens-render.png'
 import stress from '../assets/shots/cae-stress-vp.png'
 import mouse from '../assets/shots/nurbs-mouse-vp.png'
+import helixDiagram from '../../../site/public/images/diagrams/v04-helix.svg'
 
 const showcase = features.filter(f => f.image && ['modeling', 'surfacing', 'simulation', 'rendering'].includes(f.slug))
 const stats = [
@@ -22,13 +23,14 @@ const stats = [
   <section class="hero">
     <div class="glow" aria-hidden="true"></div>
     <div class="wrap hero-copy">
-      <a class="badge" href={docs('/reference/known-issues')}><span>Alpha</span> Prism {version} · not yet stable, see known issues →</a>
+      <a class="badge" href={docs('/reference/known-issues')}><span>Alpha</span> See known issues →</a>
       <h1>Design it. Prove it.<br /><span class="grad">Make it.</span></h1>
       <p class="lede">Prism is one desktop CAD application for solids, surfaces, freeform shapes and sketches, with simulation, CNC, 3D printing, rendering and Python built in.</p>
       <div class="cta">
         <a class="btn btn-primary" href={href('/download')}>Download Prism</a>
         <a class="btn btn-ghost" href={href('/features')}>Explore features</a>
       </div>
+      <p><a class="more" href={docs('/guide/modeling-04')}>Explore the 0.4 development branch: illustrated modeling changes →</a></p>
       <p class="platforms muted">Windows · macOS · Linux</p>
     </div>
     <div class="wrap stage">
@@ -41,6 +43,22 @@ const stats = [
   <section class="stats">
     <div class="wrap stats-grid">
       {stats.map(s => <div><strong>{s.value}</strong><span>{s.label}</span></div>)}
+    </div>
+  </section>
+
+  <section class="section row">
+    <div class="wrap row-grid">
+      <div class="row-copy">
+        <span class="kicker">Inside the 0.4 development branch</span>
+        <h2>See what changed. Try it step by step.</h2>
+        <p class="muted">Helix paths, sweep scaling, new bevel styles and clearer surface tools. Ten labeled diagrams explain the new controls, what to pick and which options are still unfinished.</p>
+        <p class="muted">Development preview — these changes are not a published 0.4 installer.</p>
+        <a class="more" href={docs('/guide/modeling-04')}>Open the illustrated modeling guide →</a>
+      </div>
+      <figure>
+        <img src={helixDiagram.src} alt="Concept diagram: create a helix curve, set its rise with pitch and turns, then use it as a sweep path." width="720" height="300" loading="lazy" style="width:100%;height:auto;border-radius:16px" />
+        <figcaption class="muted">Concept diagram: a helix is a path for a later sweep.</figcaption>
+      </figure>
     </div>
   </section>
 

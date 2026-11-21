@@ -64,6 +64,24 @@ public sealed partial class MainViewModel
         return true;
     }
 
+    /// <summary>The tab's × button: a tab with changes asks Save / Don't save / Cancel (the same question as Close All and quitting); a clean tab just closes.</summary>
+    public async Task<bool> CloseDocumentWithPromptAsync(DocumentTab tab, Func<DocumentTab, Task<DocumentCloseDecision>> ask)
+    {
+        if (!Documents.Contains(tab)) return false;
+        if (NeedsCloseDecision(tab))
+        {
+            ActivateDocument(tab);
+            var state = (tab.Session.Current, tab.Session.Objects, tab.Session.Dirty, tab.Session.FilePath, tab.Session.Sketch, tab.Session.ActiveCommand);
+            var decision = await ask(tab);
+            if (decision == DocumentCloseDecision.Cancel || !Documents.Contains(tab)) return false;
+            if (!state.Equals((tab.Session.Current, tab.Session.Objects, tab.Session.Dirty, tab.Session.FilePath, tab.Session.Sketch, tab.Session.ActiveCommand))) return false;   // it changed while the question was open: ask again next time
+            if (decision == DocumentCloseDecision.Save && !await SaveDocumentAsync(tab)) return false;
+        }
+        tab.ConfirmClose = true;      // the question above was the confirmation
+        CloseDocument(tab);
+        return true;
+    }
+
     /// <summary>Close selected tabs after reviewing each changed or unfinished document.</summary>
     bool _closingAllTabs;
     public async Task<bool> CloseAllTabsAsync(bool includePinned, Func<DocumentTab, Task<DocumentCloseDecision>> ask, DocumentTab? except = null)

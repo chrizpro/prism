@@ -123,9 +123,22 @@ public static class StudyRunner
         Vec3? gravity = null;
         foreach (var ld in st.Loads)
         {
+            // a load with no direction would silently apply nothing: say so instead
+            if ((ld.Kind == LoadKind.Gravity || ld.Kind == LoadKind.Force && !ld.AlongNormal) && (!double.IsFinite(ld.Direction.Length) || ld.Direction.Length < 1e-9))
+                throw new InvalidOperationException($"{ld.Name}: its direction has no length. Edit the load and give it a direction.");
             if (ld.Kind == LoadKind.Gravity) { gravity = (gravity ?? Vec3.Zero) + ld.Direction.Normalized() * (9810.0 * ld.Value); continue; }
             NodesOn(p, ld.Faces, out var tris);
             if (tris.Count == 0) { notes.Add($"{ld.Name}: no face of this body is selected."); continue; }
+            if (ld.Region != LoadRegionShape.WholeFace && ld.Kind is LoadKind.Force or LoadKind.Pressure)
+            {
+                // part of a face: only the mesh faces whose middle lies in the region are loaded, and the value is shared over the area they really cover,
+                // so the total force is exactly what was asked for however the mesh falls
+                tris = tris.Where(t => ld.InRegion((NodePos(p.Mesh, p.Mesh.Boundary[6 * t]) + NodePos(p.Mesh, p.Mesh.Boundary[6 * t + 1]) + NodePos(p.Mesh, p.Mesh.Boundary[6 * t + 2])) / 3)).ToList();
+                if (tris.Count == 0) { notes.Add($"{ld.Name}: the region is too small or too far from the face for this mesh (element size {p.Maxh:0.##} mm), so it was not loaded. Enlarge it or use a finer mesh."); continue; }
+                double covered = tris.Sum(t => p.BoundaryArea[t]), asked = ld.RegionArea;
+                if (asked > 0 && Math.Abs(covered - asked) > 0.25 * asked)
+                    notes.Add($"{ld.Name}: the mesh loads {covered:0.##} mm² of the {asked:0.##} mm² region (the mesh is coarse here, or part of the region lies off the face). The total force is still the value you gave.");
+            }
             double areaSum = tris.Sum(t => p.BoundaryArea[t]);
             switch (ld.Kind)
             {
@@ -134,9 +147,13 @@ public static class StudyRunner
                     break;
                 case LoadKind.Force:
                 {
-                    double per = ld.Total ? ld.Value / areaSum : ld.Value / (areaSum / Math.Max(ld.Faces.Count, 1));
+                    // Total: one force spread over every picked face by area. Per face: each picked face carries the whole value, so a face's traction is the value over that face's own area
+                    // (dividing by the average area instead would give a big face more than the value and a small one less).
+                    var faceArea = new Dictionary<int, double>();
+                    foreach (int t in tris) faceArea[p.FaceOfBoundary[t]] = faceArea.GetValueOrDefault(p.FaceOfBoundary[t]) + p.BoundaryArea[t];
                     foreach (int t in tris)
                     {
+                        double per = ld.Total ? ld.Value / areaSum : ld.Value / faceArea[p.FaceOfBoundary[t]];
                         var dir = ld.AlongNormal ? -p.BoundaryNormal[t] : ld.Direction.Normalized();
                         traction[t] = traction.GetValueOrDefault(t) + dir * per;
                     }

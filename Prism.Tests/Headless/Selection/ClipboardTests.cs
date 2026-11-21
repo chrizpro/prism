@@ -41,6 +41,47 @@ public class ClipboardTests
         Assert.Contains(Prism.Core.Hotkeys.Actions, h => h.Id == "edit.paste" && h.Default == "Ctrl+V");
     }
 
+    [AvaloniaFact(DisplayName = "SEL-H060 | Copying a face pastes a new surface of that face and leaves the body alone")]
+    [Trait("TestId", "SEL-H060")]
+    public void CopyFacePastesSurface()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        int top = Enumerable.Range(0, body.Shape.Count(SubKind.Face)).First(i => Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)).Normal.Z > 0.99);
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, top), false);
+        Assert.True(session.CopySelection());
+        var pasted = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Surface, pasted.Kind);
+        Assert.Equal(100, pasted.Shape.Props().Area, 6);
+        Assert.Equal(10, pasted.Mesh.Max.Z, 6);                         // where the face is on the body
+        Assert.Equal(1000, session.Find(body.Id)!.Shape.Props().Volume, 6);
+
+        session.Undo();                                                 // one undo step removes only the new surface
+        Assert.Single(session.Objects);
+        Assert.Equal(body.Id, session.Objects[0].Id);
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H061 | Copying edges pastes a new curve, and two faces of one body paste as one joined surface")]
+    [Trait("TestId", "SEL-H061")]
+    public void CopyEdgesAndFaces()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 10, 10, 10);
+        int Face(Func<Vec3, bool> pick) => Enumerable.Range(0, body.Shape.Count(SubKind.Face)).First(i => pick(Occ.FaceInfoOf(body.Shape.Sub(SubKind.Face, i)).Normal));
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, Face(n => n.Z > 0.99)), false);
+        session.SetSelection(new SelItem(body.Id, SelKind.Face, Face(n => n.X > 0.99)), true);
+        Assert.True(session.CopySelection());
+        var surface = Assert.Single(session.Paste());
+        Assert.Equal(200, surface.Shape.Props().Area, 6);
+        Assert.Equal(1, surface.Shape.Count(SubKind.Shell));            // sewn along the edge they share
+
+        session.SetSelection(new SelItem(body.Id, SelKind.Edge, 0), false);
+        Assert.True(session.CopySelection());
+        var curve = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Curve, curve.Kind);
+        Assert.Equal(10, curve.Shape.Props().Size.Length > 0 ? new[] { curve.Shape.Props().Size.X, curve.Shape.Props().Size.Y, curve.Shape.Props().Size.Z }.Max() : 0, 6);
+    }
+
     [AvaloniaFact(DisplayName = "SEL-H029 | Alt-dragging a gizmo arrow in Move leaves the original and moves a copy")]
     [Trait("TestId", "SEL-H029")]
     public void AltDragCopies()
@@ -70,5 +111,57 @@ public class ClipboardTests
             Assert.True(copy.Mesh.Min.X > -4, $"the copy was dragged along X: {copy.Mesh.Min.X}");
             Assert.Equal([SelItem.Of(copy)], session.Selection);
         }
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H062 | While sketching, Copy and Paste duplicate the selected curves with the constraints between them, shifted and selected")]
+    [Trait("TestId", "SEL-H062")]
+    public void SketchCurvesCopyAndPaste()
+    {
+        var session = new CadSession();
+        session.EnterSketch(Plane3.XY, alignView: true);
+        var sk = session.Sketch!; var m = sk.Model;
+        int a = m.AddPoint(0, 0), b = m.AddPoint(20, 0), c = m.AddPoint(20, 10);
+        int l1 = m.AddLine(a, b), l2 = m.AddLine(b, c);
+        m.Add(Prism.Core.Sketching.CType.Horizontal, refs: l1);
+        m.Add(Prism.Core.Sketching.CType.LineLength, 20, 0, true, l1);
+        int circle = m.AddCircle(m.AddPoint(40, 0), 5);
+        sk.SelEntities.Add(l1); sk.SelEntities.Add(l2);
+        Assert.True(session.CanCopy);
+        Assert.True(session.CopySelection());
+        Assert.True(session.CanPaste);
+        session.Paste();
+        Assert.Equal(4, m.Entities.Count(e => e.Type == Prism.Core.Sketching.EntType.Line));
+        Assert.Single(m.Entities, e => e.Type == Prism.Core.Sketching.EntType.Circle && e.Id == circle);
+        Assert.Equal(2, sk.SelEntities.Count);
+        Assert.DoesNotContain(l1, sk.SelEntities);
+        Assert.Equal(2, m.Constraints.Count(k => k.Type == Prism.Core.Sketching.CType.Horizontal));
+        Assert.Equal(2, m.Constraints.Count(k => k.Type == Prism.Core.Sketching.CType.LineLength));
+        var copy = m.E(sk.SelEntities.First());
+        Assert.True(m.PointsOf(copy).All(p => m.P(p).X > 0.5 || m.P(p).Y < -0.5), "the copy is shifted off the original");
+    }
+
+    [AvaloniaFact(DisplayName = "SEL-H063 | Copying vertices pastes points, and copying mesh triangles pastes a new mesh of just those triangles")]
+    [Trait("TestId", "SEL-H063")]
+    public void VerticesAndMeshTriangles()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, new Vec3(0, 0, 0), 10, 10, 10);
+        session.SelectItems([new SelItem(body.Id, SelKind.Vertex, 0), new SelItem(body.Id, SelKind.Vertex, 1)]);
+        Assert.True(session.CopySelection());
+        var points = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Curve, points.Kind);
+        Assert.Equal(2, points.Shape!.Count(SubKind.Vertex));
+
+        var mesh = session.AddObject(null, "Scan", ObjKind.Mesh);
+        session.Update(mesh.Id, o => o.WithTri(Prism.Meshing.MeshAnalysis.FromMeshData(body.Mesh)), checkpoint: false);
+        mesh = session.Find(mesh.Id)!;
+        int total = mesh.Tri!.TriCount;
+        session.SelectItems([new SelItem(mesh.Id, SelKind.MeshFace, 0), new SelItem(mesh.Id, SelKind.MeshFace, 1), new SelItem(mesh.Id, SelKind.MeshFace, 2)]);
+        Assert.True(session.CanCopy);
+        Assert.True(session.CopySelection());
+        var piece = Assert.Single(session.Paste());
+        Assert.Equal(ObjKind.Mesh, piece.Kind);
+        Assert.Equal(3, piece.Tri!.TriCount);
+        Assert.Equal(total, session.Find(mesh.Id)!.Tri!.TriCount);
     }
 }

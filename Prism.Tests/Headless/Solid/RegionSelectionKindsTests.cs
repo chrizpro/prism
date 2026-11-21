@@ -134,7 +134,7 @@ public class RegionSelectionKindsTests
         var cage = session.AddObject(null, "Cage", ObjKind.Form, form: FormOps.Box(10, 10, 10, 1, 1, 1));
         var all = Around(session, 300, true, new Vec3(0, 0, 0), new Vec3(110, 10, 0));
         var faces = RegionSelect.Collect(session, all, SelMode.Face, through: true);
-        Assert.Contains(faces, i => i.Obj == mesh.Id && i.Kind == SelKind.Face && i.Index == 0);
+        Assert.Contains(faces, i => i.Obj == mesh.Id && i.Kind == SelKind.MeshFace);   // Face level picks a mesh's triangles (2026-11-20)
         Assert.Contains(faces, i => i.Obj == cage.Id && i.Kind == SelKind.Face);
     }
 

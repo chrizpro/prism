@@ -71,7 +71,7 @@ public static partial class MeshIO
         MeshFile f = ext switch
         {
             ".stl" => ReadStl(File.ReadAllBytes(path), rd, name),
-            ".obj" => ReadObj(File.ReadAllText(path), Path.GetDirectoryName(Path.GetFullPath(path)), rd, name),
+            ".obj" => ReadObjFile(path, rd, name),
             ".ply" => ReadPly(File.ReadAllBytes(path), rd, name),
             ".3mf" => Read3mf(path, rd, name),
             ".xyz" or ".pts" or ".xyzn" or ".csv" => throw new InvalidDataException("That is a point cloud, not a mesh. Use Mesh > Import Point Cloud to build a surface from it."),
@@ -232,9 +232,17 @@ public static partial class MeshIO
     static string Clip(ReadOnlySpan<char> s) => s.Length > 60 ? s[..60].ToString() + "…" : s.ToString();
 
     // ---------------------------------------------------------------- OBJ
-    public static TriMesh LoadObj(string[] lines) => ReadObj(string.Join('\n', lines), null, new Rd("OBJ", null, default), "OBJ").Mesh;
+    public static TriMesh LoadObj(string[] lines) => ReadObj(new StringReader(string.Join('\n', lines)), null, null, new Rd("OBJ", null, default), "OBJ").Mesh;
 
-    static MeshFile ReadObj(string text, string? dir, Rd rd, string stem)
+    /// <summary>Streams the file line by line, so files larger than one .NET string (about 1 GB of text) can be read.</summary>
+    static MeshFile ReadObjFile(string path, Rd rd, string stem)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20, FileOptions.SequentialScan);
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, true, 1 << 20);
+        return ReadObj(reader, stream, Path.GetDirectoryName(Path.GetFullPath(path)), rd, stem);
+    }
+
+    static MeshFile ReadObj(TextReader reader, Stream? stream, string? dir, Rd rd, string stem)
     {
         var file = new MeshFile { Name = stem, Format = "OBJ" };
         var v = new List<float>(); List<uint>? vcol = null;
@@ -242,7 +250,7 @@ public static partial class MeshIO
         var names = new List<string>(); var byName = new Dictionary<string, int>(); var partOf = new List<int>();
         string obj = "", grp = ""; int curPart = -1;
         var mats = new Dictionary<string, uint>(); uint curCol = 0; bool warnedMat = false, warnedShort = false;
-        int pos = 0, lineNo = 0, skippedFaces = 0;
+        int lineNo = 0, skippedFaces = 0;
         var idx = new List<int>();
 
         int EnsurePart()
@@ -253,11 +261,12 @@ public static partial class MeshIO
             return curPart;
         }
 
-        while (NextLine(text, ref pos, out int a, out int b))
+        string? raw;
+        while ((raw = reader.ReadLine()) != null)
         {
             lineNo++;
-            if ((lineNo & 0x1FFF) == 0) rd.Report(0.9 * pos / text.Length, "Reading OBJ…");
-            var line = text.AsSpan(a, b - a); int p = 0;
+            if ((lineNo & 0x1FFF) == 0) rd.Report(stream is { Length: > 0 } st ? 0.9 * st.Position / st.Length : 0.5, "Reading OBJ…");
+            var line = raw.AsSpan(); int p = 0;
             if (!Next(line, ref p, out var cmd) || cmd[0] == '#') continue;
             if (cmd.Length == 1 && cmd[0] == 'v')
             {

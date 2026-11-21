@@ -22,6 +22,7 @@ from .api import (
     fdm_check, resin_check, cnc_design_check, cnc_stock_review, resin_export, cnc_rough,
     form_box, form_cylinder, form_loft, form_pipe, form_info, form_op, form_to_nurbs,
 )
+from .shapes import svg_outlines, svg_to_sketch, parse_path, superellipse, rounded_rect, form_skin, form_from_silhouettes, stations_from_silhouettes, slice_extents, swap_uv, profile, format_profile, Outline
 
 __all__ = [n for n in dir() if not n.startswith("_")]
 __version__ = "0.1"

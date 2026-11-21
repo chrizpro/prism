@@ -243,6 +243,28 @@ public class SurfaceToolTests
         AssertClose(2 * 400 + 4 * 200, result.Props().Area, 1e-6, "Area is unchanged (mm²)");
     }
 
+    [AvaloniaFact(DisplayName = "SRF-H032 | Split Surface can take several faces (the top and bottom picked through the part) and leaves the other faces whole")]
+    [Trait("TestId", "SRF-H032")]
+    public void SplitSurfaceSplitsSeveralPickedFaces()
+    {
+        var session = new CadSession();
+        using var box = Occ.Box(20, 20, 10);
+        var faces = Enumerable.Range(0, box.Count(SubKind.Face)).Select(i => box.Sub(SubKind.Face, i)).ToList();
+        var cube = session.AddObject(Occ.Sew(faces, 0.01, false), "Cube", ObjKind.Surface);
+        int Flat(double z) => Enumerable.Range(0, 6).Single(i => { using var f = cube.Shape.Sub(SubKind.Face, i); return Math.Abs(f.Props().Center.Z - z) < 1e-6 && f.Props().Size.X > 19 && f.Props().Size.Z < 1e-6; });
+        int top = Flat(10), bottom = Flat(0);
+        using var wallEdge = Occ.Polyline([new(0, -15, -5), new(0, 15, -5), new(0, 15, 15), new(0, -15, 15)], true);
+        var wall = session.AddObject(Occ.Profile([wallEdge], true), "Wall", ObjKind.Surface);
+        session.Mode = SelMode.Face;
+        var command = Begin(session, () => new SplitSurfaceCommand());
+        Pick(command, "Surface to split", new SelItem(cube.Id, SelKind.Face, top), new SelItem(cube.Id, SelKind.Face, bottom));
+        Pick(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", wall);
+        var output = BuildOutput(command);
+        var result = Assert.Single(output.Replace).New;
+        Assert.Equal(8, result.Count(SubKind.Face));          // top and bottom in two each, the four walls untouched
+        AssertClose(2 * 400 + 4 * 200, result.Props().Area, 1e-6, "Area is unchanged (mm²)");
+    }
+
     // ------------------------------------------------------------------ Network Surface
 
     [AvaloniaFact(DisplayName = "SRF-H010 | Network Surface lifts a square outline toward a raised curve across it")]
@@ -433,8 +455,8 @@ public class SurfaceToolTests
         var output = BuildOutput(command);
         Assert.Equal(2, output.Add.Count);
         Assert.All(output.Add, cell => AssertNear(500, cell.Shape!.Props().Volume, "Space volume (mm³)"));
-        Assert.Equal("500 mm³", Result(command, "Space 1"));
-        Assert.Equal("500 mm³", Result(command, "Space 2"));
+        Assert.Equal("500 mm³ · kept", Result(command, "Space 1"));       // each line now also says whether the space is kept (owner request 2026-11-16)
+        Assert.Equal("500 mm³ · kept", Result(command, "Space 2"));
     }
 
     [AvaloniaFact(DisplayName = "SRF-H020 | Enclosed Body 'Spaces to keep' selects listed spaces and rejects missing ones")]

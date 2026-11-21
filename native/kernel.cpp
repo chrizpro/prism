@@ -121,6 +121,10 @@
 #include <ShapeUpgrade_UnifySameDomain.hxx>
 #include <BRepAlgoAPI_Defeaturing.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
+#include <BRepFeat_SplitShape.hxx>
+#include <Law_Interpol.hxx>
+#include <TColgp_Array1OfPnt2d.hxx>
+#include <Extrema_ExtPC.hxx>
 #include <BOPAlgo_MakerVolume.hxx>
 #include <TopTools_ListOfShape.hxx>
 #include <BRepOffsetAPI_MakeOffset.hxx>
@@ -500,13 +504,73 @@ CK_API void* ck_thread_groove(double diameter, double pitch, double depth, int l
         return wrap(clip.Shape());
     CATCH(nullptr)
 }
+// A truncated 60-degree external-thread groove, along local +Z: the space between two turns of a bolt thread, to be cut from a plain cylinder
+// whose radius is the thread's major radius. Root radius is major - 0.6134 pitch; a flat of 1/8 pitch is left at the crest.
+CK_API void* ck_thread_groove_external(double diameter, double pitch, double depth, int leftHand) {
+    TRY
+        if (!std::isfinite(diameter) || !std::isfinite(pitch) || !std::isfinite(depth) ||
+            pitch <= 0 || diameter <= 1.2269 * pitch || depth <= 0 || depth / pitch > 200) {
+            fail("Invalid thread dimensions (maximum 200 turns)."); return nullptr;
+        }
+        const double pi = 3.14159265358979323846, tan30 = 0.5773502691896257;
+        double major = diameter / 2, root = major - .613435 * pitch, over = .01 * pitch;
+        double z0 = -pitch, hand = leftHand ? -1.0 : 1.0;
+        Handle(Geom_CylindricalSurface) surface = new Geom_CylindricalSurface(gp_Ax3(gp::XOY()), root);
+        gp_Dir2d slope(hand * 2 * pi, pitch);
+        Handle(Geom2d_Line) line = new Geom2d_Line(gp_Pnt2d(0, z0), slope);
+        double length = (depth + 2 * pitch) * std::sqrt(4 * pi * pi + pitch * pitch) / pitch;
+        TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(line, surface, 0, length).Edge();
+        BRepLib::BuildCurves3d(edge);
+        TopoDS_Wire spine = BRepBuilderAPI_MakeWire(edge).Wire();
+        double halfCrest = .4375 * pitch, halfRoot = halfCrest - tan30 * .613435 * pitch, halfOuter = halfCrest + over * tan30;
+        BRepBuilderAPI_MakePolygon polygon;
+        polygon.Add(gp_Pnt(root, 0, z0 - halfRoot));
+        polygon.Add(gp_Pnt(major + over, 0, z0 - halfOuter));
+        polygon.Add(gp_Pnt(major + over, 0, z0 + halfOuter));
+        polygon.Add(gp_Pnt(root, 0, z0 + halfRoot));
+        polygon.Close();
+        BRepOffsetAPI_MakePipeShell pipe(spine);
+        pipe.SetMode(true);
+        pipe.Add(polygon.Wire()); pipe.Build();
+        if (!pipe.IsDone() || !pipe.MakeSolid()) { fail("Thread sweep failed."); return nullptr; }
+        BRepAlgoAPI_Common clip(pipe.Shape(), BRepPrimAPI_MakeCylinder(major + pitch, depth).Shape());
+        clip.Build();
+        if (!clip.IsDone() || !BRepCheck_Analyzer(clip.Shape()).IsValid()) { fail("Thread groove is invalid."); return nullptr; }
+        return wrap(clip.Shape());
+    CATCH(nullptr)
+}
+// A degree-one control spline can store an entire polygon in one edge. A
+// ruled loft then gets one folded face across all its corners. OCCT Boolean
+// operations can miss intersections on that face. Give each span a real edge.
+static TopoDS_Wire ruledSection(const TopoDS_Wire& wire) {
+    BRepTools_WireExplorer edges(wire);
+    if (!edges.More()) return wire;
+    const TopoDS_Edge edge = edges.Current();
+    edges.Next();
+    if (edges.More()) return wire;
+    BRepAdaptor_Curve curve(edge);
+    if (curve.GetType() != GeomAbs_BSplineCurve || curve.Degree() != 1) return wire;
+    const int spans = curve.NbIntervals(GeomAbs_C1);
+    if (spans < 2) return wire;
+    TColStd_Array1OfReal bounds(1, spans + 1);
+    curve.Intervals(bounds, GeomAbs_C1);
+    BRepBuilderAPI_MakePolygon polygon;
+    for (int i = 1; i <= spans + 1; ++i) {
+        const int k = edge.Orientation() == TopAbs_REVERSED ? spans + 2 - i : i;
+        polygon.Add(curve.Value(bounds(k)));
+    }
+    return polygon.Wire();
+}
 CK_API void* ck_loft(void** sections, int n, int solid, int ruled) {
     TRY
         BRepOffsetAPI_ThruSections ts(solid != 0, ruled != 0);
         for (int i = 0; i < n; ++i) {
             const TopoDS_Shape& s = get(sections[i]);
             if (s.ShapeType() == TopAbs_VERTEX) ts.AddVertex(TopoDS::Vertex(s));
-            else ts.AddWire(asWire(s));
+            else {
+                const TopoDS_Wire wire = asWire(s);
+                ts.AddWire(ruled ? ruledSection(wire) : wire);
+            }
         }
         ts.Build();
         if (!ts.IsDone()) { fail("Loft failed."); return nullptr; }
@@ -706,6 +770,19 @@ CK_API void* ck_shell(void* s, const int* faceIds, int n, double thickness) {
         return wrap(mk.Shape());
     CATCH(nullptr)
 }
+// Shell where some faces have their own wall thickness. Same offset builder the plain shell uses, with a distance set on chosen faces.
+CK_API void* ck_shell_var(void* s, const int* faceIds, int n, double thickness, const int* ownIds, const double* ownThickness, int m) {
+    TRY
+        TopTools_IndexedMapOfShape mp; TopExp::MapShapes(get(s), TopAbs_FACE, mp);
+        BRepOffset_MakeOffset mk;
+        mk.Initialize(get(s), thickness, 1e-3, BRepOffset_Skin, false, false, GeomAbs_Arc, true);
+        for (int i = 0; i < m; ++i) mk.SetOffsetOnFace(TopoDS::Face(mp(ownIds[i] + 1)), ownThickness[i]);
+        for (int i = 0; i < n; ++i) mk.AddFace(TopoDS::Face(mp(faceIds[i] + 1)));
+        mk.MakeThickSolid();
+        if (!mk.IsDone()) { fail("Shell failed. Try thinner walls."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
 CK_API void* ck_offset(void* s, double d) {
     TRY
         BRepOffsetAPI_MakeOffsetShape mk;
@@ -810,6 +887,12 @@ CK_API void* ck_scale3(void* s, const double* o, double fx, double fy, double fz
         g.SetTranslationPart(gp_XYZ(o[0] * (1 - fx), o[1] * (1 - fy), o[2] * (1 - fz)));
         BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
 }
+// Any linear map (row-major 3x3, including stretches and shears) followed by a move.
+CK_API void* ck_affine(void* s, const double* m, const double* t) {
+    TRY gp_GTrsf g; for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) g.SetValue(i + 1, j + 1, m[3 * i + j]);
+        g.SetTranslationPart(gp_XYZ(t[0], t[1], t[2]));
+        BRepBuilderAPI_GTransform x(get(s), g, true); return wrap(x.Shape()); CATCH(nullptr)
+}
 CK_API void* ck_mirror(void* s, const double* o, const double* n) {
     TRY gp_Trsf t; t.SetMirror(gp_Ax2(gp_Pnt(o[0], o[1], o[2]), gp_Dir(n[0], n[1], n[2]))); return wrap(transformed(get(s), t)); CATCH(nullptr)
 }
@@ -856,6 +939,31 @@ static void volumeProperties(const TopoDS_Shape& shape, GProp_GProps& props, boo
 }
 
 // props: [volume, area, minx,miny,minz, maxx,maxy,maxz]
+// The exact bounding box. BRepBndLib::AddOptimal searches every face numerically, which took seconds on a plate with
+// hundreds of rounded slot rims. The vertices lie on the shape, so their box is inside the exact one; a face whose quick
+// (never too small) box fits inside it cannot widen the result, and only the faces that reach out are searched.
+static void tightBox(const TopoDS_Shape& shape, Bnd_Box& box) {
+    Bnd_Box inner;
+    for (TopExp_Explorer v(shape, TopAbs_VERTEX); v.More(); v.Next()) inner.Add(BRep_Tool::Pnt(TopoDS::Vertex(v.Current())));
+    TopExp_Explorer faces(shape, TopAbs_FACE);
+    if (inner.IsVoid() || !faces.More()) { BRepBndLib::AddOptimal(shape, box, false, false); return; }
+    double x0, y0, z0, x1, y1, z1; inner.Get(x0, y0, z0, x1, y1, z1);
+    box.Add(inner);
+    for (; faces.More(); faces.Next()) {
+        Bnd_Box quick; BRepBndLib::Add(faces.Current(), quick, false);
+        if (!quick.IsVoid()) {
+            // the quick box is padded by the face tolerance; without the padding it is still never smaller than the face,
+            // and a rim tangent to the top face then reaches exactly the vertices' height instead of looking higher
+            double a0, b0, c0, a1, b1, c1; quick.Get(a0, b0, c0, a1, b1, c1);
+            const double g = quick.GetGap();
+            if (a0 + g >= x0 && b0 + g >= y0 && c0 + g >= z0 && a1 - g <= x1 && b1 - g <= y1 && c1 - g <= z1) continue;
+        }
+        BRepBndLib::AddOptimal(faces.Current(), box, false, false);
+    }
+    // edges that belong to no face (a wire beside a solid in a compound)
+    for (TopExp_Explorer e(shape, TopAbs_EDGE, TopAbs_FACE); e.More(); e.Next()) BRepBndLib::AddOptimal(e.Current(), box, false, false);
+}
+
 CK_API int ck_props(void* s, double* out) {
     TRY
         GProp_GProps v, a;
@@ -864,7 +972,7 @@ CK_API int ck_props(void* s, double* out) {
         // tight box (BRepBndLib::Add alone follows NURBS control polygons, which stick out far past the real surface)
         // Measurement bounds must come from the geometry. Display triangulations carry
         // deflection padding and can inflate NURBS dimensions after the first render.
-        Bnd_Box b; BRepBndLib::AddOptimal(get(s), b, false, false);
+        Bnd_Box b; tightBox(get(s), b);
         out[0] = v.Mass(); out[1] = a.Mass();
         if (b.IsVoid()) { for (int i = 2; i < 8; ++i) out[i] = 0; }
         else b.Get(out[2], out[3], out[4], out[5], out[6], out[7]);
@@ -1044,6 +1152,318 @@ CK_API int ck_surface_continuity(void* source,int side,void* reference,int refSi
             out[3]=std::max(out[3],std::abs(suu.Dot(ns)/su.SquareMagnitude()-ruu.Dot(nr)/ru.SquareMagnitude()));
         }
         out[1]=std::sqrt(out[1]/samples); return 1;
+    CATCH(0)
+}
+// ---- Match Surface to any edge of any face (trimmed faces, faces of solids, patches with a different control net) ----
+// The source patch keeps its own control net along its natural boundary; the first rows are refitted so that boundary lies on the
+// chosen reference edge, leaves it in the reference face's tangent plane (G1) and bends away at the reference's normal curvature (G2).
+namespace seam {
+struct Frame { gp_Pnt P; gp_Vec T, N; double kappa = 0; };
+
+// Nearest point of an edge to p: its parameter, and the distance.
+static double nearest(const BRepAdaptor_Curve& c, const gp_Pnt& p, double& dist) {
+    double f = c.FirstParameter(), l = c.LastParameter(), best = f, bd = p.Distance(c.Value(f));
+    double dl = p.Distance(c.Value(l)); if (dl < bd) { bd = dl; best = l; }
+    Extrema_ExtPC ext(p, c, f, l);
+    if (ext.IsDone()) for (int i = 1; i <= ext.NbExt(); i++) {
+        double d = std::sqrt(ext.SquareDistance(i));
+        if (d < bd) { bd = d; best = ext.Point(i).Parameter(); }
+    }
+    dist = bd; return best;
+}
+
+// Which side of the edge's parameter curve is inside the face: +1 for its left normal, -1 for its right.
+static int inward(const TopoDS_Face& face, const TopoDS_Edge& edge) {
+    double f, l; Handle(Geom2d_Curve) pc = BRep_Tool::CurveOnSurface(edge, face, f, l);
+    if (pc.IsNull()) throw Standard_Failure("The reference edge has no parameter curve on its face.");
+    gp_Pnt2d uv; gp_Vec2d d; pc->D1(0.5 * (f + l), uv, d);
+    if (d.Magnitude() < 1e-14) throw Standard_Failure("The reference edge is degenerate.");
+    gp_Vec2d n(-d.Y(), d.X()); n.Normalize();
+    double a, b, c, e; BRepTools::UVBounds(face, a, b, c, e);
+    double diag = std::hypot(b - a, e - c);
+    for (double k : {1e-3, 1e-2, 1e-4}) for (int sg : {1, -1}) {
+        gp_Pnt2d q(uv.X() + sg * n.X() * diag * k, uv.Y() + sg * n.Y() * diag * k);
+        BRepClass_FaceClassifier fc(face, q, Precision::Confusion());
+        if (fc.State() == TopAbs_IN) return sg;
+    }
+    throw Standard_Failure("Could not tell which side of the reference edge the face lies on.");
+}
+
+// Position, normal, direction pointing into the face (perpendicular to the edge) and normal curvature across the edge at parameter t.
+static Frame frameAt(const TopoDS_Face& face, const TopoDS_Edge& edge, const BRepAdaptor_Curve& ec, double t, int sign) {
+    double f, l; Handle(Geom2d_Curve) pc = BRep_Tool::CurveOnSurface(edge, face, f, l);
+    gp_Pnt2d uv; gp_Vec2d d; pc->D1(t, uv, d);
+    gp_Vec2d n(-d.Y(), d.X()); if (n.Magnitude() < 1e-14) throw Standard_Failure("The reference edge is degenerate.");
+    n.Normalize(); n.Multiply(sign);
+    BRepAdaptor_Surface su(face); Frame fr; gp_Vec Su, Sv, Suu, Svv, Suv;
+    su.D2(uv.X(), uv.Y(), fr.P, Su, Sv, Suu, Svv, Suv);
+    fr.N = Su.Crossed(Sv); if (fr.N.Magnitude() < 1e-12) throw Standard_Failure("The reference face is singular at the edge.");
+    fr.N.Normalize();
+    gp_Pnt p3; gp_Vec t3; ec.D1(t, p3, t3); if (t3.Magnitude() < 1e-12) throw Standard_Failure("The reference edge is degenerate.");
+    t3.Normalize();
+    gp_Vec T = Su * n.X() + Sv * n.Y(); T = T - t3 * T.Dot(t3);
+    if (T.Magnitude() < 1e-12) throw Standard_Failure("The reference face is singular at the edge.");
+    T.Normalize(); fr.T = T;
+    double E = Su.Dot(Su), F = Su.Dot(Sv), G = Sv.Dot(Sv), r1 = T.Dot(Su), r2 = T.Dot(Sv), det = E * G - F * F;
+    if (std::abs(det) < 1e-18) throw Standard_Failure("The reference face is singular at the edge.");
+    double a = (r1 * G - r2 * F) / det, b = (E * r2 - F * r1) / det;
+    fr.kappa = (Suu * (a * a) + Suv * (2 * a * b) + Svv * (b * b)).Dot(fr.N);
+    return fr;
+}
+
+// Value, first and second derivative of every basis function of a clamped curve at t: rows 0, 1 and 2.
+static std::vector<std::vector<double>> basis(const TColStd_Array1OfReal& knots, const TColStd_Array1OfInteger& mults, int degree, int n, double t) {
+    std::vector<std::vector<double>> out(3, std::vector<double>(n, 0.0));
+    for (int j = 1; j <= n; j++) {
+        TColgp_Array1OfPnt poles(1, n);
+        for (int i = 1; i <= n; i++) poles.SetValue(i, gp_Pnt(i == j ? 1 : 0, 0, 0));
+        Handle(Geom_BSplineCurve) c = new Geom_BSplineCurve(poles, knots, mults, degree);
+        gp_Pnt p; gp_Vec d1, d2; c->D2(t, p, d1, d2);
+        out[0][j - 1] = p.X(); out[1][j - 1] = d1.X(); out[2][j - 1] = d2.X();
+    }
+    return out;
+}
+
+static void fit(const Handle(Geom_BSplineSurface)& s, const TopoDS_Face& face, const TopoDS_Edge& edge, const BRepAdaptor_Curve& ec, int sign, int continuity, double scale) {
+    int n = s->NbVPoles(), p = s->VDegree(); double u0 = s->UKnot(1);
+    const TColStd_Array1OfReal& flat = s->VKnotSequence();
+    std::vector<double> g(n), speed(n);
+    std::vector<gp_XYZ> r0(n), r1(n), r2(n);
+    auto uc = basis(s->UKnots(), s->UMultiplicities(), s->UDegree(), s->NbUPoles(), u0);
+    double c1 = uc[1][1], c2a = uc[2][0], c2b = uc[2][1], c2c = uc[2][2];
+    if (c1 <= 1e-12 || (continuity >= 2 && c2c <= 1e-12)) throw Standard_Failure("This patch cannot be matched at that continuity. Raise its degree or add rows first.");
+    struct Row { gp_Pnt P; gp_Vec D; };
+    std::vector<Row> rows(n); double mean = 0; int counted = 0;
+    for (int k = 0; k < n; k++) {
+        double sum = 0; for (int i = 1; i <= p; i++) sum += flat(k + 1 + i);
+        g[k] = sum / p;
+        gp_Pnt Q; gp_Vec su, sv, suu, svv, suv; s->D2(u0, g[k], Q, su, sv, suu, svv, suv);
+        double dist; double t = nearest(ec, Q, dist);
+        Frame fr = frameAt(face, edge, ec, t, sign);
+        speed[k] = su.Magnitude(); if (speed[k] > 1e-9) { mean += speed[k]; counted++; }
+        rows[k].P = fr.P;
+        rows[k].D = fr.T.Reversed();                                   // the source leaves the seam away from the reference face
+    }
+    if (counted == 0) throw Standard_Failure("The surface is singular along that boundary.");
+    mean /= counted;
+    for (int k = 0; k < n; k++) {
+        double sp = (speed[k] > 1e-9 ? speed[k] : mean) * scale;
+        gp_Vec D = rows[k].D * sp;
+        gp_XYZ P0 = rows[k].P.XYZ(), P1 = P0 + D.XYZ() / c1;
+        r0[k] = P0; r1[k] = P1;
+    }
+    if (continuity >= 2) for (int k = 0; k < n; k++) {
+        // second derivative: the source's own sliding along the seam, with the reference's normal curvature times |D|^2 across it
+        double sp = (speed[k] > 1e-9 ? speed[k] : mean) * scale;
+        gp_Pnt Q; gp_Vec su, sv, suu, svv, suv; s->D2(u0, g[k], Q, su, sv, suu, svv, suv);
+        double dist; double t = nearest(ec, Q, dist); Frame fr = frameAt(face, edge, ec, t, sign);
+        gp_Vec tang = suu - fr.N * suu.Dot(fr.N);
+        gp_Vec S2 = tang + fr.N * (fr.kappa * sp * sp);
+        r2[k] = (S2.XYZ() - r0[k] * c2a - r1[k] * c2b) / c2c;
+    }
+    // interpolate each row of poles at the Greville abscissae so the boundary curve passes through the wanted values
+    math_Matrix A(1, n, 1, n);
+    for (int k = 0; k < n; k++) {
+        auto b = basis(s->VKnots(), s->VMultiplicities(), p, n, g[k]);
+        for (int j = 0; j < n; j++) A(k + 1, j + 1) = b[0][j];
+    }
+    math_Gauss gs(A); if (!gs.IsDone()) throw Standard_Failure("The boundary could not be fitted. Try a different surface or boundary.");
+    auto solveRow = [&](int row, const std::vector<gp_XYZ>& f) {
+        std::vector<gp_XYZ> poles(n);
+        for (int c = 0; c < 3; c++) {
+            math_Vector b(1, n), x(1, n);
+            for (int k = 0; k < n; k++) b(k + 1) = c == 0 ? f[k].X() : c == 1 ? f[k].Y() : f[k].Z();
+            gs.Solve(b, x);
+            for (int j = 0; j < n; j++) { gp_XYZ q = poles[j]; if (c == 0) q.SetX(x(j + 1)); else if (c == 1) q.SetY(x(j + 1)); else q.SetZ(x(j + 1)); poles[j] = q; }
+        }
+        for (int j = 0; j < n; j++) s->SetPole(row, j + 1, gp_Pnt(poles[j]));
+    };
+    solveRow(1, r0);
+    if (continuity >= 1) solveRow(2, r1);
+    if (continuity >= 2) solveRow(3, r2);
+}
+
+static void measure(const Handle(Geom_BSplineSurface)& s, const TopoDS_Face& face, const TopoDS_Edge& edge, const BRepAdaptor_Curve& ec, int sign, double* out) {
+    int n = s->NbVPoles(), m = std::max(51, 4 * n); double u0 = s->UKnot(1), v0 = s->VKnot(1), v1 = s->VKnot(s->NbVKnots());
+    for (int i = 0; i < 4; i++) out[i] = 0;
+    for (int i = 0; i < m; i++) {
+        double v = v0 + (v1 - v0) * i / (m - 1);
+        gp_Pnt Q; gp_Vec su, sv, suu, svv, suv; s->D2(u0, v, Q, su, sv, suu, svv, suv);
+        double dist; double t = nearest(ec, Q, dist); Frame fr = frameAt(face, edge, ec, t, sign);
+        gp_Vec ns = su.Crossed(sv);
+        if (ns.Magnitude() < 1e-12 || su.SquareMagnitude() < 1e-18) throw Standard_Failure("The matched seam contains a singular tangent. Try a smaller tangent scale.");
+        ns.Normalize(); if (ns.Dot(fr.N) < 0) ns.Reverse();
+        out[0] = std::max(out[0], dist); out[1] += dist * dist;
+        out[2] = std::max(out[2], std::acos(std::clamp(ns.Dot(fr.N), -1.0, 1.0)) * 180 / 3.141592653589793);
+        out[3] = std::max(out[3], std::abs(suu.Dot(ns) / su.SquareMagnitude() - fr.kappa));
+    }
+    out[1] = std::sqrt(out[1] / m);
+}
+}
+
+// out: maximum gap, RMS gap, maximum normal angle (degrees), maximum cross-seam curvature difference (1/mm), control rows along the seam.
+CK_API void* ck_surface_match_edge(void* source, int side, void* reference, int continuity, double scale, int refine, double* out) {
+    TRY
+        if (continuity < 0 || continuity > 2 || !std::isfinite(scale) || scale <= 0) throw Standard_Failure("Choose G0, G1 or G2 and a positive tangent scale.");
+        Handle(Geom_BSplineSurface) base = matchPatch(get(source), side);
+        if (base->UDegree() < continuity || base->NbUPoles() < continuity + 2)
+            throw Standard_Failure("This continuity needs higher cross-boundary degree and enough rows to retain the opposite boundary.");
+        double u0 = base->UKnot(1), v0 = base->VKnot(1), v1 = base->VKnot(base->NbVKnots());
+        std::vector<gp_Pnt> probe; double blen = 0;
+        for (int k = 0; k <= 8; k++) { probe.push_back(base->Value(u0, v0 + (v1 - v0) * k / 8)); if (k) blen += probe[k].Distance(probe[k - 1]); }
+        gp_Pnt mid; gp_Vec su, sv; base->D1(u0, 0.5 * (v0 + v1), mid, su, sv);
+        if (su.Magnitude() > 1e-12) su.Normalize();
+        // the edge of the reference that runs along the source boundary; where two faces share it, the one the source leaves away from
+        TopTools_IndexedMapOfShape faces; TopExp::MapShapes(get(reference), TopAbs_FACE, faces);
+        if (faces.Extent() == 0) throw Standard_Failure("The reference has no face to match.");
+        TopoDS_Face bestFace; TopoDS_Edge bestEdge; double bestScore = 1e300, bestFacing = -2;
+        for (int fi = 1; fi <= faces.Extent(); fi++) {
+            TopoDS_Face face = TopoDS::Face(faces(fi));
+            TopTools_IndexedMapOfShape edges; TopExp::MapShapes(face, TopAbs_EDGE, edges);
+            for (int ei = 1; ei <= edges.Extent(); ei++) {
+                TopoDS_Edge edge = TopoDS::Edge(edges(ei));
+                if (BRep_Tool::Degenerated(edge)) continue;
+                try {
+                    BRepAdaptor_Curve ec(edge); double score = 0;
+                    for (auto& q : probe) { double d; seam::nearest(ec, q, d); score = std::max(score, d); }
+                    double d; double t = seam::nearest(ec, mid, d);
+                    auto fr = seam::frameAt(face, edge, ec, t, seam::inward(face, edge));
+                    double facing = fr.T.Reversed().Dot(su);
+                    bool better = score < bestScore - 1e-6 * std::max(blen, 1.0) || (std::abs(score - bestScore) <= 1e-6 * std::max(blen, 1.0) && facing > bestFacing);
+                    if (better) { bestFace = face; bestEdge = edge; bestScore = score; bestFacing = facing; }
+                } catch (Standard_Failure&) { continue; }
+            }
+        }
+        if (bestEdge.IsNull() || bestScore > 0.5 * blen)
+            throw Standard_Failure("No edge of the reference runs along that boundary of the surface. Move the surface closer, or choose another boundary or reference face.");
+        BRepAdaptor_Curve ec(bestEdge); int sign = seam::inward(bestFace, bestEdge);
+        double tol = std::max(1e-6, 1e-4 * blen);
+        Handle(Geom_BSplineSurface) result; double report[4] = {0, 0, 0, 0};
+        for (int attempt = 0; attempt <= (refine ? 4 : 0); attempt++) {
+            Handle(Geom_BSplineSurface) s = Handle(Geom_BSplineSurface)::DownCast(base->Copy());
+            for (int a = 0; a < attempt; a++) {
+                std::vector<double> vs; for (int i = 1; i < s->NbVKnots(); i++) vs.push_back(0.5 * (s->VKnot(i) + s->VKnot(i + 1)));
+                for (double v : vs) s->InsertVKnot(v, 1, 1e-9);
+            }
+            if (attempt > 0 && s->NbVPoles() > 300) break;
+            seam::fit(s, bestFace, bestEdge, ec, sign, continuity, scale);
+            seam::measure(s, bestFace, bestEdge, ec, sign, report);
+            result = s;
+            if (report[0] < tol) break;
+        }
+        for (int i = 0; i < 4; i++) out[i] = report[i];
+        out[4] = result->NbVPoles();
+        if (side % 2) result->UReverse(); if (side >= 2) result->ExchangeUV();
+        auto face = BRepBuilderAPI_MakeFace(result, Precision::Confusion()).Face();
+        TopTools_IndexedMapOfShape originals; TopExp::MapShapes(get(source), TopAbs_FACE, originals);
+        face.Orientation(originals(1).Orientation());
+        if (!BRepCheck_Analyzer(face).IsValid()) throw Standard_Failure("Matching produced invalid topology. Try a different scale or boundary.");
+        return wrap(face);
+    CATCH(nullptr)
+}
+// ---- Wrap: lay flat 2D coordinates onto a face by distance ----
+// Each point (x, y) is reached by walking from the start point over the face in direction atan2(y, x), by the distance sqrt(x^2 + y^2),
+// keeping the walking direction in the tangent plane as it goes. That keeps lengths true on planes, cylinders and cones, and is a close
+// approximation near the start on other surfaces. xdir is the direction (3D) that the plane's +X maps to at the start.
+CK_API int ck_wrap_points(void* target, const double* start, const double* xdir, const double* xy, int n, double* out) {
+    TRY
+        const TopoDS_Shape& sh = get(target);
+        gp_Pnt s0(start[0], start[1], start[2]);
+        TopoDS_Face face; double best = 1e300;
+        TopTools_IndexedMapOfShape faces; TopExp::MapShapes(sh, TopAbs_FACE, faces);
+        if (faces.Extent() == 0) throw Standard_Failure("There is no face to wrap onto.");
+        TopoDS_Vertex sv = BRepBuilderAPI_MakeVertex(s0).Vertex();
+        for (int i = 1; i <= faces.Extent(); i++) {
+            BRepExtrema_DistShapeShape d(sv, faces(i));
+            if (d.IsDone() && d.NbSolution() > 0 && d.Value() < best) { best = d.Value(); face = TopoDS::Face(faces(i)); }
+        }
+        if (face.IsNull()) throw Standard_Failure("There is no face to wrap onto.");
+        TopLoc_Location loc; Handle(Geom_Surface) gs = BRep_Tool::Surface(face, loc);
+        if (gs.IsNull()) throw Standard_Failure("The face has no surface.");
+        double u, v; GeomAPI_ProjectPointOnSurf pr(s0.Transformed(loc.Transformation().Inverted()), gs);
+        if (pr.NbPoints() < 1) throw Standard_Failure("The start point cannot be placed on the face.");
+        pr.LowerDistanceParameters(u, v);
+        BRepAdaptor_Surface su(face);
+        double u0 = u, v0 = v;
+        double ua = su.FirstUParameter(), ub = su.LastUParameter(), va = su.FirstVParameter(), vb = su.LastVParameter();
+        gp_Pnt P; gp_Vec Su, Sv; su.D1(u0, v0, P, Su, Sv);
+        gp_Vec N = Su.Crossed(Sv);
+        // a pole of a sphere or cone tip has no normal: start a hair to the side of it
+        for (int nudge = 1; N.Magnitude() < 1e-9 && nudge <= 4; nudge++) { v0 = v + (v < 0.5 * (va + vb) ? 1 : -1) * nudge * 1e-4 * (vb - va); su.D1(u0, v0, P, Su, Sv); N = Su.Crossed(Sv); }
+        if (N.Magnitude() < 1e-12) throw Standard_Failure("The face is singular at the start point.");
+        N.Normalize();
+        gp_Vec e1(xdir[0], xdir[1], xdir[2]); e1 = e1 - N * e1.Dot(N);
+        if (e1.Magnitude() < 1e-9) e1 = Su - N * Su.Dot(N);
+        e1.Normalize(); gp_Vec e2 = N.Crossed(e1);
+        Bnd_Box bb; BRepBndLib::Add(face, bb); double x0, y0, z0, x1, y1, z1; bb.Get(x0, y0, z0, x1, y1, z1);
+        double stepLen = std::max(std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0)) / 300.0, 1e-3);
+        bool periodicU = su.IsUPeriodic(), periodicV = su.IsVPeriodic();
+        double tu = 1e-6 * std::max(ub - ua, 1.0), tv = 1e-6 * std::max(vb - va, 1.0);
+        for (int k = 0; k < n; k++) {
+            double x = xy[2 * k], y = xy[2 * k + 1], r = std::hypot(x, y);
+            gp_Pnt Q = P;
+            if (r > 1e-12) {
+                double th = std::atan2(y, x), cu = u0, cv = v0;
+                gp_Vec d = e1 * std::cos(th) + e2 * std::sin(th);
+                int steps = std::clamp((int)std::ceil(r / stepLen), 1, 600); double h = r / steps;
+                for (int i = 0; i < steps; i++) {
+                    gp_Pnt p; gp_Vec a, b; su.D1(cu, cv, p, a, b);
+                    gp_Vec nn = a.Crossed(b);
+                    if (nn.Magnitude() < 1e-9) { cv += (cv < 0.5 * (va + vb) ? 1 : -1) * 1e-5 * (vb - va); su.D1(cu, cv, p, a, b); nn = a.Crossed(b); }      // stepping over a pole: nudge off it
+                    if (nn.Magnitude() < 1e-12) throw Standard_Failure("The curve crosses a singular point of the face.");
+                    nn.Normalize(); d = d - nn * d.Dot(nn); if (d.Magnitude() < 1e-12) throw Standard_Failure("The curve cannot be wrapped there.");
+                    d.Normalize();
+                    gp_Vec delta = d * h;
+                    double E = a.Dot(a), F = a.Dot(b), G = b.Dot(b), det = E * G - F * F, r1 = delta.Dot(a), r2 = delta.Dot(b);
+                    if (std::abs(det) < 1e-18) throw Standard_Failure("The curve crosses a singular point of the face.");
+                    cu += (r1 * G - r2 * F) / det; cv += (E * r2 - F * r1) / det;
+                    // walking over a pole (a sphere's, say): carry on down the far side, half a turn round
+                    if (periodicU && !periodicV && (cv > vb + tv || cv < va - tv)) {
+                        double edgeV = cv > vb ? vb : va; gp_Pnt pp; gp_Vec pa, pb; su.D1(cu, edgeV, pp, pa, pb);
+                        if (pa.Crossed(pb).Magnitude() < 1e-9) { cv = 2 * edgeV - cv; cu += su.UPeriod() / 2; }
+                    }
+                    if ((!periodicU && (cu < ua - tu || cu > ub + tu)) || (!periodicV && (cv < va - tv || cv > vb + tv)))
+                        throw Standard_Failure("The curve runs off the face. Move it, make it smaller, or wrap onto a larger face.");
+                }
+                Q = su.Value(cu, cv);
+            }
+            out[3 * k] = Q.X(); out[3 * k + 1] = Q.Y(); out[3 * k + 2] = Q.Z();
+        }
+        return 1;
+    CATCH(0)
+}
+// For points lying along an edge of a face (a profile that starts where the face ends), the direction leaving the face across that edge,
+// in the face's tangent plane. out holds 3 numbers per point. Picks the edge of the face that runs along all the points.
+CK_API int ck_face_exit_dirs(void* reference, int n, const double* pts, double* out) {
+    TRY
+        if (n < 1) throw Standard_Failure("No points to read directions for.");
+        TopTools_IndexedMapOfShape faces; TopExp::MapShapes(get(reference), TopAbs_FACE, faces);
+        if (faces.Extent() == 0) throw Standard_Failure("The reference has no face.");
+        double extent = 0;
+        for (int i = 1; i < n; i++) extent = std::max(extent, gp_Pnt(pts[0], pts[1], pts[2]).Distance(gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2])));
+        TopoDS_Face bestFace; TopoDS_Edge bestEdge; double bestScore = 1e300;
+        for (int fi = 1; fi <= faces.Extent(); fi++) {
+            TopoDS_Face face = TopoDS::Face(faces(fi));
+            TopTools_IndexedMapOfShape edges; TopExp::MapShapes(face, TopAbs_EDGE, edges);
+            for (int ei = 1; ei <= edges.Extent(); ei++) {
+                TopoDS_Edge edge = TopoDS::Edge(edges(ei));
+                if (BRep_Tool::Degenerated(edge)) continue;
+                try {
+                    BRepAdaptor_Curve ec(edge); double score = 0;
+                    for (int i = 0; i < n; i++) { double d; seam::nearest(ec, gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]), d); score = std::max(score, d); }
+                    if (score < bestScore) { bestScore = score; bestFace = face; bestEdge = edge; }
+                } catch (Standard_Failure&) { continue; }
+            }
+        }
+        if (bestEdge.IsNull() || bestScore > std::max(0.5 * extent, 1e-3))
+            throw Standard_Failure("No edge of that face runs along the profile. Pick the face the profile starts from.");
+        BRepAdaptor_Curve ec(bestEdge); int sign = seam::inward(bestFace, bestEdge);
+        for (int i = 0; i < n; i++) {
+            double d; double t = seam::nearest(ec, gp_Pnt(pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]), d);
+            seam::Frame fr = seam::frameAt(bestFace, bestEdge, ec, t, sign);
+            out[3 * i] = -fr.T.X(); out[3 * i + 1] = -fr.T.Y(); out[3 * i + 2] = -fr.T.Z();
+        }
+        return 1;
     CATCH(0)
 }
 CK_API int ck_curve_get_poles(void* e, double* xyz) {
@@ -2214,5 +2634,145 @@ CK_API void* ck_draft(void* s, const int* faceIds, int n, const double* dir, dou
         if (!mk.IsDone()) { fail("Draft failed. Try a smaller angle or a different neutral plane."); return nullptr; }
         if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Draft produced invalid geometry. Try a smaller angle."); return nullptr; }
         return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// ---------------------------------------------------------------- 0.4 additions
+
+// Draft with its own signed angle per face, so one pass can lean the walls above a parting line one way and the walls below the other.
+CK_API void* ck_draft_signed(void* s, const int* faceIds, int n, const double* dir, const double* angles, const double* po, const double* pn) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_FACE, m);
+        BRepOffsetAPI_DraftAngle mk(get(s));
+        gp_Pln neutral(gp_Pnt(po[0], po[1], po[2]), gp_Dir(pn[0], pn[1], pn[2]));
+        gp_Dir d(dir[0], dir[1], dir[2]);
+        for (int i = 0; i < n; ++i) {
+            if (faceIds[i] < 0 || faceIds[i] >= m.Extent()) { fail("Face index out of range."); return nullptr; }
+            mk.Add(TopoDS::Face(m(faceIds[i] + 1)), d, angles[i], neutral, Standard_True);
+            if (!mk.AddDone()) { fail("That face cannot be drafted (it must be flat, round or conical and not parallel to the pull direction)."); return nullptr; }
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Draft failed. Try a smaller angle or a different neutral plane."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Draft produced invalid geometry. Try a smaller angle."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Chamfer with two distances (mode 0: d1 along the first face found at each edge, d2 along the other) or a distance and an angle in degrees (mode 1).
+CK_API void* ck_chamfer2(void* s, const int* edgeIds, int n, double d1, double d2, int mode) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_EDGE, m);
+        TopTools_IndexedDataMapOfShapeListOfShape anc; TopExp::MapShapesAndAncestors(get(s), TopAbs_EDGE, TopAbs_FACE, anc);
+        BRepFilletAPI_MakeChamfer mk(get(s));
+        for (int i = 0; i < n; ++i) {
+            if (edgeIds[i] < 0 || edgeIds[i] >= m.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge e = TopoDS::Edge(m(edgeIds[i] + 1));
+            int k = anc.FindIndex(e);
+            if (k == 0 || anc.FindFromIndex(k).IsEmpty()) { fail("That edge has no face to measure the chamfer from."); return nullptr; }
+            TopoDS_Face f = TopoDS::Face(anc.FindFromIndex(k).First());
+            if (mode == 1) mk.AddDA(d1, d2 * M_PI / 180.0, e, f); else mk.Add(d1, d2, e, f);
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Chamfer failed. Try smaller distances."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Chamfer produced invalid geometry. Try smaller distances or different edges."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Fillet with its own start and end radius per edge.
+CK_API void* ck_fillet_edges(void* s, const int* edgeIds, int n, const double* r1, const double* r2) {
+    TRY
+        TopTools_IndexedMapOfShape m; TopExp::MapShapes(get(s), TopAbs_EDGE, m);
+        BRepFilletAPI_MakeFillet mk(get(s));
+        for (int i = 0; i < n; ++i) {
+            if (edgeIds[i] < 0 || edgeIds[i] >= m.Extent()) { fail("Edge index out of range."); return nullptr; }
+            TopoDS_Edge e = TopoDS::Edge(m(edgeIds[i] + 1));
+            if (std::abs(r1[i] - r2[i]) < 1e-9) mk.Add(r1[i], e); else mk.Add(r1[i], r2[i], e);
+        }
+        mk.Build();
+        if (!mk.IsDone()) { fail("Fillet failed. Try smaller radii."); return nullptr; }
+        if (!BRepCheck_Analyzer(mk.Shape()).IsValid()) { fail("Fillet produced invalid geometry. Try smaller radii or different edges."); return nullptr; }
+        return wrap(mk.Shape());
+    CATCH(nullptr)
+}
+
+// Imprint: mark curves that already lie on one face onto it, so it divides into faces on the same surface and the body keeps its shape.
+// Closed loops split off a piece; a curve that ends inside the face stays as an edge of it.
+// Mark curves on a face of a solid: a closed loop cuts a piece out of the face, a curve that stops inside the face stays as an edge of it.
+// Curves that are not on the face are first pulled onto it (normal projection); the face is then split by the edges that lie on it.
+static int countEdges(const TopoDS_Shape& s) { TopTools_IndexedMapOfShape m; TopExp::MapShapes(s, TopAbs_EDGE, m); return m.Extent(); }
+static bool edgeOnFace(const TopoDS_Edge& e, const TopoDS_Face& f, double tol) {
+    BRepAdaptor_Curve c(e);
+    for (int i = 0; i <= 6; i++) {
+        gp_Pnt p = c.Value(c.FirstParameter() + (c.LastParameter() - c.FirstParameter()) * i / 6.0);
+        BRepExtrema_DistShapeShape d(BRepBuilderAPI_MakeVertex(p).Vertex(), f);
+        if (!d.IsDone() || d.Value() > tol) return false;
+    }
+    return true;
+}
+CK_API void* ck_imprint(void* s, int faceId, void* curves) {
+    TRY
+        TopTools_IndexedMapOfShape fm; TopExp::MapShapes(get(s), TopAbs_FACE, fm);
+        if (faceId < 0 || faceId >= fm.Extent()) { fail("Face index out of range."); return nullptr; }
+        TopoDS_Face face = TopoDS::Face(fm(faceId + 1));
+        Bnd_Box bb; BRepBndLib::Add(get(s), bb); double x0, y0, z0, x1, y1, z1; bb.Get(x0, y0, z0, x1, y1, z1);
+        double scale = std::max(std::sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0)), 1.0);
+        double onTol = 1e-3 * scale;
+        TopTools_ListOfShape onFace, offFace;
+        for (TopExp_Explorer ex(get(curves), TopAbs_EDGE); ex.More(); ex.Next()) {
+            TopoDS_Edge e = TopoDS::Edge(ex.Current());
+            if (edgeOnFace(e, face, onTol)) onFace.Append(e); else offFace.Append(e);
+        }
+        if (onFace.IsEmpty() && offFace.IsEmpty()) { fail("There are no curves to imprint."); return nullptr; }
+        if (!offFace.IsEmpty()) {            // pull what is not on the face onto it
+            BRepOffsetAPI_NormalProjection np(face);
+            for (auto& e : offFace) np.Add(e);
+            np.SetParams(1e-5 * scale, 1e-6, GeomAbs_C1, 14, 16);
+            np.Build();
+            if (np.IsDone()) for (TopExp_Explorer ex(np.Shape(), TopAbs_EDGE); ex.More(); ex.Next()) onFace.Append(ex.Current());
+        }
+        if (onFace.IsEmpty()) { fail("Those curves could not be placed on the face."); return nullptr; }
+        int before = countEdges(get(s));
+        auto tryBuild = [&](TopoDS_Shape& out) {
+            BRepAlgoAPI_Splitter sp; TopTools_ListOfShape args; args.Append(get(s));
+            sp.SetArguments(args); sp.SetTools(onFace); sp.SetFuzzyValue(1e-4 * scale); sp.Build();
+            if (sp.HasErrors() || sp.Shape().IsNull() || !BRepCheck_Analyzer(sp.Shape()).IsValid()) return false;
+            out = sp.Shape(); return countEdges(out) > before;
+        };
+        TopoDS_Shape result;
+        if (tryBuild(result)) return wrap(result);
+        // the older route: edges that carry their own curve on the face
+        BRepFeat_SplitShape sp(get(s));
+        for (auto& e : onFace) sp.Add(TopoDS::Edge(e), face);
+        sp.Build();
+        if (sp.IsDone() && !sp.Shape().IsNull() && BRepCheck_Analyzer(sp.Shape()).IsValid() && countEdges(sp.Shape()) > before) return wrap(sp.Shape());
+        fail("Those curves could not be marked on the face. They must lie on it, or be a closed shape or a curve running across it.");
+        return nullptr;
+    CATCH(nullptr)
+}
+
+// Sweep whose profile is scaled by a law given as (position 0..1 along the path, scale) points, joined smoothly.
+CK_API void* ck_sweep_law(void* profile, void* path, int makeSolid, int mode, int n, const double* params, const double* scales, const double* binormal) {
+    TRY
+        if (n < 2) { fail("A scale law needs at least two points."); return nullptr; }
+        TopoDS_Wire spine = asWire(get(path)), prof = asWire(get(profile));
+        BRepOffsetAPI_MakePipeShell ps(spine);
+        if (mode == 1) {
+            Bnd_Box pb; BRepBndLib::Add(prof, pb);
+            BRepAdaptor_Curve first(TopoDS::Edge(BRepTools_WireExplorer(spine).Current()));
+            gp_Pnt p; gp_Vec t; first.D1(first.FirstParameter(), p, t);
+            ps.SetMode(gp_Ax2(p, gp_Dir(t)));
+        }
+        else if (mode == 2) ps.SetMode(gp_Dir(binormal[0], binormal[1], binormal[2]));
+        else ps.SetMode(false);
+        TColgp_Array1OfPnt2d pts(1, n);
+        for (int i = 0; i < n; ++i) pts.SetValue(i + 1, gp_Pnt2d(params[i], scales[i]));
+        Handle(Law_Interpol) law = new Law_Interpol();
+        law->Set(pts, Standard_False);
+        ps.SetLaw(prof, law, Standard_False, Standard_False);
+        ps.Build();
+        if (!ps.IsDone()) { fail("Sweep failed."); return nullptr; }
+        if (makeSolid) ps.MakeSolid();
+        return wrap(ps.Shape());
     CATCH(nullptr)
 }

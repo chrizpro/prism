@@ -1,0 +1,117 @@
+Part,Name,Material,SizeX,SizeY,SizeZ,CandidateThickness,Group,CandidateFootprintX,CandidateFootprintY,Fits600x400,Decision
+P001,Maple presentation plinth,Maple,300,230,8,8,Plinth and structural blanks,300,230,True,Review top-down access and stock; use a separate setup per physical orientation
+P002,Central hall,Maple,116,127,96,96,Hall masses,116,127,True,"Panelize/hollow with joinery, or index a deep blank; display solid is not a routed wall kit"
+P003,West wing,Maple,75,122,65,65,Hall masses,75,122,True,"Panelize/hollow with joinery, or index a deep blank; display solid is not a routed wall kit"
+P004,West foundation band,Maple,77,124,6,6,Plinth and structural blanks,77,124,True,Review top-down access and stock; use a separate setup per physical orientation
+P005,West cornice 1,Maple,77,124,3,3,Flat trim and stairs,77,124,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P006,West cornice 2,Maple,81,128,3,3,Flat trim and stairs,81,128,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P007,West cornice 3,Maple,85,132,2,2,Flat trim and stairs,85,132,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P008,East wing,Maple,75,122,65,65,Hall masses,75,122,True,"Panelize/hollow with joinery, or index a deep blank; display solid is not a routed wall kit"
+P009,East foundation band,Maple,77,124,6,6,Plinth and structural blanks,77,124,True,Review top-down access and stock; use a separate setup per physical orientation
+P010,East cornice 1,Maple,77,124,3,3,Flat trim and stairs,77,124,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P011,East cornice 2,Maple,81,128,3,3,Flat trim and stairs,81,128,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P012,East cornice 3,Maple,85,132,2,2,Flat trim and stairs,85,132,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P013,Hall foundation band,Maple,118,129,6,6,Plinth and structural blanks,118,129,True,Review top-down access and stock; use a separate setup per physical orientation
+P014,Hall cornice 1,Maple,118,129,3,3,Flat trim and stairs,118,129,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P015,Hall cornice 2,Maple,122,133,3,3,Flat trim and stairs,122,133,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P016,Hall cornice 3,Maple,126,137,3,3,Flat trim and stairs,126,137,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P017,Entry stair 1,Maple,138,67,3,3,Flat trim and stairs,67,138,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P018,Entry stair 2,Maple,132,61,3,3,Flat trim and stairs,61,132,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P019,Entry stair 3,Maple,126,54,3,3,Flat trim and stairs,54,126,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P020,Entry stair 4,Maple,120,46,3,3,Flat trim and stairs,46,120,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P021,West walnut hipped roof,Walnut,85,132,18,18,Roof blanks,85,132,True,3D rough/finish top; inspect underside seating and alternate fixture requirements
+P022,East walnut hipped roof,Walnut,85,132,18,18,Roof blanks,85,132,True,3D rough/finish top; inspect underside seating and alternate fixture requirements
+P023,Recessed maple dome drum,Maple,92,92,19,19,Plinth and structural blanks,92,92,True,Review top-down access and stock; use a separate setup per physical orientation
+P024,Drum lower moulding,Maple,98,98,3,3,Flat trim and stairs,98,98,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P025,Drum upper moulding,Maple,98,98,3,3,Flat trim and stairs,98,98,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P026,Walnut hemispherical dome,Walnut,90,90,45,45,Dome blank,90,90,True,3D rough/ball-finish exterior; separate registered underside setup if hollowed
+P027,West front window 1 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P028,West front window 1 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P029,West front window 1 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P030,West rear window 1 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P031,West rear window 1 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P032,West rear window 1 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P033,West front window 2 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P034,West front window 2 maple frame,Maple,17,2.2,33,2.2,Thin facade detail,17,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P035,West front window 2 projecting sill,Maple,20.0,3.5,2.0,2.0,Thin facade detail,3.5,20.0,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P036,West rear window 2 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P037,West rear window 2 maple frame,Maple,17,2.2,33,2.2,Thin facade detail,17,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P038,West rear window 2 projecting sill,Maple,20.0,3.5,2.0,2.0,Thin facade detail,3.5,20.0,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P039,West front window 3 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P040,West front window 3 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P041,West front window 3 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P042,West rear window 3 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P043,West rear window 3 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P044,West rear window 3 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P045,West side window 1 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P046,West side window 1 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P047,West side window 1 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P048,West side window 2 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P049,West side window 2 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P050,West side window 2 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P051,West side window 3 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P052,West side window 3 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P053,West side window 3 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P054,East front window 1 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P055,East front window 1 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P056,East front window 1 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P057,East rear window 1 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P058,East rear window 1 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P059,East rear window 1 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P060,East front window 2 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P061,East front window 2 maple frame,Maple,17,2.2,33,2.2,Thin facade detail,17,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P062,East front window 2 projecting sill,Maple,20.0,3.5,2.0,2.0,Thin facade detail,3.5,20.0,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P063,East rear window 2 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P064,East rear window 2 maple frame,Maple,17,2.2,33,2.2,Thin facade detail,17,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P065,East rear window 2 projecting sill,Maple,20.0,3.5,2.0,2.0,Thin facade detail,3.5,20.0,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P066,East front window 3 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P067,East front window 3 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P068,East front window 3 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P069,East rear window 3 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P070,East rear window 3 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P071,East rear window 3 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P072,East side window 1 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P073,East side window 1 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P074,East side window 1 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P075,East side window 2 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P076,East side window 2 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P077,East side window 2 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P078,East side window 3 walnut recess,Walnut,0.8,12.5,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P079,East side window 3 maple frame,Maple,2.2,17.0,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P080,East side window 3 projecting sill,Maple,3.5,20,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P081,Hall rear window 1 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P082,Hall rear window 1 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P083,Hall rear window 1 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P084,Hall rear window 2 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P085,Hall rear window 2 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P086,Hall rear window 2 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P087,Hall rear window 3 walnut recess,Walnut,12.5,0.8,28.4,0.8,Thin veneer / inlay,12.5,28.4,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P088,Hall rear window 3 maple frame,Maple,17.0,2.2,33,2.2,Thin facade detail,17.0,33,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P089,Hall rear window 3 projecting sill,Maple,20,3.5,2.0,2.0,Thin facade detail,3.5,20,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P090,Arched walnut double door,Walnut,31.2,3,45.3,3,Flat trim and stairs,31.2,45.3,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P091,Maple arched door surround,Maple,37.0,2.5,50.0,2.5,Thin facade detail,37.0,50.0,True,Lay facade-normal up; group profiles on a sacrificial carrier; review holding tabs and inside radii
+P092,Door leaf -1 raised panel 1,Maple,11.5,0.6,10,0.6,Thin veneer / inlay,10,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P093,Door leaf -1 raised panel 2,Maple,11.5,0.6,10,0.6,Thin veneer / inlay,10,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P094,Door leaf -1 raised panel 3,Maple,11.5,0.6,9,0.6,Thin veneer / inlay,9,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P095,Walnut door pull -1,Walnut,1.3,1.3,1.3,1.3,Hand-fit hardware,1.3,1.3,True,Replace with dowel/purchased detail or simplify; too small to route individually
+P096,Door leaf 1 raised panel 1,Maple,11.5,0.6,10,0.6,Thin veneer / inlay,10,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P097,Door leaf 1 raised panel 2,Maple,11.5,0.6,10,0.6,Thin veneer / inlay,10,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P098,Door leaf 1 raised panel 3,Maple,11.5,0.6,9,0.6,Thin veneer / inlay,9,11.5,True,Group as veneer/inlay or engrave into parent face; avoid loose sub-mm router parts
+P099,Walnut door pull 1,Walnut,1.3,1.3,1.3,1.3,Hand-fit hardware,1.3,1.3,True,Replace with dowel/purchased detail or simplify; too small to route individually
+P100,Turned maple column 4,Maple,16,16,43,43,Turned columns,16,16,True,Lathe or indexed fixture; a single top-down pass does not finish all sides
+P101,Column 1 square plinth,Maple,14,14,2,2,Flat trim and stairs,14,14,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P102,Column 1 abacus,Maple,16,16,2,2,Flat trim and stairs,16,16,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P103,Turned maple column 1,Maple,16,16,43,43,Turned columns,16,16,True,Lathe or indexed fixture; a single top-down pass does not finish all sides
+P104,Column 2 square plinth,Maple,14,14,2,2,Flat trim and stairs,14,14,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P105,Column 2 abacus,Maple,16,16,2,2,Flat trim and stairs,16,16,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P106,Turned maple column 2,Maple,16,16,43,43,Turned columns,16,16,True,Lathe or indexed fixture; a single top-down pass does not finish all sides
+P107,Column 3 square plinth,Maple,14,14,2,2,Flat trim and stairs,14,14,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P108,Column 3 abacus,Maple,16,16,2,2,Flat trim and stairs,16,16,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P109,Turned maple column 3,Maple,16,16,43,43,Turned columns,16,16,True,Lathe or indexed fixture; a single top-down pass does not finish all sides
+P110,Column 4 square plinth,Maple,14,14,2,2,Flat trim and stairs,14,14,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P111,Column 4 abacus,Maple,16,16,2,2,Flat trim and stairs,16,16,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P112,Portico entablature 1,Maple,120,43,4,4,Flat trim and stairs,43,120,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P113,Portico entablature 2,Maple,122,45,2,2,Flat trim and stairs,45,122,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P114,Portico entablature 3,Maple,126,49,2,2,Flat trim and stairs,49,126,True,"Group compatible stock thickness/material; profile or face on carrier, with holding tabs"
+P115,Recessed maple pediment,Maple,128,42,29,29,Plinth and structural blanks,128,42,True,Review top-down access and stock; use a separate setup per physical orientation
+P116,Walnut portico roof,Walnut,128,46,32.5,32.5,Roof blanks,128,46,True,3D rough/finish top; inspect underside seating and alternate fixture requirements

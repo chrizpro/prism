@@ -31,7 +31,8 @@ sealed class Bridge
         "Use describe_api (no arguments lists tools one per line; names=[...] gives schemas) and call_api for single calls; run_command takes command names found with list_commands(query). " +
         "Face and edge indices are 1-based; form_info / form_op use 0-based cage indices. Units are millimetres, Z up. Any tool call launches the app if needed. " +
         "Slot and parameter labels match by partial, case-insensitive text; objects can be named by name or id prefix; commands seed empty slots from the selection; " +
-        "call wait_idle after view changes before pointer events or screenshots. Prompts build_*, test_* and bug_hunt are ready-made scenarios.";
+        "call wait_idle after view changes before pointer events or screenshots. Prompts build_*, test_* and bug_hunt are ready-made scenarios. " +
+        "For curved or organic shapes (Freeform) read the guide first: call_api guide {topic:\"freeform\"}. Describe shapes by stations and silhouettes (cad.form_skin, cad.form_from_silhouettes, cad.svg_to_sketch), verify with cad.profile / solid_profile, and look with screenshot {views:[\"front\",\"right\",\"top\",\"iso\"], object:[...]}.";
 
     // ------------------------------------------------------------ prompts: ready-made test scenarios
     static readonly (string name, string desc, string text)[] Prompts =
@@ -41,7 +42,7 @@ sealed class Bridge
         ("build_lofted_surface", "Build a smooth lofted surface object and analyze its quality.",
          "Try out surfacing in Prism. Draw 5-8 closed spline sections at different heights (sketch_add spline with closed:true), loft them with loft_surface, close the ends with planar_surface, knit them, thicken the shell, then run curvature, zebra stripes and check. Look at the curvature comb while drawing the sections (the Curvature toggle in the Sketch tab). Report continuity problems, noisy analysis, or tools that refuse legitimate input."),
         ("build_freeform_model", "Build a subdivision (Freeform) model, convert it to NURBS and combine it.",
-         "Try out Freeform (subdivision) modeling in Prism. In a new tab: make a Freeform Cylinder or Box, use form_op (extrude_faces, set_vertices, insert_loop, crease, level, mirror), build a handle or limb with form_sweep or form_loft, try edit_form actions (select loop/ring, bridge, freeze, align to curve), then convert to NURBS, union the pieces, and run check and properties. Note that form_op cap faces keep their index after an extrude. Report crashes, bad geometry, and misleading names."),
+         "Try out Freeform (subdivision) modeling in Prism. First read the guide (call_api guide {topic:\"freeform\"}). Describe each part by stations or silhouettes (cad.form_skin / cad.form_from_silhouettes) and check it with cad.profile and screenshot views before editing the cage. Then, in a new tab: make a Freeform Cylinder or Box, use form_op (extrude_faces, set_vertices, insert_loop, crease, level, mirror), build a handle or limb with form_sweep or form_loft, try edit_form actions (select loop/ring, bridge, freeze, align to curve), then convert to NURBS, union the pieces, and run check and properties. Note that form_op cap faces keep their index after an extrude. Report crashes, bad geometry, and misleading names."),
         ("test_2d_sketcher", "Exercise the 2D sketcher: constraints, typed entry, selection, splines.",
          "Test the 2D sketcher in Prism using sketch_input (it sends real pointer and key events). Draw lines with typed length and angle (keys Char:2, Char:5, Tab, Enter), a 3-point rectangle with H/V lock, an ellipse locked to a circle with Char:L, a spline then edit_spline (add and remove points). Add constraints in both orders (the second pick should follow the first), try a conflicting constraint and check the message, box-select and delete, and confirm closed profiles are tinted. Report anything that behaves differently from the on-screen help text."),
         ("test_3d_sketch", "Exercise the 3D sketch tool with the axis gizmo and curvature comb.",
@@ -280,6 +281,7 @@ sealed class Bridge
     }
 
     int? _launchedPid;
+    int? _discoveredPid;
 
     async Task<bool> TryDiscoverAsync()
     {
@@ -287,6 +289,7 @@ sealed class Bridge
         {
             if (!File.Exists(Discovery)) return false;
             var d = JsonNode.Parse(File.ReadAllText(Discovery))!.AsObject();
+            _discoveredPid = d["pid"]?.GetValue<int>();
             _baseUrl = $"http://127.0.0.1:{d["port"]}"; _token = d["token"]!.ToString();
             _restricted = d["restricted"]?.GetValue<bool>() == true;
             using var cts = new CancellationTokenSource(1500);
@@ -301,6 +304,14 @@ sealed class Bridge
     async Task<bool> ConnectAsync(bool launch)
     {
         if (await TryDiscoverAsync()) return true;
+        // Rendering can temporarily starve the ping handler. Do not launch an
+        // empty second app over a live instance's discovery file; the normal
+        // six-minute request timeout can wait for the busy endpoint instead.
+        if (_discoveredPid is { } pid && _baseUrl != null && _token != null)
+        {
+            try { using var process = Process.GetProcessById(pid); if (!process.HasExited) return true; }
+            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        }
         if (!launch) return false;
         var exe = FindExe();
         if (exe == null) { Log("Prism.Desktop.exe not found"); return false; }

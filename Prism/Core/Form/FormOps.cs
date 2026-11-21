@@ -43,14 +43,17 @@ public static class FormOps
     }
 
     /// <summary>"Quadball": a cube projected onto a sphere. All faces are quads.</summary>
-    public static SubdMesh Sphere(double r, int n)
+    public static SubdMesh Sphere(double r, int n) => Sphere(r, n, n, n);
+
+    /// <summary>A quadball with its own face count in each direction (nx, ny, nz faces from one side of the cube to the other), so one direction can carry more points than another.</summary>
+    public static SubdMesh Sphere(double r, int nx, int ny, int nz)
     {
         var m = new SubdMesh();
         var e = 2.0;
-        void Face(Vec3 o, Vec3 u, Vec3 v) => AddGrid(m, o, u * e, v * e, n, n);
-        Face(new(-1, -1, 1), Vec3.UnitX, Vec3.UnitY); Face(new(-1, -1, -1), Vec3.UnitY, Vec3.UnitX);
-        Face(new(1, -1, -1), Vec3.UnitY, Vec3.UnitZ); Face(new(-1, -1, -1), Vec3.UnitZ, Vec3.UnitY);
-        Face(new(-1, 1, -1), Vec3.UnitZ, Vec3.UnitX); Face(new(-1, -1, -1), Vec3.UnitX, Vec3.UnitZ);
+        void Face(Vec3 o, Vec3 u, Vec3 v, int nu, int nv) => AddGrid(m, o, u * e, v * e, nu, nv);
+        Face(new(-1, -1, 1), Vec3.UnitX, Vec3.UnitY, nx, ny); Face(new(-1, -1, -1), Vec3.UnitY, Vec3.UnitX, ny, nx);
+        Face(new(1, -1, -1), Vec3.UnitY, Vec3.UnitZ, ny, nz); Face(new(-1, -1, -1), Vec3.UnitZ, Vec3.UnitY, nz, ny);
+        Face(new(-1, 1, -1), Vec3.UnitZ, Vec3.UnitX, nz, nx); Face(new(-1, -1, -1), Vec3.UnitX, Vec3.UnitZ, nx, nz);
         m.WeldByDistance(1e-6);
         // spherify with a gentle correction so cells stay evenly sized
         for (int i = 0; i < m.V.Count; i++)
@@ -63,7 +66,8 @@ public static class FormOps
         return m;
     }
 
-    public static SubdMesh Cylinder(double r, double h, int seg, int rings, bool caps = true)
+    /// <param name="capRings">How many concentric rings of faces each cap is divided into before the middle face (0 keeps each cap a single face, as it always was).</param>
+    public static SubdMesh Cylinder(double r, double h, int seg, int rings, bool caps = true, int capRings = 0)
     {
         var m = new SubdMesh();
         for (int j = 0; j <= rings; j++)
@@ -79,6 +83,29 @@ public static class FormOps
         {
             m.F.Add(Enumerable.Range(0, seg).Select(i => Id(i, rings)).ToArray());          // top (CCW from +Z)
             m.F.Add(Enumerable.Range(0, seg).Select(i => Id(seg - 1 - i, 0)).ToArray());   // bottom
+            if (capRings > 0)
+            {
+                // divide each cap: rings of the same number of points, shrinking toward the middle, joined by quads, with the innermost ring left as the middle face
+                m.F.RemoveRange(m.F.Count - 2, 2);
+                foreach (bool top in new[] { true, false })
+                {
+                    int[] previous = Enumerable.Range(0, seg).Select(i => Id(i, top ? rings : 0)).ToArray();
+                    double z = top ? h : 0;
+                    for (int t = 1; t <= capRings; t++)
+                    {
+                        double radius = r * (capRings + 1 - t) / (capRings + 1);
+                        var ring = new int[seg];
+                        for (int i = 0; i < seg; i++) { double a = 2 * Math.PI * i / seg; ring[i] = m.V.Count; m.V.Add(new(radius * Math.Cos(a), radius * Math.Sin(a), z)); }
+                        for (int i = 0; i < seg; i++)
+                        {
+                            int j = (i + 1) % seg;
+                            m.F.Add(top ? [previous[i], previous[j], ring[j], ring[i]] : [previous[j], previous[i], ring[i], ring[j]]);      // counter-clockwise seen from outside
+                        }
+                        previous = ring;
+                    }
+                    m.F.Add(top ? previous : previous.Reverse().ToArray());
+                }
+            }
         }
         return m;
     }
@@ -140,6 +167,89 @@ public static class FormOps
             result.Add((a2, b2));
         }
         return result;
+    }
+
+    /// <summary>
+    /// Knife: cut the cage along a plane. Every edge the plane crosses gets a new point where it crosses, and every face it passes through is split in two
+    /// along the cut (a plane that passes through existing points splits the face between them). Faces that only touch the plane, or lie in it, are left alone.
+    /// Returns the new points; <paramref name="cutFaces"/> is how many faces were split. A positive <paramref name="crease"/> sharpens the new edges.
+    /// </summary>
+    public static List<int> CutWithPlane(SubdMesh m, Vec3 origin, Vec3 normal, out int cutFaces, double crease = 0)
+    {
+        cutFaces = 0;
+        if (m.F.Count == 0 || normal.Length < 1e-12) return [];
+        normal = normal.Normalized();
+        var (lo, hi) = m.Bounds();
+        double eps = 1e-9 * Math.Max((hi - lo).Length, 1);
+        int oldCount = m.V.Count;
+        var d = new double[oldCount];
+        for (int i = 0; i < oldCount; i++) d[i] = Vec3.Dot(m.V[i] - origin, normal);
+        bool On(int v) => v >= oldCount || Math.Abs(d[v]) <= eps;
+
+        var cutPoint = new Dictionary<long, int>();                      // each crossed edge, and the point put on it
+        foreach (var key in m.Topo().EdgeFaces.Keys)
+        {
+            var (a, b) = SubdMesh.Unkey(key);
+            if (On(a) || On(b) || d[a] * d[b] > 0) continue;
+            double t = d[a] / (d[a] - d[b]);
+            cutPoint[key] = m.V.Count; m.V.Add(m.V[a] + (m.V[b] - m.V[a]) * t);
+        }
+        if (cutPoint.Count == 0 && !m.V.Take(oldCount).Where((_, i) => Math.Abs(d[i]) <= eps).Skip(1).Any()) return [];
+
+        // a crease on a crossed edge carries over to both halves
+        foreach (var (key, mid) in cutPoint)
+            if (m.Crease.TryGetValue(key, out var c) && c > 0)
+            {
+                var (a, b) = SubdMesh.Unkey(key); m.Crease.Remove(key);
+                m.Crease[SubdMesh.Key(a, mid)] = c; m.Crease[SubdMesh.Key(mid, b)] = c;
+            }
+
+        var result = new List<int[]>();
+        foreach (var face in m.F.ToList())
+        {
+            // the face's outline with the new points put in
+            var poly = new List<int>();
+            for (int i = 0; i < face.Length; i++)
+            {
+                poly.Add(face[i]);
+                if (cutPoint.TryGetValue(SubdMesh.Key(face[i], face[(i + 1) % face.Length]), out int mid)) poly.Add(mid);
+            }
+            var on = Enumerable.Range(0, poly.Count).Where(i => On(poly[i])).ToList();
+            if (on.Count < 2 || on.Count == poly.Count) { result.Add(poly.ToArray()); continue; }
+
+            // along the cut line, cut between the 1st and 2nd points, the 3rd and 4th ... (the stretches inside the face)
+            var n = Vec3.Zero;
+            for (int i = 0; i < poly.Count; i++) n += Vec3.Cross(m.V[poly[i]], m.V[poly[(i + 1) % poly.Count]]);
+            var line = Vec3.Cross(normal, n.Normalized());
+            var ordered = on.Select(i => poly[i]).OrderBy(v => Vec3.Dot(m.V[v], line)).ToList();
+            var pieces = new List<List<int>> { poly };
+            bool split = false;
+            for (int k = 0; k + 1 < ordered.Count; k += 2)
+            {
+                int u = ordered[k], w = ordered[k + 1];
+                var piece = pieces.FirstOrDefault(p => p.Contains(u) && p.Contains(w));
+                if (piece == null) continue;
+                int iu = piece.IndexOf(u), iw = piece.IndexOf(w);
+                if ((iw - iu + piece.Count) % piece.Count == 1 || (iu - iw + piece.Count) % piece.Count == 1) continue;      // already neighbours: the cut runs along an edge
+                if (iu > iw) (iu, iw) = (iw, iu);
+                var first = piece.Skip(iu).Take(iw - iu + 1).ToList();
+                var second = piece.Skip(iw).Concat(piece.Take(iu + 1)).ToList();
+                pieces.Remove(piece); pieces.Add(first); pieces.Add(second);
+                if (crease > 0) m.Crease[SubdMesh.Key(u, w)] = crease;
+                split = true;
+            }
+            if (split) cutFaces++;
+            foreach (var p in pieces) result.Add(p.ToArray());
+        }
+        m.F.Clear(); m.F.AddRange(result);
+        // a crease also goes along the cut where it follows existing edges between new points
+        if (crease > 0)
+            foreach (var (key, _) in m.Topo().EdgeFaces)
+            {
+                var (a, b) = SubdMesh.Unkey(key);
+                if (a >= oldCount && b >= oldCount) m.Crease[key] = crease;
+            }
+        return cutPoint.Values.ToList();
     }
 
     /// <summary>Adds an edge loop through the given edge (splits the ring of quads around it). <paramref name="t"/> is how far along the edge
@@ -583,8 +693,33 @@ public static class FormOps
     }
 
     /// <summary>Caps every open boundary loop with one polygon (facing the same way as its neighbours). Returns how many holes were filled.</summary>
-    public static int FillHoles(SubdMesh m)
+    /// <summary>
+    /// Sharpen every edge where two faces meet at more than <paramref name="angleDeg"/> degrees (a box's edges, a cylinder's cap rims), so smoothing does not round them off.
+    /// Edges between faces that bend gently, and open border edges, are left alone. Returns how many edges were sharpened.
+    /// </summary>
+    public static int CreaseFeatureEdges(SubdMesh m, double angleDeg = 70, double sharpness = 5)
     {
+        Vec3 Normal(int f)
+        {
+            var face = m.F[f]; var n = Vec3.Zero;
+            for (int i = 0; i < face.Length; i++) { var a = m.V[face[i]]; var b = m.V[face[(i + 1) % face.Length]]; n += new Vec3((a.Y - b.Y) * (a.Z + b.Z), (a.Z - b.Z) * (a.X + b.X), (a.X - b.X) * (a.Y + b.Y)); }
+            return n.Normalized();
+        }
+        double limit = Math.Cos(angleDeg * Math.PI / 180); int count = 0;
+        foreach (var (key, faces) in m.Topo().EdgeFaces)
+            if (faces.Count == 2 && Vec3.Dot(Normal(faces[0]), Normal(faces[1])) < limit) { m.Crease[key] = sharpness; count++; }
+        return count;
+    }
+
+    public static int FillHoles(SubdMesh m) => FillHoles(m, null, out _);
+
+    /// <summary>
+    /// Cap open borders. With <paramref name="near"/>, only the holes whose rim touches one of those points are filled (a hole far from what you selected is left alone);
+    /// <paramref name="found"/> is how many holes the form has altogether, so a caller can say "there are holes, but not here".
+    /// </summary>
+    public static int FillHoles(SubdMesh m, ISet<int>? near, out int found)
+    {
+        var rims = new List<int[]>();
         var directed = new HashSet<(int, int)>();
         foreach (var f in m.F) for (int i = 0; i < f.Length; i++) directed.Add((f[i], f[(i + 1) % f.Length]));
         var next = new Dictionary<int, List<int>>();
@@ -602,9 +737,15 @@ public static class FormOps
                 if (cur == start) break;
                 if (loop.Count > 100000) { loop.Clear(); break; }
             }
-            if (loop.Count >= 3) { m.F.Add(loop.ToArray()); filled++; }
+            if (loop.Count >= 3) rims.Add(loop.ToArray());
             else foreach (var k in next.Keys.Where(k => next[k].Count == 0).ToList()) next.Remove(k);
             if (loop.Count == 0 && next.Count > 0 && next.Values.All(v => v.Count == 0)) break;
+        }
+        found = rims.Count;
+        foreach (var rim in rims)
+        {
+            if (near != null && !rim.Any(near.Contains)) continue;      // not at what was selected
+            m.F.Add(rim); filled++;
         }
         return filled;
     }

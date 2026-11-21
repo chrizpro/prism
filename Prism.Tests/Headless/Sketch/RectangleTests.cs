@@ -32,8 +32,8 @@ public class RectangleTests
         tool.Feed(session, 40, 40);
         tool.Feed(session, 60, 50);
         AssertRectangle(session, new(20, 30, 0), new(60, 30, 0), new(60, 50, 0), new(20, 50, 0));
-        Assert.Contains(session.Sketch!.Model.Constraints, constraint => constraint.Type == CType.Midpoint);
-        Assert.Single(session.Sketch.Model.Entities, entity => entity.Construction && entity.Type == EntType.Line);
+        Assert.Equal(2, session.Sketch!.Model.Constraints.Count(constraint => constraint.Type == CType.Midpoint));
+        Assert.Equal(2, session.Sketch.Model.Entities.Count(entity => entity.Construction && entity.Type == EntType.Line));   // both diagonals (owner request 2026-11-19)
     }
 
     [AvaloniaFact(DisplayName = "REC-H003 | Three-point uses the chosen base and signed perpendicular width")]

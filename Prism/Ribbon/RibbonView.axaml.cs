@@ -218,9 +218,11 @@ public partial class RibbonView : UserControl
     void OnRibbonButtonClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: RibbonButton rb } anchor) return;
-        bool icon = !ReferenceEquals(_pressedButton, anchor) || (!_pressRight && (rb.IsSmall ? _pressX < 30 : _pressY < _pressH * 0.62));
+        // a click anywhere on a list button runs its action; only the arrow (the right end of a small button, the label line of a large one) opens the list
+        double w = anchor.Bounds.Width;
+        bool arrow = ReferenceEquals(_pressedButton, anchor) && (_pressRight || (rb.IsSmall ? _pressX > w - 20 : _pressY > _pressH * 0.80));
         _pressedButton = null;
-        if (!rb.HasMenu || (rb.IsSplit && icon)) rb.Invoke();
+        if (!rb.HasMenu || !arrow) rb.Invoke();
         else ShowMenu(anchor);
     }
 
@@ -252,7 +254,7 @@ public partial class RibbonView : UserControl
                 CloseHoverHelp();
                 if (!variant.IsEnabled) return;
                 variant.Invoke();
-                if (rb.IsSplit) { rb.Label = variant.Label.Replace("\n", " "); rb.Icon = variant.Icon; rb.Current = variant; rb.Picked?.Invoke(variant); }
+                rb.Pick(variant);
                 rb.Refresh();
             };
             items.Add(mi);

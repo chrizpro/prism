@@ -352,7 +352,7 @@ public sealed unsafe class GlViewport : Decorator
         foreach (var it in items)
         {
             if (!d.TryGetValue(it.Obj, out var h)) d[it.Obj] = h = new();
-            switch (it.Kind) { case SelKind.Object: h.Object = true; break; case SelKind.Face: h.Faces.Add(it.Index); break; default: h.Edges.Add(it.Index); break; }
+            switch (it.Kind) { case SelKind.Object: h.Object = true; break; case SelKind.Face: h.Faces.Add(it.Index); break; case SelKind.MeshFace: break; default: h.Edges.Add(it.Index); break; }
         }
         return d;
     }
@@ -469,10 +469,12 @@ public sealed unsafe class GlViewport : Decorator
         foreach (var o in visible)
         {
             if (o.Kind is ObjKind.Curve or ObjKind.Sketch || o.IsAnnotation) continue;
-            if (mode == DisplayMode.Wireframe) continue;
+            var field = o.Tri is { } tri && s.Fields.TryGetValue(o.Id, out var candidate) &&
+                ReferenceEquals(candidate.Source, tri) ? candidate : null;
+            if (mode == DisplayMode.Wireframe && field?.ShowInWireframe != true) continue;
             _look = (o.Look.Metal, o.Look.Gloss);
             SetSurface(gl,o);
-            if (o.Tri != null && s.Fields.TryGetValue(o.Id, out var fld) && ReferenceEquals(fld.Source, o.Tri))
+            if (field is { } fld)
             {
                 U1(_mesh, "uField", fld.Mode); U1(_mesh, "uPalette", fld.Palette); gl.Uniform2(U(_mesh, "uFRange"), fld.Min, fld.Max);
                 DrawFaces(gl, Upload(fld.Display), o.Color, o.Color, 1f, (0, 0, 0, 0), 0, -1);
@@ -1029,7 +1031,11 @@ public sealed unsafe class GlViewport : Decorator
 
     void OnExited(object? _, PointerEventArgs e)
     {
-        if(Session is {} session)session.ViewportCursor=null;
+        if (Session is { } session)
+        {
+            session.ViewportCursor = null;
+            session.ActiveTool?.PointerExit(session);
+        }
         if (Session is { Hover: not null } s) { s.Hover = null; s.Invalidate(); }
     }
 }

@@ -114,7 +114,7 @@ public class StudySetupToolTests
     {
         var (session, bar, study) = Bar();
         var command = Begin(session, () => new LoadCommand(kind));
-        Assert.Equal(kind == LoadKind.Gravity, command.Slots.Count == 0);
+        Assert.Equal(kind == LoadKind.Gravity, !command.Slots.Any(slot => slot.Label == "Faces to load"));      // gravity needs no faces (it has a hidden slot for taking a direction from geometry)
         Assert.Equal(kind == LoadKind.Gravity, command.Params.Single(p => p.Label == "Direction").IsVisible);
         Assert.False(command.Params.Single(p => p.Label == "The force is the total over all picked faces").IsVisible);
         if (kind != LoadKind.Gravity) Pick(command, "Faces to load", FaceFacing(bar, Vec3.UnitZ));

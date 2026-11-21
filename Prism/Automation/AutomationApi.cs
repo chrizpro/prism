@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -237,6 +238,153 @@ public sealed partial class AutomationApi
 
     Core.Form.SubdMesh FormOf(string name) => FindObject(name).Form ?? throw new ArgumentException($"{name} is not a Form.");
 
+    /// <summary>The screenshot's views option: one labelled sheet of orthographic (or iso) pictures of just the chosen objects, all at one scale.
+    /// The camera, display style, grid and every object's visibility are put back afterwards, so the person's view is not disturbed.</summary>
+    async Task<JsonNode?> MultiViewShot(JsonObject a)
+    {
+        var window = _window ?? throw new InvalidOperationException("No window.");
+        var gl = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Prism.Rendering.GlViewport>().FirstOrDefault() ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+        var origin = Avalonia.VisualExtensions.TranslatePoint(gl, new Avalonia.Point(0, 0), window) ?? throw new InvalidOperationException("The 3D viewport is not visible.");
+        double scale = window.RenderScaling;
+        int x0 = (int)(origin.X * scale), y0 = (int)(origin.Y * scale), vw = (int)(gl.Bounds.Width * scale), vh = (int)(gl.Bounds.Height * scale);
+
+        var names = (a["views"] as JsonArray)?.Select(v => v!.ToString().ToLowerInvariant()).ToList() ?? [];
+        if (names.Count == 0) names = ["front", "right", "top", "iso"];
+        var known = new Dictionary<string, (double yaw, double pitch, int u, int v, string axes)>
+        {
+            ["front"] = (0, 0, 0, 2, "x right, z up"), ["back"] = (180, 0, 0, 2, "x left, z up"), ["right"] = (90, 0, 1, 2, "y right, z up"), ["left"] = (-90, 0, 1, 2, "y left, z up"),
+            ["top"] = (0, 90, 0, 1, "x right, y up"), ["bottom"] = (0, -90, 0, 1, "x right, y down"), ["iso"] = (-35, 28, -1, -1, "perspective-free 3/4 view"),
+        };
+        foreach (var n in names) if (!known.ContainsKey(n)) throw new ArgumentException($"Unknown view '{n}'. Views: {string.Join(", ", known.Keys)}.");
+
+        // what to show: the named objects alone, or everything visible
+        var wanted = a["object"] is JsonArray oa ? oa.Select(n => n!.ToString()).ToList() : a["object"] != null ? [a["object"]!.ToString()] : [];
+        var shown = wanted.Count > 0 ? wanted.Select(FindObject).ToList() : S.Objects.Where(o => o.Visible && !o.IsAnnotation).ToList();
+        shown = shown.Where(o => o.Mesh != null && !o.IsAnnotation).ToList();
+        if (shown.Count == 0) throw new InvalidOperationException("Nothing to show: no visible object has a surface.");
+        var lo = new Vec3(shown.Min(o => o.Mesh.Min.X), shown.Min(o => o.Mesh.Min.Y), shown.Min(o => o.Mesh.Min.Z));
+        var hi = new Vec3(shown.Max(o => o.Mesh.Max.X), shown.Max(o => o.Mesh.Max.Y), shown.Max(o => o.Mesh.Max.Z));
+        var size = hi - lo; var centre = (lo + hi) * 0.5;
+        double Ext(int axis) => axis == 0 ? size.X : axis == 1 ? size.Y : size.Z;
+
+        var cam = S.Cameras[0];
+        var keep = (cam.Target, cam.Distance, cam.Yaw, cam.Pitch, cam.Roll, S.Ortho, S.ShowGrid, S.Display, S.XRay);
+        var keepOrigin = S.OriginVisible.ToArray();
+        var hidden = new List<SceneObject>();
+        int cellW = Math.Clamp((int)Dbl(a, "cell_width", 480), 120, 1600);
+        double aspect = Math.Max(cam.Width, 1) / Math.Max(cam.Height, 1);
+        // one world height for every orthographic view, so a feature has the same size in pixels in each of them
+        double worldH = 1e-6;
+        foreach (var n in names) { var (_, _, u, v, _) = known[n]; if (u >= 0) worldH = Math.Max(worldH, Math.Max(Ext(v), Ext(u) / aspect) * 1.12); }
+        if (worldH < 1e-3) worldH = Math.Max(size.Length, 1) * 1.12;
+        var cells = new List<(string label, byte[] pixels, int width, int height)>();
+        var legend = new JsonArray();
+        try
+        {
+            foreach (var o in S.Objects.Where(o => o.Visible && !o.IsAnnotation && !shown.Contains(o))) { hidden.Add(o); S.Update(o.Id, x => x.WithVisible(false), checkpoint: false); }
+            // a camera animation still running from the last command (zoom to fit) would overwrite the views set below
+            var settle = System.Diagnostics.Stopwatch.StartNew();
+            while (S.IsAnimating && settle.ElapsedMilliseconds < 3000) await Task.Delay(30);
+            S.Ortho = true; S.ShowGrid = false; S.XRay = false;
+            for (int i = 0; i < S.OriginVisible.Length; i++) S.SetOriginVisible(i, false);
+            if (a["display"] != null) S.Display = a["display"]!.ToString().ToLowerInvariant() switch { "shaded" => DisplayMode.Shaded, "wireframe" => DisplayMode.Wireframe, _ => DisplayMode.ShadedEdges };
+            else S.Display = DisplayMode.Shaded;
+            foreach (var n in names)
+            {
+                var (yaw, pitch, u, v, axes) = known[n];
+                cam.SetView(yaw, pitch); cam.Target = centre;
+                // iso is a perspective-free 3/4 view sized to the box diagonal
+                cam.Distance = (u >= 0 ? worldH : Math.Max(size.Length, 1) * 1.15) / (2 * Math.Tan(cam.FovY / 2));
+                S.Invalidate();
+                await Task.Delay((int)Dbl(a, "wait_ms", 250));
+                while (S.IsAnimating && settle.ElapsedMilliseconds < 6000) await Task.Delay(30);
+                var shot = WindowCapture.CaptureThumbnail(window, x0, y0, vw, vh, cellW) ?? throw new InvalidOperationException("Could not capture the viewport.");
+                // a busy renderer can still show the previous camera: keep capturing until two frames in a row are identical (at most 8 more tries)
+                for (int again = 0; again < 8; again++)
+                {
+                    await Task.Delay(150);
+                    var next = WindowCapture.CaptureThumbnail(window, x0, y0, vw, vh, cellW);
+                    if (next is not { } nx) break;
+                    bool same = nx.width == shot.width && nx.height == shot.height && nx.pixels.AsSpan().SequenceEqual(shot.pixels);
+                    shot = nx;
+                    if (same) break;
+                }
+                cells.Add((n, shot.pixels, shot.width, shot.height));
+                var entry = new JsonObject { ["view"] = n, ["axes"] = axes };
+                if (u >= 0) entry["pixelsPerMm"] = Math.Round(shot.height / worldH, 3);
+                legend.Add(entry);
+            }
+        }
+        finally
+        {
+            foreach (var o in hidden) S.Update(o.Id, x => x.WithVisible(true), checkpoint: false);
+            cam.Target = keep.Target; cam.Distance = keep.Distance; cam.Yaw = keep.Yaw; cam.Pitch = keep.Pitch; cam.Roll = keep.Roll;
+            S.Ortho = keep.Item6; S.ShowGrid = keep.Item7; S.Display = keep.Item8; S.XRay = keep.Item9;
+            for (int i = 0; i < keepOrigin.Length && i < S.OriginVisible.Length; i++) S.SetOriginVisible(i, keepOrigin[i]);
+            S.Invalidate();
+        }
+        int cols = (int)Dbl(a, "columns", cells.Count <= 2 ? cells.Count : 2);
+        var sheet = ContactSheet.Compose(cells, cols);
+        var png = Prism.Rendering.PngWriter.Encode(sheet.pixels, sheet.width, sheet.height);
+        return new JsonObject
+        {
+            ["_image"] = new JsonObject { ["mime"] = "image/png", ["data"] = Convert.ToBase64String(png) },
+            ["views"] = legend, ["columns"] = cols,
+            ["bounds"] = new JsonObject { ["min"] = Arr(lo), ["max"] = Arr(hi), ["size"] = Arr(size) },
+            ["note"] = "Cells run left to right, top to bottom, each labelled. Orthographic views share one scale (pixelsPerMm); the model is centred in each. Camera, grid, display style and visibility were restored.",
+        };
+    }
+
+    /// <summary>What an edit did, so an agent need not diff the whole cage: the indices it created, the box before and after, how far points moved,
+    /// and warnings for folds, stretched faces and lost closure.</summary>
+    static void FormEditReport(SubdMesh before, SubdMesh after, JsonObject info)
+    {
+        static (Vec3 lo, Vec3 hi) Box(SubdMesh f) => f.V.Count == 0 ? (Vec3.Zero, Vec3.Zero)
+            : (new Vec3(f.V.Min(v => v.X), f.V.Min(v => v.Y), f.V.Min(v => v.Z)), new Vec3(f.V.Max(v => v.X), f.V.Max(v => v.Y), f.V.Max(v => v.Z)));
+        var (lo0, hi0) = Box(before); var (lo1, hi1) = Box(after);
+        info["bounds"] = new JsonObject { ["min"] = Arr(lo1), ["max"] = Arr(hi1), ["size"] = Arr(hi1 - lo1) };
+        var growth = (hi1 - lo1) - (hi0 - lo0);
+        if (growth.Length > 1e-6) info["sizeChange"] = Arr(growth);
+        var created = new JsonObject();
+        if (after.V.Count > before.V.Count) created["vertices"] = new JsonArray(before.V.Count, after.V.Count - 1);
+        if (after.F.Count > before.F.Count) created["faces"] = new JsonArray(before.F.Count, after.F.Count - 1);
+        if (created.Count > 0) { created["note"] = "Inclusive [first, last] index ranges of the entries appended by this edit."; info["created"] = created; }
+        if (after.V.Count < before.V.Count) info["removedVertices"] = before.V.Count - after.V.Count;
+        if (after.F.Count < before.F.Count) info["removedFaces"] = before.F.Count - after.F.Count;
+        int shared = Math.Min(before.V.Count, after.V.Count), moved = 0; double far = 0; int farAt = -1;
+        for (int i = 0; i < shared; i++)
+        {
+            double d = before.V[i].DistanceTo(after.V[i]);
+            if (d > 1e-9) { moved++; if (d > far) { far = d; farAt = i; } }
+        }
+        if (moved > 0) info["moved"] = new JsonObject { ["count"] = moved, ["maxDistance"] = Math.Round(far, 4), ["maxAtVertex"] = farAt };
+        var warnings = new JsonArray();
+        // A large rotation of a normal can also occur during an intentional bend.
+        if (before.F.Count == after.F.Count && before.V.Count == after.V.Count)
+        {
+            var flipped = new JsonArray();
+            for (int f = 0; f < after.F.Count; f++)
+            {
+                if (before.F[f].SequenceEqual(after.F[f]) &&
+                    Vec3.Dot(before.FaceNormal(f), after.FaceNormal(f)) < -0.2)
+                    flipped.Add(f);
+            }
+            if (flipped.Count > 0)
+            {
+                info["flippedFaces"] = flipped.Count;
+                info["flippedFaceIds"] = flipped;
+                warnings.Add($"{flipped.Count} face normal(s) changed direction substantially. Inspect flippedFaceIds for a possible fold.");
+            }
+        }
+        var q0 = FormQuality.Analyze(before); var q1 = FormQuality.Analyze(after);
+        if (q1.StretchedFaces > q0.StretchedFaces) warnings.Add($"{q1.StretchedFaces - q0.StretchedFaces} more stretched face(s) (worst aspect {q1.WorstAspect:0.#}): insert an edge loop or even out the spacing.");
+        if (q1.NGons > q0.NGons) warnings.Add($"{q1.NGons - q0.NGons} more n-gon(s): they smooth unevenly; split them into quads.");
+        if (before.IsClosed() && !after.IsClosed()) warnings.Add("The cage was closed and is now open (it has holes). fill_holes can repair it.");
+        double sizeBefore = Math.Max((hi0 - lo0).Length, 1e-9);
+        if ((hi1 - lo1).Length > sizeBefore * 3 && sizeBefore > 1e-6) warnings.Add("The form grew to more than three times its previous size; check the units and the distance.");
+        if (warnings.Count > 0) info["warnings"] = warnings;
+    }
+
     static JsonObject FormTopology(SubdMesh mesh)
     {
         var r = CageReport.Inspect(mesh);
@@ -304,7 +452,7 @@ public sealed partial class AutomationApi
         {
             ["name"] = st.Name, ["body"] = S.Find(st.BodyId)?.Name, ["elementSize"] = st.ElementSize,
             ["fixtures"] = new JsonArray(st.Fixtures.Select(f => (JsonNode)new JsonObject { ["name"] = f.Name, ["kind"] = f.Kind.ToString(), ["faces"] = f.Faces.Count }).ToArray()),
-            ["loads"] = new JsonArray(st.Loads.Select(l => (JsonNode)new JsonObject { ["name"] = l.Name, ["kind"] = l.Kind.ToString(), ["value"] = l.Value, ["faces"] = l.Faces.Count }).ToArray()),
+            ["loads"] = new JsonArray(st.Loads.Select(l => (JsonNode)new JsonObject { ["name"] = l.Name, ["kind"] = l.Kind.ToString(), ["value"] = l.Value, ["faces"] = l.Faces.Count, ["direction"] = l.AlongNormal ? "along the face normal" : $"{l.Direction.X:0.####}, {l.Direction.Y:0.####}, {l.Direction.Z:0.####}", ["region"] = l.Region.ToString(), ["region_size"] = l.Region == Simulation.LoadRegionShape.WholeFace ? "" : l.Region == Simulation.LoadRegionShape.Circle ? $"radius {l.RegionA:0.###}" : $"{l.RegionA:0.###} x {l.RegionB:0.###}" }).ToArray()),
         };
         if (st.Results is { } r)
             j["results"] = new JsonObject
@@ -352,8 +500,9 @@ public sealed partial class AutomationApi
         {
             j["wires"] = o.Shape.Count(SubKind.Wire);
             if (o.SketchPlane is { } p) j["sketchPlane"] = new JsonObject { ["origin"] = Arr(p.Origin), ["u"] = Arr(p.U), ["v"] = Arr(p.V), ["normal"] = Arr(p.Normal) };
-            var pr = o.Shape.Props();
-            if (o.Shape.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
+            var measured = Measure(o.Shape);
+            var pr = measured.Props;
+            if (measured.HasSolids) j["volume"] = Math.Round(pr.Volume, 4);          // an open surface has no volume
             j["area"] = Math.Round(pr.Area, 4); j["size"] = Arr(pr.Size); j["center"] = Arr(pr.Center);
             j["valid"] = o.Shape.IsValid;
             j["appearance"] = AppearanceJson(o);
@@ -531,10 +680,11 @@ public sealed partial class AutomationApi
         ["cnc_rough"] = () => new Rough3DCommand(), ["cnc_adaptive"] = () => new AdaptiveClearCommand(), ["cnc_finish"] = () => new ParallelFinishCommand(), ["cnc_constant_z"] = () => new ConstantZFinishCommand(), ["cnc_turn"] = () => new TurnCommand(),
         ["cae_pipe_network"] = () => new PipeNetworkCommand(), ["cae_flow"] = () => new FlowStudyCommand(), ["cae_thermal"] = () => new CaeSolveCommand(true), ["cae_modal"] = () => new CaeSolveCommand(false), ["cae_pipe_flow"] = () => new PipeFlowCommand(), ["cae_fatigue"] = () => new FatigueCommand(), ["cae_kinematics"] = () => new MotionStudyCommand(false), ["cae_motion"] = () => new MotionStudyCommand(true), ["cae_robot_path"] = () => new MotionStudyCommand(MotionKind.Robot), ["motion_spring"] = () => new MotionSpringCommand(), ["motion_load_to_static"] = () => new MotionLoadToStaticCommand(), ["motion_force"] = () => new MotionLoadCommand(false), ["motion_torque"] = () => new MotionLoadCommand(true), ["gear_pair"] = () => new CouplingCommand(), ["rack_pinion"] = () => new CouplingCommand(),
         ["pcb_board"] = () => new PcbBoardCommand(), ["pcb_from_outline"] = () => new PcbOutlineCommand(), ["component_envelope"] = () => new ComponentEnvelopeCommand(), ["pcb_hole"] = () => new PcbHoleCommand(),
-        ["match_surface"] = () => new MatchSurfaceCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
+        ["match_surface"] = () => new MatchSurfaceCommand(), ["wrap_curve"] = () => new WrapCurveCommand(), ["surface_continuity"] = () => new SurfaceContinuityCommand(), ["check_cage"] = () => new CheckCageCommand(),
         ["pattern_linear"] = () => new LinearPatternCommand(), ["pattern_circular"] = () => new CircularPatternCommand(), ["pattern_curve"] = () => new CurvePatternCommand(),
         ["pattern_fill"] = () => new FillPatternCommand(), ["pattern_table"] = () => new TablePatternCommand(),
-        ["mesh_select"] = () => new MeshRegionCommand(), ["mesh_section_sketch"] = () => new MeshSectionSketchCommand(), ["mesh_fit_surface"] = () => new MeshFitSurfaceCommand(), ["form_from_scan"] = () => new FormFromScanCommand(),
+        ["mesh_convert"] = () => new ConvertMeshCommand(), ["mesh_draw_faces"] = () => new MeshDrawFacesCommand(),
+        ["mesh_fill_hole"] = () => new MeshBoundaryCommand(), ["mesh_stitch_seam"] = () => new MeshBoundaryCommand(stitch: true), ["mesh_select"] = () => new MeshRegionCommand(), ["mesh_section_sketch"] = () => new MeshSectionSketchCommand(), ["mesh_fit_surface"] = () => new MeshFitSurfaceCommand(), ["form_from_scan"] = () => new FormFromScanCommand(),
         ["mesh_repair"] = () => new MeshRepairCommand(), ["mesh_fill_holes"] = () => new MeshRepairCommand(true), ["mesh_check"] = () => new MeshCheckCommand(),
         ["mesh_reduce"] = () => new MeshDecimateCommand(), ["mesh_smooth"] = () => new MeshSmoothCommand(), ["mesh_offset"] = () => new MeshOffsetCommand(), ["mesh_split"] = () => new MeshCutCommand(),
         ["mesh_section"] = () => new MeshSectionCommand(), ["mesh_thickness"] = () => new MeshThicknessCommand(), ["mesh_overhang"] = () => new MeshOverhangCommand(),
@@ -548,6 +698,8 @@ public sealed partial class AutomationApi
         ["box"] = () => new BoxCommand(), ["cylinder"] = () => new CylinderCommand(), ["sphere"] = () => new SphereCommand(),
         ["cone"] = () => new ConeCommand(), ["torus"] = () => new TorusCommand(),
         ["hole"] = () => new HoleCommand(),
+        ["thread"] = () => new ThreadCommand(),
+        ["form_knife"] = () => new FormKnifeCommand(),
         ["extrude"] = () => new ExtrudeCommand(), ["extrude_surface"] = () => new ExtrudeCommand(true), ["rib"] = () => new RibCommand(), ["emboss"] = () => new EmbossCommand(),
         ["revolve"] = () => new RevolveCommand(), ["revolve_surface"] = () => new RevolveCommand(true),
         ["sweep"] = () => new SweepCommand(), ["sweep_surface"] = () => new SweepCommand(true),
@@ -572,7 +724,7 @@ public sealed partial class AutomationApi
         ["form_plane"] = () => new FormPlaneCommand(), ["form_box"] = () => new FormBoxCommand(), ["form_sphere"] = () => new FormSphereCommand(),
         ["form_cylinder"] = () => new FormCylinderCommand(), ["form_torus"] = () => new FormTorusCommand(),
         ["edit_form"] = () => new EditFormCommand(), ["create_face"] = () => new CreateFaceCommand(),
-        ["nurbs_patch"] = () => new NurbsPatchCommand(), ["curve_control"] = () => new CurveByPointsCommand(false), ["curve_through"] = () => new CurveByPointsCommand(true), ["sketch_3d"] = () => new Sketch3DCommand(), ["construction_plane"] = () => new ConstructionPlaneCommand(), ["render"] = () => new RenderCommand(), ["form_loft"] = () => new FormLoftCommand(), ["form_sweep"] = () => new FormSweepCommand(), ["form_extrude"] = () => new FormExtrudeCommand(), ["place_image"] = () => new PlaceImageCommand(), ["edit_image"] = () => new EditImageCommand(), ["set_image_scale"] = () => new CalibrateImageCommand(), ["contour_flange"] = () => new ContourFlangeCommand(), ["fold"] = () => new FoldCommand(), ["edge_flange"] = () => new EdgeFlangeCommand(), ["flat_pattern"] = () => new FlatPatternCommand(), ["unstitch"] = () => new UnstitchCommand(), ["untrim"] = () => new UntrimCommand(), ["extend_surface"] = () => new ExtendSurfaceCommand(), ["reverse_normal"] = () => new ReverseNormalCommand(), ["drawing"] = () => new DrawingCommand(), ["form_revolve"] = () => new FormRevolveCommand(), ["form_pipe"] = () => new FormPipeCommand(), ["trim_surface"] = () => new TrimSurfaceCommand(), ["boundary_fill"] = () => new BoundaryFillCommand(), ["fill_opening"] = () => new FillOpeningCommand(), ["generative"] = () => new GenerativeCommand(), ["cnc_profile"] = () => new ProfileCommand(), ["cnc_pocket"] = () => new PocketCommand(), ["cnc_drill"] = () => new DrillCommand(), ["cnc_face"] = () => new FaceMillCommand(), ["cnc_image_relief"] = () => new ImageReliefCommand(), ["mold"] = () => new MoldCommand(), ["mold_part_from_tab"] = () => new MoldPartFromTabCommand(), ["cnc_post"] = () => new CncPostCommand(), ["slice"] = () => new SliceCommand(), ["toolpath_view"] = () => new ToolpathViewCommand(), ["push_pull"] = () => new PushPullCommand(), ["draft_face"] = () => new DraftFaceCommand(), ["replace_face"] = () => new ReplaceFaceCommand(), ["move_face"] = () => new MoveFaceCommand(), ["split_body"] = () => new SplitBodyCommand(), ["move_hole"] = () => new MoveHoleCommand(), ["delete_face"] = () => new DeleteFaceCommand(), ["offset_face"] = () => new OffsetFaceCommand(), ["rotate_face"] = () => new RotateFaceCommand(), ["remove_fillets"] = () => new RemoveFilletsCommand(), ["split_face"] = () => new SplitFaceCommand(), ["merge_faces"] = () => new MergeFacesCommand(), ["fill_cap"] = () => new FillCapCommand(), ["extend_trim_face"] = () => new ExtendTrimFaceCommand(), ["match_face"] = () => new MatchFaceCommand(), ["flatten"] = () => new FlattenCommand(), ["warp"] = () => new WarpCommand(), ["intersect_curves"] = () => new IntersectCurvesCommand(), ["render_animation"] = () => new RenderAnimationCommand(), ["ar"] = () => new ArCommand(), ["insert_component"] = () => new InsertComponentCommand(), ["joint_rigid"] = () => new JointCommand(Core.Assembly.JointType.Rigid), ["joint_revolute"] = () => new JointCommand(Core.Assembly.JointType.Revolute), ["joint_slider"] = () => new JointCommand(Core.Assembly.JointType.Slider), ["joint_cylindrical"] = () => new JointCommand(Core.Assembly.JointType.Cylindrical), ["drive_joints"] = () => new DriveJointsCommand(), ["move_component"] = () => new MoveComponentCommand(), ["explode"] = () => new ExplodeCommand(), ["animation"] = () => new AnimationCommand(), ["curve_equation"] = () => new EquationCurveCommand(false), ["curve_table"] = () => new EquationCurveCommand(true),
+        ["sculpt_face"] = () => new SculptFaceCommand(), ["edit_face"] = () => new EditFaceCommand(), ["nurbs_patch"] = () => new NurbsPatchCommand(),["curve_control"] = () => new CurveByPointsCommand(false), ["curve_through"] = () => new CurveByPointsCommand(true), ["sketch_3d"] = () => new Sketch3DCommand(), ["construction_plane"] = () => new ConstructionPlaneCommand(), ["render"] = () => new RenderCommand(), ["form_loft"] = () => new FormLoftCommand(), ["form_sweep"] = () => new FormSweepCommand(), ["form_extrude"] = () => new FormExtrudeCommand(), ["place_image"] = () => new PlaceImageCommand(), ["edit_image"] = () => new EditImageCommand(), ["set_image_scale"] = () => new CalibrateImageCommand(), ["contour_flange"] = () => new ContourFlangeCommand(), ["fold"] = () => new FoldCommand(), ["edge_flange"] = () => new EdgeFlangeCommand(), ["flat_pattern"] = () => new FlatPatternCommand(), ["unstitch"] = () => new UnstitchCommand(), ["untrim"] = () => new UntrimCommand(), ["extend_surface"] = () => new ExtendSurfaceCommand(), ["reverse_normal"] = () => new ReverseNormalCommand(), ["drawing"] = () => new DrawingCommand(), ["form_revolve"] = () => new FormRevolveCommand(), ["form_pipe"] = () => new FormPipeCommand(), ["trim_surface"] = () => new TrimSurfaceCommand(), ["boundary_fill"] = () => new BoundaryFillCommand(), ["fill_opening"] = () => new FillOpeningCommand(), ["generative"] = () => new GenerativeCommand(), ["cnc_profile"] = () => new ProfileCommand(), ["cnc_pocket"] = () => new PocketCommand(), ["cnc_drill"] = () => new DrillCommand(), ["cnc_face"] = () => new FaceMillCommand(), ["cnc_image_relief"] = () => new ImageReliefCommand(), ["mold"] = () => new MoldCommand(), ["mold_part_from_tab"] = () => new MoldPartFromTabCommand(), ["cnc_post"] = () => new CncPostCommand(), ["slice"] = () => new SliceCommand(), ["toolpath_view"] = () => new ToolpathViewCommand(), ["push_pull"] = () => new PushPullCommand(), ["draft_face"] = () => new DraftFaceCommand(), ["replace_face"] = () => new ReplaceFaceCommand(), ["move_face"] = () => new MoveFaceCommand(), ["split_body"] = () => new SplitBodyCommand(), ["move_hole"] = () => new MoveHoleCommand(), ["delete_face"] = () => new DeleteFaceCommand(), ["offset_face"] = () => new OffsetFaceCommand(), ["rotate_face"] = () => new RotateFaceCommand(), ["remove_fillets"] = () => new RemoveFilletsCommand(), ["split_face"] = () => new SplitFaceCommand(), ["merge_faces"] = () => new MergeFacesCommand(), ["fill_cap"] = () => new FillCapCommand(), ["extend_trim_face"] = () => new ExtendTrimFaceCommand(), ["match_face"] = () => new MatchFaceCommand(), ["flatten"] = () => new FlattenCommand(), ["warp"] = () => new WarpCommand(), ["intersect_curves"] = () => new IntersectCurvesCommand(), ["render_animation"] = () => new RenderAnimationCommand(), ["ar"] = () => new ArCommand(), ["insert_component"] = () => new InsertComponentCommand(), ["joint_rigid"] = () => new JointCommand(Core.Assembly.JointType.Rigid), ["joint_revolute"] = () => new JointCommand(Core.Assembly.JointType.Revolute), ["joint_slider"] = () => new JointCommand(Core.Assembly.JointType.Slider), ["joint_cylindrical"] = () => new JointCommand(Core.Assembly.JointType.Cylindrical), ["drive_joints"] = () => new DriveJointsCommand(), ["move_component"] = () => new MoveComponentCommand(), ["explode"] = () => new ExplodeCommand(), ["animation"] = () => new AnimationCommand(), ["curve_equation"] = () => new EquationCurveCommand(false), ["curve_table"] = () => new EquationCurveCommand(true),
     };
 
     // Actions (e.g. Run checks) are collected, not run: inside ConfigureInputs a command's OnChanged is suppressed, so an action run there would do nothing visible.
@@ -638,13 +790,21 @@ public sealed partial class AutomationApi
 
     sealed record BodySnap(string Name, Shape? Shape, double Volume, double Area, int Faces, int Edges, Vec3 Size);
 
+    // Shapes are immutable. Measuring an unchanged loft before every command
+    // can dominate a scripted build; weak keys retain neither deleted shapes
+    // nor a document after it closes. Names/visibility remain live object data.
+    sealed record ShapeMeasure(ShapeProps Props, bool HasSolids, int Faces, int Edges);
+    readonly ConditionalWeakTable<Shape, ShapeMeasure> _measurements = new();
+    ShapeMeasure Measure(Shape shape) => _measurements.GetValue(shape,
+        s => new(s.Props(), s.HasSolids, s.Count(SubKind.Face), s.Count(SubKind.Edge)));
+
     Dictionary<Guid, BodySnap> Snapshot()
     {
         var d = new Dictionary<Guid, BodySnap>();
         foreach (var o in S.Objects)
         {
             if (!IsBody(o)) { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); continue; }
-            try { var sh = o.Shape; var p = sh.Props(); d[o.Id] = new(o.Name, sh, sh.HasSolids ? p.Volume : 0, p.Area, sh.Count(SubKind.Face), sh.Count(SubKind.Edge), p.Size); }
+            try { var sh = o.Shape; var m = Measure(sh); var p = m.Props; d[o.Id] = new(o.Name, sh, m.HasSolids ? p.Volume : 0, p.Area, m.Faces, m.Edges, p.Size); }
             catch { d[o.Id] = new(o.Name, null, 0, 0, 0, 0, default); }
         }
         return d;
@@ -660,7 +820,8 @@ public sealed partial class AutomationApi
             if (!before.TryGetValue(o.Id, out var b) || b.Shape == null || !IsBody(o)) continue;
             Shape sh; try { sh = o.Shape; } catch { continue; }
             if (ReferenceEquals(sh, b.Shape)) continue;
-            var p = sh.Props(); double vol = sh.HasSolids ? p.Volume : 0; int nf = sh.Count(SubKind.Face), ne = sh.Count(SubKind.Edge);
+            var measured = Measure(sh);
+            var p = measured.Props; double vol = measured.HasSolids ? p.Volume : 0; int nf = measured.Faces, ne = measured.Edges;
             var c = new JsonObject
             {
                 ["name"] = o.Name, ["volume"] = Math.Round(vol, 4), ["volumeDelta"] = Math.Round(vol - b.Volume, 4),
@@ -721,9 +882,13 @@ public sealed partial class AutomationApi
                 return new JsonArray(S.Log.TakeLast(n).Select(l => (JsonNode)new JsonObject { ["time"] = l.Time.ToString("HH:mm:ss"), ["error"] = l.IsError, ["message"] = l.Message }).ToArray());
             });
 
-        Add("screenshot", "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900).",
-            Schema(null, ("viewport", "boolean", "Only the 3D viewport."), ("max_width", "integer", "Scale down to at most this many pixels wide."), ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250).")), async a =>
+        Add("screenshot", "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900). " +
+            "To judge a shape, pass views (front, back, left, right, top, bottom, iso; default front/right/top/iso): one labelled sheet of orthographic pictures at a common scale of just the objects named in object (a name or list; default every visible object), shaded without grid. The camera, display and visibility are restored afterwards. The reply gives each view's axes, pixelsPerMm and the bounds.",
+            Schema(null, ("viewport", "boolean", "Only the 3D viewport."), ("max_width", "integer", "Scale down to at most this many pixels wide."), ("wait_ms", "integer", "Milliseconds to wait for a fresh frame before capturing (default 250)."),
+                ("views", "array", "Standard views to combine into one labelled sheet: front, back, left, right, top, bottom, iso. An empty list means front, right, top, iso."), ("object", "any", "With views: show only this object name (or a list of names)."),
+                ("display", "string", "With views: shaded (default) | shaded_edges | wireframe."), ("cell_width", "integer", "With views: width of each picture in pixels (default 480)."), ("columns", "integer", "With views: pictures per row (default 2).")), async a =>
             {
+                if (a["views"] is JsonArray) return await MultiViewShot(a);
                 S.Invalidate();
                 await Task.Delay((int)Dbl(a, "wait_ms", 250));
                 bool viewportOnly = a["viewport"]?.GetValue<bool>() == true;
@@ -834,7 +999,9 @@ public sealed partial class AutomationApi
                 var before = Snapshot();
                 var cmd = make(); cmd.Factory = make;
                 _vm.CloseHome();
-                S.StartCommand(cmd);
+                // Begin may build a preview (analysis tools with empty picks
+                // examine the whole document). Wait for the requested inputs.
+                cmd.ConfigureInputs(() => S.StartCommand(cmd));
                 if (S.ActiveCommand != cmd) throw new InvalidOperationException(S.Status);
                 try
                 {
@@ -1125,7 +1292,9 @@ public sealed partial class AutomationApi
         Add("mesh_import", "Import a mesh file (STL, OBJ, PLY, 3MF) as one or more mesh objects. Without options it imports as-is (mm, Z-up, no repair). Colours and parts in the file are kept.",
             Schema(["path"], ("path", "string", "Full path of the file."), ("units", "string", "auto (default: the 3MF's own unit, else mm) | mm | cm | m | inch."), ("up_axis", "string", "z (default, keep) | y (rotate Y-up to Z-up) | x (rotate X-up to Z-up)."),
                 ("weld_tolerance", "number", "Merge vertices closer than this many mm (default 0: identical corners only)."), ("auto_repair", "boolean", "Merge, clean, fix normals and fill small holes (default false)."),
-                ("split", "string", "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces).")), a =>
+                ("split", "string", "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces)."),
+                ("reduce_percent", "number", "Reduce faces on import: keep this percentage of the triangles (default: no reduction)."),
+                ("reduce_to", "integer", "Reduce faces on import to about this many triangles for the whole file (default: no reduction).")), a =>
         {
             var opts = new Meshing.MeshImportOptions
             {
@@ -1133,6 +1302,9 @@ public sealed partial class AutomationApi
                 UpAxis = Str(a, "up_axis", "z").ToLowerInvariant() switch { "z" => Meshing.ImportUpAxis.Z, "y" => Meshing.ImportUpAxis.Y, "x" => Meshing.ImportUpAxis.X, var u => throw new ArgumentException($"Unknown up_axis '{u}'. Use z, y or x.") },
                 WeldTolerance = Math.Max(0, Dbl(a, "weld_tolerance", 0)), AutoRepair = Bool(a, "auto_repair", false),
                 Split = Str(a, "split", "auto").ToLowerInvariant() switch { "auto" => Meshing.ImportSplit.Auto, "none" => Meshing.ImportSplit.None, "groups" => Meshing.ImportSplit.Groups, "components" => Meshing.ImportSplit.Components, var u => throw new ArgumentException($"Unknown split '{u}'. Use auto, none, groups or components.") },
+                Reduce = a["reduce_percent"] != null || a["reduce_to"] != null,
+                ReducePercent = Math.Clamp(Dbl(a, "reduce_percent", 25), 0.1, 100),
+                ReduceToCount = a["reduce_to"] != null ? Math.Max(4, (int)Dbl(a, "reduce_to", 4)) : 0,
             };
             var all = S.ImportMeshAll(Str(a, "path"), opts);
             var d = Describe(all[0], true);
@@ -1351,7 +1523,7 @@ public sealed partial class AutomationApi
         Add("sketch_add", "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: " +
             "line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); " +
             "circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; " +
-            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}. Add \"construction\":true for reference geometry.",
+            "ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}; text {text, at:[u,v] (lower-left of the first line, default [0,0]), height? (mm, default 10), font? (an installed font, default Arial), bold?, spacing? (extra letter spacing, mm); line breaks start a new line}. Add \"construction\":true for reference geometry.",
             Schema(["entities"], ("entities", "array", "List of entity objects.")), a =>
             {
                 var sk = S.Sketch ?? throw new InvalidOperationException("No sketch is open. Call sketch_begin first.");
@@ -1365,6 +1537,13 @@ public sealed partial class AutomationApi
                     try
                     {
                         var pts = o["points"]?.AsArray().Select(p => P(p!)).ToList() ?? [];
+                        if (type == "text")
+                        {
+                            // letters become lines and splines at the given spot, the same as the Text tool's Place button
+                            var at = o["at"] != null ? P(o["at"]!) : (0.0, 0.0);
+                            SketchTextTool.PlaceText(S, Str(o, "text"), at.Item1, at.Item2, Dbl(o, "height", 10), o["font"]?.ToString(), Bool(o, "bold", false), Dbl(o, "spacing", 0));
+                            continue;
+                        }
                         ClickTool tool; List<(double, double)> feed; bool closed = Bool(o, "closed", false);
                         switch (type)
                         {
@@ -1539,7 +1718,7 @@ public sealed partial class AutomationApi
                 return SketchStateJson();
             });
 
-        Add("sketch_input", "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
+        Add("sketch_input", "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, fit_section_curve, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
             Schema(null, ("tool", "string", "Tool to activate first."), ("events", "array", "List of event objects."), ("type", "string", "Event types, see above.")), a =>
             {
                 var sk = S.Sketch ?? throw new InvalidOperationException("No sketch is open.");
@@ -1553,6 +1732,7 @@ public sealed partial class AutomationApi
                         "rect" => new RectTool(RectMode.TwoCorner), "rect_center" => new RectTool(RectMode.Center), "rect_3pt" => new RectTool(RectMode.ThreePoint),
                         "ellipse" => new EllipseTool(EllipseMode.Center), "ellipse_2pt" => new EllipseTool(EllipseMode.TwoPoint), "ellipse_3pt" => new EllipseTool(EllipseMode.ThreePoint), "arc" or "arc_3pt" => new ArcTool(ArcMode.ThreePoint), "arc_center" => new ArcTool(ArcMode.CenterStartEnd), "arc_tangent" => new ArcTool(ArcMode.Tangent), "circle" => new CircleTool(CircleMode.CenterRadius), "circle_2pt" => new CircleTool(CircleMode.TwoPoint), "circle_3pt" => new CircleTool(CircleMode.ThreePoint),
                         "polygon" => new PolygonTool(false), "slot" => new SlotTool(), "text" => new SketchTextTool(), "spline" => new SplineTool(false), "spline_control" => new SplineTool(true),
+                        "fit_section_curve" when sk.Model.MeshSectionTraces.Count > 0 => new FitMeshSectionTool(),
                         "edit_spline" => new SketchGeometryEditTool(1), "edit_sketch" => new SketchGeometryEditTool(), "select" => new SelectTool(), "extend" => new ExtendTool(), "offset" => new OffsetTool(), "fillet" => new FilletTool(false), "chamfer" => new FilletTool(true), "trim" => new TrimTool(), "pattern" => SketchPatternTool.Make(0), "pattern_circular" => SketchPatternTool.Make(1), "pattern_curve" => SketchPatternTool.Make(2),
                         _ => throw new ArgumentException($"Unknown sketch tool '{n}'."),
                     };
@@ -1763,6 +1943,72 @@ public sealed partial class AutomationApi
                     }
                 }
                 return res;
+            });
+
+        Add("solid_profile", "Look at a shape in numbers and text, for judging proportions without a picture. Works on a Freeform, solid, surface or mesh (or a list of them, measured together). " +
+            "sections: cross-sections perpendicular to axis (x|y|z, default z) at count evenly spaced offsets (default 10) or at the offsets in at: for each cut the two extents (min/max), the section area, the centroid and how many separate outlines it has; an empty cut means the shape does not reach that offset. " +
+            "silhouettes: ASCII pictures (front: x right z up; right: y right z up; top: x right y up) at the stated mm per column; shade:true adds a depth ramp (@ nearest to . farthest). Use it to check that a neck is narrower than a shoulder, a handle really is a loop, or a part is lopsided.",
+            Schema(["object"], ("object", "any", "Object name, or a list of names."), ("axis", "string", "Section axis: x | y | z (default z)."), ("count", "integer", "Evenly spaced sections (default 10; 0 = none)."), ("at", "array", "Section offsets along the axis in mm (instead of count)."),
+                ("views", "array", "Silhouettes to draw: front, right, top (default all three; [] = none)."), ("width", "integer", "Silhouette width in characters (default 48)."), ("rows", "integer", "Most rows a silhouette may use (default 26); a tall shape gets a coarser grid instead."), ("shade", "boolean", "Silhouette uses a depth ramp instead of #.")), a =>
+            {
+                var names = a["object"] is JsonArray oa ? oa.Select(n => n!.ToString()).ToList() : [Str(a, "object")];
+                var parts = names.Select(FindObject).ToList();
+                var pos = new List<float>(); var idx = new List<int>();
+                foreach (var p in parts)
+                {
+                    var md = p.Mesh ?? throw new ArgumentException($"{p.Name} has no surface to measure.");
+                    int baseIndex = pos.Count / 3; pos.AddRange(md.Positions); idx.AddRange(md.Indices.Select(i => i + baseIndex));
+                }
+                var P = pos.ToArray(); var T = idx.ToArray();
+                if (T.Length == 0) throw new ArgumentException("The object has no triangles.");
+                var (lo, hi) = ShapeProbe.Bounds(P);
+                var res = new JsonObject { ["objects"] = new JsonArray(parts.Select(p => (JsonNode)p.Name).ToArray()), ["min"] = Arr(new Vec3(lo[0], lo[1], lo[2])), ["max"] = Arr(new Vec3(hi[0], hi[1], hi[2])), ["size"] = Arr(new Vec3(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2])) };
+                string axisText = (a["axis"]?.ToString() ?? "z").ToLowerInvariant();
+                int axis = axisText switch { "x" => 0, "y" => 1, "z" => 2, _ => throw new ArgumentException("axis must be x, y or z.") };
+                int count = (int)Dbl(a, "count", 10);
+                var offsets = a["at"] is JsonArray atArr ? atArr.Select(n => n!.GetValue<double>()).ToArray() : ShapeProbe.EvenOffsets(lo[axis], hi[axis], count);
+                if (offsets.Length > 0)
+                {
+                    var (u, v) = ShapeProbe.PlaneAxes(axis);
+                    string un = "xyz"[u].ToString(), vn = "xyz"[v].ToString();
+                    var rows = new JsonArray();
+                    foreach (var off in offsets)
+                    {
+                        var s = ShapeProbe.Slice(P, T, axis, off);
+                        rows.Add(s.Empty ? new JsonObject { ["at"] = Math.Round(off, 3), ["empty"] = true }
+                            : new JsonObject { ["at"] = Math.Round(off, 3), [un] = new JsonArray(Math.Round(s.MinU, 3), Math.Round(s.MaxU, 3)), [vn] = new JsonArray(Math.Round(s.MinV, 3), Math.Round(s.MaxV, 3)),
+                                ["area"] = Math.Round(s.Area, 2), ["centroid"] = new JsonArray(Math.Round(s.CentroidU, 3), Math.Round(s.CentroidV, 3)), ["outlines"] = s.Loops });
+                    }
+                    res["sections"] = new JsonObject { ["axis"] = axisText, ["order"] = $"[min,max] extents along {un} and {vn}; centroid is [{un},{vn}]; area in mm2 (signed; trust it only for closed shapes)", ["cuts"] = rows };
+                }
+                var views = a["views"] is JsonArray va ? va.Select(n => n!.ToString().ToLowerInvariant()).ToList() : ["front", "right", "top"];
+                if (views.Count > 0)
+                {
+                    var pics = new JsonArray();
+                    foreach (var vw in views)
+                    {
+                        var pic = ShapeProbe.Silhouette(P, T, vw, (int)Dbl(a, "width", 48), Bool(a, "shade", false), (int)Dbl(a, "rows", 26));
+                        pics.Add(new JsonObject
+                        {
+                            ["view"] = pic.View, ["axes"] = pic.Axes, ["mmPerColumn"] = Math.Round(pic.MmPerColumn, 3), ["mmPerRow"] = Math.Round(pic.MmPerRow, 3),
+                            ["leftEdge"] = Math.Round(pic.Left, 3), ["topEdge"] = Math.Round(pic.Top, 3), ["rows"] = new JsonArray(pic.Rows.Select(r => (JsonNode)r).ToArray()),
+                        });
+                    }
+                    res["silhouettes"] = pics;
+                }
+                return res;
+            });
+
+        Add("guide", "Read a built-in how-to for doing a kind of work well. With no topic it lists them. Read 'freeform' before building any curved or organic shape: it covers describing a shape by stations and silhouettes, measuring it with solid_profile and screenshot views, and the usual failure modes.",
+            Schema(null, ("topic", "string", "Guide name, for example freeform. Omit to list the guides.")), a =>
+            {
+                var guides = AgentGuides.All();
+                if (a["topic"] == null)
+                    return new JsonObject { ["guides"] = new JsonArray(guides.Select(g => (JsonNode)new JsonObject { ["topic"] = g.Topic, ["about"] = g.Description }).ToArray()) };
+                var want = Str(a, "topic").Trim().ToLowerInvariant();
+                var hit = guides.FirstOrDefault(g => g.Topic == want) ?? guides.FirstOrDefault(g => g.Topic.Contains(want));
+                if (hit == null) throw new ArgumentException($"No guide '{want}'. Guides: {string.Join(", ", guides.Select(g => g.Topic))}.");
+                return new JsonObject { ["topic"] = hit.Topic, ["text"] = hit.Text };
             });
 
         Add("form_find","Find cage components by geometry so you do not have to read the whole cage. kind: vertices | faces | edges (default faces). Filters (all optional, combined with AND): box [[x0,y0,z0],[x1,y1,z1]] (a vertex, or a face/edge centre, inside), near [x,y,z] + radius, facing [dx,dy,dz] + angle (faces whose normal is within angle degrees, default 30), open:true (edges used by one face only), all:true. Returns 0-based indices ready for form_op / form_select, with centres (and normals for faces).",
@@ -2050,6 +2296,7 @@ public sealed partial class AutomationApi
                 info["vertexCount"] = m.V.Count; info["faceCount"] = m.F.Count;
                 if (FormSymmetry.Of(m).Active) info["symmetry"] = m.Sym;
                 info["topology"] = FormTopology(m);
+                FormEditReport(o.Form!, m, info);
                 return info;
             });
 

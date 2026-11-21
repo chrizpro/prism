@@ -26,8 +26,20 @@ public sealed record MeshImportOptions
     /// <summary>Merge near-duplicate vertices, drop junk triangles, fix orientation and close small holes.</summary>
     public bool AutoRepair { get; init; }
     public ImportSplit Split { get; init; } = ImportSplit.Auto;
+    /// <summary>Reduce the triangle count before the mesh enters the document (off by default). Open rims stay in place.</summary>
+    public bool Reduce { get; init; }
+    /// <summary>With <see cref="Reduce"/>: keep this percentage of the triangles (used when <see cref="ReduceToCount"/> is 0).</summary>
+    public double ReducePercent { get; init; } = 25;
+    /// <summary>With <see cref="Reduce"/>: a target triangle count for the whole file, shared between bodies by size. 0 uses the percentage.</summary>
+    public int ReduceToCount { get; init; }
 
     public static MeshImportOptions Default { get; } = new();
+
+    /// <summary>Above this many triangles the import options suggest Reduce faces (MSH-P01; proposed threshold awaiting owner review).</summary>
+    public const int SuggestReductionAbove = 2_000_000;
+
+    /// <summary>Rough memory a mesh of this many triangles takes once it is in the document: geometry, display buffers and search structures.</summary>
+    public static long EstimatedBytes(long triangles) => triangles * 600;
 }
 
 public sealed class ImportedPart
@@ -51,6 +63,8 @@ public sealed class MeshImportResult
     /// <summary>A "did you mean inches?" style hint when the size looks wrong; null when it looks plausible.</summary>
     public string? SizeWarning { get; set; }
     public int TriCount => Parts.Sum(p => p.Mesh.TriCount);
+    /// <summary>Triangles before Reduce faces ran; equal to <see cref="TriCount"/> when nothing was reduced.</summary>
+    public int TriCountBeforeReduce { get; set; }
 }
 
 /// <summary>Turns a parsed <see cref="MeshFile"/> into bodies: units, up axis, welding, repair and splitting. Everything here is pure C# and runs off the UI thread.</summary>
@@ -169,6 +183,7 @@ public static class MeshImporter
         else groups.Add((file.PartNames.Count == 1 ? file.PartNames[0] : file.Name, mesh));
 
         int pi = 0;
+        long fileTris = groups.Sum(g => (long)g.mesh.TriCount);
         foreach (var (name, gm) in groups)
         {
             Step(0.3 + 0.65 * pi / groups.Count, groups.Count > 1 ? $"Processing part {pi + 1} of {groups.Count}…" : "Processing mesh…");
@@ -177,14 +192,91 @@ public static class MeshImporter
             if (weldTol > 0) m = MeshOps.Weld(m, weldTol);
             if (o.AutoRepair) m = Repair(m, res, groups.Count > 1 ? name : null, ct);
             if (m.TriCount == 0) continue;
+            res.TriCountBeforeReduce += m.TriCount;
+            if (o.Reduce)
+            {
+                int target = ReduceTarget(m.TriCount, fileTris, o);
+                if (target < m.TriCount)
+                {
+                    Step(0.3 + 0.65 * (pi - 0.5) / groups.Count, groups.Count > 1 ? $"Reducing part {pi} of {groups.Count}…" : "Reducing faces…");
+                    m = ReduceFaces(m, target, ct);
+                }
+            }
             uint? uniform = null;
             if (m.FaceColors is { Length: > 0 } fc && fc.All(c => c == fc[0])) { uniform = fc[0]; m = m.WithColors(m.VertexColors, null); }
             res.Parts.Add(new ImportedPart { Name = name, Mesh = m, Color = uniform });
         }
         if (res.Parts.Count == 0) res.Messages.Add("That file contains no triangles.");
+        if (o.Reduce && res.TriCount < res.TriCountBeforeReduce)
+            res.Messages.Add($"Reduced from {res.TriCountBeforeReduce:#,0} to {res.TriCount:#,0} triangles.");
         if (res.Parts.Any(p => p.Mesh.HasColors) || res.Parts.Any(p => p.Color != null)) res.Messages.Add("Colours from the file were kept.");
         Step(1, "Done");
         return res;
+    }
+
+    /// <summary>Above this many triangles, <see cref="ReduceFaces"/> first clusters vertices on a grid before the careful reduction.</summary>
+    public const int ClusterAbove = 1_000_000;
+
+    /// <summary>
+    /// Quadric reduction to the target with open rims kept. Very large meshes (over <see cref="ClusterAbove"/> triangles, reduced to under
+    /// a third) are first merged on a uniform grid to about three times the target, which takes seconds instead of minutes;
+    /// the quadric pass then removes the grid's unevenness.
+    /// </summary>
+    public static TriMesh ReduceFaces(TriMesh m, int target, CancellationToken ct = default)
+    {
+        if (target >= m.TriCount) return m;
+        if (m.TriCount > ClusterAbove && target < m.TriCount / 3)
+        {
+            var clustered = Cluster(m, target * 3L);
+            ct.ThrowIfCancellationRequested();
+            if (clustered.TriCount > target && clustered.TriCount < m.TriCount) m = clustered;
+        }
+        var res = MeshOps.Decimate(m, target, keepBoundary: true);
+        ct.ThrowIfCancellationRequested();
+        return res;
+    }
+
+    /// <summary>Vertex clustering: vertices in the same grid cell merge at their mean position; collapsed and repeated triangles are dropped.</summary>
+    static TriMesh Cluster(TriMesh m, long targetTris)
+    {
+        double area = m.Area();
+        if (!(area > 0)) return m;
+        // a surface with V vertices has about 2V triangles, and V is about area / cell²
+        double cell = Math.Sqrt(area * 2 / Math.Max(targetTris, 4));
+        var origin = m.Min;
+        var index = new Dictionary<long, int>(m.VertexCount / 4);
+        var map = new int[m.VertexCount];
+        var sum = new List<double>();
+        var count = new List<int>();
+        for (int v = 0; v < m.VertexCount; v++)
+        {
+            var p = m.P(v);
+            long ix = (long)Math.Floor((p.X - origin.X) / cell), iy = (long)Math.Floor((p.Y - origin.Y) / cell), iz = (long)Math.Floor((p.Z - origin.Z) / cell);
+            long key = (ix * 73856093) ^ (iy * 19349663) ^ (iz * 83492791) ^ (ix << 42) ^ (iy << 21);
+            if (!index.TryGetValue(key, out int c)) { c = count.Count; index[key] = c; count.Add(0); sum.Add(0); sum.Add(0); sum.Add(0); }
+            map[v] = c; count[c]++; sum[3 * c] += p.X; sum[3 * c + 1] += p.Y; sum[3 * c + 2] += p.Z;
+        }
+        var verts = new float[count.Count * 3];
+        for (int c = 0; c < count.Count; c++) for (int k = 0; k < 3; k++) verts[3 * c + k] = (float)(sum[3 * c + k] / count[c]);
+        var tris = new List<int>(m.TriCount / 2);
+        var seen = new HashSet<(int, int, int)>();
+        for (int t = 0; t < m.TriCount; t++)
+        {
+            int a = map[m.T[3 * t]], b = map[m.T[3 * t + 1]], c = map[m.T[3 * t + 2]];
+            if (a == b || b == c || a == c) continue;
+            // the same three cells in any rotation is the same triangle
+            var key = a < b && a < c ? (a, b, c) : b < c ? (b, c, a) : (c, a, b);
+            if (!seen.Add(key)) continue;
+            tris.Add(a); tris.Add(b); tris.Add(c);
+        }
+        return MeshOps.Compact(verts, [.. tris], null, null);
+    }
+
+    /// <summary>Target triangles for one body: the percentage, or the file-wide count shared by size. Never below 4.</summary>
+    public static int ReduceTarget(int bodyTris, long fileTris, MeshImportOptions o)
+    {
+        double share = o.ReduceToCount > 0 ? o.ReduceToCount * (double)bodyTris / Math.Max(1, fileTris) : bodyTris * Math.Clamp(o.ReducePercent, 0.1, 100) / 100;
+        return (int)Math.Clamp(Math.Round(share), 4, bodyTris);
     }
 
     /// <summary>The same steps as Mesh &gt; Repair with its defaults (merge, clean, orient, fill holes up to 250 edges).</summary>

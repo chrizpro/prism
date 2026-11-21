@@ -7,10 +7,15 @@ using Prism.Meshing;
 
 namespace Prism.Commands;
 
-/// <summary>Turn the selected region of a mesh (Mesh > Select Region) into an exact CAD surface: an analytic shape or a smooth NURBS patch.</summary>
-public sealed class MeshFitSurfaceCommand : MeshCommand
+/// <summary>
+/// Fit Region: turn the selected region of a mesh (Mesh > Edit Region) into exact CAD geometry: a plane, cylinder, sphere or cone
+/// (as a surface trimmed to the region, a closed solid, or only its reference plane/axis) or a smooth NURBS patch.
+/// See docs/modeling/mesh-and-reverse-engineer/README.md (MSH-P05).
+/// </summary>
+public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
 {
-    readonly ChoiceParam _type;
+    readonly ChoiceParam _type, _create;
+    readonly BoolParam _refs;
     readonly NumberParam _tol, _outline, _corner;
     readonly IntParam _interior, _grid;
     List<List<Vec3>> _outlines = []; List<Vec3> _samples = [];
@@ -23,14 +28,16 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         _corner = Num("Corner angle", 35, 5, 120, 5, "°");
         _interior = Add(new IntParam { Label = "Points the surface must follow", Value = 150, Min = 0, Max = 1000 });
         _grid = Add(new IntParam { Label = "Grid size (points per side)", Value = 10, Min = 4, Max = 60 });
+        _create = Choice("Create", 0, "Surface trimmed to the region", "Closed solid", "Reference geometry only");
+        _refs = Check("Add reference geometry (plane or axis)", true);
         PreviewButton();
         Src.IsVisible = false;
     }
 
-    public override string Title => "Fit Surface to Region";
-    public override string Hint => "Uses the triangles picked with Select Region. Exact shapes (plane, cylinder, sphere, cone) are best for mechanical faces; the smooth patch follows organic regions and is trimmed to the outline you picked.";
+    public override string Title => "Fit Region";
+    public override string Hint => "Uses the selected triangles: pick them in Face mode (double-click a triangle to take its whole smooth patch) or with Edit Region. Exact shapes (plane, cylinder, sphere, cone) suit mechanical faces and report their size, axis and position; the smooth patch follows organic regions and is trimmed to the outline you picked.";
     public override string Icon => "mesh-patch";
-    public override string OkText => "Create surface";
+    public override string OkText => "Create";
 
     protected override void OnBegin()
     {
@@ -45,7 +52,10 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
     {
         _outline.IsVisible = _corner.IsVisible = _interior.IsVisible = _type.Index == 0 || _type.Index == 5;
         _grid.IsVisible = _type.Index == 6;
+        _create.IsVisible = _refs.IsVisible = _type.Index <= 4;
     }
+
+    static int Complexity(PrimKind k) => k switch { PrimKind.Plane => 0, PrimKind.Sphere => 1, PrimKind.Cylinder => 2, _ => 3 };
 
     PrimKind[] KindsFor(int type) => type switch { 1 => [PrimKind.Plane], 2 => [PrimKind.Cylinder], 3 => [PrimKind.Sphere], 4 => [PrimKind.Cone], _ => [PrimKind.Plane, PrimKind.Cylinder, PrimKind.Sphere, PrimKind.Cone] };
 
@@ -54,54 +64,199 @@ public sealed class MeshFitSurfaceCommand : MeshCommand
         Results.Clear(); _outlines = []; _samples = [];
         var sel = S.RegionSel;
         var obj = sel == null ? null : S.Find(sel.ObjectId);
-        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "use Mesh > Select Region first", 2); return null; }
+        if (sel == null || sel.IsEmpty || obj == null) { Row("No region selected", "select triangles in Face mode (double-click takes a whole patch), or use Edit Region", 2); return null; }
         var sub = sel.Extract();
         Row("Region", $"{Count(sub.TriCount)} triangles, {N(sub.Area(), "mm²")}");
 
-        var key = Key(sel.Version, sub.TriCount, _type.Index, _tol.Value, _outline.Value, _corner.Value, _interior.Value, _grid.Value);
+        var key = Key(sel.Version, sub.TriCount, _type.Index, _tol.Value, _outline.Value, _corner.Value, _interior.Value, _grid.Value, _create.Index, _refs.Value);
         var result = Cached(key, () => Fit(sel, sub));
         if (result == null) return null;
         foreach (var l in result.Rows) Results.Add(l);
         _outlines = result.Outlines; _samples = result.Samples;
-        if (result.Shape == null) return null;
+        if (result.Shape == null && result.References.Count == 0) return null;
         Row("Output", "Fitted CAD geometry; original sketches and feature history are not recovered");
-        var o = new CommandOutput { Label = "Fit surface", Icon = Icon };
-        o.Add.Add(new(result.Shape, result.Name, result.Solid ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));
+        var o = new CommandOutput { Label = "Fit region", Icon = Icon };
+        if (result.Shape != null) o.Add.Add(new(result.Shape, result.Name, result.Solid ? ObjKind.Solid : ObjKind.Surface, null, null, null, obj.Look));
+        o.Add.AddRange(result.References);
         return o;
     }
 
-    sealed record FitResult(Shape? Shape, string Name, bool Solid, List<ResultLine> Rows, List<List<Vec3>> Outlines, List<Vec3> Samples);
+    sealed record FitResult(Shape? Shape, string Name, bool Solid, List<ResultLine> Rows, List<List<Vec3>> Outlines, List<Vec3> Samples)
+    {
+        public List<NewObject> References { get; init; } = [];
+    }
 
-    FitResult Fit(MeshSelection sel, TriMesh sub)
+    static string P(Vec3 p) => $"({p.X:0.###}, {p.Y:0.###}, {p.Z:0.###})";
+    static string D(Vec3 d) { if (d.X + d.Y + d.Z < 0) d = -d; return $"({d.X:0.####}, {d.Y:0.####}, {d.Z:0.####})"; }
+
+    /// <summary>Angle in degrees between a direction and the closest world axis, ignoring sign.</summary>
+    internal static double TiltFromWorld(Vec3 d)
+    {
+        d = d.Normalized();
+        double best = Math.Max(Math.Abs(d.X), Math.Max(Math.Abs(d.Y), Math.Abs(d.Z)));
+        return Math.Acos(Math.Clamp(best, -1, 1)) * 180 / Math.PI;
+    }
+
+    /// <summary>The fitted shape's numbers: what a reverse engineer types into a sketch or feature.</summary>
+    static void Describe(FitRegion r, TriMesh sub, Action<string, string, int> row)
+    {
+        string tilt = $"{TiltFromWorld(r.Axis):0.###}° from the nearest world axis";
+        switch (r.Kind)
+        {
+            case PrimKind.Plane:
+            {
+                var c = sub.Centroid();
+                row("Point on plane", P(c - r.Axis * Vec3.Dot(c - r.Origin, r.Axis)), 0);
+                row("Normal", D(r.Axis), 0);
+                row("Tilt", tilt, 0);
+                break;
+            }
+            case PrimKind.Cylinder:
+            case PrimKind.Cone:
+            {
+                if (r.Kind == PrimKind.Cylinder) row("Diameter", N(2 * r.Radius, "mm"), 1);
+                else { row("Included angle", $"{2 * r.HalfAngle:0.###}°", 1); row("Apex", P(r.Origin), 0); }
+                row("Axis point (middle)", P(r.Origin + r.Axis * ((r.T0 + r.T1) / 2)), 0);
+                row("Axis direction", D(r.Axis), 0);
+                row("Length along the axis", N(Math.Abs(r.T1 - r.T0), "mm"), 0);
+                row("Tilt", tilt, 0);
+                break;
+            }
+            case PrimKind.Sphere:
+                row("Diameter", N(2 * r.Radius, "mm"), 1);
+                row("Centre", P(r.Origin), 0);
+                break;
+        }
+    }
+
+    /// <summary>A construction plane for a fitted plane, or an axis line for a cylinder or cone.</summary>
+    static List<NewObject> ReferencesFor(FitRegion r, TriMesh sub)
+    {
+        var refs = new List<NewObject>();
+        switch (r.Kind)
+        {
+            case PrimKind.Plane:
+            {
+                // The plane covers the face it was fitted to (owner request 2026-11-20: it was a square well past the face): its sides follow the
+                // face, chosen from the world axes laid on the plane and the face's own long direction, whichever gives the tightest rectangle,
+                // with a small margin so its border shows beyond the face's edge.
+                var nrm = r.Axis.Normalized(); var c = sub.Centroid();
+                var on = c - nrm * Vec3.Dot(c - r.Origin, nrm);
+                var dirs = new List<Vec3>();
+                foreach (var w in new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }) { var d = w - nrm * Vec3.Dot(w, nrm); if (d.Length > 1e-3) dirs.Add(d.Normalized()); }
+                {
+                    double xx = 0, xy = 0, yy = 0; var (bu, bv) = SurfaceMath.Basis(nrm);
+                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, bu), y = Vec3.Dot(q, bv); xx += x * x; xy += x * y; yy += y * y; }
+                    double ang = 0.5 * Math.Atan2(2 * xy, xx - yy); dirs.Add((bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized());
+                }
+                (Vec3 u, Vec3 v, double u0, double u1, double v0, double v1) best = default; double bestArea = double.MaxValue;
+                foreach (var u in dirs)
+                {
+                    var v = Vec3.Cross(nrm, u).Normalized(); double a0 = double.MaxValue, a1 = double.MinValue, b0 = double.MaxValue, b1 = double.MinValue;
+                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, u), y = Vec3.Dot(q, v); a0 = Math.Min(a0, x); a1 = Math.Max(a1, x); b0 = Math.Min(b0, y); b1 = Math.Max(b1, y); }
+                    double area = (a1 - a0) * (b1 - b0);
+                    if (area < bestArea - 1e-9) { bestArea = area; best = (u, v, a0, a1, b0, b1); }
+                }
+                double margin = Math.Max(0.05 * Math.Max(best.u1 - best.u0, best.v1 - best.v0), 1);
+                var centre = on + best.u * ((best.u0 + best.u1) / 2) + best.v * ((best.v0 + best.v1) / 2);
+                double hu = (best.u1 - best.u0) / 2 + margin, hv = (best.v1 - best.v0) / 2 + margin;
+                var pl = new Plane3(centre, best.u, best.v);
+                var rect = Occ.Polyline([pl.PointAt(-hu, -hv), pl.PointAt(hu, -hv), pl.PointAt(hu, hv), pl.PointAt(-hu, hv)], true);
+                refs.Add(new NewObject(rect, "Fitted plane", ObjKind.Plane, Plane: pl));
+                break;
+            }
+            case PrimKind.Cylinder:
+            case PrimKind.Cone:
+            {
+                double t0 = r.Kind == PrimKind.Cone ? Math.Min(0, r.T0) : r.T0, t1 = r.T1, extra = Math.Max((t1 - t0) * 0.15, 1);
+                refs.Add(new NewObject(Occ.Line(r.Origin + r.Axis * (t0 - extra), r.Origin + r.Axis * (t1 + extra)), "Fitted axis", ObjKind.Curve, 0xFFE8A23A));
+                break;
+            }
+        }
+        return refs;
+    }
+
+    internal CommandOutput? BuildConversion(SceneObject obj, MeshSelection selection, int type, double tolerance, bool surfaceOnly, bool primitiveOnly)
+    {
+        _type.Index = type;
+        _tol.Value = tolerance;
+        // Convert Mesh keeps its own outputs: a closed solid (or its surface) and no reference geometry
+        _create.Index = surfaceOnly ? 0 : 1;
+        _refs.Value = false;
+        _outline.Value = Math.Round(Math.Max(selection.Mesh.Size.Length * 0.004, 0.02), 3);
+        var fit = Fit(selection, selection.Extract(), surfaceOnly, primitiveOnly);
+        foreach (var row in fit.Rows) Results.Add(row);
+        if (fit.Shape == null) return null;
+        var output = new CommandOutput();
+        output.Add.Add(new(fit.Shape, fit.Name, fit.Solid ? ObjKind.Solid : ObjKind.Surface, Look: obj.Look));
+        return output;
+    }
+
+    FitResult Fit(MeshSelection sel, TriMesh sub, bool surfaceOnly = false, bool primitiveOnly = false)
     {
         var rows = new List<ResultLine>();
         void R(string a, string b, int lvl = 0) => rows.Add(new ResultLine(a, b, lvl));
         int type = _type.Index;
+        // A CAD export often makes a flat face of two big triangles: too few to fit. Splitting each triangle into four keeps the surface exactly
+        // where it is and gives the fitters points to work with (owner report 2026-11-20: a two-triangle face gave "no match").
+        int levels = 0; for (int count = sub.TriCount; count < 64 && levels < 4; count *= 4) levels++;
+        if (levels > 0) sub = MeshOps.Subdivide(sub, levels);
 
         // ---- analytic shapes
         if (type <= 4)
         {
-            var opt = new PrimitiveFit.Options(_tol.Value, 15, 3, KindsFor(type).Contains(PrimKind.Plane), KindsFor(type).Contains(PrimKind.Cylinder), KindsFor(type).Contains(PrimKind.Sphere), KindsFor(type).Contains(PrimKind.Cone), 4);
+            var opt = new PrimitiveFit.Options(_tol.Value, 15, 3, !primitiveOnly && KindsFor(type).Contains(PrimKind.Plane), KindsFor(type).Contains(PrimKind.Cylinder), KindsFor(type).Contains(PrimKind.Sphere), KindsFor(type).Contains(PrimKind.Cone), 4);
             var regs = PrimitiveFit.Detect(sub, opt);
             double total = sub.Area();
             var best = regs.OrderByDescending(r => r.Area).FirstOrDefault();
             bool good = best != null && best.Area >= total * (type == 0 ? 0.85 : 0.5) && (type != 0 || best.Rms < _tol.Value * 0.6);
+            if (!surfaceOnly)
+            {
+                // The user picked the region, so fit the whole of it by least squares on its vertices. An explicit choice always gets that
+                // shape; Automatic takes the simplest shape whose error is close to the best one and within the tolerance.
+                var whole = KindsFor(type).Select(k => PrimitivePolish.FitWhole(sub, k)).Where(f => f != null).Select(f => f!).ToList();
+                FitRegion? pick = null;
+                if (type != 0) pick = whole.FirstOrDefault(f => f.Rms <= Math.Max(_tol.Value, 1e-6) * 3);
+                else if (whole.Count > 0)
+                {
+                    double least = whole.Min(f => f.Rms);
+                    pick = whole.Where(f => f.Rms <= least * 1.25 + 1e-6 && f.Rms <= _tol.Value * 0.6).OrderBy(f => Complexity(f.Kind)).FirstOrDefault();
+                }
+                if (pick != null) { best = pick; good = true; }
+                else if (best != null) best = PrimitivePolish.Refine(best, sub);
+            }
             if (good && best != null)
             {
                 try
                 {
-                    var made = MeshSegmentCommand.BuildGeometry(best, sub);
-                    if (made?.Shape != null)
+                    NewObject? made = null;
+                    int create = surfaceOnly ? 0 : _create.Index;
+                    if (create == 2) { }
+                    else if (create == 0 || best.Kind == PrimKind.Plane)
+                    {
+                        var graph = RegionGraph.Build(sub, [best]);
+                        var faces = MeshRebuildCommand.BuildFaces(best, sub, graph, 0, _tol.Value);
+                        var face = faces.Count == 1 ? faces[0] : Occ.Compound(faces);
+                        made = new NewObject(face, best.Kind + " fit", ObjKind.Surface);
+                    }
+                    else
+                        made = MeshSegmentCommand.BuildGeometry(best, sub);
+                    var refs = !surfaceOnly && (_refs.Value || create == 2) ? ReferencesFor(best, sub) : [];
+                    if (made?.Shape != null || refs.Count > 0)
                     {
                         R("Fitted shape", best.Describe(), 1);
+                        Describe(best, sub, R);
                         R("Covers", $"{100 * best.Area / total:0.#}% of the region");
                         R("Fit error (RMS)", N(best.Rms, "mm"), best.Rms < _tol.Value ? 1 : 2);
-                        return new FitResult(made.Shape, made.NamePrefix, made.Kind == ObjKind.Solid, rows, [], []);
+                        if (best.MaxDev > 0) R("Largest error", N(best.MaxDev, "mm"), best.MaxDev <= _tol.Value * 3 ? 0 : 2);
+                        if (create == 1 && best.Kind == PrimKind.Plane) R("Closed solid", "a plane has no closed solid, so the trimmed surface is created", 2);
+                        if (create == 2 && refs.Count == 0) R("Reference geometry", "a sphere has no plane or axis; its centre is listed above", 2);
+                        return new FitResult(made?.Shape, made?.NamePrefix ?? "", made?.Kind == ObjKind.Solid, rows, [], []) { References = refs };
                     }
                 }
                 catch (KernelException e) { R("Could not build", e.Message, 2); }
             }
-            if (type != 0) { R("No match", best == null ? "the region does not look like that shape - try a smooth patch" : $"only {100 * best.Area / total:0.#}% of it fits a {best.Kind}", 2); return new FitResult(null, "", false, rows, [], []); }
+            if (type != 0 || primitiveOnly) { R("No match", best == null ? "the selected region does not match the requested shape" : $"only {100 * best.Area / total:0.#}% of it fits a {best.Kind}", 2); return new FitResult(null, "", false, rows, [], []); }
             R("Not a single exact shape", "using a smooth patch instead");
         }
 

@@ -6,6 +6,17 @@ Hidden planes reappear whenever a command asks for a plane (Create Sketch, inter
 
 Settings → Interaction → **Reference plane size** scales the drawn size of construction planes and the origin triad (25–200 % of the default model-relative size); pick bounds follow the drawn size, so smaller planes declutter a busy scene without becoming harder to hit.
 
+## Through three points
+
+- **Checked and fixed 2026-11-14 (owner report).** *Through three points* took the points only as typed coordinates. It now has three pick slots, *First*, *Second* and *Third point (a corner or a point)*, that take corners of any body or surface and the points made with the Point tool. A slot left empty uses its typed coordinates, so a point that is not on the model can still be typed. Three points in a line are refused with a message. Tests: [SOL-H160, SOL-H161](../../../Prism.Tests/Headless/Solid/ConstructionPlanePickTests.cs); the typed-coordinates test SOL-H073 still passes.
+- **Related fix:** changing *Method* now moves viewport picking to that method's first slot. Before, clicks kept going into *Plane or flat face* even when that slot was hidden, so picking a curve or a point after switching method filled the wrong slot ([SOL-H162](../../../Prism.Tests/Headless/Solid/ConstructionPlanePickTests.cs)). The fix is in the shared command code, so every command whose settings hide a pick slot behaves this way.
+
+## Drawn on the points, and on-screen handles (owner request 2026-11-14)
+
+- **Through three points** now draws the plane centred on the three points and large enough to cover them (half again as far as the farthest), instead of a fixed square around the first point. The plane passed through the points before; it just did not look as if it did ([SOL-H164](../../../Prism.Tests/Headless/Solid/PlaneAndIntersectionTests.cs)). A typed plane size still wins.
+- **Handles in the viewport.** Offset (arrow along the normal), Angle (ring round the hinge) and Normal to a curve (arrow along the curve) already had one; **Tangent to a round face** now has a ring round the face's axis for its angle ([SOL-H166](../../../Prism.Tests/Headless/Solid/PlaneAndIntersectionTests.cs)). The other methods have nothing to drag: Midway between two planes, Through two edges and Through a flat curve are fixed by what is picked, and Through three points is placed by clicking the points.
+- Not done: dragging a plane's size from its corner, and sliding the three points on a drawn plane.
+
 ## Verification
 
 [Datum actions and three-point plane](../../../Prism.Tests/Headless/Solid/SketchAndDatumTests.cs), [offset plane](../../../Prism.Tests/Headless/Solid/SharedToolTests.cs) and [Datum Gizmo entry](../../../Prism.Tests/Headless/Solid/SolidRibbonTests.cs). [Tracking issue #34](https://github.com/chrizpro/prism/issues/34).

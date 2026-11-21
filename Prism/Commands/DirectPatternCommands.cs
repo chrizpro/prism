@@ -14,6 +14,7 @@ public sealed class EditPatternCommand : Command
 {
     readonly SelectionSlot _faces;
     readonly NumberParam _spacing, _spacing2, _count, _count2, _angle, _remove;
+    readonly ChoiceParam _stagger;
     readonly double[] _filled = new double[5];
     int _filledFace = -1;
 
@@ -24,6 +25,7 @@ public sealed class EditPatternCommand : Command
         _count = Num("Number of instances", 0, 0, 500, 1, ""); _count2 = Num("Number of instances 2", 0, 0, 500, 1, "");
         _angle = Num("Angular step", 0, 0, 360, 1, "°");
         _remove = Num("Remove instance (0 = none)", 0, 0, 100000, 1, "");
+        _stagger = Choice("Every other row", 0, "As it is", "Shifted half a step", "Not shifted");
     }
 
     public override string Title => "Edit Pattern";
@@ -41,6 +43,8 @@ public sealed class EditPatternCommand : Command
                 var rel = feat.Centre - foot; if (rel.Length < 1e-6) return [];
                 return [new(foot, pat.Axis.Normalized(), _angle, 1, rel.Normalized(), rel.Length)];
             }
+            if (FeatureFinder.RowsOf(pat) is { } rows)
+                return [new(feat.Centre, rows.Along, _spacing), new(feat.Centre, rows.Across, _spacing2)];
             if (pat.Kind is FeatureFinder.PatternKind.Line or FeatureFinder.PatternKind.Grid)
             {
                 var list = new List<HandleSpec> { new(feat.Centre, pat.V1.Normalized(), _spacing) };
@@ -51,7 +55,7 @@ public sealed class EditPatternCommand : Command
         }
     }
     public override HandleSpec? Handle => Handles.Count > 0 ? Handles[0] : null;
-    public override string Hint => "Click any feature that belongs to a pattern. For a line or grid, set the spacing and the number of instances along each direction; for a circle, the angular step and the count. “Remove instance” deletes one instance by its number (counted from the first in the pattern, the clicked feature included). The clicked feature stays where it is. Leave a field at 0 to keep its current value.";
+    public override string Hint => "Click any feature that belongs to a pattern. For a line, set the spacing and the count; for a grid, the spacing along its rows, the spacing between rows, the count per row and the number of rows, and whether every other row is shifted half a step (staggered, like a pegboard); for a circle, the angular step and the count. “Remove instance” deletes one instance by its number (counted from the first in the pattern, the clicked feature included). The clicked feature stays where it is. Leave a field at 0 to keep its current value.";
 
     (SceneObject body, Feat feat, FeatureFinder.PatternInfo pat)? Picked()
     {
@@ -71,6 +75,7 @@ public sealed class EditPatternCommand : Command
         _spacing.IsVisible = kind is FeatureFinder.PatternKind.Line or FeatureFinder.PatternKind.Grid or FeatureFinder.PatternKind.None;
         _spacing2.IsVisible = _count2.IsVisible = grid;
         _angle.IsVisible = circle;
+        _stagger.IsVisible = grid && pk is { } g && FeatureFinder.RowsOf(g.pat) != null;
         if (pk == null || pk.Value.pat.Kind == FeatureFinder.PatternKind.None || _faces.Items[0].Index == _filledFace) return;
         // show the current values of the picked pattern, but keep numbers the user already typed
         _filledFace = _faces.Items[0].Index; var cur = Current(pk.Value.pat);
@@ -82,7 +87,9 @@ public sealed class EditPatternCommand : Command
         }
     }
 
-    static double[] Current(FeatureFinder.PatternInfo p) => p.Kind switch
+    static double[] Current(FeatureFinder.PatternInfo p) => FeatureFinder.RowsOf(p) is { } r
+        ? [r.Step, r.RowSpacing, Layout(r).Max(row => row.Value.hi - row.Value.lo + 1), Layout(r).Count, 0]
+        : p.Kind switch
     {
         FeatureFinder.PatternKind.Circle => [0, 0, p.Cells.Max(c => c.A) + 1, 0, Math.Round(p.Step * 180 / Math.PI, 6)],
         FeatureFinder.PatternKind.Line => [p.V1.Length, 0, p.MaxA - p.MinA + 1, 1, 0],
@@ -107,6 +114,7 @@ public sealed class EditPatternCommand : Command
 
         // the instances of the new layout, in order: (cell, placement of the picked feature's solid)
         var tool = FeatureEditCommand.ToolOf(body, feat);
+        if (FeatureFinder.RowsOf(pat) is { } rowsOf) return BuildRows(body, feat, pat, rowsOf, tool, boss, s1, s2, n1, n2, remove);
         var cells = new List<(int A, int B)>();
         if (pat.Kind == FeatureFinder.PatternKind.Circle)
         {
@@ -143,6 +151,55 @@ public sealed class EditPatternCommand : Command
         var o = new CommandOutput { Label = "Edit pattern", Icon = "pattern-linear" };
         o.Replace.Add((body, DirectHelpers.Batch(DirectHelpers.Batch(body.Shape, fill, strip), grow, drill)));
         Results.Add(new ResultLine("Pattern", pat.Kind.ToString().ToLowerInvariant()));
+        Results.Add(new ResultLine("Instances", $"{pat.Others.Count + 1} → {cells.Count - (remove > 0 ? 1 : 0)}"));
+        return o;
+    }
+
+    /// <summary>Each row of a rows-read grid (row number, first and last place in it), the picked feature's row being 0.</summary>
+    static SortedDictionary<int, (int lo, int hi)> Layout(FeatureFinder.PatternRows r)
+    {
+        var rows = new SortedDictionary<int, (int lo, int hi)> { [0] = (0, 0) };
+        foreach (var (a, b) in r.Cells) rows[b] = rows.TryGetValue(b, out var x) ? (Math.Min(x.lo, a), Math.Max(x.hi, a)) : (a, a);
+        return rows;
+    }
+
+    /// <summary>
+    /// A grid edited as rows: the step along the rows, the spacing between rows, the count per row and the number of rows, and the stagger.
+    /// Rows keep their own start and length, so a pegboard whose shifted rows hold one feature fewer keeps that; a new count changes every row by
+    /// the same amount. The picked feature stays where it is.
+    /// </summary>
+    CommandOutput BuildRows(SceneObject body, Feat feat, FeatureFinder.PatternInfo pat, FeatureFinder.PatternRows r, Shape tool, bool boss, double step, double spacing, int perRow, int rowCount, int remove)
+    {
+        var layout = Layout(r);
+        int widest = layout.Values.Max(x => x.hi - x.lo + 1);
+        perRow = Math.Max(perRow, 1); rowCount = Math.Max(rowCount, 1);
+        int firstRow = layout.Keys.First();
+        if (firstRow + rowCount - 1 < 0) firstRow = -(rowCount - 1);
+        double shift = _stagger.Index switch { 1 => step / 2, 2 => 0, _ => r.Staggered ? r.Shift / r.Step * step : 0 };
+        var cells = new List<(int A, int B)>();
+        for (int b = firstRow; b < firstRow + rowCount; b++)
+        {
+            // a row that existed keeps its start and its length relative to the widest row; a new row copies the nearest row of the same parity
+            var template = layout.TryGetValue(b, out var have) ? have
+                : layout.Where(kv => Math.Abs(kv.Key % 2) == Math.Abs(b % 2)).OrderBy(kv => Math.Abs(kv.Key - b)).Select(kv => kv.Value).DefaultIfEmpty(layout[0]).First();
+            int len = Math.Max(1, perRow - (widest - (template.hi - template.lo + 1)));
+            int lo = template.lo; if (b == 0 && lo + len - 1 < 0) lo = -(len - 1);
+            for (int a = lo; a < lo + len; a++) cells.Add((a, b));
+        }
+        if (remove > cells.Count) throw new FormatException($"The pattern has only {cells.Count} instances.");
+        if (remove > 0 && cells[remove - 1] == (0, 0)) throw new FormatException("That instance is the feature you clicked. Remove another one, or use Edit Feature to delete it.");
+        List<Shape> fill = [], strip = [], drill = [], grow = [];
+        foreach (var m in pat.Others) (boss ? strip : fill).Add(FeatureEditCommand.ToolOf(body, m));
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var (a, b) = cells[i];
+            if ((a, b) == (0, 0) || i + 1 == remove) continue;
+            var off = r.Along * (a * step + (b % 2 != 0 ? shift : 0)) + r.Across * (b * spacing);
+            (boss ? grow : drill).Add(Occ.Translate(tool, off));
+        }
+        var o = new CommandOutput { Label = "Edit pattern", Icon = "pattern-linear" };
+        o.Replace.Add((body, DirectHelpers.Batch(DirectHelpers.Batch(body.Shape, fill, strip), grow, drill)));
+        Results.Add(new ResultLine("Pattern", FeatureFinder.PatternText(body, feat) ?? "grid"));
         Results.Add(new ResultLine("Instances", $"{pat.Others.Count + 1} → {cells.Count - (remove > 0 ? 1 : 0)}"));
         return o;
     }

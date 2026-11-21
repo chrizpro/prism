@@ -9,6 +9,10 @@ public static partial class ToolHelp
 {
     static ToolHelpTopic? FindButton(string? key) => key switch
     {
+        // ---- Solid: Draft changes the walls; the Draft Analysis topic (same icon) only checks them ----
+        "draft|Draft" => T(key, "Draft", "Lean the walls of a body away from a pull direction so a molded or cast part can release. This changes the shape; to only check an existing part, use Draft Analysis under Analyze.", "Start: straight walls", "Result: walls leaning 8 degrees",
+            "1. Choose Draft.\n2. Pick the faces to lean, then the neutral plane or flat face they hinge on.\n3. Set the angle; Reverse pull direction flips the lean.",
+            "A parting line at the neutral plane leans the walls opposite ways, for a two-part mold.", "pic-draft-face"),
         // ---- Home: Export As (one card per file type) ----
         "export-as|prism" => Words(key, "Export As Prism document", "Write an editable copy of the whole document as a .prism file, to keep a version or send one.",
             "1. Choose Export As > Prism document.\n2. Pick a folder and name.\n3. Prism writes the copy; your open document is not renamed.",
@@ -42,9 +46,10 @@ public static partial class ToolHelp
             "Exact solids are written as meshes."),
 
         // ---- 3D FDM ----
-        "print-place-on-bed" => Words(key, "Place on Bed", "Set a CAD solid down on the print bed (Z = 0) with the face you pick lying flat.",
+        "print-place-on-bed" => T(key, "Place on Bed", "Set a CAD solid down on the print bed (Z = 0) with the face you pick lying flat.",
+            "Start: a part resting at an angle", "Result: the picked face flat on the bed",
             "1. Choose Place on bed.\n2. Click a flat face of the solid; the preview shows it face-down on the XY plane.\n3. Accept.",
-            "Check overhangs afterwards with FDM check."),
+            "Check overhangs afterwards with FDM check.", "mesh-align"),
 
         // ---- Static and Dynamics buttons that share an icon with another tool ----
         "sim-new|Select Study" => Find("sim-select-study"),
@@ -63,23 +68,29 @@ public static partial class ToolHelp
             "Sketch on the planes or use them as mirror, split and section references.", "construction-plane"),
 
         // ---- curves ----
-        "move|Transform" => Words(key, "Transform", "Move, rotate or scale the points and curves you selected in a sketch, with the gizmo or by typing exact values.",
+        "move|Transform" => T(key, "Transform", "Move, rotate or scale the points and curves you selected in a sketch, with the gizmo or by typing exact values.", "Start: picked sketch curves", "Result: moved and turned",
             "1. Select points or curves.\n2. Choose Transform: the gizmo sits on the selection and its panel opens.\n3. Drag the arrows or rings, press R to rotate or S to scale, or type location, rotation and scale.",
-            "Scale works per axis, so two points can be squashed together along one gizmo axis. No bind step is needed."),
-        "origin-point|Insert Point" => Words(key, "Insert Point", "Add a point to a curve you already drew in a sketch: a line becomes two lines, an arc or circle two arcs, and a spline gains a point.",
+            "Scale works per axis, so two points can be squashed together along one gizmo axis. No bind step is needed.", "pic-transform"),
+        "origin-point|Insert Point" => T(key, "Insert Point", "Add a point to a curve you already drew in a sketch: a line becomes two lines, an arc or circle two arcs, and a spline gains a point.", "Start: a line", "Result: two lines meeting at the new point",
             "1. In a sketch, choose Insert Point.\n2. Click a line, arc, circle or spline where the point should go.\n3. Click more curves, or press Esc to finish.",
-            "A circle splits at the clicked point and the point opposite it. The two halves of a split line stay one straight line."),
+            "A circle splits at the clicked point and the point opposite it. The two halves of a split line stay one straight line.", "pic-insert-point"),
         "section|Intersection Curve" => T(key, "Intersection Curve", "Make the curve where two planes, faces, surfaces or bodies cross, or the 3D curve shared by two flat curves on different planes.",
             "Start: a cylinder crossed by a plane", "Result: the curve where they meet",
             "1. Choose Intersection Curve.\n2. Pick the first and second object; two curves are recognised without changing a setting.\n3. Accept to keep the curve.",
             "The curve is ordinary geometry: sweep along it, loft through it or trim with it.", "intersection-curve"),
-        "section|Project" => T(key, "Project Curve", "Drop curves onto a surface, straight along a direction or by pulling to the nearest point.",
+        "section|Project / Wrap" => T(key, "Project / Wrap Curve", "Put curves onto a surface: project them straight along a direction, pull them to the nearest point, or wrap a flat curve (a logo, a label, text) on by distance.",
             "Start: a curve above a body", "Result: the curve lying on the face",
-            "1. Choose Project.\n2. Pick the curves, then the surface or body.\n3. Choose straight or nearest-point, then accept.",
-            "Projected curves can trim the surface or guide an emboss.", "project-curve"),
-        "curve-through|Draw on Surface" => Words(key, "Draw on Surface", "Draw a curve directly on a surface the way the spline tool draws one: click a few points and a smooth curve passes through them, over the edge onto the next face if need be.",
+            "1. Choose Project / Wrap.\n2. Pick the curves, then the surface or body.\n3. Choose the method: straight along a direction, nearest point, or Wrap to keep lengths true. Wrap also has Slide and Rotate to place the pattern. Then accept.",
+            "Wrap needs curves that lie in one plane. The pattern lands where the face is nearest to it and every point is reached by walking its distance over the face, so lengths stay true on planes, cylinders and cones. Use the result to imprint or split a face, or pick the text itself in Emboss.", "project-curve"),
+        "splitbody|Knife" => T(key, "Knife", "Cut a freeform with a plane: every face the plane passes through is split along the cut.", "Start: a form", "Result: cut along the plane",
+            "1. Choose Knife and click the form.\n2. Pick a construction plane or a flat face to cut along, or choose X, Y or Z and type where the cut goes.\n3. Add a crease if the cut should stay sharp, then accept.",
+            "The edges the plane crosses get a new point where it crosses them, and each face it passes through becomes two. A plane that only touches the form, or lies along a face, cuts nothing. Use Insert Edge for a loop parallel to existing edges and Knife for a cut at any angle.", "pic-knife"),
+        "hole|Thread" => T(key, "Thread", "Cut a modeled thread into a round face: the outside of a pin, bolt or boss, or the wall of a hole you already drilled.", "Start: a plain pin", "Result: a modeled thread",
+            "1. Choose Thread.\n2. Click the round face. A pin gets an external thread and a hole gets an internal one.\n3. The size and standard coarse pitch come from the face; choose Custom to type a pitch. Set the length and which end it starts from, then accept.",
+            "A pin's diameter is the thread's major diameter and a hole's diameter is the tap drill, so a Ø5 hole threads as M6 × 1. The 60° thread is modeled as real geometry and cut with a flat crest, with no manufacturing allowance. Use Hole to drill a new threaded hole.", "pic-thread"),
+        "curve-through|Draw on Surface" => T(key, "Draw on Surface", "Draw a curve directly on a surface the way the spline tool draws one: click a few points and a smooth curve passes through them, over the edge onto the next face if need be.", "Start: a surface", "Result: a curve lying on it",
             "1. Choose Draw on Surface.\n2. Click points on a face, surface, freeform form, NURBS surface or mesh. Click the first point again to close the curve into a loop.\n3. Drag a point to move it, press Delete to remove the selected one, and press Enter or double-click to finish.",
-            "Under Result, keep the curve or split the faces it was drawn on. Fewer points make a calmer curve. A spot that cannot be reached without crossing empty space is refused. The curve stays where it was drawn if the body changes later."),
+            "Under Result, keep the curve or split the faces it was drawn on. Fewer points make a calmer curve. A spot that cannot be reached without crossing empty space is refused. The curve stays where it was drawn if the body changes later.", "pic-draw-on-surface"),
         "curve-through|Isocurves" => T(key, "Isocurves", "Pull curves of constant U or V out of a surface.",
             "Start: a surface", "Result: curves following its grid",
             "1. Choose Isocurves.\n2. Pick the surface.\n3. Choose the direction and count, then accept.",
@@ -142,6 +153,12 @@ public static partial class ToolHelp
             "Start: a face split by a seam", "Result: one clean face",
             "1. Choose Merge Faces.\n2. Pick the faces to join.\n3. Accept.",
             "Merging removes edges left over from imports and booleans.", "merge-faces"),
+        "measure|Edit Distance" => T(key, "Edit Distance", "Set the distance between two faces or features by typing it: the first pick moves to match.", "Start: the hole near one end", "Result: the distance typed, the hole moved",
+            "1. Choose Edit Distance.\n2. Click what to move (a flat face, or a hole, slot, pocket or boss).\n3. Click what to measure from; the panel shows the distance now.\n4. Type the new distance or drag the arrow, then accept.",
+            "Symmetric moves both picks by half the change. A hole is measured from its centre line.", "pic-edit-distance"),
+        "edit-points|Edit Face" => T(key, "Edit Face", "Reshape a flat, four-sided face of a solid by moving a grid of control points.", "Start: a flat face", "Result: the face reshaped, its outline kept",
+            "1. Choose Edit Face.\n2. Click a flat face with four sides.\n3. Drag the inner points; the outline stays where it is.\n4. Accept to turn the grid back into a face of the solid.",
+            "Grid cells across and up set how many points there are. Edit feature brings the moved points back.", "pic-edit-face"),
         "pattern-linear|Edit Pattern" => T(key, "Edit Pattern", "Change the spacing or count of a line, grid or circle of features, or drop one.",
             "Start: four holes in a row", "Result: three holes, wider apart",
             "1. Choose Edit Pattern.\n2. Click one feature of the pattern.\n3. Change the count or spacing, or drop a copy, then accept.",
@@ -284,6 +301,9 @@ public static partial class ToolHelp
         "mesh-check|Print Check" => Words(key, "Print Check", "Pre-flight check before printing: watertight, fits your printer, supports and weight.",
             "1. Select the mesh.\n2. Choose Print Check.\n3. Repair or rescale what is flagged.",
             "Run Repair first when the mesh is not watertight."),
+        "mesh-fit|Convert Mesh" => Words(key, "Convert Mesh", "Fit a solid, surface, freeform cage or NURBS patch to a mesh.",
+            "1. Pick the mesh, or select triangles using Edit Region.\n2. Choose the output type.\n3. Preview and inspect the deviation in both directions before applying.",
+            "For an open solid attempt, inspect the red open edges before choosing whether to keep a surface."),
         "mesh-fit|Rebuild from Scan" => T(key, "Rebuild from Scan", "Automatic reverse engineering: fit all surface types, merge them, build faces and edge curves, sew, and report the deviation to the scan.", "Start: a scan mesh", "Result: an exact solid",
             "1. Choose Rebuild from Scan.\n2. Pick the mesh and set the tolerance.\n3. Accept, then check the deviation report.",
             "Clean, aligned scans rebuild best; use Segment & Fit for manual control.", "mesh-fit"),
@@ -372,7 +392,7 @@ public static partial class ToolHelp
             "1. Select the curves.\n2. Choose To construction.",
             "Construction curves guide and constrain but are not part of profiles.", "construction"),
 
-        _ => null
+        _ => FindMeshButton(key)
     };
 
     const string FormSteps = "1. Choose the primitive.\n2. Click to place it and set its size and face counts in the panel.\n3. Sculpt it with Edit Freeform.";

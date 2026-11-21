@@ -4,6 +4,8 @@
 
 Owner authorized save prompts on application close and opt-in timed autosave on 2026-11-05, then explicitly chose **separate recovery copies**, including untitled documents. [Delivery #66](https://github.com/chrizpro/prism/issues/66). The initial interval is 5 minutes, adjustable from 1 to 120 minutes in Settings → Workspace. Autosave is off by default.
 
+**Windows verification, 2026-11-18.** On `v0.4-work` at `b6c43909`, the initial Untitled tab contained an empty Datums object and was marked dirty before the user had worked in it, so the recovery timer also copied that tab. The local fix makes the datum lookup read-only and leaves the initial tab empty and clean. [SAV-I001](../../../Prism.Tests/Integration/DesktopDocumentSafetyTests.cs) failed twice on the original build and passed with the fix, including the real one-minute timer, the unchanged saved file, and reopening the edited recovery copy. [Issue #144](https://github.com/chrizpro/prism/issues/144).
+
 ## Expected behavior
 
 **Owner approved native typed extensions on 2026-11-09 and typed defaults on 2026-11-10.** They use the same editable document contents as `.prism`, including source geometry and history. A first save and Save As default to the typed suffix matching the current contents, including when the working file was opened as `.prism` or `.ourcad`. The general format remains available in the picker and is the default when there is no matching typed suffix. Save continues updating the existing file. Open and save validate the suffix against the contents before replacing an existing file or loading into the current session. [Typed document issue #97](https://github.com/chrizpro/prism/issues/97).

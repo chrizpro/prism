@@ -50,6 +50,9 @@ public sealed partial class CadSession
         _region.Points.Add((p.X, p.Y));
     }
 
+    /// <summary>How far (pixels, each direction) a press may wander and still count as a click.</summary>
+    const double ClickSlop = 10;
+
     bool RegionMove(PointerInfo p)
     {
         if (_region == null) return false;
@@ -65,7 +68,10 @@ public sealed partial class CadSession
     {
         if (_region == null) return false;
         var region = _region; bool moved = _regionMoved; var done = _regionDone; _region = null; _regionMoved = false; _regionDone = null;
-        if (!moved) { if (done == null) ClickAt(_regionDown); return true; }
+        // a hand rarely stays perfectly still while clicking: a press that wandered only a few pixels is still a click, so Shift-click adds the face,
+        // edge or point under the pointer instead of drawing a tiny box with nothing inside (owner report 2026-11-20)
+        if (moved && done == null && Math.Abs(p.X - _regionStart.x) < ClickSlop && Math.Abs(p.Y - _regionStart.y) < ClickSlop) moved = false;
+        if (!moved) { if (done == null) ClickAt(_regionDown with { Shift = _regionDown.Shift || p.Shift, Ctrl = _regionDown.Ctrl || p.Ctrl }); return true; }
         RegionMovePoint(region, p);
         if (done != null) done(region, p); else ApplyRegion(region, p);
         Invalidate();
@@ -200,7 +206,18 @@ public sealed partial class CadSession
         else
         {
             var kind = mode == SelMode.Face ? SelKind.Face : SelKind.Edge;
-            var touched = have.Where(i => i.Kind == kind).Select(i => i.Obj).ToHashSet();
+            bool meshFaces = mode == SelMode.Face && filter.HasFlag(SelFilter.MeshFace);
+            var touched = have.Where(i => i.Kind == kind || meshFaces && i.Kind == SelKind.MeshFace).Select(i => i.Obj).ToHashSet();
+            if (meshFaces)
+            {
+                foreach (var obj in Objects.Where(o => o.Visible && !HiddenIds.Contains(o.Id) && ShownByIsolation(o) &&
+                            o.Tri != null && (touched.Count == 0 || touched.Contains(o.Id))))
+                    for (int i = 0; i < obj.Tri!.TriCount; i++)
+                    {
+                        var item = new SelItem(obj.Id, SelKind.MeshFace, i);
+                        if (!have.Contains(item)) next.Add(item);
+                    }
+            }
             foreach (var o in bodies.Where(b => touched.Count == 0 || touched.Contains(b.Id)))
             {
                 int n = kind == SelKind.Face ? o.Mesh.FaceCount : o.Mesh.EdgeCount;
@@ -227,7 +244,9 @@ public sealed partial class CadSession
     {
         var (o, d) = Camera.Ray(p.X, p.Y);
         var hits = new List<(double t, SelItem item)>();
-        foreach (var obj in Objects.Where(x => x.Visible && !HiddenIds.Contains(x.Id) && !x.IsAnnotation && x.Kind is ObjKind.Solid or ObjKind.Surface))
+        var filter = ActiveFilter;
+        foreach (var obj in Objects.Where(x => x.Visible && !HiddenIds.Contains(x.Id) && ShownByIsolation(x) &&
+             (x.Kind is ObjKind.Solid or ObjKind.Surface || x.Kind == ObjKind.Mesh && (filter & (SelFilter.MeshFace | SelFilter.MeshObj)) != 0)))
         {
             var m = obj.Mesh; var P = m.Positions; var I = m.Indices;
             var seen = new HashSet<int>();
@@ -235,10 +254,11 @@ public sealed partial class CadSession
             {
                 double? hit = Ray(o, d, P, I[t] * 3, I[t + 1] * 3, I[t + 2] * 3);
                 if (hit is not { } h || h <= 0) continue;
-                int face = m.TriFace[t / 3];
-                if (!ShownByIsolation(new SelItem(obj.Id, SelKind.Face, face))) continue;
-                if (Mode == SelMode.Face || ActiveFilter.HasFlag(SelFilter.Face)) { if (seen.Add(face)) hits.Add((h, new SelItem(obj.Id, SelKind.Face, face))); }
-                else if (seen.Add(-1)) hits.Add((h, SelItem.Of(obj)));
+                var item = obj.Kind == ObjKind.Mesh
+                    ? filter.HasFlag(SelFilter.MeshFace) ? new SelItem(obj.Id, SelKind.MeshFace, t / 3) : SelItem.Of(obj)
+                    : filter.HasFlag(SelFilter.Face) ? new SelItem(obj.Id, SelKind.Face, m.TriFace[t / 3]) : SelItem.Of(obj);
+                if (ShownByIsolation(item) && Matches(item, filter) && seen.Add(item.Index))
+                    hits.Add((h, item));
             }
         }
         if (hits.Count == 0) return null;
@@ -270,6 +290,8 @@ public sealed partial class CadSession
             else SetSelection(behind, p.Ctrl || p.Shift);
             return;
         }
+        if (ActiveCommand != null && Method == SelectMethod.Click && ActiveCommand.ClickScreen(this, p.X, p.Y)) return;
+        if (Method == SelectMethod.Click && EditRegionByClick(p)) return;
         var hit = Pick(p.X, p.Y, ActiveFilter);
         if (ActiveCommand != null)
         {
@@ -277,6 +299,16 @@ public sealed partial class CadSession
             return;
         }
         if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return; }
+        if (p.Clicks >= 2 && hit.Value.Item.Kind == SelKind.MeshFace)
+        {
+            // double-click on a scan: the smooth patch the triangle belongs to (Shift adds, Ctrl takes away)
+            var patch = MeshPatchAt(hit.Value.Item);
+            if (p.Ctrl) _selection.RemoveAll(patch.Contains);
+            else { if (!p.Shift) _selection.RemoveAll(i => i.Kind == SelKind.MeshFace); foreach (var it in patch) if (!_selection.Contains(it)) _selection.Add(it); }
+            SelectionChanged?.Invoke(); Invalidate();
+            Say($"Selected a patch of {patch.Count:#,0} triangles. Mesh tools such as Fit Region use it directly.");
+            return;
+        }
         SetSelection(hit.Value.Item, p.Ctrl || p.Shift);
         if (hit.Value.Item.Kind == SelKind.Vertex && VertexPoint(hit.Value.Item) is { } corner)
             Say($"{Describe(hit.Value.Item)} at X {corner.X:0.###}, Y {corner.Y:0.###}, Z {corner.Z:0.###} mm");

@@ -1,0 +1,2189 @@
+{
+  "parts": 35,
+  "valid": true,
+  "saveReopened": true,
+  "objects": [
+    {
+      "id": "e02d6abe",
+      "name": "Tapered teal tail boom",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#087B86",
+      "min": [
+        144,
+        -29,
+        233
+      ],
+      "max": [
+        628,
+        29,
+        351
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 537467.0723,
+      "area": 58175.3789,
+      "size": [
+        484,
+        58,
+        118
+      ],
+      "center": [
+        386,
+        0,
+        292
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.3,
+        "gloss": 0.71000004,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "ea90b5aa",
+      "name": "Swept teal vertical fin",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#087B86",
+      "min": [
+        550,
+        -7,
+        320
+      ],
+      "max": [
+        686,
+        7,
+        474
+      ],
+      "faces": 7,
+      "edges": 15,
+      "wires": 7,
+      "volume": 116557,
+      "area": 23055.0744,
+      "size": [
+        136,
+        14,
+        154
+      ],
+      "center": [
+        618,
+        0,
+        397
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.3,
+        "gloss": 0.71000004,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "29b23bf9",
+      "name": "Pearl horizontal stabilizer",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        470,
+        -137,
+        319
+      ],
+      "max": [
+        553,
+        137,
+        324
+      ],
+      "faces": 9,
+      "edges": 21,
+      "wires": 9,
+      "volume": 72530,
+      "area": 32262.6626,
+      "size": [
+        83,
+        274,
+        5
+      ],
+      "center": [
+        511.5,
+        0,
+        321.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "692f00ed",
+      "name": "Tail rotor gearbox",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#BAC6CA",
+      "min": [
+        611,
+        -38,
+        338
+      ],
+      "max": [
+        639,
+        9,
+        366
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 28940.3515,
+      "area": 5365.8403,
+      "size": [
+        28,
+        47,
+        28
+      ],
+      "center": [
+        625,
+        -14.5,
+        352
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.7,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "3655580d",
+      "name": "Port curved landing skid",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -260.1901,
+        -121,
+        0.2223
+      ],
+      "max": [
+        214.457,
+        -109,
+        52.0105
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 53181.5647,
+      "area": 18296.5455,
+      "size": [
+        474.6471,
+        12,
+        51.7882
+      ],
+      "center": [
+        -22.8665,
+        -115,
+        26.1164
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "fa964ec3",
+      "name": "Starboard curved landing skid",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -260.1901,
+        109,
+        0.2223
+      ],
+      "max": [
+        214.457,
+        121,
+        52.0105
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 53181.5647,
+      "area": 18296.5455,
+      "size": [
+        474.6471,
+        12,
+        51.7882
+      ],
+      "center": [
+        -22.8665,
+        115,
+        26.1164
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "3536f858",
+      "name": "Forward landing gear cross-strut",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        -125.5,
+        -119.4315,
+        14.4148
+      ],
+      "max": [
+        -114.5,
+        119.1709,
+        134.0589
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 31399.7032,
+      "area": 11612.2879,
+      "size": [
+        11,
+        238.6024,
+        119.6441
+      ],
+      "center": [
+        -120,
+        -0.1303,
+        74.2368
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "cf70f196",
+      "name": "Rear landing gear cross-strut",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        99.5,
+        -119.7022,
+        14.06
+      ],
+      "max": [
+        110.5,
+        118.8375,
+        180.8439
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 37954.9994,
+      "area": 14047.7605,
+      "size": [
+        11,
+        238.5397,
+        166.7839
+      ],
+      "center": [
+        105,
+        -0.4323,
+        97.452
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "f7a6de14",
+      "name": "Port navigation light",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#C43135",
+      "min": [
+        -19.9653,
+        -88,
+        246
+      ],
+      "max": [
+        -12,
+        -80,
+        254
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 268.0826,
+      "area": 201.0619,
+      "size": [
+        7.9653,
+        8,
+        8
+      ],
+      "center": [
+        -15.9826,
+        -84,
+        250
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.75,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "84c738f5",
+      "name": "Starboard navigation light",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#24A47E",
+      "min": [
+        -19.9653,
+        80,
+        246
+      ],
+      "max": [
+        -12,
+        88,
+        254
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 268.0826,
+      "area": 201.0619,
+      "size": [
+        7.9653,
+        8,
+        8
+      ],
+      "center": [
+        -15.9826,
+        84,
+        250
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.75,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "40a87e30",
+      "name": "Anti-collision beacon",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#C43135",
+      "min": [
+        120.0434,
+        -5,
+        369
+      ],
+      "max": [
+        130,
+        5,
+        381
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 628.3185,
+      "area": 356.7991,
+      "size": [
+        9.9566,
+        10,
+        12
+      ],
+      "center": [
+        125.0217,
+        0,
+        375
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.75,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "a8009a0b",
+      "name": "01 Pearl cabin shell",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        -285,
+        -94.1747,
+        101.9992
+      ],
+      "max": [
+        218,
+        94.1747,
+        310.0008
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 10355002.4018,
+      "area": 263165.7999,
+      "size": [
+        503,
+        188.3494,
+        208.0016
+      ],
+      "center": [
+        -33.5,
+        0,
+        206
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "2bae37eb",
+      "name": "Port curved windshield",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        -291.9174,
+        -97.4708,
+        186
+      ],
+      "max": [
+        -53.5348,
+        -8.8,
+        313.1923
+      ],
+      "faces": 5,
+      "edges": 9,
+      "wires": 5,
+      "volume": 139841.5918,
+      "area": 75145.675,
+      "size": [
+        238.3826,
+        88.6708,
+        127.1923
+      ],
+      "center": [
+        -172.7261,
+        -53.1354,
+        249.5962
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "4ec8f5da",
+      "name": "Port sculpted door glazing",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        -56.9969,
+        -96.8971,
+        164.5877
+      ],
+      "max": [
+        82.6643,
+        -48.2591,
+        293.3869
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 48180.6901,
+      "area": 35027.9281,
+      "size": [
+        139.6612,
+        48.6379,
+        128.7992
+      ],
+      "center": [
+        12.8337,
+        -72.5781,
+        228.9873
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "c7cb6962",
+      "name": "Port swept quarter glazing",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        84.6684,
+        -77.4646,
+        205.0178
+      ],
+      "max": [
+        152.0002,
+        -45.984,
+        276.3667
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 14603.956,
+      "area": 9530.5081,
+      "size": [
+        67.3319,
+        31.4806,
+        71.3488
+      ],
+      "center": [
+        118.3343,
+        -61.7243,
+        240.6923
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "de557cf8",
+      "name": "Port flush door handle",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        24.4755,
+        -66.7342,
+        155.2119
+      ],
+      "max": [
+        50.5245,
+        -56.2658,
+        161.7881
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 266.0145,
+      "area": 315.9291,
+      "size": [
+        26.0491,
+        10.4685,
+        6.5762
+      ],
+      "center": [
+        37.5,
+        -61.5,
+        158.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "bd882252",
+      "name": "Starboard curved windshield",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        -291.9174,
+        8.8,
+        186
+      ],
+      "max": [
+        -53.5348,
+        97.4708,
+        313.1923
+      ],
+      "faces": 7,
+      "edges": 15,
+      "wires": 7,
+      "volume": 139841.591,
+      "area": 75145.6744,
+      "size": [
+        238.3826,
+        88.6708,
+        127.1923
+      ],
+      "center": [
+        -172.7261,
+        53.1354,
+        249.5962
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "e7fcf9bf",
+      "name": "Starboard sculpted door glazing",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        -56.9969,
+        48.2591,
+        164.5877
+      ],
+      "max": [
+        82.6643,
+        96.8971,
+        293.3869
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 48180.6909,
+      "area": 35027.928,
+      "size": [
+        139.6612,
+        48.6379,
+        128.7992
+      ],
+      "center": [
+        12.8337,
+        72.5781,
+        228.9873
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "f78f5fa2",
+      "name": "Starboard swept quarter glazing",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#3B5D73",
+      "min": [
+        84.6684,
+        45.984,
+        205.0178
+      ],
+      "max": [
+        152.0002,
+        77.4646,
+        276.3667
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 14603.9558,
+      "area": 9530.5083,
+      "size": [
+        67.3319,
+        31.4806,
+        71.3488
+      ],
+      "center": [
+        118.3343,
+        61.7243,
+        240.6923
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "pc",
+        "material": "Polycarbonate (PC)",
+        "metal": 0.08,
+        "gloss": 0.76,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.2,
+          "youngs_GPa": 2.4,
+          "poisson": 0.37,
+          "yield_MPa": 62,
+          "strength_MPa": 65,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.21,
+          "expansion_um_mK": 68,
+          "specificHeat_J_kgK": 1200,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    {
+      "id": "83127b72",
+      "name": "Starboard flush door handle",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        24.4755,
+        56.2658,
+        155.2119
+      ],
+      "max": [
+        50.5245,
+        66.7342,
+        161.7881
+      ],
+      "faces": 3,
+      "edges": 3,
+      "wires": 3,
+      "volume": 266.0145,
+      "area": 315.9291,
+      "size": [
+        26.0491,
+        10.4685,
+        6.5762
+      ],
+      "center": [
+        37.5,
+        61.5,
+        158.5
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "5ffba634",
+      "name": "Pearl windshield centre frame",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        -293.8025,
+        -8,
+        186
+      ],
+      "max": [
+        -50,
+        8,
+        313.6408
+      ],
+      "faces": 8,
+      "edges": 18,
+      "wires": 8,
+      "volume": 23296.3493,
+      "area": 12931.9101,
+      "size": [
+        243.8025,
+        16,
+        127.6408
+      ],
+      "center": [
+        -171.9013,
+        0,
+        249.8204
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "794f3ba2",
+      "name": "Pearl raked cockpit arch",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#E5EBE8",
+      "min": [
+        -69,
+        -97.1753,
+        186
+      ],
+      "max": [
+        -43.5046,
+        97.1753,
+        312.6569
+      ],
+      "faces": 6,
+      "edges": 12,
+      "wires": 6,
+      "volume": 9323.5803,
+      "area": 8536.6558,
+      "size": [
+        25.4954,
+        194.3506,
+        126.6569
+      ],
+      "center": [
+        -56.2523,
+        0,
+        249.3285
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.25,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "f34d0898",
+      "name": "Sculpted turbine cowling",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#087B86",
+      "min": [
+        -78,
+        -63.8003,
+        283.9993
+      ],
+      "max": [
+        202,
+        63.8003,
+        387.7955
+      ],
+      "faces": 5,
+      "edges": 12,
+      "wires": 6,
+      "volume": 2109570.5592,
+      "area": 94214.7047,
+      "size": [
+        280,
+        127.6007,
+        103.7963
+      ],
+      "center": [
+        62,
+        0,
+        335.8974
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.3,
+        "gloss": 0.65999997,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "23cf3e36",
+      "name": "Port recessed oval intake",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -2,
+        -57,
+        341
+      ],
+      "max": [
+        52,
+        -53,
+        359
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 2035.752,
+      "area": 1633.8696,
+      "size": [
+        54,
+        4,
+        18
+      ],
+      "center": [
+        25,
+        -55,
+        350
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "a10ecd28",
+      "name": "Port hollow exhaust",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#BAC6CA",
+      "min": [
+        148.7866,
+        -43,
+        341.0568
+      ],
+      "max": [
+        215.2134,
+        -17,
+        372.9432
+      ],
+      "faces": 4,
+      "edges": 6,
+      "wires": 6,
+      "volume": 13934.1063,
+      "area": 9722.944,
+      "size": [
+        66.4269,
+        26,
+        31.8865
+      ],
+      "center": [
+        182,
+        -30,
+        357
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.7,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "80c63b21",
+      "name": "Starboard recessed oval intake",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -2,
+        53,
+        341
+      ],
+      "max": [
+        52,
+        57,
+        359
+      ],
+      "faces": 1,
+      "edges": 3,
+      "wires": 1,
+      "volume": 2035.752,
+      "area": 1633.8696,
+      "size": [
+        54,
+        4,
+        18
+      ],
+      "center": [
+        25,
+        55,
+        350
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.5,
+        "gloss": 0.6,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "f0dbb7ad",
+      "name": "Starboard hollow exhaust",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#BAC6CA",
+      "min": [
+        148.7866,
+        17,
+        341.0568
+      ],
+      "max": [
+        215.2134,
+        43,
+        372.9432
+      ],
+      "faces": 4,
+      "edges": 6,
+      "wires": 6,
+      "volume": 13934.1063,
+      "area": 9722.944,
+      "size": [
+        66.4269,
+        26,
+        31.8865
+      ],
+      "center": [
+        182,
+        30,
+        357
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.7,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "cb6c7ad8",
+      "name": "Tail rotor blade 1",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        632.4046,
+        -39.0981,
+        293.7099
+      ],
+      "max": [
+        715.4984,
+        -36.1929,
+        358.9495
+      ],
+      "faces": 4,
+      "edges": 5,
+      "wires": 4,
+      "volume": 2788.5552,
+      "area": 3586.9821,
+      "size": [
+        83.0938,
+        2.9052,
+        65.2396
+      ],
+      "center": [
+        673.9515,
+        -37.6455,
+        326.3297
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "cf294fca",
+      "name": "Tail rotor blade 2",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        534.5016,
+        -39.0981,
+        345.0505
+      ],
+      "max": [
+        617.5954,
+        -36.1929,
+        410.2901
+      ],
+      "faces": 4,
+      "edges": 5,
+      "wires": 4,
+      "volume": 2788.5552,
+      "area": 3586.9821,
+      "size": [
+        83.0938,
+        2.9052,
+        65.2396
+      ],
+      "center": [
+        576.0485,
+        -37.6455,
+        377.6703
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "306e8861",
+      "name": "Main rotor mast",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#BAC6CA",
+      "min": [
+        -35,
+        -23,
+        380
+      ],
+      "max": [
+        11,
+        23,
+        432
+      ],
+      "faces": 7,
+      "edges": 9,
+      "wires": 9,
+      "volume": 40488.8461,
+      "area": 8199.5568,
+      "size": [
+        46,
+        46,
+        52
+      ],
+      "center": [
+        -12,
+        0,
+        406
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.7,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "f87251de",
+      "name": "Main rotor head",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#BAC6CA",
+      "min": [
+        -75.6291,
+        -63.6291,
+        416
+      ],
+      "max": [
+        51.6291,
+        63.6291,
+        440
+      ],
+      "faces": 11,
+      "edges": 29,
+      "wires": 11,
+      "volume": 53414.3776,
+      "area": 12875.7146,
+      "size": [
+        127.2582,
+        127.2582,
+        24
+      ],
+      "center": [
+        -12,
+        0,
+        428
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "304",
+        "material": "Stainless Steel (304 / 1.4301, cold rolled)",
+        "metal": 0.85,
+        "gloss": 0.7,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 7.9,
+          "youngs_GPa": 200,
+          "poisson": 0.29,
+          "yield_MPa": 230,
+          "strength_MPa": 540,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 15,
+          "expansion_um_mK": 16,
+          "specificHeat_J_kgK": 500,
+          "source": "https://www.outokumpu.com/en/products/product-ranges/-/media/files/products/core/outokumpu-core-range-datasheet.pdf",
+          "condition": "EN 1.4301 cold-rolled sheet: 230 MPa proof strength and 540 MPa lower tensile bound (range 540\u2013750). Physical properties at 20 \u00b0C; expansion 20\u2013100 \u00b0C. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E, proof strength, tensile range, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "bd424207",
+      "name": "Main rotor blade 1",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        33.5144,
+        6.8477,
+        428.0116
+      ],
+      "max": [
+        462.4087,
+        205.1822,
+        434.4808
+      ],
+      "faces": 12,
+      "edges": 30,
+      "wires": 12,
+      "volume": 54005.4371,
+      "area": 36700.7369,
+      "size": [
+        428.8943,
+        198.3345,
+        6.4692
+      ],
+      "center": [
+        247.9616,
+        106.0149,
+        431.2462
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "3898199b",
+      "name": "Main rotor blade 2",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -217.1822,
+        45.5144,
+        428.0116
+      ],
+      "max": [
+        -18.8477,
+        474.4087,
+        434.4808
+      ],
+      "faces": 12,
+      "edges": 30,
+      "wires": 12,
+      "volume": 54005.4371,
+      "area": 36700.7369,
+      "size": [
+        198.3345,
+        428.8943,
+        6.4692
+      ],
+      "center": [
+        -118.0149,
+        259.9616,
+        431.2462
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "07f9e6a2",
+      "name": "Main rotor blade 3",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -486.4087,
+        -205.1822,
+        428.0116
+      ],
+      "max": [
+        -57.5144,
+        -6.8477,
+        434.4808
+      ],
+      "faces": 12,
+      "edges": 30,
+      "wires": 12,
+      "volume": 54005.4371,
+      "area": 36700.7369,
+      "size": [
+        428.8943,
+        198.3345,
+        6.4692
+      ],
+      "center": [
+        -271.9616,
+        -106.0149,
+        431.2462
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    },
+    {
+      "id": "79eef372",
+      "name": "Main rotor blade 4",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#273139",
+      "min": [
+        -5.1523,
+        -474.4087,
+        428.0116
+      ],
+      "max": [
+        193.1822,
+        -45.5144,
+        434.4808
+      ],
+      "faces": 12,
+      "edges": 30,
+      "wires": 12,
+      "volume": 54005.4371,
+      "area": 36700.7369,
+      "size": [
+        198.3345,
+        428.8943,
+        6.4692
+      ],
+      "center": [
+        94.0149,
+        -259.9616,
+        431.2462
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "6061",
+        "material": "Aluminum 6061-T6",
+        "metal": 0.12,
+        "gloss": 0.52,
+        "pattern": "Plain",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 2.7,
+          "youngs_GPa": 68.9,
+          "poisson": 0.33,
+          "yield_MPa": 276,
+          "strength_MPa": 310,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 167,
+          "expansion_um_mK": 23.6,
+          "specificHeat_J_kgK": 896,
+          "source": "https://online.kaiseraluminum.com/depot/PublicProductInformation/Document/1015/Kaiser_Aluminum_6061_Sheet_Coil_and_Plate.pdf",
+          "condition": "6061-T6/T651 typical values. Conductivity at 20 \u00b0C; expansion averaged 20\u2013100 \u00b0C; specific heat at 100 \u00b0C. E rounded from 10 Mpsi to 68.9 GPa. Poisson ratio and service limit remain estimates.",
+          "checkedProperties": "Density, E (unit conversion), yield, tensile, conductivity, expansion, specific heat"
+        }
+      }
+    }
+  ],
+  "date": "2026-11-16",
+  "branch": "codex/v0.4-illustrated-docs",
+  "model": "gallery/models/horizon-h4.prism",
+  "bytes": 39200331,
+  "sha256": "04e3aaf70ff080f6427a021c5c92f1110b318497827324bf06513509d8ca2b89",
+  "grounded": 1,
+  "method": "Owner-requested glazing, cowling and rotor revision. Actual Windows MCP/API native validity, positive volume, assembly records and save/reopen; 35 components and one grounded cabin. Broad planar bevelled main blades, shaped tips, stepped gearbox pedestal, compact rotor hub, thin framed polycarbonate glazing and fuller cowling with oval intakes. Whole-window Prism screenshots; no renderer, test suite or native rebuild.",
+  "components": [
+    {
+      "name": "Tapered teal tail boom",
+      "grounded": false
+    },
+    {
+      "name": "Swept teal vertical fin",
+      "grounded": false
+    },
+    {
+      "name": "Pearl horizontal stabilizer",
+      "grounded": false
+    },
+    {
+      "name": "Tail rotor gearbox",
+      "grounded": false
+    },
+    {
+      "name": "Port curved landing skid",
+      "grounded": false
+    },
+    {
+      "name": "Starboard curved landing skid",
+      "grounded": false
+    },
+    {
+      "name": "Forward landing gear cross-strut",
+      "grounded": false
+    },
+    {
+      "name": "Rear landing gear cross-strut",
+      "grounded": false
+    },
+    {
+      "name": "Port navigation light",
+      "grounded": false
+    },
+    {
+      "name": "Starboard navigation light",
+      "grounded": false
+    },
+    {
+      "name": "Anti-collision beacon",
+      "grounded": false
+    },
+    {
+      "name": "01 Pearl cabin shell",
+      "grounded": true
+    },
+    {
+      "name": "Port curved windshield",
+      "grounded": false
+    },
+    {
+      "name": "Port sculpted door glazing",
+      "grounded": false
+    },
+    {
+      "name": "Port swept quarter glazing",
+      "grounded": false
+    },
+    {
+      "name": "Port flush door handle",
+      "grounded": false
+    },
+    {
+      "name": "Starboard curved windshield",
+      "grounded": false
+    },
+    {
+      "name": "Starboard sculpted door glazing",
+      "grounded": false
+    },
+    {
+      "name": "Starboard swept quarter glazing",
+      "grounded": false
+    },
+    {
+      "name": "Starboard flush door handle",
+      "grounded": false
+    },
+    {
+      "name": "Pearl windshield centre frame",
+      "grounded": false
+    },
+    {
+      "name": "Pearl raked cockpit arch",
+      "grounded": false
+    },
+    {
+      "name": "Sculpted turbine cowling",
+      "grounded": false
+    },
+    {
+      "name": "Port recessed oval intake",
+      "grounded": false
+    },
+    {
+      "name": "Port hollow exhaust",
+      "grounded": false
+    },
+    {
+      "name": "Starboard recessed oval intake",
+      "grounded": false
+    },
+    {
+      "name": "Starboard hollow exhaust",
+      "grounded": false
+    },
+    {
+      "name": "Tail rotor blade 1",
+      "grounded": false
+    },
+    {
+      "name": "Tail rotor blade 2",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor head",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor mast",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor blade 1",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor blade 2",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor blade 3",
+      "grounded": false
+    },
+    {
+      "name": "Main rotor blade 4",
+      "grounded": false
+    }
+  ],
+  "screenshot": "horizon-h4-prism.png",
+  "detailScreenshot": "horizon-h4-detail.png",
+  "detailView": "Main rotor blades temporarily hidden to inspect windshield, cowling and gearbox; restored in saved assembly."
+}

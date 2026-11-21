@@ -53,6 +53,32 @@ public static class SketchFill
         return c;
     }
 
+    static bool OnBoundary(List<P2> poly, P2 pt)
+    {
+        for (int i = 0; i < poly.Count; i++)
+        {
+            var a = poly[i]; var b = poly[(i + 1) % poly.Count];
+            double dx = b.X - a.X, dy = b.Y - a.Y, l2 = dx * dx + dy * dy;
+            double u = l2 < 1e-18 ? 0 : Math.Clamp(((pt.X - a.X) * dx + (pt.Y - a.Y) * dy) / l2, 0, 1);
+            double qx = a.X + dx * u - pt.X, qy = a.Y + dy * u - pt.Y;
+            if (qx * qx + qy * qy < 1e-10) return true;
+        }
+        return false;
+    }
+
+    /// <summary>True when the whole of <paramref name="inner"/> lies inside <paramref name="outer"/> (touching its edge is allowed). Two shapes that only overlap are not nested, so neither is a hole of the other.</summary>
+    static bool Contains(List<P2> outer, List<P2> inner)
+    {
+        bool anyInside = false;
+        foreach (var p in inner)
+        {
+            if (OnBoundary(outer, p)) continue;
+            if (!Inside(outer, p)) return false;
+            anyInside = true;
+        }
+        return anyInside;
+    }
+
     /// <summary>Triangles that fill the loops: a loop inside another one is a hole.</summary>
     public static List<(P2 a, P2 b, P2 c)> Triangulate(List<List<P2>> loops)
     {
@@ -64,7 +90,7 @@ public static class SketchFill
             parent[i] = -1; double best = double.MaxValue;
             for (int j = 0; j < loops.Count; j++)
             {
-                if (i == j || !Inside(loops[j], loops[i][0])) continue;
+                if (i == j || !Contains(loops[j], loops[i])) continue;
                 depth[i]++; double a = Math.Abs(Area(loops[j])); if (a < best) { best = a; parent[i] = j; }
             }
         }

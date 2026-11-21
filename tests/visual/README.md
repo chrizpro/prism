@@ -3,7 +3,7 @@
 Scripts that build things in Prism through its API, take pictures and save them for a person to look at. They are meant to be run later **without an AI**:
 
 ```
-python tests/visual/visual.py --discovery <discovery.json>            # every scenario (about 8 minutes)
+python tests/visual/visual.py --discovery <discovery.json>            # every regular scenario
 python tests/visual/visual.py --discovery <discovery.json> --only extrude mold --fast
 python tests/visual/visual.py --list
 python tests/visual/visual.py --discovery <discovery.json> --compare   # how far each sheet is from its approved copy
@@ -13,7 +13,7 @@ Start Prism with a private `PRISM_AUTOMATION_DISCOVERY` (as for the gallery scri
 
 ## Re-testing everything with few tokens
 
-1. Run the whole set (about 10 minutes, no AI needed): `python tests/visual/visual.py --discovery <discovery.json> --compare`.
+1. Run the regular set with `python tests/visual/visual.py --discovery <discovery.json> --compare`. Add `--slow` for long solver scenarios. Timing varies with the workstation and gallery size.
 2. Read only `artifacts/visual/summary.txt`: one line per scenario (`ok` / `FAIL` / `CRASHED`), then the failing check lines with their numbers. The exit code is non-zero if anything failed. This is a few dozen lines, so an AI can read it for almost nothing.
 3. Open a picture only when it matters: a failing scenario, or one whose `[n from approved]` difference is large. Approved sheets and unchanged scenarios never need to be looked at.
 
@@ -45,7 +45,7 @@ Look at a sheet; when it is right, copy it into `tests/visual/approved/`. `--com
 
 ## How much is covered
 
-`python tests/visual/coverage.py` counts which registered commands the scripts touch (`--list` names the rest). Touching is weaker than testing every option: only the feature-matrix scenarios vary options. Every registered command except `ar` (it needs an AR headset) is touched with real inputs.
+`python tests/visual/coverage.py --list` reports source references to explicitly registered commands. The command-open scenario queries the running app for its full registry, including automatically registered commands. Feature-matrix scenarios verify selected options and results. The AR export and device workflow requires manual verification.
 
 Mouse tools are driven with the `pointer` call at world positions (Measure, Create Face, Probe, Set Image Scale, Select Region, Edit Form, Edit Control Points). A picture only on screen (curvature colours, the CAM layer view) is checked by reading its settings back.
 

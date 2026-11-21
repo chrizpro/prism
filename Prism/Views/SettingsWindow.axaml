@@ -57,6 +57,7 @@
                     </ComboBox>
                     <TextBlock Text="Navigation" FontWeight="SemiBold" Margin="0,8,0,0"/>
                     <CheckBox Name="ReverseScrollZoom" Content="Reverse scroll-wheel zoom" Click="OnReverseScrollZoom"/>
+                    <CheckBox Name="SketchContextTranslucent" Content="Show later objects see-through while editing a sketch" Click="OnSketchContextTranslucent" ToolTip.Tip="On: objects built after the sketch are drawn faint, so they do not hide the curves. Off: they keep their own colour and look."/>
                     <TextBlock Text="Reverse the direction the mouse wheel zooms in the 3D view." Classes="soft" TextWrapping="Wrap"/>
                     <TextBlock Text="Right-click menu" FontWeight="SemiBold" Margin="0,8,0,0"/>
                     <TextBlock Text="Hold the right mouse button still and a ring of tools for what you are looking at appears: drag toward one and let go. A quick right click opens the same ring. Moving first orbits as usual." Classes="soft" TextWrapping="Wrap"/>

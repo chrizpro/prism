@@ -54,6 +54,8 @@ public sealed class AppSettings
     /// <summary>Workspace IDs pinned to the top bar; null uses the default selection.</summary>
     public List<string>? VisibleWorkspaces { get; set; }
     public int MarkingHoldMs { get; set; } = 260;
+    /// <summary>While a sketch is edited, objects built after it are drawn faint and see-through (true) or in their own colour (false).</summary>
+    public bool SketchContextTranslucent { get; set; } = true;
     double planeScale = 1.0;
     /// <summary>Display scale for origin and construction planes (1 = the model-relative default).</summary>
     public double PlaneScale { get => planeScale; set => planeScale = Math.Clamp(value, 0.25, 2.0); }

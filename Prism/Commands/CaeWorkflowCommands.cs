@@ -67,7 +67,7 @@ public sealed class ConvergenceCommand : AnalysisCommand
             var original=S.ActiveStudy??throw new InvalidOperationException("Create a static study first.");if(original.OtherBodies.Count>0)throw new InvalidOperationException("Mesh convergence works on a one-body study for now.");var body=S.Find(original.BodyId)??throw new InvalidOperationException("The study body was deleted.");
             var st=new StudyDef{BodyId=body.Id,ShapeSignature=original.ShapeSignature};
             st.Fixtures.AddRange(original.Fixtures.Select(f=>new Fixture{Name=f.Name,Kind=f.Kind,Faces=[..f.Faces],LockX=f.LockX,LockY=f.LockY,LockZ=f.LockZ}));
-            st.Loads.AddRange(original.Loads.Select(l=>new Load{Name=l.Name,Kind=l.Kind,Faces=[..l.Faces],Direction=l.Direction,AlongNormal=l.AlongNormal,Value=l.Value,Total=l.Total}));
+            st.Loads.AddRange(original.Loads.Select(l=>new Load{Name=l.Name,Kind=l.Kind,Faces=[..l.Faces],Direction=l.Direction,AlongNormal=l.AlongNormal,Value=l.Value,Total=l.Total,Region=l.Region,RegionCentre=l.RegionCentre,RegionU=l.RegionU,RegionV=l.RegionV,RegionA=l.RegionA,RegionB=l.RegionB}));
             double h=_size.Value>0?_size.Value:StudyRunner.AutoSize(body);
             if(h*.49<body.Mesh.Max.DistanceTo(body.Mesh.Min)/70)throw new InvalidOperationException("Choose a coarser starting size for this three-mesh check.");
             string file=_file.Value;_running=true;_rows.Clear();_cancel.Dispose();_cancel=new();var token=_cancel.Token;

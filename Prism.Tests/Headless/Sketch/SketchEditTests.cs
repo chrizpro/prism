@@ -141,8 +141,10 @@ public class SketchEditTests
         Assert.Equal(new[] { "Polygon", "Slot", "Text" }, Labels(draw[^1].Menu!));
         Assert.Equal(new[] { "Trim", "Offset", "Transform", "More edits" }, Labels(modify));
         Assert.Equal(new[] { "Insert Point", "Extend", "Fillet", "Chamfer", "Mirror", "Pattern" }, Labels(modify[^1].Menu!));
-        Assert.False(draw[^1].IsSplit);
-        Assert.False(modify[^1].IsSplit);
+        // owner rule 2026-11-20 (RIB-H006): a list button runs its last pick, or its first tool, when clicked, and keeps its own name
+        Assert.Equal("Polygon", draw[^1].Active!.Label);
+        Assert.Contains(modify[^1].Active!, modify[^1].Menu!);   // the first tool that can run right now
+        Assert.Equal("More edits", modify[^1].Label.Replace('\n', ' '));
         Assert.All(Buttons("Constrain"), button => Assert.False(button.HasMenu));
 
         vm.Session.EnterSketch(Plane3.XY);

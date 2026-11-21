@@ -47,6 +47,7 @@ public interface IViewportTool
     bool PointerDown(CadSession s, PointerInfo p);
     void PointerMove(CadSession s, PointerInfo p);
     void PointerUp(CadSession s, PointerInfo p);
+    void PointerExit(CadSession s) { }
     /// <summary>Return true if consumed.</summary>
     bool Key(CadSession s, string key);
     void BuildOverlay(CadSession s, Overlay o);

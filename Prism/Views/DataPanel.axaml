@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:Prism.Views"
              x:Class="Prism.Views.DataPanel">
     <UserControl.Styles>
         <!-- the theme paints a focused text box solid; a cell keeps the grid lines and shows its focus with an outline -->
@@ -28,7 +29,7 @@
         </Style>
     </UserControl.Styles>
     <Border Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
-        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
             <!-- the sheets of this document -->
             <Border Grid.Row="0" Padding="14,10,14,6">
                 <StackPanel Spacing="8">
@@ -46,28 +47,42 @@
                     </DockPanel>
                     <WrapPanel Orientation="Horizontal">
                         <Button Classes="ghost" Content="Open…" Click="OnOpen" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Bring in a CSV, text or Excel file. Every sheet of a workbook comes in."/>
-                        <Button Classes="ghost" Content="Paste" Click="OnPaste" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Paste cells copied from Excel or any text table, starting at the selected cell (Ctrl+V does the same)."/>
-                        <Button Classes="ghost" Content="Copy" Click="OnCopy" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Copy the whole sheet so it can be pasted into Excel."/>
                         <Button Classes="ghost" Content="Save CSV…" Click="OnSave" Padding="10,4" FontSize="12" Margin="0,0,12,4"/>
+                        <Button Name="UndoButton" Classes="ghost" Content="Undo" Click="OnUndo" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Take back the last change (Ctrl+Z)."/>
+                        <Button Name="RedoButton" Classes="ghost" Content="Redo" Click="OnRedo" Padding="10,4" FontSize="12" Margin="0,0,12,4" ToolTip.Tip="Put the change back (Ctrl+Y)."/>
+                        <Button Classes="ghost" Content="Copy" Click="OnCopy" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Copy the selected cells (Ctrl+C). Pasted into Excel they arrive as values; pasted here, formulas move with the cells."/>
+                        <Button Classes="ghost" Content="Paste" Click="OnPaste" Padding="10,4" FontSize="12" Margin="0,0,12,4" ToolTip.Tip="Paste cells copied from Excel or any text table, starting at the selected cell (Ctrl+V)."/>
                         <Button Classes="ghost" Content="+ Row" Click="OnAddRow" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Insert a row above the selected cell."/>
                         <Button Classes="ghost" Content="+ Column" Click="OnAddColumn" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Insert a column left of the selected cell."/>
-                        <Button Classes="ghost" Content="− Row" Click="OnDeleteRow" Padding="10,4" FontSize="12" Margin="0,0,4,4"/>
-                        <Button Classes="ghost" Content="− Column" Click="OnDeleteColumn" Padding="10,4" FontSize="12" Margin="0,0,12,4"/>
+                        <Button Classes="ghost" Content="− Row" Click="OnDeleteRow" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Delete the rows the selection touches."/>
+                        <Button Classes="ghost" Content="− Column" Click="OnDeleteColumn" Padding="10,4" FontSize="12" Margin="0,0,12,4" ToolTip.Tip="Delete the columns the selection touches."/>
+                        <Button Classes="ghost" Content="Sort ↑" Click="OnSortUp" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Sort the rows by the selected column, smallest first. A first row of names stays at the top."/>
+                        <Button Classes="ghost" Content="Sort ↓" Click="OnSortDown" Padding="10,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Sort the rows by the selected column, largest first."/>
+                        <Button Classes="ghost" Content="Fill down" Click="OnFillDown" Padding="10,4" FontSize="12" Margin="0,0,12,4" ToolTip.Tip="Select a block and press this (Ctrl+D): the top cell repeats down it, with its formula moving row by row. Type 1 and 2 in the top two cells first to continue the series 3, 4, 5..."/>
                         <Button Classes="primary" Content="Make curve" Click="OnMakeCurve" Padding="12,4" FontSize="12" Margin="0,0,4,4" ToolTip.Tip="Draw a curve through the points in this sheet (x, y, z per row)."/>
                         <Button Classes="ghost" Content="Delete sheet" Click="OnDeleteSheet" Padding="10,4" FontSize="12" Margin="0,0,0,4"/>
                     </WrapPanel>
                 </StackPanel>
             </Border>
 
-            <!-- column letters, kept in step with the grid below when it scrolls sideways -->
-            <ScrollViewer Grid.Row="2" Name="HeaderScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Background="{DynamicResource PanelAlt}">
-                <StackPanel Name="HeaderRow" Orientation="Horizontal"/>
+            <!-- the formula bar: the contents of the selected cell -->
+            <Border Grid.Row="2" Padding="14,6" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <TextBlock Name="CellName" DockPanel.Dock="Left" Text="A1" Width="44" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5"/>
+                    <TextBlock DockPanel.Dock="Left" Text="fx" Classes="faint" VerticalAlignment="Center" Margin="0,0,8,0" FontStyle="Italic"/>
+                    <TextBox Name="FormulaBox" Watermark="Select a cell, then type a value or a formula such as =A1*2" FontSize="12.5" Padding="8,3" FontFamily="Cascadia Mono, Consolas, monospace"/>
+                </DockPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="3" Name="GridScroll" Background="{DynamicResource AppBg}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <v:SheetGrid Name="Grid"/>
             </ScrollViewer>
 
-            <ListBox Grid.Row="3" Name="RowList" Background="{DynamicResource AppBg}" BorderThickness="0" Padding="0"
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            <Border Grid.Row="4" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+                <v:SheetPlot Name="Plot"/>
+            </Border>
 
-            <Border Grid.Row="4" Padding="14,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+            <Border Grid.Row="5" Padding="14,6" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
                 <TextBlock Name="StatusText" Classes="faint" FontSize="11" TextWrapping="Wrap"/>
             </Border>
         </Grid>

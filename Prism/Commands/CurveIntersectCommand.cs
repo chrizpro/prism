@@ -10,9 +10,18 @@ namespace Prism.Commands;
 public sealed class CurveIntersectCommand : Command
 {
     readonly SelectionSlot _first, _second;
-    readonly BoolParam _separate, _guides;
+    readonly BoolParam _separate, _guides, _deleteSources;
     readonly List<(Vec3 point, Vec3 first, Vec3 second)> _preview = [];
     Plane3 _firstPlane, _secondPlane;
+
+    /// <summary>Steps saved before the option existed kept both source curves.</summary>
+    protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 2 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
+
+    /// <summary>The sources that are whole curves or sketches (a single edge or sketch line picked out of a sketch is never deleted).</summary>
+    List<SceneObject> Disposable() =>
+        new[] { _first, _second }.Where(slot => slot.Items.Count > 0).Select(slot => ToolShapes.Throwaway(S, slot.Items[0], null)).OfType<SceneObject>().Distinct().ToList();
+
+    protected override void UpdateVisibility() => _deleteSources.IsVisible = Disposable().Count > 0;
 
     public CurveIntersectCommand()
     {
@@ -21,12 +30,13 @@ public sealed class CurveIntersectCommand : Command
         _second = Slot(new SelectionSlot { Label = "Second planar curve or sketch", Filter = curves });
         _separate = Check("Separate disconnected curves", false);
         _guides = Check("Show projection guides", true);
+        _deleteSources = Check("Delete the source curves afterward", true);
     }
 
     public override string Title => "Curve Intersect";
     public override string Icon => "section";
     public override string OkText => "Create curve";
-    public override string Hint => "Select curves on two different, nonparallel planes. Each curve projects along its plane normal; their shared 3D curve becomes a sweep rail, loft guide or freeform reference. Sources are kept.";
+    public override string Hint => "Select curves on two different, nonparallel planes. Each curve projects along its plane normal; their shared 3D curve becomes a sweep rail, loft guide or freeform reference. The source curves are deleted afterward unless you turn that off.";
 
     Plane3 Support(SelItem item, Shape curve)
     {
@@ -81,8 +91,10 @@ public sealed class CurveIntersectCommand : Command
             _preview.Add((p, pa, pb));
         }
         Results.Add(new ResultLine("Connected curves", wires.ToString(), 1));
-        Results.Add(new ResultLine("Sources", "Kept unchanged"));
+        var disposable = _deleteSources.Value ? Disposable() : [];
+        Results.Add(new ResultLine("Sources", disposable.Count > 0 ? "Deleted with the result" : "Kept unchanged"));
         var output = new CommandOutput { Label = "Curve Intersect", Icon = Icon };
+        output.Remove.AddRange(disposable);
         if (_separate.Value && wires > 1)
         {
             for (int i = 0; i < wires; i++) output.Add.Add(new(joined.Sub(SubKind.Wire, i), "Curve intersect", ObjKind.Curve));

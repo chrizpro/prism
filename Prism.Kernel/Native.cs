@@ -16,6 +16,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_sphere(double r);
     [DllImport(Lib)] public static extern IntPtr ck_cone(double r1, double r2, double h);
     [DllImport(Lib)] public static extern IntPtr ck_torus(double R, double r);
+    [DllImport(Lib)] public static extern IntPtr ck_thread_groove_external(double diameter, double pitch, double depth, int leftHand);
     [DllImport(Lib)] public static extern IntPtr ck_thread_groove(double diameter, double pitch, double depth, int leftHand);
 
     [DllImport(Lib)] public static extern IntPtr ck_line(double* a, double* b);
@@ -64,6 +65,7 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_rotate(IntPtr s, double* o, double* axis, double deg);
     [DllImport(Lib)] public static extern IntPtr ck_scale(IntPtr s, double* o, double f);
     [DllImport(Lib)] public static extern IntPtr ck_scale3(IntPtr s, double* o, double fx, double fy, double fz);
+    [DllImport(Lib)] public static extern IntPtr ck_affine(IntPtr s, double* m, double* t);
     [DllImport(Lib)] public static extern IntPtr ck_mirror(IntPtr s, double* o, double* n);
 
     [DllImport(Lib)] public static extern int ck_count(IntPtr s, int kind);
@@ -78,6 +80,10 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_nurbs_convert(IntPtr s);
     [DllImport(Lib)] public static extern int ck_face_dims(IntPtr f, int* d);
     [DllImport(Lib)] public static extern IntPtr ck_surface_match(IntPtr source, int side, IntPtr reference, int refSide, int continuity, int reverse, double scale);
+    [DllImport(Lib)] public static extern IntPtr ck_surface_match_edge(IntPtr source, int side, IntPtr reference, int continuity, double scale, int refine, double* result);
+    [DllImport(Lib)] public static extern IntPtr ck_shell_var(IntPtr s, int* faceIds, int n, double thickness, int* ownIds, double* ownThickness, int m);
+    [DllImport(Lib)] public static extern int ck_wrap_points(IntPtr target, double* start, double* xdir, double* xy, int n, double* result);
+    [DllImport(Lib)] public static extern int ck_face_exit_dirs(IntPtr reference, int n, double* pts, double* result);
     [DllImport(Lib)] public static extern int ck_surface_continuity(IntPtr source, int side, IntPtr reference, int refSide, int reverse, int samples, double* result);
     [DllImport(Lib)] public static extern int ck_face_get_poles(IntPtr f, double* xyz);
     [DllImport(Lib)] public static extern IntPtr ck_face_set_poles(IntPtr f, double* xyz);
@@ -126,6 +132,11 @@ internal static unsafe partial class Native
     [DllImport(Lib)] public static extern IntPtr ck_isocurve(IntPtr face, int dir, double t);
     [DllImport(Lib)] public static extern IntPtr ck_edge_surface(IntPtr* edges, int n);
     [DllImport(Lib)] public static extern IntPtr ck_fillet_var(IntPtr s, int* ids, int n, double r1, double r2);
+    [DllImport(Lib)] public static extern IntPtr ck_draft_signed(IntPtr s, int* faces, int n, double* dir, double* angles, double* po, double* pn);
+    [DllImport(Lib)] public static extern IntPtr ck_chamfer2(IntPtr s, int* ids, int n, double d1, double d2, int mode);
+    [DllImport(Lib)] public static extern IntPtr ck_fillet_edges(IntPtr s, int* ids, int n, double* r1, double* r2);
+    [DllImport(Lib)] public static extern IntPtr ck_imprint(IntPtr s, int faceId, IntPtr curves);
+    [DllImport(Lib)] public static extern IntPtr ck_sweep_law(IntPtr profile, IntPtr path, int makeSolid, int mode, int n, double* ps, double* scales, double* binormal);
     [DllImport(Lib)] public static extern IntPtr ck_sweep_rails(IntPtr profile, IntPtr rail1, IntPtr rail2, int solid);
     [DllImport(Lib)] public static extern IntPtr ck_curve_trim(IntPtr s, double t0, double t1);
     [DllImport(Lib)] public static extern IntPtr ck_curve_extend(IntPtr s, int atEnd, double length);

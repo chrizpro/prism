@@ -41,6 +41,7 @@ public sealed partial class MainViewModel
                     Act("Cancel", "cancel", () => s.CancelCommandPanel()), null, Act("Fit view", "zoom-extents", () => s.ZoomExtents()), null];
         var sel = s.Selection;
         if (sel.Count == 0) return EmptyMarking();
+        if (sel[0].Kind == SelKind.MeshFace) return [Act("Delete mesh faces", "deleteface", () => s.DeleteSelection())];
         if (sel[0].Kind == SelKind.Face) return s.Find(sel[0].Obj) is { Kind: ObjKind.Surface } ? SurfaceFaceMarking() : FaceMarking();
         if (sel[0].Kind == SelKind.Edge) return EdgeMarking();
         var objs = s.SelectedObjects.ToList();
@@ -66,7 +67,7 @@ public sealed partial class MainViewModel
                 return [Cm("Edit freeform", "form-edit", () => new EditFormCommand()), Act("To NURBS", "to-nurbs", () => FreeformActions.ConvertToNurbs(Session)), Cm("Mirror", "mirror", () => new TransformCommand(TransformCommand.Kind.Mirror)), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move)),
                         del, hide, Act("Materials", "materials", OpenMaterials), Act("Duplicate", "duplicate", () => s.Duplicate())];
             case ObjKind.Mesh:
-                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Reduce", "mesh-reduce", () => new MeshDecimateCommand()), Cm("Smooth", "mesh-smooth", () => new MeshSmoothCommand()), Cm("Mesh to solid", "mesh-solid", () => new MeshToSolidCommand()),
+                return [Cm("Repair", "mesh-repair", () => new MeshRepairCommand()), Cm("Remesh", "mesh-remesh", () => new MeshRemeshCommand()), Cm("Edit Region", "mesh-select", () => new MeshRegionCommand()), Cm("Section Sketch", "mesh-section", () => new MeshSectionSketchPanelCommand()),
                         del, hide, Cm("Measure", "measure", () => new MeasureCommand()), Cm("Move", "move", () => new TransformCommand(TransformCommand.Kind.Move))];
         }
         if (objs.Count(o => o.Kind == ObjKind.Solid) >= 2)
@@ -123,15 +124,21 @@ public sealed partial class MainViewModel
         bool isFeature = feat != null && feat.Kind != FeatureKind.Face; string name = isFeature ? feat!.Name.ToLowerInvariant() : "face";
         void Edit(int action) { var c = new FeatureEditCommand { Factory = () => new FeatureEditCommand() }; s.StartCommand(c); if (s.ActiveCommand == c) c.Preset(faces, action); }
         list.Add(MenuSpec.Sep);
+        // look at just these faces (owner request 2026-11-20): the rest of the body and the other bodies are hidden until Show all faces
+        list.Add(new(faces.Count == 1 ? "Isolate this face" : $"Isolate these {faces.Count} faces", () => s.IsolateFaces(faces)));
+        if (s.FacesIsolated) list.Add(new("Show all faces", () => s.ClearFaceIsolation()));
         if (isFeature)
         {
             var body = s.Find(faces[0].Obj)!; int pattern = FeatureFinder.PatternSize(body, feat!);
             if (faces.Count < feat!.Faces.Count) list.Add(new($"Select the whole {name}", () => s.SelectItems(feat.Faces.Select(f => new SelItem(body.Id, SelKind.Face, f)))));
             if (pattern > 0) list.Add(new($"Select the whole pattern ({pattern + 1})", () => s.SelectItems(FeatureFinder.Expand(body, faces[0].Index, PickIntent.Pattern).Select(f => new SelItem(body.Id, SelKind.Face, f)))));
-            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Move {name}…", () => Edit(0)));
-            if (feat.Kind != FeatureKind.Fillet) list.Add(new($"Copy {name}…", () => Edit(2)));
+            bool edge = feat.Kind is FeatureKind.Fillet or FeatureKind.Chamfer;   // rounds and bevels belong to their edge: they resize or swap, never move
+            if (!edge) list.Add(new($"Move {name}…", () => Edit(0)));
+            if (!edge) list.Add(new($"Copy {name}…", () => Edit(2)));
             list.Add(new($"Resize {name}…", () => Edit(1)));
             if (feat.Kind is FeatureKind.Hole or FeatureKind.Counterbore or FeatureKind.Countersink) list.Add(new("Change hole type…", () => Edit(4)));
+            if (feat.Kind == FeatureKind.Fillet) list.Add(new("Swap for a chamfer…", () => Edit(4)));
+            if (feat.Kind == FeatureKind.Chamfer) list.Add(new("Swap for a fillet…", () => Edit(4)));
             list.Add(new($"Delete {name}", () => s.DeleteSelection(), Gesture: "Del"));
         }
         else
@@ -168,6 +175,7 @@ public sealed partial class MainViewModel
             {
                 bool tracked = solids.All(o => o.TrackHistory);
                 list.Add(new(tracked ? "Stop tracking history" : "Track history", () => SetTrackHistory(solids.Select(o => o.Id), !tracked)));
+                list.Add(new("Remove history (keep the shape)", () => s.SelectItems(s.RemoveHistoryFrom(solids.Select(o => o.Id)).Select(id => new SelItem(id, SelKind.Object, 0)))));
             }
             list.Add(new("Duplicate", () => s.Duplicate()));
             list.Add(new("Hide", () => { foreach (var o in objs) ToggleVisible(o.Id, false); }));
@@ -194,6 +202,7 @@ public sealed partial class MainViewModel
                 new("Whole objects", () => s.Mode = SelMode.Object), new("Faces", () => s.Mode = SelMode.Face), new("Edges", () => s.Mode = SelMode.Edge),
             ]));
         list.Add(new("Zoom to fit", () => s.ZoomExtents()));
+        if (s.Sketch == null && s.Selection.Count > 0) list.Add(new("Zoom to selection", () => s.ZoomSelection()));
         list.Add(MenuSpec.Sep);
         list.Add(new("Settings…", () => RequestSettings?.Invoke(null)));
         return list;

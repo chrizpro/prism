@@ -44,6 +44,10 @@ Rendering adds embedded Radiance HDR lighting, optional final denoising, planar/
 
 ![A stress study on a bracket in Prism's CAE workspace](web/src/assets/shots/cae-stress.png)
 
+## Try a finished model
+
+Download a vehicle as a STEP file and open it in your CAD viewer. [Vermilion GT (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step) · [Tideline airliner (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step) · [Evergreen Express (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step).
+
 ## Download
 
 Get the installer for your system from the [download page](https://chrizpro.github.io/prism/download) or [GitHub Releases](https://github.com/chrizpro/prism/releases):
@@ -134,11 +138,14 @@ After that, these are the directions we plan to take:
 | Area | Goal |
 | --- | --- |
 | **Add-on support** | A way to extend Prism with add-ons, which could eventually let users expand CAE, modeling and other areas themselves |
+| **Freeform modeling** | Substantially improve cage control, surface quality, shaping tools and the modeling workflow, including better feedback for people and AI assistants. [Roadmap discussion #139](https://github.com/chrizpro/prism/issues/139) |
+| **Advanced fillets and chamfers** | Substantially improve edge blends and corner transitions, including setback fillets, broader advanced controls and more robust results and failure diagnostics. Detailed options remain to be reviewed. [Roadmap discussion #139](https://github.com/chrizpro/prism/issues/139) |
 | **Large assemblies** | Work comfortably with assemblies of many parts: loading, display and editing that stay responsive as projects grow |
 | **Integrated engineering worksheets** | Bring equations, units, dependent parameters, plots and comparisons between study scenarios into Prism, connected to model parameters and CAE. This is a future direction after current-tool polish, with detailed scope still to be reviewed. [Roadmap discussion #121](https://github.com/chrizpro/prism/issues/121) |
 | **G3 continuity** | Add G3 (curvature-rate) continuity to surface matching, blending and checks, beyond today's G0, G1 and G2 |
 | **Drawings** | Improve engineering drawings: more views, annotations and dimensioning control, and editing after a drawing is made |
 | **Python API and MCP** | Grow today's `cadkit` library and MCP bridge into a stable, versioned API for scripts, integrations and AI assistants |
+| **Script editor intellisense** | Completion, signatures and documentation hints in the built-in script editor, so `cadkit` scripts can be written without leaving Prism. The plan is to connect a Python language server; the editor control and detailed scope remain to be reviewed |
 | **Improve workflow and iron out bugs** | Keep tightening how the tools fit together (the same steps, selection cues and views in every tool) and fix what real use turns up. This runs alongside everything else on this list |
 | **Make NURBS shine** | Make NURBS curves and surfaces frictionless and fast to create. If we cannot make them worthwhile, we will discontinue them rather than keep maintaining a weak feature |
 
@@ -161,7 +168,7 @@ Preferences and support files live in `%LOCALAPPDATA%\Prism` on Windows. On firs
 
 ### Branches
 
-Day-to-day work happens on `develop`. `main` is the public, stable branch: pushes to it publish the website, and release tags are cut from it. Merge `develop` into `main` when work is ready to show.
+Work on feature branches and merge reviewed changes into `develop` or the integration branch named by the owner. `main` is the public, stable branch. Pushes to it publish the website, and release tags are cut from it. Merge into `main` when the owner asks.
 
 ### Automation
 

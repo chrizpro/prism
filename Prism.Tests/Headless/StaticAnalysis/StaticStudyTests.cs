@@ -83,6 +83,35 @@ public class StaticStudyTests
         Assert.True(mesh.TetCount > 0 && mesh.NodeCount > 0);
     }
 
+    [AvaloniaFact(DisplayName = "STA-H010 | A 1000 N force tilted 30 degrees from the top face's normal: supports balance its vector, the axial part shortens the bar and the sideways part bends it")]
+    [Trait("TestId", "STA-H010")]
+    public void TiltedForce_RealSolver_MatchesResolvedComponents()
+    {
+        // 10 x 10 x 100 mm bar, E = 68,900 MPa, fixed base. Force tilted 30 degrees from straight in, leaning toward +X:
+        // F = 1000 N x (sin 30, 0, -cos 30) = (500, 0, -866.03) N. Axial part 866.03 N compresses the bar; the 500 N sideways part bends it like a cantilever.
+        var (session, body, study) = CreateAxialBar();
+        var load = study.Loads.Single();
+        load.Direction = Prism.Commands.VectorInput.Tilted(Vec3.UnitZ, 30, 0);
+        var result = StudyRunner.Run(session, study);
+        using var mesh = result.Mesh;
+
+        double fx = 500, fz = -1000 * Math.Cos(Math.PI / 6);
+        Assert.InRange(Math.Abs(result.Solution.Reaction.X + fx), 0, 1);                 // supports push back with the opposite vector
+        Assert.InRange(Math.Abs(result.Solution.Reaction.Y), 0, 1);
+        Assert.InRange(Math.Abs(result.Solution.Reaction.Z + fz), 0, 1);
+
+        const double e = 68900, length = 100, side = 10, area = side * side, inertia = side * side * side * side / 12;
+        double axial = fz * length / (e * area);                                         // negative: the bar is squeezed
+        AssertRelative(axial, MeanTipDisplacement(result), 0.05, "Mean end shortening (mm)");
+
+        var topNodes = Enumerable.Range(0, mesh.NodeCount).Where(n => Math.Abs(mesh.Nodes[3 * n + 2] - 100) < 1e-6).ToArray();
+        double sideways = topNodes.Average(n => result.Solution.Displacement[3 * n]);
+        double bending = fx * length * length * length / (3 * e * inertia);               // cantilever tip deflection, Euler-Bernoulli
+        double shearShare = fx * length / (5.0 / 6 * (e / (2 * (1 + 0.33))) * area);      // Timoshenko shear term, kappa 5/6, nu about 0.33
+        output.WriteLine($"Tilted force: expected sideways tip deflection {bending + shearShare:G6} mm (bending {bending:G6} + shear {shearShare:G6}); measured {sideways:G6} mm. Axial expected {axial:G6}; measured {MeanTipDisplacement(result):G6}.");
+        AssertRelative(bending + shearShare, sideways, 0.05, "Mean sideways tip displacement (mm), 5 mm mesh");
+    }
+
     [AvaloniaFact(DisplayName = "STA-H002 | Doubling the force on the same mesh doubles displacement and stress")]
     [Trait("TestId", "STA-H002")]
     public void LinearStaticSolve_DoubleLoadOnSameMesh_DoublesResponse()

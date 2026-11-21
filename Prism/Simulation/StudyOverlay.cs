@@ -35,7 +35,7 @@ public static class StudyOverlay
         return (c, n.Normalized(), samples, Math.Sqrt(area));
     }
 
-    static void Arrow(Overlay o, Vec3 tail, Vec3 head, double headSize, uint color, float w = 2.6f)
+    internal static void Arrow(Overlay o, Vec3 tail, Vec3 head, double headSize, uint color, float w = 2.6f)
     {
         o.AddLine(tail, head, color, w);
         var d = (head - tail).Normalized();
@@ -89,6 +89,16 @@ public static class StudyOverlay
                         continue;
                     }
                     var pts2 = fi.samples.Count > 0 ? fi.samples : [fi.center];
+                    var labelAt = fi.center;
+                    if (ld.Region != LoadRegionShape.WholeFace && ld.Kind is LoadKind.Force or LoadKind.Pressure)
+                    {
+                        // part of a face: arrows only where the load acts, inside the drawn outline
+                        pts2 = pts2.Where(ld.InRegion).ToList();
+                        if (pts2.Count == 0) pts2 = [ld.RegionCentre];
+                        var outline = ld.RegionOutline().Select(q => q + fi.normal.Normalized() * 0.05).ToList();
+                        if (outline.Count > 2) o.AddPolyline(outline, LoadColor, 2.4f, true);
+                        labelAt = ld.RegionCentre;
+                    }
                     foreach (var p in pts2)
                     {
                         var dir = ld.Kind == LoadKind.Pressure || ld.AlongNormal ? -fi.normal : ld.Direction.Normalized();
@@ -96,7 +106,7 @@ public static class StudyOverlay
                     }
                     var lab = ld.Kind == LoadKind.Pressure ? $"{ld.Name}  {ld.Value:0.##} MPa" : $"{ld.Name}  {ld.Value:0.##} N";
                     var ldir = ld.Kind == LoadKind.Pressure || ld.AlongNormal ? -fi.normal : ld.Direction.Normalized();
-                    o.AddLabel(fi.center - ldir * arrow * 1.15, lab, true, 0);
+                    o.AddLabel(labelAt - ldir * arrow * 1.15, lab, true, 0);
                 }
         }
     }

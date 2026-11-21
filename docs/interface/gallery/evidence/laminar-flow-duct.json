@@ -1,0 +1,37 @@
+{
+  "setup": {
+    "Body": [
+      "Fluid volume - 20 mm bore"
+    ],
+    "Inlet face": {
+      "object": "Fluid volume - 20 mm bore",
+      "face": 3
+    },
+    "Outlet face": {
+      "object": "Fluid volume - 20 mm bore",
+      "face": 2
+    }
+  },
+  "speed_m_s": 0.002007613704668403,
+  "flow_L_min": 0.037842626794994665,
+  "3d": [
+    "Grid: 104 \u00d7 21 \u00d7 21 cells of 1.2 mm   \u00b7   10,088 steps",
+    "Settled: yes",
+    "Reynolds number: 40",
+    "Peak speed: 0.004 m/s",
+    "Pressure drop: 0.02104 Pa",
+    "Flow in / out: 0.036 / 0.038 L/min",
+    "Colors: 0 to 0.004 m/s"
+  ],
+  "fullyDevelopedPressureDrop_Pa": 0.0193116377479463,
+  "pipeFlow": [
+    "Regime: Laminar",
+    "Reynolds number: 40",
+    "Mean velocity: 0.00200761 m/s",
+    "Darcy friction factor: 1.6",
+    "Pressure drop: 0.0193116 Pa",
+    "Head loss: 1.97279E-06 m",
+    "Hydraulic power: 1.21801E-08 W"
+  ],
+  "desktopSource": "038d801"
+}

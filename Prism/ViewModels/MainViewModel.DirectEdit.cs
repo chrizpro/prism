@@ -1,17 +1,32 @@
+using System;
 using System.Linq;
 using Prism.Ribbon;
 
 namespace Prism.ViewModels;
 
 /// <summary>Direct Edit: a tab of its own for editing the geometry you already have, opened from the Solid tab like Sketch.</summary>
+/// <summary>The kind of modeling a Direct Modeling session came from. It decides which tools of the tab are available.</summary>
+public enum DirectWorkflow { Solid, Surface, Freeform, Nurbs }
+
 public sealed partial class MainViewModel
 {
+    DirectWorkflow _directWorkflow = DirectWorkflow.Solid;
+    public DirectWorkflow DirectWorkflow => _directWorkflow;
+
+    /// <summary>True while the Direct Modeling tab is open for one of these workflows. Used to enable the tools that work on that kind of geometry.</summary>
+    Func<bool> DirectFor(params DirectWorkflow[] workflows) => () => Array.IndexOf(workflows, _directWorkflow) >= 0;
+
     public bool IsDirectEditing => _directTab != null && _directTab.IsVisible;
 
     /// <summary>Show the Direct Modeling tab and switch to it. The tab you came from is remembered so Finish Editing can go back.</summary>
-    public void EnterDirectEdit()
+    public void EnterDirectEdit() => EnterDirectEdit(DirectWorkflow.Solid);
+
+    /// <summary>Open Direct Modeling from the Solid, Surface, Freeform or NURBS tab. The tools that cannot work on that kind of geometry stay disabled.</summary>
+    public void EnterDirectEdit(DirectWorkflow workflow)
     {
         if (_directTab == null || IsSketching) return;
+        if (IsDirectEditing && workflow != _directWorkflow && Session.ActiveCommand != null) Session.CancelCommand();
+        _directWorkflow = workflow;
         if (!_directTab.IsVisible)
         {
             if (SelectedTab != _directTab && SelectedTab != null && !SelectedTab.IsContextual) _lastNormalTab = SelectedTab;
@@ -22,6 +37,7 @@ public sealed partial class MainViewModel
         Session.DirectEditing = true;
         OnPropertyChanged(nameof(IsDirectEditing));
         StartDirectGizmo();
+        RefreshRibbon();
     }
 
     /// <summary>Direct edits are plain undo steps unless a body tracks history. Turning it on records the edits made from then on as editable steps.</summary>
@@ -37,8 +53,18 @@ public sealed partial class MainViewModel
     void StartDirectGizmo()
     {
         if (!IsDirectEditing || _startingGizmo || Session.ActiveCommand != null || Session.Sketch != null) return;
+        if (_directWorkflow is not (DirectWorkflow.Freeform or DirectWorkflow.Nurbs) && Session.Mode is Prism.Core.SelMode.Edge or Prism.Core.SelMode.Vertex) return;   // the face gizmo waits while edges or points are being picked
         _startingGizmo = true;
-        try { Session.StartCommand(() => new Commands.DirectEditCommand()); }
+        // Solid and surface faces take the gizmo; a freeform is edited by its cage and NURBS by their control points.
+        try
+        {
+            switch (_directWorkflow)
+            {
+                case DirectWorkflow.Freeform: Session.StartCommand(() => new Commands.EditFormCommand()); break;
+                case DirectWorkflow.Nurbs: Session.StartCommand(() => new Commands.EditPointsCommand()); break;
+                default: Session.StartCommand(() => new Commands.DirectEditCommand()); break;
+            }
+        }
         finally { _startingGizmo = false; }
     }
 
@@ -48,6 +74,7 @@ public sealed partial class MainViewModel
         if (_directTab == null || !_directTab.IsVisible) return;
         _directTab.IsVisible = false;
         Session.DirectEditing = false;
+        _directWorkflow = DirectWorkflow.Solid;
         if (SelectedTab == _directTab) SelectedTab = IsSketching ? _sketchTab : _lastNormalTab;
         OnPropertyChanged(nameof(IsDirectEditing));
         if (Session.ActiveCommand != null) Session.CancelCommand();

@@ -44,8 +44,7 @@ public static class RibbonLayoutPolicy
             : tab.Title == "Motion" ? ["Setup", "Loads", "Results"]
             : tab.Title == "Render" ? ["Materials", "Lighting", "Camera", "Render", "Output"]
             : tab.Title == "Mold" ? ["Part", "Mold", "Inspect"]
-            : tab.Title == "Mesh" ? ["Select", "Datum", "Import & Convert", "Check", "Repair", "Reshape", "Modify", "Print analysis", "Transform", "Inspect", "Appearance"]
-            : tab.Title == "Reverse Engineer" ? ["Select", "Datum", "Prepare", "Sketch from Scan", "Fit Surfaces", "Rebuild", "Check", "Transform", "Inspect", "Appearance"]
+            : tab.Title == "Mesh" ? ["Select", "Datum", "Prepare", "Analyze", "Repair", "Convert", "Transform", "Inspect", "Appearance"]
             : tab.Title == "Fluids" ? ["Pipe Calculations", "3D Flow"] : null;
         var groups = tab.Groups.OrderBy(g => workflow == null ? Rank(g.Title) :
             Array.IndexOf(workflow, g.Title) is var index && index >= 0 ? index : workflow.Length).ToArray();

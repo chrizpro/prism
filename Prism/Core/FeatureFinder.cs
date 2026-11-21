@@ -6,7 +6,7 @@ using Prism.Kernel;
 
 namespace Prism.Core;
 
-public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink }
+public enum FeatureKind { Face, Hole, Boss, Slot, Pocket, Fillet, Counterbore, Countersink, Chamfer, Text, Thread, Rib }
 
 /// <summary>How a click grows into a selection (the "intent" of a pick in the direct-editing tools).</summary>
 public enum PickIntent { Feature, Face, Tangent, SameSize, Pattern }
@@ -17,8 +17,26 @@ public sealed record Round(Vec3 Origin, double Radius, bool Hole, double T0, dou
 /// <summary>A recognised feature: its faces, what it is, a size key (equal keys mean "same feature again") and where it sits.</summary>
 public sealed record Feat(int Face, FeatureKind Kind, string Key, Vec3 Centre, Vec3 Dir, IReadOnlyList<int> Faces, Round? Round)
 {
-    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", _ => "Face" };
+    public string Name => Kind switch { FeatureKind.Hole => "Hole", FeatureKind.Boss => "Boss", FeatureKind.Slot => "Slot", FeatureKind.Pocket => "Pocket", FeatureKind.Fillet => "Fillet / round", FeatureKind.Counterbore => "Counterbore", FeatureKind.Countersink => "Countersink", FeatureKind.Chamfer => "Chamfer", FeatureKind.Text => "Text", FeatureKind.Thread => "Threaded hole", FeatureKind.Rib => "Rib", _ => "Face" };
 }
+
+/// <summary>A chamfer's two setbacks measured from the sharp edge it replaced (along face A and face B), and the angle it makes with face A.</summary>
+public sealed record ChamferSize(double SetbackA, double SetbackB, double AngleDeg, int FaceA, int FaceB, double Length)
+{
+    public bool EqualSetbacks => Math.Abs(SetbackA - SetbackB) < 1e-3;
+}
+
+/// <summary>A round hole's ends: through (open at both ends) or blind, its depth, the drill-point angle when it ends in a cone, and the nearest metric size.</summary>
+public sealed record HoleDetail(bool Through, double Depth, double? PointAngleDeg, string? Standard);
+
+/// <summary>A rib or thin wall: its thickness, the two side faces (outward normals), and how tall it stands from the face it is joined to.</summary>
+public sealed record RibInfo(double Thickness, int SideA, int SideB, Vec3 Normal, double Height);
+
+/// <summary>A modeled thread in a hole: major and minor diameters, pitch, length, and the metric size it matches ("M6 × 1").</summary>
+public sealed record ThreadInfo(double Major, double Minor, double Pitch, double Length, string? Size);
+
+/// <summary>Engraved (cut in) or embossed (raised) text: its depth or height, how many letters, how tall they are, the reading direction, and the plane it sits on (normal and height along it).</summary>
+public sealed record TextInfo(bool Engraved, double Depth, int Letters, double Height, Vec3 Along, Vec3 Normal, double PlaneHeight);
 
 /// <summary>
 /// Works out what the faces of a body are: holes, bosses, slots, pockets and fillet chains, and which of them repeat in lines, grids or circles.
@@ -41,6 +59,10 @@ public static class FeatureFinder
         public required MeshData Mesh;
         public List<Feat> Features = [];
         public int[] FeatureOfFace = [];
+        public Dictionary<int, ChamferSize> Chamfers = [];
+        public Dictionary<int, TextInfo> Texts = [];
+        public Dictionary<int, ThreadInfo> Threads = [];
+        public Dictionary<int, RibInfo> Ribs = [];
     }
 
     static readonly ConditionalWeakTable<Shape, Analysis> Cache = new();
@@ -52,6 +74,36 @@ public static class FeatureFinder
     {
         var a = Get(body);
         return face >= 0 && face < a.FeatureOfFace.Length && a.FeatureOfFace[face] >= 0 ? a.Features[a.FeatureOfFace[face]] : null;
+    }
+
+    // A simple protruding cylinder has an exposed planar end and a planar shoulder.
+    // Its end may be oblique after Tilt Face, so cylinder area/height recognition alone is insufficient.
+    internal static (int Cap, Vec3 Outward, double Clearance)? BossEnds(SceneObject body, int wall, Vec3 move)
+    {
+        var a = Get(body);
+        if (a.Info[wall].Type != "Cylinder" || a.Axis[wall] is not { } axis ||
+            Vec3.Cross(move.Normalized(), axis.Dir.Normalized()).Length > 1e-6) return null;
+        var neighbours = a.Adj[wall];
+        if (neighbours.Count != 2 || neighbours.Any(l => a.Info[l.To].Type != "Plane")) return null;
+        foreach (var cap in neighbours)
+        {
+            var shoulder = neighbours.First(l => l.To != cap.To);
+            if (cap.Class == Edge.Convex && a.Adj[cap.To].Count == 1 && shoulder.Class == Edge.Concave &&
+                Math.Abs(Vec3.Dot(a.Normal[shoulder.To], axis.Dir.Normalized())) > 0.999999)
+            {
+                // Intersect the cylinder axis with each plane. A tilted cap's lowest point
+                // sits radius * tan(tilt) below the centre of its elliptical rim.
+                var outward = a.Normal[shoulder.To];
+                var capNormal = a.Normal[cap.To];
+                double cosine = Vec3.Dot(capNormal, outward);
+                if (cosine <= 1e-6) return null;
+                double centre = Vec3.Dot(a.FirstPoint[cap.To] - axis.Origin, capNormal) / cosine;
+                double floor = Vec3.Dot(a.FirstPoint[shoulder.To] - axis.Origin, outward);
+                double drop = a.Info[wall].R1 * Vec3.Cross(capNormal, outward).Length / cosine;
+                return (cap.To, outward, centre - floor - drop);
+            }
+        }
+        return null;
     }
 
     static Analysis Get(SceneObject body) => Cache.GetValue(body.Shape, _ => Analyse(body));
@@ -82,6 +134,9 @@ public static class FeatureFinder
         var m = a.Mesh; double q = Math.Max((m.Max - m.Min).Length * 2e-5, 1e-6);
         var at = new Dictionary<(long, long, long), List<(int face, int vi)>>();
         var triOf = new int[m.Positions.Length / 3];
+        // every triangle edge, keyed by its two end points: an edge two faces share lies on their common B-rep edge, with one triangle on each side
+        var segs = new Dictionary<((long, long, long), (long, long, long)), List<(int face, int tri, int va, int vb)>>();
+        (long, long, long) KeyOf(Vec3 p) => ((long)Math.Round(p.X / q), (long)Math.Round(p.Y / q), (long)Math.Round(p.Z / q));
         for (int f = 0; f < n && f + 1 < m.FaceTriStart.Length; f++)
         {
             Vec3 sum = new(0, 0, 0); double w = 0; var seen = new HashSet<int>(); bool first = true;
@@ -89,6 +144,14 @@ public static class FeatureFinder
             {
                 Vec3 A = P(m, m.Indices[3 * t]), B = P(m, m.Indices[3 * t + 1]), C = P(m, m.Indices[3 * t + 2]);
                 double area = Vec3.Cross(B - A, C - A).Length * 0.5; sum += (A + B + C) * (area / 3); w += area;
+                for (int c = 0; c < 3; c++)
+                {
+                    int i0 = m.Indices[3 * t + c], i1 = m.Indices[3 * t + (c + 1) % 3];
+                    var k0 = KeyOf(P(m, i0)); var k1 = KeyOf(P(m, i1));
+                    var sk = k0.CompareTo(k1) <= 0 ? (k0, k1) : (k1, k0);
+                    if (!segs.TryGetValue(sk, out var sl)) segs[sk] = sl = [];
+                    sl.Add((f, t, i0, i1));
+                }
                 for (int c = 0; c < 3; c++)
                 {
                     int vi = m.Indices[3 * t + c]; triOf[vi] = t; if (!seen.Add(vi)) continue;
@@ -100,7 +163,13 @@ public static class FeatureFinder
                 }
             }
             a.Centre[f] = w > 1e-12 ? sum * (1 / w) : a.FirstPoint[f];
-            if (a.Info[f].Type == "Plane") a.Normal[f] = a.Info[f].Normal.Normalized();
+            // the plane's own normal, turned to face out of the body: a reversed face (after a mirror, or from some exporters) reports its
+            // surface's normal, which then points into the material; the display mesh's normals always point out
+            if (a.Info[f].Type == "Plane")
+            {
+                var pn = a.Info[f].Normal.Normalized();
+                a.Normal[f] = !first && Vec3.Dot(pn, a.Normal[f]) < 0 ? -pn : pn;
+            }
         }
         var pairs = new Dictionary<(int, int), (int count, double minDot, Vec3 mid, Vec3 nA, Vec3 nB, int tA, int tB)>();
         foreach (var list in at.Values)
@@ -112,20 +181,35 @@ public static class FeatureFinder
                     var (fa, va) = list[i]; var (fb, vb) = list[j]; if (fa == fb) continue;
                     if (fa > fb) { (fa, fb) = (fb, fa); (va, vb) = (vb, va); }
                     var na = N(m, va); var nb = N(m, vb); double dot = Vec3.Dot(na, nb);
-                    pairs[(fa, fb)] = pairs.TryGetValue((fa, fb), out var e) ? (e.count + 1, Math.Min(e.minDot, dot), e.mid + P(m, va), e.nA, e.nB, e.tA, e.tB) : (1, dot, P(m, va), na, nb, triOf[va], triOf[vb]);
+                    // keep the first shared point and its two triangles: the convex/concave judgement is made right there (an average of
+                    // the points would sit on the axis of a circular edge, far from the edge)
+                    pairs[(fa, fb)] = pairs.TryGetValue((fa, fb), out var e) ? (e.count + 1, Math.Min(e.minDot, dot), e.mid, e.nA, e.nB, e.tA, e.tB) : (1, dot, P(m, va), na, nb, triOf[va], triOf[vb]);
                 }
         }
         Vec3 TriCentre(int t) => (P(m, m.Indices[3 * t]) + P(m, m.Indices[3 * t + 1]) + P(m, m.Indices[3 * t + 2])) * (1.0 / 3);
+        Vec3 TriNormal(int t) => N(m, m.Indices[3 * t]) + N(m, m.Indices[3 * t + 1]) + N(m, m.Indices[3 * t + 2]);
+        // Inside or outside corner, voted along the whole shared edge: at the middle of each shared triangle edge, does the triangle on the other
+        // side rise in front of this face (inside corner) or fall behind it (outside corner)? Judging at a single point went wrong at the inward
+        // corners of letter outlines and on circular edges.
+        var votes = new Dictionary<(int, int), double>();
+        foreach (var list in segs.Values)
+        {
+            if (list.Count != 2 || list[0].face == list[1].face) continue;
+            var (x, y) = list[0].face < list[1].face ? (list[0], list[1]) : (list[1], list[0]);
+            var mid0 = (P(m, x.va) + P(m, x.vb)) * 0.5; double len = (P(m, x.va) - P(m, x.vb)).Length;
+            double sv = Vec3.Dot(TriCentre(y.tri) - mid0, TriNormal(x.tri).Normalized()) + Vec3.Dot(TriCentre(x.tri) - mid0, TriNormal(y.tri).Normalized());
+            votes[(x.face, y.face)] = votes.GetValueOrDefault((x.face, y.face)) + Math.Sign(sv) * len;
+        }
         foreach (var (key, e) in pairs)
         {
             if (e.count < 2) continue;
-            var (fa, fb) = key; var mid = e.mid * (1.0 / e.count);
+            var (fa, fb) = key; var mid = e.mid;
             Edge cls;
             if (e.minDot > 0.9945) cls = Edge.Tangent;
             else
             {
                 // convex: the next bit of each face lies behind the other's tangent plane; concave: in front of it (judged right at the edge, so big faces do not matter)
-                double s = Vec3.Dot(TriCentre(e.tB) - mid, e.nA) + Vec3.Dot(TriCentre(e.tA) - mid, e.nB);
+                double s = votes.TryGetValue((fa, fb), out var v) && Math.Abs(v) > 1e-12 ? v : Vec3.Dot(TriCentre(e.tB) - mid, e.nA) + Vec3.Dot(TriCentre(e.tA) - mid, e.nB);
                 cls = s > 0 ? Edge.Concave : Edge.Convex;
             }
             a.Adj[fa].Add(new Link(fb, cls, e.count)); a.Adj[fb].Add(new Link(fa, cls, e.count));
@@ -181,6 +265,17 @@ public static class FeatureFinder
         // closed: every face joins two others of the ring
         foreach (int f in comp)
             if (a.Adj[f].Count(l => set.Contains(l.To) && (l.Class == Edge.Tangent || l.Class == (boss ? Edge.Convex : Edge.Concave))) < 2) return null;
+        // A ring joined only by smooth edges reads both ways, so the walls decide: a hole's walls face in towards its axis, a boss's face out.
+        // Without this the rounded outline of a plate is taken for one huge hole or slot.
+        Vec3 mid = new(0, 0, 0); double w = 0;
+        foreach (int f in comp) { double ar = Math.Max(a.Info[f].Area, 1e-9); mid += a.Centre[f] * ar; w += ar; }
+        mid *= 1 / w; double inward = 0;
+        foreach (int f in comp)
+        {
+            var r = mid - a.Centre[f]; r -= d * Vec3.Dot(r, d);
+            if (r.Length > 1e-9) inward += Vec3.Dot(a.Normal[f], r.Normalized()) * a.Info[f].Area;
+        }
+        if (boss ? inward > 0 : inward < 0) return null;
         return comp;
     }
 
@@ -240,6 +335,7 @@ public static class FeatureFinder
             foreach (int f in faces) a.FeatureOfFace[f] = a.Features.Count;
             a.Features.Add(feat);
         }
+        // First pass: holes, bosses, slots and pockets. Fillet chains come second, or the rounded rim of a slot would be claimed as a fillet before its walls are looked at.
         for (int f = 0; f < n; f++)
         {
             if (a.FeatureOfFace[f] >= 0) continue;
@@ -263,13 +359,51 @@ public static class FeatureFinder
                     Add(hole ? FeatureKind.Hole : FeatureKind.Boss, group, dir, $"cyl|{info.R1:0.####}|{hole}|{t1 - t0:0.###}", new Round(ax.Origin, info.R1, hole, t0, t1));
                     continue;
                 }
+                if (ThreadAt(a, group, ax.Origin, dir, info.R1) is { } th)
+                {
+                    var faces = group.Concat(th.helix).ToList(); var (u0, u1) = Extent(a, faces, ax.Origin, dir);
+                    a.Threads[faces[0]] = th.info;
+                    Add(FeatureKind.Thread, faces, dir, $"thread|{th.info.Major:0.###}|{th.info.Pitch:0.###}|{u1 - u0:0.###}", new Round(ax.Origin, info.R1, true, u0, u1));
+                    continue;
+                }
             }
             if (Loop(a, f) is { } loop && loop.faces.All(g => a.FeatureOfFace[g] < 0))
             {
-                double area = loop.faces.Sum(g => a.Info[g].Area);
-                Add(loop.kind, loop.faces, loop.dir, $"{loop.kind}|{loop.faces.Count}|{area:0.##}");
-                continue;
+                var faces = loop.faces;
+                // a thin wall standing on the body is a rib, not a block-shaped boss: leave it for the rib pass
+                if (loop.kind == FeatureKind.Boss && faces.Any(g => RibAt(a, g) != null)) continue;
+                // a slot with a rounded rim: the smooth curved faces that run on from its round walls belong to it
+                if (loop.kind == FeatureKind.Slot)
+                {
+                    var extended = new List<int>(faces);
+                    foreach (int c in faces.Where(g => a.Info[g].Type != "Plane"))
+                        foreach (int g in TangentChain(a, c, true)) if (a.FeatureOfFace[g] < 0 && !extended.Contains(g)) extended.Add(g);
+                    if (extended.Count <= 200) faces = extended;
+                }
+                double area = faces.Sum(g => a.Info[g].Area);
+                Add(loop.kind, faces, loop.dir, $"{loop.kind}|{faces.Count}|{area:0.##}");
             }
+        }
+        // Ribs: a narrow flat top between two parallel walls that both stand on the body.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0 || RibAt(a, f) is not { } rib || a.FeatureOfFace[rib.SideA] >= 0 || a.FeatureOfFace[rib.SideB] >= 0) continue;
+            a.Ribs[f] = rib;
+            Add(FeatureKind.Rib, [f, rib.SideA, rib.SideB], rib.Normal, $"rib|{rib.Thickness:0.###}|{rib.Height:0.##}");
+        }
+        // Chamfers before fillets: a flat strip at an outside corner is not part of any round chain.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0 || ChamferAt(a, f) is not { } ch) continue;
+            a.Chamfers[f] = ch;
+            var (lo, hi) = ch.SetbackA <= ch.SetbackB ? (ch.SetbackA, ch.SetbackB) : (ch.SetbackB, ch.SetbackA);
+            Add(FeatureKind.Chamfer, [f], a.Normal[f], $"chamfer|{lo:0.###}|{hi:0.###}");
+        }
+        // Second pass: fillet chains and plain faces.
+        for (int f = 0; f < n; f++)
+        {
+            if (a.FeatureOfFace[f] >= 0) continue;
+            var info = a.Info[f];
             if (info.Type != "Plane" && a.Adj[f].Any(l => l.Class == Edge.Tangent))
             {
                 var chain = TangentChain(a, f, true).Where(g => a.FeatureOfFace[g] < 0).ToList();
@@ -281,7 +415,100 @@ public static class FeatureFinder
             Add(FeatureKind.Face, [f], nrm, key);
         }
         MergeSteppedHoles(a, n, (k, fc, d, key, r) => Add(k, fc, d, key, r));
+        FindText(a, n);
     }
+
+    /// <summary>
+    /// Engraved or embossed text: letters cut to one depth below a flat face (or raised to one height above it). Each letter is a floor (or a top)
+    /// whose every neighbour is a wall running along the face's normal, and whose walls end on faces lying in one plane (the face the text is
+    /// on, and the islands inside letters such as O). Letters close together at the same depth make one word. A lone pocket is not text: it
+    /// takes at least two letters and at least one with the many walls or curved walls that letter outlines have.
+    /// </summary>
+    static void FindText(Analysis a, int n)
+    {
+        var letters = new List<(int top, List<int> walls, Vec3 nrm, double rim, double depth, bool engraved, double size, Vec3 centre)>();
+        for (int f = 0; f < n; f++)
+        {
+            if (a.Info[f].Type != "Plane" || a.Adj[f].Count < 3) continue;
+            var nf = a.Normal[f];
+            var walls = a.Adj[f].Select(l => l.To).Distinct().ToList();
+            var cls = a.Adj[f].Select(l => l.Class).Distinct().ToList();
+            if (cls.Count != 1 || cls[0] == Edge.Tangent) continue;
+            bool engraved = cls[0] == Edge.Concave;
+            if (walls.Any(w => Math.Abs(Vec3.Dot(a.Normal[w], nf)) > 0.05 || a.Info[w].Type is "Cylinder" && a.Axis[w] is { } ax && Vec3.Cross(ax.Dir.Normalized(), nf).Length > 1e-3)) continue;
+            var wallSet = walls.ToHashSet(); wallSet.Add(f);
+            var rims = new HashSet<int>(); bool ok = true;
+            foreach (int w in walls)
+                foreach (var l in a.Adj[w])
+                {
+                    if (wallSet.Contains(l.To)) continue;
+                    if (a.Info[l.To].Type != "Plane" || Vec3.Dot(a.Normal[l.To], nf) < 0.999 || l.Class != (engraved ? Edge.Convex : Edge.Concave)) { ok = false; break; }
+                    rims.Add(l.To);
+                }
+            if (!ok || rims.Count == 0) continue;
+            double h0 = Vec3.Dot(a.Centre[rims.First()], nf);
+            if (rims.Any(r => Math.Abs(Vec3.Dot(a.Centre[r], nf) - h0) > 1e-4)) continue;
+            double depth = engraved ? h0 - Vec3.Dot(a.Centre[f], nf) : Vec3.Dot(a.Centre[f], nf) - h0;
+            if (depth <= 1e-6) continue;
+            var (u, v) = Meshing.SurfaceMath.Basis(nf);
+            var (u0, u1) = Span(a, f, u); var (v0, v1) = Span(a, f, v);
+            letters.Add((f, walls, nf, h0, depth, engraved, Math.Max(u1 - u0, v1 - v0), a.Centre[f]));
+        }
+        if (letters.Count < 2) return;
+        // words: letters on the same plane at the same depth, each within a few letter sizes of another
+        var group = Enumerable.Range(0, letters.Count).ToArray();
+        int Root(int i) { while (group[i] != i) i = group[i] = group[group[i]]; return i; }
+        for (int i = 0; i < letters.Count; i++)
+            for (int j = i + 1; j < letters.Count; j++)
+            {
+                var (p, q) = (letters[i], letters[j]);
+                if (p.engraved != q.engraved || Vec3.Dot(p.nrm, q.nrm) < 0.999 || Math.Abs(p.rim - q.rim) > 1e-4 || Math.Abs(p.depth - q.depth) > 1e-3) continue;
+                if ((p.centre - q.centre).Length > 2.5 * Math.Max(p.size, q.size)) continue;
+                group[Root(i)] = Root(j);
+            }
+        var merges = new List<(List<int> faces, TextInfo info)>();
+        foreach (var word in Enumerable.Range(0, letters.Count).GroupBy(Root).Select(g => g.Select(i => letters[i]).ToList()))
+        {
+            if (word.Count < 2) continue;
+            bool letterLike = word.Any(l => l.walls.Count >= 8 || l.walls.Any(w => a.Info[w].Type != "Plane"));
+            if (!letterLike) continue;
+            var nrm = word[0].nrm; var (bu, bv) = Meshing.SurfaceMath.Basis(nrm);
+            // reading direction: the long way of the letters' spread
+            var cs = word.Select(l => l.centre).ToList(); var mid = cs.Aggregate(Vec3.Zero, (s, c) => s + c) * (1.0 / cs.Count);
+            double suu = 0, suv = 0, svv = 0;
+            foreach (var c in cs) { double x = Vec3.Dot(c - mid, bu), y = Vec3.Dot(c - mid, bv); suu += x * x; suv += x * y; svv += y * y; }
+            double ang = 0.5 * Math.Atan2(2 * suv, suu - svv);
+            var along = (bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized(); var up = Vec3.Cross(nrm, along).Normalized();
+            var faces = word.SelectMany(l => l.walls.Prepend(l.top)).Distinct().ToList();
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (int f in faces) { var (s0, s1) = Span(a, f, up); lo = Math.Min(lo, s0); hi = Math.Max(hi, s1); }
+            merges.Add((faces, new TextInfo(word[0].engraved, word[0].depth, word.Count, hi - lo, along, nrm, word[0].rim)));
+        }
+        if (merges.Count == 0) return;
+        var drop = merges.SelectMany(m => m.faces).ToHashSet();
+        var keep = a.Features.Where(ft => !ft.Faces.Any(drop.Contains)).ToList();
+        // a feature that lost only some of its faces to the text keeps the rest as plain faces
+        var orphans = a.Features.Where(ft => ft.Faces.Any(drop.Contains)).SelectMany(ft => ft.Faces).Where(f => !drop.Contains(f)).ToList();
+        a.Features.Clear(); a.FeatureOfFace = Enumerable.Repeat(-1, n).ToArray();
+        foreach (var ft in keep) { foreach (int g in ft.Faces) a.FeatureOfFace[g] = a.Features.Count; a.Features.Add(ft); }
+        foreach (int f in orphans)
+        {
+            var nrm = a.Info[f].Type == "Plane" ? a.Normal[f] : Vec3.UnitZ;
+            a.FeatureOfFace[f] = a.Features.Count; a.Features.Add(new Feat(f, FeatureKind.Face, $"face|{f}", a.Centre[f], nrm, [f], null));
+        }
+        foreach (var (faces, info) in merges)
+        {
+            Vec3 c = Vec3.Zero; double w = 0;
+            foreach (int f in faces) { double ar = Math.Max(a.Info[f].Area, 1e-9); c += a.Centre[f] * ar; w += ar; }
+            foreach (int f in faces) a.FeatureOfFace[f] = a.Features.Count;
+            a.Texts[faces[0]] = info;
+            a.Features.Add(new Feat(faces[0], FeatureKind.Text, $"text|{info.Engraved}|{info.Depth:0.###}|{info.Letters}|{info.Height:0.##}", c * (1 / w), info.Normal, faces, null));
+        }
+    }
+
+    /// <summary>What a recognised piece of text is: engraved or embossed, its depth or height, how many letters, and how tall they stand.</summary>
+    public static TextInfo? TextOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Text && Get(body).Texts.TryGetValue(feat.Face, out var t) ? t : null;
 
     /// <summary>
     /// Joins a round hole to what steps or flares it: a flat annulus square to the axis between two coaxial holes of different radius is a counterbore
@@ -318,6 +545,7 @@ public static class FeatureFinder
             {
                 var h = holes.FirstOrDefault(x => Coaxial(x.Round!, x.Dir, ax.Origin, ax.Dir));
                 if (h == null) continue;
+                if (RadialSpan(a, f, ax.Origin, ax.Dir.Normalized()).lo < 0.05 * h.Round!.Radius) continue;   // a cone that closes to a tip is a drill point, not a countersink
                 taken.Add(a.FeatureOfFace[h.Face]);
                 merges.Add((FeatureKind.Countersink, [.. h.Faces, f], h.Dir, $"csink|{h.Round!.Radius:0.####}|{a.Info[f].Area:0.###}"));
             }
@@ -328,6 +556,187 @@ public static class FeatureFinder
         a.Features.Clear(); a.FeatureOfFace = Enumerable.Repeat(-1, n).ToArray();
         foreach (var ft in keep) { foreach (int g in ft.Faces) a.FeatureOfFace[g] = a.Features.Count; a.Features.Add(ft); }
         foreach (var m in merges) add(m.kind, m.faces, m.dir, m.key, null);
+    }
+
+    /// <summary>
+    /// A flat strip that replaced a sharp outside edge between two faces: both of its long sides meet those faces at outside corners, it leans
+    /// part-way between them, and it is narrow next to its length. The setbacks follow from its width and the two angles (law of sines in the
+    /// section square to the edge). A cone joining a boss's wall to its top at outside corners is a chamfer on a round edge.
+    /// </summary>
+    static ChamferSize? ChamferAt(Analysis a, int f)
+    {
+        var info = a.Info[f];
+        if (info.Type == "Cone" && a.Axis[f] is { } cax) return RoundChamfer(a, f, cax);
+        if (info.Type != "Plane") return null;
+        var nf = a.Normal[f];
+        if (a.Adj[f].Any(l => l.Class != Edge.Convex)) return null;
+        var sides = a.Adj[f].Where(l => a.Info[l.To].Type == "Plane").OrderByDescending(l => l.Shared).ToList();
+        if (sides.Count < 2) return null;
+        for (int i = 0; i < sides.Count; i++)
+            for (int j = i + 1; j < sides.Count; j++)
+            {
+                int fa = sides[i].To, fb = sides[j].To; Vec3 na = a.Normal[fa], nb = a.Normal[fb];
+                var e = Vec3.Cross(na, nb); if (e.Length < 0.1) continue;     // the two faces must meet at a real angle
+                e = e.Normalized(); if (Math.Abs(Vec3.Dot(nf, e)) > 1e-3) continue;
+                double ba = Math.Acos(Math.Clamp(Vec3.Dot(nf, na), -1, 1)), bb = Math.Acos(Math.Clamp(Vec3.Dot(nf, nb), -1, 1));
+                if (ba < 0.17 || bb < 0.17) continue;                          // under about 10 degrees it is a slight bend, not a chamfer
+                double turn = Math.Acos(Math.Clamp(Vec3.Dot(na, nb), -1, 1));  // how far the normal turns across the edge
+                if (Math.Abs(ba + bb - turn) > 1e-3) continue;                 // the strip must lean between the two faces
+                var u = Vec3.Cross(e, nf).Normalized();
+                var (w0, w1) = Span(a, f, u); var (l0, l1) = Span(a, f, e);
+                double width = w1 - w0, length = l1 - l0;
+                if (width <= 1e-6 || (width > 0.5 * length && width > 0.08 * (a.Mesh.Max - a.Mesh.Min).Length)) continue;
+                if (info.Area > Math.Min(a.Info[fa].Area, a.Info[fb].Area)) continue;   // a bevel bigger than a face it joins is a face of its own
+                // section square to the edge: the old sharp corner's angle is pi - turn, and the strip meets face A at angle ba
+                double corner = Math.PI - turn, atB = Math.PI - corner - ba;
+                double setA = width * Math.Sin(atB) / Math.Sin(corner), setB = width * Math.Sin(ba) / Math.Sin(corner);
+                return new ChamferSize(setA, setB, ba * 180 / Math.PI, fa, fb, length);
+            }
+        return null;
+    }
+
+    static ChamferSize? RoundChamfer(Analysis a, int f, (Vec3 Origin, Vec3 Dir) ax)
+    {
+        var d = ax.Dir.Normalized(); int wall = -1, top = -1;
+        foreach (var l in a.Adj[f])
+        {
+            if (l.Class != Edge.Convex) return null;
+            var t = a.Info[l.To].Type;
+            if (t == "Cylinder" && a.Axis[l.To] is { } w && Vec3.Cross(w.Dir.Normalized(), d).Length < 1e-4) wall = l.To;
+            else if (t == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999) top = l.To;
+        }
+        if (wall < 0 || top < 0) return null;
+        // only on a boss: the same cone at the mouth of a hole is a countersink, which belongs to the hole
+        var out_ = a.FirstPoint[wall] - ax.Origin; out_ -= d * Vec3.Dot(out_, d);
+        if (Vec3.Dot(a.Normal[wall], out_) <= 0) return null;
+        var (r0, r1) = RadialSpan(a, f, ax.Origin, d); var (t0, t1) = Span(a, f, d);
+        double setTop = r1 - r0, setWall = t1 - t0;
+        if (setTop <= 1e-6 || setWall <= 1e-6) return null;
+        return new ChamferSize(setWall, setTop, Math.Atan2(setTop, setWall) * 180 / Math.PI, wall, top, 2 * Math.PI * r1);
+    }
+
+    static (double lo, double hi) Span(Analysis a, int f, Vec3 dir)
+    {
+        var m = a.Mesh; double lo = double.MaxValue, hi = double.MinValue;
+        for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+            for (int c = 0; c < 3; c++) { double v = Vec3.Dot(P(m, m.Indices[3 * t + c]), dir); lo = Math.Min(lo, v); hi = Math.Max(hi, v); }
+        return (lo, hi);
+    }
+
+    static (double lo, double hi) RadialSpan(Analysis a, int f, Vec3 origin, Vec3 dir)
+    {
+        var m = a.Mesh; double lo = double.MaxValue, hi = double.MinValue;
+        for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+            for (int c = 0; c < 3; c++) { var r = P(m, m.Indices[3 * t + c]) - origin; r -= dir * Vec3.Dot(r, dir); lo = Math.Min(lo, r.Length); hi = Math.Max(hi, r.Length); }
+        return (lo, hi);
+    }
+
+    /// <summary>
+    /// A modeled internal thread: round strips of one radius on one axis (the lands left at the minor diameter) with spline faces next to them that
+    /// all lie in a ring just outside that radius (the helical flanks and root). The pitch is the spacing along the axis of the outermost points
+    /// (the thread's root) seen in a narrow slice of angle.
+    /// </summary>
+    static (List<int> helix, ThreadInfo info)? ThreadAt(Analysis a, List<int> strips, Vec3 origin, Vec3 dir, double r)
+    {
+        var rel0 = a.FirstPoint[strips[0]] - origin; rel0 -= dir * Vec3.Dot(rel0, dir);
+        if (Vec3.Dot(a.Normal[strips[0]], rel0) >= 0) return null;               // internal threads only: the strips face the axis
+        var own = strips.ToHashSet(); var helix = new List<int>();
+        for (int i = 0; i < helix.Count + own.Count && i < 200; i++)
+        {
+            var from = i < strips.Count ? strips[i] : helix[i - strips.Count];
+            foreach (var l in a.Adj[from])
+            {
+                if (own.Contains(l.To) || helix.Contains(l.To) || a.Info[l.To].Type is "Plane" or "Cylinder" or "Cone") continue;
+                var (lo, hi) = RadialSpan(a, l.To, origin, dir);
+                if (lo < r * 0.97 || hi > r * 1.6) continue;
+                helix.Add(l.To);
+            }
+        }
+        if (helix.Count == 0) return null;
+        var m = a.Mesh; var (ux, uy) = Meshing.SurfaceMath.Basis(dir); double major = 0;
+        var pts = new List<(double t, double rad, double ang)>();
+        foreach (int f in helix)
+            for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+                for (int c = 0; c < 3; c++)
+                {
+                    var q = P(m, m.Indices[3 * t + c]) - origin; double along = Vec3.Dot(q, dir); var radial = q - dir * along;
+                    pts.Add((along, radial.Length, Math.Atan2(Vec3.Dot(radial, uy), Vec3.Dot(radial, ux)))); major = Math.Max(major, radial.Length);
+                }
+        var roots = pts.Where(p => p.rad > major - 0.04 * (major - r) - 1e-6 && Math.Abs(p.ang) < 0.35).Select(p => p.t).OrderBy(t => t).ToList();
+        var clusters = new List<double>();
+        foreach (var t in roots) if (clusters.Count == 0 || t - clusters[^1] > 0.15 * (major - r) + 0.05) clusters.Add(t); else clusters[^1] = (clusters[^1] + t) / 2;
+        if (clusters.Count < 2) return null;
+        var gaps = Enumerable.Range(1, clusters.Count - 1).Select(k => clusters[k] - clusters[k - 1]).OrderBy(g => g).ToList();
+        double pitch = Math.Round(gaps[gaps.Count / 2] / 0.05) * 0.05;
+        var (t0, t1) = Extent(a, strips.Concat(helix), origin, dir);
+        string? size = null;
+        foreach (var name in new[] { "M2", "M2.5", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M14", "M16", "M20", "M24" })
+            if (StandardHoles.Of(name) is { } st && Math.Abs(st.Nominal - 2 * major) < 0.08 * st.Nominal) { size = $"{name} × {pitch:0.##}"; break; }
+        return (helix, new ThreadInfo(2 * major, 2 * r, pitch, t1 - t0, size));
+    }
+
+    /// <summary>The sizes of a recognised threaded hole, or null for anything else.</summary>
+    public static ThreadInfo? ThreadOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Thread && Get(body).Threads.TryGetValue(feat.Faces[0], out var t) ? t : null;
+
+    /// <summary>
+    /// A rib or wall: a flat top whose two long sides meet parallel walls facing opposite ways at outside corners, the walls being exactly the
+    /// top's width apart and both meeting the body at inside corners further down. Thin next to its height or length (a fifth or less), so the
+    /// end of a thick block is not taken for a rib.
+    /// </summary>
+    static RibInfo? RibAt(Analysis a, int top)
+    {
+        if (a.Info[top].Type != "Plane") return null;
+        if (a.Adj[top].Any(l => l.Class == Edge.Concave)) return null;   // the top stands free; an end face of the rib meets the body below it
+        var nt = a.Normal[top];
+        var walls = a.Adj[top].Where(l => l.Class == Edge.Convex && a.Info[l.To].Type == "Plane" && Math.Abs(Vec3.Dot(a.Normal[l.To], nt)) < 1e-3).Select(l => l.To).ToList();
+        for (int i = 0; i < walls.Count; i++)
+            for (int j = i + 1; j < walls.Count; j++)
+            {
+                int A = walls[i], B = walls[j]; var na = a.Normal[A];
+                if (Vec3.Dot(na, a.Normal[B]) > -0.999) continue;
+                double t = Vec3.Dot(a.Centre[A] - a.Centre[B], na);
+                if (t <= 1e-6) continue;
+                var (w0, w1) = Span(a, top, na); if (Math.Abs(w1 - w0 - t) > 1e-3) continue;
+                bool Stands(int w) => a.Adj[w].Any(l => l.Class == Edge.Concave && l.To != top);
+                if (!Stands(A) || !Stands(B)) continue;
+                var (h0, h1) = Span(a, A, nt); var along = Vec3.Cross(na, nt).Normalized(); var (l0, l1) = Span(a, top, along);
+                if (t > 0.2 * Math.Max(h1 - h0, l1 - l0)) continue;
+                return new RibInfo(t, A, B, na, h1 - h0);
+            }
+        return null;
+    }
+
+    /// <summary>The thickness and sides of a recognised rib, or null for anything else.</summary>
+    public static RibInfo? RibOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Rib && Get(body).Ribs.TryGetValue(feat.Face, out var r) ? r : null;
+
+    /// <summary>The setbacks of a recognised chamfer, or null for anything else.</summary>
+    public static ChamferSize? ChamferOf(SceneObject body, Feat feat) =>
+        feat.Kind == FeatureKind.Chamfer && Get(body).Chamfers.TryGetValue(feat.Face, out var c) ? c : null;
+
+    /// <summary>
+    /// How a round hole ends. It is blind when a flat floor square to its axis or a coaxial cone (a drill point) closes one end, through otherwise.
+    /// Depth is the length of the round wall; the standard is the nearest metric clearance, tapping or nominal size.
+    /// </summary>
+    public static HoleDetail? HoleOf(SceneObject body, Feat feat)
+    {
+        if (feat.Round is not { Hole: true } r) return null;
+        var a = Get(body); var d = feat.Dir.Normalized(); var own = feat.Faces.ToHashSet();
+        bool floor = false; double? point = null;
+        foreach (int f in feat.Faces)
+            foreach (var l in a.Adj[f])
+            {
+                if (own.Contains(l.To)) continue;
+                var info = a.Info[l.To];
+                if (info.Type == "Plane" && l.Class == Edge.Concave && Math.Abs(Vec3.Dot(a.Normal[l.To], d)) > 0.999) floor = true;
+                else if (info.Type == "Cone" && a.Axis[l.To] is { } c && Vec3.Cross(c.Dir.Normalized(), d).Length < 1e-4)
+                {
+                    var (r0, r1) = RadialSpan(a, l.To, r.Origin, d); var (t0, t1) = Span(a, l.To, d);
+                    if (r0 < 0.05 * r.Radius) point = 2 * Math.Atan2(r1 - r0, Math.Max(t1 - t0, 1e-9)) * 180 / Math.PI;
+                }
+            }
+        return new HoleDetail(!floor && point == null, r.T1 - r.T0, point, StandardHoles.Match(2 * r.Radius));
     }
 
     static (double t0, double t1) Extent(Analysis a, IEnumerable<int> faces, Vec3 origin, Vec3 dir)
@@ -371,18 +780,35 @@ public static class FeatureFinder
     public static int PatternSize(SceneObject body, Feat feat) => Siblings(body, feat, true).Count;
 
     /// <summary>Members of the same regular grid (or line) as the picked feature, from the centres of its matching siblings.</summary>
-    static HashSet<int> LatticeMembers(Vec3 c0, List<Vec3> others)
+    /// <summary>The two shortest steps from the picked feature to its nearest neighbours (V2 null when all lie on one line).</summary>
+    static (Vec3 v1, Vec3? v2) LocalBasis(List<Vec3> d)
     {
-        var res = new HashSet<int>(); if (others.Count == 0) return res;
-        var d = others.Select(o => o - c0).ToList();
-        int i1 = Enumerable.Range(0, d.Count).OrderBy(i => d[i].Length).First(); var v1 = d[i1]; double l1 = v1.Length;
-        if (l1 < 1e-6) return res;
-        int i2 = -1; double best = double.MaxValue;
-        for (int i = 0; i < d.Count; i++)
-        {
-            double len = d[i].Length; if (len < 1e-6 || Vec3.Cross(v1, d[i]).Length < 1e-3 * l1 * len) continue;
-            if (len < best) { best = len; i2 = i; }
-        }
+        var v1 = d.OrderBy(v => v.Length).First(); double l1 = v1.Length; Vec3? v2 = null; double best = double.MaxValue;
+        foreach (var v in d) { double len = v.Length; if (len < 1e-6 || Vec3.Cross(v1, v).Length < 1e-3 * l1 * len || len >= best) continue; best = len; v2 = v; }
+        return (v1, v2);
+    }
+
+    /// <summary>The two shortest steps between any two features of the set (the picked one's neighbour may be missing, as at the short end of a row).</summary>
+    static (Vec3 v1, Vec3? v2) GlobalBasis(List<Vec3> d)
+    {
+        var pts = d.Prepend(Vec3.Zero).ToList();
+        Vec3 v1 = default; double l1 = double.MaxValue;
+        for (int i = 0; i < pts.Count; i++) for (int j = i + 1; j < pts.Count; j++) { var v = pts[j] - pts[i]; if (v.Length > 1e-6 && v.Length < l1 - 1e-9) { l1 = v.Length; v1 = v; } }
+        Vec3? v2 = null; double l2 = double.MaxValue;
+        for (int i = 0; i < pts.Count; i++)
+            for (int j = i + 1; j < pts.Count; j++)
+            {
+                var v = pts[j] - pts[i]; double len = v.Length;
+                if (len < 1e-6 || Vec3.Cross(v1, v).Length < 1e-3 * l1 * len || len >= l2 - 1e-9) continue;
+                l2 = len; v2 = v;
+            }
+        return (v1, v2);
+    }
+
+    /// <summary>Which of <paramref name="d"/> (offsets from the picked feature) sit on the line or grid with steps v1 (and v2).</summary>
+    static HashSet<int> OnLattice(List<Vec3> d, Vec3 v1, Vec3? maybeV2)
+    {
+        double l1 = v1.Length; if (l1 < 1e-6) return [];
         double tol = 1e-3 * l1 + 1e-4;
         var line = new HashSet<int>();
         for (int i = 0; i < d.Count; i++)
@@ -390,9 +816,9 @@ public static class FeatureFinder
             double k = Vec3.Dot(d[i], v1) / (l1 * l1);
             if (Math.Abs(k - Math.Round(k)) * l1 < tol && (d[i] - v1 * Math.Round(k)).Length < tol) line.Add(i);
         }
-        if (i2 < 0) return line;
+        if (maybeV2 is not { } v2) return line;
         // a second direction only counts as a grid when some point lies off both axes (otherwise it is just a stray feature)
-        var v2 = d[i2]; var grid = new HashSet<int>(); bool diagonal = false;
+        var grid = new HashSet<int>(); bool diagonal = false;
         double a11 = Vec3.Dot(v1, v1), a12 = Vec3.Dot(v1, v2), a22 = Vec3.Dot(v2, v2), det = a11 * a22 - a12 * a12;
         for (int i = 0; i < d.Count; i++)
         {
@@ -404,11 +830,29 @@ public static class FeatureFinder
         return diagonal ? grid : line;
     }
 
+    /// <summary>
+    /// The regular line or grid the picked feature belongs to, with its steps. Two readings are tried, the steps to the picked feature's nearest
+    /// neighbours and the shortest steps anywhere in the set, and the set-wide one wins only when it takes in at least two more features (so a
+    /// stray feature never sets the steps).
+    /// </summary>
+    static (HashSet<int> members, Vec3 v1, Vec3? v2) Lattice(Vec3 c0, List<Vec3> others)
+    {
+        if (others.Count == 0) return ([], default, null);
+        var d = others.Select(o => o - c0).ToList();
+        var (a1, a2) = LocalBasis(d); var local = OnLattice(d, a1, a2);
+        var (b1, b2) = GlobalBasis(d); var global = OnLattice(d, b1, b2);
+        // the set-wide steps must explain at least two more features: one stray feature can always be fitted by a slanted step of its own
+        return global.Count >= local.Count + 2 ? (global, b1, b2) : (local, a1, a2);
+    }
+
+    static HashSet<int> LatticeMembers(Vec3 c0, List<Vec3> others) => Lattice(c0, others).members;
+
     /// <summary>Members of the circular pattern through the picked feature about its own axis: equal steps on one circle.</summary>
     static HashSet<int> CircleMembers(Vec3 c0, Vec3 axis, List<Vec3> others)
     {
         var best = new HashSet<int>(); var n = axis.Normalized();
         Vec3 Flat(Vec3 v) => v - n * Vec3.Dot(v, n);
+        double spread = others.Count == 0 ? 0 : others.Max(o => Flat(o - c0).Length);
         for (int a = 0; a < others.Count; a++)
             for (int b = a + 1; b < others.Count; b++)
             {
@@ -416,12 +860,15 @@ public static class FeatureFinder
                 if (cr.Length < 1e-6) continue;
                 var centre = (Vec3.Cross(cr, p) * Vec3.Dot(q, q) + Vec3.Cross(q, cr) * Vec3.Dot(p, p)) * (1 / (2 * Vec3.Dot(cr, cr)));
                 double rad = centre.Length; if (rad < 1e-6) continue;
+                // three nearly collinear features give a huge circle that every point seems to lie on: a ring is no wider than the features' spread
+                if (rad > spread) continue;
                 var ux = (-centre).Normalized(); var uy = Vec3.Cross(n, ux);
                 var members = new Dictionary<int, double>();
                 for (int i = 0; i < others.Count; i++)
                 {
                     var rel = Flat(others[i] - c0) - centre; var ax = Vec3.Dot(others[i] - c0, n);
-                    if (Math.Abs(rel.Length - rad) > 1e-3 * rad + 1e-4 || Math.Abs(ax) > 1e-3 * rad + 1e-4) continue;
+                    double tol = Math.Min(1e-3 * rad, 0.02) + 1e-4;
+                    if (Math.Abs(rel.Length - rad) > tol || Math.Abs(ax) > tol) continue;
                     double ang = Math.Atan2(Vec3.Dot(rel, uy), Vec3.Dot(rel, ux)); if (ang < 0) ang += 2 * Math.PI;
                     members[i] = ang;
                 }
@@ -449,6 +896,97 @@ public static class FeatureFinder
         public int MaxB => Cells.Count == 0 ? 0 : Math.Max(0, Cells.Max(c => c.B));
     }
 
+    /// <summary>
+    /// A grid read the way a person describes it: rows along <c>Along</c> with <c>Step</c> between neighbours, rows <c>RowSpacing</c> apart along
+    /// <c>Across</c>, and every other row shifted by <c>Shift</c> along the rows (0 for a plain grid, half the step for a staggered one).
+    /// <c>Cells</c> give (place in its row, row) for each of the pattern's other members, in the order of <see cref="PatternInfo.Others"/>;
+    /// the picked feature is (0, 0), and odd rows are the shifted ones.
+    /// </summary>
+    public sealed record PatternRows(Vec3 Along, double Step, Vec3 Across, double RowSpacing, double Shift, IReadOnlyList<(int A, int B)> Cells)
+    {
+        public bool Staggered => Shift > 1e-6;
+    }
+
+    /// <summary>
+    /// The rows reading of a grid pattern, or null when it has none (a line, a circle, or a slanted lattice that is not rows of equal steps with at
+    /// most every other row shifted). Row directions along a world axis are preferred, then those with the most features per row, then shorter steps.
+    /// </summary>
+    public static PatternRows? RowsOf(PatternInfo p)
+    {
+        if (p.Kind != PatternKind.Grid) return null;
+        var d = new List<Vec3> { Vec3.Zero };
+        for (int i = 0; i < p.Others.Count; i++) d.Add(p.V1 * p.Cells[i].A + p.V2 * p.Cells[i].B);
+        double tol = 1e-3 * Math.Min(p.V1.Length, p.V2.Length) + 1e-4;
+        var normal = Vec3.Cross(p.V1, p.V2).Normalized();
+        var cands = new List<Vec3>();
+        for (int i = -2; i <= 2; i++)
+            for (int j = -2; j <= 2; j++)
+            {
+                var u = p.V1 * i + p.V2 * j; if (u.Length < 1e-6) continue;
+                // one candidate per direction, the shortest lattice step along it (a longer multiple would skip every other feature)
+                int same = cands.FindIndex(c => Vec3.Cross(c, u).Length < 1e-6 * c.Length * u.Length);
+                if (same < 0) cands.Add(u); else if (u.Length < cands[same].Length - 1e-9) cands[same] = u;
+            }
+        PatternRows? best = null; (int axis, double perRow, double len) bestScore = (int.MaxValue, 0, 0);
+        foreach (var u in cands)
+        {
+            // point both directions the way their largest component is positive, so the reading does not depend on which feature was clicked
+            var along = Positive(u.Normalized()); var across = Positive(Vec3.Cross(normal, along).Normalized()); double step = u.Length;
+            var ts = d.Select(v => Vec3.Dot(v, across)).ToList();
+            var rowTs = ts.OrderBy(t => t).Aggregate(new List<double>(), (acc, t) => { if (acc.Count == 0 || t - acc[^1] > tol) acc.Add(t); return acc; });
+            if (rowTs.Count < 2) continue;
+            double spacing = Enumerable.Range(1, rowTs.Count - 1).Min(k => rowTs[k] - rowTs[k - 1]);
+            if (spacing < tol || rowTs.Any(t => Math.Abs(t / spacing - Math.Round(t / spacing)) * spacing > tol)) continue;
+            // offsets along the row, relative to the picked feature's row: even rows must sit on whole steps, odd rows on whole steps plus one shift
+            double? shift = null; bool ok = true; var cells = new List<(int, int)>();
+            for (int k = 0; k < d.Count && ok; k++)
+            {
+                int b = (int)Math.Round(ts[k] / spacing); double x = Vec3.Dot(d[k], along);
+                double frac = x / step - Math.Floor(x / step + tol / step); if (frac * step > step - tol) frac = 0;
+                double off = frac * step;
+                if (b % 2 == 0) { if (off > tol) ok = false; }
+                else if (shift == null) shift = off;
+                else if (Math.Abs(off - shift.Value) > tol) ok = false;
+                if (k > 0) cells.Add(((int)Math.Round((x - (b % 2 != 0 ? shift ?? 0 : 0)) / step), b));
+            }
+            if (!ok) continue;
+            int axis = Math.Abs(along.X) > 0.9999 ? 0 : Math.Abs(along.Y) > 0.9999 ? 1 : Math.Abs(along.Z) > 0.9999 ? 2 : 3;
+            double perRow = (double)d.Count / rowTs.Count;
+            var score = (axis, perRow, step);
+            bool better = best == null || score.axis < bestScore.axis
+                || score.axis == bestScore.axis && (score.perRow > bestScore.perRow + 1e-9 || Math.Abs(score.perRow - bestScore.perRow) < 1e-9 && score.step < bestScore.len - tol);
+            if (!better) continue;
+            best = new PatternRows(along, step, across, spacing, shift is { } s2 && s2 > tol ? s2 : 0, cells);
+            bestScore = (score.axis, score.perRow, score.step);
+        }
+        return best;
+    }
+
+    static Vec3 Positive(Vec3 v)
+    {
+        double ax = Math.Abs(v.X), ay = Math.Abs(v.Y), az = Math.Abs(v.Z);
+        double big = ax >= ay - 1e-9 && ax >= az - 1e-9 ? v.X : ay >= az - 1e-9 ? v.Y : v.Z;
+        return big < 0 ? -v : v;
+    }
+
+    /// <summary>A sentence describing the pattern a feature belongs to, such as "50 slots in staggered rows: 40 mm apart along X, rows 20 mm apart along Y, every other row shifted 20 mm".</summary>
+    public static string? PatternText(SceneObject body, Feat feat)
+    {
+        var p = PatternOf(body, feat); if (p.Kind == PatternKind.None) return null;
+        int n = p.Others.Count + 1; string what = n + " " + feat.Name.ToLowerInvariant() + (n > 1 ? "s" : "");
+        string Axis(Vec3 v) => Math.Abs(v.X) > 0.9999 ? "X" : Math.Abs(v.Y) > 0.9999 ? "Y" : Math.Abs(v.Z) > 0.9999 ? "Z" : $"({v.X:0.###}, {v.Y:0.###}, {v.Z:0.###})";
+        switch (p.Kind)
+        {
+            case PatternKind.Circle: return $"{what} on a circle, {p.Step * 180 / Math.PI:0.###}° apart";
+            case PatternKind.Line: return $"{what} in a line, {p.V1.Length:0.###} mm apart along {Axis(p.V1.Normalized())}";
+            default:
+                if (RowsOf(p) is not { } r) return $"{what} in a grid, steps {p.V1.Length:0.###} and {p.V2.Length:0.###} mm";
+                int rows = r.Cells.Select(c => c.B).Append(0).Distinct().Count();
+                return $"{what} in {(r.Staggered ? "staggered " : "")}rows: {r.Step:0.###} mm apart along {Axis(r.Along)}, {rows} rows {r.RowSpacing:0.###} mm apart along {Axis(r.Across)}"
+                    + (r.Staggered ? $", every other row shifted {r.Shift:0.###} mm" : "");
+        }
+    }
+
     /// <summary>The line, grid or circle of equal features that <paramref name="feat"/> belongs to (Kind None when it stands alone).</summary>
     public static PatternInfo PatternOf(SceneObject body, Feat feat)
     {
@@ -470,18 +1008,12 @@ public static class FeatureFinder
             return new PatternInfo(PatternKind.Circle, idx.Select(i => sib[i]).ToList(), angs.Select(a => ((int)Math.Round(a / step), 0)).ToList(), default, default, c0 + centre, n, step);
         }
         var d = centres.Select(c => c - c0).ToList();
-        var order = Enumerable.Range(0, d.Count).OrderBy(i => d[i].Length).ToList();
-        var v1 = d[order[0]]; double l1 = v1.Length; double tol = 1e-3 * l1 + 1e-4;
         var members = lat.OrderBy(i => i).ToList();
+        var (_, v1, basis2) = Lattice(c0, centres); double l1 = v1.Length; double tol = 1e-3 * l1 + 1e-4;
         bool grid = members.Any(i => (d[i] - v1 * Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1))).Length >= tol);
         if (!grid)
             return new PatternInfo(PatternKind.Line, members.Select(i => sib[i]).ToList(), members.Select(i => ((int)Math.Round(Vec3.Dot(d[i], v1) / (l1 * l1)), 0)).ToList(), v1, default, default, default, 0);
-        Vec3 v2 = default; double best = double.MaxValue;
-        foreach (int i in order)
-        {
-            double len = d[i].Length; if (len < 1e-6 || Vec3.Cross(v1, d[i]).Length < 1e-3 * l1 * len) continue;
-            if (len < best) { best = len; v2 = d[i]; }
-        }
+        var v2 = basis2 ?? throw new InvalidOperationException("a grid has two directions");
         double a11 = Vec3.Dot(v1, v1), a12 = Vec3.Dot(v1, v2), a22 = Vec3.Dot(v2, v2), det = a11 * a22 - a12 * a12;
         var cells = members.Select(i =>
         {
@@ -489,5 +1021,40 @@ public static class FeatureFinder
             return ((int)Math.Round((r1 * a22 - r2 * a12) / det), (int)Math.Round((a11 * r2 - a12 * r1) / det));
         }).ToList();
         return new PatternInfo(PatternKind.Grid, members.Select(i => sib[i]).ToList(), cells, v1, v2, default, default, 0);
+    }
+}
+
+/// <summary>Metric hole sizes (ISO 273 clearance, coarse-thread tap drills, nominal), for naming what a recognised hole is for.</summary>
+public static class StandardHoles
+{
+    static readonly (string M, double Nominal, double Fine, double Medium, double Coarse, double Tap)[] Table =
+    [
+        ("M2", 2, 2.2, 2.4, 2.6, 1.6), ("M2.5", 2.5, 2.7, 2.9, 3.1, 2.05), ("M3", 3, 3.2, 3.4, 3.6, 2.5), ("M4", 4, 4.3, 4.5, 4.8, 3.3),
+        ("M5", 5, 5.3, 5.5, 5.8, 4.2), ("M6", 6, 6.4, 6.6, 7, 5), ("M8", 8, 8.4, 9, 10, 6.8), ("M10", 10, 10.5, 11, 12, 8.5),
+        ("M12", 12, 13, 13.5, 14.5, 10.2), ("M14", 14, 15, 15.5, 16.5, 12), ("M16", 16, 17, 17.5, 18.5, 14), ("M20", 20, 21, 22, 24, 17.5),
+        ("M24", 24, 25, 26, 28, 21),
+    ];
+
+    /// <summary>"M6 clearance (medium)", "M6 tap drill", "M6 nominal" and so on, or null when the diameter is none of them (within 0.03 mm).</summary>
+    public static string? Match(double diameter)
+    {
+        const double tol = 0.03;
+        // a hole of 5 mm is far more often an M6 tap drill than an M5 pin hole, so the drilling sizes are tried before the nominal ones
+        foreach (var t in Table)
+        {
+            if (Math.Abs(diameter - t.Tap) < tol) return $"{t.M} tap drill";
+            if (Math.Abs(diameter - t.Medium) < tol) return $"{t.M} clearance (medium)";
+            if (Math.Abs(diameter - t.Fine) < tol) return $"{t.M} clearance (close)";
+            if (Math.Abs(diameter - t.Coarse) < tol) return $"{t.M} clearance (loose)";
+        }
+        foreach (var t in Table) if (Math.Abs(diameter - t.Nominal) < tol) return $"{t.M} nominal";
+        return null;
+    }
+
+    /// <summary>The diameters for a size such as "M6": clearance (medium), tap drill and nominal; null for an unknown size.</summary>
+    public static (double Clearance, double TapDrill, double Nominal)? Of(string size)
+    {
+        foreach (var t in Table) if (t.M.Equals(size, StringComparison.OrdinalIgnoreCase)) return (t.Medium, t.Tap, t.Nominal);
+        return null;
     }
 }

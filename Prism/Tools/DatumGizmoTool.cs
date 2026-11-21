@@ -55,7 +55,8 @@ public sealed class DatumGizmoTool : IViewportTool
         var o = s.Find(item.Obj);
         if (o == null || !o.Visible) return null;
         var m = o.Mesh;
-        return m.Positions.Length >= 3 ? (m.Min + m.Max) * 0.5 : null;
+        // a curve or sketch has no triangles, only edge lines: its box still says where it is (it used to be refused, so the gizmo moved alone)
+        return m.Positions.Length >= 3 || m.EdgePoints.Length >= 3 ? (m.Min + m.Max) * 0.5 : null;
     }
 
     /// <summary>Binds targets so the gizmo moves them. A single datum target hands its frame to the gizmo directly.</summary>

@@ -2,6 +2,483 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "vermilion-gt",
+      "Name": "Vermilion GT",
+      "Description": "A red mid-engine sports car with sculpted fenders, recessed side intakes and split-spoke wheels.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 2120099,
+      "Sha256": "0f11c194df333217e8009709433258242c0eec59bddc379d22e6aa842eef2cc7",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/vermilion-gt.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/vermilion-gt.png?v=287da60e89855685",
+      "Extras": [
+        {
+          "Label": "Finished model (STEP)",
+          "FileName": "vermilion-gt.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step",
+          "Bytes": 3043282,
+          "Sha256": "b9ed3df7637ab2cb249ae797f8f56d952d846e62de88738faaedecc3ddddeeb7"
+        }
+      ]
+    },
+    {
+      "Id": "tideline-jet",
+      "Name": "Tideline airliner",
+      "Description": "A single-aisle passenger jet with swept wings, two turbofans and tricycle landing gear.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1889601,
+      "Sha256": "3cdb7c4a24d6cc51da2d6b01ba08e316110681add1176aa633ccd0d391e6be5c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/tideline-jet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/tideline-jet.png?v=6b8d3f8901687406",
+      "Extras": [
+        {
+          "Label": "Finished model (STEP)",
+          "FileName": "tideline-jet.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step",
+          "Bytes": 2884008,
+          "Sha256": "37fd351757be827d60ea0bd9b671bdb973748f86dd9295d233a7807af24a94c1"
+        }
+      ]
+    },
+    {
+      "Id": "evergreen-express",
+      "Name": "Evergreen Express",
+      "Description": "A three-car electric passenger train with articulated gangways, two driving cabs and a raised pantograph.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 3506342,
+      "Sha256": "92995edd99d67c919ee91713777755ca9f54b607992ca99791b33164f43c5dd9",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/evergreen-express.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/evergreen-express.png?v=dc5ec66afc8c5b52",
+      "Extras": [
+        {
+          "Label": "Finished model (STEP)",
+          "FileName": "evergreen-express.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step",
+          "Bytes": 4355120,
+          "Sha256": "cccbfab800e1437adf5e2c09212e1ae1830648bec90083a26b0e7580d9cf73fb"
+        }
+      ]
+    },
+    {
+      "Id": "inline-four-crankcase",
+      "Name": "Inline-four engine block",
+      "Description": "A gray four-cylinder casting with open bores, machined liners, recessed core plugs, stiffening ribs and a relieved crankcase.",
+      "Workflow": "Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 130604,
+      "Sha256": "d6a604953abe75a6e537cbd4eb4dfbfda029c2df7a40382b9b60945eb8633152",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/inline-four-crankcase.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
+    },
+    {
+      "Id": "keyed-shaft-coupling",
+      "Name": "Keyed shaft coupling rework",
+      "Description": "A tall keyed STEP hub becomes a low-profile shaft flange with ten large openings. Compare both solids or download the original coupling blank.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Original coupling blank (STEP)",
+          "FileName": "shaft-coupling-blank.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/shaft-coupling-blank.step",
+          "Bytes": 43479,
+          "Sha256": "124bccfb4e41037861c60b23b7185c5b3f582e7a391cb3058ecf4aadd92f6564"
+        }
+      ],
+      "Bytes": 88561,
+      "Sha256": "cdd989398a3ff1235e47a47aa992e0f8d69334d27d65fdd25d30b6420a26c767",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/keyed-shaft-coupling.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/keyed-shaft-coupling.png?v=f95b1bc6d20d36f1"
+    },
+    {
+      "Id": "pin-fin-cold-plate",
+      "Name": "Pin-fin cold plate",
+      "Description": "Compare the STEP blank on the left with the 24-pin heat sink on the right. Direct Edit raises the pilot boss and Edit Feature copies the cooling pins.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP blank",
+          "FileName": "pin-fin-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/pin-fin-source.step",
+          "Bytes": 82964,
+          "Sha256": "cf17da6554b17bea235f65ce90874c2329e3ed7a8277be3016903613048a0491"
+        }
+      ],
+      "Bytes": 155536,
+      "Sha256": "3e18b10d82df898009f1f31499d2e43e18dc2fd2ca95511bb2c480e6156b309a",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pin-fin-cold-plate.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pin-fin-cold-plate.png?v=28886fa1bd547de9"
+    },
+    {
+      "Id": "turned-knob-scan",
+      "Name": "Turned knob rebuilt from scan",
+      "Description": "Compare the source scan with a finished solid rebuilt from its measured grip, taper and dome. The fitted surfaces remain available in the browser.",
+      "Workflow": "Mesh / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 1236518,
+      "Sha256": "28193c8fbc6451b04a72f0bf648b7e0c1bdc4fcda20fa69e3e3265da19a62e58",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/turned-knob-scan.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/turned-knob-scan.png?v=e5863383ec1d1b3f"
+    },
+    {
+      "Id": "planar-coupe",
+      "Name": "Planar coupe",
+      "Description": "A teal two-seater with folded coachwork, perforated alloy wheels and separate glazing.",
+      "Workflow": "Solid / Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4905992,
+      "Sha256": "741d2d400c4b052e79eb0c34395e9b0bd7d3e115fd4116a97aa5f1dcac318639",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/planar-coupe.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/planar-coupe.png?v=329211c13846fbc4"
+    },
+    {
+      "Id": "kingfisher-kayak",
+      "Name": "Kingfisher kayak",
+      "Description": "A copper and teal kayak with lofted hull and deck skins, a trimmed cockpit, and a sculpted seat.",
+      "Workflow": "Surface / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 3414208,
+      "Sha256": "45e3c3d213241be7526f5b80596345fe04240806d6af70867ef6a15eb3b7ef47",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/kingfisher-kayak.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/kingfisher-kayak.png?v=caa829656c6cc235"
+    },
+    {
+      "Id": "calla-horn",
+      "Name": "Calla gramophone horn",
+      "Description": "A brass gramophone horn that opens into a calla lily, shaped with a seam-matched control net.",
+      "Workflow": "NURBS / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 968631,
+      "Sha256": "06e15f0ddd4ba8b8a979a71ed147c410896b60d80745d44bd3f26772db4f8e00",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/calla-horn.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/calla-horn.png?v=dbb8dce41de8a898"
+    },
+    {
+      "Id": "ergonomic-mouse",
+      "Name": "Ergonomic desktop mouse",
+      "Description": "A right-handed desktop mouse with a bicubic shell, thumb relief, and a fluted scroll wheel.",
+      "Workflow": "NURBS / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 600147,
+      "Sha256": "bbf9c8ed08994cf9ebd844b5eb062e5f5267d2f873de93fa6575d2f8f0dde16d",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/ergonomic-mouse.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/ergonomic-mouse.png?v=6fa3b8ae86c77fb9"
+    },
+    {
+      "Id": "solis-coupe",
+      "Name": "Solis coupe",
+      "Description": "A streamlined coupe exterior with defined roof rails, wraparound glazing, and sculpted fender shoulders.",
+      "Workflow": "NURBS / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1060271,
+      "Sha256": "524f18be25a65467484adb63e89227ab0fe1dcb460a41a5e72c959e92e59b1e6",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/solis-coupe.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/solis-coupe.png?v=77e762311cdd207a"
+    },
+    {
+      "Id": "oxblood-saddle",
+      "Name": "Oxblood bicycle saddle",
+      "Description": "An oxblood bicycle saddle with a central relief channel and swept support rails.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 187890,
+      "Sha256": "90284f19cec01f4e05b65f5533931d9ac4b3a57ef4fed61975533fc541658e05",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/oxblood-saddle.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/oxblood-saddle.png?v=6f21abe9b443ace8"
+    },
+    {
+      "Id": "petrol-ribbon-chair",
+      "Name": "Petrol ribbon chair",
+      "Description": "A cantilever chair shaped from a continuous ribbon with a cupped seat and back.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 89159,
+      "Sha256": "a8eca3fd23b5d77671815856acdb64c83ff553d6d709666a833a150124a1f68e",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/petrol-ribbon-chair.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/petrol-ribbon-chair.png?v=6ef7ee276a731509"
+    },
+    {
+      "Id": "ochre-climbing-shoe",
+      "Name": "Ochre climbing shoe",
+      "Description": "An ochre climbing shoe with separately editable upper, rubber wrap, and instep strap.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 202644,
+      "Sha256": "509cf44c1932a6c3fb987f0ea9095b297ab6b8ed904e24c11603b8620356793a",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/ochre-climbing-shoe.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/ochre-climbing-shoe.png?v=d2b335e27c778c67"
+    },
+    {
+      "Id": "pebble-pitcher",
+      "Name": "Pebble pitcher",
+      "Description": "A celadon pitcher with a thin pouring lip, inner wall, and loop handle in a single Freeform cage.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 611656,
+      "Sha256": "24c5305fb243f786f98a553aab43e923a54e82f29247f526dea9647f66669343",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/pebble-pitcher.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/pebble-pitcher.png?v=aeca9c9b9c2be431"
+    },
+    {
+      "Id": "manta-ray-statue",
+      "Name": "Manta ray statue",
+      "Description": "A terracotta-colored manta ray with banking wings and a swept tail, mounted on an oval plinth.",
+      "Workflow": "Freeform",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 400928,
+      "Sha256": "46898f8a03b0d57b301477a7376d2f06c93f36777534a23aa97da1ca3229afea",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/manta-ray-statue.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/manta-ray-statue.png?v=f6a0e6255a724b2f"
+    },
+    {
+      "Id": "porcelain-spoon-rest",
+      "Name": "Porcelain spoon rest",
+      "Description": "A shallow porcelain basin that narrows into an upturned handle, built with editable control grids.",
+      "Workflow": "NURBS",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 89636,
+      "Sha256": "681b615c1bf11db406afda862e14ca7c198d77b56a08363b5b4029c63c423228",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/porcelain-spoon-rest.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/porcelain-spoon-rest.png?v=ad5a133e3dcd48b3"
+    },
+    {
+      "Id": "three-lobed-handbell",
+      "Name": "Three-lobed handbell",
+      "Description": "A brass bell with a three-lobed rim, a visible clapper, and a turned walnut-colored grip.",
+      "Workflow": "NURBS",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 339520,
+      "Sha256": "6338b8860d47a58732dedf8b9450f865727778af9a2843141ad303c0f303cf62",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/three-lobed-handbell.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/three-lobed-handbell.png?v=dee4bd9cd899ea66"
+    },
+    {
+      "Id": "streamlined-train-nose",
+      "Name": "Streamlined train nose",
+      "Description": "A petrol-blue cab study with a tapered prow, wraparound windscreen, and separate running lamps.",
+      "Workflow": "NURBS",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 447128,
+      "Sha256": "95f6ea5b64b827bd4e8e072541adaee6598d041280b9d32724d4bc8c3af78ef2",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/streamlined-train-nose.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/streamlined-train-nose.png?v=ec4baa574fa01703"
+    },
+    {
+      "Id": "maple-observatory",
+      "Name": "Maple observatory",
+      "Description": "A maple architectural miniature with walnut dome and roofs, framed windows, columns and a four-step portico. Includes a proposed router part/stock plan for a 600 by 400 mm bed.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 32752358,
+      "Sha256": "826915dd46494555f81f1efd5e78e33c1a1d805b766ff934194a90f2455fd932",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/maple-observatory.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/maple-observatory.png?v=c370b4c41331c6de",
+      "Extras": [
+        {
+          "Label": "Router work breakdown (Markdown)",
+          "FileName": "maple-observatory-router-plan.md",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/maple-observatory-router-plan.md",
+          "Bytes": 3786,
+          "Sha256": "00cd7868d1f0abe30adf238a45d663a4aa6b9a3a630531dc06c476a6bb1dd46b"
+        },
+        {
+          "Label": "Part and stock inventory (CSV)",
+          "FileName": "maple-observatory-part-plan.csv",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/maple-observatory-part-plan.csv",
+          "Bytes": 20686,
+          "Sha256": "bca30670bfdad7de8564a5c28f9243ec98587c024d41074873cdfbcf1c58d920"
+        }
+      ]
+    },
+    {
+      "Id": "deco-mantel-clock",
+      "Name": "Art Deco mantel clock",
+      "Description": "A walnut mantel clock with stepped case, contrasting maple accents, detailed dial and static hands.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 7072953,
+      "Sha256": "19e1b820b52b6830a266c4b7e16ec215dbad782a124aa4de0aa4bbbf7215a178",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/deco-mantel-clock.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/deco-mantel-clock.png?v=3f271fd272f1cade"
+    },
+    {
+      "Id": "maple-walnut-guitar",
+      "Name": "Maple and walnut guitar body",
+      "Description": "A sculpted double-cutaway guitar body with a carved maple cap, walnut back, routing pockets and rear cover.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 10155244,
+      "Sha256": "5ca350401bfd1208a55e13342a27ad97afeedc262cc4cd9052ecbff89a6f2d30",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/maple-walnut-guitar.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/maple-walnut-guitar.png?v=6faa7ef8864828d7"
+    },
+    {
+      "Id": "horizon-h4",
+      "Name": "Horizon H4 helicopter",
+      "Description": "A pearl-and-teal utility helicopter assembly with framed glazing, detailed rotor head, shaped blades and landing skids.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 39200331,
+      "Sha256": "04e3aaf70ff080f6427a021c5c92f1110b318497827324bf06513509d8ca2b89",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/horizon-h4.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/horizon-h4.png?v=adfbe6d0684ba75b"
+    },
+    {
+      "Id": "linen-t2-toaster",
+      "Name": "Linen T2 toaster",
+      "Description": "An ivory two-slot toaster assembly with deep lined wells, stainless rims, side controls and a crumb-tray pull.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4121193,
+      "Sha256": "f0d848e35bd9a15d51a4932ed961af30f2144bd5fd0a9c8ca2df88367f00759c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/linen-t2-toaster.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/linen-t2-toaster.png?v=3aad6cafb2ad4265"
+    },
+    {
+      "Id": "serein-s1-phone",
+      "Name": "Serein S1 phone",
+      "Description": "A sage phone assembly with inset display artwork, detailed rear camera optics, metal frame and side controls.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 6930040,
+      "Sha256": "d11d2035e2664b444c19e4400d0fe344c59907144f04f150f4013f3315a371e6",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/serein-s1-phone.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/serein-s1-phone.png?v=dba5117c78d0beb4"
+    },
+    {
+      "Id": "arc-soap-mold-cam",
+      "Name": "Arc soap mold and CAM",
+      "Description": "A rounded soap master with two cavity-up tooling halves, registration bores and two named CAM setups with eight saved operations.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 4582216,
+      "Sha256": "af06a01d033784eff75c3eb693d580339c9d2e9de14735bf0c25735c5d11836f",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/arc-soap-mold-cam.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/arc-soap-mold-cam.png?v=e75ef84a9167f18c"
+    },
+    {
+      "Id": "walnut-valet",
+      "Name": "Walnut valet tray",
+      "Description": "Bitmap-textured walnut with three flowing pockets, carved fan grooves, four saved CNC operations and stock-removal review.",
+      "Workflow": "CAM / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 13895017,
+      "Sha256": "6f0e3015669b78f643ad6cd3d7b0e508387281129e7ddb61cf47bf4067f076fb",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/walnut-valet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/walnut-valet.png?v=46fbb38543fc841a"
+    },
+    {
+      "Id": "ridge-all-terrain",
+      "Name": "Ridge all-terrain wheel",
+      "Description": "160 patterned tread blocks with modeled sipes, a silver six split-spoke wheel, machined lip and six recessed lug nuts.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 49621935,
+      "Sha256": "01ec5e69d03e5b68bb6368e6c0e6ccd14248a70d338320be7af10c47ff705757",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/ridge-all-terrain.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/ridge-all-terrain.png?v=d8afb6f988529552"
+    },
+    {
+      "Id": "arc-desk-lamp",
+      "Name": "Arc desk lamp",
+      "Description": "A rolled, slotted and hemmed shade on a stepped support and folded plinth. Four sheet-metal developments are retained.",
+      "Workflow": "Sheet Metal",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 11214617,
+      "Sha256": "255c612bbab982e1015191371af21ffa68bfe7c91dbe29045ab85ed3e58a278b",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/arc-desk-lamp.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/arc-desk-lamp.png?v=a04a8f4195f94c62"
+    },
+    {
+      "Id": "bellavista-1964",
+      "Name": "Bellavista 1964 GT",
+      "Description": "An original 1960s grand tourer with sculpted red coachwork, chrome trim, detailed wheels, glazing and a furnished tan cabin.",
+      "Workflow": "Freeform / Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 35775944,
+      "Sha256": "9c3f1c658d8373585fcb492736ece5b8a7d84d3e2324dab8c7a374585b5a392f",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/bellavista-1964.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/bellavista-1964.png?v=5619c5c4aae43d76"
+    },
+    {
+      "Id": "aster-road",
+      "Name": "Aster Road bicycle",
+      "Description": "A teal road bicycle with 28-spoke wheels, disc brakes, drop bars and a detailed static drivetrain.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 17256271,
+      "Sha256": "61f12a240766645f9efda88c8d456504d2314bafa0607db7067307458d6b65ba",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/aster-road.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/aster-road.png?v=49f7278d9b881d64"
+    },
+    {
       "Id": "kestrel-r07",
       "Name": "Kestrel R-07",
       "Description": "A sci-fi sensor pod with layered armor, recessed vents, and a detailed optical head.",
@@ -252,6 +729,45 @@
       "Sha256": "3e5a0ccdb34e35ac4e704d2a9b9e60a7f617413c59720f8ebeba277047ed727f"
     },
     {
+      "Id": "cae-cantilever",
+      "Name": "Cantilever beam - three CAE studies",
+      "Description": "One A36 steel bar with ready-to-run static bending, natural frequencies and steady heat conduction. Opens in Static with the 50 N tip load applied.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.1.0",
+      "Bytes": 15930,
+      "Sha256": "64b5f9c63b94f983704016381410fc8c8393b0eb1289d209af6faab728f299e0",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/cae-cantilever.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/cae-cantilever.png?v=13a17fe52d67af4d"
+    },
+    {
+      "Id": "symmetric-pipe-network",
+      "Name": "Symmetric pipe network",
+      "Description": "A 40 mm trunk feeds two identical 25 mm branches. Opens Pipe Network with the example rows and pressures filled in.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 64696,
+      "Sha256": "848eb0a4048aa41eef4162b74b5a79c223af7f4ba85fa47a407eef71e0b2a066",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/symmetric-pipe-network.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/symmetric-pipe-network.png?v=eea6dee531bcab81"
+    },
+    {
+      "Id": "laminar-flow-duct",
+      "Name": "Laminar flow through a duct",
+      "Description": "A 20 mm bore water duct for comparing a 3D speed slice with the Pipe Flow calculation. Select the duct and its two end faces in Flow Study.",
+      "Workflow": "CAE",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 14182,
+      "Sha256": "358989255bfdfa641182d102d087d4ccc76457fad28b47e60eeec62aab784982",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/laminar-flow-duct.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/laminar-flow-duct.png?v=16613bda6bf9bb4a"
+    },
+    {
       "Id": "wrench",
       "Name": "Combination wrench",
       "Description": "A 13 mm chrome-vanadium combination wrench. Opens on the Static tab with five load cases, natural frequencies and a thermal setup ready to run.",
@@ -337,6 +853,129 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/fold-stand-drawing.png?v=91c6b0e866fc2e48",
       "Bytes": 5150226,
       "Sha256": "27c15b2cd601d612929fa9cbfdf5abc48292f33838591789e2076007d6801f55"
+    },
+    {
+      "Id": "motor-mount-direct-edit",
+      "Name": "Motor mount revised by direct editing",
+      "Description": "A plate with no feature history, lengthened, rebored, a hole closed and its pad drafted with Move, Offset, Delete and Draft Face. The STEP import sits on the left, the revised part on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 162055,
+      "Sha256": "a8490944f919c4edb6be33899d1cd974444021f55e7de35c80e50984fe52235c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/motor-mount-direct-edit.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/motor-mount-direct-edit.png?v=f4c9c03f8f324b1c"
+    },
+    {
+      "Id": "mounting-plate-before-after",
+      "Name": "Mounting plate before and after",
+      "Description": "A STEP plate with bolts reworked without history: holes resized from M6 to M8 with their bolts and nuts, staggered slots straightened, chamfer swapped for a round, text raised, rib thickened and the plate widened. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "mounting-plate-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/mounting-plate-source.step",
+          "Bytes": 1159522,
+          "Sha256": "c6acab4cb52c5b12d4f04cdc916578df08a58a702a708f50dcd7299a4eadfb5c"
+        }
+      ],
+      "Bytes": 1047610,
+      "Sha256": "3a5f09d175e5f2efc005339b0c5dd53cdf4fa675b97f29f773d3ae9d90dacafa",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/mounting-plate-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/mounting-plate-before-after.png?v=17eba0121b25a0b0"
+    },
+    {
+      "Id": "reduction-gearbox-before-after",
+      "Name": "Gearbox housing before and after",
+      "Description": "A 144-face STEP gearbox casting edited by Direct Modeling: the base widened to 260 mm, the flange and service pad raised, a dowel hole mirrored and the other one counterbored. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "reduction-gearbox-housing.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/reduction-gearbox-housing.step",
+          "Bytes": 475698,
+          "Sha256": "038df6534d5ceddfb05071242888e4553cf03bad89f0f30dd9e591fbf97ca2e5"
+        }
+      ],
+      "Bytes": 502918,
+      "Sha256": "21862df8451c609a9ea8430a755c295fb8f3ea74e04385074aed30fe2cc60998",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/reduction-gearbox-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/reduction-gearbox-before-after.png?v=1f6c106b8cbc23c8"
+    },
+    {
+      "Id": "spindle-carrier-before-after",
+      "Name": "Spindle carrier before and after",
+      "Description": "A square spindle carrier from STEP turned into an open-brace design: a 202 mm slotted base, tapered shoulders, two through-windows, a larger bore with a seat and six countersinks, from Direct Modeling edits and cuts on the imported solid. Before on the left, after on the right.",
+      "Workflow": "Direct Modeling / Solid",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source STEP (as imported)",
+          "FileName": "spindle-carrier-source.step",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/spindle-carrier-source.step",
+          "Bytes": 172563,
+          "Sha256": "1eacd2bed1a922d43674841e1f2340a3e67339c0dbaa45a627a1e9bf28874515"
+        }
+      ],
+      "Bytes": 202669,
+      "Sha256": "7a39b37cf9bbd60eb2722f137fa5b1e897e2de8963ec937fdf6caf45fe80f909",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/spindle-carrier-before-after.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/spindle-carrier-before-after.png?v=bfa901ff0b504845"
+    },
+    {
+      "Id": "multi-groove-sheave",
+      "Name": "Four-groove drive sheave",
+      "Description": "A grooved pulley with six lightening holes. Reduce Faces simplifies the imported mesh while preserving its closed surface.",
+      "Workflow": "Mesh",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source OBJ before editing",
+          "FileName": "multi-groove-sheave-source.obj",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/multi-groove-sheave-source.obj",
+          "Bytes": 819530,
+          "Sha256": "14fbd3e4505f82c9e20dee3e95b119d42d80c22442640f9bb3db8805e7da396e"
+        }
+      ],
+      "Bytes": 806611,
+      "Sha256": "49e77bf6f802d37831a09506add0b4621b991d0714a9b18b161fb21022057561",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/multi-groove-sheave.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/multi-groove-sheave.png?v=2f59350d65d763e4"
+    },
+    {
+      "Id": "centrifugal-impeller",
+      "Name": "Centrifugal impeller",
+      "Description": "Ten swept vanes surround a tapered hub. Fill Holes repairs a missing scan facet in the source OBJ.",
+      "Workflow": "Mesh",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Extras": [
+        {
+          "Label": "Source OBJ before editing",
+          "FileName": "centrifugal-impeller-source.obj",
+          "Url": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/centrifugal-impeller-source.obj",
+          "Bytes": 204615,
+          "Sha256": "70a26b0c30f5a9a463418d1744c56e09b64db6f5da41afb2c76ed2d7a2ccffd7"
+        }
+      ],
+      "Bytes": 327434,
+      "Sha256": "45bf7ba8f66bb9db82048e330bf2c9294ab46dbe7aef56b9fb45a9ed4b3678bf",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/centrifugal-impeller.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/centrifugal-impeller.png?v=a4e868af0731f5f5"
     }
   ]
 }

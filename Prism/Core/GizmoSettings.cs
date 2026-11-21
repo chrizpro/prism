@@ -26,11 +26,11 @@ public sealed class GizmoSettings
     public double AngleStep { get; set; } = 15;
     public double ScaleStep { get; set; } = 10;
     public static GizmoSettings Current => AppSettings.Current.Gizmo ??= new();
-    public bool Allows(int operation, int active) => DisplayMode switch
+    public bool Allows(int operation, int active, bool combinedByDefault = false) => DisplayMode switch
     {
         1 => true,
         2 => operation == 0 ? Move : operation == 1 ? Rotate : Scale,
-        _ => operation == active,
+        _ => combinedByDefault || operation == active,
     };
     public double Pixels => double.IsFinite(ScreenSize) ? Math.Clamp(ScreenSize, 56, 180) : 96;
     public float Stroke => double.IsFinite(LineWidth) ? (float)Math.Clamp(LineWidth, 1, 5) : 2.5f;

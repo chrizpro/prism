@@ -4,6 +4,12 @@ Move translates in XYZ. Rotate uses a world axis and a selectable pivot. Scale i
 
 In the viewport Move, Rotate and Scale are driven by the shared gizmo: arrows for the offsets, three rings for the angle (pressing a ring makes its axis the turn axis and starts again from 0) and the centre block for the factor. Maintained check: HDL-H023 in [ViewportHandleTests](../../../Prism.Tests/Headless/Viewport/ViewportHandleTests.cs); see [viewport interaction](../../viewport-interaction-handoff.md#command-gizmo-2026-11-12).
 
+**Moving sketches and datum planes (owner report 2026-11-19: "I sometimes find myself moving the gizmo, and the object didn't move").** Two causes were found. Move, Rotate, Scale and Mirror refused datum planes and reference images, so with one selected nothing could move. And a moved sketch kept its old plane and lost its sketch data, so it became a plain curve and reopened where it was. Now a sketch moves by moving its plane (a uniform Scale also scales its points, radii and dimension lengths) and stays editable, and a datum plane's plane moves with it. A third look-alike remains by design: the Datum section's free **Gizmo** moves only itself. Check: [SOL-H178](../../../Prism.Tests/Headless/Solid/MoveEveryKindTests.cs).
+
+Move, Rotate and Scale respect browser visibility when selecting objects. A visible datum plane can still be transformed. Selecting a box leaves hidden construction and origin planes hidden. The owner requested this on 2026-11-20. [Issue #154](https://github.com/chrizpro/prism/issues/154) · [SOL-H200](../../../Prism.Tests/Headless/Solid/TransformTests.cs).
+
+Windows desktop captures, 2026-11-20, with the browser origin hidden: [Rotate](evidence/SOL-H200-rotate.png) and [Scale](evidence/SOL-H200-scale.png).
+
 ## Review and verification
 
 This guide describes observed behavior. Additional requirements are proposed and need owner review. [Tracking issue #29](https://github.com/chrizpro/prism/issues/29).
@@ -13,6 +19,35 @@ This guide describes observed behavior. Additional requirements are proposed and
 The headless cases check exact-body bounds and volume for translation, world-origin rotation, uniform scaling and mirror copy, plus the Duplicate session action.
 
 [Warp tests](../../../Prism.Tests/Headless/Solid/WarpTests.cs) check Stretch with start/end ranges, Taper, Twist, Bend of a line centred on the origin, a stretched solid and Bend of a stored NURBS surface patch (WRP-H008).
+
+## Copy and paste in general — Approved 2026-11-16; owner asked 2026-11-19 for it to work on pretty much anything; partly built
+
+**Owner direction 2026-11-16:** copy and paste should mostly work on what is selected, including faces and edges, and possibly something unique with vertices. This could eventually replace the dedicated *Extract Edges* tool, which stays unchanged for now. The table of what each selection pastes as, and the open decisions, still need the owner's review.
+
+Owner request 2026-11-16: allow copy and paste wherever it helps, not only on Freeform faces (see [Freeform copy and paste](../freeform/README.md#copy-and-paste-of-faces-and-in-general)).
+
+**Today** (read from [CadSession.Clipboard.cs](../../../Prism/Core/CadSession.Clipboard.cs) on 2026-11-16, not tried by hand). `Ctrl+C` and `Ctrl+V` copy and paste **whole objects** only. They are shared by every open document, so a part can go to another tab, and Alt-drag with Move leaves a copy behind. They do nothing while a command panel is open or while sketching, and they ignore annotations, reference parts and assembly components. Faces, edges, sketch entities and Freeform cage parts cannot be copied.
+
+**Status 2026-11-20, built and covered:** objects, faces of solids and surfaces (a surface), edges (a curve), vertices (points), mesh triangles (a new mesh of those triangles) and, while sketching, sketch curves with the constraints and dimensions between them (pasted into the open sketch, shifted a little and selected; constraints to curves left behind and Fixed constraints are dropped). Checks: [SEL-H028, SEL-H060 to SEL-H063](../../../Prism.Tests/Headless/Selection/ClipboardTests.cs). The owner's 2026-11-19 request settles the open decisions below with the recommended answers. Not built yet: Freeform cage faces (they are only selectable inside Edit Freeform), pasting sketch curves into another sketch from outside it, and Ctrl+Shift+V at the pointer.
+
+**Proposal: copy whatever is selected, at the level it is selected.** One rule: Ctrl+C copies what you have selected, Ctrl+V pastes it as the nearest useful thing, in the same place, selected so the gizmo can move it. Ctrl+Shift+V pastes at the pointer.
+
+| Selected | Paste gives | Notes |
+|---|---|---|
+| Objects (today) | Copies of the objects | Unchanged. |
+| Faces of a solid | A new surface object made of those faces | A solid face is never pasted back as a solid, because it would be open. |
+| Faces of a surface or NURBS | A new surface with the faces joined where they touch | |
+| Freeform cage faces | A new Freeform body (or join the cage, a panel choice) | Points, creases and frozen flags come with it. |
+| Edges or a curve | A new curve | |
+| Sketch entities (while sketching) | The same entities in the active sketch, offset slightly so they are visible, or in another sketch on a different plane | Dimensions and constraints among the copied entities come along; those to entities left behind are dropped and the panel says how many. |
+| Whole sketch | A copy of the sketch on the same plane | |
+| Mesh selection | A new mesh of those triangles | |
+
+**Not proposed:** copying history steps, ribbon layouts or assembly components (assemblies have their own insert and pattern tools).
+
+**Open decisions.** (a) Allow paste while a command panel is open (for example into a selection slot)? Recommended no. (b) Paste at the original place, or at the pointer, by default? Recommended original place, as today, so a pasted copy never lands somewhere surprising. (c) Which rows to build first? Recommended Freeform faces, sketch entities and surface faces. (d) Is a pasted face of a solid a surface (recommended) or should the tool ask?
+
+**Acceptance (draft).** Copy the top face of a 10 mm cube and paste: a one-face surface of area 100 mm² exists at the cube's top, the cube is unchanged, and Ctrl+Z removes only the surface. Copy two connected lines and a circle in a sketch and paste: the sketch holds the originals plus the copies, with the dimensions between the copied entities. Copy in one document and paste in another tab gives the same result. Not yet tested; no tests are written until you decide.
 
 ## Coverage gaps
 

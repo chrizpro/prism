@@ -81,6 +81,10 @@ public sealed class GalleryStoreTests : IDisposable
             Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [entry]).ToJson()));
         Assert.Throws<InvalidDataException>(() => GalleryCatalog.Parse(new GalleryCatalog(1, [Entry, Entry]).ToJson()));
         Assert.True(Entry.IsCompatible("0.1.0-alpha.1"));
+        var v04 = Entry with { MinimumVersion = "0.4.0" };
+        Assert.True(v04.IsCompatible("0.4.0-alpha.1+revision"));
+        Assert.True(v04.IsCompatible("0.4.0"));
+        Assert.False(v04.IsCompatible("0.3.0-alpha.1"));
         Assert.False((Entry with { MinimumVersion = "2.0.0" }).IsCompatible("1.0.0"));
     }
 

@@ -120,7 +120,7 @@ public sealed class TrimPlan
 public sealed class TrimTool : SketchTool
 {
     public override string Name => "Trim";
-    public override string Prompt => "Trim: click the part of a line, arc or circle you want to remove. It is cut back to the nearest crossing curves on each side; a curve nothing crosses is deleted.";
+    public override string Prompt => "Trim: click the part of a line, arc, circle or ellipse you want to remove. It is cut back to the nearest crossing curves on each side; construction lines neither cut nor get trimmed. A curve nothing crosses is deleted.";
 
     TrimPlan? _hover;
 
@@ -131,28 +131,45 @@ public sealed class TrimTool : SketchTool
     {
         var m = sk.Model; var e = m.EntityOrNull(eid); if (e == null) return null;
         var plan = new TrimPlan { Entity = eid, Type = e.Type };
-        if (e.Type is not (EntType.Line or EntType.Circle or EntType.Arc)) { plan.Unsupported = true; return plan; }
-        var target = SketchCross.Prims(m, e)[0];
+        if (e.Type is not (EntType.Line or EntType.Circle or EntType.Arc or EntType.Ellipse)) { plan.Unsupported = true; return plan; }
+        bool ellipse = e.Type == EntType.Ellipse;
+        var targets = SketchCross.Prims(m, e);
+        var target = targets[0];
+        double T(double x, double y) => ellipse ? EllipseT(m, e, x, y) : Param(target, x, y);
         var hits = new List<(double t, Crossing c)>();
+        void AddHit(double x, double y, int cutter)
+        {
+            double t = T(x, y);
+            if (target is SketchCross.Seg && !ellipse && (t < 1e-6 || t > 1 - 1e-6)) return;
+            if (!ellipse && target is SketchCross.Arcp { Sweep: < 2 * Math.PI - 1e-9 } arc && (t < 1e-6 || t > arc.Sweep - 1e-6)) return;
+            if (hits.Any(h => Math.Abs(h.t - t) < 1e-6 || Math.Abs(Math.Abs(h.t - t) - 2 * Math.PI) < 1e-6)) return;
+            hits.Add((t, new Crossing(x, y, cutter)));
+        }
         foreach (var o in m.Entities)
         {
             if (o.Id == eid || o.Type == EntType.Point) continue;
-            foreach (var prim in SketchCross.Prims(m, o))
-                foreach (var (x, y) in SketchCross.Hit(target, prim))
+            // construction lines (a rectangle's diagonals, centre lines) are references: they never cut real geometry, though a
+            // construction curve being trimmed is still cut by anything it crosses
+            if (o.Construction && !e.Construction) continue;
+            // a crossing at the very end of the curve cannot split it (usually the corner it shares with a neighbour)
+            foreach (var mine in targets)
+                foreach (var prim in SketchCross.Prims(m, o))
+                    foreach (var (x, y) in SketchCross.Hit(mine, prim))
+                        AddHit(x, y, o.Id);
+            // a curve that ends on a closed curve (a line from one side of a circle or ellipse to the other) cuts it there too:
+            // the touch at its end point is easily missed as a crossing (owner report 2026-11-20)
+            if (e.Type is EntType.Circle or EntType.Ellipse && o.Type is EntType.Line or EntType.Arc)
+                foreach (int end in o.Type == EntType.Line ? new[] { o.A, o.B } : new[] { o.B, o.C })
                 {
-                    double t = Param(target, x, y);
-                    // a crossing at the very end of the curve cannot split it (usually the corner it shares with a neighbour)
-                    if (target is SketchCross.Seg && (t < 1e-6 || t > 1 - 1e-6)) continue;
-                    if (target is SketchCross.Arcp { Sweep: < 2 * Math.PI - 1e-9 } a && (t < 1e-6 || t > a.Sweep - 1e-6)) continue;
-                    if (hits.Any(h => Math.Abs(h.t - t) < 1e-6)) continue;
-                    hits.Add((t, new Crossing(x, y, o.Id)));
+                    var q = m.P(end);
+                    if (DistanceTo(m, e, q.X, q.Y) < 1e-6 * Math.Max(1, Size(m, e))) AddHit(q.X, q.Y, o.Id);
                 }
         }
         var (cu, cv, _) = sk.ClosestOn(e, u, v);
-        double tc = Param(target, cu, cv);
+        double tc = T(cu, cv);
         plan.ClickT = tc;
         hits.Sort((a, b) => a.t.CompareTo(b.t));
-        bool circle = e.Type == EntType.Circle;
+        bool circle = e.Type is EntType.Circle or EntType.Ellipse;
         if (hits.Count == 0 || circle && hits.Count < 2) { plan.DeleteAll = true; return plan; }
         if (circle)
         {
@@ -166,6 +183,23 @@ public sealed class TrimTool : SketchTool
         if (l.c != default) { plan.Lo = l.c; plan.LoT = l.t; }
         if (hh.c != default) { plan.Hi = hh.c; plan.HiT = hh.t; }
         return plan;
+    }
+
+    /// <summary>The ellipse's own angle parameter (as <see cref="SketchModel.EllipsePoint"/> takes it) of a point on or near it, 0 to 2π.</summary>
+    static double EllipseT(SketchModel m, SkEntity e, double x, double y)
+    {
+        var (cx, cy, a, b, rot) = m.EllipseGeometry(e);
+        double dx = x - cx, dy = y - cy, cr = Math.Cos(rot), sr = Math.Sin(rot);
+        return Rel(Math.Atan2((-dx * sr + dy * cr) / b, (dx * cr + dy * sr) / a), 0);
+    }
+
+    static double Size(SketchModel m, SkEntity e) => e.Type == EntType.Circle ? e.R : m.EllipseGeometry(e) is var g ? Math.Max(g.a, g.b) : 1;
+
+    static double DistanceTo(SketchModel m, SkEntity e, double x, double y)
+    {
+        if (e.Type == EntType.Circle) { var c = m.P(e.A); return Math.Abs(Math.Sqrt((x - c.X) * (x - c.X) + (y - c.Y) * (y - c.Y)) - e.R); }
+        var p = m.EllipsePoint(e, EllipseT(m, e, x, y));   // close enough to the foot point for a point that lies on the curve
+        return Math.Sqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y));
     }
 
     static double Param(SketchCross.Prim p, double x, double y) => p switch
@@ -218,6 +252,18 @@ public sealed class TrimTool : SketchTool
                 m.RemoveEntity(e.Id);
                 break;
             }
+            case EntType.Ellipse:
+            {
+                // the sketch has no partial-ellipse curve: the part that stays becomes a spline through points on the ellipse, its ends on the cutters
+                double from = plan.HiT, to = plan.LoT; if (to <= from) to += 2 * Math.PI;
+                int n = Math.Max(8, (int)Math.Ceiling((to - from) / (2 * Math.PI) * 48));
+                var ids = new List<int> { tool.NewEnd(m, plan.Hi!.Value) };
+                for (int i = 1; i < n; i++) { var q = m.EllipsePoint(e, from + (to - from) * i / n); ids.Add(m.AddPoint(q.x, q.y)); }
+                ids.Add(tool.NewEnd(m, plan.Lo!.Value));
+                m.AddSpline(ids, false, false, cons);
+                m.RemoveEntity(e.Id);
+                break;
+            }
         }
     }
 
@@ -226,7 +272,7 @@ public sealed class TrimTool : SketchTool
     {
         var sk = s.Sketch ?? throw new InvalidOperationException("No sketch is open.");
         var plan = Plan(sk, eid, u, v) ?? throw new ArgumentException($"No curve e{eid}.");
-        if (plan.Unsupported) throw new InvalidOperationException("Trim works on lines, arcs and circles.");
+        if (plan.Unsupported) throw new InvalidOperationException("Trim works on lines, arcs, circles and ellipses.");
         return sk.Edit(s, "That trim", () => { sk.SelEntities.Clear(); sk.SelPoints.Clear(); Apply(sk, plan); });
     }
 
@@ -235,11 +281,12 @@ public sealed class TrimTool : SketchTool
     {
         if (!p.Left) return false;
         var sk = Sk(s);
-        int eid = sk.PickEntity(s, p.X, p.Y, 9);
-        if (eid < 0 || sk.PlanePoint(s, p.X, p.Y) is not { } uv) return true;
+        int eid = sk.PickEntity(s, p.X, p.Y, 9, Trimmable);
+        if (eid < 0) { if (sk.PickEntity(s, p.X, p.Y, 9) >= 0) s.Say("Construction lines are references: Trim leaves them alone. Delete one with the Delete key.", true); return true; }
+        if (sk.PlanePoint(s, p.X, p.Y) is not { } uv) return true;
         var plan = Plan(sk, eid, uv.u, uv.v);
         if (plan == null) return true;
-        if (plan.Unsupported) { s.Say("Trim works on lines, arcs and circles. Delete splines and ellipses whole with the Delete key.", true); return true; }
+        if (plan.Unsupported) { s.Say("Trim works on lines, arcs, circles and ellipses. Delete a spline whole with the Delete key.", true); return true; }
         sk.Edit(s, "That trim", () => { sk.SelEntities.Clear(); sk.SelPoints.Clear(); Apply(sk, plan); });
         _hover = null; sk.HoverEntity = -1;
         s.Invalidate();
@@ -249,13 +296,16 @@ public sealed class TrimTool : SketchTool
     public override void PointerMove(CadSession s, PointerInfo p)
     {
         var sk = Sk(s);
-        int eid = sk.PickEntity(s, p.X, p.Y, 9);
+        int eid = sk.PickEntity(s, p.X, p.Y, 9, Trimmable);
         _hover = null;
         if (eid >= 0 && sk.PlanePoint(s, p.X, p.Y) is { } uv && Plan(sk, eid, uv.u, uv.v) is { Unsupported: false } plan) _hover = plan;
         sk.HoverEntity = -1; sk.Cursor = null;
         if (sk.PlanePoint(s, p.X, p.Y) is { } w) s.Cursor3 = sk.Plane.PointAt(w.u, w.v);
         s.Invalidate();
     }
+
+    /// <summary>Construction curves (a rectangle's diagonals, centre lines) are references: they never cut, and Trim never cuts them (owner rule 2026-11-20).</summary>
+    static bool Trimmable(SkEntity e) => !e.Construction;
 
     public override bool Key(CadSession s, string key) => false;
 
@@ -289,6 +339,12 @@ public sealed class TrimTool : SketchTool
                 for (int i = 0; i <= n; i++) { double ang = a0 + from + (to - from) * i / n; pts.Add(W(sk, cx + r * Math.Cos(ang), cy + r * Math.Sin(ang))); }
                 break;
             }
+        }
+        if (e.Type == EntType.Ellipse)
+        {
+            double from = plan.DeleteAll ? 0 : plan.LoT, to = plan.DeleteAll ? 2 * Math.PI : plan.HiT;
+            if (to <= from) to += 2 * Math.PI;
+            for (int i = 0; i <= 96; i++) { var q = m.EllipsePoint(e, from + (to - from) * i / 96); pts.Add(W(sk, q.x, q.y)); }
         }
         if (pts.Count > 1) o.AddPolyline(pts, red, 4.5f);
         foreach (var c in new[] { plan.Lo, plan.Hi }) if (c is { } cc && !plan.DeleteAll) o.AddDot(W(sk, cc.X, cc.Y), red, 8);

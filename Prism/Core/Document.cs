@@ -50,6 +50,12 @@ public sealed class SceneObject
     /// <summary>Same object with these face styles (null clears them all).</summary>
     public SceneObject WithFaceStyles(FaceStyle?[]? styles) => styles == FaceStyles ? this : new(Id, Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm)
     { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, FaceStyles = styles, Group = Group };
+    /// <summary>Same object with new geometry and a new plane (a datum plane or reference image that was moved); kind and everything else kept.</summary>
+    public SceneObject WithShapeAndPlane(Shape s, Plane3 plane) => new(Id, Name, s, Kind, Color, Visible, plane, Form, SketchData, Look, Tri, Asm)
+    { FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = TrackHistory, Group = Group };
+    /// <summary>The same body under a new id, so no earlier history step made it (Remove history). Shape, display mesh, look and face styles are kept; history tracking is off.</summary>
+    public SceneObject AsPlainCopy() => new(Guid.NewGuid(), Name, _shape, Kind, Color, Visible, SketchPlane, Form, SketchData, Look, Tri, Asm)
+    { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, IsMoldHalf = IsMoldHalf, TrackHistory = false, FaceStyles = FaceStyles, Group = Group };
     public Material? Material => Look.PhysicalSnapshot ?? Materials.Find(Look.MaterialId);
     public bool Visible { get; }
     public Plane3? SketchPlane { get; }
@@ -76,6 +82,8 @@ public sealed class SceneObject
     public Assembly.ComponentInfo? Component => Asm as Assembly.ComponentInfo;
 
     Shape? _shape;
+    /// <summary>Diagnostic for avoiding eager NURBS conversion of unrelated forms during scoped operations.</summary>
+    internal bool HasCachedShape => _shape != null;
     MeshData? _mesh;
 
     /// <summary>Exact geometry. For a Form this is generated (and cached) by fitting NURBS patches to the subdivision surface.</summary>
@@ -134,7 +142,7 @@ public sealed class SceneObject
     public SceneObject WithForm(SubdMesh f) => new(Id, Name, null, ObjKind.Form, Color, Visible, null, f, null, Look) { Group = Group };
 }
 
-public enum SelKind { Object, Face, Edge, Origin, Datum, Entity, Vertex }
+public enum SelKind { Object, Face, Edge, Origin, Datum, Entity, Vertex, MeshFace }
 
 public readonly record struct SelItem(Guid Obj, SelKind Kind, int Index, int Index2 = 0)
 {
@@ -148,7 +156,7 @@ public enum SelFilter
     /// <summary>Datum annotations (points, axes, planes) hosted by sketch data.</summary>
     Datum = 1024,
     /// <summary>Corner points of solids, surfaces and curves.</summary>
-    Vertex = 2048,
+    Vertex = 2048, MeshFace = 4096,
     AnyObject = Solid | SurfaceObj | CurveObj | SketchObj | Form | MeshObj,
     AnyCurve = CurveObj | SketchObj,
     Any = AnyObject | Face | Edge | Plane | Axis | Datum,

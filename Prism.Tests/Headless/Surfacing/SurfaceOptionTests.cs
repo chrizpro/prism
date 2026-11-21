@@ -315,10 +315,35 @@ public class SurfaceOptionTests
         Assert.Equal(ObjKind.Surface, left.Kind);
         Assert.Equal(1, left.Shape.Count(SubKind.Face));
         AssertNear(50, left.Shape.Props().Area, "Remaining area (mm²)");
-        Assert.NotNull(vm.Session.Find(line.Id));
+        Assert.Null(vm.Session.Find(line.Id));      // the split line was a throwaway cutting tool, deleted with the split (owner request 2026-11-16)
     }
 
-    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses an open surface as the tool and leaves both objects")]
+    [AvaloniaFact(DisplayName = "SFC-H015 | Split Surface deletes a throwaway cutting curve by default and keeps it when the option is off")]
+    [Trait("TestId", "SFC-H015")]
+    public void SplitSurfaceDeletesCuttingToolUnlessKept()
+    {
+        foreach (bool keep in new[] { false, true })
+        {
+            var vm = new MainViewModel();
+            var sheet = Sheet(vm.Session);
+            using var lineWire = Occ.Polyline([new(5, -5, 0), new(5, 15, 0)], false);
+            var line = vm.Session.AddObject(lineWire, "Split line", ObjKind.Curve);
+            var command = Start<SplitSurfaceCommand>(vm, "NURBS");
+            command.ConfigureInputs(() =>
+            {
+                SetSelection(command, "Surface to split", sheet);
+                SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+                if (keep) command.Params.OfType<BoolParam>().Single(p => p.Label == "Delete the cutting tool afterward").Value = false;
+            });
+            Assert.True(command.TryBuild() != null, command.Error);
+            vm.Session.CommitCommand();
+            vm.Session.CancelCommand();
+            Assert.Equal(keep, vm.Session.Find(line.Id) != null);
+            Assert.NotNull(vm.Session.Find(sheet.Id));
+        }
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H014 | Subtract refuses a flat sheet as the tool (it encloses no space) and leaves both objects")]
     [Trait("TestId", "SFC-H014")]
     public void SubtractRefusesSurfaceTool()
     {
@@ -334,7 +359,7 @@ public class SurfaceOptionTests
             SetSelection(command, "Tool bodies", wall);
         });
         Assert.Null(command.TryBuild());
-        Assert.Contains("no inside", command.Error);
+        Assert.Contains("enclose", command.Error);
         vm.Session.CancelCommand();
         Assert.NotNull(vm.Session.Find(wall.Id));
     }

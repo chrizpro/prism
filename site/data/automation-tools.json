@@ -788,6 +788,19 @@
   }
  },
  {
+  "name": "guide",
+  "description": "Read a built-in how-to for doing a kind of work well. With no topic it lists them. Read 'freeform' before building any curved or organic shape: it covers describing a shape by stations and silhouettes, measuring it with solid_profile and screenshot views, and the usual failure modes.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "topic": {
+     "description": "Guide name, for example freeform. Omit to list the guides.",
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
   "name": "history",
   "description": "Undo or redo.",
   "inputSchema": {
@@ -1064,6 +1077,14 @@
     "split": {
      "description": "auto (default: 3MF objects become separate bodies) | none | groups (file parts: 3MF object, OBJ object/group, STL solid) | components (connected pieces).",
      "type": "string"
+    },
+    "reduce_percent": {
+     "description": "Reduce faces on import: keep this percentage of the triangles (default: no reduction).",
+     "type": "number"
+    },
+    "reduce_to": {
+     "description": "Reduce faces on import to about this many triangles for the whole file (default: no reduction).",
+     "type": "integer"
     }
    },
    "required": [
@@ -1345,7 +1366,7 @@
  },
  {
   "name": "screenshot",
-  "description": "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900).",
+  "description": "Capture the app window as a PNG. Whole window by default (ribbon, panels, viewport); viewport:true captures only the 3D view, which is what you usually want to judge a model and costs far fewer tokens. max_width shrinks the picture (e.g. 900). To judge a shape, pass views (front, back, left, right, top, bottom, iso; default front/right/top/iso): one labelled sheet of orthographic pictures at a common scale of just the objects named in object (a name or list; default every visible object), shaded without grid. The camera, display and visibility are restored afterwards. The reply gives each view's axes, pixelsPerMm and the bounds.",
   "inputSchema": {
    "type": "object",
    "properties": {
@@ -1359,6 +1380,26 @@
     },
     "wait_ms": {
      "description": "Milliseconds to wait for a fresh frame before capturing (default 250).",
+     "type": "integer"
+    },
+    "views": {
+     "description": "Standard views to combine into one labelled sheet: front, back, left, right, top, bottom, iso. An empty list means front, right, top, iso.",
+     "type": "array",
+     "items": {}
+    },
+    "object": {
+     "description": "With views: show only this object name (or a list of names)."
+    },
+    "display": {
+     "description": "With views: shaded (default) | shaded_edges | wireframe.",
+     "type": "string"
+    },
+    "cell_width": {
+     "description": "With views: width of each picture in pixels (default 480).",
+     "type": "integer"
+    },
+    "columns": {
+     "description": "With views: pictures per row (default 2).",
      "type": "integer"
     }
    }
@@ -1505,7 +1546,7 @@
  },
  {
   "name": "sketch_add",
-  "description": "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}. Add \"construction\":true for reference geometry.",
+  "description": "Add geometry to the open sketch using the same tools as the mouse (so auto-constraints apply: coincident joints, horizontal/vertical, tangents...). Coordinates are 2D [u,v] on the sketch plane. Entity types: line {points:[[u,v],[u,v]]}; polyline {points, closed?}; rect {corner1, corner2} | {center, corner} | {points:[p1,p2,p3]} (3-point); circle {center, radius} | {points:[p1,p2]} (2-point) | {points:[p1,p2,p3]} (3-point); arc {points:[start,mid,end]} | {center, start, end}; ellipse {center, major:[u,v] (end of one axis), minor (other radius)}; line also takes midpoint:true ([middle, end]); polygon {center, radius, sides, circumscribed?}; slot {center1, center2, width}; spline {points, closed?, control?}; point {at:[u,v]}; text {text, at:[u,v] (lower-left of the first line, default [0,0]), height? (mm, default 10), font? (an installed font, default Arial), bold?, spacing? (extra letter spacing, mm); line breaks start a new line}. Add \"construction\":true for reference geometry.",
   "inputSchema": {
    "type": "object",
    "properties": {
@@ -1631,7 +1672,7 @@
  },
  {
   "name": "sketch_input",
-  "description": "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
+  "description": "Drive the open sketch like the mouse and keyboard. Optionally pick a tool (line, line_mid, rect, rect_center, rect_3pt, ellipse, circle, circle_2pt, circle_3pt, polygon, slot, spline, spline_control, edit_spline, select, fit_section_curve, constrain:<type>), then send events: {type:'move'|'down'|'up'|'click'|'dclick'|'key', u, v (sketch plane coords), shift, alt} or {type:'key', key:'Char:5'|'Tab'|'Enter'|'Escape'|'Back'|'Delete'|'RightClick'|'Char:L'|'Char:C'|'Char:X'}. Returns the on-screen read-out labels, the status line and the sketch state.",
   "inputSchema": {
    "type": "object",
    "properties": {
@@ -1924,6 +1965,51 @@
     },
     "summary": {
      "description": "Counts only.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "object"
+   ]
+  }
+ },
+ {
+  "name": "solid_profile",
+  "description": "Look at a shape in numbers and text, for judging proportions without a picture. Works on a Freeform, solid, surface or mesh (or a list of them, measured together). sections: cross-sections perpendicular to axis (x|y|z, default z) at count evenly spaced offsets (default 10) or at the offsets in at: for each cut the two extents (min/max), the section area, the centroid and how many separate outlines it has; an empty cut means the shape does not reach that offset. silhouettes: ASCII pictures (front: x right z up; right: y right z up; top: x right y up) at the stated mm per column; shade:true adds a depth ramp (@ nearest to . farthest). Use it to check that a neck is narrower than a shoulder, a handle really is a loop, or a part is lopsided.",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "object": {
+     "description": "Object name, or a list of names."
+    },
+    "axis": {
+     "description": "Section axis: x | y | z (default z).",
+     "type": "string"
+    },
+    "count": {
+     "description": "Evenly spaced sections (default 10; 0 = none).",
+     "type": "integer"
+    },
+    "at": {
+     "description": "Section offsets along the axis in mm (instead of count).",
+     "type": "array",
+     "items": {}
+    },
+    "views": {
+     "description": "Silhouettes to draw: front, right, top (default all three; [] = none).",
+     "type": "array",
+     "items": {}
+    },
+    "width": {
+     "description": "Silhouette width in characters (default 48).",
+     "type": "integer"
+    },
+    "rows": {
+     "description": "Most rows a silhouette may use (default 26); a tall shape gets a coarser grid instead.",
+     "type": "integer"
+    },
+    "shade": {
+     "description": "Silhouette uses a depth ramp instead of #.",
      "type": "boolean"
     }
    },

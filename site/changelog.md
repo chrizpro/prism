@@ -1,5 +1,60 @@
 # Changes
 
+## 0.4.0 alpha
+
+Direct modeling grows up: Prism now recognises the features of an imported part and lets you edit them by typing a dimension. The Mesh tab was rebuilt around picking triangles directly, sheet metal folds from a flat sketch, and every ribbon button explains itself with a picture. See the [illustrated modeling guide](/guide/modeling-04) for the surfacing and fillet changes.
+
+### Direct modeling and imported parts
+
+- **Feature recognition** on imported STEP parts: holes (with counterbores, countersinks, threads and standard sizes), slots, pockets, bosses, fillets, chamfers, ribs, engraved and embossed text, and patterns. That includes grids read as rows, staggered rows and bolt circles. Each solid lists what was found in a **Features** folder in the Browser.
+- **Edit Distance**: click what to move and what to measure from, then type the new distance (KeyCreator style). **Symmetric** moves both sides.
+- **Edit Feature** moves, copies, resizes, deletes or changes the type of a feature. A hole can become a counterbore, countersink or threaded hole, and a chamfer can become a fillet or the other way round. Bolts, screws and nuts recognised in a hole follow it.
+- **Edit Pattern** changes the count and spacing of a recognised pattern, including circles and staggered grids.
+- **Edit Face** reshapes a flat four-sided face with a grid of points, **Sculpt Face** raises a smooth bump, and **Warp** works on faces.
+- **Thread** cuts a modeled thread on a pin or in an existing hole, and **Fillet** gains a **Cove** shape (a concave scoop).
+- **Bake history** up to a step from the timeline, or **Remove history** from one body and keep its shape.
+- Large imported parts stay responsive: shape measurements are kept and reused.
+
+### Selecting, copying and moving
+
+- The pick level is honoured everywhere: **Object** picks whole things, **Edge** picks every kind of curve (sketch lines, text and imported edges included), **Vertex** picks points, and **Face** picks faces and mesh triangles.
+- Everything you can select can be copied, pasted, deleted and moved: faces, edges (as curves), points, mesh triangles, datum planes and sketch curves while sketching.
+- The ribbon **Move** gizmo takes curves, sketches and picked parts. Moved sketches stay editable.
+- **Isolate** the selected faces from the right-click menu.
+- **Every button with a list works the same way.** A click runs the action you picked last (or a sensible first choice). The arrow opens the list, and picking from it runs that action and remembers it.
+
+### Mesh and scans
+
+- Mesh tools use the triangles you select in **Face** mode. Double-click a triangle to take its whole smooth patch; Shift adds and Ctrl removes.
+- **Fit Region** fits a plane, cylinder, sphere, cone or smooth patch to the selection, works on the large flat faces of CAD exports, and adds a construction plane sized to the face.
+- **Fill Hole** fills several picked openings at once. **Stitch Seam** joins two boundaries, and **Draw Faces** draws triangles and quads that follow a rim and snap to the mesh.
+- **Section Sketch** turns a slice of a scan into an editable sketch of lines and arcs. Mesh Quality and face selection were restored.
+
+### Sheet metal, mold, manufacturing
+
+- **Fold** folds a flat sketch of a sheet along its bend lines, with **Edge Flange**, a radius per bend and a flat pattern.
+- **Mold** adds shrinkage, an offset and an automatic block, and takes its part from another open tab as well as a file. **Image Carve** cuts a picture into a CNC relief.
+- CAM setups get more work-zero choices, a viewport preview and a machine X direction. **Stock review** plays the removal back step by step.
+
+### Surfaces, curves and sketching
+
+- **Project / Wrap Curve** is one tool, and **Draw on Surface** can split the faces it crosses.
+- **Sweep** takes a twist, guide curves and a scale table, and **Loft** takes start and end tangency.
+- **Union**, **Subtract** and **Intersect** work on surfaces. **Rebuild Surface** handles surfaces of several faces.
+- Sketch: **Trim** ignores construction lines, a centre rectangle gets both diagonals, **Insert Point** snaps to midpoints and crossings, and closing a spline snaps to its first point.
+- A **Data panel** with a spreadsheet grid feeds **Curve from Data**, including helixes.
+
+### Freeform and NURBS
+
+- **Knife** cuts a form along a line you draw across it. Freeform gains edge-loop sliding, hole filling at the selection, patterns and Analyze.
+- Each visit to **Draw** on the NURBS tab makes its own sketch, gathered under a NURBS Curves folder.
+
+### The application
+
+- Every ribbon button, including those in dropdowns, has a hover card. Modeling tools show a before-and-after picture.
+- Closing a changed tab asks once: Save, Don't save or Cancel. Files reopen on the ribbon tab they were saved on.
+- **Zoom Selected** is on the view bar, and new documents open in **Shaded + edges**.
+
 ## 0.3.0 alpha
 
 Selecting, grouping and copying; more of what you can do to a surface; and a lot of workflow work across printing, manufacturing, electronics, animation and simulation.

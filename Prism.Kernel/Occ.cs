@@ -23,11 +23,25 @@ public sealed class Shape : IDisposable
     public bool HasSolids => Count(SubKind.Solid) > 0;
     public bool HasFaces => Count(SubKind.Face) > 0;
 
+    // Boxed so that a read never sees half of another thread's write. The shape is immutable, so the answer never changes.
+    object? _props;
+
+    /// <summary>Volume, area and tight bounding box. Exact integration takes seconds on a part with hundreds of curved faces,
+    /// and the selection panel, previews and display meshing all ask for it, so the first answer is kept.</summary>
     public unsafe ShapeProps Props()
     {
+        if (_props is ShapeProps cached) return cached;
         double* p = stackalloc double[8];
         Native.ck_props(Handle, p);
-        return new(p[0], p[1], new(p[2], p[3], p[4]), new(p[5], p[6], p[7]));
+        var props = new ShapeProps(p[0], p[1], new(p[2], p[3], p[4]), new(p[5], p[6], p[7]));
+        _props = props;
+        return props;
+    }
+
+    /// <summary>Gives a moved copy the measurements of its source: volume and area are unchanged and the box moves with it.</summary>
+    internal void InheritMovedProps(Shape source, Vec3 by)
+    {
+        if (source._props is ShapeProps p) _props = p with { Min = p.Min + by, Max = p.Max + by };
     }
 
     /// <summary>Direct children of a compound (used when importing files).</summary>
@@ -151,6 +165,9 @@ public static unsafe class Occ
     public static Shape Sphere(double r) => Wrap(Native.ck_sphere(r));
     public static Shape Cone(double r1, double r2, double h) => Wrap(Native.ck_cone(r1, r2, h));
     public static Shape Torus(double major, double minor) => Wrap(Native.ck_torus(major, minor));
+    /// <summary>The space between two turns of an external (bolt) thread along local +Z, to cut from a plain cylinder of the major diameter.</summary>
+    public static Shape ThreadGrooveExternal(double diameter, double pitch, double depth, bool leftHand = false)
+        => Wrap(Native.ck_thread_groove_external(diameter, pitch, depth, leftHand ? 1 : 0));
     public static Shape ThreadGroove(double diameter, double pitch, double depth, bool leftHand = false)
         => Wrap(Native.ck_thread_groove(diameter, pitch, depth, leftHand ? 1 : 0));
 
@@ -306,13 +323,36 @@ public static unsafe class Occ
     public static Shape Chamfer(Shape s, int[] edges, double d) { fixed (int* p = edges) return Wrap(Native.ck_chamfer(s.Handle, p, edges.Length, d)); }
     public static Shape Shell(Shape s, int[] openFaces, double t) { fixed (int* p = openFaces) return Wrap(Native.ck_shell(s.Handle, p, openFaces.Length, t)); }
     public static Shape Offset(Shape s, double d) => Wrap(Native.ck_offset(s.Handle, d));
+    /// <summary>Lay flat (x, y) coordinates onto the face nearest <paramref name="start"/> by walking that distance and direction over it. <paramref name="xDirection"/> is where +X points on the face at the start.</summary>
+    public static Vec3[] WrapPoints(Shape target, Vec3 start, Vec3 xDirection, IReadOnlyList<(double x, double y)> flat)
+    {
+        var xy = new double[flat.Count * 2];
+        for (int i = 0; i < flat.Count; i++) { xy[2 * i] = flat[i].x; xy[2 * i + 1] = flat[i].y; }
+        var result = new double[flat.Count * 3];
+        double* s = stackalloc double[3] { start.X, start.Y, start.Z };
+        double* d = stackalloc double[3] { xDirection.X, xDirection.Y, xDirection.Z };
+        fixed (double* p = xy) fixed (double* o = result)
+            if (Native.ck_wrap_points(target.Handle, s, d, p, flat.Count, o) == 0) throw new KernelException(LastError);
+        return [.. Enumerable.Range(0, flat.Count).Select(i => new Vec3(result[3 * i], result[3 * i + 1], result[3 * i + 2]))];
+    }
+    /// <summary>Shell with a different wall thickness on some faces (signed like <paramref name="t"/>: negative for walls inside).</summary>
+    public static Shape ShellVariable(Shape s, int[] openFaces, double t, int[] ownFaces, double[] ownThickness)
+    {
+        fixed (int* o = openFaces) fixed (int* f = ownFaces) fixed (double* d = ownThickness)
+            return Wrap(Native.ck_shell_var(s.Handle, o, openFaces.Length, t, f, d, ownFaces.Length));
+    }
     public static Shape Thicken(Shape s, double d) => Wrap(Native.ck_thicken(s.Handle, d));
     public static Shape Sew(IReadOnlyList<Shape> shapes, double tol, bool solid) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_sew(p, shapes.Count, tol, solid ? 1 : 0)); }
 
     // ---- transforms
     /// <summary>An independent copy of the geometry with no stored triangulation.</summary>
     public static Shape Copy(Shape s) => Wrap(Native.ck_copy(s.Handle));
-    public static Shape Translate(Shape s, Vec3 v) => Wrap(Native.ck_translate(s.Handle, v.X, v.Y, v.Z));
+    public static Shape Translate(Shape s, Vec3 v)
+    {
+        var moved = Wrap(Native.ck_translate(s.Handle, v.X, v.Y, v.Z));
+        moved.InheritMovedProps(s, v);
+        return moved;
+    }
     /// <summary>Rotate by the row-major 3x3 matrix m, then move by t.</summary>
     public static Shape Transform(Shape s, double[] m, Vec3 t) { var tt = new[] { t.X, t.Y, t.Z }; fixed (double* pm = m) fixed (double* pt = tt) return Wrap(Native.ck_transform(s.Handle, pm, pt)); }
     public static Shape Compound(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_compound(p, shapes.Count)); }
@@ -324,6 +364,12 @@ public static unsafe class Occ
         try { fixed (double* o = V(origin)) return Wrap(Native.ck_scale3(s.Handle, o, factors.X, factors.Y, factors.Z)); }
         catch (EntryPointNotFoundException) { throw new KernelException("This build of the kernel cannot stretch per axis yet. Rebuild native/ (build.ps1) to add it, or scale uniformly."); }
     }
+    /// <summary>Apply any linear map (row-major 3x3: stretches and shears too) and then move by <paramref name="t"/>.</summary>
+    public static Shape Affine(Shape s, double[] m, Vec3 t)
+    {
+        var tt = new[] { t.X, t.Y, t.Z };
+        fixed (double* pm = m) fixed (double* pt = tt) return Wrap(Native.ck_affine(s.Handle, pm, pt));
+    }
     public static Shape Mirror(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_mirror(s.Handle, o, n)); }
 
     // ---- freeform
@@ -333,6 +379,21 @@ public static unsafe class Occ
     public static Shape ToNurbs(Shape s) => Wrap(Native.ck_nurbs_convert(s.Handle));
     public static Shape MatchSurface(Shape source, int side, Shape reference, int refSide, int continuity, bool reverse = false, double scale = 1)
         => Wrap(Native.ck_surface_match(source.Handle, side, reference.Handle, refSide, continuity, reverse ? 1 : 0, scale));
+    /// <summary>For points along an edge of a face, the direction leaving the face across that edge (unit, in the face's tangent plane).</summary>
+    public static Vec3[] FaceExitDirections(Shape face, IReadOnlyList<Vec3> points)
+    {
+        var flat = Flat(points); var result = new double[flat.Length];
+        fixed (double* p = flat) fixed (double* o = result)
+            if (Native.ck_face_exit_dirs(face.Handle, points.Count, p, o) == 0) throw new KernelException(LastError);
+        return [.. Enumerable.Range(0, points.Count).Select(i => new Vec3(result[3 * i], result[3 * i + 1], result[3 * i + 2]))];
+    }
+    /// <summary>Match a boundary of a patch to the nearest edge of any reference face (trimmed faces and faces of solids included); the patch's control rows along that boundary are refitted.</summary>
+    public static (Shape Result, double Gap, double RmsGap, double NormalAngle, double CurvatureDifference, int Rows) MatchSurfaceToEdge(Shape source, int side, Shape reference, int continuity, double scale = 1, bool refine = true)
+    {
+        double* values = stackalloc double[5];
+        var result = Wrap(Native.ck_surface_match_edge(source.Handle, side, reference.Handle, continuity, scale, refine ? 1 : 0, values));
+        return (result, values[0], values[1], values[2], values[3], (int)values[4]);
+    }
     public static (double Gap, double RmsGap, double NormalAngle, double CurvatureDifference) SurfaceContinuity(Shape source, int side, Shape reference, int refSide, bool reverse = false, int samples = 51)
     {
         double* values = stackalloc double[4];
@@ -396,6 +457,16 @@ public static unsafe class Occ
     /// <summary>Cut a shape into pieces along another shape.</summary>
     public static Shape Draft(Shape s, int[] faces, Vec3 pull, double angleDeg, Vec3 planeOrigin, Vec3 planeNormal) { fixed (int* f = faces) fixed (double* d = V(pull.Normalized())) fixed (double* o = V(planeOrigin)) fixed (double* n = V(planeNormal.Normalized())) return Wrap(Native.ck_draft(s.Handle, f, faces.Length, d, angleDeg * Math.PI / 180, o, n)); }
     public static Shape Split(Shape s, Shape tool) => Wrap(Native.ck_split(s.Handle, tool.Handle));
+    /// <summary>Draft with a signed angle for each face (degrees), so walls either side of a parting line can lean opposite ways.</summary>
+    public static Shape DraftSigned(Shape s, int[] faces, double[] anglesDeg, Vec3 pull, Vec3 planeOrigin, Vec3 planeNormal) { var rad = anglesDeg.Select(x => x * Math.PI / 180).ToArray(); fixed (int* f = faces) fixed (double* a = rad) fixed (double* d = V(pull.Normalized())) fixed (double* o = V(planeOrigin)) fixed (double* n = V(planeNormal.Normalized())) return Wrap(Native.ck_draft_signed(s.Handle, f, faces.Length, d, a, o, n)); }
+    /// <summary>Chamfer with two distances (mode 0) or a distance and an angle in degrees (mode 1).</summary>
+    public static Shape Chamfer2(Shape s, int[] edges, double d1, double d2, int mode) { fixed (int* p = edges) return Wrap(Native.ck_chamfer2(s.Handle, p, edges.Length, d1, d2, mode)); }
+    /// <summary>Fillet with a start and end radius for each edge.</summary>
+    public static Shape FilletEdges(Shape s, int[] edges, double[] start, double[] end) { fixed (int* p = edges) fixed (double* a = start) fixed (double* b = end) return Wrap(Native.ck_fillet_edges(s.Handle, p, edges.Length, a, b)); }
+    /// <summary>Mark curves lying on one face onto it, dividing the face without changing the shape of the body.</summary>
+    public static Shape Imprint(Shape s, int faceIndex, Shape curves) => Wrap(Native.ck_imprint(s.Handle, faceIndex, curves.Handle));
+    /// <summary>Sweep a profile along a path, scaling it by a law of (position 0..1 along the path, scale) points.</summary>
+    public static Shape SweepLaw(Shape profile, Shape path, bool solid, int orient, double[] positions, double[] scales, Vec3 binormal) { fixed (double* p = positions) fixed (double* c = scales) fixed (double* b = V(binormal)) return Wrap(Native.ck_sweep_law(profile.Handle, path.Handle, solid ? 1 : 0, orient, positions.Length, p, c, b)); }
     /// <summary>The enclosed spaces between faces, shells and solids, as a compound of solids.</summary>
     public static Shape MakeVolumes(IReadOnlyList<Shape> shapes) { fixed (IntPtr* p = H(shapes)) return Wrap(Native.ck_make_volumes(p, shapes.Count)); }
     public static Shape Section(Shape s, Vec3 origin, Vec3 normal) { fixed (double* o = V(origin)) fixed (double* n = V(normal)) return Wrap(Native.ck_section(s.Handle, o, n)); }

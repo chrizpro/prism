@@ -16,7 +16,7 @@ public sealed class MatchSurfaceCommand : Command
         _source = Slot(new SelectionSlot { Label = "Surface to change", Filter = SelFilter.SurfaceObj });
         _reference = Slot(new SelectionSlot { Label = "Reference surface or face", Filter = SelFilter.SurfaceObj | SelFilter.Face });
         _side = Choice("Source boundary", 0, "U min", "U max", "V min", "V max");
-        _refSide = Choice("Reference boundary", 1, "U min", "U max", "V min", "V max");
+        _refSide = Choice("Reference boundary", 1, "U min", "U max", "V min", "V max", "Nearest edge (any face)");
         _continuity = Choice("Continuity", 1, "Position (G0)", "Tangent (G1)", "Curvature (G2)");
         _reverse = Check("Reverse along reference boundary", false);
         _scale = Num("Tangent scale", 1, .01, 100, .1, "×");
@@ -25,7 +25,7 @@ public sealed class MatchSurfaceCommand : Command
     public override string Title => "Match Surface";
     public override string OkText => "Match";
     public override string Icon => "nurbs-patch";
-    public override string Hint => "Match one natural patch boundary to a fixed reference. Compatible untrimmed, non-rational patches only. G1 changes two control rows; G2 changes three. Check the preview for folds before accepting.";
+    public override string Hint => "Match one natural boundary of an untrimmed, non-rational patch to a fixed reference. The reference can be a trimmed face or a face of a solid: the boundary is fitted to its nearest edge, and the patch gets extra control points where it needs them. G1 changes two control rows; G2 changes three. Check the preview for folds before accepting.";
     protected override CommandOutput? Build()
     {
         Results.Clear();
@@ -33,8 +33,24 @@ public sealed class MatchSurfaceCommand : Command
         var source = S.Find(_source.Items[0].Obj)!;
         var reference = S.ShapeOf(_reference.Items[0])!;
         if (source.Id == _reference.Items[0].Obj) throw new FormatException("Choose a different reference surface.");
-        var result = Occ.MatchSurface(source.Shape, _side.Index, reference, _refSide.Index, _continuity.Index, _reverse.Value, _scale.Value);
-        var report = Occ.SurfaceContinuity(result, _side.Index, reference, _refSide.Index, _reverse.Value);
+        Shape? result = null; (double Gap, double RmsGap, double NormalAngle, double CurvatureDifference) report = default;
+        // an exact control-row match when both patches are compatible natural boundaries; otherwise the boundary is fitted to the nearest reference edge
+        if (_refSide.Index < 4)
+        {
+            try
+            {
+                result = Occ.MatchSurface(source.Shape, _side.Index, reference, _refSide.Index, _continuity.Index, _reverse.Value, _scale.Value);
+                report = Occ.SurfaceContinuity(result, _side.Index, reference, _refSide.Index, _reverse.Value);
+                Results.Add(new ResultLine("Method", "Matched the natural boundaries row by row"));
+            }
+            catch (KernelException) { result = null; }
+        }
+        if (result is null)
+        {
+            var fit = Occ.MatchSurfaceToEdge(source.Shape, _side.Index, reference, _continuity.Index, _scale.Value);
+            result = fit.Result; report = (fit.Gap, fit.RmsGap, fit.NormalAngle, fit.CurvatureDifference);
+            Results.Add(new ResultLine("Method", $"Fitted to the nearest edge of the reference ({fit.Rows} control points along the seam)"));
+        }
         Results.Add(new ResultLine("Sampled gap", $"{report.Gap:G4} mm"));
         Results.Add(new ResultLine("Sampled normal angle", $"{report.NormalAngle:G4}°"));
         Results.Add(new ResultLine("Cross-boundary curvature difference", $"{report.CurvatureDifference:G4} /mm"));

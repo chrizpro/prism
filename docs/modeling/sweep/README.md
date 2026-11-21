@@ -62,3 +62,10 @@ Keep approved changes and open decisions here. Completed stories preserve the re
 
 
 Desktop integration: [SWP-I001 viewport evidence](../../integration-evidence/README.md#surface-sweep--swp-i001) covers straight-path Surface Sweep with Follow the path and Keep parallel.
+
+
+## 0.4 illustrated documentation
+
+**Exact Sweep on v0.4-work:** Scale at the start complements the existing end scale. Scale along the path accepts normalized position:positive-scale pairs, for example `0:1, 0.5:1.6, 1:0.7`, replacing endpoint scales. A second rail only steers rotation; guide stretching and a twist law are not built. This does not describe Freeform cage Sweep. [Maintained checks](../../../Prism.Tests/Headless/Sweep/SweepScaleLawTests.cs).
+
+The [0.4 visual guide](../../../site/guide/modeling-04.md) explains the delivered subset on `v0.4-work` with labeled concept diagrams. It separates development features from released installers and names unfinished options. Diagrams explain geometry; they are not viewport verification. See the [approved scope and delivery record](../surface-and-nurbs/README.md#0-4-modeling-gaps-approved-by-the-owner-2026-11-14) for remaining decisions.

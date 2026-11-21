@@ -447,7 +447,15 @@ public sealed class ParallelFinishCommand : CncOperationCommand
             var run = new List<Vec3>(); var found = new List<List<Vec3>>();
             for (int k = 0; k < samples; k++)
             {
-                double t = dmin + k * sample; var pos = d * t + p * off; double tip = map.Tip(pos.X, pos.Y);
+                double t = dmin + k * sample; var pos = d * t + p * off; double tip = double.NaN;
+                // Nearest-grid lookup can choose the low side of a steep wall.
+                // Use the highest adjacent sample to retain clearance through
+                // cell rounding and the linear links between path points.
+                for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                {
+                    double height = map.Tip(pos.X + dx * sample, pos.Y + dy * sample);
+                    if (double.IsFinite(height)) tip = double.IsNaN(tip) ? height : Math.Max(tip, height);
+                }
                 if (double.IsNaN(tip)) { if (run.Count > 0) { found.Add(run); run = []; } continue; }
                 run.Add(new Vec3(pos.X, pos.Y, Math.Max(tip, floor)));
             }
@@ -628,7 +636,7 @@ public sealed class CncPostCommand : Command
             var paths = Paths().ToList();
             if (paths.Count == 0) { S.Say("There are no machining toolpaths yet. Create a Profile, Pocket, Drill or Face first.", true); return; }
             foreach(var tp in paths)CamValidation.Validate(S,tp);
-            if(paths.Select(p=>p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup at a time. Select its saved setup and use Saved CAM setup work zero.");
+            if(paths.Select(p=>p.SetupName??p.SetupSignature).Distinct().Count()>1)throw new InvalidOperationException("Post one setup at a time. Select its saved setup and use Saved CAM setup work zero.");
             string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Prism", "GCode"); Directory.CreateDirectory(dir);
             string given = _path.Value?.Trim().Trim('"') ?? "";
             string stamped = $"program_{DateTime.Now:yyyyMMdd_HHmmss}.nc";
@@ -639,7 +647,7 @@ public sealed class CncPostCommand : Command
             string title = S.FilePath != null ? Path.GetFileNameWithoutExtension(S.FilePath) : "Prism program";
             bool lathe = paths.All(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal));
             if (!lathe && paths.Any(p => p.Operation.StartsWith("Turning", StringComparison.Ordinal))) { S.Say("Turning and milling toolpaths go to different machines. Hide one kind and post again.", true); return; }
-            var text = lathe ? Post.Lathe(paths, (Controller)_ctl.Index, title) : Post.Cnc(paths, (Controller)_ctl.Index, Origin(), title);
+            var text = lathe ? Post.Lathe(paths, (Controller)_ctl.Index, title) : Post.Cnc(paths, (Controller)_ctl.Index, Origin(), title, _zero.Index == 2 ? S.CamSetup?.ZeroTurns ?? 0 : 0);
             File.WriteAllText(file, text);
             S.Say($"Saved {file}  ({text.Count(c => c == '\n')} lines)");
         }
@@ -653,6 +661,7 @@ public sealed class CncPostCommand : Command
         Results.Add(new ResultLine("Operations", paths.Count.ToString()));
         Results.Add(new ResultLine("Machining time", $"about {paths.Sum(p => p.EstimateMinutes()):0.#} min"));
         Results.Add(new ResultLine("Set work zero at", $"X {o.X:0.###}  Y {o.Y:0.###}  Z {o.Z:0.###}  (model coordinates)", 1));
+        if(_zero.Index==2&&S.CamSetup is{ZeroTurns:>0}turned)Results.Add(new ResultLine("Machine X runs", CamSetup.TurnNames[turned.ZeroTurns].ToLowerInvariant(), 1));
         return new CommandOutput { NoOp = true };
     }
 }
