@@ -7,11 +7,6 @@ export const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 export const href = (path: string) => `${base}${path}`
 
-// Prism is not stable yet; say so wherever the version appears.
-export const stage = 'alpha'
-
-export const version = `0.1 ${stage}`
-
 export const repo = process.env.PRISM_REPO ?? 'chrizpro/prism'
 
 export const repoUrl = `https://github.com/${repo}`

@@ -12,8 +12,10 @@
 
 ```powershell
 ./native/build.ps1
-./packaging/Build-Installer.ps1 -Version 0.3.0 -Compiler 'C:/tools/nsis/makensis.exe'
+./packaging/Build-Installer.ps1 -Version 0.4.0 -Compiler 'C:/tools/nsis/makensis.exe'
 ```
+
+The default version comes from the desktop project. A tagged or manually versioned build passes its full release identity through to the desktop. Packaging also checks the published desktop DLL against the requested release, including when reusing output with `-SkipPublish`. A mismatched build must be republished before packaging.
 
 The installer creates a Start menu shortcut and optional desktop shortcut. Uninstall removes only files listed at build time and never recursively deletes the chosen installation directory. Documents and settings are outside that directory. There is no code-signing configuration yet.
 

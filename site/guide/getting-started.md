@@ -4,6 +4,8 @@ Prism brings sketches, solids, surfaces, and freeform modeling into one desktop 
 
 <GuideImage src="/images/guides/app-compact.png" alt="Prism Design workspace with a rounded plate and five holes" caption="The ribbon is at the top, the model browser is on the left, and the design history runs along the bottom." :width="1500" :height="920" />
 
+The first gallery row features the Vermilion GT, Tideline airliner and Evergreen Express. Choose **Download & open** for an editable Prism copy, or [download a STEP model](/download#try-a-step-model) for another CAD viewer.
+
 ## Choose a folder
 
 On the start screen, choose a workspace folder. This is where new parts are saved and where Prism lists your models. You can choose your own location or use `Documents/Prism`. Existing workspace paths are preserved when upgrading.

@@ -44,6 +44,10 @@ Rendering adds embedded Radiance HDR lighting, optional final denoising, planar/
 
 ![A stress study on a bracket in Prism's CAE workspace](web/src/assets/shots/cae-stress.png)
 
+## Try a finished model
+
+Download a vehicle as a STEP file and open it in your CAD viewer. [Vermilion GT (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step) · [Tideline airliner (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step) · [Evergreen Express (STEP)](https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step).
+
 ## Download
 
 Get the installer for your system from the [download page](https://chrizpro.github.io/prism/download) or [GitHub Releases](https://github.com/chrizpro/prism/releases):

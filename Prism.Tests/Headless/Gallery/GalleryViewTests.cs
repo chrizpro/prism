@@ -17,6 +17,19 @@ namespace Prism.HeadlessTests.Gallery;
 [Trait("Layer", "Headless")]
 public class GalleryViewTests
 {
+    [AvaloniaFact(DisplayName = "GAL-H214 | The first gallery row offers the three featured vehicles as finished STEP files")]
+    [Trait("TestId", "GAL-H214")]
+    public void FeaturedVehiclesLeadTheBundledGallery()
+    {
+        using var stream = Avalonia.Platform.AssetLoader.Open(new Uri("avares://Prism/Assets/gallery-catalog.json"));
+        using var reader = new StreamReader(stream);
+        var catalog = GalleryCatalog.Parse(reader.ReadToEnd());
+        var row = GallerySections.Group(catalog.Items).First().Items.Take(GallerySections.Preview).ToArray();
+        Assert.Equal(new[] { "vermilion-gt", "tideline-jet", "evergreen-express" }, row.Select(entry => entry.Id));
+        foreach (var entry in row)
+            Assert.Contains(entry.Extras!, extra => extra.FileName == entry.Id + ".step");
+    }
+
     [AvaloniaFact(DisplayName = "GAL-H008 | The gallery split button opens a cached copy in its saved CAE tab")]
     [Trait("TestId", "GAL-H008")]
     public async Task SplitButtonOpensCachedCopyInCae()

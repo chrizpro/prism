@@ -2,9 +2,13 @@
 
 ## Finding the engine block and industrial STEP studies
 
-The Solid section opens with **Inline-four engine block**. The Direct Modeling section opens with **Keyed shaft coupling rework** and **Pin-fin cold plate**. Each comparison includes the untouched STEP blank in the download menu. Under Mesh, **Turned knob rebuilt from scan** opens with the scan beside a closed CAD solid. The individual fitted patches are hidden and can be inspected in the browser. [Gallery fixtures](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs) · [Scan reconstruction](../../../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs) · [Owner follow-up #156](https://github.com/chrizpro/prism/issues/156).
+The first row of the Solid section features **Vermilion GT**, **Tideline airliner** and **Evergreen Express**, in that order. Each offers the finished vehicle as a STEP extra. **Inline-four engine block** follows them under Show all and is searchable by name. The Direct Modeling section opens with **Keyed shaft coupling rework** and **Pin-fin cold plate**. Each comparison includes the untouched STEP blank in the download menu. Under Mesh, **Turned knob rebuilt from scan** opens with the scan beside a closed CAD solid. The individual fitted patches are hidden and can be inspected in the browser. [Gallery fixtures](../../../Prism.Tests/Headless/Gallery/IndustrialGalleryStudies.cs) · [Scan reconstruction](../../../Prism.Tests/Headless/Mesh/MeshGalleryStudies.cs) · [Owner follow-up #156](https://github.com/chrizpro/prism/issues/156).
 
 Windows Release verification on 2026-11-20 passed 57 selected gallery and Direct Edit tests. Prism reopened the finished knob and the coupling comparison and rendered both previews. GAL-H202 checks the reconstructed volume against the original within 1%. GAL-H213 checks the lowered hub height, ten openings and the volume removed.
+
+Gallery cards that require 0.4.0 open in 0.4.0 alpha builds. The gate uses the desktop entry assembly’s version. Local builds and the default installer use the version in the desktop project. Packaging checks that the published assembly reports the release identity before creating an installer. [Gallery compatibility tests](../../../Prism.Tests/Unit/Gallery/GalleryStoreTests.cs) · [Packaging guide](../../../packaging/README.md).
+
+The owner confirmed the featured vehicle order on 2026-11-20. FreeCAD reopened the colored STEP assemblies with 101 solids for the GT, 165 for the airliner and 230 for the train. All shapes passed validity checks, and total volume agreed with each native source within 0.003%. The bundled catalog test checks the first visible row and the three STEP extras. [Gallery view tests](../../../Prism.Tests/Headless/Gallery/GalleryViewTests.cs) · [Owner request and verification #157](https://github.com/chrizpro/prism/issues/157).
 
 ## Industrial studies for v0.4
 

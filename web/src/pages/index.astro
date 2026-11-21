@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro'
 import FeatureCard from '../components/FeatureCard.astro'
 import { features } from '../data/features'
 import { tabs, workspaces, uniqueTools } from '../data/catalog'
-import { docs, href, version } from '../config'
+import { docs, href } from '../config'
 import heroShot from '../assets/shots/lens-app.png'
 import render from '../assets/shots/lens-render.png'
 import stress from '../assets/shots/cae-stress-vp.png'
@@ -23,7 +23,7 @@ const stats = [
   <section class="hero">
     <div class="glow" aria-hidden="true"></div>
     <div class="wrap hero-copy">
-      <a class="badge" href={docs('/reference/known-issues')}><span>Alpha</span> Prism {version} · not yet stable, see known issues →</a>
+      <a class="badge" href={docs('/reference/known-issues')}><span>Alpha</span> See known issues →</a>
       <h1>Design it. Prove it.<br /><span class="grad">Make it.</span></h1>
       <p class="lede">Prism is one desktop CAD application for solids, surfaces, freeform shapes and sketches, with simulation, CNC, 3D printing, rendering and Python built in.</p>
       <div class="cta">

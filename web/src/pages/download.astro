@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro'
-import { docs, repoUrl, version } from '../config'
+import { docs, repoUrl } from '../config'
 import { latestRelease } from '../data/release'
 
 const { release, downloads } = await latestRelease()
@@ -16,7 +16,7 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
         <h1>Get Prism</h1>
         {release
           ? <p>{release.name}{release.prerelease ? ' (alpha)' : ''}, released {date}. Free to download for Windows, macOS and Linux.</p>
-          : <p>Prism is at version {version}. The first downloadable release has not been published yet. Until it is, you can build Prism from source.</p>}
+          : <p>Find available installers on <a href={`${repoUrl}/releases`}>GitHub Releases</a>, or follow the <a href={docs('/development')}>build guide</a>.</p>}
       </div>
 
       <div class="notice" role="note">
@@ -40,9 +40,15 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
                   <a class="btn btn-primary" href={d.url}>Download {mb(d.size) && <span class="size">{mb(d.size)}</span>}</a>
                   {d.sha256Url && <a class="sha" href={d.sha256Url}>SHA-256 checksum</a>}
                 </>
-              : <span class="status">{release ? 'Not in this release' : 'Coming with the first release'}</span>}
+              : <span class="status">{release ? 'Not in this release' : 'Check GitHub Releases'}</span>}
           </div>
         ))}
+      </div>
+
+      <div class="section-head">
+        <h2>Try a STEP model</h2>
+        <p>Open a finished Prism vehicle in your CAD viewer.</p>
+        <p><a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step">Vermilion GT (STEP)</a> · <a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step">Tideline airliner (STEP)</a> · <a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step">Evergreen Express (STEP)</a></p>
       </div>
 
       <div class="notes">

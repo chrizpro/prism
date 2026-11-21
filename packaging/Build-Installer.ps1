@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('win-x64','linux-x64','osx-x64','osx-arm64')][string]$Runtime = 'win-x64',
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.3.0',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')][string]$ReleaseVersion,
     [string]$OutputDirectory,
     [string]$NativeDirectory,
@@ -11,9 +11,13 @@ param(
     [switch]$FrameworkDependent
 )
 $ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+if (!$Version) {
+    $project = [xml](Get-Content -Raw -LiteralPath (Join-Path $root 'Prism.Desktop/Prism.Desktop.csproj'))
+    $Version = $project.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
+}
 if (!$ReleaseVersion) { $ReleaseVersion = $Version }
 if ($ReleaseVersion.Split('-')[0] -ne $Version) { throw 'ReleaseVersion must match the numeric installer Version.' }
-$root = Split-Path $PSScriptRoot -Parent
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $root 'artifacts/installers' }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 if (!$PublishDirectory) { $PublishDirectory = Join-Path $OutputDirectory "$Runtime/publish" }
@@ -44,6 +48,11 @@ if (!$SkipPublish) {
 }
 $executable = if ($platform -eq 'win') { 'Prism.Desktop.exe' } else { 'Prism.Desktop' }
 if (!(Test-Path -LiteralPath (Join-Path $PublishDirectory $executable))) { throw "No published app in $PublishDirectory" }
+$desktopDll = Join-Path $PublishDirectory 'Prism.Desktop.dll'
+$identity = [Diagnostics.FileVersionInfo]::GetVersionInfo($desktopDll).ProductVersion
+if (!$identity -or $identity.Split('+')[0] -ne $ReleaseVersion) {
+    throw "Published desktop reports '$identity' but this installer requires '$ReleaseVersion'. Re-publish the app with the matching version."
+}
 foreach ($name in $nativeNames) {
     if (!(Test-Path -LiteralPath (Join-Path $PublishDirectory $name))) { Copy-Item -LiteralPath (Join-Path $NativeDirectory $name) -Destination $PublishDirectory }
 }
