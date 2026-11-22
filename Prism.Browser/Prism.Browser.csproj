@@ -19,6 +19,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Fallback fonts: the browser has no system fonts, so symbols Inter lacks (▾ ✕ ⚙ 📁 …) would draw as boxes. -->
+        <AvaloniaResource Include="Assets\Fonts\*.ttf"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- Exposes Emscripten WebGL function lookup to Silk.NET (see BrowserGlHost). -->
         <NativeFileReference Include="prism_gl.c"/>
     </ItemGroup>
