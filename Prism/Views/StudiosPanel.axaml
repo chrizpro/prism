@@ -104,7 +104,7 @@
                     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Padding="12,10"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><Button Name="ApplyDocumentParameters" Content="Apply changes" Classes="studioAction primary" Click="OnApplyParameters" HorizontalAlignment="Stretch"/><Button Grid.Column="1" Content="Revert" Classes="studioAction" Click="OnRevertParameters"/></Grid></Border>
                     <StackPanel DockPanel.Dock="Top" Margin="12,10,12,6" Spacing="9">
                         <TextBox Text="{Binding ParameterSearch}" Watermark="Find a parameter…"/>
-                        <Grid ColumnDefinitions="*,Auto"><Button Content="＋ Parameter" Classes="studioAction" Click="OnToggleAddParameter" HorizontalAlignment="Left" Padding="9,5"/><Border Grid.Column="1" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="12,5" CornerRadius="3"><TextBlock Text="mm" Classes="meta"/></Border></Grid>
+                        <Grid ColumnDefinitions="*,Auto"><Button Content="+ Parameter" Classes="studioAction" Click="OnToggleAddParameter" HorizontalAlignment="Left" Padding="9,5"/><Border Grid.Column="1" Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Line}" BorderThickness="1" Padding="12,5" CornerRadius="3"><TextBlock Text="mm" Classes="meta"/></Border></Grid>
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel>
                         <StackPanel IsVisible="{Binding HasPinnedParameters}"><Border Classes="sectionBar"><TextBlock Text="Pinned" Classes="section"/></Border>

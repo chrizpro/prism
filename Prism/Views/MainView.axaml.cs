@@ -905,8 +905,18 @@ public partial class MainView : UserControl
 
     void OnStage(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.KnownIssuesUrl, "known issues");
 
+    void OnGetDesktopApp(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.DownloadUrl, "the download page");
+
+    void OnWebNotices(object? sender, RoutedEventArgs e) => OpenLink(AppInfo.WebNoticesUrl, "the license notices");
+
     void OpenLink(string url, string what)
     {
+        // The browser has no shell to hand a URL to; Avalonia's launcher opens a new tab there.
+        if (AppInfo.IsWebVersion && TopLevel.GetTopLevel(this)?.Launcher is { } launcher)
+        {
+            _ = launcher.LaunchUriAsync(new Uri(url));
+            return;
+        }
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
         catch (Exception ex) { Vm?.Session.Say($"Could not open {what}: " + ex.Message, true); }
     }

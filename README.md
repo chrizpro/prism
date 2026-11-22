@@ -113,7 +113,7 @@ The first vcpkg install compiles Open CASCADE and can take a long time. The nati
 dotnet run --project Prism.Desktop -c Release
 ```
 
-Or open `Prism.slnx` in Rider or Visual Studio and run **Prism.Desktop**. Android, iOS and browser targets have their own projects and need the matching .NET workloads.
+Or open `Prism.slnx` in Rider or Visual Studio and run **Prism.Desktop**. Android, iOS and browser targets have their own projects and need the matching .NET workloads. See [Prism in the browser](docs/interface/browser/README.md) for what the web build does differently.
 
 ### 5. Run the tests
 

@@ -450,6 +450,6 @@ public sealed class SketchModel
     public static string Glyph(CType t) => t switch
     {
         CType.Coincident => "●", CType.PointOnEntity => "◉", CType.Horizontal => "━", CType.Vertical => "┃", CType.Parallel => "∥", CType.Perpendicular => "⊥",
-        CType.Collinear => "≡", CType.Equal => "＝", CType.Tangent => "◠", CType.Concentric => "◎", CType.Midpoint => "┿", CType.Symmetric => "⇋", CType.Fixed => "⚓", _ => "",
+        CType.Collinear => "≡", CType.Equal => "=", CType.Tangent => "◠", CType.Concentric => "◎", CType.Midpoint => "┿", CType.Symmetric => "⇋", CType.Fixed => "⚓", _ => "",
     };
 }

@@ -22,6 +22,8 @@ The installed app includes a `THIRD-PARTY-NOTICES.txt` file with the full licens
 | [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) | Interface plumbing | MIT |
 | [Tmds.DBus](https://github.com/tmds/Tmds.DBus) | Desktop integration on Linux | MIT |
 | [Inter](https://rsms.me/inter/) | Interface font | SIL Open Font License 1.1 |
+| [Noto Sans Symbols 2](https://github.com/notofonts/symbols) and [Noto Emoji](https://github.com/google/fonts/tree/main/ofl/notoemoji) | Symbol fallback fonts in the web version | SIL Open Font License 1.1 |
+| [DejaVu Sans](https://dejavu-fonts.github.io/) | Symbol fallback font in the web version | Bitstream Vera License and public domain |
 | Microsoft Visual C++ runtime | Native runtime on Windows | Microsoft distributable code terms |
 
 Portions of this software are copyright © The FreeType Project ([www.freetype.org](https://freetype.org/)). All rights reserved.
@@ -29,6 +31,8 @@ Portions of this software are copyright © The FreeType Project ([www.freetype.o
 ### Source code of the LGPL libraries
 
 Open CASCADE Technology and Netgen are linked as separate shared libraries, so you can replace them with your own builds of compatible versions. Each [release](https://github.com/chrizpro/prism/releases) includes `Prism-LGPL-sources.zip` with the exact source used: the upstream archives plus the [vcpkg](https://github.com/microsoft/vcpkg) build recipes and patches. If it is missing, [ask for it](https://github.com/chrizpro/prism/issues) and it will be provided.
+
+The web version is different: Open CASCADE is compiled into the app itself, and Netgen is not included. Its notices and `Prism-LGPL-sources.zip` are served with it (**Licenses & source** in the web version's corner mark), and they name the Prism commit it was built from. Because Prism is open source, you can rebuild the web version with your own Open CASCADE by following [the browser build notes](https://github.com/chrizpro/prism/blob/develop/docs/interface/browser/README.md#licensing).
 
 ## Optional tools you install yourself
 
