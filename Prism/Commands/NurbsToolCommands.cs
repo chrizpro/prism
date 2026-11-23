@@ -224,28 +224,53 @@ public sealed class BlendCurveCommand : Command
     }
 }
 
-/// <summary>Join curves that touch end to end into one.</summary>
-[Legacy("Retired from the Curves menu in 0.4; sketch tools cover flat curves. Kept for saved files and scripts.")]
+/// <summary>
+/// Join curves that touch end to end into one. Back in the Curves menu (owner request 2026-11-23): it turns a run of surface edges or curves into one
+/// curve, so a side made of two edges can face a side of one in Boundary Surface, Ruled Surface or Blend Curve.
+/// </summary>
 public sealed class JoinCurvesCommand : Command
 {
     readonly SelectionSlot _curves;
     readonly BoolParam _keep;
+    readonly ChoiceParam _result;
     public JoinCurvesCommand()
     {
         _curves = Slot(new SelectionSlot { Label = "Curves to join", Filter = NurbsUtil.CurveIn, Multi = true });
         _keep = Check("Keep the originals", false);
+        // added last, so steps saved before it keep their values and stay segmented
+        _result = Choice("Result", 0, "Keep each segment", "One smooth curve");
     }
     public override string Title => "Join Curves";
     public override string Icon => "knit";
-    public override string Hint => "Pick curves whose ends touch; they become one curve. Curves that do not touch stay separate pieces.";
+    public override string Hint => "Pick curves or surface edges whose ends touch; they become one curve. Curves that do not touch stay separate pieces. Picked edges are copied: their surfaces stay. Result: One smooth curve redraws each joined run as a single curve, which surface tools treat as one side; it rounds sharp corners slightly.";
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
         var joined = NurbsUtil.Join(_curves.Items.Select(i => NurbsUtil.Curve(S, i)));
-        var o = NurbsUtil.Curves([joined], "Joined curve");
-        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curves.Items);
         Results.Clear(); Results.Add(new ResultLine("Pieces", $"{joined.Count(SubKind.Wire)} curve(s) from {joined.Count(SubKind.Edge)} segments"));
+        var o = NurbsUtil.Curves([_result.Index == 1 ? Smooth(joined) : joined], "Joined curve");
+        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curves.Items);
         return o;
+    }
+
+    /// <summary>Each run of two or more segments becomes one spline through evenly spaced points along it; the result line says how far it strays.</summary>
+    Shape Smooth(Shape joined)
+    {
+        var runs = new List<Shape>(); double worst = 0, longest = 0;
+        foreach (var wire in NurbsUtil.Wires(joined))
+        {
+            int segments = wire.Count(SubKind.Edge);
+            if (segments < 2) { runs.Add(wire); continue; }
+            var (pts, len) = Occ.CurveDivide(wire, Math.Clamp(segments * 16, 24, 200));
+            bool closed = pts[0].DistanceTo(pts[^1]) < 1e-6;
+            var smooth = Occ.Spline(closed ? pts.Take(pts.Length - 1).ToList() : pts.ToList(), closed);
+            var check = Occ.CurveDivide(smooth, 400).points;
+            foreach (var p in Occ.CurveDivide(wire, 200).points) worst = Math.Max(worst, check.Min(q => q.DistanceTo(p)));
+            longest = Math.Max(longest, len);
+            runs.Add(smooth);
+        }
+        if (longest > 0) Results.Add(new ResultLine("Largest deviation", $"{worst:0.####} mm", worst < longest * 0.01 ? 1 : 2));
+        return runs.Count == 1 ? runs[0] : NurbsUtil.Join(runs);
     }
 }
 

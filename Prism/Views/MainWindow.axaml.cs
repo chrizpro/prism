@@ -119,6 +119,7 @@ public partial class MainWindow : Window
             case "edit.delete": return s.Key("Delete");
             case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
             case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");
+            case "edit.repeat": return s.RepeatLastTool();
             case "view.lookat": return s.Key("LookAt");
             case "view.extents": case "view.extents.home": s.ZoomExtents(); return true;
             case "view.quad.maximize": return (Content as MainView)?.TryToggleQuadMaximize() == true;

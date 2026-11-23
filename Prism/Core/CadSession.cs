@@ -1250,6 +1250,7 @@ public sealed partial class CadSession : ObservableObject
         bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
         var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
+        if (!c.EditMode && c.Factory is { } make && c is not Commands.DirectEditCommand) LastTool = new(make, c.Title, c.CaptureOptionValues());
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
         ResumeSuspended();
@@ -1257,6 +1258,48 @@ public sealed partial class CadSession : ObservableObject
         else if (edited != null && c.ReturnNode != null) { GoTo(c.ReturnNode); Say($"{c.Title}: no change"); }
         else Say($"{c.Title} complete");
         RaiseState();
+    }
+
+    // ------------------------------------------------------------ repeating a tool
+    /// <summary>A tool that was finished in this document: how to make it again and the option values it was finished with.</summary>
+    public sealed record RepeatableTool(Func<Command> Make, string Title, List<object?> Values);
+    /// <summary>The last tool finished with Create or Apply in this document (not edits of earlier steps, not cancelled tools); null until one is.</summary>
+    public RepeatableTool? LastTool { get; private set; }
+
+    /// <summary>Open a tool fresh with the given option values and no picks. Anything selected now still seeds its picks, as when the tool is opened from the ribbon.</summary>
+    Command? Reopen(RepeatableTool tool)
+    {
+        var next = tool.Make(); next.Factory = tool.Make; CommandCatalog.Register(tool.Make);
+        StartCommand(next);
+        if (!ReferenceEquals(ActiveCommand, next)) return null;
+        next.RestoreOptionValues(tool.Values);
+        return next;
+    }
+
+    /// <summary>
+    /// Repeat last tool (Ctrl+Shift+R): reopen the last finished tool with its last options and empty picks. Only with no tool or sketch open,
+    /// so the key never starts a second tool on top of one; returns false then, and the key is left to whatever else wants it.
+    /// </summary>
+    public bool RepeatLastTool()
+    {
+        if (ActiveCommand != null || Sketch != null) return false;
+        if (LastTool is not { } last) { Say("There is no tool to repeat yet. Finish a tool first; Repeat last tool opens it again with the same options.", true); return true; }
+        if (Reopen(last) is { } again) Say(again.Hint.Length > 0 ? $"Repeating {last.Title}. {again.Hint}" : $"Repeating {last.Title}.");
+        return true;
+    }
+
+    /// <summary>
+    /// The Apply button of tools that make many results in a row: finish this one as its own undo step, then open the same tool again with the same options
+    /// and nothing picked. A result that cannot be built leaves the tool open with its picks, like Create.
+    /// </summary>
+    public void ApplyAndContinue(Command c)
+    {
+        if (!ReferenceEquals(ActiveCommand, c) || c.Factory == null) return;
+        var again = new RepeatableTool(c.Factory, c.Title, c.CaptureOptionValues());
+        CommitCommand();
+        if (ActiveCommand != null) return;          // it could not be built (the reason is on the status line), or a parked tool resumed
+        ClearSelection();                           // the new result would otherwise seed the next run's picks
+        if (Reopen(again) != null) Say($"{c.Title} applied. Pick the next one, then Apply again, or {c.CommitText} for the last one.");
     }
 
     // ------------------------------------------------------------ editing a feature
@@ -2279,6 +2322,7 @@ public sealed partial class CadSession : ObservableObject
     public void Open(string path)
     {
         var dto = JsonSerializer.Deserialize<FileDto>(File.ReadAllText(path)) ?? throw new InvalidDataException("Not an Prism file.");
+        LastTool = null;                            // an opened document starts with nothing to repeat
         if(dto.Version is not (1 or 2 or 3 or 4 or 5))throw new InvalidDataException("Unsupported Prism document version.");
         var ids=dto.Objects.Where(o=>o.Id.HasValue).Select(o=>o.Id!.Value).ToList();
         if(ids.Any(i=>i==Guid.Empty)||ids.Distinct().Count()!=ids.Count)throw new InvalidDataException("Duplicate or empty object identities in document.");

@@ -20,6 +20,18 @@
 - [Inspect and Appearance](inspection/README.md)
 - [Feedback, bug and crash reporting](reporting/README.md)
 
+## Repeat the last tool, and keep going inside a tool (owner request 2026-11-23, built)
+
+**Status: approved 2026-11-23 and built; tried by headless tests, not by hand in the app.** [REP-H001 to REP-H006](../../Prism.Tests/Headless/Interface/RepeatLastToolTests.cs). Doing many patches or bridges in a row used to mean reopening the tool each time. Owner decisions: the key is **Ctrl+Shift+R**, and Trim Surface and Boundary Surface get Apply first ("I'm sure I'm missing a few": more tools can be added on request).
+
+1. **Apply keeps a tool open.** Trim Surface and Boundary Surface show **Apply** beside Create. Apply commits the result as its own undo step, clears the picks and selection, and reopens the tool with every option unchanged (Boundary Surface keeps its Mode, Fill with, Fullness, join setting and the continuity rows for the next picks). Create commits and closes; Cancel closes without adding anything more. A result that cannot be built leaves the tool open with its picks. Apply is hidden while editing an earlier step. Direct Edit and Section Sketch keep their own Apply. Apply is not stored in saved steps, so older steps keep their values.
+2. **Repeat last tool (`edit.repeat`, Ctrl+Shift+R, rebindable).** It reopens the last tool finished with Create or Apply, with that run's options and nothing picked. Anything selected at that moment seeds the picks, as when the tool is opened from the ribbon. The viewport right-click menu shows **Repeat <tool>** at the top with the current key.
+   - It works only with no tool or sketch open. Inside a tool the key does nothing.
+   - Undo, redo, view and selection changes, cancelled tools, edits of earlier steps and the Direct Modeling gizmo do not count as the last tool.
+   - Each document tab remembers its own last tool. A new or opened document has none; then the key says so on the status line.
+
+**Not built:** a command-search entry for Repeat, and Apply on other tools (candidates: Patch, Ruled Surface, Fill Opening, Fillet, the Mesh repair tools).
+
 ## Buttons with a list (owner rule 2026-11-20)
 
 Every ribbon button with a list behaves the same. A click anywhere on the button runs its action: the one picked last, or, when nothing has been picked yet, the first item that can run. Only the arrow opens the list (the right end of a small button, the label line of a large one), as does a right-click. Picking from the list runs that action at once and makes it the one the button runs next; the choice is remembered between sessions. Before, plain lists (Export As and others) only opened, and small split buttons such as Face / Edge / Vertex opened their list on a click on the name. Check: [RIB-H006](../../Prism.Tests/Headless/Ribbon/RibbonListButtonTests.cs).

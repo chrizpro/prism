@@ -55,6 +55,7 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Delete selection | <kbd>Delete</kbd> | Everywhere |  |
 | Cancel / end the current step | <kbd>Escape</kbd> | Everywhere |  |
 | Accept / finish | <kbd>Enter</kbd> | Everywhere |  |
+| Repeat last tool | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Everywhere | Opens the last tool you finished again, with the same options and nothing picked. Only while no tool or sketch is open. |
 
 ## View
 

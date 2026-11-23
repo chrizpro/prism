@@ -51,7 +51,12 @@ public sealed class BoundarySurfaceCommand : Command
         _density = Add(new IntParam { Label = "Fit density", Value = 15, Min = 8, Max = 60, Section = "Inside curves" });
         _iter = Add(new IntParam { Label = "Smoothing passes", Value = 3, Min = 1, Max = 12, Section = "Inside curves" });
         _full = Num("Fullness", 1, 0.1, 4, 0.1, ""); _full.Section = "Blend";
+        _apply = ApplyAndContinueButton();
     }
+
+    readonly ActionParam _apply;
+    /// <summary>Apply makes this surface and keeps Boundary Surface open, with the same mode and options, for the next patch or bridge (owner request 2026-11-23).</summary>
+    public override ActionParam? RepeatApply => EditMode ? null : _apply;
 
     public override string Title => "Boundary Surface";
     public override string Icon => "patch";

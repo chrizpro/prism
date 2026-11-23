@@ -221,6 +221,42 @@ public class CurveToolTests
         Assert.Empty(output.Remove);
     }
 
+    [AvaloniaFact(DisplayName = "CRV-H054 | Join Curves turns two surface edges into one smooth curve that Boundary Surface spans against a single line")]
+    [Trait("TestId", "CRV-H054")]
+    public void JoinedEdgesBridgeAgainstOneLine()
+    {
+        // owner report 2026-11-23: a side of two edges could not face a side of one; Join Curves came back to make the two edges one curve
+        var session = new CadSession();
+        SceneObject Sheet(double x0) => session.AddObject(Occ.NurbsSurface([new(x0, 0, 0), new(x0 + 10, 0, 0), new(x0, 10, 0), new(x0 + 10, 10, 0)], 2, 2, 1, 1), "Sheet", ObjKind.Surface);
+        SelItem FarEdge(SceneObject sheet) => Assert.Single(EdgesWhere(sheet, e => Math.Abs(e.Min.Y - 10) < 1e-6 && Math.Abs(e.Max.Y - 10) < 1e-6));
+        var left = Sheet(0); var right = Sheet(10);
+        var join = Begin(session, () => new JoinCurvesCommand());
+        Pick(join, "Curves to join", FarEdge(left), FarEdge(right));
+        var output = BuildOutput(join);
+        var joined = SingleCurve(output);
+        Assert.Equal(1, joined.Count(SubKind.Wire));
+        Assert.Equal(2, joined.Count(SubKind.Edge));
+        Assert.Empty(output.Remove);                                   // the sheets whose edges were picked stay
+        // kept as segments the run still bridges as its first edge only, so the bridge takes it as one smooth curve
+        SetChoice(join, "Result", "One smooth curve");
+        var smooth = SingleCurve(BuildOutput(join));
+        Assert.Equal(1, smooth.Count(SubKind.Edge));
+        AssertClose(20, Length(smooth), 1e-3, "Smooth joined length (mm)");
+        Assert.StartsWith("0", Result(join, "Largest deviation"));
+        session.CommitCommand();
+        var side = Assert.Single(session.Objects, o => o.Kind == ObjKind.Curve);
+        Assert.Equal(3, session.Objects.Count);
+
+        var line = StraightLine(session, new Vec3(0, 20, 5), new Vec3(20, 20, 5));
+        var bridge = Begin(session, () => new BoundarySurfaceCommand());
+        SetChoice(bridge, "Mode", "Edge: span two to four curves");
+        Pick(bridge, "Boundary", side, line);
+        bridge.Params.OfType<BoolParam>().Single(p => p.Label.StartsWith("Join the patch")).Value = false;
+        var sheet = Assert.Single(BuildOutput(bridge).Add).Shape!;
+        Assert.True(sheet.IsValid);
+        AssertClose(20 * Math.Sqrt(125), sheet.Props().Area, 1e-3, "Bridge from a two-edge side to a one-line side (mm²)");
+    }
+
     [AvaloniaTheory(DisplayName = "CRV-H012 | Explode Curve splits a three-segment polyline into three curves")]
     [InlineData(false)]
     [InlineData(true)]

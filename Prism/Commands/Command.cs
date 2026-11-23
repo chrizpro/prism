@@ -238,6 +238,11 @@ public abstract partial class Command : ObservableObject
     partial void OnPreviewEnabledChanged(bool value) => OnChanged();
     public virtual bool SupportsPreview => Tool == null;
     public virtual ActionParam? RepeatApply => null;
+    /// <summary>
+    /// The shared Apply button for tools that make many results in a row (Trim Surface, Boundary Surface): it finishes this result as its own step and
+    /// reopens the tool with the same options and nothing picked. It is not added to <see cref="Params"/>, so saved recipes keep their value positions.
+    /// </summary>
+    protected ActionParam ApplyAndContinueButton() => new() { Label = "Apply", Run = () => S?.ApplyAndContinue(this) };
     public string CommitText => HasPanelStep ? "Apply and return" : EditMode ? "Update" : OkText == "OK" ? "Create" : OkText;
     // ---- editing a feature after the fact
     /// <summary>How to make a fresh copy of this command (set by whoever started it). Without it the step cannot be edited later.</summary>
@@ -297,10 +302,7 @@ public abstract partial class Command : ObservableObject
     public FeatureRecipe? Capture()
     {
         if (Factory == null || !CanEdit) return null;
-        var values = Params.Select(p => p switch
-        {
-            NumberParam n => (object?)n.Value, IntParam i => i.Value, BoolParam b => b.Value, TextParam x => x.Value, ChoiceParam c => c.Index, _ => null,
-        }).ToList();
+        var values = CaptureOptionValues();
         var expressions = Params.Select((p, i) => (p, i)).Where(x => x.p is NumberParam { Formula.Length: > 0 })
             .ToDictionary(x => x.i, x => ((NumberParam)x.p).Formula);
         return new FeatureRecipe(Factory, Title, values, [.. Slots.Select(CaptureItems)], expressions);
@@ -342,17 +344,7 @@ public abstract partial class Command : ObservableObject
                 // recipes restore verbatim: pick-time caps and de-duplication are for picking, not for what was captured
                 foreach (var it in r.Slots[i]) Slots[i].Items.Add(map != null && map.TryGetValue(it.Obj, out var n) ? it with { Obj = n } : it);
             }
-            for (int i = 0; i < Params.Count && i < r.Values.Count; i++)
-            {
-                switch (Params[i], r.Values[i])
-                {
-                    case (NumberParam n, double d): n.Value = d; break;
-                    case (IntParam ip, int v): ip.Value = v; break;
-                    case (BoolParam b, bool v): b.Value = v; break;
-                    case (TextParam x, string v): x.Value = v; break;
-                    case (ChoiceParam c, int v): c.Index = v; break;
-                }
-            }
+            SetOptionValues(r.Values);
             foreach (var (index, formula) in r.Expressions ?? [])
                 if (index < Params.Count && Params[index] is NumberParam number)
                 {
@@ -365,6 +357,34 @@ public abstract partial class Command : ObservableObject
     }
 
     protected virtual FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe;
+
+    /// <summary>The option values only (numbers, checkboxes, choices, text), by position: what Repeat last tool and Apply carry into the next run.</summary>
+    public List<object?> CaptureOptionValues() => Params.Select(p => p switch
+    {
+        NumberParam n => (object?)n.Value, IntParam i => i.Value, BoolParam b => b.Value, TextParam x => x.Value, ChoiceParam c => c.Index, _ => null,
+    }).ToList();
+
+    /// <summary>Set the options from <see cref="CaptureOptionValues"/> and leave every pick empty, so the tool opens ready for new picks with the same settings.</summary>
+    public void RestoreOptionValues(IReadOnlyList<object?> values)
+    {
+        ConfigureInputs(() => SetOptionValues(values));
+        OnChanged();
+    }
+
+    void SetOptionValues(IReadOnlyList<object?> values)
+    {
+        for (int i = 0; i < Params.Count && i < values.Count; i++)
+        {
+            switch (Params[i], values[i])
+            {
+                case (NumberParam n, double d): n.Value = d; break;
+                case (IntParam ip, int v): ip.Value = v; break;
+                case (BoolParam b, bool v): b.Value = v; break;
+                case (TextParam x, string v): x.Value = v; break;
+                case (ChoiceParam c, int v): c.Index = v; break;
+            }
+        }
+    }
 
     /// <summary>
     /// Recipes restore their numbers by position, so a parameter added in the middle of a command's list shifts every later value of a recipe saved before.

@@ -48,6 +48,7 @@ public static class Hotkeys
         new("edit.delete", "Delete selection", "Edit", Global, "Delete"),
         new("edit.cancel", "Cancel / end the current step", "Edit", Global, "Escape"),
         new("edit.accept", "Accept / finish", "Edit", Global, "Enter"),
+        new("edit.repeat", "Repeat last tool", "Edit", Global, "Ctrl+Shift+R", "Opens the last tool you finished again, with the same options and nothing picked. Only while no tool or sketch is open."),
 
         new("view.lookat", "Look at the selected plane, face or sketch", "View", Global, "N"),
         new("view.extents", "Zoom to fit everything (Zoom Extents)", "View", Global, "F", "F for Fit; the same key fits the view in the drawing editor"),

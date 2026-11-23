@@ -610,7 +610,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 fromSurfaces ? Cmd("Isocurves", "curve-through", () => new IsoCurveCommand(), "Pull curves of constant U or V out of a surface.") : null,
                 fromSurfaces ? Cmd("Contour", "section", () => new ContourCommand(), "Slice a body into evenly spaced section curves.") : null,
                 Cmd("Blend\nCurve", "curve-through", () => new BlendCurveCommand(), "Join two curves with a curve that keeps their position, direction or bend."),
-                Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves that touch end to end into one."),
+                Cmd("Join", "knit", () => new JoinCurvesCommand(), "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one."),
                 Cmd("Explode", "unstitch", () => new ExplodeCurveCommand(), "Break a curve or sketch into its segments."),
                 LegacyCurveId(Cmd("Extract Edges", "curve-through", () => new DuplicateEdgeCommand(), "Copy selected edges as independent curves, joining touching edges and keeping the source body."), "curve-through|Duplicate Edge"),
                 Cmd("Trim\nCurve", "trim", () => new TrimCurveCommand(), "Keep part of a curve, or cut it into pieces."),
