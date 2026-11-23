@@ -152,6 +152,7 @@ static class DirectHelpers
                 var bounded = body;
                 if (growing) bounded = Occ.Fuse(bounded, grow);
                 if (trimming) bounded = Occ.Cut(bounded, trim);
+                bounded = DropCollapsedFaces(bounded);
                 if (bounded.IsValid && bounded.Count(SubKind.Solid) == body.Count(SubKind.Solid)) return bounded;
             }
             catch (KernelException) { /* the swept face below still works */ }
@@ -164,6 +165,30 @@ static class DirectHelpers
         if (add != null) res = Occ.Fuse(res, add);
         if (remove != null) res = Occ.Cut(res, remove);
         return res;
+    }
+
+    /// <summary>
+    /// A face that already touched the target along one edge (the end of a piece turned about the corner it shares with the wall) can survive the boolean
+    /// as a face of no area. Sew the solid again from its real faces; keep the result only when it is a valid solid of the same volume.
+    /// </summary>
+    static Shape DropCollapsedFaces(Shape shape)
+    {
+        int n = shape.Count(SubKind.Face);
+        var faces = Enumerable.Range(0, n).Select(i => shape.Sub(SubKind.Face, i)).ToList();
+        // a turn leaves rounding of about a micron: the face that ran along the shared edge comes out a strip 1e-6 mm wide, not exactly nothing
+        var areas = faces.Select(f => f.Props().Area).ToList();
+        double tiny = Math.Max(1e-9, areas.Sum() * 1e-6);
+        if (areas.All(a => a > tiny) || shape.Count(SubKind.Solid) != 1) return shape;
+        try
+        {
+            // the kernel removes the strip and its end edges, so the faces around it meet at a clean corner
+            var clean = Occ.CleanSmall(shape, 1e-4);
+            if (clean.IsValid && clean.Count(SubKind.Solid) == 1 && clean.Count(SubKind.Face) < n
+                && Math.Abs(clean.Props().Volume - shape.Props().Volume) < 1e-6 * Math.Max(1, shape.Props().Volume))
+                return clean.Sub(SubKind.Solid, 0);
+        }
+        catch (KernelException) { }
+        return shape;
     }
 
     /// <summary>The planes (a point and the outward normal) of every face sharing an edge with <paramref name="face"/>, or null when one of them is curved.</summary>

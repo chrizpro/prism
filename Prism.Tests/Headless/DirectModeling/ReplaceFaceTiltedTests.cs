@@ -50,6 +50,31 @@ public class ReplaceFaceTiltedTests
         AssertClose(0, result.Props().Max.X, 1e-6, "flush with the wall");
     }
 
+    [AvaloniaFact(DisplayName = "DIR-H205 | The owner's piece, turned -27.03° about the corner it shares with the wall and set back onto the wall, keeps six real faces")]
+    [Trait("TestId", "DIR-H205")]
+    public void TurnedPieceLeavesNoEmptyFace()
+    {
+        var s = new CadSession();
+        var wall = CreateBoxBody(s, new Vec3(-37.7658, -29.1593, 0), 75.5316, 58.3186, 31.5);
+        var corner = new Vec3(-37.7658, 11.561, 0);
+        var loop = Occ.Polyline([new(-37.7658, 6.6797, 0), new(-80.5413, -14.1301, 0), new(-88.1202, -14.1301, 0), corner], true);
+        double angle = Math.Atan2(11.561 + 14.1301, -37.7658 + 88.1202) * 180 / Math.PI;
+        var piece = s.AddObject(Occ.Rotate(Occ.Extrude(Occ.Profile([loop], true), new Vec3(0, 0, 31.5)), corner, Vec3.UnitZ, -angle), "Piece", ObjKind.Solid);
+        var replace = Begin(s, () => new ReplaceFaceCommand());
+        Pick(replace, "Flat faces to replace", FaceWhere(piece, (i, p) => i.Type == "Plane" && i.Normal.X > 0.5));
+        Pick(replace, "Target plane or flat face", FaceWhere(wall, (i, p) => i.Type == "Plane" && i.Normal.X < -0.99));
+        using var result = Assert.Single(BuildOutput(replace).Replace).New;
+        Assert.True(result.IsValid);
+        var areas = Enumerable.Range(0, result.Count(SubKind.Face)).Select(i => { using var f = result.Sub(SubKind.Face, i); return f.Props().Area; }).ToList();
+        Assert.True(areas.All(a => a > 1e-3), $"face areas {string.Join(", ", areas.Select(a => a.ToString("G4")))}");
+        Assert.Equal(6, areas.Count);
+        var edges = Enumerable.Range(0, result.Count(SubKind.Edge)).Select(i => { using var e = result.Sub(SubKind.Edge, i); return Occ.EdgeInfoOf(e).Length; }).ToList();
+        Assert.True(edges.All(l => l > 1e-3), $"edge lengths {string.Join(", ", edges.Select(l => l.ToString("G4")))}");
+        Assert.Equal(12, edges.Count);
+        AssertClose(6508.6819, result.Props().Volume, 1e-3, "piece filled to the wall (mm³, as measured in the app)");
+        AssertClose(-37.7658, result.Props().Max.X, 1e-6, "flush with the wall");
+    }
+
     [AvaloniaFact(DisplayName = "DIR-H203 | Replace Face raises a step's top beside a taller block without spilling past the wall it meets")]
     [Trait("TestId", "DIR-H203")]
     public void StepBesideAWallStaysBounded()
