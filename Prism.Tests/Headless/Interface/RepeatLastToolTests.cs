@@ -174,4 +174,66 @@ public class RepeatLastToolTests
         Assert.DoesNotContain(vm.BuildTraditionalMenu(), m => m.Label.StartsWith("Repeat"));
         Assert.Equal("Join Curves", first.LastTool?.Title);
     }
+
+    [AvaloniaFact(DisplayName = "REP-H007 | Apply is offered by Patch, Ruled Surface, Fill Opening, Fillet, Chamfer, Fill Hole, Stitch Seam, Split Body and Split Face, not by other tools or while editing a step")]
+    [Trait("TestId", "REP-H007")]
+    public void ApplyIsOfferedWhereAsked()
+    {
+        var session = new CadSession();
+        Func<Command>[] offered =
+        [
+            () => new BoundarySurfaceCommand(), () => new TrimSurfaceCommand(), () => new PatchCommand(), () => new RuledSurfaceCommand(),
+            () => new FillOpeningCommand(), () => new FilletCommand(), () => new ChamferCommand(), () => new MeshBoundaryCommand(), () => new MeshBoundaryCommand(stitch: true), () => new SplitBodyCommand(), () => new SplitFaceCommand(),
+        ];
+        foreach (var make in offered)
+        {
+            session.StartCommand(make);
+            Assert.True(session.ActiveCommand!.RepeatApply?.Label == "Apply", session.ActiveCommand.Title);
+            session.CancelCommand();
+        }
+        session.StartCommand(() => new JoinCurvesCommand());
+        Assert.Null(session.ActiveCommand!.RepeatApply);
+        session.CancelCommand();
+        Assert.Null(new FilletCommand { EditMode = true }.RepeatApply);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H008 | Fillet Apply rounds one box edge and reopens with the same radius for the next")]
+    [Trait("TestId", "REP-H008")]
+    public void FilletApplyKeepsRadius()
+    {
+        var session = new CadSession();
+        var box = CreateBoxBody(session, Vec3.Zero, 20, 20, 20);
+        double volume = box.Shape.Props().Volume;
+        var fillet = Begin(session, () => new FilletCommand());
+        Pick(fillet, "Edges", new SelItem(box.Id, SelKind.Edge, 0));
+        fillet.Params.OfType<NumberParam>().Single(p => p.Label == "Radius").Value = 3;
+        fillet.RepeatApply!.Run();
+        var next = Assert.IsType<FilletCommand>(session.ActiveCommand);
+        Assert.NotSame(fillet, next);
+        Assert.Equal(3, next.Params.OfType<NumberParam>().Single(p => p.Label == "Radius").Value);
+        Assert.Empty(next.Slots[0].Items);
+        Assert.True(session.Find(box.Id)!.Shape.Props().Volume < volume - 1);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H009 | Command search offers Repeat <last tool> first and running it reopens the tool")]
+    [Trait("TestId", "REP-H009")]
+    public void SearchOffersRepeat()
+    {
+        var vm = new MainViewModel();
+        var s = vm.Session;
+        var join = Begin(s, () => new JoinCurvesCommand());
+        Pick(join, "Curves to join", s.AddObject(Occ.Line(Vec3.Zero, new(10, 0, 0)), "Line", ObjKind.Curve), s.AddObject(Occ.Line(new(10, 0, 0), new(10, 10, 0)), "Line", ObjKind.Curve));
+        s.CommitCommand();
+        vm.SearchText = "repeat";
+        var hit = vm.SearchResults.First();
+        Assert.Equal("Repeat Join Curves", hit.Label);
+        Assert.Equal("Ctrl+Shift+R", hit.Shortcut);
+        vm.SearchText = "join";
+        Assert.Equal("Repeat Join Curves", vm.SearchResults.First().Label);
+        Assert.Contains(vm.SearchResults, h => h.Label == "Join");
+        vm.RunSearchHit(vm.SearchResults.First());
+        Assert.IsType<JoinCurvesCommand>(s.ActiveCommand);
+        vm.SearchText = "repeat";
+        Assert.DoesNotContain(vm.SearchResults, h => h.Label.StartsWith("Repeat"));   // not while a tool is open
+    }
 }

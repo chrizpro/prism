@@ -1337,7 +1337,7 @@ def curve_matrix():
     run = lambda command, slots, params=None: cad.call("run_command", name=command, slots=slots, params=params or {})
     variant("Divide a 40 mm line into 4", lambda y: (lambda c: run("curve_divide", {"Curve": [c]}, {"Segments": 4}))(seg(y)), lambda r, made: (len(made) >= 1 and abs(size(made[0])[0] - 40) < .5, f"{len(made)} object made, spanning {size(made[0])[0] if made else 0:.1f} mm (Points Along Curve makes the 4+1 division points along the 40 mm line)"))
     variant("Trim a line to 25-75 percent", lambda y: (lambda c: run("curve_trim", {"Curve (a single segment)": [c]}, {"Keep from (%)": 25, "Keep to (%)": 75, "Keep the original": True}))(seg(y)), lambda r, made: (any(abs(size(n)[0] - 20) < .5 for n in made), f"new piece lengths {[round(size(n)[0], 1) for n in made]} (expect 20)"))
-    variant("Split a line at 50 percent", lambda y: (lambda c: run("curve_split", {"Curve (a single segment)": [c]}, {"Split at (% , separated)": "50", "Keep the original": True}))(seg(y)), lambda r, made: (sum(1 for n in made if abs(size(n)[0] - 20) < .5) >= 2, f"piece lengths {[round(size(n)[0], 1) for n in made]} (expect two of 20)"))
+    variant("Split a line at 50 percent", lambda y: (lambda c: run("curve_split", {"Curve to split": [c]}, {"Split at (% , separated)": "50", "Keep the original": True}))(seg(y)), lambda r, made: (sum(1 for n in made if abs(size(n)[0] - 20) < .5) >= 2, f"piece lengths {[round(size(n)[0], 1) for n in made]} (expect two of 20)"))
     variant("Extend a line by 10", lambda y: (lambda c: run("curve_extend", {"Curve (a single segment)": [c]}, {"Length": 10, "Keep the original": True}))(seg(y)), lambda r, made: (any(abs(size(n)[0] - 50) < 1 for n in made), f"lengths {[round(size(n)[0], 1) for n in made]} (expect one of 50)"))
     variant("Join two end-to-end lines", lambda y: (lambda a, b: run("curve_join", {"Curves to join": [a, b]}, {"Keep the originals": True}))(line_curve((0, y, 0), (20, y, 0)), line_curve((20, y, 0), (45, y, 0))), lambda r, made: (any(abs(size(n)[0] - 45) < 1 for n in made), f"lengths {[round(size(n)[0], 1) for n in made]} (expect one of 45)"))
     variant("Offset a rectangle outward by 5", lambda y: run("curve_offset", {"Flat curve or sketch": [rect(y)]}, {"Offset distance": 5}), lambda r, made: (any(abs(size(n)[0] - 40) < 1 or abs(size(n)[0] - 20) < 1 for n in made) and bool(made), f"outlines {[[round(v, 1) for v in size(n)[:2]] for n in made]} (expect 40 x 30 outward or 20 x 10 inward)"))
@@ -1969,7 +1969,7 @@ def face_edit_matrix():
     def split_body():
         block()
         sheet = cutting_sheet()
-        cad.call("run_command", name="split_body", slots={"Body to split": ["Blk"], "Splitting tool (plane, face, surface or solid)": [sheet]})
+        cad.call("run_command", name="split_body", slots={"Body to split": ["Blk"], "Splitting tool (plane, face, surface, solid or sketch)": [sheet]})
         solids = [o for o in cad.objects() if o.kind == "Solid"]
         vols = sorted(round(info(o.name)["volume"]) for o in solids)
         return len(solids) == 2 and all(abs(v - cube / 2) < 20 for v in vols), f"{len(solids)} bodies of {vols} (expect two of {cube // 2})"

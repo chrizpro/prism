@@ -1250,7 +1250,7 @@ public sealed partial class CadSession : ObservableObject
         bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
         var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
-        if (!c.EditMode && c.Factory is { } make && c is not Commands.DirectEditCommand) LastTool = new(make, c.Title, c.CaptureOptionValues());
+        if (!c.EditMode && c.Factory is { } make && c is not Commands.DirectEditCommand) LastTool = new(make, c.Title, c.Icon, c.CaptureOptionValues());
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
         ResumeSuspended();
@@ -1262,7 +1262,7 @@ public sealed partial class CadSession : ObservableObject
 
     // ------------------------------------------------------------ repeating a tool
     /// <summary>A tool that was finished in this document: how to make it again and the option values it was finished with.</summary>
-    public sealed record RepeatableTool(Func<Command> Make, string Title, List<object?> Values);
+    public sealed record RepeatableTool(Func<Command> Make, string Title, string Icon, List<object?> Values);
     /// <summary>The last tool finished with Create or Apply in this document (not edits of earlier steps, not cancelled tools); null until one is.</summary>
     public RepeatableTool? LastTool { get; private set; }
 
@@ -1295,10 +1295,10 @@ public sealed partial class CadSession : ObservableObject
     public void ApplyAndContinue(Command c)
     {
         if (!ReferenceEquals(ActiveCommand, c) || c.Factory == null) return;
-        var again = new RepeatableTool(c.Factory, c.Title, c.CaptureOptionValues());
+        var again = new RepeatableTool(c.Factory, c.Title, c.Icon, c.CaptureOptionValues());
         CommitCommand();
         if (ActiveCommand != null) return;          // it could not be built (the reason is on the status line), or a parked tool resumed
-        ClearSelection();                           // the new result would otherwise seed the next run's picks
+        if (!c.ApplyKeepsSelection) ClearSelection();  // the new result would otherwise seed the next run's picks
         if (Reopen(again) != null) Say($"{c.Title} applied. Pick the next one, then Apply again, or {c.CommitText} for the last one.");
     }
 

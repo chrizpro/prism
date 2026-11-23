@@ -37,6 +37,9 @@ public sealed class MeshBoundaryCommand : MeshCommand
         Tool = new BoundaryTool(this);
     }
 
+    /// <summary>Fill one set of holes or stitch one seam, then Apply and carry on with the same mesh.</summary>
+    protected override bool OffersApply => true;
+    public override bool ApplyKeepsSelection => true;
     public override string Title => _stitch ? "Stitch Seam" : "Fill Hole";
     public override string Icon => _stitch ? "mesh-repair" : "mesh-patch";
     public override string OkText => _stitch ? "Stitch" : "Fill";

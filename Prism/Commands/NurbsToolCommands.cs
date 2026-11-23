@@ -360,37 +360,134 @@ public sealed class TrimCurveCommand : Command
     }
 }
 
-/// <summary>Compatibility adapter for saved Split steps and scripts; new work uses Trim Curve.</summary>
+/// <summary>
+/// Split Curve (owner request 2026-11-23): cut a curve or edge run into pieces at percentages along it, where other objects or picked points cross it,
+/// or at every joint between its segments. The pieces become separate curves; picked edges are copied, their bodies stay, and cutters are never removed.
+/// The first two options keep their places from the older percent-only Split, so its saved steps and scripts still load.
+/// </summary>
 public sealed class SplitCurveCommand : Command
 {
-    readonly SelectionSlot _curve;
+    readonly SelectionSlot _curve, _tools;
     readonly TextParam _at;
     readonly BoolParam _keep;
+    readonly ChoiceParam _by;
     public SplitCurveCommand()
     {
-        _curve = Slot(new SelectionSlot { Label = "Curve (a single segment)", Filter = NurbsUtil.CurveIn });
+        _curve = Slot(new SelectionSlot { Label = "Curve to split", Filter = NurbsUtil.CurveIn });
+        _tools = Slot(new SelectionSlot { Label = "Split where these cross it", Filter = NurbsUtil.CurveIn | NurbsUtil.SurfaceIn | SelFilter.Plane | SelFilter.Vertex, Multi = true });
         _at = Text("Split at (% , separated)", "50", "e.g. 25, 50, 75");
         _keep = Check("Keep the original", false);
+        // last, so the older percent-only steps keep their values and their behavior
+        _by = Choice("Split", 0, "At percentages along it", "Where other objects or points cross it", "At every joint between segments");
+        UpdateVisibility();
     }
     public override string Title => "Split Curve";
     public override string Icon => "trim";
-    public override string Hint => "Cut a curve at one or more positions, given as percentages along it.";
+    public override string Hint => _by.Index switch
+    {
+        1 => "Pick the curve, then the curves, edges, surfaces, faces, planes or points where it should be cut. Every crossing makes a cut.",
+        2 => "Pick a joined curve or sketch: it comes apart at every joint, one curve per segment.",
+        _ => "Cut a curve at one or more positions, given as percentages along its whole length.",
+    };
+    protected override void UpdateVisibility()
+    {
+        if (_by == null) return;
+        _at.IsVisible = _by.Index == 0;
+        _tools.IsVisible = _by.Index == 1;
+    }
+
     protected override CommandOutput? Build()
     {
         if (!Complete) return null;
-        var trim = new TrimCurveCommand();
-        trim.Begin(S);
-        trim.ConfigureInputs(() =>
+        var shape = NurbsUtil.Curve(S, _curve.Items[0]);
+        var pieces = _by.Index switch
         {
-            trim.Slots[0].TryAdd(_curve.Items[0]);
-            trim.Params.OfType<ChoiceParam>().Single(p => p.Label == "Action").Index = 1;
-            trim.Params.OfType<TextParam>().Single().Value = _at.Value;
-            trim.Params.OfType<BoolParam>().Single().Value = _keep.Value;
-        });
-        var output = trim.TryBuild() ?? throw new KernelException(trim.Error ?? "The curve could not be cut into pieces.");
-        Results.Clear();
-        foreach (var result in trim.Results) Results.Add(result);
-        return output;
+            1 => SplitBy(shape, _tools.Items.Select(Cutter).ToList()),
+            2 => AtJoints(shape),
+            _ => AtPercentages(shape),
+        };
+        if (pieces.Count < 2) throw new KernelException(_by.Index == 1 ? "Nothing picked crosses the curve. Move or extend it so it crosses, or pick a point on the curve." : "The curve was not cut.");
+        var o = NurbsUtil.Curves(pieces, "Curve piece");
+        if (!_keep.Value) NurbsUtil.RemoveSources(S, o, _curve.Items);
+        Results.Clear(); Results.Add(new ResultLine("Pieces", pieces.Count.ToString()));
+        return o;
+    }
+
+    static List<Shape> AtJoints(Shape shape)
+    {
+        int n = shape.Count(SubKind.Edge);
+        if (n < 2) throw new KernelException("This curve is a single segment, so it has no joints. Split it at percentages or where something crosses it.");
+        return Enumerable.Range(0, n).Select(i => shape.Sub(SubKind.Edge, i)).ToList();
+    }
+
+    List<Shape> AtPercentages(Shape shape)
+    {
+        var cuts = _at.Value.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v / 100 : double.NaN)
+            .Where(v => v > 0.001 && v < 0.999).Distinct().OrderBy(v => v).ToList();
+        if (cuts.Count == 0) throw new KernelException("Give one or more positions between 0 and 100 percent.");
+        if (shape.Count(SubKind.Edge) == 1)
+        {
+            var ends = new List<double> { 0 }; ends.AddRange(cuts); ends.Add(1);
+            return Enumerable.Range(0, ends.Count - 1).Select(i => Occ.CurveTrim(shape, ends[i], ends[i + 1])).ToList();
+        }
+        // a joined run: percentages are of its whole length, cut there by small squares across the curve
+        var (pts, len) = Occ.CurveDivide(shape, 2000);
+        return SplitBy(shape, cuts.Select(f => SquareCut(pts, (int)Math.Round(f * (pts.Length - 1)), len)).ToList());
+    }
+
+    /// <summary>A small square face through sample <paramref name="i"/>, square to the curve there: it cuts the curve at that one place.</summary>
+    static Shape SquareCut(Vec3[] pts, int i, double length)
+    {
+        i = Math.Clamp(i, 1, pts.Length - 2);
+        var t = (pts[i + 1] - pts[i - 1]).Normalized();
+        var (u, v) = Meshing.SurfaceMath.Basis(t);
+        double h = Math.Max(length * 0.01, 0.01);
+        var c = pts[i];
+        return Occ.Profile([Occ.Polyline([c - u * h - v * h, c + u * h - v * h, c + u * h + v * h, c - u * h + v * h], true)], true);
+    }
+
+    /// <summary>A picked cutter as a shape: planes become a large square, points a small square across the curve at the nearest place on it.</summary>
+    Shape Cutter(SelItem item)
+    {
+        if (item.Kind != SelKind.Vertex) return ToolShapes.For(S, item);
+        var curve = NurbsUtil.Curve(S, _curve.Items[0]);
+        var point = S.ShapeOf(item) ?? throw new FormatException("That point is gone.");
+        var (pts, len) = Occ.CurveDivide(curve, 2000);
+        var (gap, at, _) = Occ.Distance(curve, point);
+        if (gap > Math.Max(len * 0.01, 0.05)) throw new FormatException("A picked point is not on the curve. Pick a point on it, or a curve or surface that crosses it.");
+        int nearest = Enumerable.Range(0, pts.Length).MinBy(k => pts[k].DistanceTo(at));
+        pts[nearest] = at;
+        return SquareCut(pts, nearest, len);
+    }
+
+    /// <summary>
+    /// Split by each cutter in turn, then join the bits back into pieces that run from one cut to the next, so the curve's own joints are not cuts.
+    /// </summary>
+    static List<Shape> SplitBy(Shape shape, List<Shape> cutters)
+    {
+        var originalEnds = new List<Vec3>();
+        for (int i = 0; i < shape.Count(SubKind.Edge); i++) { var e = Occ.EdgeInfoOf(shape.Sub(SubKind.Edge, i)); originalEnds.Add(e.Start); originalEnds.Add(e.End); }
+        var current = shape;
+        foreach (var cutter in cutters)
+        {
+            try { current = Occ.Split(current, cutter); }
+            catch (KernelException) { /* this cutter does not reach the curve; the piece count says so if none do */ }
+        }
+        var bits = Enumerable.Range(0, current.Count(SubKind.Edge)).Select(i => current.Sub(SubKind.Edge, i)).ToList();
+        var info = bits.Select(Occ.EdgeInfoOf).ToList();
+        const double tol = 1e-5;
+        bool IsCut(Vec3 p) => !originalEnds.Any(q => q.DistanceTo(p) < tol);
+        var group = Enumerable.Range(0, bits.Count).ToArray();
+        int Root(int k) { while (group[k] != k) k = group[k] = group[group[k]]; return k; }
+        for (int a = 0; a < bits.Count; a++)
+            for (int b = a + 1; b < bits.Count; b++)
+                foreach (var p in new[] { info[a].Start, info[a].End })
+                    foreach (var q in new[] { info[b].Start, info[b].End })
+                        if (p.DistanceTo(q) < tol && !IsCut(p)) group[Root(a)] = Root(b);
+        return Enumerable.Range(0, bits.Count).GroupBy(Root)
+            .Select(g => g.Count() == 1 ? bits[g.First()] : NurbsUtil.Join(g.Select(k => bits[k])))
+            .ToList();
     }
 }
 

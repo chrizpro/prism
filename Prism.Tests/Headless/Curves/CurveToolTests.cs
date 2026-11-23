@@ -334,7 +334,7 @@ public class CurveToolTests
         AssertBuildFails(command, "one segment");
     }
 
-    [AvaloniaTheory(DisplayName = "CRV-H017 | Legacy Split adapter cuts a 100 mm line at the listed percentages")]
+    [AvaloniaTheory(DisplayName = "CRV-H017 | Split Curve cuts a 100 mm line at the listed percentages")]
     [InlineData("50", new[] { 50.0, 50.0 })]
     [InlineData("10; 40", new[] { 10.0, 30.0, 60.0 })]
     [InlineData("0, 30, 100, 30", new[] { 30.0, 70.0 })]
@@ -344,7 +344,7 @@ public class CurveToolTests
         var session = new CadSession();
         var source = StraightLine(session, Vec3.Zero, new Vec3(100, 0, 0));
         var command = Begin(session, () => new SplitCurveCommand());
-        Pick(command, "Curve (a single segment)", source);
+        Pick(command, "Curve to split", source);
         SetText(command, "Split at (% , separated)", positions);
         var output = BuildOutput(command);
         Assert.Equal(lengths.Length, output.Add.Count);
@@ -353,14 +353,14 @@ public class CurveToolTests
         Assert.Equal(source.Id, Assert.Single(output.Remove).Id);
     }
 
-    [AvaloniaFact(DisplayName = "CRV-H018 | Legacy Split adapter refuses positions outside 0–100 % and can keep the original")]
+    [AvaloniaFact(DisplayName = "CRV-H018 | Split Curve refuses positions outside 0–100 % and can keep the original")]
     [Trait("TestId", "CRV-H018")]
     public void SplitCurveValidatesPositions()
     {
         var session = new CadSession();
         var source = StraightLine(session, Vec3.Zero, new Vec3(100, 0, 0));
         var command = Begin(session, () => new SplitCurveCommand());
-        Pick(command, "Curve (a single segment)", source);
+        Pick(command, "Curve to split", source);
         SetText(command, "Split at (% , separated)", "abc, 150");
         AssertBuildFails(command, "between 0 and 100");
         SetText(command, "Split at (% , separated)", "50");

@@ -125,6 +125,7 @@ public class SavedHistoryUpgradeTests
         var session = new CadSession();
         var split = Begin(session, () => new SplitFaceCommand());
         split.Restore(new FeatureRecipe(() => new SplitFaceCommand(), "Split face", [], []));
-        Assert.False(split.Params.OfType<BoolParam>().Single().Value);
+        Assert.False(split.Params.OfType<BoolParam>().Single(p => p.Label == ToolShapes.DeleteToolLabel).Value);
+        Assert.False(split.Params.OfType<BoolParam>().Single(p => p.Label == "Cut with a movable plane").Value);   // added later: old steps cut with their picked tool
     }
 }

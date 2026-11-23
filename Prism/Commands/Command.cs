@@ -237,12 +237,16 @@ public abstract partial class Command : ObservableObject
     [ObservableProperty] public partial bool PreviewEnabled { get; set; } = true;
     partial void OnPreviewEnabledChanged(bool value) => OnChanged();
     public virtual bool SupportsPreview => Tool == null;
-    public virtual ActionParam? RepeatApply => null;
+    /// <summary>The Apply button beside Create, or null. Tools that set <see cref="OffersApply"/> get the shared one; Direct Edit and Section Sketch have their own.</summary>
+    public virtual ActionParam? RepeatApply => OffersApply && !EditMode ? _applyButton ??= new() { Label = "Apply", Run = () => S?.ApplyAndContinue(this) } : null;
+    ActionParam? _applyButton;
     /// <summary>
-    /// The shared Apply button for tools that make many results in a row (Trim Surface, Boundary Surface): it finishes this result as its own step and
-    /// reopens the tool with the same options and nothing picked. It is not added to <see cref="Params"/>, so saved recipes keep their value positions.
+    /// True for tools that make many results in a row (owner request 2026-11-23): Apply finishes this result as its own step and reopens the tool with the
+    /// same options. The button is not one of <see cref="Params"/>, so saved recipes keep their value positions.
     /// </summary>
-    protected ActionParam ApplyAndContinueButton() => new() { Label = "Apply", Run = () => S?.ApplyAndContinue(this) };
+    protected virtual bool OffersApply => false;
+    /// <summary>After Apply the selection is cleared so the new result does not seed the next run's picks. Mesh tools keep it: the next run works on the same mesh.</summary>
+    public virtual bool ApplyKeepsSelection => false;
     public string CommitText => HasPanelStep ? "Apply and return" : EditMode ? "Update" : OkText == "OK" ? "Create" : OkText;
     // ---- editing a feature after the fact
     /// <summary>How to make a fresh copy of this command (set by whoever started it). Without it the step cannot be edited later.</summary>

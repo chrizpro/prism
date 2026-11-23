@@ -52,12 +52,10 @@ public sealed class TrimSurfaceCommand : Command
         _tool = Slot(new SelectionSlot { Label = "Cutting tool (plane, surface, face or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid });
         _keep = Choice("Keep", 0, "The front side (where the tool's normal points, or outside a solid)", "The back side (the other side, or inside a solid)");
         _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
-        _apply = ApplyAndContinueButton();
     }
 
-    readonly ActionParam _apply;
     /// <summary>Apply trims this surface and keeps Trim Surface open for the next one (owner request 2026-11-23).</summary>
-    public override ActionParam? RepeatApply => EditMode ? null : _apply;
+    protected override bool OffersApply => true;
 
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
@@ -449,6 +447,7 @@ public sealed class FillOpeningCommand : Command
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01);
     }
 
+    protected override bool OffersApply => true;
     public override string Title => "Fill Opening";
     public override string Icon => "patch";
     public override string OkText => "Fill";

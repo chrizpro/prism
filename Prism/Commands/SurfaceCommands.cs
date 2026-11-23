@@ -79,6 +79,7 @@ public sealed class RuledSurfaceCommand : Command
         _a = Slot(new SelectionSlot { Label = "First curve", Filter = SelFilter.AnyCurve | SelFilter.Edge });
         _b = Slot(new SelectionSlot { Label = "Second curve", Filter = SelFilter.AnyCurve | SelFilter.Edge });
     }
+    protected override bool OffersApply => true;
     public override string Title => "Ruled Surface";
     public override string Hint => "Pick two curves; a surface of straight lines joins them.";
     protected override CommandOutput? Build()
@@ -103,6 +104,7 @@ public sealed class PatchCommand : Command
         _edges = Slot(new SelectionSlot { Label = "Boundary: curves, sketches or edges", Filter = SelFilter.AnyCurve | SelFilter.Edge | SelFilter.SketchObj, Multi = true, SelectionRuleIndex = 1 });
         _kind = Choice("Fill with", 0, "Automatic (flat if the loop is flat)", "Flat surface", "Smooth patch");
     }
+    protected override bool OffersApply => true;
     public override string Title => "Patch";
     public override string Hint => "Pick the curves, sketches or edges that surround the area to fill. A flat loop becomes a flat surface (loops inside it become holes); a bent loop becomes a smooth patch. Use “Fill with” to choose.";
     protected override CommandOutput? Build()

@@ -1552,6 +1552,8 @@ public abstract class EdgeDressCommand : Command
         Size = Num(SizeLabel, size, 0.001);
     }
     protected abstract string SizeLabel { get; }
+    /// <summary>Fillet and Chamfer keep going with Apply: round one set of edges, then the next with the same size.</summary>
+    protected override bool OffersApply => true;
     protected abstract Shape Apply(Shape s, int[] edges, double size);
     public override string Hint => "Click edges on a body (click again to deselect). Pull the arrow in the viewport or type a number to set the size.";
     public override HandleSpec? Handle => Edges.Items.Count == 0 ? null : EdgeHandle(Edges.Items[0], Size);
