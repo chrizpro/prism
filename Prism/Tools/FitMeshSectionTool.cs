@@ -345,7 +345,7 @@ public sealed class FitMeshSectionTool : SketchTool
     }
 
     /// <summary>Adds a tangent constraint between the new curve and each line or arc that continues smoothly through the point.</summary>
-    static int MakeTangent(SketchModel model, int created, int point)
+    internal static int MakeTangent(SketchModel model, int created, int point)
     {
         var mine = model.E(created);
         var dir = Outgoing(model, mine, point);

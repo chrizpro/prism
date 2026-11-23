@@ -729,6 +729,9 @@ public abstract partial class Command : ObservableObject
     protected virtual void UpdateVisibility() { }
 
     /// <summary>Builds the result or returns null when inputs are incomplete. Throw KernelException for failures.</summary>
+    /// <summary>The command previews a quicker result while its gizmo is dragged and is previewed again in full when the drag ends.</summary>
+    public virtual bool RefinesAfterDrag => false;
+
     public CommandOutput? TryBuild()
     {
         Error = null;

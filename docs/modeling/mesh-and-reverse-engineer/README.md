@@ -85,7 +85,7 @@ Convert Mesh creates fitted geometry for direct editing or an editable freeform 
 To build your own parametric part:
 
 1. Clean the mesh in Mesh if needed, then **Prepare → Align** it to useful planes.
-2. Open **Section Sketch**. Its movable plane starts at the mesh center. Drag the translation arrows or rotation rings, or type a move and angle in the panel. The orange trace shows the measured cut and the cyan curves show the fit. Both are visible through nearby geometry. Apply creates sketches at the current plane positions. Reposition the plane and Apply again for additional cuts, then choose Done. Each Apply is an undo step. The original world and picked plane options, offsets, and batches of parallel cuts are still available.
+2. Open **Section Sketch**. Its **Trace** choice slices the mesh or projects the selected region's border, the silhouette or sharp creases (see [MSH-P06](#section-sketch-traces-and-fit-quality-msh-p06)). Its movable plane starts at the mesh center. Drag the translation arrows or rotation rings, or type a move and angle in the panel. The orange trace shows the measured cut and the cyan curves show the fit. Both are visible through nearby geometry. Apply creates sketches at the current plane positions. Reposition the plane and Apply again for additional cuts, then choose Done. Each Apply is an undo step. The original world and picked plane options, offsets, and batches of parallel cuts are still available.
 3. Edit a generated sketch. The orange trace stays as a reference and is saved with the sketch. Toggle it with **Show measured section**. The panel's **Fit Section Curve** fits a line, arc or spline between two picks, or a circle to a closed outline. Use **Edge** selection to choose a single unconstrained curve before opening the tool to replace it while keeping shared endpoints. Add dimensions and constraints to express design intent. For example, enter 50 mm on a line measured as 50.3 mm. The orange reference retains the scan measurement.
 4. Use the Solid or Surface tools that suit the design, such as Extrude, Revolve or Loft. Choose the depth, axis or profiles there. Change a driving sketch dimension later to adjust the part. The choice of a ribbon shortcut to these tools is open for review.
 5. Run **Deviation** with the scan as Mesh to check and the rebuilt CAD body as the reference. This samples the scan against the reference; it is not a complete, bidirectional certification of every rebuilt surface. A partial or missing scan cannot establish the intended shape of the missing area.
@@ -128,6 +128,27 @@ A hole a Smart patch click cannot reach is still easiest to rebuild with Section
 - **Make tangent to neighbouring curves** (default on): when a new line or arc continues a line or arc within 10°, a tangent constraint is added. Splines are not constrained.
 - Lines are total-least-squares fits. Arcs are least-squares circles through the chosen end points. Splines use the fewest through points whose curve stays within the tolerance: they start from local averages and are corrected toward the samples.
 - The panel reports the last fit's largest deviation, its tolerance, how many curves it replaced and how many tangencies it added.
+
+### Section Sketch traces and fit quality (MSH-P06)
+
+**Owner report, 2026-11-22:** section sketches were not usable. Dots sat near the curves, and deleting a dot removed part of the outline. The owner also wanted a sketch of the face a part sits on, which a plane can't take cleanly, and asked for a way to project edges onto a plane. **Owner decisions, 2026-11-22:** trace the selected region's outline for the face at an end. Offer the region border, the silhouette and sharp creases as projections.
+
+Cause: the dots were arc centre points. Every fitted arc gets one, and arcs fitted to noise were small, so their centres sat next to the outline. A plane inside the scan's noise (0.02 mm above the bottom of a test scan) also cut thousands of tiny loops. Every element was judged by its single worst point, so a hole became an arc plus short lines and a freeform edge became many short lines and arcs. Nothing was constrained.
+
+Behaviour now:
+
+- **Trace** chooses what Section Sketch draws on its plane: **Section** (slice the mesh, as before), **Border of the selected region**, **Silhouette** (the outline of the mesh seen along the plane's normal, including holes) or **Sharp creases** (edges where the surface folds by more than **Crease angle**, default 40°). Projections land on the chosen plane. Choosing the region border switches the plane to **Fitted to the selected region**, so selecting the face a part sits on (Face mode, double-click) gives its footprint on that face.
+- **No noise specks.** Section loops where the plane slides along a face rather than crossing walls are skipped, and the panel says how many and suggests the region border. Projected creases and borders smaller than 0.5 mm (vertical edges seen end on) are dropped. Creases that land on top of another one (top and bottom rims) are kept once, using the copy with the fewest curves.
+- **Fit quality.** Elements are accepted on a robust deviation: the 95th-percentile distance, a few stray points allowed up to 2.5 × the tolerance, and any short stretch of neighbouring points drifting away counted in full. Closed outlines that stay within 1.5 × the tolerance of a circle all the way round become circles. Runs of pieces that meet smoothly on the scan (measured on the points, so a mild designed corner still counts as a corner) become one spline when that needs fewer points. A fillet between straight edges is rebuilt as a tangent arc (centre where the offset lines cross). Shallow arcs under 45° that the scan left at a corner are removed and the neighbours meet at a sharp corner. Tangent constraints are added where lines and arcs continue smoothly, if solving them moves nothing by more than three tolerances.
+- The silhouette is traced on a grid of up to 2,500 cells across, smoothed, and fitted no tighter than three cells.
+- While the plane is being dragged, the preview fits lines and arcs only, then refits fully when the plane is released.
+- The Elements row counts lines, arcs, splines and circles.
+
+On a 70 × 42 × 20 mm test plate (straight sides, an R10 corner, a freeform top edge, a Ø12 hole; 0.6 mm triangles, 0.03 mm noise), every trace gives 3 lines, the R10 arc, one spline and the circle, with the arc tangent to both sides. Over 27 sections (3 noise levels × 3 seeds × 3 heights), 11 gave exactly that design. 19 were usable without cleanup: at most 10 curves, no arc under 3 mm radius, within 1.6 tolerances. At 0.05 mm noise the freeform edge can stay as a chain of lines and arcs. Use Fit Section Curve to replace a span with a spline.
+
+Not covered: a face that a smart selection can't reach, and scans with holes along the traced outline (an open loop is fitted as an open curve). For solids, sketch mode's **Project / Include** already projects edges, bodies and intersections. Projecting edges one at a time can put two copies on top of each other.
+
+Checks: [Section trace tests MSH-H156 to MSH-H160](../../../Prism.Tests/Headless/Mesh/SectionTraceTests.cs).
 
 ### Import Mesh: reduction and large files (MSH-P01, MSH-P02)
 
@@ -209,7 +230,7 @@ Windows Release verification on 2026-11-10 passed **72 Mesh Headless tests** and
 
 Generated parts only: a drilled plate, an L bracket and a plate with a boss, remeshed and given up to ±0.2 mm of random noise. Each rebuilt to a valid solid with the right faces, within 0.3% of the volume, and Direct Edit pulled a face as it does on the original. No real scan has been tried, and real scans have holes, missing sides and uneven noise.
 
-Section Sketch does not add constraints yet, so its sketches have no parallel, equal or tangent relations.
+Section Sketch adds tangent constraints (MSH-P06) but no parallel, perpendicular or equal relations.
 
 The older commands (Fill Holes, Section Curves, Section Lines & Arcs) are off the ribbon but still work from scripts.
 

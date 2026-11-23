@@ -4,12 +4,22 @@ using System.Linq;
 
 namespace Prism.Meshing;
 
-/// <summary>A fitted sketch element: a straight line or a circular arc (start, mid, end are all on it; sweep is signed degrees, positive = counter-clockwise).</summary>
+/// <summary>A fitted sketch element: a straight line, a circular arc (start, mid, end are all on it; sweep is signed degrees,
+/// positive = counter-clockwise) or, when <see cref="Through"/> is set, a spline through P0, those interior points and P1.</summary>
 public sealed record SketchSeg(bool IsArc, (double x, double y) P0, (double x, double y) Mid, (double x, double y) P1, (double x, double y) Center, double Radius, double SweepDeg)
 {
+    /// <summary>Interior through-points of a fitted spline; null for lines and arcs.</summary>
+    public IReadOnlyList<(double x, double y)>? Through { get; init; }
+    /// <summary>The spline sampled densely from P0 to P1, for display and deviation checks.</summary>
+    public IReadOnlyList<(double x, double y)>? Samples { get; init; }
+    /// <summary>A closed spline: P0 = P1 and the curve runs smoothly through that point.</summary>
+    public bool Closed { get; init; }
+    public bool IsSpline => Through != null;
+
     /// <summary>Display the fitted curve as short chords rather than a start/mid/end triangle.</summary>
     public IEnumerable<(double x, double y)> Polyline()
     {
+        if (Samples != null) { foreach (var q in Samples) yield return q; yield break; }
         if (!IsArc) { yield return P0; yield return P1; yield break; }
         int steps = Math.Max(2, (int)Math.Ceiling(Math.Abs(SweepDeg) / 5));
         double start = Math.Atan2(P0.y - Center.y, P0.x - Center.x);
@@ -37,8 +47,8 @@ public static class LineArcFit
             for (int k = i; k <= j; k++) { double dx = P[k].x - mx, dy = P[k].y - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
             double th = 0.5 * Math.Atan2(2 * sxy, sxx - syy); double ux = Math.Cos(th), uy = Math.Sin(th);
             if ((P[j].x - P[i].x) * ux + (P[j].y - P[i].y) * uy < 0) { ux = -ux; uy = -uy; }
-            double dev = 0; for (int k = i; k <= j; k++) dev = Math.Max(dev, Math.Abs(-(P[k].x - mx) * uy + (P[k].y - my) * ux));
-            return ((mx, my), (ux, uy), dev);
+            var r = new double[n]; for (int k = i; k <= j; k++) r[k - i] = Math.Abs(-(P[k].x - mx) * uy + (P[k].y - my) * ux);
+            return ((mx, my), (ux, uy), RobustDeviation(r));
         }
 
         public bool LineOk(int i, int j) => j - i < 1 || Line(i, j).dev <= Tol;
@@ -47,13 +57,12 @@ public static class LineArcFit
         {
             var pts = new List<(double x, double y)>(); for (int k = i; k <= j; k++) pts.Add(P[k]);
             if (FitCircleFast(pts) is not { } c) return null;
-            double dev = 0; foreach (var p in pts) dev = Math.Max(dev, Math.Abs(Math.Sqrt((p.x - c.cx) * (p.x - c.cx) + (p.y - c.cy) * (p.y - c.cy)) - c.r));
+            var r = pts.Select(p => Math.Abs(Math.Sqrt((p.x - c.cx) * (p.x - c.cx) + (p.y - c.cy) * (p.y - c.cy)) - c.r)).ToArray();
             // The section is a polyline, not just isolated samples. A sparse rectangle's
             // corners lie on a circle too; its long straight edges must rule that arc out.
-            for (int k = i; k < j; k++)
-            {
-                dev = Math.Max(dev, EdgeCircleDeviation(P[k], P[k + 1], c.cx, c.cy, c.r));
-            }
+            double edge = 0;
+            for (int k = i; k < j; k++) edge = Math.Max(edge, EdgeCircleDeviation(P[k], P[k + 1], c.cx, c.cy, c.r));
+            double dev = Math.Max(RobustDeviation(r), r.Length < RobustMinSamples ? edge : edge / RobustMaxFactor);
             double sweep = 0, prev = Math.Atan2(pts[0].y - c.cy, pts[0].x - c.cx);
             for (int k = 1; k < pts.Count; k++)
             {
@@ -237,6 +246,38 @@ public static class LineArcFit
         return e[e.Count / 2] / 1.411;
     }
 
+    /// <summary>
+    /// Deviation used to accept a fitted element on a measured outline (distances in order along it): the 95th-percentile
+    /// distance, the largest distance divided by <see cref="RobustMaxFactor"/>, or the mean over any short stretch, whichever is
+    /// largest. A few stray noise points no longer split a straight edge or
+    /// a hole into pieces, while a real departure (a corner, a bump) still fails. Short runs (sparse CAD sections) use the
+    /// plain largest distance, as before.
+    /// </summary>
+    public static double RobustDeviation(IReadOnlyList<double> residuals)
+    {
+        int n = residuals.Count;
+        if (n == 0) return 0;
+        double max = 0; for (int i = 0; i < n; i++) max = Math.Max(max, residuals[i]);
+        if (n < RobustMinSamples) return max;
+        var sorted = residuals.ToArray(); Array.Sort(sorted);
+        double dev = Math.Max(sorted[(int)Math.Floor(0.95 * (n - 1))], max / RobustMaxFactor);
+        // Residuals are in order along the outline. Noise spikes are isolated, but where the outline really leaves the element
+        // (a line running into a curve) neighbouring points drift off together: the mean over any short stretch counts in full.
+        int w = Math.Max(3, n / 20); double sum = 0;
+        for (int i = 0; i < n; i++)
+        {
+            sum += residuals[i];
+            if (i >= w) sum -= residuals[i - w];
+            if (i >= w - 1) dev = Math.Max(dev, sum / w);
+        }
+        return dev;
+    }
+
+    /// <summary>Below this many samples <see cref="RobustDeviation"/> is the plain maximum.</summary>
+    public const int RobustMinSamples = 20;
+    /// <summary>The largest single distance may reach this multiple of the tolerance.</summary>
+    public const double RobustMaxFactor = 2.5;
+
     /// <summary>Fewer resampled points than this give no noise estimate (<see cref="NoiseSigma"/> returns NaN).</summary>
     public const int MinNoiseSamples = 20;
 
@@ -320,7 +361,12 @@ public static class LineArcFit
             foreach (var s in segs)
             {
                 double d;
-                if (!s.IsArc)
+                if (s.Samples is { Count: > 1 } samples)
+                {
+                    d = double.MaxValue;
+                    for (int k = 0; k + 1 < samples.Count; k++) d = Math.Min(d, SegmentDistance(p, samples[k], samples[k + 1]));
+                }
+                else if (!s.IsArc)
                 {
                     double dx = s.P1.x - s.P0.x, dy = s.P1.y - s.P0.y, l2 = dx * dx + dy * dy, t = l2 < 1e-24 ? 0 : Math.Clamp(((p.x - s.P0.x) * dx + (p.y - s.P0.y) * dy) / l2, 0, 1);
                     d = Dist(p, (s.P0.x + dx * t, s.P0.y + dy * t));
@@ -338,6 +384,12 @@ public static class LineArcFit
             worst = Math.Max(worst, best);
         }
         return worst;
+    }
+
+    internal static double SegmentDistance((double x, double y) p, (double x, double y) a, (double x, double y) b)
+    {
+        double dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy, t = l2 < 1e-24 ? 0 : Math.Clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / l2, 0, 1);
+        return Dist(p, (a.x + dx * t, a.y + dy * t));
     }
 
     static double EdgeCircleDeviation((double x, double y) a, (double x, double y) b, double cx, double cy, double radius)

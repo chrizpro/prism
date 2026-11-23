@@ -2878,6 +2878,21 @@ def mesh_matrix_3():
         zs = sorted(round(cad.call("object_info", object=o.name)["center"][2], 1) for o in made)
         return len(made) == 3 and zs == [2.0, 5.0, 8.0], f"{len(made)} sketch(es) at heights {zs} (expect 2, 5 and 8 mm through the 10 mm block)"
     case("Section Sketch: three outlines through a mesh block", section_sketch)
+
+    def section_traces():
+        # MSH-P06: the silhouette from above and the projected creases of a 30 x 20 x 10 block are both its 30 x 20 outline,
+        # four lines each (the top and bottom rims land on each other and are kept once; vertical edges project to nothing)
+        m = mesh_of("box")
+        found = {}
+        for label, trace in (("silhouette", 2), ("creases", 3)):
+            before = {o.name for o in cad.objects()}
+            cad.call("run_command", name="mesh_section_sketch", slots={"Mesh": [m]}, params={"Plane": 0, "Trace": trace})
+            made = [o for o in cad.objects() if o.name not in before and o.kind == "Sketch"]
+            info = cad.call("object_info", object=made[0].name) if len(made) == 1 else None
+            found[label] = [round(v) for v in info["size"][:2]] + [info.get("edges")] if info else None
+        ok = all(v is not None and v[:2] == [30, 20] and v[2] == 4 for v in found.values())
+        return ok, f"outline size and edge count {found} (expect [30, 20, 4] for both)"
+    case("Section Sketch traces: silhouette and sharp creases of a mesh block", section_traces)
     cad.call("document_new")
     cad.box(width=30, depth=20, height=10, operation="New body")
     strip = ["Overhang, rebuild and section fit on meshes with known answers"] + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows] + ["KNOWN ISSUE #88: Mesh Rebuild builds the flat end caps of a cylinder as oversize free-form patches, so the rebuilt solid is about 10% too big although its own report says 0 mm deviation"]
