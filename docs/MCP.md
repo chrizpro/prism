@@ -74,6 +74,8 @@ The [SFC-I001 integration scenario](../Prism.Tests/Integration/DesktopModelingTe
 | `settings` | Inspect and change safe preferences: `list`, `get`, `set`, `reset`, `open` (opens the Settings window, optional `page`). Keys come from `list`; secrets (API keys, tokens) are never exposed. Assistant `provider`, `model` and `effort` are included. See [Settings](interface/settings/README.md). |
 | `document_new`, `document_list`, `document_switch`, `document_close` | Work in several document tabs |
 | `study_new`, `study_run`, `study_state` | Simulation studies |
+| `move_gizmo` | The ribbon Move tool's gizmo as its panel and keys drive it: `start` (the Move button; every face of a body picked grabs the body), `pivot` (D: move only the gizmo), `operation` (move, rotate, scale), `set` (the panel's `origin`, `rotation`, `scale` fields), `release` (Esc), `done`, and `state`. Pivot clicks on corners and edges and handle drags go through `pointer`. Added 2026-11-23, tests API-H013 |
+| `shortcut` | Runs a keyboard shortcut action by id exactly as its key would (`gizmo.pivot`, `edit.repeat`, `edit.undo`…); with no id it lists every action with its current key. Needs the desktop window. Added 2026-11-23, tests API-H014 |
 
 ## Prompts (ready-made test scenarios)
 The bridge offers MCP prompts so you can ask for a scenario by name (in Claude Code they appear as `/mcp__prism__build_freeform_model` and so on):

@@ -70,6 +70,9 @@ public partial class MainWindow : Window
 
     static bool LetterMoved(char letter) => Hotkeys.Actions.Any(a => a.Scope == Hotkeys.Sketch && a.Default == letter.ToString() && Hotkeys.IsChanged(a));
 
+    /// <summary>Run a shortcut action by id exactly as its key would (automation uses this): false when it does not apply right now.</summary>
+    public bool RunShortcut(string id) => DataContext is MainViewModel vm && Run(id, vm);
+
     /// <summary>Do what a shortcut action means right now. False means it does not apply here, and the next candidate is tried.</summary>
     bool Run(string id, MainViewModel vm)
     {
