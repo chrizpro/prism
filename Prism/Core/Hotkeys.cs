@@ -56,6 +56,7 @@ public static class Hotkeys
         new("view.quad.maximize", "Maximize or restore hovered view (Four Views)", "View", Global, "Space", "Hover a pane in Four Views and press Space to maximize it, or press Space again to return; while the animation timeline is open Space plays or pauses"),
         new("app.search", "Search commands", "View", Global, "Ctrl+K"),
         new("model.extrude", "Extrude", "Modeling", Global, "Alt+X", "Outside sketching and active editors"),
+        new("gizmo.pivot", "Move the gizmo's pivot (Move tool)", "Modeling", Global, "D", "While Move holds something: the handles move and turn only the gizmo; click a corner or a straight edge to put the pivot there. D again goes back"),
         new("datum.gizmo", "Edit Gizmo", "Modeling", Global, "G", "At the viewport cursor (origin if the pointer is outside it)"),
         new("form.edit", "Edit selected Freeform (Modify)", "Freeform", Global, "M"),
         new("form.move", "Translate cage selection", "Freeform", Freeform, "T"),

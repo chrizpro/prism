@@ -134,6 +134,61 @@ public partial class CadSession
         return null;
     }
 
+    /// <summary>
+    /// The Move gizmo's scale (owner request 2026-11-23): scale an object or datum about <paramref name="center"/> by <paramref name="factors"/> along the three
+    /// orthonormal <paramref name="axes"/> (the gizmo's own). Bodies, surfaces, curves, meshes and freeforms stretch per axis; a sketch scales only evenly, so it
+    /// stays an editable sketch; a datum only has its position scaled; an assembly part is refused (its placement is rigid).
+    /// </summary>
+    public void ScaleTarget(SelItem item, Vec3 center, Vec3[] axes, Vec3 factors, bool checkpoint = false)
+    {
+        double[] k = [factors.X, factors.Y, factors.Z];
+        Vec3 Map(Vec3 p) { var d = p - center; var r = center; for (int i = 0; i < 3; i++) r += axes[i] * (Vec3.Dot(d, axes[i]) * k[i]); return r; }
+        bool even = Math.Abs(k[0] - k[1]) < 1e-9 && Math.Abs(k[1] - k[2]) < 1e-9;
+        if (item.Kind == SelKind.Datum)
+        {
+            if (DatumOf(item) is null) return;
+            Update(item.Obj, o =>
+            {
+                if (o.SketchData is not { } model || item.Index >= model.Datums.Count) return o;
+                var m = model.Clone(); var f = m.Datums[item.Index].Frame;
+                m.Datums[item.Index].Frame = new Plane3(Map(f.Origin), f.U, f.V);
+                return o.WithSketch(m);
+            }, checkpoint: checkpoint, label: "Scale");
+            return;
+        }
+        var obj = Find(item.Obj);
+        if (obj == null) return;
+        if (obj.Component != null) { Say($"{obj.Name} is an assembly part: parts keep their size. Scale it in its own part file.", true); return; }
+        // the linear part as a row-major 3x3 matrix, and the move that keeps the centre still
+        static double Comp(Vec3 v, int i) => i == 0 ? v.X : i == 1 ? v.Y : v.Z;
+        var m3 = new double[9];
+        for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++)
+        {
+            double v = 0; for (int i = 0; i < 3; i++) v += k[i] * Comp(axes[i], r) * Comp(axes[i], c);
+            m3[3 * r + c] = v;
+        }
+        var shift = center - new Vec3(m3[0] * center.X + m3[1] * center.Y + m3[2] * center.Z, m3[3] * center.X + m3[4] * center.Y + m3[5] * center.Z, m3[6] * center.X + m3[7] * center.Y + m3[8] * center.Z);
+        if (obj.Tri is { } tri)
+            Update(item.Obj, o => o.WithTri(tri.Transformed(Map)), checkpoint: checkpoint, label: "Scale");
+        else if (obj.Form is { } form)
+        {
+            var scaled = form.Clone();
+            for (int i = 0; i < scaled.V.Count; i++) scaled.V[i] = Map(scaled.V[i]);
+            Update(item.Obj, o => o.WithForm(scaled), checkpoint: checkpoint, label: "Scale");
+        }
+        else if (obj is { Kind: ObjKind.Sketch, SketchData: { } model, SketchPlane: { } sp, HasBrep: true } && obj.Shape is { } drawn)
+        {
+            if (!even) { Say("A sketch scales evenly only, so it stays an editable sketch. Use the centre square, or scale the other items on their own.", true); return; }
+            var m = model.Clone(); Commands.TransformCommand.ScaleSketchModel(m, k[0]);
+            Update(item.Obj, o => o.WithSketch(Occ.Scale(drawn, center, k[0]), m, new Plane3(Map(sp.Origin), sp.U, sp.V)), checkpoint: checkpoint, label: "Scale");
+        }
+        else if (obj.SketchData != null) { /* a datum carrier keeps its own frames */ }
+        else if (obj.HasBrep && obj.Shape is { } shape)
+            Update(item.Obj, o => o.Kind == ObjKind.Plane && o.SketchPlane is { } pl
+                ? o.WithShape(Occ.Affine(shape, m3, shift)).WithPlane(new Plane3(Map(pl.Origin), pl.U, pl.V))
+                : o.WithShape(Occ.Affine(shape, m3, shift)), checkpoint: checkpoint, label: "Scale");
+    }
+
     public void TransformTarget(SelItem item, Assembly.Xform delta, bool checkpoint = false)
     {
         if (item.Kind == SelKind.Datum)

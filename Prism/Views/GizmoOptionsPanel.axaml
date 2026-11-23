@@ -9,6 +9,7 @@
                 <TextBlock Text="Operation" Classes="section"/>
                 <ComboBox ItemsSource="{Binding GizmoOperations}" SelectedIndex="{Binding GizmoActiveOperation, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
                 <Button Classes="studioAction" Content="Unbind: move the gizmo without moving geometry" IsVisible="{Binding !GizmoPositioning}" Click="OnPlace" HorizontalAlignment="Stretch"/>
+                <Button Classes="studioAction" Content="{Binding GizmoPivotLabel}" IsVisible="{Binding GizmoCanMovePivot}" Click="OnPivot" HorizontalAlignment="Stretch" ToolTip.Tip="Move and turn only the gizmo while what it holds stays put. Click a corner or a straight edge to put the pivot there."/>
                 <StackPanel Spacing="8">
                     <TextBlock Text="Location (mm)" Classes="section"/>
                     <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
@@ -24,7 +25,7 @@
                         <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding GizmoRotationY, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo rotation Y"/>
                         <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding GizmoRotationZ, Mode=TwoWay}" FormatString="0.###" ShowButtonSpinner="False" AutomationProperties.Name="Gizmo rotation Z"/>
                     </Grid>
-                    <StackPanel IsVisible="{Binding HasGizmoPlanes}" Spacing="8">
+                    <StackPanel IsVisible="{Binding GizmoShowsScale}" Spacing="8">
                         <TextBlock Text="{Binding GizmoScaleHeader}" Classes="section"/>
                         <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4">
                             <TextBlock Text="X" Classes="meta"/><TextBlock Grid.Column="1" Text="Y" Classes="meta"/><TextBlock Grid.Column="2" Text="{Binding GizmoScaleZLabel}" Classes="meta"/>

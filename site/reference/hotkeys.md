@@ -72,6 +72,7 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Action | Key | Works | Notes |
 | --- | --- | --- | --- |
 | Extrude | <kbd>Alt</kbd> + <kbd>X</kbd> | Everywhere | Outside sketching and active editors |
+| Move the gizmo's pivot (Move tool) | <kbd>D</kbd> | Everywhere | While Move holds something: the handles move and turn only the gizmo; click a corner or a straight edge to put the pivot there. D again goes back |
 | Edit Gizmo | <kbd>G</kbd> | Everywhere | At the viewport cursor (origin if the pointer is outside it) |
 
 ## Freeform
