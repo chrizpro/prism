@@ -118,8 +118,10 @@ static class DirectHelpers
     }
 
     /// <summary>
-    /// Re-skin one flat face so it lies on a new plane. Material between the old face and the new plane (inside the face's outline, swept along its normal) is added where the new
-    /// plane is outside the part and cut where it is inside, so a tilted target gives a wedge. Neighbour faces extend or trim to meet the new plane.
+    /// Re-skin one flat face so it lies on a new plane. Material between the old face and the new plane is added where the new plane is outside the part and cut where it is
+    /// inside, so a tilted target gives a wedge. When every neighbour of the face is flat, that material is bounded by the neighbours' own planes, so they extend or trim to meet
+    /// the new plane (owner report 2026-11-23: the end of a turned bar set onto a wall used to grow straight out along its own normal, leaving a step beside the long side).
+    /// A face with a curved neighbour falls back to sweeping the face along its normal.
     /// </summary>
     public static Shape MoveFaceToPlane(Shape body, Shape face, Vec3 outward, Vec3 target, Vec3 targetNormal)
     {
@@ -127,6 +129,33 @@ static class DirectHelpers
         double reach = 2 * (diag + (target - centre).Length) + 10;
         var nt = targetNormal.Normalized(); if (Vec3.Dot(nt, outward) < 0) nt = -nt;
         if (Vec3.Dot(nt, outward) < 1e-3) throw new FormatException("The target plane is square-on to that face, so the face can never reach it.");
+        if (FlatNeighbours(body, face) is { } neighbours)
+        {
+            try
+            {
+                var at = face.Props().Center;
+                Shape Bounded(bool beyondFace)
+                {
+                    // between the face's own plane and the target, on the face's side of every neighbour's plane
+                    var region = Occ.Common(HalfSpace(at, outward, reach, !beyondFace), HalfSpace(target, nt, reach, beyondFace));
+                    foreach (var (p, n) in neighbours)
+                    {
+                        double side = Vec3.Dot(at - p, n);
+                        if (Math.Abs(side) < 1e-9) continue;
+                        region = Occ.Common(region, HalfSpace(p, n, reach, side < 0));
+                    }
+                    return region;
+                }
+                var grow = Bounded(true); var trim = Bounded(false);
+                bool growing = grow.Props().Volume > 1e-9, trimming = trim.Props().Volume > 1e-9;
+                if (!growing && !trimming) throw new FormatException("That face is already on the target plane.");
+                var bounded = body;
+                if (growing) bounded = Occ.Fuse(bounded, grow);
+                if (trimming) bounded = Occ.Cut(bounded, trim);
+                if (bounded.IsValid && bounded.Count(SubKind.Solid) == body.Count(SubKind.Solid)) return bounded;
+            }
+            catch (KernelException) { /* the swept face below still works */ }
+        }
         Shape? add = null, remove = null;
         try { var a = Occ.Common(Occ.Extrude(face, outward * reach), HalfSpace(target, nt, reach, true)); if (a.Props().Volume > 1e-9) add = a; } catch (KernelException) { }
         try { var r = Occ.Common(Occ.Extrude(face, -outward * reach), HalfSpace(target, nt, reach, false)); if (r.Props().Volume > 1e-9) remove = r; } catch (KernelException) { }
@@ -135,6 +164,35 @@ static class DirectHelpers
         if (add != null) res = Occ.Fuse(res, add);
         if (remove != null) res = Occ.Cut(res, remove);
         return res;
+    }
+
+    /// <summary>The planes (a point and the outward normal) of every face sharing an edge with <paramref name="face"/>, or null when one of them is curved.</summary>
+    static List<(Vec3 point, Vec3 normal)>? FlatNeighbours(Shape body, Shape face)
+    {
+        const double tol = 1e-6;
+        var own = Enumerable.Range(0, face.Count(SubKind.Edge)).Select(i => Occ.EdgeInfoOf(face.Sub(SubKind.Edge, i))).ToList();
+        var fp = face.Props();
+        bool Shares(Shape other)
+        {
+            for (int i = 0; i < other.Count(SubKind.Edge); i++)
+            {
+                var e = Occ.EdgeInfoOf(other.Sub(SubKind.Edge, i));
+                if (own.Any(o => o.Start.DistanceTo(e.Start) < tol && o.End.DistanceTo(e.End) < tol || o.Start.DistanceTo(e.End) < tol && o.End.DistanceTo(e.Start) < tol)) return true;
+            }
+            return false;
+        }
+        var list = new List<(Vec3, Vec3)>();
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            using var other = body.Sub(SubKind.Face, i);
+            var op = other.Props();
+            if (op.Center.DistanceTo(fp.Center) < tol && Math.Abs(op.Area - fp.Area) < tol) continue;    // the face itself
+            if (!Shares(other)) continue;
+            var info = Occ.FaceInfoOf(other);
+            if (info.Type != "Plane") return null;
+            list.Add((op.Center, info.Normal.Normalized()));
+        }
+        return list.Count > 0 ? list : null;
     }
 
     // ---------------------------------------------------------------- pattern recognition (the work is in FeatureFinder)

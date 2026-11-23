@@ -1604,6 +1604,10 @@ CK_API void* ck_unify_faces(void* s, const int* faces, int n) {
 
         ShapeUpgrade_UnifySameDomain u(get(s), false, true, false);
 
+        // Faces a modeling step left a hair apart (0.0001 mm, a few microradians) are still one surface: the default
+        // tolerance (1e-7 mm) refused them, so Merge Faces failed after Replace Face. 1 micron and 1e-5 rad stay far below a real step.
+        u.SetLinearTolerance(1e-3); u.SetAngularTolerance(1e-5);
+
         u.KeepShapes(keep);
 
         u.Build();
