@@ -300,7 +300,7 @@ public sealed class MeshRebuildCommand : MeshCommand
         return span > 2 * Math.PI - 0.06 ? (0, 2 * Math.PI) : (start, span);
     }
 
-    static (double start, double span) AzimuthRange(List<Vec3> verts, FitRegion r, Vec3 u, Vec3 w)
+    internal static (double start, double span) AzimuthRange(List<Vec3> verts, FitRegion r, Vec3 u, Vec3 w)
         => CircularRange(verts.Select(v => { var d = v - r.Origin; return Math.Atan2(Vec3.Dot(d, w), Vec3.Dot(d, u)); }).ToList());
 }
 

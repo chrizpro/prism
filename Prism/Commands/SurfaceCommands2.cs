@@ -318,7 +318,7 @@ public sealed class BoundaryFillCommand : Command
         Results.Clear();
         if (_src.Items.Count < 1) return null;
         Refresh();
-        if (_spaces.Count == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps.");
+        if (_spaces.Count == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps. Surfaces from Fit Region reach their neighbours when made with 'Extend past the region'.");
         var want = Wanted();
         var o = new CommandOutput { Label = "Enclosed solid", Icon = "fill" };
         for (int i = 0; i < _spaces.Count; i++)

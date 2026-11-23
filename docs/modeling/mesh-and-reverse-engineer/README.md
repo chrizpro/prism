@@ -121,6 +121,40 @@ The owner had to open Edit Region to give Fit Region its triangles and could not
 
 A hole a Smart patch click cannot reach is still easiest to rebuild with Section Sketch: sketch the hole, then extrude or cut it.
 
+### Fit Region to a solid (MSH-P07)
+
+**Owner request, 2026-11-22:** make the Fit Region workflow (fit each face, then trim or use Enclosed Body to build something parametric) work end to end, tested in the app.
+
+Found on a 70 × 42 × 20 mm test scan (straight sides, an R10 corner, a freeform wall, a Ø12 hole; 0.6 mm triangles, 0.03 mm noise):
+
+- Surfaces trimmed to their regions stop short of each other, so Enclosed Body found no space. The fitted reference planes did enclose the part, but they only reach just past their own face, and could not bridge a fillet left out to be added later.
+- A smooth patch was wavy: the deviation map showed ±0.5 mm bumps on the freeform wall and a largest error of 1 mm. The surface fill follows its guide points only loosely.
+- **Points the surface must follow** went up to 1,000. The fill slows steeply (150 points: 8 s, 250: 93 s), and 400 or more froze the app until it was killed.
+
+Behaviour now:
+
+- **Extend past the region (to trim or enclose)** (off by default, so the trimmed result stays the default): a plane becomes a rectangle across the whole scan's footprint, and a cylinder or cone runs the scan's whole length along its axis, a full turn when the region already goes most of the way round. A sphere is whole. Free-form regions use a least-squares NURBS surface fitted to the region's points, extended 15% (at least 2 mm) past the region on every side. Fitted faces then cross every other main face, so Enclosed Body can close the part even with a fillet left out to be added later.
+- The guide points for the outline-bounded smooth patch are capped at 150.
+- Enclosed Body's "no space" message mentions the Extend option.
+
+Workflow:
+
+1. Select a face (Face mode, double-click) and run **Fit Region** with **Extend past the region** on. Repeat for each main face: planes, holes, freeform walls. For a freeform wall, select it with a lasso or paint stroke. A double-click on a freeform wall takes only the part that one plane or cylinder explains.
+2. Leave out fillets and rounds. Fit one with **Reference geometry only** to read its diameter.
+3. **Enclosed Body**: pick the extended surfaces, then keep the space that is the part.
+4. **Fillet** the sharp edges with the measured radius, rounded to the design value.
+5. Check with **Deviation**.
+
+Result on the test scan, in the app: plane fits within 0.002 mm of their true positions, the hole Ø11.993 mm (true Ø12), the R10 corner Ø19.861 mm, the freeform wall an 8 × 4 surface with RMS 0.037 mm. Enclosed Body gave 48,503.7 mm³ for the sharp-cornered part (expected 48,511). After the R10 fillet the part was 48,076.5 mm³ (true 48,082). Deviation: 99.4% of scan points within 0.1 mm, RMS 0.033 mm (the scan's noise), largest ±0.22 mm.
+
+Not changed:
+
+- A double-click can't tell a freeform face from a flat face meeting a fillet: the segmentation explains a freeform wall as a plane and two cylinders.
+- A double-click on a flat face next to a tangent fillet takes the first millimetre or two of the fillet. The fillet's measured radius came out 0.07 mm small.
+- The outline patch still takes about 8 s at 150 points, and the panel waits for it.
+
+Checks: [Fit Region workflow tests MSH-H161 to MSH-H163](../../../Prism.Tests/Headless/Mesh/FitRegionWorkflowTests.cs).
+
 ### Section Sketch cleanup (MSH-P04)
 
 - **Estimate the fit tolerance from the scan's noise** (default on). Each outline is resampled and its noise measured from how the points scatter, so steady curvature does not count as noise. The tolerance is four times the noise, at least 0.01 mm and at most 0.5% of the outline. Outlines with too few points use the typed tolerance. The panel shows the tolerance, the noise and the number of lines and arcs before Apply. A noisy box section that produced 33 lines and 32 arcs at a fixed tolerance gives 4 lines.
