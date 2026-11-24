@@ -59,3 +59,7 @@ not established: automatic reblending of arbitrary imported fillets remains a
 gap, and the kernels may accept different edge cases. Reference:
 [Unwrap Face](https://plasticity-document-revisions.vercel.app/solid/unwrap-face)
 and [Deform](https://plasticity-document-revisions.vercel.app/solid/deform-solid-and-sheet.en).
+
+## Regression coverage
+
+The [headless Refold tests](../Prism.Tests/Headless/Surfacing/RefoldStressTests.cs) exercise a cylinder tilted 41 degrees with 0.05 mm clearance at its seam and between holes. They check individual opening positions, the surviving web and the analytic surface area. The curve-wrap case compares a selected solid edge with the same edge extracted as a standalone guide on a spatial spline. Both passed on Windows on November 23, 2026 after correcting reference-edge selection ([issue #162](https://github.com/chrizpro/prism/issues/162)).
