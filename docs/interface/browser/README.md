@@ -25,6 +25,55 @@ Current differences (2026-11-22):
 | Scripts, AI Assistant, MCP | Unavailable | They start local processes |
 | Video export, send to slicer | Unavailable | They start ffmpeg or a slicer |
 
+## Loading time (measured 2026-11-23)
+
+What a first visit downloads, from the boot manifest of a `packaging/Publish-Browser.ps1` build (206 files; one language-data shard of three is used):
+
+| Served as | Size |
+| --- | --- |
+| Brotli | 19.5 MB |
+| gzip | 27.2 MB |
+| uncompressed | 78.5 MB |
+
+`dotnet.native.wasm` (the .NET runtime with Open CASCADE linked in) is 7.4 MB of the Brotli total, `Prism.wasm` 2 MB, the rest the .NET library, Avalonia, Skia and Silk.NET assemblies.
+
+Download time alone, by connection (bytes ÷ bandwidth; real connections add latency):
+
+| | 10 Mb/s | 25 Mb/s | 50 Mb/s | 100 Mb/s | 300 Mb/s |
+| --- | --- | --- | --- | --- | --- |
+| Brotli | 16 s | 6 s | 3 s | 1.6 s | 0.5 s |
+| gzip | 22 s | 9 s | 4 s | 2.2 s | 0.7 s |
+| uncompressed | 63 s | 25 s | 13 s | 6 s | 2 s |
+
+Start-up after the download, measured on the owner's workstation in the built-in Chromium browser with the files served locally: the downloads and the .NET runtime were done at 1.9–2.6 s and the app replaced the loading page at 8.1–10.8 s. The console report splits that: the main view model 0.4–0.5 s, the main view 1.4–2.1 s, and the first frame until the UI thread is free 6.1–6.7 s. The first frame is the biggest cost; the likely cause is the welcome gallery, whose preview pictures are decoded "in the background", which in the browser means on the one thread the UI also uses. Loading only the visible cards' pictures there is the next thing to try. Slower computers take longer. A later visit skips the download when the host lets the browser cache the files (see Hosting), so it costs only the start-up.
+
+**Changed on 2026-11-23:** browser logging is limited to errors (it did not remove the ~110 binding messages at start-up: Avalonia logs those as errors, though they are harmless null paths before a tool opens), and the 3D view's compiled shader programs are shared between viewport panes, which all draw on Skia's one WebGL context (desktop keeps a binary cache instead, see [start-up](../startup.md)). The browser console prints the start-up stages, the same report as the desktop's `startup.log`.
+
+**Options not taken yet** (each needs owner review):
+
+- **AOT compilation** would cut most of the 6 s of start-up but needs trimming and roughly doubles the native module (about 54 MB raw); see the build notes. Start-up with AOT has not been verified end to end.
+- **Trimming the .NET library only** (keeping Avalonia, Prism and Silk.NET whole, since XAML bindings use reflection) could save an estimated 2–3 MB of Brotli download (System.Private.Xml, System.Data.Common, serialisation); every feature would need retesting.
+- **A size-optimised native build** (`-Oz`) would shrink `dotnet.native.wasm` but slow the geometry kernel.
+
+## Phones and low-power devices
+
+**Owner request 2026-11-23, built; tried with the built-in browser's phone emulation (375 × 812, touch).** The loading page decides before anything large downloads ([main.js](../../../Prism.Browser/wwwroot/main.js)):
+
+- **No WebGL 2** (any device): *This browser cannot run Prism*, with what to try instead. Prism cannot draw without it, so there is no way on.
+- **A phone** (a touch screen whose smaller side is under 600 CSS pixels): *Prism works best on a computer*: it is made for a mouse or trackpad and a large screen, phones may run it slowly or close it, and it downloads about 20 MB. **Get the desktop app** opens the download page; **Continue anyway** starts the download and is remembered in local storage (`prism-continue-on-this-device`). Tablets go straight on.
+- **Low memory** (`navigator.deviceMemory` under 4 GB) or **data saver** on: the same notice, worded *Prism may run slowly on this device*.
+- Before the choice only `dotnet.js` (the loader) has been fetched.
+
+## Hosting
+
+The web version is served at `/app/` of the project's GitHub Pages site (`https://chrizpro.github.io/prism/app/`):
+
+1. `packaging/Publish-Browser.ps1` writes the site and `artifacts/browser-publish/Prism-web.zip` (the site without the `.br`/`.gz` copies).
+2. Attach `Prism-web.zip` to the GitHub release (by hand: the web build needs the Emscripten Open CASCADE build, which CI does not have).
+3. The Pages workflow (on a published release, a push to `main`, or by hand) unpacks the newest release's `Prism-web.zip` into `/app/`. The download page shows **Try it in your browser** only when the release carries it.
+
+What the host must do, and why it matters for the wait: serve compressed files (GitHub Pages compresses with gzip, not the build's Brotli copies: 27 MB rather than 19.5 MB; check the `content-encoding` of `dotnet.native.*.wasm` after the first deploy), serve `.wasm` as `application/wasm` so the browser compiles while downloading, and let the browser cache the fingerprinted `_framework` files. A host that serves the pre-compressed `.br` files and sends long cache headers for `_framework` (Cloudflare Pages, Netlify, Azure Static Web Apps) would download about a quarter less on a first visit.
+
 ## Fonts
 
 The browser has no system fonts. On desktop, characters missing from Inter (▾ ✕ ⚙ ☰ ⊥ 📁 …) fall back to the OS's symbol fonts; in the browser they drew as empty boxes, which hid every dropdown arrow. `Prism.Browser` now bundles fallback fonts, tried in this order:
@@ -47,6 +96,8 @@ Open CASCADE (LGPL-2.1 with the OCCT exception) is statically linked into `dotne
 - **Relinking:** the notices name the exact Prism commit. Prism is MIT and public, so anyone can rebuild the web version against a modified Open CASCADE with `native/build-wasm.ps1` and this script. Publish only from a clean, pushed commit; the script marks builds with uncommitted changes.
 - **Reachable from the app:** the web-version mark's flyout has a **Licenses & source** button that opens the notices served next to the page.
 - Netgen is stubbed in the browser build and FreeType is not linked, so neither is distributed there.
+- **Fonts.** Inter (the app's typeface, inside the Avalonia.Fonts.Inter package) is under the SIL Open Font License; its notice was missing from both the web and desktop notices until 2026-11-23 ([Inter-OFL.txt](../../../packaging/Inter-OFL.txt), added by `Write-Notices.ps1`). The fallback fonts' licences were already there.
+- **Audit 2026-11-23.** The notices cover the .NET runtime (with ICU's Unicode licence), every NuGet package, Skia's bundled libraries (libpng, libjpeg-turbo, libwebp, zlib, FreeType, HarfBuzz, expat and the rest), Open CASCADE with its source and relinking offer, Eigen, Emscripten's system libraries and all fonts. Privacy for the web version is described on the guide's [privacy page](../../../site/reference/privacy.md). This is a practical check, not legal advice.
 
 The desktop releases' `Prism-LGPL-sources.zip` comes from the same vcpkg commit and Open CASCADE 8.0.1; the web archive adds the Emscripten triplet.
 

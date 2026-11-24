@@ -2,8 +2,19 @@
 import Base from '../layouts/Base.astro'
 import { docs, repoUrl } from '../config'
 import { latestRelease } from '../data/release'
+import { Image } from 'astro:assets'
+import vermilion from '../assets/step/vermilion-gt.png'
+import tideline from '../assets/step/tideline-jet.png'
+import evergreen from '../assets/step/evergreen-express.png'
 
-const { release, downloads } = await latestRelease()
+const { release, downloads, webApp } = await latestRelease()
+// The web version is served next to the site (the Pages workflow unpacks the release's Prism-web.zip there).
+const appUrl = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}app/`
+const stepModels = [
+  { id: 'vermilion-gt', name: 'Vermilion GT', detail: 'Mid-engine sports car with sculpted fenders and split-spoke wheels', size: '2.9 MB', image: vermilion },
+  { id: 'tideline-jet', name: 'Tideline airliner', detail: 'Single-aisle jet with swept wings, two turbofans and landing gear', size: '2.8 MB', image: tideline },
+  { id: 'evergreen-express', name: 'Evergreen Express', detail: 'Three-car electric train with gangways, two cabs and a pantograph', size: '4.2 MB', image: evergreen },
+]
 const available = downloads.filter(d => d.url)
 const mb = (bytes?: number) => bytes ? `${(bytes / 1048576).toFixed(0)} MB` : ''
 const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
@@ -45,10 +56,31 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
         ))}
       </div>
 
+      {webApp && (
+        <div class="webapp">
+          <div>
+            <h2>Try it in your browser</h2>
+            <p class="muted">The web version runs in Chrome, Edge, Firefox and Safari with nothing to install. The first visit downloads about 20 MB; later visits open from the browser's cache. It is made for a computer or tablet, and some desktop features are not available (the app lists them).</p>
+          </div>
+          <a class="btn btn-primary" href={appUrl}>Open Prism in the browser</a>
+        </div>
+      )}
+
       <div class="section-head">
         <h2>Try a STEP model</h2>
         <p>Open a finished Prism vehicle in your CAD viewer.</p>
-        <p><a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/vermilion-gt.step">Vermilion GT (STEP)</a> · <a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/tideline-jet.step">Tideline airliner (STEP)</a> · <a href="https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/evergreen-express.step">Evergreen Express (STEP)</a></p>
+      </div>
+      <div class="models">
+        {stepModels.map(m => (
+          <a class="model" href={`https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/extras/${m.id}.step`} download>
+            <Image src={m.image} alt={`Render of the ${m.name}`} widths={[360, 720]} sizes="(max-width: 700px) 100vw, 360px" loading="lazy" />
+            <span class="model-text">
+              <strong>{m.name}</strong>
+              <span class="muted">{m.detail}</span>
+              <span class="model-file">STEP · {m.size}</span>
+            </span>
+          </a>
+        ))}
       </div>
 
       <div class="notes">
@@ -111,6 +143,15 @@ const date = release ? new Date(release.date).toLocaleDateString('en-GB', { day:
   .size { opacity: 0.75; font-weight: 500; font-size: 0.85em; }
   .sha { font-size: 0.8rem; color: var(--muted); }
   .status { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+  .webapp { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 26px; margin: 32px 0 8px; border-radius: var(--radius); border: 1px solid rgba(57, 200, 237, 0.35); background: var(--panel); }
+  .webapp h2 { font-size: 1.35rem; margin-bottom: 6px; }
+  .webapp p { max-width: 640px; }
+  .models { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-bottom: 8px; }
+  .model { display: grid; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); overflow: hidden; color: inherit; text-decoration: none; transition: border-color 0.15s; }
+  .model:hover { border-color: var(--cyan); }
+  .model img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: #fff; }
+  .model-text { display: grid; gap: 4px; padding: 14px 16px 16px; }
+  .model-file { font-size: 0.8rem; font-weight: 600; color: var(--cyan); }
   .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 32px; margin: 56px 0 40px; }
   .notes h3 { font-size: 1.15rem; margin-bottom: 10px; }
   .notes p + p { margin-top: 10px; }

@@ -73,7 +73,23 @@ public partial class App : Application
             else Avalonia.Threading.Dispatcher.UIThread.Post(() => StartDesktop(desktop, card), Avalonia.Threading.DispatcherPriority.Background);
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
-            single.MainView = new MainView { DataContext = new MainViewModel() };
+        {
+            // the web version: the same stage timings as the desktop's startup.log, written to the browser console
+            Core.StartupLog.Mark("Runtime, assemblies and Avalonia");
+            var vm = new MainViewModel();
+            Core.StartupLog.Mark("Workspace (main view model)");
+            var view = new MainView { DataContext = vm };
+            Core.StartupLog.Mark("Main view");
+            async void FirstFrame(object? sender, Avalonia.VisualTreeAttachmentEventArgs args)
+            {
+                view.AttachedToVisualTree -= FirstFrame;
+                await System.Threading.Tasks.Task.Delay(50);
+                Core.StartupLog.Mark("First frame and the UI thread free again");
+                Console.WriteLine(Core.StartupLog.Report());
+            }
+            view.AttachedToVisualTree += FirstFrame;      // before the view is handed over: it can attach at once
+            single.MainView = view;
+        }
 
         base.OnFrameworkInitializationCompleted();
     }

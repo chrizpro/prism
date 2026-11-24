@@ -14,14 +14,16 @@ public static class StartupLog
 {
     static readonly List<(string stage, double ms)> _marks = [];
     static double _last;
+    static readonly Stopwatch _sinceFirstUse = Stopwatch.StartNew();
 
     /// <summary>Milliseconds since the process started.</summary>
     public static double Elapsed
     {
         get
         {
+            if (OperatingSystem.IsBrowser()) return _sinceFirstUse.Elapsed.TotalMilliseconds;   // no process start time in the browser: main.js logs the page's own times
             try { return (DateTime.Now - Process.GetCurrentProcess().StartTime).TotalMilliseconds; }
-            catch (Exception) { return Environment.TickCount64; }
+            catch (Exception) { return _sinceFirstUse.Elapsed.TotalMilliseconds; }
         }
     }
 

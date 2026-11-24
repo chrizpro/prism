@@ -31,7 +31,9 @@ internal sealed partial class Program
             await BuildAvaloniaApp()
                 .WithInterFont()
                 .With(new FontManagerOptions { FontFallbacks = FallbackFonts })
-                .LogToTrace(Avalonia.Logging.LogEventLevel.Warning)
+                // Errors only: start-up raises about 110 harmless binding warnings (null paths before a tool opens), and in the browser's
+                // interpreter formatting and printing each one is measurable start-up time (2026-11-23).
+                .LogToTrace(Avalonia.Logging.LogEventLevel.Error)
                 .StartBrowserAppAsync("out");
         }
         catch (Exception ex)

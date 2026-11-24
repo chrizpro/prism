@@ -234,5 +234,13 @@ if ($Web) {
     Line 'of the Microsoft Visual Studio license for distributable code.'
 }
 
+# The Inter typeface ships inside Avalonia.Fonts.Inter, whose package licence (MIT) covers Avalonia's code only; the font itself is
+# under the SIL Open Font License, which asks for its notice and licence to travel with it (desktop and web, found 2026-11-23).
+$interLicense = Join-Path $PSScriptRoot 'Inter-OFL.txt'
+if ($packages.Keys | Where-Object { $_ -match '^Avalonia\.Fonts\.Inter' }) {
+    Section 'Inter typeface (in Avalonia.Fonts.Inter)'
+    Line (Get-Content -LiteralPath $interLicense -Raw)
+}
+
 Set-Content -LiteralPath $Output -Value $out.ToString() -Encoding utf8NoBOM
 Write-Output ("Wrote {0}: {1} packages, {2} native libraries" -f $Output, $packages.Count, $native.Count)

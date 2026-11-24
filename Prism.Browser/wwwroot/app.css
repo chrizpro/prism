@@ -55,6 +55,59 @@
     color: #5d7393;
 }
 
+/* The notice for phones, low-memory devices and browsers without WebGL 2 (main.js decides). */
+.avalonia-splash .notice {
+    pointer-events: auto;
+    max-width: 380px;
+    margin: 6px 20px 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: #142338;
+    border: 1px solid #24344d;
+    color: #c9d6e6;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.avalonia-splash .notice[hidden] {
+    display: none;
+}
+
+.avalonia-splash .notice h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #eef4fb;
+}
+
+.avalonia-splash .notice p {
+    margin: 0 0 14px;
+}
+
+.avalonia-splash .notice .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.avalonia-splash .notice .button {
+    font: inherit;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #3a4d6b;
+    background: transparent;
+    color: #eef4fb;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.avalonia-splash .notice .button.primary {
+    background: #39c8ed;
+    border-color: #39c8ed;
+    color: #0f1b2d;
+}
+
 .avalonia-splash.splash-close {
     transition: opacity 200ms, display 200ms;
     display: none;

@@ -85,4 +85,15 @@ $emscripten = Get-ChildItem (Join-Path $dotnetRoot 'packs') -Directory -Filter '
     ForEach-Object { Join-Path $_.FullName 'tools/emscripten' }
 & (Join-Path $PSScriptRoot 'Write-Notices.ps1') -Web -PublishDirectory $site -AssetsFile (Join-Path $project 'obj/project.assets.json') `
     -Runtime 'browser-wasm' -RuntimePack $runtimePack.FullName -Commit $commit -Emscripten $emscripten
+# The archive attached to a GitHub release as Prism-web.zip: the Pages workflow unpacks it at /app/ next to the website.
+# GitHub Pages compresses on its own, so the pre-compressed .br/.gz copies are left out (they would double the archive).
+$zip = Join-Path (Split-Path $site) 'Prism-web.zip'
+$pack = Join-Path ([System.IO.Path]::GetTempPath()) ("prism-web-" + [guid]::NewGuid().ToString('N'))
+try {
+    Copy-Item -LiteralPath $site -Destination $pack -Recurse
+    Get-ChildItem -LiteralPath $pack -Recurse -File -Include '*.br', '*.gz' | Remove-Item -Force
+    Compress-Archive -Path "$pack/*" -DestinationPath $zip -Force
+}
+finally { Remove-Item -LiteralPath $pack -Recurse -Force -ErrorAction SilentlyContinue }
 Write-Output "Site ready: $site"
+Write-Output "Release asset ready: $zip (attach it to the GitHub release as Prism-web.zip; the Pages workflow serves it at /app/)"

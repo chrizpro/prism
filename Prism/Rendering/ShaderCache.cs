@@ -37,9 +37,24 @@ public static unsafe class ShaderCache
         return Convert.ToHexString(hash)[..32];
     }
 
+    /// <summary>
+    /// In the browser every viewport pane draws on Skia's one WebGL context, so a program compiled for one pane serves them all
+    /// (WebGL cannot hand out binaries). Counted, so closing one pane never deletes a program another still uses.
+    /// </summary>
+    static readonly System.Collections.Generic.Dictionary<string, (uint program, int users)> _shared = [];
+
     /// <summary>A linked program for these sources: from a cached binary when the driver accepts it, otherwise compiled by <paramref name="compile"/>.</summary>
     public static uint Program(GL gl, string vs, string fs, Func<uint> compile)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            string shared = Key(gl, vs, fs);
+            if (_shared.TryGetValue(shared, out var entry)) { _shared[shared] = (entry.program, entry.users + 1); Loaded++; return entry.program; }
+            uint made = compile();
+            Compiled++;
+            _shared[shared] = (made, 1);
+            return made;
+        }
         if (!Supported(gl)) { Compiled++; return compile(); }
         string key = Key(gl, vs, fs);
         if (TryLoad(gl, key) is uint loaded) { Loaded++; return loaded; }
@@ -47,6 +62,21 @@ public static unsafe class ShaderCache
         Compiled++;
         Save(gl, key, p);
         return p;
+    }
+
+    /// <summary>A viewport is done with a program: delete it, unless (in the browser) another pane still uses it.</summary>
+    public static void Release(GL gl, uint program)
+    {
+        if (program == 0) return;
+        if (OperatingSystem.IsBrowser())
+            foreach (var (key, entry) in _shared)
+                if (entry.program == program)
+                {
+                    if (entry.users > 1) { _shared[key] = (program, entry.users - 1); return; }
+                    _shared.Remove(key);
+                    break;
+                }
+        gl.DeleteProgram(program);
     }
 
     static uint? TryLoad(GL gl, string key)

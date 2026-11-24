@@ -125,7 +125,7 @@ public sealed unsafe class GlViewport : Decorator
         foreach (var m in _cache.Values) FreeMesh(m);
         _cache.Clear();
         foreach(var tex in _surfaceTex.Values)gl.DeleteTexture(tex); _surfaceTex.Clear();
-        gl.DeleteProgram(_bg); gl.DeleteProgram(_mesh); gl.DeleteProgram(_line); gl.DeleteProgram(_point); gl.DeleteProgram(_grid); gl.DeleteProgram(_flat);
+        foreach (var program in new[] { _bg, _mesh, _line, _point, _grid, _flat, _img }) ShaderCache.Release(gl, program);
         DeleteTargets();
         _gl = null;
     }
