@@ -9,9 +9,12 @@ The **Render** workspace makes realistic pictures of what is on screen: soft sha
 On Render, start with the first **Materials** section; other modeling tabs offer it under Appearance. The Render ribbon follows Materials, Lighting, Camera, Render and Output. The **Materials** ribbon appears while the studio is open.
 
 1. Select a body.
-2. Pick a library material and **Apply Material**, or choose a finish: Matte, Satin, Glossy, Brushed metal or Polished metal.
+2. Click a library material (or use **Assign material**), or choose a finish: Matte, Satin, Glossy, Brushed metal or Polished metal. Changes show in the viewport as you make them.
 3. **Compare** shows materials side by side; **Find Assigned** selects bodies that use one.
-4. **Done** closes the studio.
+4. Finish with the buttons at the bottom of the studio, which work as in tool panels:
+   - **Apply** keeps the changes made so far as one undo step and leaves the studio open.
+   - **OK** keeps them and closes the studio. The studio's × does the same.
+   - **Cancel** closes the studio and removes every appearance and material change made since it opened. If you also changed the model meanwhile, that work stays; only colors, finishes and materials go back.
 
 Library materials carry physical data too, so the same assignment is used by simulation and mass properties.
 

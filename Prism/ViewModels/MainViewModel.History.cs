@@ -54,6 +54,7 @@ public sealed partial class MainViewModel
 
     public void RebuildHistory()
     {
+        RefreshAppearanceRun();
         var s = Session;
         var (past, future) = s.HistoryPath();
         TimelineBar.Clear();

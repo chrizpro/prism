@@ -62,6 +62,9 @@ public partial class MaterialsPanel : UserControl
     void OnApply(object? s, RoutedEventArgs e) => Vm?.ApplyMaterial();
     void OnFamily(object? s, RoutedEventArgs e) { if (s is Button { Tag: int index }) Vm?.SelectFamily(index); }
     void OnClose(object? s, RoutedEventArgs e) => Vm?.CloseMaterials();
+    void OnCancelAppearance(object? s, RoutedEventArgs e) => Vm?.CancelAppearance();
+    void OnApplyAppearance(object? s, RoutedEventArgs e) => Vm?.ApplyAppearance();
+    void OnOkAppearance(object? s, RoutedEventArgs e) => Vm?.OkAppearance();
     void OnCompare(object? s, RoutedEventArgs e) => Vm?.ToggleCompare();
     void OnListDoubleTapped(object? s, TappedEventArgs e) => Vm?.ApplyMaterial();
     void OnHexKey(object? s, KeyEventArgs e) { if (e.Key == Key.Enter) { Vm?.ApplyHex(HexBox.Text ?? ""); e.Handled = true; } }

@@ -18,6 +18,7 @@
 - The **Twin-cam inline-four engine** assembly is in the gallery.
 - The **Apply** button in tool panels now matches Prism's other buttons.
 - **Cancel, Apply and OK work like a dialog.** Apply adds a result and keeps the tool open; OK keeps everything applied; Cancel (or Esc) removes everything applied since the tool opened, and Redo brings it back. See [Cancel, Apply and OK](/guide/modeling#cancel-apply-and-ok).
+- The **Appearance studio** has the same **Cancel**, **Apply** and **OK** at the bottom of both its pages, in place of Done and Close. Apply keeps the changes so far as one undo step; Cancel removes every appearance and material change since the studio opened. **Apply material** is now **Assign material**. See [Materials](/guide/rendering#materials).
 
 ## 0.4.0 alpha
 

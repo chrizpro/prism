@@ -94,7 +94,7 @@ public sealed partial class MainViewModel
     void AttachSession(CadSession s)
     {
         s.ProtectPendingCommand = true;
-        _onScene = () => { RebuildBrowser(); UpdateSelectionInfo(); UpdateTitle(); RefreshRibbon(); ApplyWorkspace(); SyncLook(); InvalidateStudios(); };
+        _onScene = () => { RefreshAppearanceRun(); RebuildBrowser(); UpdateSelectionInfo(); UpdateTitle(); RefreshRibbon(); ApplyWorkspace(); SyncLook(); InvalidateStudios(); };
         _onSelection = () => { UpdateSelectionInfo(); UpdatePanels(); RefreshRibbon(); SyncLook(); RefreshStudios(); };
         _onView = () => { CommandError = s.CommandError;RefreshGizmoPanel(); };
         _onStudy = RefreshSim;

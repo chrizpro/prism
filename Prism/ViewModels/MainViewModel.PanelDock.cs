@@ -42,6 +42,7 @@ public sealed partial class MainViewModel
     {
         if (id is not ("properties" or "appearance" or "diagnostics" or "references" or "parameters" or "curve" or "script" or "data" or "library" or "gizmo")) return;
         if (id == "properties" && !enabled) return;
+        if (id == "appearance") { if (enabled) BeginAppearanceRun(); else KeepAppearanceRun(); }   // Cancel clears the run first, so only other ways out keep
         if (enabled) _openRightPanels.Add(id); else _openRightPanels.Remove(id);
         if (enabled) SelectedRightPanel = ContextPanelId == id ? "context" : id;
         else if (SelectedRightPanel == id) SelectedRightPanel = _openRightPanels.LastOrDefault() ?? "context";

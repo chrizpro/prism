@@ -274,4 +274,109 @@ public class AppearanceStudioTests
         foreach (string name in new[] { "CreateCustomMaterial", "SaveCustomMaterial", "CancelCustomMaterial" })
             Assert.Contains("studioAction", panel.FindControl<Button>(name)!.Classes);
     }
+
+    // ---- Cancel, Apply and OK (owner decision 2026-11-24)
+    /// <summary>Two edits in the studio: assign 6061, then a slider gesture that roughens it.</summary>
+    static void TwoEdits(MainViewModel vm, double roughness)
+    {
+        vm.ApplyMaterial(Materials.Find("6061")!);
+        vm.BeginAppearanceEdit(); vm.LookRoughness = roughness; vm.EndAppearanceEdit();
+    }
+
+    [AvaloniaFact(DisplayName = "APP-H020 | Apply keeps the studio's changes as one undo step and leaves the studio open; Apply is off until something changes")]
+    [Trait("TestId", "APP-H020")]
+    public void ApplyFoldsIntoOneStep()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var body = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        s.SelectItems([SelItem.Of(body)]); vm.OpenMaterials();
+        var opened = s.Current;
+        Assert.False(vm.AppearanceHasChanges);
+        TwoEdits(vm, .4);
+        Assert.True(vm.AppearanceHasChanges);
+        Assert.Contains("Cancel removes them all", vm.AppearanceNote);
+        Assert.True(vm.ApplyAppearance());
+        Assert.Same(opened, s.Current.Parent);
+        Assert.StartsWith("Appearance: Reference body", s.Current.Label);
+        Assert.False(vm.AppearanceHasChanges);
+        Assert.True(vm.IsRightPanelOpen("appearance"));
+        s.Undo();
+        Assert.Same(opened, s.Current);
+        Assert.Null(s.Find(body.Id)!.Material);
+    }
+
+    [AvaloniaFact(DisplayName = "APP-H021 | Cancel removes every change since the studio opened, applied or not, closes it, and Redo brings them back")]
+    [Trait("TestId", "APP-H021")]
+    public void CancelRemovesAppliedAndPending()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var body = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        var original = s.Find(body.Id)!;
+        s.SelectItems([SelItem.Of(body)]); vm.OpenMaterials();
+        var opened = s.Current;
+        TwoEdits(vm, .4); vm.ApplyAppearance();
+        vm.BeginAppearanceEdit(); vm.LookRoughness = .9; vm.EndAppearanceEdit();
+        vm.CancelAppearance();
+        Assert.False(vm.IsRightPanelOpen("appearance"));
+        Assert.Same(opened, s.Current);
+        Assert.Equal(original.Look, s.Find(body.Id)!.Look);
+        Assert.Contains("Redo", s.Status);
+        s.Redo();
+        Assert.Equal("6061", s.Find(body.Id)!.Look.MaterialId);
+    }
+
+    [AvaloniaFact(DisplayName = "APP-H022 | Cancel after modeling while the studio was open puts the looks back and keeps the new shape")]
+    [Trait("TestId", "APP-H022")]
+    public void CancelKeepsOtherWork()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var body = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        var original = s.Find(body.Id)!;
+        s.SelectItems([SelItem.Of(body)]); vm.OpenMaterials();
+        TwoEdits(vm, .4);
+        using (var larger = BoxAt(new(0, 0, 0), 20, 10, 10)) s.Update(body.Id, o => o.WithShape(larger), label: "Resize");
+        vm.CancelAppearance();
+        var now = s.Find(body.Id)!;
+        Assert.Equal(original.Look, now.Look);
+        Assert.Equal(original.Color, now.Color);
+        AssertNear(2000, now.Shape.Props().Volume, "Volume kept from the resize (mm³)");
+        Assert.Equal("Cancel appearance changes", s.Current.Label);
+        Assert.Contains("Other work", s.Status);
+    }
+
+    [AvaloniaFact(DisplayName = "APP-H023 | OK keeps the changes as one step and closes; the × keeps them too")]
+    [Trait("TestId", "APP-H023")]
+    public void OkAndCloseKeep()
+    {
+        var vm = new MainViewModel(); var s = vm.Session;
+        var body = CreateBoxBody(s, new(0, 0, 0), 10, 10, 10);
+        s.SelectItems([SelItem.Of(body)]); vm.OpenMaterials();
+        var opened = s.Current;
+        TwoEdits(vm, .4);
+        vm.OkAppearance();
+        Assert.False(vm.IsRightPanelOpen("appearance"));
+        Assert.Same(opened, s.Current.Parent);
+        Assert.Equal("6061", s.Find(body.Id)!.Look.MaterialId);
+
+        vm.OpenMaterials();
+        var reopened = s.Current;
+        vm.BeginAppearanceEdit(); vm.LookRoughness = .8; vm.EndAppearanceEdit();
+        vm.CloseMaterials();
+        Assert.Same(reopened, s.Current.Parent);
+        Assert.Equal(.2f, s.Find(body.Id)!.Look.Gloss, 5);
+        vm.CancelAppearance();                                        // nothing open now: nothing to remove
+        Assert.Equal(.2f, s.Find(body.Id)!.Look.Gloss, 5);
+    }
+
+    [AvaloniaFact(DisplayName = "APP-H024 | Both studio pages share one Cancel, Apply and OK footer; Materials assigns with Assign material")]
+    [Trait("TestId", "APP-H024")]
+    public void StudioFooterHasThreeButtons()
+    {
+        var vm = new MainViewModel(); var panel = new MaterialsPanel { DataContext = vm };
+        Assert.Equal("Cancel", panel.FindControl<Button>("CancelAppearance")!.Content);
+        Assert.Equal("Apply", panel.FindControl<Button>("ApplyAppearance")!.Content);
+        Assert.Equal("OK", panel.FindControl<Button>("OkAppearance")!.Content);
+        Assert.Null(panel.FindControl<Button>("DoneAppearance"));
+        Assert.False(panel.FindControl<Button>("ApplyAppearance")!.IsEnabled);
+    }
 }

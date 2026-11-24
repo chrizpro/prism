@@ -109,6 +109,10 @@ public sealed class SceneObject
     public SceneObject WithTracking(bool on) => Copy(tracking: on);
     public SceneObject WithName(string n) => Copy(name: n);
     public SceneObject WithColor(uint c) => Copy(color: c);
+    /// <summary>The same geometry, name and placement as <paramref name="o"/>, without building any shape: only its look (color, finish, material, face colors) may differ.</summary>
+    internal bool SameGeometryAs(SceneObject o) =>
+        Id == o.Id && Name == o.Name && Kind == o.Kind && (Form != null || o.Form != null ? ReferenceEquals(Form, o.Form) : ReferenceEquals(_shape, o._shape))
+        && ReferenceEquals(Tri, o.Tri) && ReferenceEquals(SketchData, o.SketchData) && Equals(SketchPlane, o.SketchPlane) && ReferenceEquals(Asm, o.Asm);
     public SceneObject WithVisible(bool v) => Copy(visible: v);
     /// <summary>Same identity and geometry, new construction/reference plane frame.</summary>
     public SceneObject WithPlane(Plane3 p) => new(Id, Name, _shape, Kind, Color, Visible, p, Form, SketchData, Look, Tri, Asm) { _mesh = _mesh, FlatMap = FlatMap, IsReference = IsReference, TrackHistory = TrackHistory, FaceStyles = FaceStyles, Group = Group };
