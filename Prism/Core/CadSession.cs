@@ -198,7 +198,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
     public Vec3? ViewportCursor { get; set; }
 
-    public CadSession() { Current = Root; _cleanNode = Root; }
+    public CadSession() { Current = Root; _cleanNode = Root; SelectionChanged += TrackSelectionHistory; }
 
     /// <summary>History state matching the last save/open/new. Returning to it by undo or an abandoned edit leaves nothing unsaved.</summary>
     HistoryNode _cleanNode;
@@ -374,7 +374,7 @@ public sealed partial class CadSession : ObservableObject
         CancelCommand(); ExitSketch(false);
         DocumentParameters = []; RebuildIssue = null; PartInfo = new(); PartInfoChanged?.Invoke();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
-        _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
+        _counters.Clear(); ClearSelection(); _selectionBefore = []; _selectionNow = []; if (SelectionSets.Count > 0) { SelectionSets.Clear(); SelectionSetsChanged?.Invoke(); } ResetSimulation(); LoadRenderState(null, null);
         DataSheets.Clear(); DataChanged?.Invoke(); LoadHome(null);
         Drawings = new(); _drawingRevisions.Clear(); DrawingsChanged?.Invoke();
         FilePath = null; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
@@ -596,7 +596,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial SelItem? Hover { get; set; }
     public event Action? SelectionChanged;
 
-    partial void OnModeChanged(SelMode value) { ClearSelection(); RaiseState(); }
+    partial void OnModeChanged(SelMode value) { if (!_keepSelectionOnModeChange) ClearSelection(); RaiseState(); }
 
     public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); ReleaseAdoptedRegion(); SelectionChanged?.Invoke(); Invalidate(); }
     public void SelectObjects(IEnumerable<Guid> ids, bool additive = false)
@@ -2173,7 +2173,7 @@ public sealed partial class CadSession : ObservableObject
     public string? OpeningTab { get; set; }
     /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
     public string? OpeningCommand { get; set; }
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null, string? OpenCommand = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null, string? OpenCommand = null, List<SelectionSet>? SelectionSets = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -2290,7 +2290,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab, OpeningCommand);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab, OpeningCommand, SelectionSets.Count > 0 ? [.. SelectionSets] : null);
         return JsonSerializer.Serialize(dto);
     }
 
@@ -2349,6 +2349,7 @@ public sealed partial class CadSession : ObservableObject
         if (dto.History is { Steps.Count: > 0 } saved) { try { LoadHistory(saved); } catch (Exception) { Root.After = []; Current = Root; } }
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
+        if (dto.SelectionSets != null) { SelectionSets.AddRange(dto.SelectionSets.Where(x => x?.Name != null && x.Items != null)); SelectionSetsChanged?.Invoke(); }
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
         Drawings = DrawingDocumentFromFile(drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;

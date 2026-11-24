@@ -460,6 +460,14 @@ public partial class MainView : UserControl
         // a group row stands for everything in the group
         foreach (var group in selectedNodes.Where(n => n.IsGroup))
             foreach (var member in vm.Session.GroupMembers(group.Title)) { var it = Prism.Core.SelItem.Of(member); if (!items.Contains(it)) items.Add(it); }
+        // a saved selection set row stands for its items
+        var setRows = selectedNodes.Where(n => n.IsSelectionSet).ToList();
+        if (setRows.Count > 0 && vm.Session.ActiveCommand == null)
+        {
+            for (int i = 0; i < setRows.Count; i++) vm.Session.UseSelectionSet(setRows[i].Title, additive: i > 0 || items.Count > 0);
+            if (items.Count > 0) vm.Session.SelectItems(vm.Session.Selection.Concat(items));
+            return;
+        }
         if (vm.Session.ActiveCommand is { } cmd && cmd.ActiveSlot != null)
         {
             foreach (var it in items) if (!cmd.ActiveSlot.Items.Contains(it)) cmd.Pick(it, true);
@@ -504,6 +512,9 @@ public partial class MainView : UserControl
         if (groups.Count > 0 || objs.Any(o => vm.Session.Find(o.ObjectId)?.Group != null))
             items.Add(Mi("Ungroup            Ctrl+Shift+G", () => { if (groups.Count > 0) vm.Session.Ungroup(groups.Select(g => g.Title)); else vm.Session.Ungroup(); }));
         if (groups.Count == 1 && objs.Count == 0) items.Add(Mi("Rename            F2", () => groups[0].BeginRename()));
+        var setNodes = nodes.Where(n => n.IsSelectionSet).ToList();
+        if (setNodes.Count == 1 && objs.Count == 0) items.Add(Mi("Rename            F2", () => setNodes[0].BeginRename()));
+        if (setNodes.Count > 0) items.Add(Mi("Delete set            Del", () => { foreach (var n in setNodes) vm.Session.DeleteSelectionSet(n.Title); }));
         if (objs.Count == 1) items.Add(Mi("Rename            F2", () => objs[0].BeginRename()));
         if (objs.Count > 0)
         {
@@ -527,6 +538,8 @@ public partial class MainView : UserControl
         var objs = SelectedNodes().Where(n => n.IsObject).ToList();
         if (e.Key == Key.F2 && objs.Count == 1) { objs[0].BeginRename(); e.Handled = true; }
         else if (e.Key == Key.F2 && SelectedNodes() is [{ IsGroup: true } group]) { group.BeginRename(); e.Handled = true; }
+        else if (e.Key == Key.F2 && SelectedNodes() is [{ IsSelectionSet: true } setRow]) { setRow.BeginRename(); e.Handled = true; }
+        else if (e.Key == Key.Delete && objs.Count == 0 && SelectedNodes().Where(n => n.IsSelectionSet).ToList() is { Count: > 0 } setRows) { foreach (var n in setRows) vm.Session.DeleteSelectionSet(n.Title); e.Handled = true; }
         else if (e.Key == Key.Delete && objs.Count > 0) { vm.DeleteNodes(objs); e.Handled = true; }
     }
 

@@ -396,6 +396,22 @@ public static partial class ToolHelp
             "1. Select the curves.\n2. Choose To construction.",
             "Construction curves guide and constrain but are not part of profiles.", "construction"),
 
+        // ---- Select group: More (owner approved 2026-11-24)
+        "sel-grow" => Words(key, "Grow", "Add the faces, edges, corners or mesh triangles next to the selection. Ctrl++.", "1. Select a face, edge, corner or triangles.\n2. Choose More > Grow, or press Ctrl++.\n3. Repeat to grow further.", "In Edit Freeform it grows the cage selection."),
+        "sel-shrink" => Words(key, "Shrink", "Drop the outer ring of the selection. Ctrl+-.", "1. Select a region of faces, edges, corners or triangles.\n2. Choose More > Shrink, or press Ctrl+-.", "A closed run of edges has no free ends, so it does not shrink."),
+        "sel-tangent" => Words(key, "Tangent", "Add every face joined smoothly to a selected face, or an edge's tangent chain.", "1. Select a face or edge.\n2. Choose More > Tangent.", "Double-click a face or edge does the same in one step."),
+        "sel-feature" => Words(key, "Whole Feature", "Add every face of the recognized feature a selected face belongs to.", "1. Select one face of a hole, boss, slot, pocket, fillet, chamfer, rib or text.\n2. Choose More > Whole Feature.", "Works on solids, where features are recognized."),
+        "sel-same-feature" => Words(key, "Same Feature", "Add every feature of the same kind and size on the body.", "1. Select a face of a feature, for example one 6 mm hole.\n2. Choose More > Same Feature: every 6 mm hole is selected.", "Use it before Edit Feature or Delete to change them all at once."),
+        "sel-same-radius" => Words(key, "Same Radius", "Add the round faces, or circular edges, with the same radius.", "1. Select a round face or a circular edge.\n2. Choose More > Same Radius.", "Radii match within 0.001 mm."),
+        "sel-fillets" => Words(key, "Fillets Up To", "Add every fillet no larger than the selected round face.", "1. Select the largest fillet you want to take.\n2. Choose More > Fillets Up To: every smaller or equal fillet joins it.", "Handy for removing small rounds from an imported part before simulation."),
+        "sel-coplanar" => Words(key, "Coplanar", "Add the flat faces lying in the same plane and facing the same way.", "1. Select a flat face.\n2. Choose More > Coplanar.", "Looks across every visible body, so the feet of an assembly line up."),
+        "sel-coaxial" => Words(key, "Coaxial", "Add the round faces that share the selected face's axis.", "1. Select a cylinder, cone or torus face.\n2. Choose More > Coaxial.", "Looks across every visible body."),
+        "sel-to-faces" => Words(key, "To Faces", "Switch to Face and select the faces beside the selected edges or corners.", "1. Select edges or corners.\n2. Choose More > To Faces.", "The pick level changes to Face."),
+        "sel-to-edges" => Words(key, "To Edges", "Switch to Edge and select the border of the selected faces.", "1. Select faces.\n2. Choose More > To Edges: the edges around the region are selected.", "When the faces close the whole body, every edge of them is taken."),
+        "sel-to-vertices" => Words(key, "To Vertices", "Switch to Vertex and select the corners of the selected faces or edges.", "1. Select faces or edges.\n2. Choose More > To Vertices.", "The pick level changes to Vertex."),
+        "sel-reselect" => Words(key, "Reselect Last", "Put back the selection you had before the last change. Ctrl+Shift+L.", "1. Lose a selection, for example by clicking empty space.\n2. Choose More > Reselect Last.", "Choose it again to swap back."),
+        "sel-save-set" => Words(key, "Save Selection Set", "Save the selection under a name, kept with the document.", "1. Select faces, edges, corners or objects.\n2. Choose More > Save Selection Set.\n3. Click its row under Selection Sets in the browser to select it again.", "F2 renames a set; Delete removes the set, never the geometry."),
+        "sel-more" => Words(key, "More", "More ways to select.", "Open the list and choose a tool.", ""),
         _ => FindMeshButton(key)
     };
 

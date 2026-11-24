@@ -37,6 +37,8 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty] public partial bool IsSketching { get; set; }
     [ObservableProperty] public partial bool RibbonCollapsed { get; set; }
     [ObservableProperty] public partial string SelectionTitle { get; set; } = "Nothing selected";
+    /// <summary>What is selected, shown on the right of the status bar ("3 faces on 1 body"); empty when nothing is.</summary>
+    [ObservableProperty] public partial string SelectionSummary { get; set; } = "";
     [ObservableProperty] public partial bool HasSelection { get; set; }
     [ObservableProperty] public partial string RenameText { get; set; } = "";
     [ObservableProperty, NotifyPropertyChangedFor(nameof(AssistanceStatus))] public partial string? CommandError { get; set; }
@@ -147,6 +149,7 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         SyncPartInfo();
         Properties.Clear();
+        SelectionSummary = Session.SelectionSummary;
         var objs = Session.SelectedObjects.ToList();
         OnPropertyChanged(nameof(IsAnimationSelected));
         HasSelection = objs.Count > 0;
@@ -652,10 +655,37 @@ public sealed partial class MainViewModel : ViewModelBase
                 Btn("Group", "group", () => Session.GroupSelection(), "Put the selected objects in a group: one parent row in the browser that hides, shows, selects or removes them together. Ctrl+G.", small, () => Session.CanGroup),
                 Btn("Ungroup", "ungroup", () => Session.Ungroup(), "Take the selected objects out of their group, or dissolve the group whose row is selected. The objects stay. Ctrl+Shift+G.", small, () => Session.CanUngroup))),
             Btn("Invert", "sel-invert", () => Session.InvertSelection(), "Select everything that is not selected. Faces and edges invert within the bodies you picked from, so you can pick a few to leave out, invert, and have the rest. With nothing selected it selects everything.", small, () => !IsSketching),
-            Followed(Split(RibbonSize.Small, "split:select-same", "Add to the selection the faces that share something with the selected faces. Click the name for Same Color; the arrow offers the others.",
-                Btn("Same Color", "sel-same-color", () => Session.SelectSameFaces(CadSession.FaceMatch.SameColor), "Add every face of the same body that has the same color and finish as a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
-                Btn("Adjacent", "sel-same-adjacent", () => Session.SelectSameFaces(CadSession.FaceMatch.Adjacent), "Add the faces that share an edge with a selected face.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)),
-                Btn("Linked", "sel-same-linked", () => Session.SelectSameFaces(CadSession.FaceMatch.Linked), "Add every face of the body a selected face belongs to.", small, () => !IsSketching && Session.Selection.Any(i => i.Kind == SelKind.Face)))));
+            SelectMoreMenu());
+        // Every further selection tool in one dropdown, one level deep, so the Select group stays short (owner direction 2026-11-24).
+        RibbonButton SelectMoreMenu()
+        {
+            RibbonButton More(string label, string icon, CadSession.MoreSelect what, string desc, string shortcut = "") =>
+                Btn(label, icon, () => Session.SelectMore(what), desc, small, () => !IsSketching && Session.CanSelectMore, shortcut: shortcut);
+            return new RibbonButton
+            {
+                Id = "menu:select-more", Label = "More", Icon = "sel-more", Size = small,
+                Description = "More ways to select: grow or shrink, smooth neighbours, whole features, similar faces, convert between faces, edges and corners, reselect, and saved selection sets.",
+                Menu =
+                [
+                    More("Grow", "sel-grow", CadSession.MoreSelect.Grow, "Add the faces, edges, corners or triangles next to the selection.", "Ctrl++"),
+                    More("Shrink", "sel-shrink", CadSession.MoreSelect.Shrink, "Drop the outer ring of the selection.", "Ctrl+-"),
+                    More("Tangent", "sel-tangent", CadSession.MoreSelect.Tangent, "Add every face joined smoothly to a selected face, or an edge's tangent chain. Double-click does the same."),
+                    More("Whole Feature", "sel-feature", CadSession.MoreSelect.Feature, "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to."),
+                    More("Same Feature", "sel-same-feature", CadSession.MoreSelect.SameFeature, "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets."),
+                    More("Same Radius", "sel-same-radius", CadSession.MoreSelect.SameRadius, "Add the round faces, or circular edges, with the same radius."),
+                    More("Fillets Up To", "sel-fillets", CadSession.MoreSelect.FilletsUpTo, "Add every fillet no larger than the selected round face: handy for removing small rounds from an import."),
+                    More("Coplanar", "sel-coplanar", CadSession.MoreSelect.Coplanar, "Add the flat faces lying in the same plane and facing the same way, on any visible body."),
+                    More("Coaxial", "sel-coaxial", CadSession.MoreSelect.Coaxial, "Add the round faces that share the selected face's axis, on any visible body."),
+                    Btn("Same Color", "sel-same-color", () => Session.SelectSameFaces(CadSession.FaceMatch.SameColor), "Add every face of the same body that has the same color and finish as a selected face.", small, () => !IsSketching && Session.ActiveCommand == null && Session.Selection.Any(i => i.Kind == SelKind.Face)),
+                    More("Linked", "sel-same-linked", CadSession.MoreSelect.Linked, "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges."),
+                    More("To Faces", "sel-to-faces", CadSession.MoreSelect.ToFaces, "Switch to Face and select the faces beside the selected edges or corners."),
+                    More("To Edges", "sel-to-edges", CadSession.MoreSelect.ToEdges, "Switch to Edge and select the border of the selected faces, or the edges at the selected corners."),
+                    More("To Vertices", "sel-to-vertices", CadSession.MoreSelect.ToVertices, "Switch to Vertex and select the corners of the selected faces or edges."),
+                    Btn("Reselect Last", "sel-reselect", () => Session.ReselectLast(), "Put back the selection you had before the last change. Again swaps back.", small, () => !IsSketching && Session.CanReselect, shortcut: "Ctrl+Shift+L"),
+                    Btn("Save Selection Set", "sel-save-set", () => Session.SaveSelectionSet(), "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.", small, () => !IsSketching && Session.CanSaveSelectionSet),
+                ],
+            };
+        }
         RibbonButton SelMethod(string label, string icon, SelectMethod method, string desc) =>
             Btn(label, icon, () => { if (IsSketching) SetSketchSelectMethod((int)method - 1); else Session.Method = Session.Method == method ? SelectMethod.Click : method; }, desc, RibbonSize.Small,
                 () => IsSketching || Session.ActiveCommand?.HasPanelStep != true, () => IsSketching ? IsSketchSelectMethod((int)method - 1) : Session.Method == method);

@@ -131,7 +131,7 @@ public sealed partial class CadSession
     }
 
     /// <summary>For every face the edges that border it, found in one pass: an edge belongs to the faces that contain all its end points.</summary>
-    static HashSet<int>[] FaceEdges(MeshData mesh)
+    internal static HashSet<int>[] FaceEdges(MeshData mesh)
     {
         var result = Enumerable.Range(0, mesh.FaceCount).Select(_ => new HashSet<int>()).ToArray();
         if (mesh.SegEdge.Length == 0 || mesh.FaceTriStart.Length < 2) return result;

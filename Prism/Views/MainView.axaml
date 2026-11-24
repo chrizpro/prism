@@ -213,7 +213,7 @@
 
         <Border IsVisible="{Binding !IsDrawingWorkspace}" DockPanel.Dock="Bottom" MinHeight="42" Padding="0,0,0,12" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
 
-            <Grid ColumnDefinitions="*,Auto,Auto" Margin="12,0">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="12,0">
 
                 <TextBlock Name="BottomContext" Text="{Binding Session.Status}" Classes.err="{Binding Session.StatusIsError}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
@@ -262,7 +262,9 @@
                     </ContentControl.ContentTemplate>
                 </ContentControl>
 
-                <StackPanel Name="StatusRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
+                <TextBlock Name="SelectionSummaryText" Grid.Column="2" Text="{Binding SelectionSummary}" IsVisible="{Binding SelectionSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Classes="faint" FontSize="12" Margin="12,0" VerticalAlignment="Center" ToolTip.Tip="What is selected" AutomationProperties.Name="Selection count"/>
+
+                <StackPanel Name="StatusRight" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"/>
 
             </Grid>
 

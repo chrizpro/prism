@@ -111,7 +111,7 @@ public sealed partial class MainViewModel
                 case nameof(CadSession.StatusIsError): OnPropertyChanged(nameof(AssistanceStatus)); break;
             }
         };
-        s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory; s.OriginChanged += RebuildBrowser;
+        s.SceneChanged += _onScene; s.SelectionChanged += _onSelection; s.StateChanged += OnStateChanged; s.TimelineChanged += RebuildHistory; s.OriginChanged += RebuildBrowser; s.SelectionSetsChanged += RebuildBrowser;
         s.LogChanged += RefreshStudioActivity;
         s.DataPanelRequested += ShowDataPanelForCommand;
         HookRender(s);

@@ -117,6 +117,9 @@ public partial class MainWindow : Window
             case "edit.selectall": s.SelectAll(); return true;
             case "edit.copy": return s.CanCopy && s.CopySelection();
             case "edit.paste": if (!s.CanPaste) return false; s.Paste(); return true;
+            case "edit.selectgrow": if (!s.CanSelectMore) return false; s.SelectMore(Prism.Core.CadSession.MoreSelect.Grow); return true;
+            case "edit.selectshrink": if (!s.CanSelectMore) return false; s.SelectMore(Prism.Core.CadSession.MoreSelect.Shrink); return true;
+            case "edit.reselect": return s.CanReselect && s.ReselectLast();
             case "edit.group": if (!s.CanGroup) return false; s.GroupSelection(); return true;
             case "edit.ungroup": if (!s.CanUngroup) return false; s.Ungroup(); return true;
             case "edit.delete": return s.Key("Delete");

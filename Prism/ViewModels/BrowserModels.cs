@@ -6,7 +6,7 @@ using Prism.Core;
 
 namespace Prism.ViewModels;
 
-public enum NodeKind { Folder, Object, Origin, Construction, Datum, Feature }
+public enum NodeKind { Folder, Object, Origin, Construction, Datum, Feature, SelectionSet }
 
 /// <summary>One row of the model browser: a folder (Origin, Bodies, Forms…), an object, or an origin plane/axis.</summary>
 public sealed partial class BrowserNode : ObservableObject
@@ -39,9 +39,11 @@ public sealed partial class BrowserNode : ObservableObject
     public bool IsFolder => Kind == NodeKind.Folder;
     public bool IsObject => Kind == NodeKind.Object;
     public bool HasSwatch => Kind == NodeKind.Object;
-    public bool HasEye => Kind is NodeKind.Datum or NodeKind.Feature ? false : Kind != NodeKind.Folder || Children.Count > 0;
+    /// <summary>True for a saved selection set row (Title is the set's name); clicking it selects the set.</summary>
+    public bool IsSelectionSet => Kind == NodeKind.SelectionSet;
+    public bool HasEye => Kind is NodeKind.Datum or NodeKind.Feature or NodeKind.SelectionSet ? false : Kind != NodeKind.Folder || Children.Count > 0;
     public bool IsActiveSketchDatum => Kind == NodeKind.Datum && ObjectId == Guid.Empty;
-    public bool CanRename => Kind == NodeKind.Object || IsGroup;
+    public bool CanRename => Kind == NodeKind.Object || IsGroup || IsSelectionSet;
     public SelItem? SelectionItem => Kind switch
     {
         NodeKind.Object => new SelItem(ObjectId, SelKind.Object, -1),
