@@ -51,7 +51,7 @@ public class SelectMoreTests
         var vm = new MainViewModel();
         var group = vm.Tabs.Single(t => t.Title == "Solid").Groups.Single(g => g.Title == "Select");
         var more = group.Items.OfType<RibbonButton>().Single(b => b.Label == "More");
-        Assert.Equal(["Grow", "Shrink", "Tangent", "Whole Feature", "Same Feature", "Same Radius", "Fillets Up To", "Coplanar", "Coaxial", "Same Color", "Linked", "To Faces", "To Edges", "To Vertices", "Reselect Last", "Save Selection Set"],
+        Assert.Equal(["Grow", "Shrink", "Tangent Chain", "Whole Feature", "Same Feature", "Same Radius", "Fillets Up To", "Coplanar", "Coaxial", "Same Color", "Linked", "To Faces", "To Edges", "To Vertices", "Reselect Last", "Save Selection Set"],
             more.Menu!.Select(b => b.Label).ToArray());
         Assert.DoesNotContain(group.Items.OfType<RibbonButton>(), b => b.Label is "Adjacent" or "Same Color");
     }

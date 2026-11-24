@@ -349,6 +349,96 @@
     "topic": "sel-invert",
     "sha256": "b6cd92cd6463f23c629e886369dbb46c3c018a49f2e9c1b8f203026abcca3f46"
   },
+  "grow": {
+    "src": "/images/tools/grow.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Grow: Start: the top face compared with Result: the faces around it added.",
+    "caption": "Add the faces, edges, corners or mesh triangles next to the selection. Ctrl++. In Edit Freeform it grows the cage selection.",
+    "topic": "sel-grow",
+    "sha256": "a4d62955cdafedea3b63351c49644cb0fefcdade06b3c2a2b034fee6210bde32"
+  },
+  "shrink": {
+    "src": "/images/tools/shrink.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Shrink: Start: the top and the sides compared with Result: only the top left.",
+    "caption": "Drop the outer ring of the selection. Ctrl+-. A closed run of edges has no free ends, so it does not shrink.",
+    "topic": "sel-shrink",
+    "sha256": "2049361098778393a56f81a21f9ba62442dd33e00e6386e9e801f4734ddd3311"
+  },
+  "tangent-chain": {
+    "src": "/images/tools/tangent-chain.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Tangent Chain: Start: a fillet compared with Result: the fillet and the faces it blends into.",
+    "caption": "Add every face joined smoothly to a selected face, or an edge's tangent chain. Double-clicking a face or edge does the same in one step.",
+    "topic": "sel-tangent",
+    "sha256": "11f4e82b09bf5669329d1c9886b7b93115bdf3eac8029a1f7893a6edf76ea499"
+  },
+  "whole-feature": {
+    "src": "/images/tools/whole-feature.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Whole Feature: Start: one wall of a counterbore compared with Result: the whole counterbore.",
+    "caption": "Add every face of the recognized feature a selected face belongs to. Works on solids, where features are recognized.",
+    "topic": "sel-feature",
+    "sha256": "8f4e9522315cc6e294d3e3ec3491f70d22ff4cbc9dacbdff47017009de933d20"
+  },
+  "same-feature": {
+    "src": "/images/tools/same-feature.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Same Feature: Start: one small hole compared with Result: every hole of that size.",
+    "caption": "Add every feature of the same kind and size on the body. Use it before Edit Feature or Delete to change them all at once.",
+    "topic": "sel-same-feature",
+    "sha256": "64a7652ff8793b30d5bd76df61506b63137c613e2a8bce556f520d3602fac770"
+  },
+  "same-radius": {
+    "src": "/images/tools/same-radius.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Same Radius: Start: a 3 mm hole compared with Result: the hole and the 3 mm fillet.",
+    "caption": "Add the round faces, or circular edges, with the same radius. Holes, bosses and fillets match alike, within 0.001 mm.",
+    "topic": "sel-same-radius",
+    "sha256": "17970b4381a4ec661da3084a4a26158ddf25cca11a431929d3ba5b3bb3b80103"
+  },
+  "fillets-up-to": {
+    "src": "/images/tools/fillets-up-to.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Fillets Up To: Start: the 3 mm corner round compared with Result: the 2 mm and 3 mm rounds, not the 6 mm one.",
+    "caption": "Add every fillet no larger than the selected round face. Handy for removing small rounds from an imported part before simulation.",
+    "topic": "sel-fillets",
+    "sha256": "f2a661507fff4a0198fb8dd3644dff870845ff1c8f9758521a5f4afd00dac5a5"
+  },
+  "coplanar": {
+    "src": "/images/tools/coplanar.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Coplanar: Start: one top compared with Result: every top at that height.",
+    "caption": "Add the flat faces lying in the same plane and facing the same way. Looks across every visible body, so the feet of an assembly line up.",
+    "topic": "sel-coplanar",
+    "sha256": "745dc28e14885d9a8a6ab4339cf228053ecafe367aba6f81958ee67198dcf479"
+  },
+  "coaxial": {
+    "src": "/images/tools/coaxial.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Coaxial: Start: the hole compared with Result: the hole and the pin on its axis.",
+    "caption": "Add the round faces that share the selected face's axis. Looks across every visible body.",
+    "topic": "sel-coaxial",
+    "sha256": "7fd3c6bd69ee66837a0a37e69096c764e265b726c7fe14c6528a32aabb734060"
+  },
   "same-color": {
     "src": "/images/tools/same-color.webp",
     "width": 1160,
@@ -359,16 +449,6 @@
     "topic": "sel-same-color",
     "sha256": "441dde7114ca882e37d8253930f04daa02cc0e670bf1efd7a1b123e3a7e07878"
   },
-  "adjacent": {
-    "src": "/images/tools/adjacent.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Adjacent: Start: one face selected compared with Result: the faces around it selected too.",
-    "caption": "Add the faces that share an edge with the selected faces. Hidden faces are skipped.",
-    "topic": "sel-same-adjacent",
-    "sha256": "25380bc20542454b8801720dcc158d0e8f33aa6abcd82e68cfe6749db62c8214"
-  },
   "linked": {
     "src": "/images/tools/linked.webp",
     "width": 1160,
@@ -378,6 +458,56 @@
     "caption": "Add every face of the body a selected face belongs to. Hidden faces are skipped.",
     "topic": "sel-same-linked",
     "sha256": "80d18cec70045aa9b70d06bcfc5c72b27df5ffa052f34bd2754bd6f1e72ea41d"
+  },
+  "to-faces": {
+    "src": "/images/tools/to-faces.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Faces: Start: one edge compared with Result: the two faces it joins.",
+    "caption": "Switch to Face and select the faces beside the selected edges or corners. The pick level changes to Face.",
+    "topic": "sel-to-faces",
+    "sha256": "bfca7c9f3d7c4dfea5a76703737cf2b565f2ad81227a84888873bf4fa4567f71"
+  },
+  "to-edges": {
+    "src": "/images/tools/to-edges.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Edges: Start: the top face compared with Result: the edges around it.",
+    "caption": "Switch to Edge and select the border of the selected faces. When the faces close the whole body, every edge of them is taken.",
+    "topic": "sel-to-edges",
+    "sha256": "ba38655af1198c340725d0149b053bcf8473cbf2112a3de15b3959e8fbf22dfc"
+  },
+  "to-vertices": {
+    "src": "/images/tools/to-vertices.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Vertices: Start: the top face compared with Result: its four corners.",
+    "caption": "Switch to Vertex and select the corners of the selected faces or edges. The pick level changes to Vertex.",
+    "topic": "sel-to-vertices",
+    "sha256": "a4bb2f6098676bfdb1219ec625d3cb3832d09ea17e6bf5ba2bedd8b344dfbb42"
+  },
+  "reselect-last": {
+    "src": "/images/tools/reselect-last.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Reselect Last: Start: the selection lost to a stray click compared with Result: the faces selected again.",
+    "caption": "Put back the selection you had before the last change. Ctrl+Shift+L. Choose it again to swap back.",
+    "topic": "sel-reselect",
+    "sha256": "1cb24c87985d23991db8bfd22d6c2b52ef78773a2076df39bd63e851925020bf"
+  },
+  "save-selection-set": {
+    "src": "/images/tools/save-selection-set.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Save Selection Set: Start: faces saved as Selection 1, then cleared compared with Result: its browser row clicked, the faces are back.",
+    "caption": "Save the selection under a name, kept with the document. F2 renames a set; Delete removes the set, never the geometry.",
+    "topic": "sel-save-set",
+    "sha256": "f960be9166c34873a9ff87a26a602fb7ac15f085fcb123ee4918a41a9b056f8d"
   },
   "gizmo": {
     "src": "/images/tools/gizmo.svg",
@@ -496,6 +626,26 @@
     "caption": "Slice a body into evenly spaced section curves. Contours are handy for checking a shape's flow or for laser-cut layer models.",
     "topic": "section|Contour",
     "sha256": "c771a37f4ed8e01c1fb60aaca490ac8668c3d218f4703a7882987d15e92f89d1"
+  },
+  "join": {
+    "src": "/images/tools/join.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Join: Start: separate touching segments compared with Result: one continuous curve.",
+    "caption": "Join curves or surface edges that touch end to end into one curve. One smooth curve lets two edges face one edge in Boundary Surface or Ruled Surface.",
+    "topic": "knit|Join",
+    "sha256": "705ca120842c4a4627a48445e3b2e8bb6dc0e11d8603ecb326465224526d6a43"
+  },
+  "split-curve": {
+    "src": "/images/tools/split-curve.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Split Curve: Start: one curve compared with Result: separate pieces.",
+    "caption": "Cut a curve or a run of edges into separate pieces. Join puts pieces back together.",
+    "topic": "trim|Split Curve",
+    "sha256": "2e495f10a6b07bce70accf463d1cf40b04ffa385644343e2f81ab1ba01561f25"
   },
   "extract-edges": {
     "src": "/images/tools/extract-edges.webp",
@@ -3477,6 +3627,96 @@
     "topic": "sel-invert",
     "sha256": "b6cd92cd6463f23c629e886369dbb46c3c018a49f2e9c1b8f203026abcca3f46"
   },
+  "grow-sketch": {
+    "src": "/images/tools/grow.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Grow: Start: the top face compared with Result: the faces around it added.",
+    "caption": "Add the faces, edges, corners or mesh triangles next to the selection. Ctrl++. In Edit Freeform it grows the cage selection.",
+    "topic": "sel-grow",
+    "sha256": "a4d62955cdafedea3b63351c49644cb0fefcdade06b3c2a2b034fee6210bde32"
+  },
+  "shrink-sketch": {
+    "src": "/images/tools/shrink.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Shrink: Start: the top and the sides compared with Result: only the top left.",
+    "caption": "Drop the outer ring of the selection. Ctrl+-. A closed run of edges has no free ends, so it does not shrink.",
+    "topic": "sel-shrink",
+    "sha256": "2049361098778393a56f81a21f9ba62442dd33e00e6386e9e801f4734ddd3311"
+  },
+  "tangent-chain-sketch": {
+    "src": "/images/tools/tangent-chain.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Tangent Chain: Start: a fillet compared with Result: the fillet and the faces it blends into.",
+    "caption": "Add every face joined smoothly to a selected face, or an edge's tangent chain. Double-clicking a face or edge does the same in one step.",
+    "topic": "sel-tangent",
+    "sha256": "11f4e82b09bf5669329d1c9886b7b93115bdf3eac8029a1f7893a6edf76ea499"
+  },
+  "whole-feature-sketch": {
+    "src": "/images/tools/whole-feature.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Whole Feature: Start: one wall of a counterbore compared with Result: the whole counterbore.",
+    "caption": "Add every face of the recognized feature a selected face belongs to. Works on solids, where features are recognized.",
+    "topic": "sel-feature",
+    "sha256": "8f4e9522315cc6e294d3e3ec3491f70d22ff4cbc9dacbdff47017009de933d20"
+  },
+  "same-feature-sketch": {
+    "src": "/images/tools/same-feature.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Same Feature: Start: one small hole compared with Result: every hole of that size.",
+    "caption": "Add every feature of the same kind and size on the body. Use it before Edit Feature or Delete to change them all at once.",
+    "topic": "sel-same-feature",
+    "sha256": "64a7652ff8793b30d5bd76df61506b63137c613e2a8bce556f520d3602fac770"
+  },
+  "same-radius-sketch": {
+    "src": "/images/tools/same-radius.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Same Radius: Start: a 3 mm hole compared with Result: the hole and the 3 mm fillet.",
+    "caption": "Add the round faces, or circular edges, with the same radius. Holes, bosses and fillets match alike, within 0.001 mm.",
+    "topic": "sel-same-radius",
+    "sha256": "17970b4381a4ec661da3084a4a26158ddf25cca11a431929d3ba5b3bb3b80103"
+  },
+  "fillets-up-to-sketch": {
+    "src": "/images/tools/fillets-up-to.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Fillets Up To: Start: the 3 mm corner round compared with Result: the 2 mm and 3 mm rounds, not the 6 mm one.",
+    "caption": "Add every fillet no larger than the selected round face. Handy for removing small rounds from an imported part before simulation.",
+    "topic": "sel-fillets",
+    "sha256": "f2a661507fff4a0198fb8dd3644dff870845ff1c8f9758521a5f4afd00dac5a5"
+  },
+  "coplanar-sketch": {
+    "src": "/images/tools/coplanar.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Coplanar: Start: one top compared with Result: every top at that height.",
+    "caption": "Add the flat faces lying in the same plane and facing the same way. Looks across every visible body, so the feet of an assembly line up.",
+    "topic": "sel-coplanar",
+    "sha256": "745dc28e14885d9a8a6ab4339cf228053ecafe367aba6f81958ee67198dcf479"
+  },
+  "coaxial-sketch": {
+    "src": "/images/tools/coaxial.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Coaxial: Start: the hole compared with Result: the hole and the pin on its axis.",
+    "caption": "Add the round faces that share the selected face's axis. Looks across every visible body.",
+    "topic": "sel-coaxial",
+    "sha256": "7fd3c6bd69ee66837a0a37e69096c764e265b726c7fe14c6528a32aabb734060"
+  },
   "same-color-sketch": {
     "src": "/images/tools/same-color.webp",
     "width": 1160,
@@ -3487,16 +3727,6 @@
     "topic": "sel-same-color",
     "sha256": "441dde7114ca882e37d8253930f04daa02cc0e670bf1efd7a1b123e3a7e07878"
   },
-  "adjacent-sketch": {
-    "src": "/images/tools/adjacent.webp",
-    "width": 1160,
-    "height": 440,
-    "kind": "example",
-    "alt": "Adjacent: Start: one face selected compared with Result: the faces around it selected too.",
-    "caption": "Add the faces that share an edge with the selected faces. Hidden faces are skipped.",
-    "topic": "sel-same-adjacent",
-    "sha256": "25380bc20542454b8801720dcc158d0e8f33aa6abcd82e68cfe6749db62c8214"
-  },
   "linked-sketch": {
     "src": "/images/tools/linked.webp",
     "width": 1160,
@@ -3506,6 +3736,56 @@
     "caption": "Add every face of the body a selected face belongs to. Hidden faces are skipped.",
     "topic": "sel-same-linked",
     "sha256": "80d18cec70045aa9b70d06bcfc5c72b27df5ffa052f34bd2754bd6f1e72ea41d"
+  },
+  "to-faces-sketch": {
+    "src": "/images/tools/to-faces.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Faces: Start: one edge compared with Result: the two faces it joins.",
+    "caption": "Switch to Face and select the faces beside the selected edges or corners. The pick level changes to Face.",
+    "topic": "sel-to-faces",
+    "sha256": "bfca7c9f3d7c4dfea5a76703737cf2b565f2ad81227a84888873bf4fa4567f71"
+  },
+  "to-edges-sketch": {
+    "src": "/images/tools/to-edges.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Edges: Start: the top face compared with Result: the edges around it.",
+    "caption": "Switch to Edge and select the border of the selected faces. When the faces close the whole body, every edge of them is taken.",
+    "topic": "sel-to-edges",
+    "sha256": "ba38655af1198c340725d0149b053bcf8473cbf2112a3de15b3959e8fbf22dfc"
+  },
+  "to-vertices-sketch": {
+    "src": "/images/tools/to-vertices.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "To Vertices: Start: the top face compared with Result: its four corners.",
+    "caption": "Switch to Vertex and select the corners of the selected faces or edges. The pick level changes to Vertex.",
+    "topic": "sel-to-vertices",
+    "sha256": "a4bb2f6098676bfdb1219ec625d3cb3832d09ea17e6bf5ba2bedd8b344dfbb42"
+  },
+  "reselect-last-sketch": {
+    "src": "/images/tools/reselect-last.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Reselect Last: Start: the selection lost to a stray click compared with Result: the faces selected again.",
+    "caption": "Put back the selection you had before the last change. Ctrl+Shift+L. Choose it again to swap back.",
+    "topic": "sel-reselect",
+    "sha256": "1cb24c87985d23991db8bfd22d6c2b52ef78773a2076df39bd63e851925020bf"
+  },
+  "save-selection-set-sketch": {
+    "src": "/images/tools/save-selection-set.webp",
+    "width": 1160,
+    "height": 440,
+    "kind": "example",
+    "alt": "Save Selection Set: Start: faces saved as Selection 1, then cleared compared with Result: its browser row clicked, the faces are back.",
+    "caption": "Save the selection under a name, kept with the document. F2 renames a set; Delete removes the set, never the geometry.",
+    "topic": "sel-save-set",
+    "sha256": "f960be9166c34873a9ff87a26a602fb7ac15f085fcb123ee4918a41a9b056f8d"
   },
   "project-include": {
     "src": "/images/tools/project-include.webp",

@@ -44,10 +44,20 @@ To extrude three sides of a rectangle, use **Extrude Surface**, choose **Single 
 
 ### Pick levels, select all and groups
 
-The **Select** group on every modeling ribbon sets what a click takes: **Object**, **Face**, **Edge** or **Vertex** (the corner points of solids, surfaces and curves). Drag a rectangle or lasso to take several; a drag from left to right takes only what lies inside it, and a drag from right to left takes whatever it touches. **Through** includes what is hidden behind other geometry, and **Invert** swaps the selection.
+The **Select** group on every modeling ribbon sets what a click takes: **Object**, **Face**, **Edge** or **Vertex** (the corner points of solids, surfaces and curves). Drag a rectangle or lasso to take several; a drag from left to right takes only what lies inside it, and a drag from right to left takes whatever it touches. With **X-ray** on (View tab or status bar), a drag also takes what is hidden behind other geometry, and **Invert** swaps the selection.
 
 - **Select all:** <kbd>Ctrl</kbd>+<kbd>A</kbd> selects everything at the current pick level. In a tool's pick slot it fills the slot with everything the slot accepts.
-- **Same Color, Adjacent, Linked:** with a face selected, add every face of that body with the same color, the faces that touch the selection along an edge, or every face of the body.
+- **More:** the last button in the Select group is a list of further ways to select. Each adds to what you have selected:
+  - **Grow** (<kbd>Ctrl</kbd>+<kbd>+</kbd>) and **Shrink** (<kbd>Ctrl</kbd>+<kbd>-</kbd>) add or drop a ring of faces, edges, corners or mesh triangles.
+  - **Tangent Chain** adds the faces joined smoothly to a selected face, or an edge's tangent chain.
+  - **Whole Feature** and **Same Feature** take a whole recognized hole, fillet, slot or rib, or every feature of the same kind and size.
+  - **Same Radius**, **Fillets Up To**, **Coplanar** and **Coaxial** take matching faces. Fillets Up To takes every fillet no larger than the one picked, which is handy for removing small rounds from an import.
+  - **Same Color** and **Linked** take faces of the same color, or everything of that kind on the body. On a mesh, Linked spreads until it meets a sharp edge.
+  - **To Faces**, **To Edges** and **To Vertices** switch the pick level and convert the selection: To Edges on faces gives the edges around them.
+  - **Reselect Last** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd>) puts back a selection you just lost.
+  - **Save Selection Set** keeps the selection under a name in the browser's **Selection Sets** folder; click the row to select it again. Sets are saved with the document.
+- **Double-click** a face to take it and every face joined to it smoothly, or an edge to take its tangent chain. **<kbd>Ctrl</kbd>+<kbd>Shift</kbd>-click** takes the shortest path from the last face, edge or corner you picked.
+- The right of the status bar shows what is selected, for example "3 faces on 1 body".
 - **Isolate faces:** with faces selected, **Isolate** (View) shows only those faces and hides the rest of their bodies and every other body. It is only a way of looking: nothing in the document changes, and **Show All** brings everything back.
 - **Group:** select two or more objects and press <kbd>Ctrl</kbd>+<kbd>G</kbd> (or use **Group** on the ribbon, or right-click in the browser). The browser shows them under one parent row whose eye hides or shows them together and whose click selects them all. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> takes them out; the objects are never deleted.
 - **Copy and paste:** <kbd>Ctrl</kbd>+<kbd>C</kbd> remembers the selected objects and <kbd>Ctrl</kbd>+<kbd>V</kbd> pastes independent copies in the same place, selected and ready to move, in this or another open document. To copy while you move, hold <kbd>Alt</kbd> as you press an arrow, plane block or the centre of the **Move** gizmo: the originals stay and the copies move.

@@ -182,7 +182,7 @@ public static partial class ToolHelp
         "pattern-circular" => new(icon, "Circular Pattern", "Repeat objects around an axis at an even angle.", "Start: one object", "Result: copies around the axis",
             "1. Select the objects to repeat.\n2. Choose the axis to turn around.\n3. Set the count and angle, then accept.",
             "The copies are spread over the full 360° unless you set a smaller angle."),
-        _ => FindButton(icon) ?? FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon) ?? FindModel(icon)
+        _ => FindSelectMore(icon) ?? FindButton(icon) ?? FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon) ?? FindModel(icon)
     };
 
     /// <summary>Help for ribbon buttons that are not commands (toggles and actions), keyed by the tab they sit on and their icon.</summary>
@@ -345,7 +345,7 @@ public static partial class ToolHelp
             }
             finally { foreach (var m in markers) m.Dispose(); foreach (var w in wires) w.Dispose(); }
         }
-        else if ((ExampleButtons(topic, id) ?? ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
+        else if ((ExampleSelectMore(topic) ?? ExampleButtons(topic, id) ?? ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
         else if (id.StartsWith("revolve", StringComparison.Ordinal))
         {
             using var outline = Occ.Polyline([new(4, 0, 0), new(12, 0, 0), new(10, 0, 20), new(4, 0, 20)], true);

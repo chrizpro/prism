@@ -669,7 +669,7 @@ public sealed partial class MainViewModel : ViewModelBase
                 [
                     More("Grow", "sel-grow", CadSession.MoreSelect.Grow, "Add the faces, edges, corners or triangles next to the selection.", "Ctrl++"),
                     More("Shrink", "sel-shrink", CadSession.MoreSelect.Shrink, "Drop the outer ring of the selection.", "Ctrl+-"),
-                    More("Tangent", "sel-tangent", CadSession.MoreSelect.Tangent, "Add every face joined smoothly to a selected face, or an edge's tangent chain. Double-click does the same."),
+                    More("Tangent Chain", "sel-tangent", CadSession.MoreSelect.Tangent, "Add every face joined smoothly to a selected face, or an edge's tangent chain. Double-click does the same."),
                     More("Whole Feature", "sel-feature", CadSession.MoreSelect.Feature, "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to."),
                     More("Same Feature", "sel-same-feature", CadSession.MoreSelect.SameFeature, "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets."),
                     More("Same Radius", "sel-same-radius", CadSession.MoreSelect.SameRadius, "Add the round faces, or circular edges, with the same radius."),

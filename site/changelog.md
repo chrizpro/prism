@@ -1,5 +1,23 @@
 # Changes
 
+## Next release
+
+### Selecting
+
+- A **More** list in every Select group: **Grow** and **Shrink**, **Tangent Chain**, **Whole Feature**, **Same Feature**, **Same Radius**, **Fillets Up To**, **Coplanar**, **Coaxial**, **Same Color**, **Linked**, **To Faces**, **To Edges**, **To Vertices**, **Reselect Last** and **Save Selection Set**. Each has a hover card with a before and after picture. See [Pick levels, select all and groups](/guide/modeling#pick-levels-select-all-and-groups).
+- Double-click a face or edge for everything joined to it smoothly; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>-click for the shortest path from your last pick.
+- Saved **selection sets** appear in the browser and are kept with the document.
+- The status bar shows what is selected.
+
+### Splitting
+
+- **Split Face** and **Split Surface** have an **Extent** choice: split only the faces you picked, or **Through all** to split every face the cut crosses.
+
+### Gallery and panels
+
+- The **Twin-cam inline-four engine** assembly is in the gallery.
+- The **Apply** button in tool panels now matches Prism's other buttons.
+
 ## 0.4.0 alpha
 
 Direct modeling grows up: Prism now recognises the features of an imported part and lets you edit them by typing a dimension. The Mesh tab was rebuilt around picking triangles directly, sheet metal folds from a flat sketch, and every ribbon button explains itself with a picture. See the [illustrated modeling guide](/guide/modeling-04) for the surfacing and fillet changes.

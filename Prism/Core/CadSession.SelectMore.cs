@@ -55,7 +55,7 @@ public sealed partial class CadSession
 
     static string Label(MoreSelect m) => m switch
     {
-        MoreSelect.SameFeature => "Same Feature", MoreSelect.SameRadius => "Same Radius", MoreSelect.FilletsUpTo => "Fillets Up To", MoreSelect.Feature => "Whole Feature",
+        MoreSelect.Tangent => "Tangent Chain", MoreSelect.SameFeature => "Same Feature", MoreSelect.SameRadius => "Same Radius", MoreSelect.FilletsUpTo => "Fillets Up To", MoreSelect.Feature => "Whole Feature",
         _ => m.ToString(),
     };
     static string KindWord(SelKind k) => k switch { SelKind.Face => "face", SelKind.Edge => "edge", SelKind.Vertex => "corner", SelKind.MeshFace => "triangle", _ => "object" };

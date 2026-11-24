@@ -45,6 +45,10 @@ Sew's **Keep the originals** is off by default. Turn it on to retain the input s
 
 **Intersection Curve** has **Keep the original curves** for its two-flat-curve mode. It replaces those curves by default; planes, faces and bodies remain references and are never removed. Older saved intersection steps keep their curves. Check the option rather than assuming that every tool has the same default.
 
+## Split one face, or every face the cut crosses
+
+**Split Face** has an **Extent** choice. **Selected face** divides only the face you picked. **Through all** lets you pick any one face of the body and divides every face that the plane, movable plane or sketch crosses, all the way through. The body stays one solid of the same shape, so you can then push, pull or color each part. A sketch is carried straight through the body along its own plane. An edge cannot cut through all, because it has no direction; pick a plane or a sketch instead.
+
 ## Mark a solid face with curves
 
 <GuideImage image="diagram-v04-imprint" />
