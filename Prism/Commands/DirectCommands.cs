@@ -149,6 +149,19 @@ static class DirectHelpers
                 var grow = Bounded(true); var trim = Bounded(false);
                 bool growing = grow.Props().Volume > 1e-9, trimming = trim.Props().Volume > 1e-9;
                 if (!growing && !trimming) throw new FormatException("That face is already on the target plane.");
+                // Neighbour planes that are nearly parallel (a drafted wall beside a gusset) leave the region open far beyond the face: the 2026-11-24
+                // pump-bracket rework grew a slab 450 mm out along the base. Stretching neighbours only ever reaches as far as the face moves, so material
+                // outside the face's box grown by its largest distance to the target is not a stretch: use the plain sweep below instead.
+                if (growing && !NearFace(grow) || trimming && !NearFace(trim)) throw new KernelException("Neighbour planes do not close the moved region.");
+                bool NearFace(Shape region)
+                {
+                    var fp = face.Props(); double reachOut = 0;
+                    foreach (var x in new[] { fp.Min.X, fp.Max.X }) foreach (var y in new[] { fp.Min.Y, fp.Max.Y }) foreach (var z in new[] { fp.Min.Z, fp.Max.Z })
+                        reachOut = Math.Max(reachOut, Math.Abs(Vec3.Dot(new Vec3(x, y, z) - target, nt)));
+                    double e = reachOut + 1; var rp = region.Props();
+                    return rp.Min.X >= fp.Min.X - e && rp.Min.Y >= fp.Min.Y - e && rp.Min.Z >= fp.Min.Z - e
+                        && rp.Max.X <= fp.Max.X + e && rp.Max.Y <= fp.Max.Y + e && rp.Max.Z <= fp.Max.Z + e;
+                }
                 var bounded = body;
                 if (growing) bounded = Occ.Fuse(bounded, grow);
                 if (trimming) bounded = Occ.Cut(bounded, trim);
