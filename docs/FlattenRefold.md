@@ -59,3 +59,5 @@ not established: automatic reblending of arbitrary imported fillets remains a
 gap, and the kernels may accept different edge cases. Reference:
 [Unwrap Face](https://plasticity-document-revisions.vercel.app/solid/unwrap-face)
 and [Deform](https://plasticity-document-revisions.vercel.app/solid/deform-solid-and-sheet.en).
+
+The [Aurelia leaf gallery model](../gallery/models/aurelia-leaf.prism) retains a NURBS forming surface, its flat reference, a pierced blank and the refolded sheet. The result has 14 interior wires and spans 23.20 mm in Z. Toggle the forming surface in the browser to inspect how the leaf follows it.

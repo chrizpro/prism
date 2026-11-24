@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "aurelia-leaf",
+      "Name": "Aurelia leaf",
+      "Description": "A pierced brass leaf and its flat blank demonstrate refolding fourteen spline windows across a twisted NURBS saddle.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1013727,
+      "Sha256": "20679ba227f70e175d9d5ef94c026a5571830d037b1df7e100d95ae6b12e7278",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/aurelia-leaf.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/aurelia-leaf.png?v=b4a7246faf7f9641"
+    },
+    {
       "Id": "helix-lamp-study",
       "Name": "Helix lamp study",
       "Description": "Straight and twisted louver cages compare the effect of a 62-degree Warp twist.",
