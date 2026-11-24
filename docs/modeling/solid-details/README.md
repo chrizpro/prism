@@ -54,6 +54,22 @@ The owner asked that Split Body and Split Face take a sketch as the cutting tool
 - **Apply** splits and reopens the tool with the same options; the movable plane stays where it was (it is not moved to the next body's centre), so a row of bodies or faces can be cut on one plane.
 - Older saved steps keep their values: the new options come after the old ones.
 
+## Split extent across modeling workspaces
+
+**Proposed, awaiting owner review.** The [split extent issue](https://github.com/chrizpro/prism/issues/160) tracks the request.
+
+| Command | Selected face | Through all |
+| --- | --- | --- |
+| Split Face | Divide the explicitly picked face into regions and keep one solid. | Divide all boundary faces crossed by the tool and keep one solid. |
+| Split Body | Divide the explicitly picked face into regions and keep one solid. | Create separate solids wherever the tool fully divides the volume. |
+| Split Surface (Surface and NURBS) | Apply the tool to explicitly picked surface faces. | Apply the tool across the entire picked surface object. |
+
+The proposed control is **Extent**. A planar sketch would use its own normal for **Through all**, as Split Body already does. An explicit face pick lets the user orbit the model without changing which face will split. Existing saved features should replay with their previous behavior. Freeform's Split Face edits the subdivision cage. A through-cut that preserves the cage needs its own design.
+
+**Open decisions.** Confirm whether **Through all** in Split Face should keep one solid, and whether **Selected face** should also be available inside Split Body. Surface and NURBS also need a decision on what **Separate surfaces** should return when only selected faces are split. The direction for nonplanar curve tools still needs a rule.
+
+**Verification planned after review.** Compare face counts, solid counts and volume on a block, then compare face counts and area on a multi-face surface. Exercise Apply and check that older saved split steps replay. The current [Split Body sketch tests](../../../Prism.Tests/Headless/Solid/SplitBodyBySketchTests.cs) and [Split Face and Split Body command tests](../../../Prism.Tests/Headless/Solid/SplitWithPlaneAndSketchTests.cs) cover the baseline.
+
 ## Fillet "inverse" — Cove approved 2026-11-16, delivered (tests, not tried by hand)
 
 **Delivered, with a correction to the draft below.** Fillet has a **Shape** choice, *Round* or *Cove (concave scoop)*. **The draft's "tangent to both walls" cannot be done:** a concave scoop that is tangent to both faces of a convex edge would have to touch them outside the body. What is built is the quarter-round cove: a cylinder of the chosen *Radius* centred on the straight edge is cut away, so on a square edge the walls meet the scoop at **right angles**. Tests [SOL-H090 to SOL-H094](../../../Prism.Tests/Headless/Solid/CoveFilletTests.cs): radius 2 on one 10 mm edge of a 10 mm cube removes a quarter disc, 10 pi = 31.4 mm³ (hand calculation); two opposite edges remove twice that; a round fillet of the same radius removes (4 - pi) x 10 = 8.6 mm³, less; a curved edge is refused. **Limitations:** straight edges only (curved edges are refused); on a concave (inside) edge the same cylinder cuts a round groove, so use it on outside edges; *End radius* and *Radius per edge* are hidden for a cove; two coves meeting at a corner overlap slightly there; Chamfer is unchanged. The draft below is kept for the record.
