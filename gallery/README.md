@@ -160,8 +160,8 @@ The observatory includes a [116-part inventory](extras/maple-observatory-part-pl
 
 ## Parametric tool studies
 
-- [Helix lamp study](models/helix-lamp-study.prism) — Straight and twisted louver cages compare the effect of a 62-degree Warp twist.
-- [Split keyboard](models/split-keyboard-table-pattern.prism) — An editable placement table controls the width, depth and height of individual keycaps.
-- [Waveform speaker grille](models/waveform-speaker-grille.prism) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.
+- [Helix lamp study](models/helix-lamp-study.prism) (`helix-lamp-study`) — Straight and twisted louver cages compare the effect of a 62-degree Warp twist.
+- [Split keyboard](models/split-keyboard-table-pattern.prism) (`split-keyboard-table-pattern`) — An editable placement table controls the width, depth and height of individual keycaps.
+- [Waveform speaker grille](models/waveform-speaker-grille.prism) (`waveform-speaker-grille`) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.
 - [Aurelia leaf](models/aurelia-leaf.prism) (`aurelia-leaf`) pairs a spline-cut blank with the refolded leaf on a doubly curved forming surface.
 - [Meridian helmet](models/meridian-helmet.prism) (`meridian-helmet`) compares the curved surface pattern of the complete shell with the UV-driven 4 mm copper rib. See the [before and after preview](previews/meridian-helmet.png).
