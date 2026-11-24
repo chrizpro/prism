@@ -10,8 +10,16 @@ namespace Prism;
 
 public partial class App : Application
 {
+    /// <summary>The geometry kernel's libraries load on a worker thread from the first moment, alongside the window system's own start (startup.log 2026-11-23: 1.3 s).</summary>
+    static System.Threading.Tasks.Task? _kernelWarmUp;
+
+    /// <summary>Start loading the geometry kernel on a worker thread. The desktop calls this on its first line, before the window system starts.</summary>
+    public static void StartKernelWarmUp() =>
+        _kernelWarmUp ??= System.Threading.Tasks.Task.Run(() => { using var warm = Kernel.Occ.Box(1, 1, 1); _ = warm.Tessellate(); });
+
     public override void Initialize()
     {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime) StartKernelWarmUp();
         Core.BrandMigration.CopyLegacySettings();
         Name = "Prism";
         AvaloniaXamlLoader.Load(this);
@@ -85,8 +93,8 @@ public partial class App : Application
         try
         {
             await Breathe(card, "Loading geometry kernel…", 0.04);
-            await System.Threading.Tasks.Task.Run(() => { using var warm = Kernel.Occ.Box(1, 1, 1); _ = warm.Tessellate(); });
-            Core.StartupLog.Mark("Geometry kernel");
+            await (_kernelWarmUp ?? System.Threading.Tasks.Task.Run(() => { using var warm = Kernel.Occ.Box(1, 1, 1); _ = warm.Tessellate(); }));
+            Core.StartupLog.Mark("Geometry kernel (rest of the warm-up)");
 
             await Breathe(card, "Preparing the workspace…", 0.15);
             var vm = new MainViewModel();
@@ -115,16 +123,24 @@ public partial class App : Application
             }
             Core.StartupLog.Mark("Documents");
 
-            await Breathe(card, "Starting the assistant and automation…", 0.88);
-            var api = new Automation.AutomationApi(vm, window);
-            vm.InitAssistant(new Automation.AssistantService(api));
-            var server = Automation.AutomationServer.TryStart(api);
-            desktop.Exit += (_, _) => server?.Dispose();
-            Core.StartupLog.Mark("Assistant and automation");
-
             await Breathe(card, "Opening Prism…", 1);
             desktop.MainWindow = window;
-            window.Opened += (_, _) => { Core.StartupLog.Mark("Main window shown"); Core.StartupLog.Save(); };
+            // The assistant and the automation server are not needed to see the window (startup.log 2026-11-23: 2.6 s in that stage), so they
+            // start right after it has opened; scripts and MCP connect a moment later.
+            async void AfterOpen(object? sender, EventArgs args)
+            {
+                window.Opened -= AfterOpen;
+                Core.StartupLog.Mark("Main window shown");
+                await System.Threading.Tasks.Task.Delay(50);
+                Core.StartupLog.Mark("UI thread free again after opening");
+                var api = new Automation.AutomationApi(vm, window);
+                vm.InitAssistant(new Automation.AssistantService(api));
+                var server = Automation.AutomationServer.TryStart(api);
+                desktop.Exit += (_, _) => server?.Dispose();
+                Core.StartupLog.Mark("Assistant and automation (after the window opened)");
+                Core.StartupLog.Save();
+            }
+            window.Opened += AfterOpen;
             window.Show();
             card?.Close();
         }

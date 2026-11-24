@@ -38,7 +38,9 @@ public static class StartupLog
     public static string Report() =>
         $"Prism {AppInfo.DisplayVersion} start-up, {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}" +
         string.Join(Environment.NewLine, _marks.Select(m => $"{m.ms,8:0} ms  {m.stage}")) + Environment.NewLine +
-        $"{_marks.Sum(m => m.ms),8:0} ms  total{Environment.NewLine}";
+        $"{_marks.Sum(m => m.ms),8:0} ms  total{Environment.NewLine}" +
+        (_marks.FindIndex(m => m.stage.StartsWith("Main window shown")) is int shown and >= 0
+            ? $"{_marks.Take(shown + 1).Sum(m => m.ms),8:0} ms  until the main window was on screen{Environment.NewLine}" : "");
 
     public static void Save()
     {
