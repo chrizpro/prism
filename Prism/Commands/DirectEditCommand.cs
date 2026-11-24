@@ -39,8 +39,7 @@ public sealed class DirectEditCommand : Command
     void ApplyAndContinue()
     {
         if (S.ActiveCommand != this) return;
-        S.CommitCommand();
-        if (S.ActiveCommand == null) S.StartCommand(() => new DirectEditCommand());
+        S.RunApply(this, S.CommitCommand, () => S.StartCommand(() => new DirectEditCommand()));
     }
 
     internal void Done()

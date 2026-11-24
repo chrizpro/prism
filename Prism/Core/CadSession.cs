@@ -1203,6 +1203,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (ActiveCommand == null) return;
         ClearPendingNotice();
+        ForgetApplied();                                // any other way out keeps what was applied
         var c = ActiveCommand; ActiveCommand = null;
         _suspendedCmd = null;
         c.OnEnd(); c.OnCancel();
@@ -1225,7 +1226,9 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand?.FinishPanelStep(false) != true)
         {
             var parked = _suspendedCmd;
+            var (anchor, count, title) = (_applyAnchor, _appliedCount, ActiveCommand?.Title ?? "");
             CancelCommand();
+            RevertAppliedAfterCancel(anchor, count, title);       // Cancel removes everything this tool applied (owner decision 2026-11-24)
             if (parked != null) StartCommand(parked);
         }
     }
@@ -1236,8 +1239,16 @@ public sealed partial class CadSession : ObservableObject
         c.Committing = true;
         CommandOutput? res;
         try { res = c.TryBuild(); } finally { c.Committing = false; }
+        if (res == null && c.Error == null && _appliedCount > 0 && !_applyingNow)
+        {
+            int kept = _appliedCount;
+            CancelCommand();                               // nothing new to add: OK confirms what was applied
+            Say($"{c.Title}: kept the {(kept == 1 ? "result" : kept + " results")} you applied.");
+            return;
+        }
         if (res == null) { Say(c.Error ?? "Complete the required selections first.", true); return; }
         res.Label ??= c.Title; res.Icon ??= c.Icon;
+        ForgetApplied();                                   // OK keeps everything applied (does nothing while an Apply is committing)
         PendingNotice = null;
         ActiveCommand = null;
         c.OnEnd();
@@ -1296,10 +1307,11 @@ public sealed partial class CadSession : ObservableObject
     {
         if (!ReferenceEquals(ActiveCommand, c) || c.Factory == null) return;
         var again = new RepeatableTool(c.Factory, c.Title, c.Icon, c.CaptureOptionValues());
-        CommitCommand();
-        if (ActiveCommand != null) return;          // it could not be built (the reason is on the status line), or a parked tool resumed
-        if (!c.ApplyKeepsSelection) ClearSelection();  // the new result would otherwise seed the next run's picks
-        if (Reopen(again) != null) Say($"{c.Title} applied. Pick the next one, then Apply again, or {c.CommitText} for the last one.");
+        RunApply(c, CommitCommand, () =>
+        {
+            if (!c.ApplyKeepsSelection) ClearSelection();  // the new result would otherwise seed the next run's picks
+            if (Reopen(again) != null) Say($"{c.Title} applied. Pick the next one, then Apply again, or {c.CommitText} when you are done. Cancel removes everything applied.");
+        });
     }
 
     // ------------------------------------------------------------ editing a feature

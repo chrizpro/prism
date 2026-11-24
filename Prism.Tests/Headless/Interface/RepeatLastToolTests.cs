@@ -236,4 +236,124 @@ public class RepeatLastToolTests
         vm.SearchText = "repeat";
         Assert.DoesNotContain(vm.SearchResults, h => h.Label.StartsWith("Repeat"));   // not while a tool is open
     }
+
+    // ---- Cancel, Apply and OK (owner decision 2026-11-24)
+    /// <summary>The vertical edge of the 20 mm box at corner (x, y).</summary>
+    static SelItem Corner(CadSession s, SceneObject box, double x, double y)
+    {
+        var body = s.Find(box.Id)!;
+        for (int i = 0; i < body.Shape.Count(SubKind.Edge); i++)
+        {
+            var e = Occ.EdgeInfoOf(body.Shape.Sub(SubKind.Edge, i));
+            if (e.Type == "Line" && Math.Abs(e.Start.X - x) < 1e-6 && Math.Abs(e.End.X - x) < 1e-6 && Math.Abs(e.Start.Y - y) < 1e-6 && Math.Abs(e.End.Y - y) < 1e-6) return new(box.Id, SelKind.Edge, i);
+        }
+        throw new InvalidOperationException("no such corner edge");
+    }
+
+    /// <summary>A 20 mm box with Fillet open (radius 3), after Apply on the given corners. Returns the volume before anything was applied.</summary>
+    static (CadSession s, SceneObject box, double volume) Applied(params (double x, double y)[] corners)
+    {
+        var s = new CadSession();
+        var box = CreateBoxBody(s, Vec3.Zero, 20, 20, 20);
+        double volume = box.Shape.Props().Volume;
+        var fillet = Begin(s, () => new FilletCommand());
+        fillet.Params.OfType<NumberParam>().Single(p => p.Label == "Radius").Value = 3;
+        foreach (var (x, y) in corners)
+        {
+            var open = Assert.IsType<FilletCommand>(s.ActiveCommand);
+            Pick(open, "Edges", Corner(s, box, x, y));
+            open.RepeatApply!.Run();
+        }
+        return (s, box, volume);
+    }
+
+    static double Volume(CadSession s, SceneObject box) => s.Find(box.Id)!.Shape.Props().Volume;
+
+    [AvaloniaFact(DisplayName = "REP-H010 | Cancel after two Applies puts the box back as it was, says so, and Redo brings the results back one per press")]
+    [Trait("TestId", "REP-H010")]
+    public void CancelRemovesEverythingApplied()
+    {
+        var (s, box, volume) = Applied((0, 0), (20, 20));
+        Assert.Equal(2, s.AppliedCount);
+        double twice = Volume(s, box);
+        Assert.True(twice < volume - 1);
+        s.CancelCommandPanel();
+        Assert.Null(s.ActiveCommand);
+        Assert.Equal(volume, Volume(s, box), 6);
+        Assert.Equal(0, s.AppliedCount);
+        Assert.Contains("removed the 2 results", s.Status);
+        Assert.Contains("Redo", s.Status);
+        s.Redo();
+        Assert.True(Volume(s, box) < volume - 1 && Volume(s, box) > twice + 1);
+        s.Redo();
+        Assert.Equal(twice, Volume(s, box), 6);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H011 | Esc after an Apply removes it like the Cancel button")]
+    [Trait("TestId", "REP-H011")]
+    public void EscRemovesWhatWasApplied()
+    {
+        var (s, box, volume) = Applied((0, 0));
+        Assert.True(s.Key("Escape"));
+        Assert.Null(s.ActiveCommand);
+        Assert.Equal(volume, Volume(s, box), 6);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H012 | OK after an Apply adds the current result and keeps the applied one")]
+    [Trait("TestId", "REP-H012")]
+    public void OkKeepsAppliedAndAddsCurrent()
+    {
+        var (s, box, volume) = Applied((0, 0));
+        double once = Volume(s, box);
+        Pick(s.ActiveCommand!, "Edges", Corner(s, box, 20, 20));
+        s.CommitCommand();
+        Assert.Null(s.ActiveCommand);
+        Assert.True(Volume(s, box) < once - 1);
+        Assert.Equal(0, s.AppliedCount);
+        s.CancelCommandPanel();                                   // nothing open: nothing to revert
+        Assert.True(Volume(s, box) < once - 1);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H013 | OK with nothing picked after an Apply closes the tool and keeps what was applied")]
+    [Trait("TestId", "REP-H013")]
+    public void OkWithNothingPickedConfirms()
+    {
+        var (s, box, volume) = Applied((0, 0));
+        double once = Volume(s, box);
+        s.CommitCommand();
+        Assert.Null(s.ActiveCommand);
+        Assert.False(s.StatusIsError);
+        Assert.Contains("kept the result", s.Status);
+        Assert.Equal(once, Volume(s, box), 6);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H014 | Opening another tool after an Apply keeps what was applied")]
+    [Trait("TestId", "REP-H014")]
+    public void SwitchingToolsKeepsApplied()
+    {
+        var (s, box, volume) = Applied((0, 0));
+        double once = Volume(s, box);
+        s.ProtectPendingCommand = false;
+        s.StartCommand(() => new ChamferCommand());
+        Assert.IsType<ChamferCommand>(s.ActiveCommand);
+        Assert.Equal(0, s.AppliedCount);
+        s.CancelCommandPanel();
+        Assert.Equal(once, Volume(s, box), 6);
+    }
+
+    [AvaloniaFact(DisplayName = "REP-H015 | The panel note counts what was applied and clears after OK; Cancel with nothing applied leaves history alone")]
+    [Trait("TestId", "REP-H015")]
+    public void AppliedNoteAndPlainCancel()
+    {
+        var (s, box, _) = Applied((0, 0));
+        Assert.StartsWith("1 applied.", s.AppliedNote);
+        Assert.Contains("Cancel removes it", s.AppliedNote);
+        s.CommitCommand();
+        Assert.Equal("", s.AppliedNote);
+
+        var before = s.Current;
+        Begin(s, () => new FilletCommand());
+        s.CancelCommandPanel();
+        Assert.Same(before, s.Current);
+    }
 }

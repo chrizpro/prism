@@ -30,6 +30,16 @@ Select a body, face, or edge before starting a tool when it needs a target. Conf
 
 The command panel follows numbered, collapsible steps. Revolve uses **Profile → Axis → Extent → Result**; choose a world axis or select an axis line in step two. Extrude starts with the profile, then its extent and result. Each section can be collapsed without losing its inputs.
 
+### Cancel, Apply and OK
+
+Tools that make many results in a row (Fillet, Chamfer, Split Face, Split Body, Patch, Trim Surface and others) have three buttons at the bottom of the panel:
+
+- **Apply** adds the result and keeps the tool open with the same options, ready for the next one. Each applied result is its own step in the history, so you can edit it later.
+- **OK** (the blue button, named for the tool: Create, Split, Fillet) adds the current result and keeps everything you applied. With nothing picked, it just closes the tool and keeps what you applied.
+- **Cancel** (or <kbd>Esc</kbd>) puts the model back exactly as it was when you opened the tool, removing everything you applied. The status line says how many results were removed; **Redo** (<kbd>Ctrl</kbd>+<kbd>Y</kbd>) brings them back, one per press.
+
+While anything has been applied, a note above the buttons shows how many and what Cancel and OK will do. Opening another tool keeps what you applied.
+
 ### Select individual edges or chains
 
 Extrude and Revolve offer **Selection intent** in the profile picker:

@@ -17,6 +17,7 @@
 
 - The **Twin-cam inline-four engine** assembly is in the gallery.
 - The **Apply** button in tool panels now matches Prism's other buttons.
+- **Cancel, Apply and OK work like a dialog.** Apply adds a result and keeps the tool open; OK keeps everything applied; Cancel (or Esc) removes everything applied since the tool opened, and Redo brings it back. See [Cancel, Apply and OK](/guide/modeling#cancel-apply-and-ok).
 
 ## 0.4.0 alpha
 
