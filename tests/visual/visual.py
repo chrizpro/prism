@@ -168,7 +168,10 @@ def save(name, image):
 
 
 def open_model(name):
-    cad.call("file", action="open", path=str(ROOT / "gallery/models" / f"{name}.prism"))
+    # a gallery model keeps its own native type: assemblies are .prism_asm, everything else .prism
+    folder = ROOT / "gallery/models"
+    path = next((folder / f"{name}{ext}" for ext in (".prism", ".prism_asm", ".prism_prt") if (folder / f"{name}{ext}").exists()), folder / f"{name}.prism")
+    cad.call("file", action="open", path=str(path))
     cad.call("wait_idle")
 
 

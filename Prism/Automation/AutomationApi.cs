@@ -1064,6 +1064,18 @@ public sealed partial class AutomationApi
             return CommandResult(before);
         });
 
+        Add("command_apply", "Press Apply on the active command: add the current result as its own step and reopen the tool with the same options and nothing picked. Cancel afterwards removes everything applied since the tool opened; OK keeps it.", Schema(null), _ =>
+        {
+            var c = S.ActiveCommand ?? throw new InvalidOperationException("No command is active.");
+            var apply = c.RepeatApply ?? throw new InvalidOperationException($"{c.Title} has no Apply button.");
+            var before = Snapshot();
+            apply.Run();
+            if (S.ActiveCommand == c) throw new InvalidOperationException(c.Error ?? S.Status);
+            var result = CommandResult(before);
+            result["applied"] = S.AppliedCount;
+            return result;
+        });
+
         Add("command_cancel", "Cancel the active command (or the sketch if one is open and no command is active).", Schema(null), _ =>
         {
             if (S.ActiveCommand != null) S.CancelCommandPanel(); else if (S.Sketch != null) S.ExitSketch(false);

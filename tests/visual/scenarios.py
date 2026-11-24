@@ -128,8 +128,8 @@ def mold():
 def model_check(model):
     """PASS or FAIL line for a model that was just opened: it has objects and every solid and surface is valid."""
     state = cad.call("get_state")["objects"]
-    bodies = [o for o in state if o["kind"] in ("Solid", "Surface", "Form")]
-    bad = [o["name"] for o in bodies if o["kind"] != "Form" and not cad.call("object_info", object=o["name"]).get("valid", False)]   # a Freeform cage has no exact-shape validity
+    bodies = [o for o in state if o["kind"] in ("Solid", "Surface", "Form", "Mesh")]       # the mesh studies are triangle meshes
+    bad = [o["name"] for o in bodies if o["kind"] not in ("Form", "Mesh") and not cad.call("object_info", object=o["name"]).get("valid", False)]   # a Freeform cage has no exact-shape validity
     ok = len(state) > 0 and bool(bodies) and not bad
     return f"{'PASS' if ok else 'FAIL'}  {model}: {len(state)} objects, {len(bodies)} bodies, invalid: {bad or 'none'}"
 
@@ -4509,3 +4509,78 @@ def direct_bracket_rework():
         lines.append(f"{'PASS' if ok else 'FAIL'}  final solid: {f['faces']} faces, volume {f['volume']:.0f} (expect 1366045), size {f['size']}, free edges {f['freeEdges']}")
     lines += [f"KNOWN ISSUE (not filed yet): {k['issue']}" for k in pb.report["known_issues"]]
     return [("STEP import", before), ("after 37 Direct Modeling steps", after), ("checks", text_panel(lines))]
+
+
+# ---------------------------------------------------------------- 0.5: the Select group's More tools, Split Face Through all, Cancel/Apply/OK
+@scenario("selection__more-tools-split-through-all-apply-cancel", columns=1)
+def select_more_split_apply_cancel():
+    """Owner decisions 2026-11-24 (docs/interface/selection/README.md, docs/modeling/solid-details/README.md, docs/interface/README.md):
+    Grow, To Edges and Reselect Last from the ribbon; Split Face with Extent Through all; Apply twice then Cancel removes both and Redo brings them back."""
+    rows = []
+
+    def check(label, detail, ok):
+        rows.append((label, detail, bool(ok)))
+
+    def state():
+        return cad.call("get_state", fields=["selection", "selectionMode", "status"])
+
+    def faces_of(name):
+        return cad.call("object_info", object=name).get("faces")
+
+    # Grow, To Edges and Reselect Last on a plain 40 x 30 x 20 block
+    cad.call("document_new")
+    b = cad.box(width=40, depth=30, height=20, operation="New body"); b.rename("Blk")
+    top = cad.call("solid_find", object="Blk", kind="faces", type="Plane", facing=[0, 0, 1])["hits"][0]["face"]
+    cad.call("ribbon_click", label="Face")
+    cad.call("select", items=[{"object": "Blk", "face": top}])
+    cad.call("ribbon_click", label="Grow")
+    grown = state()["selection"]
+    check("Grow from the top adds the four sides", f"{len(grown)} faces selected (expect 5)", len(grown) == 5)
+    cad.call("ribbon_click", label="To Edges")
+    s = state()
+    check("To Edges gives the border of top and sides: the four bottom edges", f"{len(s['selection'])} selected in {s['selectionMode']} mode (expect 4 in Edge)",
+          len(s["selection"]) == 4 and s["selectionMode"] == "Edge")
+    cad.call("shortcut", id="edit.reselect")
+    s = state()
+    check("Reselect Last (Ctrl+Shift+L) puts the five faces back", f"{len(s['selection'])} selected in {s['selectionMode']} mode (expect 5 in Face)",
+          len(s["selection"]) == 5 and s["selectionMode"] == "Face")
+    picture_select = render(-35, 30)
+
+    # Split Face, Extent Through all, with the movable plane at mid-height through a side face
+    cad.call("select", items=[])
+    side = cad.call("solid_find", object="Blk", kind="faces", type="Plane", facing=[1, 0, 0])["hits"][0]["face"]
+    before = faces_of("Blk")
+    cad.call("run_command", name="split_face", slots={"Face to split": [{"object": "Blk", "face": side}]},
+             params={"Cut with a movable plane": True, "Plane Z": 10, "Extent": "Through all (every face the tool crosses)"})
+    info = cad.call("object_info", object="Blk")
+    check("Split Face Through all splits all four sides and keeps one solid", f"faces {before} -> {info.get('faces')} (expect 6 -> 10), volume {info['volume']:.0f} (expect 24000)",
+          before == 6 and info.get("faces") == 10 and abs(info["volume"] - 24000) < 1)
+    picture_split = render(-35, 20)
+
+    # Apply twice, then Cancel removes both; Redo brings them back one per press
+    cad.call("document_new")
+    b = cad.box(width=20, depth=20, height=20, operation="New body"); b.rename("Cube")
+    start = cad.call("object_info", object="Cube")["volume"]
+    edges = cad.call("solid_find", object="Cube", kind="edges", direction=[0, 0, 1], limit=4)["hits"]
+    cad.call("run_command", name="fillet", slots={"Edges": [{"object": "Cube", "edge": edges[0]["edge"]}]}, params={"Radius": 3}, commit=False)
+    corner = edges[0]["center"]
+    first = cad.call("command_apply")
+    edges = cad.call("solid_find", object="Cube", kind="edges", direction=[0, 0, 1], limit=20)["hits"]
+    far = max((e for e in edges if e.get("type", "Line") == "Line"), key=lambda e: math.dist(e["center"][:2], corner[:2]))
+    cad.call("command_set", slots={"Edges": [{"object": "Cube", "edge": far["edge"]}]})
+    second = cad.call("command_apply")
+    twice = cad.call("object_info", object="Cube")["volume"]
+    check("Apply twice rounds two edges and keeps the tool open", f"applied {first.get('applied')}, {second.get('applied')}; volume {start:.0f} -> {twice:.0f}",
+          second.get("applied") == 2 and twice < start - 1)
+    cad.call("command_cancel")
+    after_cancel = cad.call("object_info", object="Cube")["volume"]
+    status = state()["status"]
+    check("Cancel removes both applied fillets and says so", f"volume {after_cancel:.0f} (expect {start:.0f}); status: {status[:90]}",
+          abs(after_cancel - start) < .01 and "removed the 2 results" in status)
+    cad.call("history", action="redo"); cad.call("history", action="redo")
+    redone = cad.call("object_info", object="Cube")["volume"]
+    check("Redo twice brings both back", f"volume {redone:.0f} (expect {twice:.0f})", abs(redone - twice) < .01)
+
+    strip = ["0.5: More selection tools, Split Face Through all, Cancel removes what Apply added (headless detail: SEL-H070+, SOL-H205+, REP-H010+)"] \
+        + [f"{'PASS' if r[2] else 'FAIL'}  {r[0]}: {r[1]}" for r in rows]
+    return [("Grow / To Edges / Reselect", picture_select), ("split through all at Z 10", picture_split), ("checks", text_panel(strip))]
