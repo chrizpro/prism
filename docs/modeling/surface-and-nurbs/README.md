@@ -91,6 +91,8 @@ Approved and shipped on 2026-11-12:
 - **Mirror was already on Surface, NURBS, Solid and Freeform** via the shared Transform group (SFC-H009); `TransformCommand` accepts any object kind, so surfaces mirror without conversion. Freeform additionally keeps its cage-level "Mirror and weld" under Symmetry.
 - **Freeform has no Split Surface or Split Body equivalent, deliberately**: splitting a Catmull-Clark form's baked shape would sever the cage↔surface link and leave a dumb surface. The path is Convert to NURBS, then split — the same reason Combine stays off Freeform.
 
+The [split extent proposal](../solid-details/README.md#split-extent-across-modeling-workspaces) covers an explicit face-only or through-all choice for Split Surface on both tabs.
+
 ## Enclosed Body in two steps (owner request 2026-11-16; tests with simulated clicks, not tried by hand in the app)
 
 **Why.** Enclosed Body asked you to pick surfaces and then type space numbers from a list in the panel, with no way to see which number was which. The owner asked for something friendlier and more powerful: select every surface involved, then choose the areas to keep from the viewport, with volume colours that show where the surfaces intersect.
