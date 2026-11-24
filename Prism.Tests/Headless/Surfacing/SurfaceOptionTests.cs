@@ -476,6 +476,45 @@ public class SurfaceOptionTests
         vm.Session.CancelCommand();
     }
 
+    /// <summary>A 10 x 10 sheet made of two faces meeting at x = 5.</summary>
+    static SceneObject TwoFaceSheet(CadSession session)
+    {
+        using var a = Occ.Polyline([Vec3.Zero, new(5, 0, 0), new(5, 10, 0), new(0, 10, 0)], true);
+        using var b = Occ.Polyline([new(5, 0, 0), new(10, 0, 0), new(10, 10, 0), new(5, 10, 0)], true);
+        return session.AddObject(Occ.Sew([Occ.Profile([a], true), Occ.Profile([b], true)], 0.01, false), "Sheet", ObjKind.Surface);
+    }
+
+    /// <summary>Split the left face of a two-face sheet with a line across both faces at y = 5, with the given Extent; the faces of the result.</summary>
+    static int SplitLeftFace(string extent)
+    {
+        var vm = new MainViewModel(); var s = vm.Session; s.Mode = SelMode.Face;
+        var sheet = TwoFaceSheet(s);
+        int left = Enumerable.Range(0, sheet.Shape.Count(SubKind.Face)).Single(i => sheet.Shape.Sub(SubKind.Face, i).Props().Center.X < 5);
+        using var lineWire = Occ.Polyline([new(-5, 5, 0), new(15, 5, 0)], false);
+        var line = s.AddObject(lineWire, "Split line", ObjKind.Curve);
+        var command = Start<SplitSurfaceCommand>(vm, "Surface");
+        command.ConfigureInputs(() =>
+        {
+            command.Slots.Single(x => x.Label == "Surface to split").TryAdd(new SelItem(sheet.Id, SelKind.Face, left));
+            SetSelection(command, "Splitting tool (plane, face, surface, sketch, curve or solid)", line);
+            SetChoice(command, "Extent", extent);
+        });
+        var output = command.TryBuild();
+        Assert.True(output != null, command.Error);
+        using var result = Assert.Single(output.Replace).New;
+        Assert.True(result.IsValid);
+        AssertNear(100, result.Props().Area, "Area (mm²)");
+        return result.Count(SubKind.Face);
+    }
+
+    [AvaloniaFact(DisplayName = "SFC-H024 | Split Surface with Extent Selected faces splits only the picked face of a two-face sheet")]
+    [Trait("TestId", "SFC-H024")]
+    public void SplitSurfaceSelectedFaces() => Assert.Equal(3, SplitLeftFace("Selected faces"));
+
+    [AvaloniaFact(DisplayName = "SFC-H025 | Split Surface with Extent Through all splits every face the line crosses")]
+    [Trait("TestId", "SFC-H025")]
+    public void SplitSurfaceThroughAll() => Assert.Equal(4, SplitLeftFace("Through all (every face the tool crosses)"));
+
     static SceneObject Sheet(CadSession session)
     {
         using var boundary = Occ.Polyline([Vec3.Zero, new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)], true);
