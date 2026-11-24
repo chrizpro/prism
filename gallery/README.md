@@ -67,6 +67,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | NURBS | Three-lobed handbell (`three-lobed-handbell`) |
 | NURBS | Streamlined train nose (`streamlined-train-nose`) |
 | Solid | Inline-four engine block with fitted liners and core plugs (`inline-four-crankcase`) |
+| Solid / Assembly | Twin-cam inline-four engine, 83 parts, published as an assembly file (`twin-cam-four`) |
 | Mesh | Four-groove drive sheave (`multi-groove-sheave`), centrifugal impeller (`centrifugal-impeller`) |
 | Direct Modeling / Solid | Pin-fin cold plate from a STEP blank (`pin-fin-cold-plate`) |
 | Direct Modeling / Solid | Keyed shaft coupling before and after (`keyed-shaft-coupling`) |

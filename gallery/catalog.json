@@ -94,6 +94,19 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
     },
     {
+      "Id": "twin-cam-four",
+      "Name": "Twin-cam inline-four engine",
+      "Description": "An 83-part four-cylinder engine assembly: iron block and wet sump, aluminum twin-cam head and ribbed cam cover, coil packs, four-into-one exhaust header, intake plenum with throttle body, and a front timing case with its accessory belt drive.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 3200392,
+      "Sha256": "bda933cbbce3e99bd8c83575ad1352b246f0dc4dcf215df0d5f08a59dcb6ddd4",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/twin-cam-four.prism_asm",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/twin-cam-four.png?v=ba40a92c80953e27"
+    },
+    {
       "Id": "keyed-shaft-coupling",
       "Name": "Keyed shaft coupling rework",
       "Description": "A tall keyed STEP hub becomes a low-profile shaft flange with ten large openings. Compare both solids or download the original coupling blank.",

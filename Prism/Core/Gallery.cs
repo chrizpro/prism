@@ -21,6 +21,15 @@ public sealed record GalleryEntry(string Id, string Name, string Description, st
         Author == other.Author && License == other.License && MinimumVersion == other.MinimumVersion && ModelUrl == other.ModelUrl && PreviewUrl == other.PreviewUrl &&
         Bytes == other.Bytes && Sha256 == other.Sha256 && (Extras ?? []).SequenceEqual(other.Extras ?? []);
     public override int GetHashCode() => HashCode.Combine(Id, Sha256, Bytes, Extras?.Count ?? 0);
+    /// <summary>The model's own file type, read from its download address (".prism_asm" for an assembly); ".prism" when the address names no native type.</summary>
+    public string ModelExtension
+    {
+        get
+        {
+            string ext = Uri.TryCreate(ModelUrl, UriKind.Absolute, out var uri) ? Path.GetExtension(uri.AbsolutePath).ToLowerInvariant() : "";
+            return NativeDocumentFile.Extensions.Contains(ext) && ext != ".ourcad" ? ext : ".prism";
+        }
+    }
     public bool IsCompatible(string version) => Version.TryParse(MinimumVersion, out var required) &&
         Version.TryParse(version.Split('-')[0].Split('+')[0], out var current) && current >= required;
 }
@@ -106,7 +115,7 @@ public sealed class GalleryStore(HttpClient http, string root)
         await AtomicWrite(CatalogPath, data, token);
         return catalog;
     }
-    public string ModelPath(GalleryEntry entry) => Path.Combine(root, entry.Id + "-" + entry.Sha256.ToLowerInvariant() + ".prism");
+    public string ModelPath(GalleryEntry entry) => Path.Combine(root, entry.Id + "-" + entry.Sha256.ToLowerInvariant() + entry.ModelExtension);
     public bool IsCached(GalleryEntry entry)
     {
         try
@@ -150,7 +159,7 @@ public sealed class GalleryStore(HttpClient http, string root)
         Directory.CreateDirectory(folder);
         for (int i = 1; ; i++)
         {
-            string path = Path.Combine(folder, entry.Id + (i == 1 ? "" : "-" + i) + ".prism");
+            string path = Path.Combine(folder, entry.Id + (i == 1 ? "" : "-" + i) + entry.ModelExtension);
             FileStream target;
             try { target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None); }
             catch (IOException) when (File.Exists(path)) { continue; }

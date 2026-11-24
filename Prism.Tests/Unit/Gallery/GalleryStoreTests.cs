@@ -44,6 +44,20 @@ public sealed class GalleryStoreTests : IDisposable
         Assert.Equal(1, transport.Calls);
     }
 
+    [Fact(DisplayName = "GAL-U009 | An assembly model keeps its .prism_asm type in the cache and in the working copy")]
+    [Trait("TestId", "GAL-U009")]
+    public async Task AssemblyModelKeepsItsFileType()
+    {
+        var asm = Entry with { Id = "engine", ModelUrl = "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/engine.prism_asm" };
+        Assert.Equal(".prism_asm", asm.ModelExtension);
+        Assert.Equal(".prism", Entry.ModelExtension);
+        Assert.Equal(".prism", (Entry with { ModelUrl = "https://example.com/models/engine.exe" }).ModelExtension);
+        using var transport = new Transport(_ => Reply(Model));
+        var store = Store(transport);
+        Assert.EndsWith(".prism_asm", await store.GetModel(asm));
+        Assert.EndsWith("engine.prism_asm", await store.CreateWorkingCopy(asm, Path.Combine(root, "work")));
+    }
+
     [Fact(DisplayName = "GAL-U002 | Truncated and changed downloads never become cached models")]
     [Trait("TestId", "GAL-U002")]
     public async Task CorruptDownloadCannotReplaceVerifiedCache()
