@@ -54,6 +54,45 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 
 **Ctrl+A** selects everything at the current pick level (`SEL-H024`): every visible body in Object mode, every face in Face mode, every edge in Edge mode, every corner point in Vertex mode. In a command slot it fills the slot with everything the slot accepts. In an open sketch it selects all the sketch geometry, in Edit Freeform all cage components, and in Edit Points all control points. In a text box it selects the text as usual. The shortcut can be changed in the shortcut settings.
 
+## More selection tools (owner approved 2026-11-24)
+
+**Status: owner approved 2026-11-24 ("You can add all of those selection features ... a dropdown button with all of these options ... to avoid the ribbon from getting too bloated"). Built in the same change; covered by headless tests, not yet tried by hand.** The ideas come from Blender, Maya, Fusion and SpaceClaim. Checks: [SEL-H070 to SEL-H082](../../../Prism.Tests/Headless/Selection/SelectMoreTests.cs).
+
+**One dropdown.** The Select group on every modeling tab has a **More** dropdown in place of the old Same Color / Adjacent / Linked split. It holds every tool below, one level deep, so search and ribbon customization reach each one. Each tool adds to the selection unless it says otherwise, works on the bodies the selection comes from (Coplanar and Coaxial look across every visible body), skips hidden faces, and says in the status line what it did ("Added 4 faces") or why it did nothing ("Select a face first").
+
+| Tool | Faces of a solid or surface | Edges | Corner points | Mesh triangles |
+| --- | --- | --- | --- | --- |
+| **Grow** (Ctrl+Plus) | adds the faces that share an edge with a selected face | adds the edges that share an end with a selected edge | adds the corners one edge away | adds one ring of triangles |
+| **Shrink** (Ctrl+Minus) | drops the selected faces that touch an unselected face | drops the edges at the free ends of each selected run | drops the corners that have an unselected neighbour | drops one ring of triangles |
+| **Tangent Chain** | adds every face joined smoothly (tangent) to a selected face | adds the tangent chain | — | — |
+| **Whole Feature** | adds every face of the recognized hole, boss, slot, pocket, fillet, chamfer, rib or text the face belongs to | — | — | — |
+| **Same Feature** | adds every feature of the same kind and size on the body (all 6 mm holes, all R2 fillet chains) | — | — | — |
+| **Same Radius** | adds the round faces (cylinder, cone, sphere, torus) with the same radius, within 0.001 mm | adds the circles and arcs with the same radius | — | — |
+| **Fillets Up To** | adds every fillet face whose radius is no larger than the largest selected round face (for removing small rounds from an import) | — | — | — |
+| **Coplanar** | adds the flat faces lying in the same plane, facing the same way | — | — | — |
+| **Coaxial** | adds the round faces that share the selected face's axis | — | — | — |
+| **Same Color** | adds the faces with the same color and finish (unchanged) | — | — | — |
+| **Linked** | adds every face of the body (unchanged) | adds every edge of the body | adds every corner of the body | adds the connected triangles up to sharp edges (more than 30° between neighbours) |
+| **To Faces** | — | switches to Face and selects the faces beside the edges | switches to Face and selects the faces at the corners | — |
+| **To Edges** | switches to Edge and selects the border of the selected region (when the faces close a whole body, every edge of them) | — | switches to Edge and selects the edges that touch a selected corner | — |
+| **To Vertices** | switches to Vertex and selects the corners of the faces | switches to Vertex and selects the edges' end points | — | — |
+
+Tools not marked for a kind leave the selection alone and say which kinds they take. In Edit Freeform, Grow and Shrink run the cage's own Grow and Shrink. While a tool is asking for input the More tools are unavailable (they act on the selection, not on a pick slot).
+
+- **Reselect Last** (Ctrl+Shift+L) puts back the selection you had before the last change: a click in empty space that cleared five faces is undone by it. Pressing it again swaps back. It is not an undo step and is not saved.
+- **Save Selection Set** stores the current selection as "Selection 1", "Selection 2" and so on. Sets appear in the browser in a **Selection Sets** folder; clicking a row selects its items (Shift and Ctrl add, as with other rows), F2 or double-click renames it, and Delete or right-click Delete removes the set (never the geometry). Sets are saved with the document. A set holds objects, faces, edges, corner points and mesh triangles by number, so after an edit that renumbers a body's faces the set may point at different faces, as Isolate does; items whose object is gone or whose number no longer exists are skipped and the status line says how many. Saving or deleting a set marks the document changed but is not an undo step.
+
+**Clicks.**
+
+- **Double-click** a face of a solid or surface selects it and every face joined to it smoothly (a filleted rim, a blended pocket), as Fusion does. Double-click an edge for its tangent chain; where that is only the edge itself (a sharp corner), the connected run is taken instead, which on a surface's open border or a curve is the whole border. Shift adds the chain to the selection and Ctrl takes it away. Double-click on a mesh triangle still takes its smooth patch.
+- **Ctrl+Shift-click** selects the shortest path from the last item you picked to the clicked one, on the same body and at the same level: the fewest faces, the shortest run of edges, the fewest corners or triangles. Ctrl-click and Shift-click keep their meaning (add or take away one item). With nothing picked first, or the two on different bodies, it picks the clicked item and says why.
+
+**Status bar.** While anything is selected, the right of the status bar shows what is selected: "3 faces on 1 body", "2 edges, 1 face on 2 bodies", "4 objects", "120 triangles".
+
+**Acceptance.** On a 40 x 30 x 20 mm box with one top edge filleted at 2 mm and a 6 mm through hole in the top: Grow from the top face gives the top face, the four faces around it (one of them the fillet) and the hole wall; Shrink after Grow of the top alone gives the top back; Tangent Chain from the fillet gives the fillet and the two flat faces it blends into; Whole Feature from the hole wall gives the hole's faces; Same Radius from the hole picks only the hole wall; Fillets Up To from the fillet picks the fillet; Coplanar from the bottom face of two boxes standing on one plane picks both bottoms; To Edges from the top face alone gives the edges around it; To Vertices from the top face gives its corners; Linked on a mesh of two separate spheres picks only the clicked sphere; Reselect Last after clearing restores the cleared faces; a saved set survives save and reopen; the shortest path between two opposite side faces of a box is three faces; double-click on the top face takes the top, the fillet and the side it blends into; a top edge of a box grows by the four edges at its ends. Recorded as tests, not tried by hand.
+
+**Not built.** Similar for objects (all bodies of the same volume), a tolerance setting for Same Radius and Coplanar, shortest path for Freeform cages (Edit Freeform has its own loop and ring tools), and selection sets inside command slots.
+
 ## Groups
 
 **Status: owner requested 2026-11-13 ("a group select tool ... nested under a newly created parent in the browser tree"); implemented.**
@@ -68,7 +107,7 @@ Checked in the running app on a split NURBS surface, for the planned direct-mode
 
 ## Edge mode picks every curve
 
-**Edge** covers curved edges as well as straight ones, as in other CAD programs (owner question and audit request 2026-11-19). In Edge mode a click picks a straight or curved edge of a solid or surface, any curve object (line, arc, circle, spline, polyline) and a curve of a finished sketch. Check: [SEL-H064](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs). **The mode holds everywhere (owner rule 2026-11-20).** Object picks whole objects (text included), Face picks faces, Edge picks edges and curves, Vertex picks corner points, including the corners of sketches and text. While a tool is asking for input, a slot that accepts the kind the mode names picks only that kind; a slot that takes something else keeps its own filter, since that is all its step can use. On the Direct Modeling tab the face gizmo steps aside in Edge and Vertex mode and comes back in Face or Object mode. Check: [SEL-H065](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs). Proposed, not built: Ctrl-click a second edge to take the shortest chain of edges between them, and double-click to take a whole tangent chain or loop.
+**Edge** covers curved edges as well as straight ones, as in other CAD programs (owner question and audit request 2026-11-19). In Edge mode a click picks a straight or curved edge of a solid or surface, any curve object (line, arc, circle, spline, polyline) and a curve of a finished sketch. Check: [SEL-H064](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs). **The mode holds everywhere (owner rule 2026-11-20).** Object picks whole objects (text included), Face picks faces, Edge picks edges and curves, Vertex picks corner points, including the corners of sketches and text. While a tool is asking for input, a slot that accepts the kind the mode names picks only that kind; a slot that takes something else keeps its own filter, since that is all its step can use. On the Direct Modeling tab the face gizmo steps aside in Edge and Vertex mode and comes back in Face or Object mode. Check: [SEL-H065](../../../Prism.Tests/Headless/Selection/EdgeModeCurveTests.cs). Since 2026-11-24, Ctrl+Shift-click takes the shortest path from the last pick and double-click takes the tangent chain (see [More selection tools](#more-selection-tools-owner-approved-2026-11-24)).
 
 ## Everything selectable can be copied, deleted and moved
 

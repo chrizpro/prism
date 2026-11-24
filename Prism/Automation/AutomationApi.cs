@@ -1064,6 +1064,18 @@ public sealed partial class AutomationApi
             return CommandResult(before);
         });
 
+        Add("command_apply", "Press Apply on the active command: add the current result as its own step and reopen the tool with the same options and nothing picked. Cancel afterwards removes everything applied since the tool opened; OK keeps it.", Schema(null), _ =>
+        {
+            var c = S.ActiveCommand ?? throw new InvalidOperationException("No command is active.");
+            var apply = c.RepeatApply ?? throw new InvalidOperationException($"{c.Title} has no Apply button.");
+            var before = Snapshot();
+            apply.Run();
+            if (S.ActiveCommand == c) throw new InvalidOperationException(c.Error ?? S.Status);
+            var result = CommandResult(before);
+            result["applied"] = S.AppliedCount;
+            return result;
+        });
+
         Add("command_cancel", "Cancel the active command (or the sketch if one is open and no command is active).", Schema(null), _ =>
         {
             if (S.ActiveCommand != null) S.CancelCommandPanel(); else if (S.Sketch != null) S.ExitSketch(false);
@@ -1867,6 +1879,52 @@ public sealed partial class AutomationApi
                     default: throw new InvalidOperationException("action must be arm | finish | gizmo | bind | list.");
                 }
                 return new JsonObject { ["status"] = S.Status, ["tool"] = S.FreeTool?.GetType().Name, ["gizmo"] = S.DatumVisible };
+            });
+
+        Add("shortcut", "Run a keyboard shortcut action by its id, exactly as pressing its key would (for example gizmo.pivot = D, edit.repeat = Ctrl+Shift+R, edit.undo). With no id: list every action id with its current key and scope.",
+            Schema(null, ("id", "string", "Action id from the list, e.g. gizmo.pivot.")), a =>
+            {
+                if (a["id"]?.GetValue<string>() is not { Length: > 0 } id)
+                    return new JsonObject { ["actions"] = new JsonArray(Hotkeys.Actions.Select(h => (JsonNode)new JsonObject { ["id"] = h.Id, ["name"] = h.Name, ["key"] = Hotkeys.Effective(h).Gesture, ["scope"] = Hotkeys.Effective(h).Scope }).ToArray()) };
+                if (_window is not Prism.Views.MainWindow main) throw new InvalidOperationException("Shortcuts need the desktop window.");
+                if (Hotkeys.Find(id) == null && !Hotkeys.Actions.Any(h => h.Id == id)) throw new InvalidOperationException($"No shortcut action '{id}'. Call shortcut with no id for the list.");
+                bool ran = main.RunShortcut(id);
+                return new JsonObject { ["ran"] = ran, ["status"] = S.Status };
+            });
+
+        Add("move_gizmo", "The ribbon Move tool's gizmo, as its panel and keys drive it. action: state (default) | start (the Move button: grabs the selection; every face of a body picked grabs the body) | pivot (D: toggle moving only the gizmo) | operation (operation: move|rotate|scale) | set (the panel's fields: origin [x,y,z], rotation [rx,ry,rz] degrees, scale [x,y,z] factors; each part optional) | release (Esc: let go, keep the gizmo) | done (close the gizmo). Pivot clicks on corners and edges, and handle drags, go through the pointer tool.",
+            Schema(null, ("action", "string", "state | start | pivot | operation | set | release | done."), ("operation", "string", "move | rotate | scale."),
+                ("origin", "array", "Gizmo location [x,y,z] (mm)."), ("rotation", "array", "Gizmo rotation [rx,ry,rz] (degrees)."), ("scale", "array", "Scale factors [x,y,z] along the gizmo's axes.")), a =>
+            {
+                switch ((a["action"]?.GetValue<string>() ?? "state").ToLowerInvariant())
+                {
+                    case "state": break;
+                    case "start": _vm.MoveWithGizmo(); break;
+                    case "pivot": if (!_vm.ToggleGizmoPivot()) throw new InvalidOperationException("Move pivot needs the Move gizmo (action start)."); break;
+                    case "operation":
+                        int op = (a["operation"]?.GetValue<string>() ?? "move").ToLowerInvariant() switch { "rotate" => 1, "scale" => 2, _ => 0 };
+                        _vm.GizmoActiveOperation = op;
+                        break;
+                    case "set":
+                        if (a["origin"] is JsonNode o) { var v = V3(o); _vm.GizmoOriginX = v.X; _vm.GizmoOriginY = v.Y; _vm.GizmoOriginZ = v.Z; }
+                        if (a["rotation"] is JsonNode r) { var v = V3(r); _vm.GizmoRotationX = v.X; _vm.GizmoRotationY = v.Y; _vm.GizmoRotationZ = v.Z; }
+                        if (a["scale"] is JsonNode k) { var v = V3(k); if (v.X != 1) _vm.GizmoScaleX = v.X; if (v.Y != 1) _vm.GizmoScaleY = v.Y; if (v.Z != 1) _vm.GizmoScaleZ = v.Z; }
+                        break;
+                    case "release": if (S.Datum is { } held) held.Key(S, "Escape"); break;
+                    case "done": _vm.FinishGizmoPanel(); S.HideDatumGizmo(); break;
+                    default: throw new InvalidOperationException("action must be state | start | pivot | operation | set | release | done.");
+                }
+                S.Datum?.BuildOverlay(S, new Overlay());       // carry the held items to the gizmo now, as the next drawn frame would
+                var g = S.DatumVisible ? S.Datum : null;
+                return new JsonObject
+                {
+                    ["visible"] = g != null, ["moveMode"] = g?.MoveMode ?? false, ["pivotMode"] = g?.PivotMode ?? false,
+                    ["operation"] = g == null ? null : new[] { "move", "rotate", "scale" }[Math.Clamp(g.Mode, 0, 2)],
+                    ["operations"] = new JsonArray(_vm.GizmoOperations.Select(x => (JsonNode)x.ToLowerInvariant()).ToArray()),
+                    ["origin"] = g == null ? null : Arr(g.Frame.Origin), ["x"] = g == null ? null : Arr(g.Frame.U), ["y"] = g == null ? null : Arr(g.Frame.V), ["z"] = g == null ? null : Arr(g.Frame.Normal),
+                    ["held"] = new JsonArray((g?.Targets ?? []).Select(t => (JsonNode)S.Describe(t)).ToArray()),
+                    ["status"] = S.Status, ["panel"] = _vm.GizmoBindingStatus,
+                };
             });
 
         Add("sketch_delete", "Delete sketch entities ('e3') or constraints (by id).",

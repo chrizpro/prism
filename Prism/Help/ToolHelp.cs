@@ -182,14 +182,14 @@ public static partial class ToolHelp
         "pattern-circular" => new(icon, "Circular Pattern", "Repeat objects around an axis at an even angle.", "Start: one object", "Result: copies around the axis",
             "1. Select the objects to repeat.\n2. Choose the axis to turn around.\n3. Set the count and angle, then accept.",
             "The copies are spread over the full 360° unless you set a smaller angle."),
-        _ => FindButton(icon) ?? FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon) ?? FindModel(icon)
+        _ => FindSelectMore(icon) ?? FindButton(icon) ?? FindCae(icon) ?? FindCam(icon) ?? FindAnalyze(icon) ?? FindView(icon) ?? FindModel(icon)
     };
 
     /// <summary>Help for ribbon buttons that are not commands (toggles and actions), keyed by the tab they sit on and their icon.</summary>
     public static string? ForButton(string tab, string icon) => icon switch
     {
         // Shared buttons: the same instance appears on several tabs, so these cannot depend on the tab.
-        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" or "sel-rect" or "sel-lasso" or "sel-invert" or "sel-same-color" or "sel-same-adjacent" or "sel-same-linked" or "xray" or "zebra" => Find(icon)?.Icon,
+        "materials" or "sel-object" or "sel-face" or "sel-edge" or "sel-vertex" or "sel-rect" or "sel-lasso" or "sel-invert" or "sel-same-color" or "sel-same-adjacent" or "sel-same-linked" or "sel-more" or "sel-grow" or "sel-shrink" or "sel-tangent" or "sel-feature" or "sel-same-feature" or "sel-same-radius" or "sel-fillets" or "sel-coplanar" or "sel-coaxial" or "sel-to-faces" or "sel-to-edges" or "sel-to-vertices" or "sel-reselect" or "sel-save-set" or "xray" or "zebra" => Find(icon)?.Icon,
         _ => ForTabButton(tab, icon)
     };
 
@@ -345,7 +345,7 @@ public static partial class ToolHelp
             }
             finally { foreach (var m in markers) m.Dispose(); foreach (var w in wires) w.Dispose(); }
         }
-        else if ((ExampleButtons(topic, id) ?? ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
+        else if ((ExampleSelectMore(topic) ?? ExampleButtons(topic, id) ?? ExampleCae(topic) ?? ExampleCam(topic) ?? ExampleAnalyze(topic) ?? ExampleView(topic)) is { } extra) example = extra;
         else if (id.StartsWith("revolve", StringComparison.Ordinal))
         {
             using var outline = Occ.Polyline([new(4, 0, 0), new(12, 0, 0), new(10, 0, 20), new(4, 0, 20)], true);

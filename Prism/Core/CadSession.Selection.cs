@@ -299,6 +299,10 @@ public sealed partial class CadSession
             return;
         }
         if (hit == null) { if (!p.Ctrl && !p.Shift) ClearSelection(); return; }
+        // Ctrl+Shift-click: the shortest path from the last pick on the same body (owner approved 2026-11-24)
+        if (p.Ctrl && p.Shift && hit.Value.Item.Kind is SelKind.Face or SelKind.Edge or SelKind.Vertex or SelKind.MeshFace && PathClick(hit.Value.Item)) return;
+        // double-click a face or edge of a body: the faces joined smoothly to it, or the edge's tangent chain
+        if (p.Clicks >= 2 && hit.Value.Item.Kind is SelKind.Face or SelKind.Edge && ChainAt(hit.Value.Item) is { Count: > 0 } chain) { ApplyChain(chain, p); return; }
         if (p.Clicks >= 2 && hit.Value.Item.Kind == SelKind.MeshFace)
         {
             // double-click on a scan: the smooth patch the triangle belongs to (Shift adds, Ctrl takes away)

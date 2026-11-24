@@ -31,6 +31,7 @@ sealed class Program
             return;
         }
         AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception);
+        App.StartKernelWarmUp();      // the kernel's libraries load alongside the window system's start
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

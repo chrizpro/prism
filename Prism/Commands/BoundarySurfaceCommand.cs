@@ -53,6 +53,9 @@ public sealed class BoundarySurfaceCommand : Command
         _full = Num("Fullness", 1, 0.1, 4, 0.1, ""); _full.Section = "Blend";
     }
 
+    /// <summary>Apply makes this surface and keeps Boundary Surface open, with the same mode and options, for the next patch or bridge (owner request 2026-11-23).</summary>
+    protected override bool OffersApply => true;
+
     public override string Title => "Boundary Surface";
     public override string Icon => "patch";
     public override string OkText => "Create";

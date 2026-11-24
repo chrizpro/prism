@@ -198,7 +198,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial Vec3 Cursor3 { get; set; }
     public Vec3? ViewportCursor { get; set; }
 
-    public CadSession() { Current = Root; _cleanNode = Root; }
+    public CadSession() { Current = Root; _cleanNode = Root; SelectionChanged += TrackSelectionHistory; }
 
     /// <summary>History state matching the last save/open/new. Returning to it by undo or an abandoned edit leaves nothing unsaved.</summary>
     HistoryNode _cleanNode;
@@ -374,7 +374,7 @@ public sealed partial class CadSession : ObservableObject
         CancelCommand(); ExitSketch(false);
         DocumentParameters = []; RebuildIssue = null; PartInfo = new(); PartInfoChanged?.Invoke();
         Objects = []; _nextNodeId = 1; Root = new HistoryNode { Id = 0, Label = "Start", Icon = "new" }; Current = Root; _pendingLabel = null;
-        _counters.Clear(); ClearSelection(); ResetSimulation(); LoadRenderState(null, null);
+        _counters.Clear(); ClearSelection(); _selectionBefore = []; _selectionNow = []; if (SelectionSets.Count > 0) { SelectionSets.Clear(); SelectionSetsChanged?.Invoke(); } ResetSimulation(); LoadRenderState(null, null);
         DataSheets.Clear(); DataChanged?.Invoke(); LoadHome(null);
         Drawings = new(); _drawingRevisions.Clear(); DrawingsChanged?.Invoke();
         FilePath = null; Dirty = false; _cleanNode = Current; _offHistoryEdit = false; RaiseScene(); TimelineChanged?.Invoke(); Say("New document");
@@ -596,7 +596,7 @@ public sealed partial class CadSession : ObservableObject
     [ObservableProperty] public partial SelItem? Hover { get; set; }
     public event Action? SelectionChanged;
 
-    partial void OnModeChanged(SelMode value) { ClearSelection(); RaiseState(); }
+    partial void OnModeChanged(SelMode value) { if (!_keepSelectionOnModeChange) ClearSelection(); RaiseState(); }
 
     public void ClearSelection() { if (_selection.Count == 0) return; _selection.Clear(); ReleaseAdoptedRegion(); SelectionChanged?.Invoke(); Invalidate(); }
     public void SelectObjects(IEnumerable<Guid> ids, bool additive = false)
@@ -1203,6 +1203,7 @@ public sealed partial class CadSession : ObservableObject
     {
         if (ActiveCommand == null) return;
         ClearPendingNotice();
+        ForgetApplied();                                // any other way out keeps what was applied
         var c = ActiveCommand; ActiveCommand = null;
         _suspendedCmd = null;
         c.OnEnd(); c.OnCancel();
@@ -1225,7 +1226,9 @@ public sealed partial class CadSession : ObservableObject
         if (ActiveCommand?.FinishPanelStep(false) != true)
         {
             var parked = _suspendedCmd;
+            var (anchor, count, title) = (_applyAnchor, _appliedCount, ActiveCommand?.Title ?? "");
             CancelCommand();
+            RevertAppliedAfterCancel(anchor, count, title);       // Cancel removes everything this tool applied (owner decision 2026-11-24)
             if (parked != null) StartCommand(parked);
         }
     }
@@ -1236,8 +1239,16 @@ public sealed partial class CadSession : ObservableObject
         c.Committing = true;
         CommandOutput? res;
         try { res = c.TryBuild(); } finally { c.Committing = false; }
+        if (res == null && c.Error == null && _appliedCount > 0 && !_applyingNow)
+        {
+            int kept = _appliedCount;
+            CancelCommand();                               // nothing new to add: OK confirms what was applied
+            Say($"{c.Title}: kept the {(kept == 1 ? "result" : kept + " results")} you applied.");
+            return;
+        }
         if (res == null) { Say(c.Error ?? "Complete the required selections first.", true); return; }
         res.Label ??= c.Title; res.Icon ??= c.Icon;
+        ForgetApplied();                                   // OK keeps everything applied (does nothing while an Apply is committing)
         PendingNotice = null;
         ActiveCommand = null;
         c.OnEnd();
@@ -1250,6 +1261,7 @@ public sealed partial class CadSession : ObservableObject
         bool wholeBody = c is Commands.TransformCommand or Commands.MoveBodyCommand;
         var recipe = c is Commands.DirectEditCommand gizmo ? (tracked ? gizmo.InnerRecipe : null) : DirectEditing && !tracked && !wholeBody ? null : c.Capture();
         HistoryNode? edited = c.EditMode ? c.EditingNode : null;
+        if (!c.EditMode && c.Factory is { } make && c is not Commands.DirectEditCommand) LastTool = new(make, c.Title, c.Icon, c.CaptureOptionValues());
         if (!res.NoOp) { _pendingRecipe = recipe; Apply(res); _pendingRecipe = null; }
         res.After?.Invoke(this);
         ResumeSuspended();
@@ -1257,6 +1269,49 @@ public sealed partial class CadSession : ObservableObject
         else if (edited != null && c.ReturnNode != null) { GoTo(c.ReturnNode); Say($"{c.Title}: no change"); }
         else Say($"{c.Title} complete");
         RaiseState();
+    }
+
+    // ------------------------------------------------------------ repeating a tool
+    /// <summary>A tool that was finished in this document: how to make it again and the option values it was finished with.</summary>
+    public sealed record RepeatableTool(Func<Command> Make, string Title, string Icon, List<object?> Values);
+    /// <summary>The last tool finished with Create or Apply in this document (not edits of earlier steps, not cancelled tools); null until one is.</summary>
+    public RepeatableTool? LastTool { get; private set; }
+
+    /// <summary>Open a tool fresh with the given option values and no picks. Anything selected now still seeds its picks, as when the tool is opened from the ribbon.</summary>
+    Command? Reopen(RepeatableTool tool)
+    {
+        var next = tool.Make(); next.Factory = tool.Make; CommandCatalog.Register(tool.Make);
+        StartCommand(next);
+        if (!ReferenceEquals(ActiveCommand, next)) return null;
+        next.RestoreOptionValues(tool.Values);
+        return next;
+    }
+
+    /// <summary>
+    /// Repeat last tool (Ctrl+Shift+R): reopen the last finished tool with its last options and empty picks. Only with no tool or sketch open,
+    /// so the key never starts a second tool on top of one; returns false then, and the key is left to whatever else wants it.
+    /// </summary>
+    public bool RepeatLastTool()
+    {
+        if (ActiveCommand != null || Sketch != null) return false;
+        if (LastTool is not { } last) { Say("There is no tool to repeat yet. Finish a tool first; Repeat last tool opens it again with the same options.", true); return true; }
+        if (Reopen(last) is { } again) Say(again.Hint.Length > 0 ? $"Repeating {last.Title}. {again.Hint}" : $"Repeating {last.Title}.");
+        return true;
+    }
+
+    /// <summary>
+    /// The Apply button of tools that make many results in a row: finish this one as its own undo step, then open the same tool again with the same options
+    /// and nothing picked. A result that cannot be built leaves the tool open with its picks, like Create.
+    /// </summary>
+    public void ApplyAndContinue(Command c)
+    {
+        if (!ReferenceEquals(ActiveCommand, c) || c.Factory == null) return;
+        var again = new RepeatableTool(c.Factory, c.Title, c.Icon, c.CaptureOptionValues());
+        RunApply(c, CommitCommand, () =>
+        {
+            if (!c.ApplyKeepsSelection) ClearSelection();  // the new result would otherwise seed the next run's picks
+            if (Reopen(again) != null) Say($"{c.Title} applied. Pick the next one, then Apply again, or {c.CommitText} when you are done. Cancel removes everything applied.");
+        });
     }
 
     // ------------------------------------------------------------ editing a feature
@@ -2130,7 +2185,7 @@ public sealed partial class CadSession : ObservableObject
     public string? OpeningTab { get; set; }
     /// <summary>Automation name of a command to leave open when the file is opened (for example the CAM playback or an animation), so the user only presses Play.</summary>
     public string? OpeningCommand { get; set; }
-    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null, string? OpenCommand = null);
+    sealed record FileDto(int Version, List<ObjDto> Objects, List<Simulation.StudyDef>? Studies = null, List<Simulation.NamedFaceSet>? FaceSets = null, List<Simulation.SavedCaeCase>? CaeCases = null, Guid? ActiveStudy = null, Cam.CamSetup? CamSetup = null, List<DocumentParameter>? Parameters = null, List<Rendering.RenderLight>? Lights = null, Rendering.RenderSetup? RenderSetup = null, PartInfo? Info = null, HistoryDto? History = null, List<Cam.CamSetup>? CamSetups = null, List<Data.DataSheet>? Sheets = null, string? Drawing = null, double[]? Home = null, string? Tab = null, string? OpenCommand = null, List<SelectionSet>? SelectionSets = null);
 
     /// <summary>What this document is as a part: number, description, material, supplier, tags. Saved in the file.</summary>
     public PartInfo PartInfo { get; private set; } = new();
@@ -2247,7 +2302,7 @@ public sealed partial class CadSession : ObservableObject
         int version = Objects.Any(o=>o.FlatMap!=null)?4:Objects.Any(o => o.SketchData is { } sketch && (sketch.Sections.Count > 0 || sketch.Datums.Count > 0 || sketch.Points.Any(p => p.Z != 0))) ? 3 : 2;
         var history = BuildHistoryDto();
         if (history != null) version = 5;
-        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab, OpeningCommand);
+        var dto = new FileDto(version, Objects.Where(Persisted).Select(ToDto).ToList(), Studies, FaceSets, CaeCases, ActiveStudy?.Id, CamSetup, DocumentParameters.ToList(), Lights.Count > 0 ? Lights : null, RenderSetup.Equals(new Rendering.RenderSetup()) ? null : RenderSetup, PartInfo.IsEmpty && PartInfo.Thumbnail == null ? null : PartInfo, history, CamSetups.Count > 0 ? CamSetups : null, DataSheets.Count > 0 ? DataSheets : null, Drawings.Sheets.Count > 0 ? Drawings.Serialize() : null, HomeIsOriginal ? null : HomeFrame, OpeningTab, OpeningCommand, SelectionSets.Count > 0 ? [.. SelectionSets] : null);
         return JsonSerializer.Serialize(dto);
     }
 
@@ -2279,6 +2334,7 @@ public sealed partial class CadSession : ObservableObject
     public void Open(string path)
     {
         var dto = JsonSerializer.Deserialize<FileDto>(File.ReadAllText(path)) ?? throw new InvalidDataException("Not an Prism file.");
+        LastTool = null;                            // an opened document starts with nothing to repeat
         if(dto.Version is not (1 or 2 or 3 or 4 or 5))throw new InvalidDataException("Unsupported Prism document version.");
         var ids=dto.Objects.Where(o=>o.Id.HasValue).Select(o=>o.Id!.Value).ToList();
         if(ids.Any(i=>i==Guid.Empty)||ids.Distinct().Count()!=ids.Count)throw new InvalidDataException("Duplicate or empty object identities in document.");
@@ -2305,6 +2361,7 @@ public sealed partial class CadSession : ObservableObject
         if (dto.History is { Steps.Count: > 0 } saved) { try { LoadHistory(saved); } catch (Exception) { Root.After = []; Current = Root; } }
         if(dto.Studies!=null)Studies.AddRange(dto.Studies);
         if(dto.FaceSets!=null)FaceSets.AddRange(dto.FaceSets);
+        if (dto.SelectionSets != null) { SelectionSets.AddRange(dto.SelectionSets.Where(x => x?.Name != null && x.Items != null)); SelectionSetsChanged?.Invoke(); }
         if(dto.CaeCases!=null)CaeCases.AddRange(dto.CaeCases);
         DataSheets.Clear(); if(dto.Sheets!=null)DataSheets.AddRange(dto.Sheets); DataChanged?.Invoke();
         Drawings = DrawingDocumentFromFile(drawing); DrawingsChanged?.Invoke(); LoadHome(dto.Home); OpeningTab = dto.Tab; OpeningCommand = dto.OpenCommand;

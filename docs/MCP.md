@@ -74,6 +74,8 @@ The [SFC-I001 integration scenario](../Prism.Tests/Integration/DesktopModelingTe
 | `settings` | Inspect and change safe preferences: `list`, `get`, `set`, `reset`, `open` (opens the Settings window, optional `page`). Keys come from `list`; secrets (API keys, tokens) are never exposed. Assistant `provider`, `model` and `effort` are included. See [Settings](interface/settings/README.md). |
 | `document_new`, `document_list`, `document_switch`, `document_close` | Work in several document tabs |
 | `study_new`, `study_run`, `study_state` | Simulation studies |
+| `move_gizmo` | The ribbon Move tool's gizmo as its panel and keys drive it: `start` (the Move button; every face of a body picked grabs the body), `pivot` (D: move only the gizmo), `operation` (move, rotate, scale), `set` (the panel's `origin`, `rotation`, `scale` fields), `release` (Esc), `done`, and `state`. Pivot clicks on corners and edges and handle drags go through `pointer`. Added 2026-11-23, tests API-H013 |
+| `shortcut` | Runs a keyboard shortcut action by id exactly as its key would (`gizmo.pivot`, `edit.repeat`, `edit.undo`…); with no id it lists every action with its current key. Needs the desktop window. Added 2026-11-23, tests API-H014 |
 
 ## Prompts (ready-made test scenarios)
 The bridge offers MCP prompts so you can ask for a scenario by name (in Claude Code they appear as `/mcp__prism__build_freeform_model` and so on):
@@ -162,3 +164,9 @@ Settings > Appearance > 3D view backdrop and grid: Classic (follows the theme), 
 
 ### Editing features, sketch groups, tool panels
 Edit Feature (Home/Solid tabs, History right-click or double-click, right-click menu) rolls the model back to before a step made with a command, reopens it with the same picks and numbers, and on OK rebuilds the later steps (edit_feature tool: list | open). Sketch rectangles, slots and polygons are grouped in the sketch panel. Sketch tools can show their own panel (Offset does). Ellipse has Center / 2-point / 3-point; Arc is 3-point (start, end, bend), Center (sweep follows the pointer) and Tangent.
+
+## Feedback from the Kingfisher surfacing study
+
+When a modeling command edits an existing object, inspect the full run_command response. The changed array includes area and topology deltas, and removed names consumed construction tools. A completed command can return a shape with valid set to false. Check that field before building the next feature, then run solid_check after reopening the document. For solid_profile on open skins, use section extents for proportions. Area and centroid come from signed segments and require closed, consistently oriented geometry for physical interpretation. [Kingfisher study and measured examples](kingfisher-study/README.md) · [Maintained reopen test](../Prism.Tests/Integration/KingfisherStudyTests.cs).
+
+The approved Python helper `cad.run_report()` returns the complete command dictionary, including preview state. [Scripting guide](Scripting.md#inspecting-the-result-of-a-modeling-command) · [API-I001](../Prism.Tests/Integration/ScriptCommandReportTests.cs).

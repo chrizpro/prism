@@ -148,7 +148,7 @@ public sealed partial class CadSession
             if (a >= 0 || c) { if (op == CommandGizmoMode) FocusGizmo(op, a); if (_handleHover) { _handleHover = false; Invalidate(); } }
             return a >= 0 || c;
         }
-        if (!p.Left) { _gizmoDrag = GizmoDrag.None; return false; }
+        if (!p.Left) { _gizmoDrag = GizmoDrag.None; RefineAfterDrag(); return false; }
         var (o, d) = Camera.Ray(p.X, p.Y);
         switch (_gizmoDrag)
         {
@@ -201,7 +201,16 @@ public sealed partial class CadSession
     {
         if (_gizmoDrag == GizmoDrag.None) return false;
         _gizmoDrag = GizmoDrag.None; Invalidate();
+        RefineAfterDrag();
         return true;
+    }
+
+    /// <summary>True while a command gizmo is being dragged; a command may preview more cheaply then (see <see cref="Commands.Command.RefinesAfterDrag"/>).</summary>
+    public bool CommandGizmoDragging => _gizmoDrag != GizmoDrag.None;
+
+    void RefineAfterDrag()
+    {
+        if (ActiveCommand is { RefinesAfterDrag: true } c) RefreshPreview(c);
     }
 
     /// <summary>The parameter a typed number lands in: the engaged axis of the current operation, or the first one the command offers.</summary>

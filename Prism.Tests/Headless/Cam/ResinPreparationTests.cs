@@ -25,7 +25,7 @@ public sealed class ResinPreparationTests
         Assert.Equal(new[] { "Import mold", "Tilt part", "Hollow & Drain", "Resin check", "Troubleshoot geometry", "Export for resin" },
             buttons.Select(button => button.Label));
         Assert.Equal(new[] { "Hollow body", "Drain / vent hole" }, buttons[2].Menu!.Select(button => button.Label));
-        Assert.Equal(new[] { "Section", "Repair", "Mesh Quality", "Wall Thickness", "Check geometry" },
+        Assert.Equal(new[] { "Section", "Repair", "Mesh Quality", "Print Check", "Wall Thickness", "Check geometry" },
             buttons[4].Menu!.Select(button => button.Label));
         buttons[5].Invoke();
         var export = Assert.IsType<PrintExportCommand>(vm.Session.ActiveCommand);

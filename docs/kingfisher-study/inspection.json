@@ -1,0 +1,362 @@
+{
+  "checks": {
+    "Copper hull": {
+      "id": "9b2dbfab",
+      "name": "Copper hull",
+      "kind": "Surface",
+      "visible": true,
+      "color": "#C87742",
+      "min": [
+        -2400,
+        -304.4915,
+        -103.7035
+      ],
+      "max": [
+        2350,
+        304.4915,
+        200
+      ],
+      "faces": 1,
+      "edges": 4,
+      "wires": 1,
+      "area": 2531793.5698,
+      "size": [
+        4750,
+        608.9829,
+        303.7035
+      ],
+      "center": [
+        -25,
+        0,
+        48.1482
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    "Kingfisher deck": {
+      "id": "09b2627b",
+      "name": "Kingfisher deck",
+      "kind": "Surface",
+      "visible": true,
+      "color": "#117785",
+      "min": [
+        -2400,
+        -304.505,
+        112.4528
+      ],
+      "max": [
+        2350,
+        304.505,
+        214.001
+      ],
+      "faces": 1,
+      "edges": 5,
+      "wires": 2,
+      "area": 1654124.9262,
+      "size": [
+        4750,
+        609.01,
+        101.5482
+      ],
+      "center": [
+        -25,
+        0,
+        163.2269
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    "Cockpit coaming": {
+      "id": "eb19647c",
+      "name": "Cockpit coaming",
+      "kind": "Solid",
+      "visible": true,
+      "color": "#26373C",
+      "min": [
+        -241.4064,
+        -221,
+        139.907
+      ],
+      "max": [
+        681,
+        221,
+        203.2519
+      ],
+      "faces": 4,
+      "edges": 6,
+      "wires": 6,
+      "volume": 531017.4464,
+      "area": 148925.5959,
+      "size": [
+        922.4064,
+        442,
+        63.3449
+      ],
+      "center": [
+        219.7968,
+        0,
+        171.5794
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    },
+    "Molded seat": {
+      "id": "33b9781d",
+      "name": "Molded seat",
+      "kind": "Surface",
+      "visible": true,
+      "color": "#38454A",
+      "min": [
+        -75,
+        -181.5548,
+        -20.6446
+      ],
+      "max": [
+        477,
+        181.5548,
+        117
+      ],
+      "faces": 1,
+      "edges": 4,
+      "wires": 1,
+      "area": 194704.7024,
+      "size": [
+        552,
+        363.1095,
+        137.6446
+      ],
+      "center": [
+        201,
+        0,
+        48.1777
+      ],
+      "valid": true,
+      "appearance": {
+        "materialId": "abs",
+        "material": "ABS",
+        "metal": 0,
+        "gloss": 0.68,
+        "pattern": "Automatic",
+        "patternScale_mm": 12,
+        "patternAngle_deg": 0,
+        "physicalDataRevision": "2026-10-27.1",
+        "physicalDataPinned": true,
+        "physicalProperties": {
+          "density_g_cm3": 1.04,
+          "youngs_GPa": 2.3,
+          "poisson": 0.35,
+          "yield_MPa": 40,
+          "strength_MPa": 40,
+          "strengthBasis": "Tensile strength",
+          "conductivity_W_mK": 0.17,
+          "expansion_um_mK": 90,
+          "specificHeat_J_kgK": 1400,
+          "source": "No grade-specific source recorded",
+          "condition": "Generic reference estimates near room temperature; actual grade, temper, section, process and temperature can change properties. Service temperature and qualitative ratings are approximate.",
+          "checkedProperties": "Not independently verified"
+        }
+      }
+    }
+  },
+  "profile": {
+    "objects": [
+      "Copper hull",
+      "Kingfisher deck"
+    ],
+    "min": [
+      -2400,
+      -304.431,
+      -103.703
+    ],
+    "max": [
+      2350,
+      304.431,
+      214.0006
+    ],
+    "size": [
+      4750,
+      608.862,
+      317.7037
+    ],
+    "sections": {
+      "axis": "x",
+      "order": "[min,max] extents along y and z; centroid is [y,z]; area in mm2 (signed; trust it only for closed shapes)",
+      "cuts": [
+        {
+          "at": -1730,
+          "y": [
+            -107.894,
+            107.894
+          ],
+          "z": [
+            15.008,
+            203.987
+          ],
+          "area": -16948.35,
+          "centroid": [
+            -0.012,
+            119.293
+          ],
+          "outlines": 2
+        },
+        {
+          "at": 0,
+          "y": [
+            -301.969,
+            301.969
+          ],
+          "z": [
+            -102,
+            162.749
+          ],
+          "area": 35355,
+          "centroid": [
+            0.003,
+            -73.014
+          ],
+          "outlines": 3
+        },
+        {
+          "at": 1700,
+          "y": [
+            -155.745,
+            155.745
+          ],
+          "z": [
+            12.011,
+            158.013
+          ],
+          "area": -19275.58,
+          "centroid": [
+            -0.064,
+            108.377
+          ],
+          "outlines": 2
+        }
+      ]
+    },
+    "silhouettes": [
+      {
+        "view": "front",
+        "axes": "x right, z up, looking along +y",
+        "mmPerColumn": 98.958,
+        "mmPerRow": 197.917,
+        "leftEdge": -2400,
+        "topEdge": 214.001,
+        "rows": [
+          "############################################## #",
+          "                  ##############"
+        ]
+      },
+      {
+        "view": "right",
+        "axes": "y right, z up, looking along -x",
+        "mmPerColumn": 12.685,
+        "mmPerRow": 25.369,
+        "leftEdge": -304.431,
+        "topEdge": 214.001,
+        "rows": [
+          "                     ######",
+          "             ######################",
+          "      ####################################",
+          " ##############################################",
+          "################################################",
+          " ##############################################",
+          "  ############################################",
+          "   ##########################################",
+          "     ######################################",
+          "       ##################################",
+          "           ##########################",
+          "               ##################",
+          "                       ##"
+        ]
+      },
+      {
+        "view": "top",
+        "axes": "x right, y up, looking down",
+        "mmPerColumn": 98.958,
+        "mmPerRow": 197.917,
+        "leftEdge": -2400,
+        "topEdge": 304.431,
+        "rows": [
+          "             #########################",
+          "################################################",
+          "            ###########################",
+          ""
+        ]
+      }
+    ]
+  }
+}

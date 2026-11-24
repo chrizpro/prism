@@ -452,6 +452,8 @@ public static unsafe class Occ
     public static Shape Defeature(Shape s, int[] faces) { fixed (int* p = faces) return Wrap(Native.ck_defeature(s.Handle, p, faces.Length)); }
     /// <summary>Merge neighbouring faces that lie on one surface, only along edges between two of the listed faces; every other edge stays.</summary>
     public static Shape UnifyFaces(Shape s, int[] faces) { fixed (int* p = faces) return Wrap(Native.ck_unify_faces(s.Handle, p, faces.Length)); }
+    /// <summary>Remove faces and edges thinner than <paramref name="tol"/> that a boolean left behind, so the faces around them close up. Other faces are left as they are.</summary>
+    public static Shape CleanSmall(Shape s, double tol) { try { return Wrap(Native.ck_clean_small(s.Handle, tol)); } catch (EntryPointNotFoundException) { return s; } }
     /// <summary>Offset a planar face or wire inside its own plane (negative = inward). Returns the resulting wires.</summary>
     public static Shape OffsetPlanar(Shape faceOrWire, double dist, bool sharpCorners = false) => Wrap(Native.ck_offset_planar(faceOrWire.Handle, dist, sharpCorners ? 1 : 0));
     /// <summary>Cut a shape into pieces along another shape.</summary>

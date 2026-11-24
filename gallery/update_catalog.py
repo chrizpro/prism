@@ -12,12 +12,14 @@ def updated_catalog(folder):
         id = item["Id"]
         assert id not in ids and id.replace("-", "").isalnum() and id.isascii(), id
         ids.add(id)
-        model = (folder / "models" / (id + ".prism")).read_bytes()
+        # a model keeps its own native type: an assembly is published as .prism_asm, everything else as .prism
+        name = next((id + ext for ext in (".prism", ".prism_asm", ".prism_prt") if (folder / "models" / (id + ext)).exists()), id + ".prism")
+        model = (folder / "models" / name).read_bytes()
         preview = (folder / "previews" / (id + ".png")).read_bytes()
         item["Bytes"] = len(model)
         item["Sha256"] = hashlib.sha256(model).hexdigest()
         base = "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/"
-        item["ModelUrl"] = base + "models/" + id + ".prism"
+        item["ModelUrl"] = base + "models/" + name
         for extra in item.get("Extras", []):
             data = (folder / "extras" / extra["FileName"]).read_bytes()
             extra["Url"] = base + "extras/" + extra["FileName"]

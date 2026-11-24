@@ -10,19 +10,30 @@
             <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="8">
                 <c:IconView Icon="materials" Width="22" Height="22"/>
                 <TextBlock Grid.Column="1" Text="Appearance studio" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <Button Grid.Column="2" Content="×" Classes="studioLink" Click="OnClose" ToolTip.Tip="Close appearance studio"/>
+                <Button Grid.Column="2" Content="×" Classes="studioLink" Click="OnClose" ToolTip.Tip="Close the studio and keep the changes (as OK does)"/>
             </Grid>
+        </Border>
+        <!-- one footer for both pages, like a tool panel: Cancel, Apply, OK (owner decision 2026-11-24) -->
+        <Border DockPanel.Dock="Bottom" Padding="12,9" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
+            <StackPanel Spacing="6">
+                <TextBlock Name="AppearanceNoteText" Text="{Binding AppearanceNote}" FontSize="11" Classes="meta" TextWrapping="Wrap"/>
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                    <Button Name="CancelAppearance" Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancelAppearance"
+                            ToolTip.Tip="Close the studio and undo every appearance and material change made since it opened. Redo or Undo brings them back."/>
+                    <Button Name="ApplyAppearance" Grid.Column="2" Classes="secondary" Content="Apply" Click="OnApplyAppearance" IsEnabled="{Binding AppearanceHasChanges}"
+                            ToolTip.Tip="Keep the changes made so far as one undo step and stay in the studio. Cancel would still remove them."/>
+                    <Button Name="OkAppearance" Grid.Column="3" Classes="primary" Content="OK" Click="OnOkAppearance"
+                            ToolTip.Tip="Keep the changes and close the studio"/>
+                </Grid>
+            </StackPanel>
         </Border>
         <TabControl Name="StudioTabs">
             <TabItem Header="Appearance">
                 <DockPanel>
                     <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
                         <StackPanel Spacing="5">
-                            <TextBlock Text="Finishes update live · press Done to keep them." FontSize="11" Classes="meta" TextWrapping="Wrap"/>
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                <Button Name="ResetFinish" Content="Reset finish" Classes="studioAction" Click="OnResetFinish" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                                <Button Name="DoneAppearance" Grid.Column="1" Content="Done" Classes="studioAction primary" Click="OnClose" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Keep the appearance and close the studio"/>
-                            </Grid>
+                            <Button Name="ResetFinish" Content="Reset finish" Classes="studioAction" Click="OnResetFinish" IsEnabled="{Binding CanApplyAppearance}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    ToolTip.Tip="Go back to the assigned material's own look. Cancel still undoes it."/>
                         </StackPanel>
                     </Border>
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -338,10 +349,8 @@
         <Border DockPanel.Dock="Bottom" Padding="14,10" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Background="{DynamicResource PanelBg}">
             <StackPanel Spacing="6">
                 <TextBlock Text="{Binding MatTarget}" Classes="meta" TextWrapping="Wrap"/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <Button Grid.Column="0" Classes="studioAction primary" Content="Apply material" Click="OnApply" IsEnabled="{Binding HasMaterial}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                    <Button Grid.Column="1" Classes="studioAction" Content="Close" Click="OnClose"/>
-                </Grid>
+                <Button Classes="studioAction" Content="Assign material" Click="OnApply" IsEnabled="{Binding HasMaterial}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        ToolTip.Tip="Give the selected bodies the material shown here. Cancel still undoes it."/>
             </StackPanel>
         </Border>
 

@@ -29,7 +29,7 @@ public class SplitBodyBySketchTests
         command.ConfigureInputs(() =>
         {
             SetSelection(command, "Body to split", body);
-            SetSelection(command, "Splitting tool (plane, face, surface or solid)", sketch);
+            SetSelection(command, "Splitting tool (plane, face, surface, solid or sketch)", sketch);
         });
         return command;
     }

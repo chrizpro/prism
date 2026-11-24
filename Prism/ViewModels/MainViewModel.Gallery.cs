@@ -101,7 +101,7 @@ public sealed partial class MainViewModel
             foreach (var card in _galleryCards)
             {
                 card.ActionLabel = await Task.Run(() => GallerySource.IsCached(card.Entry)) ? "Open a copy" : "Download & open";
-                if (card.Preview == null && await Task.Run(() => GallerySource.ReadPreview(card.Entry)) is { } cached)
+                if (card.Preview == null && await Task.Run(() => Thumbnail(GallerySource.ReadPreview(card.Entry))) is { } cached)
                     SetPreview(card, cached);
             }
             try
@@ -118,7 +118,7 @@ public sealed partial class MainViewModel
                 {
                     using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8));
                     var data = await GallerySource.GetPreview(card.Entry, timeout.Token);
-                    SetPreview(card, data);
+                    if (await Task.Run(() => Thumbnail(data)) is { } image) SetPreview(card, image);
                 }
                 catch (Exception) { /* Keep text and action available when an image cannot load. */ }
             }));
@@ -126,16 +126,28 @@ public sealed partial class MainViewModel
         catch (Exception e) { GalleryStatus = "Could not load the gallery: " + e.Message; }
         finally { GalleryRefreshing = false; }
     }
-    static void SetPreview(GalleryCard card, byte[] data)
+    /// <summary>Card thumbnails are at most about 300 px wide; 640 px keeps them sharp on high-DPI screens.</summary>
+    const int ThumbnailWidth = 640;
+
+    /// <summary>
+    /// Decode a preview at thumbnail size, off the UI thread (start-up 2026-11-23: decoding the 78 full-size previews, 22 MB of PNG, twice each on the
+    /// UI thread kept the window frozen about 15 s after it opened). Null for a missing or malformed preview.
+    /// </summary>
+    static Bitmap? Thumbnail(byte[]? data)
     {
+        if (data == null || data.Length == 0) return null;
         try
         {
             using var stream = new MemoryStream(data);
-            var image = new Bitmap(stream);
-            card.Preview?.Dispose();
-            card.Preview = image;
+            return Bitmap.DecodeToWidth(stream, ThumbnailWidth, BitmapInterpolationMode.MediumQuality);
         }
-        catch (Exception) { /* A malformed preview must not hide model actions. */ }
+        catch (Exception) { return null; /* A malformed preview must not hide model actions. */ }
+    }
+
+    static void SetPreview(GalleryCard card, Bitmap image)
+    {
+        card.Preview?.Dispose();
+        card.Preview = image;
     }
     void SetGallery(GalleryCatalog catalog)
     {

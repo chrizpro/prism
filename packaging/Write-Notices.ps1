@@ -4,11 +4,23 @@ Write THIRD-PARTY-NOTICES.txt for a published Prism build: every NuGet package t
 the .NET runtime, and the native libraries staged by native/build.ps1, with their full license texts.
 .EXAMPLE
 ./packaging/Write-Notices.ps1 -PublishDirectory ./artifacts/installers/win-x64/publish -AssetsFile ./artifacts/installers/build/obj/Prism.Desktop/project.assets.json
+.EXAMPLE
+./packaging/Write-Notices.ps1 -Web -PublishDirectory ./artifacts/browser/wwwroot -AssetsFile ./Prism.Browser/obj/project.assets.json -RuntimePack <dotnet>/packs/Microsoft.NETCore.App.Runtime.Mono.browser-wasm/10.0.3 -Commit <sha>
+.NOTES
+-Web writes the notices for the browser build, where the native libraries are statically linked into
+dotnet.native.wasm (LGPL-2.1 section 6a) instead of shipped as shared libraries (section 6b).
 #>
 param(
     [Parameter(Mandatory)][string]$PublishDirectory,
     [Parameter(Mandatory)][string[]]$AssetsFile,
     [string]$Runtime,
+    # Browser build: static linking, Emscripten, bundled fonts; no Netgen, no Visual C++ runtime.
+    [switch]$Web,
+    # Runtime pack folder when it isn't restored through NuGet (the browser pack comes from the wasm-tools workload).
+    [string]$RuntimePack,
+    # Prism commit the build was made from; the web notices point to it for rebuilding with a modified library.
+    [string]$Commit,
+    [string]$Emscripten,
     [string]$Output = (Join-Path $PublishDirectory 'THIRD-PARTY-NOTICES.txt')
 )
 $ErrorActionPreference = 'Stop'
@@ -77,11 +89,44 @@ foreach ($file in $AssetsFile) {
 Line 'PRISM THIRD-PARTY NOTICES'
 Line
 Line 'Prism includes software developed by the third parties listed below. Each component is used under'
-Line 'its own license, reproduced in full in this file. Native libraries are dynamically linked and their'
-Line 'license files are also in the "licenses" folder next to this file.'
+if ($Web) {
+    Line 'its own license, reproduced in full in this file. This is the web version: the native libraries are'
+    Line 'compiled into dotnet.native.wasm, and their license files are also in the "licenses" folder next to'
+    Line 'this file.'
+} else {
+    Line 'its own license, reproduced in full in this file. Native libraries are dynamically linked and their'
+    Line 'license files are also in the "licenses" folder next to this file.'
+}
 Line
 Line "Prism is released under the MIT License (LICENSE.txt). Source code: $repo"
+if ($Commit) {
+    $sha = ($Commit -split ' ')[0]
+    Line "This build was made from commit $sha`: $repo/tree/$sha"
+    if ($Commit -ne $sha) { Line 'It also contained uncommitted changes, so that commit alone may not reproduce it exactly.' }
+}
 
+if ($Web) {
+Section 'LGPL library: source code and relinking'
+Line 'Open CASCADE Technology is licensed under the GNU Lesser General Public License version 2.1 with an'
+Line 'additional exception (both included below). The web version links it statically into'
+Line 'dotnet.native.wasm, as permitted by section 6(a) of the license.'
+Line
+foreach ($lib in $native | Where-Object { $_.Name -eq 'opencascade' }) {
+    Line ("  {0} {1}" -f $lib.Name, $lib.Version)
+    if ($lib.Source) { Line "    Upstream source: $($lib.Source)" }
+}
+Line
+Line 'Corresponding source: licenses/Prism-LGPL-sources.zip next to this file contains the upstream'
+Line 'Open CASCADE archive and the vcpkg recipe, patches and triplet this build used.'
+Line
+Line 'To run the web version with a modified Open CASCADE: Prism is open source under the MIT License, so'
+Line 'the complete source of everything linked with the library is available. Check out the commit above,'
+Line 'build your Open CASCADE with the wasm32-emscripten-eh triplet in native/triplets, then run'
+Line 'native/build-wasm.ps1 and packaging/Publish-Browser.ps1 (see docs/interface/browser/README.md).'
+Line 'The MIT License permits modification and reverse engineering of Prism for this purpose.'
+Line "If the archive is missing, request it through $repo/issues; it will be provided for at least"
+Line 'three years after this build.'
+} else {
 Section 'LGPL libraries: source code and replacement'
 Line 'Open CASCADE Technology and Netgen are licensed under the GNU Lesser General Public License version'
 Line '2.1 (Open CASCADE Technology with an additional exception, included below). Prism links them as'
@@ -101,11 +146,13 @@ Line 'three years after this release.'
 Section 'FreeType'
 Line 'Portions of this software are copyright (c) The FreeType Project (www.freetype.org).'
 Line 'All rights reserved.'
+}
 
 Section '.NET runtime'
 # Self-contained builds carry the runtime pack restored for the target; use its own notices.
-$runtimePack = ''
+$runtimePack = $RuntimePack
 foreach ($file in $AssetsFile) {
+    if ($runtimePack) { break }
     $assets = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json -AsHashtable
     foreach ($framework in $assets.project.frameworks.Values) {
         $pack = $framework.downloadDependencies | Where-Object { $Runtime -and $_.name -eq "Microsoft.NETCore.App.Runtime.$Runtime" } | Select-Object -First 1
@@ -169,9 +216,31 @@ foreach ($lib in $native) {
     Line $lib.Text
 }
 
-Section 'Microsoft Visual C++ runtime (Windows only)'
-Line 'The Windows installer includes Microsoft Visual C++ runtime libraries, distributed under the terms'
-Line 'of the Microsoft Visual Studio license for distributable code.'
+if ($Web) {
+    Section 'Emscripten system libraries'
+    Line 'The web version is compiled with Emscripten, which links parts of its C/C++ runtime (musl libc,'
+    Line 'libc++, libc++abi, compiler-rt) into dotnet.native.wasm.'
+    Line
+    if ($Emscripten -and (Test-Path -LiteralPath (Join-Path $Emscripten 'LICENSE'))) { Line (Get-Content -LiteralPath (Join-Path $Emscripten 'LICENSE') -Raw) }
+    else { Line 'License: https://github.com/emscripten-core/emscripten/blob/main/LICENSE' }
+
+    foreach ($font in Get-ChildItem -LiteralPath $licenses -File -Filter '*-font-license.txt' -ErrorAction SilentlyContinue | Sort-Object Name) {
+        Section ("{0} (bundled fallback font)" -f ($font.BaseName -replace '-font-license$', ''))
+        Line (Get-Content -LiteralPath $font.FullName -Raw)
+    }
+} else {
+    Section 'Microsoft Visual C++ runtime (Windows only)'
+    Line 'The Windows installer includes Microsoft Visual C++ runtime libraries, distributed under the terms'
+    Line 'of the Microsoft Visual Studio license for distributable code.'
+}
+
+# The Inter typeface ships inside Avalonia.Fonts.Inter, whose package licence (MIT) covers Avalonia's code only; the font itself is
+# under the SIL Open Font License, which asks for its notice and licence to travel with it (desktop and web, found 2026-11-23).
+$interLicense = Join-Path $PSScriptRoot 'Inter-OFL.txt'
+if ($packages.Keys | Where-Object { $_ -match '^Avalonia\.Fonts\.Inter' }) {
+    Section 'Inter typeface (in Avalonia.Fonts.Inter)'
+    Line (Get-Content -LiteralPath $interLicense -Raw)
+}
 
 Set-Content -LiteralPath $Output -Value $out.ToString() -Encoding utf8NoBOM
 Write-Output ("Wrote {0}: {1} packages, {2} native libraries" -f $Output, $packages.Count, $native.Count)

@@ -196,6 +196,20 @@
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="Button.ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverBg}"/><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Style>
+    <!-- a second action beside a primary one (Apply next to Create): Prism's bordered button, outlined and lettered in the accent colour -->
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="{DynamicResource BtnBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/><Setter Property="Foreground" Value="{DynamicResource Accent}"/></Style>
+    <Style Selector="Button.secondary:disabled /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource BtnBg}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryOffFg}"/><Setter Property="BorderBrush" Value="{DynamicResource BtnLine}"/></Style>
     <Style Selector="Button.tool">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource InkSoft}"/>

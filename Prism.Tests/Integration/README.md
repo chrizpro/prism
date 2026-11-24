@@ -28,3 +28,5 @@ Set `PRISM_INTEGRATION_BIN` to an absolute folder containing both binaries to us
 Each run captures real viewport PNGs under `artifacts/tests/integration/<test-id>/<run-id>/`. The [checked-in evidence](../../docs/integration-evidence/README.md) contains reviewed captures organized by test ID. API assertions cover model state and dimensions. The images provide separate visual evidence for preview and committed states. These scenarios drive command slots and options through MCP. Mouse picking, dragging, and broader workflow coverage remain open.
 
 [Tracking issue #56](https://github.com/chrizpro/prism/issues/56) · [MCP guide](../../docs/MCP.md)
+
+The [Kingfisher MCP study](../../docs/kingfisher-study/README.md) adds SFC-I002 for the saved cockpit and [API-I001](ScriptCommandReportTests.cs) for the Python preview and in-place command report. The Python case needs Python 3 available to the desktop process.

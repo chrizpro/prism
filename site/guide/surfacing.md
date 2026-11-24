@@ -44,8 +44,9 @@ Two curves can also span a ruled surface. To make an enclosure on Surface, build
 
 **Split Surface** (Surface **Modify**, NURBS **Finish**) divides a surface along a plane, surface, solid, sketch or curve and keeps every piece, where **Trim** keeps one side. A whole sketch splits along every curve in it; a single picked curve splits along just that one.
 
-1. Start **Split Surface**, pick the surface, then the tool that cuts it. In **Face** pick mode the first pick can be a single face, and only that face is split.
-2. Under **Result** keep **one surface with several faces** (the default, so Thicken and Sew keep them joined) or choose **Separate surfaces**, which you can color and delete independently.
+1. Start **Split Surface**, pick the surface or some of its faces, then the tool that cuts it.
+2. Under **Extent** keep **Selected faces** to split only the faces you picked (picking the whole surface counts as all its faces), or choose **Through all** to split every face of the surface that the tool crosses.
+3. Under **Result** keep **one surface with several faces** (the default, so Thicken and Sew keep them joined) or choose **Separate surfaces**, which you can color and delete independently.
 3. Check the preview, then confirm.
 
 With faces of a surface selected and no tool open, <kbd>Delete</kbd> removes those faces and leaves the rest. The cut of a split NURBS surface is a real edge, so you can see and pick it (set the display to shaded with edges to see it). **Draw on Surface** has the same choice under **Result**: keep the curve, or split the faces it was drawn on. Click the first point again to close the curve into a loop. Each end of an open curve is run on to the nearest edge when one is close.

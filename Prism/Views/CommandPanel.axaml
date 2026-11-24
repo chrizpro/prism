@@ -115,9 +115,16 @@
                     <CheckBox Content="Preview" IsChecked="{Binding ActiveCommand.PreviewEnabled}" IsVisible="{Binding ActiveCommand.SupportsPreview}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="Enter · Esc" Classes="faint" FontSize="11" VerticalAlignment="Center"/>
                 </Grid>
+                <!-- while results have been applied: how many, and what Cancel and OK will do with them -->
+                <Border IsVisible="{Binding Session.AppliedNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="{DynamicResource AccentSoft}" CornerRadius="6" Padding="8,5" AutomationProperties.Name="Applied results">
+                    <TextBlock Text="{Binding Session.AppliedNote}" TextWrapping="Wrap" FontSize="11.5"/>
+                </Border>
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
-                    <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
-                    <Button Grid.Column="2" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                    <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"
+                            ToolTip.Tip="Close the tool without keeping its work. Anything applied since it opened is removed; Redo brings it back."/>
+                    <Button Grid.Column="2" Classes="secondary" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                            ToolTip.Tip="Add this result and keep the tool open, with the same options, for the next one. Cancel would remove what was applied."
                             IsVisible="{Binding ActiveCommand.RepeatApply, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     <Button Grid.Column="3" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
                 </Grid>

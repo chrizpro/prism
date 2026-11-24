@@ -119,6 +119,8 @@
 #include <Interface_Static.hxx>
 #include <ShapeAnalysis_FreeBounds.hxx>
 #include <ShapeUpgrade_UnifySameDomain.hxx>
+#include <ShapeFix_Shape.hxx>
+#include <ShapeFix_FixSmallFace.hxx>
 #include <BRepAlgoAPI_Defeaturing.hxx>
 #include <BRepAlgoAPI_Splitter.hxx>
 #include <BRepFeat_SplitShape.hxx>
@@ -1604,6 +1606,10 @@ CK_API void* ck_unify_faces(void* s, const int* faces, int n) {
 
         ShapeUpgrade_UnifySameDomain u(get(s), false, true, false);
 
+        // Faces a modeling step left a hair apart (0.0001 mm, a few microradians) are still one surface: the default
+        // tolerance (1e-7 mm) refused them, so Merge Faces failed after Replace Face. 1 micron and 1e-5 rad stay far below a real step.
+        u.SetLinearTolerance(1e-3); u.SetAngularTolerance(1e-5);
+
         u.KeepShapes(keep);
 
         u.Build();
@@ -1617,6 +1623,21 @@ CK_API void* ck_unify_faces(void* s, const int* faces, int n) {
 }
 
 
+
+// Remove faces and edges a boolean left thinner than tol (a strip a micron wide where a face met a plane it already touched along an edge),
+// so the faces around them close up. Used after Replace Face.
+CK_API void* ck_clean_small(void* s, double tol) {
+    TRY
+        ShapeFix_FixSmallFace small; small.Init(get(s)); small.SetPrecision(tol); small.SetMaxTolerance(tol * 10); small.Perform();
+        TopoDS_Shape r = small.FixShape();
+        if (r.IsNull()) r = get(s);
+        ShapeFix_Shape fix(r); fix.SetPrecision(tol); fix.SetMaxTolerance(tol * 10); fix.Perform();
+        r = fix.Shape();
+        if (r.IsNull()) { fail("The shape could not be cleaned."); return nullptr; }
+        // no same-surface merge here: it would also undo faces the user split on purpose elsewhere on the part
+        return wrap(r);
+    CATCH(nullptr)
+}
 
 // Offset the outlines of a planar face (or a wire) inside its own plane. Negative distances go inward. Returns the offset wires.
 CK_API void* ck_offset_planar(void* s, double dist, int join) {

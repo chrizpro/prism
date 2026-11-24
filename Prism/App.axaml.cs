@@ -10,8 +10,16 @@ namespace Prism;
 
 public partial class App : Application
 {
+    /// <summary>The geometry kernel's libraries load on a worker thread from the first moment, alongside the window system's own start (startup.log 2026-11-23: 1.3 s).</summary>
+    static System.Threading.Tasks.Task? _kernelWarmUp;
+
+    /// <summary>Start loading the geometry kernel on a worker thread. The desktop calls this on its first line, before the window system starts.</summary>
+    public static void StartKernelWarmUp() =>
+        _kernelWarmUp ??= System.Threading.Tasks.Task.Run(() => { using var warm = Kernel.Occ.Box(1, 1, 1); _ = warm.Tessellate(); });
+
     public override void Initialize()
     {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime) StartKernelWarmUp();
         Core.BrandMigration.CopyLegacySettings();
         Name = "Prism";
         AvaloniaXamlLoader.Load(this);
@@ -55,11 +63,64 @@ public partial class App : Application
         Core.AppSettings.Changed += ApplyTheme;
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            Core.StartupLog.Mark("Runtime and window system");
+            // The start-up card shows first, then each stage is built with a pause in between so the card can draw its progress
+            // (the main view model and window must be made on this UI thread). PRISM_SPLASH=0 or --no-splash skips the card.
+            bool splash = Environment.GetEnvironmentVariable("PRISM_SPLASH") != "0" && Array.IndexOf(desktop.Args ?? [], "--no-splash") < 0;
+            var card = splash ? new SplashWindow() : null;
+            if (card != null) desktop.MainWindow = card;
+            if (card == null) { StartDesktop(desktop, null); }
+            else Avalonia.Threading.Dispatcher.UIThread.Post(() => StartDesktop(desktop, card), Avalonia.Threading.DispatcherPriority.Background);
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
+        {
+            // the web version: the same stage timings as the desktop's startup.log, written to the browser console
+            Core.StartupLog.Mark("Runtime, assemblies and Avalonia");
+            var vm = new MainViewModel();
+            Core.StartupLog.Mark("Workspace (main view model)");
+            var view = new MainView { DataContext = vm };
+            Core.StartupLog.Mark("Main view");
+            async void FirstFrame(object? sender, Avalonia.VisualTreeAttachmentEventArgs args)
+            {
+                view.AttachedToVisualTree -= FirstFrame;
+                await System.Threading.Tasks.Task.Delay(50);
+                Core.StartupLog.Mark("First frame and the UI thread free again");
+                Console.WriteLine(Core.StartupLog.Report());
+            }
+            view.AttachedToVisualTree += FirstFrame;      // before the view is handed over: it can attach at once
+            single.MainView = view;
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>Let the start-up card draw the stage it was just given before the next stage holds the UI thread.</summary>
+    static async System.Threading.Tasks.Task Breathe(SplashWindow? card, string stage, double fraction)
+    {
+        if (card == null) return;
+        card.SetStage(stage, fraction);
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render);
+        await System.Threading.Tasks.Task.Delay(15);
+    }
+
+    /// <summary>Build the main window stage by stage, moving the start-up card along, then swap the card for the window.</summary>
+    async void StartDesktop(IClassicDesktopStyleApplicationLifetime desktop, SplashWindow? card)
+    {
+        try
+        {
+            await Breathe(card, "Loading geometry kernel…", 0.04);
+            await (_kernelWarmUp ?? System.Threading.Tasks.Task.Run(() => { using var warm = Kernel.Occ.Box(1, 1, 1); _ = warm.Tessellate(); }));
+            Core.StartupLog.Mark("Geometry kernel (rest of the warm-up)");
+
+            await Breathe(card, "Preparing the workspace…", 0.15);
             var vm = new MainViewModel();
             ActualThemeVariantChanged += (_, _) => { ApplyAccent(); vm.Session.Invalidate(); };
             Core.AppSettings.Changed += () => vm.Session.Invalidate();      // grid style      // the 3D view paints its own background
+            Core.StartupLog.Mark("Workspace (main view model)");
+
+            await Breathe(card, "Building the window…", 0.35);
             var window = new MainWindow { DataContext = vm };
-            desktop.MainWindow = window;
+            Core.StartupLog.Mark("Main window");
             if (Environment.GetEnvironmentVariable("PRISM_CHECK_UPDATES") != "0" && window.Content is MainView view)
             {
                 async void CheckOnce(object? sender, EventArgs args)
@@ -69,19 +130,42 @@ public partial class App : Application
                 }
                 window.Opened += CheckOnce;
             }
+
+            await Breathe(card, "Opening documents…", 0.8);
             foreach (var path in desktop.Args ?? Array.Empty<string>())
             {
                 if (Core.NativeDocumentFile.IsNative(path))
                     vm.OpenPath(path);
             }
-            var api = new Automation.AutomationApi(vm, window);
-            vm.InitAssistant(new Automation.AssistantService(api));
-            var server = Automation.AutomationServer.TryStart(api);
-            desktop.Exit += (_, _) => server?.Dispose();
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
-            single.MainView = new MainView { DataContext = new MainViewModel() };
+            Core.StartupLog.Mark("Documents");
 
-        base.OnFrameworkInitializationCompleted();
+            await Breathe(card, "Opening Prism…", 1);
+            desktop.MainWindow = window;
+            // The assistant and the automation server are not needed to see the window (startup.log 2026-11-23: 2.6 s in that stage), so they
+            // start right after it has opened; scripts and MCP connect a moment later.
+            async void AfterOpen(object? sender, EventArgs args)
+            {
+                window.Opened -= AfterOpen;
+                Core.StartupLog.Mark("Main window shown");
+                await System.Threading.Tasks.Task.Delay(50);
+                Core.StartupLog.Mark("UI thread free again after opening");
+                var api = new Automation.AutomationApi(vm, window);
+                vm.InitAssistant(new Automation.AssistantService(api));
+                var server = Automation.AutomationServer.TryStart(api);
+                desktop.Exit += (_, _) => server?.Dispose();
+                Core.StartupLog.Mark("Assistant and automation (after the window opened)");
+                Core.StartupLog.Save();
+            }
+            window.Opened += AfterOpen;
+            window.Show();
+            card?.Close();
+        }
+        catch (Exception ex)
+        {
+            // a failure here would otherwise leave only the card on screen: record it like any crash and close
+            try { Core.PendingCrashStore.Local.Save(Core.CrashDiagnostic.Capture(ex)); } catch { }
+            card?.Close();
+            throw;
+        }
     }
 }

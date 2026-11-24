@@ -55,6 +55,8 @@ public sealed class SplitFaceCommand : Command
     readonly SelectionSlot _face, _tool;
     readonly ChoiceParam _mode;
     readonly BoolParam _deleteTool;
+    readonly MovableCutPlane _cut;
+    readonly ChoiceParam _extent;
 
     public SplitFaceCommand()
     {
@@ -62,6 +64,30 @@ public sealed class SplitFaceCommand : Command
         _tool = Slot(new SelectionSlot { Label = "Splitting plane, edge or sketch", Filter = SelFilter.Plane | SelFilter.Edge | SelFilter.SketchObj | SelFilter.CurveObj });
         _mode = Choice("Mode", 0, "Split (cut across the face)", "Imprint (mark curves on the face)");
         _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
+        // added after the older options, so saved steps keep their values and cut with their picked tool
+        _cut = new MovableCutPlane(Check("Cut with a movable plane", false), Num("Plane X", 0), Num("Plane Y", 0), Num("Plane Z", 0),
+            Num("Plane turn X", 0, unit: "°"), Num("Plane turn Y", 0, unit: "°"), Num("Plane turn Z", 0, unit: "°"));
+        // owner approved 2026-11-24: split only the picked face, or every face of the body the tool crosses; last, so older steps replay as Selected face
+        _extent = Choice("Extent", 0, "Selected face", "Through all (every face the tool crosses)");
+        UpdateVisibility();
+    }
+
+    bool ThroughAll => _extent.Index == 1 && _mode.Index == 0;
+
+    /// <summary>Split one face after another with Apply (owner request 2026-11-23); the movable plane stays where it is.</summary>
+    protected override bool OffersApply => true;
+    public override GizmoSpec? Gizmo => _cut.On.Value && _face.Items.Count > 0 ? _cut.Gizmo : null;
+    public override bool RefinesAfterDrag => _cut.On.Value;
+
+    /// <summary>A click on a sketch or curve (one of its lines, or the area a closed sketch fills) means the whole sketch; edges of bodies stay single edges.</summary>
+    SelItem Whole(SelItem it) => it.Kind != SelKind.Object && S.Find(it.Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve } o ? SelItem.Of(o) : it;
+
+    /// <summary>Half the side of the plane's square: past the face wherever the plane is (Apply can leave it away from the next face's centre).</summary>
+    double Reach(Shape face) { var p = face.Props(); return p.Size.Length * 0.75 + p.Center.DistanceTo(_cut.Frame.Origin) + 1; }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_cut.On.Value && _face.Items.Count > 0 && s.ShapeOf(_face.Items[0]) is { } face) _cut.Draw(o, Reach(face));
     }
 
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
@@ -73,36 +99,49 @@ public sealed class SplitFaceCommand : Command
         _ => recipe
     };
 
-    protected override void UpdateVisibility() =>
-        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _face.Items.Count > 0 ? S.Find(_face.Items[0].Obj) : null) != null;
+    protected override void UpdateVisibility()
+    {
+        if (_cut == null || _extent == null || S == null) return;
+        bool plane = _cut.On.Value;
+        _cut.UpdateVisibility();
+        _tool.IsVisible = !plane;
+        _extent.IsVisible = _mode.Index == 0;
+        if (plane && _face.Items.Count > 0 && S.ShapeOf(_face.Items[0]) is { } face) _cut.PlaceAt(face.Props().Center);
+        _deleteTool.IsVisible = !plane && _tool.Items.Count > 0 && ToolShapes.Throwaway(S, Whole(_tool.Items[0]), _face.Items.Count > 0 ? S.Find(_face.Items[0].Obj) : null) != null;
+    }
 
     public override string Title => "Split Face";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Edit existing geometry: pick a face, then a plane, an edge or a sketch that crosses it. The face is divided in two along that line; the shape of the body does not change. Use it to make room for a different edit on one half (for example a Push / Pull of only part of a face). A curve that does not cross the whole face leaves it as it was.";
+    public override string Hint => "Edit existing geometry: pick a face, then a plane, an edge or a sketch that crosses it. The face is divided in two along that line; the shape of the body does not change. Use it to make room for a different edit on one half (for example a Push / Pull of only part of a face). A curve that does not cross the whole face leaves it as it was. Or tick Cut with a movable plane and drag the plane with the gizmo. Extent Through all splits every face of the body that the plane or sketch crosses, all the way through, and keeps one solid. Apply splits and stays open for the next face.";
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
-        if (_face.Items.Count == 0 || _tool.Items.Count == 0) return null;
+        bool plane = _cut.On.Value;
+        if (_face.Items.Count == 0 || !plane && _tool.Items.Count == 0) return null;
         var fi = _face.Items[0];
         var body = DirectHelpers.BodyOf(S, fi) ?? throw new FormatException("Split Face works on solid bodies.");
         var face = S.ShapeOf(fi) ?? throw new FormatException("That face is gone.");
-        var ti = _tool.Items[0];
+        var ti = plane ? default : Whole(_tool.Items[0]);
+        bool drawn = !plane && S.Find(ti.Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve };
+        if (ThroughAll) return SplitThrough(body, plane, ti, drawn);
         Shape curves;
-        if (ti.Kind != SelKind.Edge && S.Find(ti.Obj)?.Kind != ObjKind.Curve && S.Find(ti.Obj)?.Kind != ObjKind.Sketch && S.PlaneOf(ti) is { } pl)
+        if (plane) { var f = _cut.Frame; curves = Occ.Section(face, f.Origin, f.Normal); }
+        else if (ti.Kind != SelKind.Edge && !drawn && S.PlaneOf(ti) is { } pl)
             curves = Occ.Section(face, pl.Origin, pl.Normal);
         else
         {
-            curves = S.ShapeOf(ti) ?? throw new FormatException("Pick a plane, an edge or a sketch.");
+            curves = (drawn ? SurfaceUtil.CurveShape(S, ti) : S.ShapeOf(ti)) ?? throw new FormatException("Pick a plane, an edge or a sketch.");
             if (Occ.FaceInfoOf(face).Type != "Plane") curves = PlaceOnCurvedFace(curves, face);
             else if (S.FaceFrame(fi) is { } fr) { try { curves = Occ.ProjectCurve(curves, face, fr.normal, false); } catch (KernelException) { } }
+            curves = Rejoin(curves);
         }
         int before = body.Shape.Count(SubKind.Face);
         if (_mode.Index == 1)
         {
             var imprint = Imprint(body, fi, curves, before);
-            if (_deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } drawn) imprint.Remove.Add(drawn);
+            if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } sketch) imprint.Remove.Add(sketch);
             return imprint;
         }
         Shape res;
@@ -114,8 +153,50 @@ public sealed class SplitFaceCommand : Command
         Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
         o.Replace.Add((body, res));
-        if (_deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
+        if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
         return o;
+    }
+
+    /// <summary>
+    /// Through all: the curves where the plane, or the sheet a sketch sweeps along its normal, crosses the whole body divide every face they cross.
+    /// The body stays one solid of the same shape.
+    /// </summary>
+    CommandOutput SplitThrough(SceneObject body, bool plane, SelItem ti, bool drawn)
+    {
+        Shape curves;
+        try
+        {
+            if (plane) { var f = _cut.Frame; curves = Occ.Section(body.Shape, f.Origin, f.Normal); }
+            else if (drawn) { using var sheet = SplitBodyCommand.SweepThroughBody(S, ti, body); curves = Occ.Intersect(body.Shape, sheet); }
+            else if (ti.Kind != SelKind.Edge && S.PlaneOf(ti) is { } pl) curves = Occ.Section(body.Shape, pl.Origin, pl.Normal);
+            else throw new FormatException("Through all needs a plane or a sketch to cut with: an edge has no direction to carry it through the body. Pick a plane or a sketch, or set Extent to Selected face.");
+        }
+        catch (KernelException) { throw new FormatException("The plane or sketch does not cross the body."); }
+        int before = body.Shape.Count(SubKind.Face);
+        if (curves.Count(SubKind.Edge) == 0) throw new FormatException("The plane or sketch does not cross the body.");
+        Shape res;
+        try { res = Occ.Split(body.Shape, curves); }
+        catch (KernelException) { throw new FormatException("The plane or sketch does not cross the body."); }
+        if (res.Count(SubKind.Solid) != 1 || res.Count(SubKind.Face) <= before)
+            throw new FormatException("That does not divide any face of the body. Move the plane or sketch so it crosses the body.");
+        res = res.Sub(SubKind.Solid, 0);
+        Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        var o = new CommandOutput { Label = "Split faces through", Icon = "splitbody" };
+        o.Replace.Add((body, res));
+        if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
+        return o;
+    }
+
+    /// <summary>
+    /// Projection hands back a chain of sketch lines as loose pieces, and loose pieces that each stop part way do not divide a face: join the touching
+    /// pieces back into runs (a sketch of two lines meeting in the middle of the face then splits it, SOL-H202).
+    /// </summary>
+    static Shape Rejoin(Shape curves)
+    {
+        int edges = curves.Count(SubKind.Edge);
+        if (edges < 2 || curves.Count(SubKind.Wire) > 0) return curves;
+        try { return NurbsUtil.Join(Enumerable.Range(0, edges).Select(i => curves.Sub(SubKind.Edge, i))); }
+        catch (KernelException) { return curves; }
     }
 
     /// <summary>Normal of the plane the curves lie in, or null when they are not flat.</summary>

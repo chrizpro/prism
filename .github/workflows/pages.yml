@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths: ['site/**', 'web/**', '.github/workflows/pages.yml']
+  release:
+    types: [published]
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,6 +51,20 @@ jobs:
           cp -r web/dist/. _site/
           mkdir -p _site/docs
           cp -r site/dist/. _site/docs/
+      - name: Add the web version
+        # The newest release that carries Prism-web.zip (packaging/Publish-Browser.ps1) is served at /app/; without one the site has no web version.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/${{ github.repository }}/releases?per_page=20" --jq '[.[] | select(.draft | not) | .assets[] | select(.name == "Prism-web.zip")][0].url // empty')
+          if [ -n "$url" ]; then
+            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" "$url" -o prism-web.zip
+            mkdir -p _site/app
+            unzip -q prism-web.zip -d _site/app
+            echo "Web version added at /app/"
+          else
+            echo "No release carries Prism-web.zip yet; the site is built without the web version."
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

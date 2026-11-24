@@ -1552,6 +1552,8 @@ public abstract class EdgeDressCommand : Command
         Size = Num(SizeLabel, size, 0.001);
     }
     protected abstract string SizeLabel { get; }
+    /// <summary>Fillet and Chamfer keep going with Apply: round one set of edges, then the next with the same size.</summary>
+    protected override bool OffersApply => true;
     protected abstract Shape Apply(Shape s, int[] edges, double size);
     public override string Hint => "Click edges on a body (click again to deselect). Pull the arrow in the viewport or type a number to set the size.";
     public override HandleSpec? Handle => Edges.Items.Count == 0 ? null : EdgeHandle(Edges.Items[0], Size);
@@ -2144,11 +2146,7 @@ public sealed class TransformCommand : Command
             {
                 double k = _factor!.Value;
                 if (model == null) { Point = p => center + (p - center) * k; Dir = v => v; break; }   // a datum plane keeps its directions; its origin moves with the scale
-                foreach (var pt in model.Points) { pt.X *= k; pt.Y *= k; pt.Z *= k; }
-                foreach (var e in model.Entities) e.R *= k;
-                foreach (var c in model.Constraints)
-                    if (c.Type is Core.Sketching.CType.Distance or Core.Sketching.CType.LineLength or Core.Sketching.CType.HDistance or Core.Sketching.CType.VDistance
-                        or Core.Sketching.CType.Radius or Core.Sketching.CType.Diameter or Core.Sketching.CType.PointLineDistance) c.Value *= k;
+                ScaleSketchModel(model, k);
                 Point = p => center + (p - center) * k; Dir = v => v;
                 break;
             }
@@ -2162,6 +2160,16 @@ public sealed class TransformCommand : Command
         };
         o.ReplaceSketches.Add((obj, moved, model, new Plane3(Point(pl.Origin), Dir(pl.U), Dir(pl.V))));
         return true;
+    }
+
+    /// <summary>Scale a sketch's drawing evenly: its points, radii and the lengths in its dimensions (angles stay). Shared with the Move gizmo's scale.</summary>
+    public static void ScaleSketchModel(Core.Sketching.SketchModel model, double k)
+    {
+        foreach (var pt in model.Points) { pt.X *= k; pt.Y *= k; pt.Z *= k; }
+        foreach (var e in model.Entities) e.R *= k;
+        foreach (var c in model.Constraints)
+            if (c.Type is Core.Sketching.CType.Distance or Core.Sketching.CType.LineLength or Core.Sketching.CType.HDistance or Core.Sketching.CType.VDistance
+                or Core.Sketching.CType.Radius or Core.Sketching.CType.Diameter or Core.Sketching.CType.PointLineDistance) c.Value *= k;
     }
 
     void AddMeshResult(CommandOutput o, SceneObject obj, Meshing.TriMesh tri)

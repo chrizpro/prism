@@ -67,6 +67,7 @@ Models are grouped by the main Prism workflow they show, and the app's startup g
 | NURBS | Three-lobed handbell (`three-lobed-handbell`) |
 | NURBS | Streamlined train nose (`streamlined-train-nose`) |
 | Solid | Inline-four engine block with fitted liners and core plugs (`inline-four-crankcase`) |
+| Solid / Assembly | Twin-cam inline-four engine, 83 parts, published as an assembly file (`twin-cam-four`) |
 | Mesh | Four-groove drive sheave (`multi-groove-sheave`), centrifugal impeller (`centrifugal-impeller`) |
 | Direct Modeling / Solid | Pin-fin cold plate from a STEP blank (`pin-fin-cold-plate`) |
 | Direct Modeling / Solid | Keyed shaft coupling before and after (`keyed-shaft-coupling`) |
@@ -157,3 +158,11 @@ These are workflow demonstrations on synthetic scans, not measurements of real p
 Owner authorized gallery cards and actual studio renders for the seven recent finished models ([#140](https://github.com/chrizpro/prism/issues/140)). `python gallery/render_recent_studies.py` reopens the native documents and renders them through the actual Windows MCP host at 1280 × 720, 96 samples, six bounces and final denoising, then downsizes previews to at most 810 × 504. It uses the task discovery file under `artifacts/guitar-v2/`; originals are not overwritten during rendering. The two experimental Freeform skill studies are outside this curated batch.
 
 The observatory includes a [116-part inventory](extras/maple-observatory-part-plan.csv) and [proposed router work breakdown](extras/maple-observatory-router-plan.md) for the owner-selected 600 × 400 mm bed. This plan is a manufacturing assessment, not generated G-code. Shared-stock multi-part CAM is proposed in [#141](https://github.com/chrizpro/prism/issues/141).
+
+## Parametric tool studies
+
+- [Helix lamp study](models/helix-lamp-study.prism) (`helix-lamp-study`) — Straight and twisted louver cages compare the effect of a 62-degree Warp twist.
+- [Split keyboard](models/split-keyboard-table-pattern.prism) (`split-keyboard-table-pattern`) — An editable placement table controls the width, depth and height of individual keycaps.
+- [Waveform speaker grille](models/waveform-speaker-grille.prism) (`waveform-speaker-grille`) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.
+- [Aurelia leaf](models/aurelia-leaf.prism) (`aurelia-leaf`) pairs a spline-cut blank with the refolded leaf on a doubly curved forming surface.
+- [Meridian helmet](models/meridian-helmet.prism) (`meridian-helmet`) compares the curved surface pattern of the complete shell with the UV-driven 4 mm copper rib. See the [before and after preview](previews/meridian-helmet.png).

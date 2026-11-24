@@ -13,7 +13,9 @@ public readonly record struct Rot(Vec3 Pivot, Vec3 Axis, double Deg);
 /// <summary>Where one pattern instance goes: translate by Pre, rotate through Rots in order, then translate by Post.</summary>
 public readonly record struct Placement(Vec3 Pre, Rot[] Rots, Vec3 Post, Vec3 Anchor)
 {
-    public bool IsIdentity => Pre.Length < 1e-9 && Post.Length < 1e-9 && Rots.All(r => Math.Abs(r.Deg) < 1e-9);
+    public IReadOnlyDictionary<Guid, Shape>? Variants { get; init; }
+    public Shape Source(SceneObject obj) => Variants?.GetValueOrDefault(obj.Id) ?? obj.Shape;
+    public bool IsIdentity => Variants == null && Pre.Length < 1e-9 && Post.Length < 1e-9 && Rots.All(r => Math.Abs(r.Deg) < 1e-9);
     public static Placement Move(Vec3 delta, Vec3 anchor) => new(Vec3.Zero, [], delta, anchor);
 }
 
@@ -280,7 +282,7 @@ public abstract class PatternCommand : Command
                         else o2.Add.Add(new(null, StripNumber(obj.Name), ObjKind.Form, obj.Color, obj.SketchPlane, moved, obj.Look));
                         continue;
                     }
-                    var shape = Apply(obj.Shape, kept[i]);
+                    var shape = Apply(kept[i].Source(obj), kept[i]);
                     if (i == 0 && moveFirst) o2.Replace.Add((obj, shape));
                     else o2.Add.Add(new(shape, StripNumber(obj.Name), obj.Kind, obj.Color, obj.SketchPlane, null, obj.Look));
                 }
@@ -297,7 +299,7 @@ public abstract class PatternCommand : Command
         foreach (var pl in kept)
             foreach (var t in tools)
             {
-                var inst = Apply(t.Shape, pl);
+                var inst = Apply(pl.Source(t), pl);
                 res = mode == 1 ? Occ.Fuse(res, inst) : Occ.Cut(res, inst);
             }
         o2.Label = mode == 1 ? "Pattern (join)" : "Pattern (cut)";
@@ -647,7 +649,7 @@ public sealed class TablePatternCommand : PatternCommand
     public TablePatternCommand() : base(false)
     {
         _kind = Choice("Rows are", 0, "Offsets from the original", "Absolute positions of the center");
-        _rows = Text("Positions", "30, 0, 0\n60, 0, 0, 45\n90, 20, 0", "One per line: x, y, z [, rotation about Z in degrees]. Or @ and the name of a sheet in the Data panel, or a file path");
+        _rows = Text("Positions", "30, 0, 0\n60, 0, 0, 45\n90, 20, 0", "One per line: x, y, z [, rotation about Z in degrees]. For per-copy dimensions, use a header such as x,y,z,angle,CapWidth,CapHeight and bind those document parameters to the source. Blank dimension cells inherit the source value. Or @ and the name of a sheet in the Data panel, or a file path");
         AddCommonControls();
     }
 
@@ -660,7 +662,16 @@ public sealed class TablePatternCommand : PatternCommand
         var list = new List<Placement> { Placement.Move(Vec3.Zero, r) };
         int line = 0;
         string text = _rows.Value;
-        if (Prism.Core.Data.DataSource.IsReference(text)) { try { text = Prism.Core.Data.DataSource.WithoutHeaders(Prism.Core.Data.DataSource.Expand(S, text)); } catch (FormatException e) { Row("Table", e.Message, 2); return list; } }
+        bool external = Prism.Core.Data.DataSource.IsReference(text);
+        if (external) text = Prism.Core.Data.DataSource.Expand(S, text);
+        var lines = text.Split(['\n', ';'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length > 0)
+        {
+            var header = Cells(lines[0]);
+            if (header.Take(3).SequenceEqual(new[] { "x", "y", "z" }, StringComparer.OrdinalIgnoreCase))
+                return NamedLayout(lines, header, r, list);
+        }
+        if (external) text = Prism.Core.Data.DataSource.WithoutHeaders(text);
         foreach (var raw in text.Split(['\n', ';'], StringSplitOptions.RemoveEmptyEntries))
         {
             line++;
@@ -673,5 +684,49 @@ public sealed class TablePatternCommand : PatternCommand
             list.Add(new Placement(Vec3.Zero, rots, delta, r + delta));
         }
         return list;
+    }
+
+    static string[] Cells(string line) => line.Split(line.Contains('\t') ? '\t' : ',', StringSplitOptions.TrimEntries);
+
+    List<Placement> NamedLayout(string[] lines, string[] header, Vec3 originalCenter, List<Placement> layout)
+    {
+        bool hasAngle = header.Length > 3 && header[3].Equals("angle", StringComparison.OrdinalIgnoreCase);
+        int firstVariable = hasAngle ? 4 : 3;
+        var variables = header.Skip(firstVariable).ToArray();
+        var known = S.DocumentParameters.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (variables.Distinct(StringComparer.OrdinalIgnoreCase).Count() != variables.Length)
+            throw new FormatException("Each parameter column must have a unique name.");
+        foreach (string name in variables)
+            if (!known.Contains(name)) throw new FormatException($"Unknown document parameter '{name}'.");
+        var sources = ObjectsOf(Src).Distinct().ToList();
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var cells = Cells(lines[i]);
+            if (cells.Length < 3 || cells.Length > header.Length)
+                throw new FormatException($"Table row {i + 1} does not match the header.");
+            double Read(int col) => double.TryParse(cells[col], NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v)
+                ? v : throw new FormatException($"Table row {i + 1}: enter a finite number for {header[col]}.");
+            var point = new Vec3(Read(0), Read(1), Read(2));
+            double angle = hasAngle && cells.Length > 3 && cells[3].Length > 0 ? Read(3) : 0;
+            var values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            for (int col = firstVariable; col < cells.Length; col++)
+                if (cells[col].Length > 0) values.Add(header[col], Read(col));
+            var anchor = _kind.Index == 0 ? originalCenter + point : point;
+            var center = originalCenter;
+            Dictionary<Guid, Shape>? variants = null;
+            if (values.Count > 0 && layout.Count < MaxInstances)
+            {
+                if (sources.Any(o => o.Component != null || o.Kind is not (ObjKind.Solid or ObjKind.Surface)))
+                    throw new FormatException("Parameter columns require solid or surface sources.");
+                variants = S.PatternVariants(values, sources);
+                var bounds = variants.Values.Select(shape => shape.Props()).ToList();
+                center = new Vec3(bounds.Min(b => b.Min.X) + bounds.Max(b => b.Max.X),
+                    bounds.Min(b => b.Min.Y) + bounds.Max(b => b.Max.Y),
+                    bounds.Min(b => b.Min.Z) + bounds.Max(b => b.Max.Z)) * 0.5;
+            }
+            Rot[] rotations = angle == 0 ? [] : [new Rot(center, Vec3.UnitZ, angle)];
+            layout.Add(new Placement(Vec3.Zero, rotations, anchor - center, anchor) { Variants = variants });
+        }
+        return layout;
     }
 }

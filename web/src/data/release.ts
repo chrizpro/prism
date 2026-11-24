@@ -15,7 +15,10 @@ const targets: Omit<Download, 'url' | 'size' | 'sha256Url'>[] = [
 type GitHubAsset = { name: string; browser_download_url: string; size: number }
 type GitHubRelease = { tag_name: string; name: string | null; published_at: string; html_url: string; prerelease: boolean; draft: boolean; assets: GitHubAsset[] }
 
-export async function latestRelease(): Promise<{ release?: Release; downloads: Download[] }> {
+/** The web version: packaging/Publish-Browser.ps1 writes this archive, it is attached to the release, and the Pages workflow unpacks it at /app/. */
+export const webAppAsset = 'Prism-web.zip'
+
+export async function latestRelease(): Promise<{ release?: Release; downloads: Download[]; webApp: boolean }> {
   let found: GitHubRelease | undefined
   try {
     const token = process.env.GITHUB_TOKEN
@@ -32,5 +35,6 @@ export async function latestRelease(): Promise<{ release?: Release; downloads: D
     return asset ? { ...t, url: asset.browser_download_url, size: asset.size, sha256Url: sha?.browser_download_url } : { ...t }
   })
   const release = found && { tag: found.tag_name, name: found.name || found.tag_name, date: found.published_at, url: found.html_url, prerelease: found.prerelease }
-  return { release, downloads }
+  const webApp = !!found?.assets.some(a => a.name === webAppAsset)
+  return { release, downloads, webApp }
 }

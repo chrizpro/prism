@@ -48,11 +48,12 @@ public sealed partial class MainViewModel
         Session.Say(on ? "Tracking history: direct edits of this body can be edited again later." : "No longer tracking history: direct edits are plain undo steps.");
     }
 
-    bool _startingGizmo;
+    bool _startingGizmo, _holdDirectGizmo;
     /// <summary>The gizmo is a command that stays open while the tab is open, so every click on a face puts handles on it. It comes back after each edit.</summary>
     void StartDirectGizmo()
     {
-        if (!IsDirectEditing || _startingGizmo || Session.ActiveCommand != null || Session.Sketch != null) return;
+        if (!IsDirectEditing || _startingGizmo || _holdDirectGizmo || Session.ActiveCommand != null || Session.Sketch != null) return;
+        if (Session.Datum is { MoveMode: true }) return;      // the Move gizmo is up: the face gizmo waits until it closes
         if (_directWorkflow is not (DirectWorkflow.Freeform or DirectWorkflow.Nurbs) && Session.Mode is Prism.Core.SelMode.Edge or Prism.Core.SelMode.Vertex) return;   // the face gizmo waits while edges or points are being picked
         _startingGizmo = true;
         // Solid and surface faces take the gizmo; a freeform is edited by its cage and NURBS by their control points.

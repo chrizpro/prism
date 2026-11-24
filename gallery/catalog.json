@@ -68,6 +68,19 @@
       ]
     },
     {
+      "Id": "meridian-helmet",
+      "Name": "Meridian helmet",
+      "Description": "A curved surface pattern shows the rim and face boundaries of the four-panel helmet, while its UV layout drives a normal-following copper rib.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1272458,
+      "Sha256": "cdf34b13ec6b4354e9e452e5502edd65ad0989e0dcb8cc5fcabc6c8c97e1803c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-helmet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-helmet.png?v=4e5ace278433a32e"
+    },
+    {
       "Id": "inline-four-crankcase",
       "Name": "Inline-four engine block",
       "Description": "A gray four-cylinder casting with open bores, machined liners, recessed core plugs, stiffening ribs and a relieved crankcase.",
@@ -79,6 +92,19 @@
       "Sha256": "d6a604953abe75a6e537cbd4eb4dfbfda029c2df7a40382b9b60945eb8633152",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/inline-four-crankcase.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/inline-four-crankcase.png?v=37af7314e8beccc3"
+    },
+    {
+      "Id": "twin-cam-four",
+      "Name": "Twin-cam inline-four engine",
+      "Description": "An 83-part four-cylinder engine assembly: iron block and wet sump, aluminum twin-cam head and ribbed cam cover, coil packs, four-into-one exhaust header, intake plenum with throttle body, and a front timing case with its accessory belt drive.",
+      "Workflow": "Solid / Assembly",
+      "Author": "Prism",
+      "License": "MIT",
+      "MinimumVersion": "0.4.0",
+      "Bytes": 3200392,
+      "Sha256": "bda933cbbce3e99bd8c83575ad1352b246f0dc4dcf215df0d5f08a59dcb6ddd4",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/twin-cam-four.prism_asm",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/twin-cam-four.png?v=ba40a92c80953e27"
     },
     {
       "Id": "keyed-shaft-coupling",
@@ -976,6 +1002,58 @@
       "Sha256": "45bf7ba8f66bb9db82048e330bf2c9294ab46dbe7aef56b9fb45a9ed4b3678bf",
       "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/centrifugal-impeller.prism",
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/centrifugal-impeller.png?v=a4e868af0731f5f5"
+    },
+    {
+      "Id": "aurelia-leaf",
+      "Name": "Aurelia leaf",
+      "Description": "A pierced brass leaf and its flat blank demonstrate refolding fourteen spline windows across a twisted NURBS saddle.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1013727,
+      "Sha256": "20679ba227f70e175d9d5ef94c026a5571830d037b1df7e100d95ae6b12e7278",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/aurelia-leaf.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/aurelia-leaf.png?v=b4a7246faf7f9641"
+    },
+    {
+      "Id": "helix-lamp-study",
+      "Name": "Helix lamp study",
+      "Description": "Straight and twisted louver cages compare the effect of a 62-degree Warp twist.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 298036,
+      "Sha256": "79f7b39bf8f65c04c1f7f203fc826440418891d5d42e3fd9832856fd717b1748",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/helix-lamp-study.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/helix-lamp-study.png?v=c6a18525012acda7"
+    },
+    {
+      "Id": "split-keyboard-table-pattern",
+      "Name": "Split keyboard",
+      "Description": "An editable placement table controls the width, depth and height of individual keycaps.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1111301,
+      "Sha256": "8d4707cc5b25a26a6e2de69b801fa1da5c65d3541d9e798dfd854ac66e4443fd",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/split-keyboard-table-pattern.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/split-keyboard-table-pattern.png?v=59ca7268b062e1b8"
+    },
+    {
+      "Id": "waveform-speaker-grille",
+      "Name": "Waveform speaker grille",
+      "Description": "A flat slot layout and its refolded cylindrical grille show forty rounded openings.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 271325,
+      "Sha256": "583612cd54a9d2997a6a60dff9756c0cfff505c57e8fbf92d3da68d581c540fd",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/waveform-speaker-grille.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/waveform-speaker-grille.png?v=16a70344a589447e"
     }
   ]
 }

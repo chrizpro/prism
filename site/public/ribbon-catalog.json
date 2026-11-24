@@ -1,5 +1,5 @@
 {
-  "sourceHash": "1C6E343DA0C5F55A86C23324919D751679E6EAC8292EC635A350B65C98ECFAED",
+  "sourceHash": "ADF767F02845A4527DE278FD2714B3567679C1D627FB74AA73B3AFD5BA699F86",
   "workspaces": [
     {
       "Id": "design",
@@ -407,21 +407,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -509,6 +587,18 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve or a run of edges into pieces: at percentages along it, where other curves, surfaces, planes or points cross it, or at every joint.",
               "shortcut": ""
             },
             {
@@ -856,21 +946,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -940,6 +1108,18 @@
               "id": "section|Project / Wrap",
               "label": "Project / Wrap",
               "description": "Put curves onto a surface: project them straight, pull them to the nearest point, or Wrap a flat curve (a logo, a label, text) on by distance so its lengths stay true on planes, cylinders and cones.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve or a run of edges into pieces: at percentages along it, where other curves, surfaces, planes or points cross it, or at every joint.",
               "shortcut": ""
             },
             {
@@ -1305,21 +1485,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -1407,6 +1665,18 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve or a run of edges into pieces: at percentages along it, where other curves, surfaces, planes or points cross it, or at every joint.",
               "shortcut": ""
             },
             {
@@ -1825,21 +2095,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -1903,6 +2251,18 @@
               "id": "section|Intersection Curve",
               "label": "Intersection Curve",
               "description": "The curve where two planes, faces, surfaces or bodies cross, or the shared 3D curve of two flat curves on different planes.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve or a run of edges into pieces: at percentages along it, where other curves, surfaces, planes or points cross it, or at every joint.",
               "shortcut": ""
             },
             {
@@ -2425,21 +2785,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -2527,6 +2965,18 @@
               "id": "section|Contour",
               "label": "Contour",
               "description": "Slice a body into evenly spaced section curves.",
+              "shortcut": ""
+            },
+            {
+              "id": "knit|Join",
+              "label": "Join",
+              "description": "Join curves or surface edges that touch end to end into one curve, for example a side of two edges to bridge against a side of one.",
+              "shortcut": ""
+            },
+            {
+              "id": "trim|Split Curve",
+              "label": "Split Curve",
+              "description": "Cut a curve or a run of edges into pieces: at percentages along it, where other curves, surfaces, planes or points cross it, or at every joint.",
               "shortcut": ""
             },
             {
@@ -2968,21 +3418,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -3271,21 +3799,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -3556,21 +4162,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -4195,21 +4879,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -4380,21 +5142,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -4695,21 +5535,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -5162,21 +6080,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -5378,21 +6374,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]
@@ -5856,21 +6930,99 @@
               "shortcut": ""
             },
             {
+              "id": "sel-grow|Grow",
+              "label": "Grow",
+              "description": "Add the faces, edges, corners or triangles next to the selection.",
+              "shortcut": "Ctrl\u002B\u002B"
+            },
+            {
+              "id": "sel-shrink|Shrink",
+              "label": "Shrink",
+              "description": "Drop the outer ring of the selection.",
+              "shortcut": "Ctrl\u002B-"
+            },
+            {
+              "id": "sel-tangent|Tangent Chain",
+              "label": "Tangent Chain",
+              "description": "Add every face joined smoothly to a selected face, or an edge\u0027s tangent chain. Double-click does the same.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-feature|Whole Feature",
+              "label": "Whole Feature",
+              "description": "Add every face of the hole, boss, slot, pocket, fillet, chamfer, rib or text a selected face belongs to.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-feature|Same Feature",
+              "label": "Same Feature",
+              "description": "Add every feature of the same kind and size on the body: all the 6 mm holes, all the R2 fillets.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-same-radius|Same Radius",
+              "label": "Same Radius",
+              "description": "Add the round faces, or circular edges, with the same radius.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-fillets|Fillets Up To",
+              "label": "Fillets Up To",
+              "description": "Add every fillet no larger than the selected round face: handy for removing small rounds from an import.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coplanar|Coplanar",
+              "label": "Coplanar",
+              "description": "Add the flat faces lying in the same plane and facing the same way, on any visible body.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-coaxial|Coaxial",
+              "label": "Coaxial",
+              "description": "Add the round faces that share the selected face\u0027s axis, on any visible body.",
+              "shortcut": ""
+            },
+            {
               "id": "sel-same-color|Same Color",
               "label": "Same Color",
               "description": "Add every face of the same body that has the same color and finish as a selected face.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-adjacent|Adjacent",
-              "label": "Adjacent",
-              "description": "Add the faces that share an edge with a selected face.",
+              "id": "sel-same-linked|Linked",
+              "label": "Linked",
+              "description": "Add everything of the same kind on the body: every face, edge or corner. On a mesh, the connected triangles up to sharp edges.",
               "shortcut": ""
             },
             {
-              "id": "sel-same-linked|Linked",
-              "label": "Linked",
-              "description": "Add every face of the body a selected face belongs to.",
+              "id": "sel-to-faces|To Faces",
+              "label": "To Faces",
+              "description": "Switch to Face and select the faces beside the selected edges or corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-edges|To Edges",
+              "label": "To Edges",
+              "description": "Switch to Edge and select the border of the selected faces, or the edges at the selected corners.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-to-vertices|To Vertices",
+              "label": "To Vertices",
+              "description": "Switch to Vertex and select the corners of the selected faces or edges.",
+              "shortcut": ""
+            },
+            {
+              "id": "sel-reselect|Reselect Last",
+              "label": "Reselect Last",
+              "description": "Put back the selection you had before the last change. Again swaps back.",
+              "shortcut": "Ctrl\u002BShift\u002BL"
+            },
+            {
+              "id": "sel-save-set|Save Selection Set",
+              "label": "Save Selection Set",
+              "description": "Save the selection under a name; it is listed under Selection Sets in the browser, where a click selects it again. Saved with the document.",
               "shortcut": ""
             }
           ]

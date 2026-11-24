@@ -111,10 +111,14 @@ public static partial class ToolHelp
             "Start: two separate curves", "Result: a smooth bridge between them",
             "1. Choose Blend Curve.\n2. Pick the end of each curve.\n3. Choose how smoothly it joins, then accept.",
             "Matching the bend as well as the direction gives the smoothest joint.", "blend-curve"),
-        "knit|Join" => T(key, "Join Curves", "Join curves that touch end to end into one curve.",
+        "knit|Join" => T(key, "Join Curves", "Join curves or surface edges that touch end to end into one curve.",
             "Start: separate touching segments", "Result: one continuous curve",
-            "1. Choose Join.\n2. Pick the curves.\n3. Accept to join them.",
-            "Joined curves can be swept along or extruded as one profile.", "join-curves"),
+            "1. Choose Join.\n2. Pick the curves or edges.\n3. Keep each segment, or choose One smooth curve, then accept.",
+            "One smooth curve lets two edges face one edge in Boundary Surface or Ruled Surface.", "join-curves"),
+        "trim|Split Curve" => T(key, "Split Curve", "Cut a curve or a run of edges into separate pieces.",
+            "Start: one curve", "Result: separate pieces",
+            "1. Choose Split Curve.\n2. Pick the curve.\n3. Split at percentages, where other curves, surfaces, planes or points cross it, or at every joint, then accept.",
+            "Join puts pieces back together.", "trim-curve"),
         "unstitch|Explode" => T(key, "Explode Curve", "Break a curve or sketch into its separate segments.",
             "Start: one closed curve", "Result: its separate segments",
             "1. Open Join and choose Explode.\n2. Pick the curve or sketch.\n3. Accept; each segment becomes its own curve.",
@@ -135,7 +139,7 @@ public static partial class ToolHelp
         // ---- solid ----
         "splitbody|Split Face" => T(key, "Split Face", "Divide a face along a plane, edge or sketch; the shape stays the same.",
             "Start: a whole face", "Result: the face in two parts",
-            "1. Choose Split Face.\n2. Pick the face, then the plane, edge or sketch to split along.\n3. Accept.",
+            "1. Choose Split Face.\n2. Pick the face, then the plane, edge or sketch to split along.\n3. Under Extent keep Selected face, or choose Through all to split every face of the body the plane or sketch crosses. Accept.",
             "Split faces let you draft, color or load just part of a face.", "split-face"),
         "pushpull|Extend / Trim Face" => T(key, "Extend / Trim Face", "Grow or shrink flat faces until they meet a target plane or face.",
             "Start: a face and a target plane", "Result: the face moved to the target",
@@ -184,7 +188,7 @@ public static partial class ToolHelp
             "Untrim brings the cut-away part back.", "surface-trim"),
         "surface-split" => T(key, "Split Surface", "Divide a surface into faces along a plane, surface, solid, sketch or curve. Every piece is kept.",
             "Start: a surface and what cuts it", "Result: the surface in several faces",
-            "1. Choose Split Surface.\n2. Pick the surface (in Face mode, one face of it), then the plane, surface, solid, sketch or curve that cuts it.\n3. Under Result keep one surface with several faces, or choose Separate surfaces. Accept.",
+            "1. Choose Split Surface.\n2. Pick the surface or some of its faces, then the plane, surface, solid, sketch or curve that cuts it.\n3. Under Extent keep Selected faces, or choose Through all to split every face the tool crosses.\n4. Under Result keep one surface with several faces, or choose Separate surfaces. Accept.",
             "Select a face of the split surface and press Delete to remove it. Choose Separate surfaces to color the pieces differently.", "surface-split"),
         "surface-offset" => T(key, "Offset Surface", "Create a parallel copy of a surface or face.",
             "Start: a surface", "Result: a parallel copy",
@@ -392,6 +396,8 @@ public static partial class ToolHelp
             "1. Select the curves.\n2. Choose To construction.",
             "Construction curves guide and constrain but are not part of profiles.", "construction"),
 
+        // ---- Select group: More (owner approved 2026-11-24)
+        "sel-more" => Words(key, "More", "More ways to select.", "Open the list and choose a tool.", ""),
         _ => FindMeshButton(key)
     };
 

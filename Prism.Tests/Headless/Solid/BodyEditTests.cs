@@ -93,7 +93,7 @@ public class BodyEditTests
         command.ConfigureInputs(() =>
         {
             SetSelection(command, "Body to split", source);
-            SetSelection(command, "Splitting tool (plane, face, surface or solid)", tool);
+            SetSelection(command, "Splitting tool (plane, face, surface, solid or sketch)", tool);
         });
         var output = command.TryBuild();
         Assert.True(output != null, command.Error);

@@ -36,17 +36,20 @@ public class CurveRibbonTests
         Assert.Contains(curves.Active!, curves.Menu!);
         Assert.Equal("Curves", curves.Label.Replace('\n', ' '));
         var labels = curves.Menu!.Select(b => b.Label).ToList();
-        foreach (var tool in new[] { "Isocurves", "Contour", "Extract Edges", "Rebuild\nCurve", "Points Along\nCurve" })
+        // owner request 2026-11-23: Join is back, to turn a run of edges into one curve (CRV-H054)
+        foreach (var tool in new[] { "Isocurves", "Contour", "Extract Edges", "Rebuild\nCurve", "Points Along\nCurve", "Join", "Split\nCurve" })
             Assert.Contains(tool, labels);
         // owner direction 2026-11-14: these are [Legacy], hidden from the GUI but still reachable by saved files and scripts
-        foreach (var tool in new[] { "Curve", "Blend\nCurve", "Join", "Explode", "Trim\nCurve", "Extend\nCurve", "Offset\nCurve" })
+        foreach (var tool in new[] { "Curve", "Blend\nCurve", "Explode", "Trim\nCurve", "Extend\nCurve", "Offset\nCurve" })
             Assert.DoesNotContain(tool, labels);
         Assert.All(tab.Buttons.Where(b => b.HasMenu), b => Assert.All(b.Menu!, child => Assert.False(child.HasMenu)));
         var hits = vm.AllCommandHits().Where(h => h.Tab == title).ToList();
         Assert.Contains(hits, h => h.Label == "Points Along Curve");
         Assert.Contains(hits, h => h.Label == "Rebuild Curve");
-        Assert.DoesNotContain(hits, h => h.Label is "Explode" or "Join" or "Blend Curve" or "Trim Curve" or "Extend Curve" or "Offset Curve");
-        Assert.DoesNotContain(hits, h => h.Label is "Split Curve" or "Divide" or "Duplicate Edge");
+        Assert.Contains(hits, h => h.Label == "Join");
+        Assert.DoesNotContain(hits, h => h.Label is "Explode" or "Blend Curve" or "Trim Curve" or "Extend Curve" or "Offset Curve");
+        Assert.Contains(hits, h => h.Label == "Split Curve");     // back on 2026-11-23 (CRV-H055)
+        Assert.DoesNotContain(hits, h => h.Label is "Divide" or "Duplicate Edge");
     }
 
     [AvaloniaFact(DisplayName = "CRV-H037 | Legacy curve commands are hidden from the ribbon but still resolve for saved files and scripts")]
@@ -54,9 +57,10 @@ public class CurveRibbonTests
     public void LegacyCurveCommandsStayReachableOutsideTheGui()
     {
         DefaultRibbon();
-        foreach (var type in new[] { typeof(CurveByPointsCommand), typeof(BlendCurveCommand), typeof(JoinCurvesCommand), typeof(ExplodeCurveCommand), typeof(TrimCurveCommand), typeof(ExtendCurveCommand), typeof(OffsetCurveCommand) })
+        foreach (var type in new[] { typeof(CurveByPointsCommand), typeof(BlendCurveCommand), typeof(ExplodeCurveCommand), typeof(TrimCurveCommand), typeof(ExtendCurveCommand), typeof(OffsetCurveCommand) })
             Assert.True(LegacyAttribute.IsLegacy(type), type.Name);
         Assert.False(LegacyAttribute.IsLegacy(typeof(RebuildCurveCommand)));
+        Assert.False(LegacyAttribute.IsLegacy(typeof(JoinCurvesCommand)));
         Assert.IsType<JoinCurvesCommand>(CommandCatalog.Find("Prism.Commands.JoinCurvesCommand|Join Curves")!());
         Assert.IsType<TrimCurveCommand>(CommandCatalog.Find("Prism.Commands.TrimCurveCommand|Trim Curve")!());
     }
@@ -69,7 +73,8 @@ public class CurveRibbonTests
         Assert.IsType<DivideCurveCommand>(CommandCatalog.Find("Prism.Commands.DivideCurveCommand|Divide Curve")!());
         Assert.IsType<DuplicateEdgeCommand>(CommandCatalog.Find("Prism.Commands.DuplicateEdgeCommand|Duplicate Edge")!());
         var split = Assert.IsType<SplitCurveCommand>(CommandCatalog.Find("Prism.Commands.SplitCurveCommand|Split Curve")!());
-        Assert.Equal(new[] { "Split at (% , separated)", "Keep the original" }, split.Params.Select(p => p.Label));
+        // the older two options keep their places; the Split method came after them
+        Assert.Equal(new[] { "Split at (% , separated)", "Keep the original", "Split" }, split.Params.Select(p => p.Label));
         var hits = vm.AllCommandHits().Where(h => h.Tab == "Surface").ToList();
         Assert.Equal("origin-point|Divide", hits.Single(h => h.Label == "Points Along Curve").Button.Id);
         Assert.Equal("curve-through|Duplicate Edge", hits.Single(h => h.Label == "Extract Edges").Button.Id);

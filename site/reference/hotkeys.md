@@ -50,11 +50,15 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Select all | <kbd>Ctrl</kbd> + <kbd>A</kbd> | Everywhere | Selects everything at the current pick level: objects, faces, edges or corner points. While you edit a Freeform, it selects all cage components |
 | Copy selection | <kbd>Ctrl</kbd> + <kbd>C</kbd> | Everywhere | Remembers the selected objects |
 | Paste | <kbd>Ctrl</kbd> + <kbd>V</kbd> | Everywhere | Pastes independent copies in the same place, selected and ready to move. Works in another open document too |
+| Grow selection | <kbd>Ctrl</kbd> + <kbd>+</kbd> | Everywhere | Adds the faces, edges, corners or triangles next to the selection; in Edit Freeform it grows the cage selection |
+| Shrink selection | <kbd>Ctrl</kbd> + <kbd>-</kbd> | Everywhere | Drops the outer ring of the selection |
+| Reselect last selection | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd> | Everywhere | Puts back the selection from before the last change; again swaps back |
 | Group selection | <kbd>Ctrl</kbd> + <kbd>G</kbd> | Everywhere | Puts the selected objects under one parent row in the browser |
 | Ungroup selection | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Everywhere | Takes the objects out of their group |
 | Delete selection | <kbd>Delete</kbd> | Everywhere |  |
 | Cancel / end the current step | <kbd>Escape</kbd> | Everywhere |  |
 | Accept / finish | <kbd>Enter</kbd> | Everywhere |  |
+| Repeat last tool | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Everywhere | Opens the last tool you finished again, with the same options and nothing picked. Only while no tool or sketch is open. |
 
 ## View
 
@@ -71,6 +75,7 @@ So <kbd>R</kbd> rotates a cage selection while you edit a Freeform, rotates the 
 | Action | Key | Works | Notes |
 | --- | --- | --- | --- |
 | Extrude | <kbd>Alt</kbd> + <kbd>X</kbd> | Everywhere | Outside sketching and active editors |
+| Move the gizmo's pivot (Move tool) | <kbd>D</kbd> | Everywhere | While Move holds something: the handles move and turn only the gizmo; click a corner or a straight edge to put the pivot there. D again goes back |
 | Edit Gizmo | <kbd>G</kbd> | Everywhere | At the viewport cursor (origin if the pointer is outside it) |
 
 ## Freeform

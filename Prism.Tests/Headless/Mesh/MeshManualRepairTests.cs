@@ -125,6 +125,34 @@ public sealed class MeshManualRepairTests
         Assert.All(rim, i => Assert.Equal(0, result.P(i).Z));
     }
 
+    [AvaloniaFact(DisplayName = "MSH-H164 | Fill Hole Apply fills one opening and stays open on the same mesh for the next; each fill undoes on its own")]
+    [Trait("TestId", "MSH-H164")]
+    public void FillHoleApplyKeepsGoing()
+    {
+        // owner request 2026-11-23: Apply keeps a repair tool open (docs/interface/README.md, repeat and Apply)
+        var session = new CadSession();
+        var box = AddMesh(session, OpenBox());
+        int Holes() => session.Find(box.Id)!.Tri!.Topology().HoleLoops.Count;
+        session.Camera.SetView(0, 89.999);
+        session.ZoomExtents();
+        var first = Begin(session, () => new MeshBoundaryCommand());
+        Click(session, first, new Vec3(10, 0, 20));
+        first.RepeatApply!.Run();
+        var next = Assert.IsType<MeshBoundaryCommand>(session.ActiveCommand);
+        Assert.NotSame(first, next);
+        Assert.Equal(1, Holes());
+        session.Camera.SetView(0, -89.999);
+        session.ZoomExtents();
+        Click(session, next, new Vec3(10, 0, 0));
+        session.CommitCommand();
+        Assert.Null(session.ActiveCommand);
+        Assert.Equal(0, Holes());
+        session.Undo();
+        Assert.Equal(1, Holes());
+        session.Undo();
+        Assert.Equal(2, Holes());
+    }
+
     [AvaloniaTheory(DisplayName = "MSH-H136 | Fill applies two toggled openings together and one Undo restores the original")]
     [Trait("TestId", "MSH-H136")]
     [InlineData("Flat")]

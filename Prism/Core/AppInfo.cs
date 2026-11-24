@@ -13,6 +13,24 @@ public static class AppInfo
     public const string DocsUrl = "https://chrizpro.github.io/prism/docs/";
     public const string KnownIssuesUrl = DocsUrl + "reference/known-issues";
     public static string FeedbackUrl() => RepositoryUrl + "/issues/new?template=feedback.yml";
+    public const string DownloadUrl = "https://chrizpro.github.io/prism/download";
+
+    /// <summary>True in the WebAssembly build. Shows the web-version mark in the model view.</summary>
+    /// <seealso href="https://github.com/chrizpro/prism/blob/develop/docs/interface/browser/README.md"/>
+    public static bool IsWebVersion => OperatingSystem.IsBrowser();
+
+    /// <summary>License notices and LGPL source served next to the web version; set by Prism.Browser from the page address.</summary>
+    public static string WebNoticesUrl { get; set; } = RepositoryUrl + "/blob/develop/docs/interface/browser/README.md#licensing";
+
+    /// <summary>How the web version differs from the desktop app; listed in the web-version mark's flyout.</summary>
+    public static string[] WebVersionDifferences { get; } =
+    [
+        "Runs slower and has less memory than the desktop app.",
+        "Files open and save through your browser. Nothing is kept after you close the tab unless you save it.",
+        "Simulation (meshing and solving) needs the desktop app.",
+        "Scripts, the AI Assistant and the MCP bridge need the desktop app.",
+        "Video export and sending to a slicer need the desktop app.",
+    ];
 
     /// <summary>The package version the build was made with (Version in the project, or -p:Version from packaging).</summary>
     public static string Version { get; } = ReadVersion();

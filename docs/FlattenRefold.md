@@ -9,8 +9,14 @@ Single faces retain their source surface and reference layout across save/open.
 Cylinders retain the existing analytic, length-preserving return path. General
 faces use a UV layout whose dimensions follow the middle U and V isocurves;
 this can stretch lengths and areas and is not a manufacturing development of
-a doubly curved surface. Multi-face mesh flattening continues to report strain,
-but does not yet retain a general return map.
+a doubly curved surface. Choose **Surface pattern with face boundaries** under **Layout method** to flatten
+the actual shell using the conformal mesh solver. The output follows the sampled
+rim and holes, includes shared face boundaries as separate guide curves when
+joining faces, and reports stretch. DXF exports the outer and hole outlines.
+A curved spatial edge may still develop straight. The existing **UV layout for
+refolding** option retains the editable return map for a single supporting face.
+Surface patterns from the mesh solver have no return map. Cylinders with a
+rectangular analytic development continue to retain their return map.
 
 Refold / wrap accepts curves, sketches, sheets and solids. A saved layout supplies
 the target automatically; an optional target face overrides it. A plain planar
@@ -59,3 +65,17 @@ not established: automatic reblending of arbitrary imported fillets remains a
 gap, and the kernels may accept different edge cases. Reference:
 [Unwrap Face](https://plasticity-document-revisions.vercel.app/solid/unwrap-face)
 and [Deform](https://plasticity-document-revisions.vercel.app/solid/deform-solid-and-sheet.en).
+
+The [Aurelia leaf gallery model](../gallery/models/aurelia-leaf.prism) retains a NURBS forming surface, its flat reference, a pierced blank and the refolded sheet. The result has 14 interior wires and spans 23.20 mm in Z. Toggle the forming surface in the browser to inspect how the leaf follows it.
+
+The [Meridian helmet](../gallery/models/meridian-helmet.prism) uses Flatten, a 4 mm solid Extrude and Refold on a shared master surface. The finished shell has four trimmed panels. The rib is one valid solid with a cross-section at each panel boundary. Five sampled normal heights agreed within 0.04 mm. Independent multi-face return mapping remains outside this example.
+
+The [revised Meridian helmet](../gallery/models/meridian-helmet.prism) shows the curved
+outline and internal seams calculated from the four-face shell. The copper rib is a
+4 mm extrusion refolded through the shared master surface's UV layout. The geometric
+pattern reported average stretch of 14.9% and a worst case of 74.3%. [FLT-H201](../Prism.Tests/Headless/Surfacing/SurfacePatternTests.cs)
+checks the connected outline and seams. [Issue #163](https://github.com/chrizpro/prism/issues/163).
+
+## Regression coverage
+
+The [headless Refold tests](../Prism.Tests/Headless/Surfacing/RefoldStressTests.cs) exercise a cylinder tilted 41 degrees with 0.05 mm clearance at its seam and between holes. They check individual opening positions, the surviving web and the analytic surface area. The curve-wrap case compares a selected solid edge with the same edge extracted as a standalone guide on a spatial spline. Both passed on Windows on November 23, 2026 after correcting reference-edge selection ([issue #162](https://github.com/chrizpro/prism/issues/162)).

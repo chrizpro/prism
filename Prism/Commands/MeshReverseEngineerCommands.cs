@@ -300,16 +300,21 @@ public sealed class MeshRebuildCommand : MeshCommand
         return span > 2 * Math.PI - 0.06 ? (0, 2 * Math.PI) : (start, span);
     }
 
-    static (double start, double span) AzimuthRange(List<Vec3> verts, FitRegion r, Vec3 u, Vec3 w)
+    internal static (double start, double span) AzimuthRange(List<Vec3> verts, FitRegion r, Vec3 u, Vec3 w)
         => CircularRange(verts.Select(v => { var d = v - r.Origin; return Math.Atan2(Vec3.Dot(d, w), Vec3.Dot(d, u)); }).ToList());
 }
 
-/// <summary>Fits lines and arcs to mesh section outlines and creates them as curves.</summary>
-/// <summary>Puts a plane on the scan, slices it there and makes a real sketch of fitted lines, arcs and circles, ready to extrude or revolve.</summary>
+/// <summary>
+/// Puts a plane on the scan and makes a real sketch, ready to extrude or revolve, of what it traces there: the section, the border
+/// of a selected region, the silhouette, or the sharp creases (MSH-P06). Outlines are fitted with lines, arcs, circles and splines.
+/// </summary>
 public class MeshSectionSketchCommand : MeshCommand
 {
     readonly SelectionSlot _ref;
-    readonly ChoiceParam _plane;
+    readonly ChoiceParam _plane, _trace;
+    readonly NumberParam _crease;
+    const int TraceSection = 0, TraceRegion = 1, TraceSilhouette = 2, TraceCreases = 3, FittedToRegion = 4;
+    int _lastTrace;
     readonly NumberParam _offset, _spacing, _tol;
     readonly BoolParam _autoTol;
     readonly IntParam _count;
@@ -328,6 +333,8 @@ public class MeshSectionSketchCommand : MeshCommand
         _interactive = interactive;
         _plane = Choice("Plane", interactive ? Movable : 0, "XY (horizontal)", "XZ", "YZ", "A construction plane or flat face", "Fitted to the selected region", "Movable plane");
         _ref = Slot(new SelectionSlot { Label = "Plane or flat face", Filter = SelFilter.Plane | SelFilter.Face, Optional = true });
+        _trace = Choice("Trace", TraceSection, "Section (slice the mesh)", "Border of the selected region", "Silhouette", "Sharp creases");
+        _crease = Num("Crease angle", 40, 5, 170, unit: "°");
         _offset = Num("Offset from the plane", 0);
         _count = Add(new IntParam { Label = "Number of sketches", Value = 1, Min = 1, Max = 50 });
         _spacing = Num("Spacing", 5, 0.01);
@@ -346,6 +353,7 @@ public class MeshSectionSketchCommand : MeshCommand
     public override string Icon => "mesh-section";
     public override ActionParam? RepeatApply { get; }
     public override bool SupportsPreview => !_interactive;
+    public override bool RefinesAfterDrag => _interactive;
     public override string OkText => _interactive ? "Done" : "Create sketch";
     public override GizmoSpec? Gizmo => _plane.Index == Movable && Meshes().FirstOrDefault()?.Tri is { } mesh
         ? GizmoSpec.At(MovableOrigin(mesh), _x, _y, _z, _rx, _ry, _rz) with { CombinedByDefault = true }
@@ -358,7 +366,12 @@ public class MeshSectionSketchCommand : MeshCommand
         _x.IsVisible = _y.IsVisible = _z.IsVisible = _rx.IsVisible = _ry.IsVisible = _rz.IsVisible = movable;
         _offset.IsVisible = !movable;
         _ref.IsVisible = _plane.Index == 3;
-        _spacing.IsVisible = _count.Value > 1;
+        // a region's border lies on the region, so start on the plane fitted to it (the face a part sits on, for example)
+        if (_trace.Index != _lastTrace && _trace.Index == TraceRegion && _plane.Index != 3) _plane.Index = FittedToRegion;
+        _lastTrace = _trace.Index;
+        _count.IsVisible = _trace.Index == TraceSection;
+        _spacing.IsVisible = _count.Value > 1 && _trace.Index == TraceSection;
+        _crease.IsVisible = _trace.Index == TraceCreases;
         _tol.IsVisible = !_autoTol.Value;
     }
 
@@ -419,6 +432,12 @@ public class MeshSectionSketchCommand : MeshCommand
     /// <summary>Fitted elements as sketch entities, sharing their end points so the outline stays closed when it is edited.</summary>
     internal static void AddToSketch(SketchModel model, List<SketchSeg> segs, bool closed)
     {
+        if (segs.Count == 0) return;
+        if (segs is [{ IsSpline: true, Closed: true } loop])
+        {
+            model.AddSpline(new[] { loop.P0 }.Concat(loop.Through!).Select(q => model.AddPoint(q.x, q.y)).ToList(), closed: true, control: false);
+            return;
+        }
         if (closed && segs.Count == 2 && segs.All(s => s.IsArc) && Math.Abs(segs[0].Radius - segs[1].Radius) < 0.02 * segs[0].Radius
             && Math.Abs(segs[0].Center.x - segs[1].Center.x) + Math.Abs(segs[0].Center.y - segs[1].Center.y) < 0.02 * segs[0].Radius)
         {
@@ -430,7 +449,14 @@ public class MeshSectionSketchCommand : MeshCommand
         {
             var s = segs[i];
             int end = closed && i == segs.Count - 1 ? first : model.AddPoint(s.P1.x, s.P1.y);
-            if (s.IsArc)
+            if (s.IsSpline)
+            {
+                var ids = new List<int> { last };
+                ids.AddRange(s.Through!.Select(q => model.AddPoint(q.x, q.y)));
+                ids.Add(end);
+                model.AddSpline(ids, closed: false, control: false);
+            }
+            else if (s.IsArc)
             {
                 int c = model.AddPoint(s.Center.x, s.Center.y);
                 if (s.SweepDeg >= 0) model.AddArc(c, last, end); else model.AddArc(c, end, last);       // arcs run counter-clockwise
@@ -438,6 +464,28 @@ public class MeshSectionSketchCommand : MeshCommand
             else model.AddLine(last, end);
             last = end;
         }
+    }
+
+    /// <summary>
+    /// Tangent constraints where fitted lines and arcs continue smoothly, each solved in turn. A tangency is kept only when
+    /// solving it moves no point further than the reach: the sketch must still follow the measurement.
+    /// </summary>
+    internal static int AddTangency(SketchModel model, double reach)
+    {
+        int kept = 0;
+        foreach (var e in model.Entities.Where(e => e.Type is EntType.Line or EntType.Arc).ToList())
+            foreach (int point in model.EndpointsOf(e).ToList())
+            {
+                var before = model.Points.ToDictionary(p => p.Id, p => (p.X, p.Y));
+                int count = model.Constraints.Count;
+                if (FitMeshSectionTool.MakeTangent(model, e.Id, point) == 0) continue;
+                var solved = SketchSolver.Solve(model);
+                double moved = model.Points.Max(p => before.TryGetValue(p.Id, out var b) ? Math.Sqrt((p.X - b.X) * (p.X - b.X) + (p.Y - b.Y) * (p.Y - b.Y)) : 0);
+                if (solved.Converged && moved <= reach) { kept += model.Constraints.Count - count; continue; }
+                model.Constraints.RemoveRange(count, model.Constraints.Count - count);
+                foreach (var p in model.Points) if (before.TryGetValue(p.Id, out var b)) { p.X = b.X; p.Y = b.Y; }
+            }
+        return kept;
     }
 
     protected override CommandOutput? Build() => _interactive && Committing ? Report() : BuildSections(create: !_interactive || _applying);
@@ -462,15 +510,28 @@ public class MeshSectionSketchCommand : MeshCommand
             _planeOutline = [p.PointAt(-extent, -extent), p.PointAt(extent, -extent), p.PointAt(extent, extent), p.PointAt(-extent, extent)];
         }
         var output = new CommandOutput { Label = Title, Icon = Icon };
-        int sketches = 0, loops = 0, lines = 0, arcs = 0, rawPts = 0; double worst = 0, worstRatio = 0, sigma = 0, tolMin = double.MaxValue, tolMax = 0;
-        for (int k = 0; k < _count.Value; k++)
+        int sketches = 0, loops = 0, lines = 0, arcs = 0, splines = 0, circles = 0, rawPts = 0, grazing = 0, tangents = 0;
+        double worst = 0, worstRatio = 0, sigma = 0, tolMin = double.MaxValue, tolMax = 0;
+        int trace = _trace.Index;
+        if (trace == TraceRegion && (S.RegionSel is not { IsEmpty: false } region || !ReferenceEquals(region.Mesh, m)))
+        {
+            Row("Region", "select the area to trace with Select Region or Face selection first", 2);
+            return null;
+        }
+        int planes = trace == TraceSection ? _count.Value : 1;
+        // projected creases and borders: a vertical edge lands as a speck, and parallel rims land on top of each other
+        double speck = Math.Max(0.5, 0.005 * m.Size.Length);
+        var kept = new List<List<(double x, double y)>>();
+        for (int k = 0; k < planes; k++)
         {
             var plane = frame with { Origin = frame.Origin + n * (offset + k * _spacing.Value) };
             var model = create ? new SketchModel() : null; int found = 0;
-            foreach (var l in MeshOps.Section(m, plane.Origin, n))
+            var fitted = new List<(MeshOutline.Trace l, List<(double x, double y)> p2, List<SketchSeg> segs, double tol)>();
+            foreach (var l in Traces(m, plane, trace, ref grazing))
             {
                 if (l.Points.Count < (l.Closed ? 3 : 2)) continue;
                 var p2 = l.Points.Select(p => plane.Project(p)).Select(p => (x: p.u, y: p.v)).ToList();
+                if (trace != TraceSection && LineArcFit.Size(p2) < speck) continue;
                 double tol = _tol.Value;
                 if (_autoTol.Value)
                 {
@@ -479,12 +540,28 @@ public class MeshSectionSketchCommand : MeshCommand
                     tol = LineArcFit.ToleranceFromNoise(noise, LineArcFit.Size(p2), _tol.Value);
                     if (!double.IsNaN(noise)) sigma = Math.Max(sigma, noise);
                 }
+                tol = Math.Max(tol, TolFloor(m, plane, trace, tol));
+                // a region border runs along triangle edges and zig-zags by about a quarter of an edge: never fit tighter
+                if (trace == TraceRegion && p2.Count > 1)
+                {
+                    double edges = 0; for (int i = 1; i < p2.Count; i++) edges += Math.Sqrt(Math.Pow(p2[i].x - p2[i - 1].x, 2) + Math.Pow(p2[i].y - p2[i - 1].y, 2));
+                    tol = Math.Max(tol, 0.25 * edges / (p2.Count - 1));
+                }
                 tolMin = Math.Min(tolMin, tol); tolMax = Math.Max(tolMax, tol);
-                var segs = LineArcFit.Fit(p2, l.Closed, tol);
-                if (segs.Count == 0) continue;
-                double dev = LineArcFit.MaxDeviation(p2, segs);
+                // while the plane is dragged only lines and arcs are fitted; the splines follow when it is released
+                var segs = !create && S.CommandGizmoDragging ? LineArcFit.Fit(p2, l.Closed, tol) : SectionProfileFit.Fit(p2, l.Closed, tol);
+                if (segs.Count > 0) fitted.Add((l, p2, segs, tol));
+            }
+            // parallel rims project onto each other: keep the cleanest copy (fewest curves) of each
+            if (trace == TraceCreases) fitted = fitted.OrderBy(f => f.segs.Count).ThenByDescending(f => f.p2.Count).ToList();
+            foreach (var (l, p2, segs, tol) in fitted)
+            {
+                if (trace == TraceCreases && Covered(p2, kept, 2 * tol)) continue;
+                kept.Add(p2);
+                double dev = LineArcFit.RobustDeviation(p2.Select(q => LineArcFit.MaxDeviation([q], segs)).ToArray());
                 loops++; found++; rawPts += l.Points.Count; worst = Math.Max(worst, dev); worstRatio = Math.Max(worstRatio, dev / tol);
-                lines += segs.Count(s => !s.IsArc); arcs += segs.Count(s => s.IsArc);
+                if (l.Closed && segs.Count == 2 && segs.All(s => s.IsArc)) circles++;      // two half arcs become one circle
+                else { lines += segs.Count(s => !s.IsArc && !s.IsSpline); arcs += segs.Count(s => s.IsArc); splines += segs.Count(s => s.IsSpline); }
                 _overlay.Add(segs.SelectMany(s => s.Polyline().Select(q => plane.PointAt(q.x, q.y))).ToList());
                 if (_interactive) _raw.Add(l.Closed ? [.. l.Points, l.Points[0]] : l.Points);
                 if (model != null)
@@ -495,19 +572,86 @@ public class MeshSectionSketchCommand : MeshCommand
             }
             if (found == 0) continue;
             sketches++;
+            if (model != null) tangents += AddTangency(model, 3 * tolMax);
             if (model != null)
                 output.Add.Add(new NewObject(Occ.Profile(model.ToShapes(plane), faces: false), "Section sketch", ObjKind.Sketch, Plane: plane, Sketch: model));
         }
-        if (loops == 0) { Row("Nothing here", "the plane does not cut the mesh", 2); return null; }
+        string ignored = grazing == 0 ? "" : $"Ignored {grazing} noise outline{(grazing == 1 ? "" : "s")} where the plane slides along a face. To trace that face, select it and choose Border of the selected region.";
+        if (loops == 0)
+        {
+            Row("Nothing here", trace switch
+            {
+                TraceSection => grazing > 0 ? ignored : "the plane does not cut the mesh",
+                TraceCreases => "no creases sharper than the crease angle",
+                _ => "nothing to trace",
+            }, 2);
+            return null;
+        }
         Row("Sketches", sketches.ToString(), 1);
         Row("Outlines", loops.ToString());
-        Row("Elements", $"{lines} lines + {arcs} arcs (from {Count(rawPts)} points)");
+        static string Of(int n, string one) => $"{n} {one}{(n == 1 ? "" : "s")}";
+        Row("Elements", $"{Of(lines, "line")} + {Of(arcs, "arc")} + {Of(splines, "spline")} + {Of(circles, "circle")} (from {Count(rawPts)} points)");
+        if (tangents > 0) Row("Constraints", $"{tangents} tangent");
+        if (grazing > 0) Row("Noise", ignored, 2);
         string range = tolMax - tolMin < 0.0005 ? N(tolMax, "mm") : $"{N(tolMin)} to {N(tolMax, "mm")}";
         Row("Fit tolerance", _autoTol.Value ? $"{range} (scan noise about {N(sigma, "mm")})" : range);
         Row("Largest deviation", N(worst, "mm"), worstRatio <= 1.5 ? 1 : 2);
         Row("Output", "Editable sketch curves. Add driving dimensions in the sketch.");
         if (_interactive) Row("Preview", "Orange: measured section. Cyan: editable curves.");
         return create ? output : Report();
+    }
+
+    /// <summary>The silhouette is traced on a grid and follows the outermost noise of the scan: never fit tighter than three cells.</summary>
+    double TolFloor(TriMesh m, Plane3 plane, int trace, double tol) =>
+        trace == TraceSilhouette ? 3 * MeshOutline.SilhouetteCell(m, plane, _autoTol.Value ? 0.05 : _tol.Value) : 0;
+
+    /// <summary>True when nearly every point lies within reach of an outline already kept (a second rim projecting onto the first).</summary>
+    static bool Covered(List<(double x, double y)> p2, List<List<(double x, double y)>> kept, double reach)
+    {
+        if (kept.Count == 0) return false;
+        // points spread along the curve, ends left out: a side that only shares its corners with a kept curve is not a copy
+        double length = 0; for (int i = 1; i < p2.Count; i++) length += Math.Sqrt(Math.Pow(p2[i].x - p2[i - 1].x, 2) + Math.Pow(p2[i].y - p2[i - 1].y, 2));
+        if (length <= 0) return true;
+        var samples = new List<(double x, double y)>();
+        double walked = 0; int seg = 0;
+        for (int k = 1; k < 40; k++)
+        {
+            double at = length * k / 40;
+            while (seg < p2.Count - 2 && walked + Seg(seg) < at) { walked += Seg(seg); seg++; }
+            double f = Seg(seg) > 0 ? Math.Clamp((at - walked) / Seg(seg), 0, 1) : 0;
+            samples.Add((p2[seg].x + (p2[seg + 1].x - p2[seg].x) * f, p2[seg].y + (p2[seg + 1].y - p2[seg].y) * f));
+        }
+        double Seg(int i) => Math.Sqrt(Math.Pow(p2[i + 1].x - p2[i].x, 2) + Math.Pow(p2[i + 1].y - p2[i].y, 2));
+        int near = 0, total = 0;
+        foreach (var q in samples)
+        {
+            total++;
+            if (kept.Any(k => Enumerable.Range(0, k.Count - 1).Any(j => LineArcFit.SegmentDistance(q, k[j], k[j + 1]) <= reach))) near++;
+        }
+        return near >= 0.9 * total;
+    }
+
+    /// <summary>The outlines the chosen source traces on this plane; section loops that only graze a face are counted and skipped.</summary>
+    List<MeshOutline.Trace> Traces(TriMesh m, Plane3 plane, int trace, ref int grazing)
+    {
+        switch (trace)
+        {
+            case TraceRegion:
+                return MeshOutline.RegionBorder(m, S.RegionSel!.Tris);
+            case TraceSilhouette:
+            {
+                double cell = MeshOutline.SilhouetteCell(m, plane, _autoTol.Value ? 0.05 : _tol.Value);
+                return MeshOutline.Silhouette(m, plane, cell).Select(loop => new MeshOutline.Trace(loop.Select(q => plane.PointAt(q.u, q.v)).ToList(), true)).ToList();
+            }
+            case TraceCreases:
+                return MeshOutline.Creases(m, _crease.Value, Math.Max(1, 0.02 * m.Size.Length));
+            default:
+            {
+                var all = MeshOutline.Section(m, plane.Origin, plane.Normal);
+                grazing += all.Count(t => t.Steepness < MeshOutline.GrazingSteepness);
+                return all.Where(t => t.Steepness >= MeshOutline.GrazingSteepness).ToList();
+            }
+        }
     }
 
     public override void BuildOverlay(CadSession s, Overlay o)

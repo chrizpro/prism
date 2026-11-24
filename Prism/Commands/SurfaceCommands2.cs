@@ -54,6 +54,9 @@ public sealed class TrimSurfaceCommand : Command
         _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
     }
 
+    /// <summary>Apply trims this surface and keeps Trim Surface open for the next one (owner request 2026-11-23).</summary>
+    protected override bool OffersApply => true;
+
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
 
@@ -111,6 +114,7 @@ public sealed class SplitSurfaceCommand : Command
     readonly SelectionSlot _target, _tool;
     readonly ChoiceParam _result;
     readonly BoolParam _deleteTool;
+    readonly ChoiceParam _extent;
 
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
     protected override FeatureRecipe UpgradeRecipe(FeatureRecipe recipe) => recipe.Values.Count == 1 ? recipe with { Values = [.. recipe.Values, false] } : recipe;
@@ -125,12 +129,15 @@ public sealed class SplitSurfaceCommand : Command
         _result = Choice("Result", 0, "One surface, several faces", "Separate surfaces");
         _result.HelpText = "One surface keeps the pieces joined as faces you can select, delete or load on their own. Separate surfaces makes each piece its own object, with its own color.";
         _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
+        // owner decision 2026-11-24: the same Selected / Through all choice as Split Face; last, so older steps keep their values
+        _extent = Choice("Extent", 0, "Selected faces", "Through all (every face the tool crosses)");
+        _extent.HelpText = "Selected faces splits only the faces you picked; picking the whole surface counts as picking all its faces. Through all splits every face of the surface that the tool crosses.";
     }
 
     public override string Title => "Split Surface";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the surface (at the Face level, pick one face to split just that face), then what cuts it: a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.";
+    public override string Hint => "Pick the surface or some of its faces, then what cuts it (Extent: Selected faces splits only the faces you picked, Through all every face the tool crosses): a plane, another surface or face, a solid, or a sketch or curve — curves split along their projection on the surface. The surface is divided into faces; choose Separate surfaces under Result to make each piece its own object. Select a face and press Delete to remove it.";
 
     protected override CommandOutput? Build()
     {
@@ -139,9 +146,9 @@ public sealed class SplitSurfaceCommand : Command
         var obj = S.Find(_target.Items[0].Obj) ?? throw new FormatException("That surface is gone.");
         if (obj.Kind != ObjKind.Surface || !obj.HasBrep) throw new FormatException("Split Surface works on surfaces.");
         if (_target.Items.Any(i => i.Obj != obj.Id)) throw new FormatException("Pick faces of one surface at a time.");
-        // at the Face pick level the picked faces (one or several) are split on their own and the rest of the surface is kept as it is;
-        // picking the surface itself splits all of it
-        bool wholeSurface = _target.Items.Any(i => i.Kind != SelKind.Face || S.Mode != SelMode.Face);
+        // Selected faces: only the picked faces are split and the rest of the surface is kept as it is; picking the surface itself counts as all its faces.
+        // Through all: every face the tool crosses (owner decision 2026-11-24)
+        bool wholeSurface = _extent.Index == 1 || _target.Items.Any(i => i.Kind != SelKind.Face);
         var only = wholeSurface ? [] : _target.Items.Select(i => i.Index).Distinct().OrderBy(i => i).ToList();
         if (only.Any(i => i >= obj.Shape.Count(SubKind.Face))) throw new FormatException("That face is gone.");
         var pieces = only.Count == 0 ? Cut(obj.Shape, _tool.Items[0]) : CutFaces(obj.Shape, only, _tool.Items[0]);
@@ -318,7 +325,7 @@ public sealed class BoundaryFillCommand : Command
         Results.Clear();
         if (_src.Items.Count < 1) return null;
         Refresh();
-        if (_spaces.Count == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps.");
+        if (_spaces.Count == 0) throw new FormatException("Those shapes do not enclose any space. Add a surface or plane to close the gaps. Surfaces from Fit Region reach their neighbours when made with 'Extend past the region'.");
         var want = Wanted();
         var o = new CommandOutput { Label = "Enclosed solid", Icon = "fill" };
         for (int i = 0; i < _spaces.Count; i++)
@@ -444,6 +451,7 @@ public sealed class FillOpeningCommand : Command
         _tol = Num("Joint tolerance", 0.05, 0.001, 5, 0.01);
     }
 
+    protected override bool OffersApply => true;
     public override string Title => "Fill Opening";
     public override string Icon => "patch";
     public override string OkText => "Fill";

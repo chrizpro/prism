@@ -32,6 +32,9 @@ sealed class Bridge
         "Face and edge indices are 1-based; form_info / form_op use 0-based cage indices. Units are millimetres, Z up. Any tool call launches the app if needed. " +
         "Slot and parameter labels match by partial, case-insensitive text; objects can be named by name or id prefix; commands seed empty slots from the selection; " +
         "call wait_idle after view changes before pointer events or screenshots. Prompts build_*, test_* and bug_hunt are ready-made scenarios. " +
+        "For exact surface edits, inspect call_api run_command results: created lists new bodies, changed reports in-place edits and removed lists consumed tools. " +
+        "Check valid on each returned shape, even after a completed command. In Python, cad.run gives only created objects; use cad.run_report(...) for the full report. " +
+        "Use solid_find on the edited body to locate the resulting edges by length or position. For open surfaces solid_profile section extents are useful, but signed area and centroid need a closed, consistently oriented section. " +
         "For curved or organic shapes (Freeform) read the guide first: call_api guide {topic:\"freeform\"}. Describe shapes by stations and silhouettes (cad.form_skin, cad.form_from_silhouettes, cad.svg_to_sketch), verify with cad.profile / solid_profile, and look with screenshot {views:[\"front\",\"right\",\"top\",\"iso\"], object:[...]}.";
 
     // ------------------------------------------------------------ prompts: ready-made test scenarios

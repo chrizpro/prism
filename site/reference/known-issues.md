@@ -16,6 +16,7 @@ This page lists problems we know about. The live list is the set of [open bug re
 | Issue | Area | Problem |
 | --- | --- | --- |
 | [#51](https://github.com/chrizpro/prism/issues/51) | [Boundary Surface](/tool/boundary-surface) › Patch | Patch rejects some bent closed loops as bulging outside their outline. **Workaround:** Boundary Surface's smooth path fills the same loop. |
+| — | CNC › 3D Finish | On steep slopes 3D Finish leaves extra material, up to about 1.2 mm with a 6 mm tool, because it keeps the cutter clear of steep walls by taking the highest nearby point of its height grid. It does not cut into the part. **Workaround:** finish steep areas with Constant-Z Finish, or use a smaller tool. |
 
 ## Platforms
 

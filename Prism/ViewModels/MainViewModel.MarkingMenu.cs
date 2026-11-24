@@ -159,6 +159,9 @@ public sealed partial class MainViewModel
         var s = Session; var list = new List<MenuSpec>();
         if (s.Sketch != null) list.Add(new("Finish sketch", () => s.ExitSketch(true)));
         if (s.ActiveCommand != null) { list.Add(new("OK", () => s.AcceptCommandPanel())); list.Add(new("Cancel", () => s.CancelCommandPanel())); }
+        // Repeat last tool sits first while nothing is open, with whatever key it is bound to now
+        if (s.Sketch == null && s.ActiveCommand == null && s.LastTool is { } last)
+            list.Add(new("Repeat " + last.Title, () => s.RepeatLastTool(), Gesture: Hotkeys.Effective(Hotkeys.Actions.First(a => a.Id == "edit.repeat")).Gesture));
         if (list.Count > 0) list.Add(MenuSpec.Sep);
         list.Add(new("Undo", () => s.Undo(), Enabled: s.CanUndo, Gesture: "Ctrl+Z"));
         list.Add(new("Redo", () => s.Redo(), Gesture: "Ctrl+Y"));

@@ -15,7 +15,7 @@ namespace Prism.Commands;
 public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
 {
     readonly ChoiceParam _type, _create;
-    readonly BoolParam _refs;
+    readonly BoolParam _refs, _extend;
     readonly NumberParam _tol, _outline, _corner;
     readonly IntParam _interior, _grid;
     List<List<Vec3>> _outlines = []; List<Vec3> _samples = [];
@@ -26,10 +26,13 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
         _tol = Num("Fit tolerance", 0.2, 0.001, 50, 0.05);
         _outline = Num("Outline detail", 0.3, 0.01, 50, 0.1);
         _corner = Num("Corner angle", 35, 5, 120, 5, "°");
-        _interior = Add(new IntParam { Label = "Points the surface must follow", Value = 150, Min = 0, Max = 1000 });
+        // the surface fill slows down steeply with more points (150: 8 s, 250: 90 s, 400 or more: the app hung), so they are capped
+        _interior = Add(new IntParam { Label = "Points the surface must follow", Value = 150, Min = 0, Max = 150 });
         _grid = Add(new IntParam { Label = "Grid size (points per side)", Value = 10, Min = 4, Max = 60 });
         _create = Choice("Create", 0, "Surface trimmed to the region", "Closed solid", "Reference geometry only");
         _refs = Check("Add reference geometry (plane or axis)", true);
+        _extend = Check("Extend past the region (to trim or enclose)", false);
+        _extend.HelpText = "The surface reaches beyond the picked triangles so neighbouring fits cross each other: a plane becomes a rectangle with a margin, a cylinder or cone gets longer (and wider round, or a full turn), a sphere is whole and a smooth patch is continued past its outline. Use it to build a solid with Enclosed Body or to trim the surfaces against each other.";
         PreviewButton();
         Src.IsVisible = false;
     }
@@ -53,6 +56,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
         _outline.IsVisible = _corner.IsVisible = _interior.IsVisible = _type.Index == 0 || _type.Index == 5;
         _grid.IsVisible = _type.Index == 6;
         _create.IsVisible = _refs.IsVisible = _type.Index <= 4;
+        _extend.IsVisible = _type.Index > 4 || _create.Index == 0;
     }
 
     static int Complexity(PrimKind k) => k switch { PrimKind.Plane => 0, PrimKind.Sphere => 1, PrimKind.Cylinder => 2, _ => 3 };
@@ -68,7 +72,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
         var sub = sel.Extract();
         Row("Region", $"{Count(sub.TriCount)} triangles, {N(sub.Area(), "mm²")}");
 
-        var key = Key(sel.Version, sub.TriCount, _type.Index, _tol.Value, _outline.Value, _corner.Value, _interior.Value, _grid.Value, _create.Index, _refs.Value);
+        var key = Key(sel.Version, sub.TriCount, _type.Index, _tol.Value, _outline.Value, _corner.Value, _interior.Value, _grid.Value, _create.Index, _refs.Value, _extend.Value);
         var result = Cached(key, () => Fit(sel, sub));
         if (result == null) return null;
         foreach (var l in result.Rows) Results.Add(l);
@@ -137,31 +141,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
         {
             case PrimKind.Plane:
             {
-                // The plane covers the face it was fitted to (owner request 2026-11-20: it was a square well past the face): its sides follow the
-                // face, chosen from the world axes laid on the plane and the face's own long direction, whichever gives the tightest rectangle,
-                // with a small margin so its border shows beyond the face's edge.
-                var nrm = r.Axis.Normalized(); var c = sub.Centroid();
-                var on = c - nrm * Vec3.Dot(c - r.Origin, nrm);
-                var dirs = new List<Vec3>();
-                foreach (var w in new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }) { var d = w - nrm * Vec3.Dot(w, nrm); if (d.Length > 1e-3) dirs.Add(d.Normalized()); }
-                {
-                    double xx = 0, xy = 0, yy = 0; var (bu, bv) = SurfaceMath.Basis(nrm);
-                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, bu), y = Vec3.Dot(q, bv); xx += x * x; xy += x * y; yy += y * y; }
-                    double ang = 0.5 * Math.Atan2(2 * xy, xx - yy); dirs.Add((bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized());
-                }
-                (Vec3 u, Vec3 v, double u0, double u1, double v0, double v1) best = default; double bestArea = double.MaxValue;
-                foreach (var u in dirs)
-                {
-                    var v = Vec3.Cross(nrm, u).Normalized(); double a0 = double.MaxValue, a1 = double.MinValue, b0 = double.MaxValue, b1 = double.MinValue;
-                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, u), y = Vec3.Dot(q, v); a0 = Math.Min(a0, x); a1 = Math.Max(a1, x); b0 = Math.Min(b0, y); b1 = Math.Max(b1, y); }
-                    double area = (a1 - a0) * (b1 - b0);
-                    if (area < bestArea - 1e-9) { bestArea = area; best = (u, v, a0, a1, b0, b1); }
-                }
-                double margin = Math.Max(0.05 * Math.Max(best.u1 - best.u0, best.v1 - best.v0), 1);
-                var centre = on + best.u * ((best.u0 + best.u1) / 2) + best.v * ((best.v0 + best.v1) / 2);
-                double hu = (best.u1 - best.u0) / 2 + margin, hv = (best.v1 - best.v0) / 2 + margin;
-                var pl = new Plane3(centre, best.u, best.v);
-                var rect = Occ.Polyline([pl.PointAt(-hu, -hv), pl.PointAt(hu, -hv), pl.PointAt(hu, hv), pl.PointAt(-hu, hv)], true);
+                var (pl, rect) = PlaneRectangle(r, sub, null);
                 refs.Add(new NewObject(rect, "Fitted plane", ObjKind.Plane, Plane: pl));
                 break;
             }
@@ -174,6 +154,122 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
             }
         }
         return refs;
+    }
+
+    /// <summary>How far a smooth patch is continued past its outline: 15% of the region's size, at least 2 mm.</summary>
+    static double Margin(TriMesh sub) => Math.Max(0.15 * sub.Size.Length, 2);
+
+    /// <summary>How far an extended plane, cylinder or cone reaches past the whole scan: 5% of its size, at least 2 mm.</summary>
+    static double ScanMargin(TriMesh full) => Math.Max(0.05 * full.Size.Length, 2);
+
+    static IEnumerable<Vec3> Corners(TriMesh m)
+    {
+        for (int i = 0; i < 8; i++) yield return new Vec3((i & 1) == 0 ? m.Min.X : m.Max.X, (i & 2) == 0 ? m.Min.Y : m.Max.Y, (i & 4) == 0 ? m.Min.Z : m.Max.Z);
+    }
+
+    /// <summary>
+    /// The surface of a fitted shape, reaching past the region so neighbouring fits cross even with a fillet or a gap between them:
+    /// a plane covers the whole scan's footprint, a cylinder or cone runs the scan's whole length along its axis (widened round by
+    /// a margin, or a full turn when the region already goes most of the way round), a sphere is whole. Other kinds keep their
+    /// region's extent.
+    /// </summary>
+    static Shape Extended(FitRegion r, TriMesh sub, TriMesh full, double tol)
+    {
+        double margin = ScanMargin(full);
+        switch (r.Kind)
+        {
+            case PrimKind.Plane:
+            {
+                var (_, rect) = PlaneRectangle(r, sub, margin, full);
+                return Occ.Profile([rect], faces: true);
+            }
+            case PrimKind.Cylinder:
+            case PrimKind.Cone:
+            {
+                var verts = Enumerable.Range(0, sub.VertexCount).Select(sub.P).ToList();
+                var (u, w) = SurfaceMath.Basis(r.Axis);
+                var (a0, span) = MeshRebuildCommand.AzimuthRange(verts, r, u, w);
+                double round = r.Kind == PrimKind.Cone ? Math.Max(r.Radius, 1e-3) : r.Radius, widen = margin / Math.Max(round, 1e-6);
+                if (span > 300 * Math.PI / 180 || span + 2 * widen >= 2 * Math.PI) { span = 2 * Math.PI; }
+                else { a0 -= widen; span += 2 * widen; }
+                double tan = Math.Tan(r.HalfAngle * Math.PI / 180);
+                var along = Corners(full).Select(q => Vec3.Dot(q - r.Origin, r.Axis)).ToList();
+                double t0 = Math.Min(r.T0, along.Min()) - margin, t1 = Math.Max(Math.Max(r.T1, r.T0 + 1e-3), along.Max()) + margin;
+                if (r.Kind == PrimKind.Cone) t0 = Math.Max(t0, Math.Min(r.T0, r.T1) * 0.05);      // never through the apex
+                var dir = u * Math.Cos(a0) + w * Math.Sin(a0);
+                Vec3 At(double h) => r.Origin + r.Axis * h + dir * (r.Kind == PrimKind.Cone ? h * tan : r.Radius);
+                return Occ.Revolve(Occ.Line(At(t0), At(t1)), r.Origin, r.Axis, span * 180 / Math.PI);
+            }
+            case PrimKind.Sphere:
+            {
+                Vec3 At(double phi) => r.Origin + Vec3.UnitZ * (r.Radius * Math.Cos(phi)) + Vec3.UnitX * (r.Radius * Math.Sin(phi));
+                return Occ.Revolve(Occ.Arc3(At(0), At(Math.PI / 2), At(Math.PI)), r.Origin, Vec3.UnitZ, 360);
+            }
+            default:
+            {
+                var faces = MeshRebuildCommand.BuildFaces(r, sub, RegionGraph.Build(sub, [r]), 0, tol);
+                return faces.Count == 1 ? faces[0] : Occ.Compound(faces);
+            }
+        }
+    }
+
+    /// <summary>A smooth patch continued past its outline: its whole underlying surface, extended by the margin on all four sides.</summary>
+    static Shape ExtendedPatch(Shape face, TriMesh sub, bool untrim = true)
+    {
+        double margin = Margin(sub);
+        var result = untrim ? Occ.Untrim(face, 0) : Occ.Copy(face);
+        var (_, ax) = MeshAnalysis.Principal(sub);
+        var c = sub.Centroid(); double far = sub.Size.Length * 10;
+        foreach (var d in new[] { ax[0], -ax[0], ax[1], -ax[1] })
+        {
+            var next = Occ.ExtendFace(result, c + d * far, margin);
+            result.Dispose(); result = next;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// The rectangle a fitted plane gets: it covers the face it was fitted to (or, given a cover mesh, that mesh's bounding box), its
+    /// sides following the face (the world axes laid on the plane or the face's own long direction, whichever gives the tightest
+    /// rectangle). The margin defaults to a small one, so a reference plane's border shows just beyond the face's edge (owner request
+    /// 2026-11-20).
+    /// </summary>
+    static (Plane3 Plane, Shape Rect) PlaneRectangle(FitRegion r, TriMesh sub, double? margin, TriMesh? cover = null)
+    {
+        switch (r.Kind)
+        {
+            case PrimKind.Plane:
+            {
+                // The plane covers the face it was fitted to (owner request 2026-11-20: it was a square well past the face): its sides follow the
+                // face, chosen from the world axes laid on the plane and the face's own long direction, whichever gives the tightest rectangle,
+                // with a small margin so its border shows beyond the face's edge.
+                var nrm = r.Axis.Normalized(); var c = sub.Centroid();
+                var on = c - nrm * Vec3.Dot(c - r.Origin, nrm);
+                var dirs = new List<Vec3>();
+                foreach (var w in new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }) { var d = w - nrm * Vec3.Dot(w, nrm); if (d.Length > 1e-3) dirs.Add(d.Normalized()); }
+                {
+                    double xx = 0, xy = 0, yy = 0; var (bu, bv) = SurfaceMath.Basis(nrm);
+                    for (int i = 0; i < sub.VertexCount; i++) { var q = sub.P(i) - on; double x = Vec3.Dot(q, bu), y = Vec3.Dot(q, bv); xx += x * x; xy += x * y; yy += y * y; }
+                    double ang = 0.5 * Math.Atan2(2 * xy, xx - yy); dirs.Add((bu * Math.Cos(ang) + bv * Math.Sin(ang)).Normalized());
+                }
+                // the extent: the face itself, or (extended) the whole scan's bounding box laid on the plane
+                var extent = cover == null ? Enumerable.Range(0, sub.VertexCount).Select(sub.P).ToList() : Corners(cover).ToList();
+                (Vec3 u, Vec3 v, double u0, double u1, double v0, double v1) best = default; double bestArea = double.MaxValue;
+                foreach (var u in dirs)
+                {
+                    var v = Vec3.Cross(nrm, u).Normalized(); double a0 = double.MaxValue, a1 = double.MinValue, b0 = double.MaxValue, b1 = double.MinValue;
+                    foreach (var p in extent) { var q = p - on; double x = Vec3.Dot(q, u), y = Vec3.Dot(q, v); a0 = Math.Min(a0, x); a1 = Math.Max(a1, x); b0 = Math.Min(b0, y); b1 = Math.Max(b1, y); }
+                    double area = (a1 - a0) * (b1 - b0);
+                    if (area < bestArea - 1e-9) { bestArea = area; best = (u, v, a0, a1, b0, b1); }
+                }
+                double pad = margin ?? Math.Max(0.05 * Math.Max(best.u1 - best.u0, best.v1 - best.v0), 1);
+                var centre = on + best.u * ((best.u0 + best.u1) / 2) + best.v * ((best.v0 + best.v1) / 2);
+                double hu = (best.u1 - best.u0) / 2 + pad, hv = (best.v1 - best.v0) / 2 + pad;
+                var pl = new Plane3(centre, best.u, best.v);
+                return (pl, Occ.Polyline([pl.PointAt(-hu, -hv), pl.PointAt(hu, -hv), pl.PointAt(hu, hv), pl.PointAt(-hu, hv)], true));
+            }
+            default: throw new ArgumentException("only a plane has a rectangle");
+        }
     }
 
     internal CommandOutput? BuildConversion(SceneObject obj, MeshSelection selection, int type, double tolerance, bool surfaceOnly, bool primitiveOnly)
@@ -232,6 +328,8 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
                     NewObject? made = null;
                     int create = surfaceOnly ? 0 : _create.Index;
                     if (create == 2) { }
+                    else if (create == 0 && _extend.Value && !surfaceOnly)
+                        made = new NewObject(Extended(best, sub, sel.Mesh, _tol.Value), best.Kind + " fit (extended)", ObjKind.Surface);
                     else if (create == 0 || best.Kind == PrimKind.Plane)
                     {
                         var graph = RegionGraph.Build(sub, [best]);
@@ -250,6 +348,7 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
                         R("Fit error (RMS)", N(best.Rms, "mm"), best.Rms < _tol.Value ? 1 : 2);
                         if (best.MaxDev > 0) R("Largest error", N(best.MaxDev, "mm"), best.MaxDev <= _tol.Value * 3 ? 0 : 2);
                         if (create == 1 && best.Kind == PrimKind.Plane) R("Closed solid", "a plane has no closed solid, so the trimmed surface is created", 2);
+                        if (create == 0 && _extend.Value && !surfaceOnly) R("Extended", best.Kind == PrimKind.Sphere ? "the whole sphere" : best.Kind is PrimKind.Plane or PrimKind.Cylinder or PrimKind.Cone ? "across the whole scan, so it crosses its neighbours" : "kept to the region (this shape is not extended)");
                         if (create == 2 && refs.Count == 0) R("Reference geometry", "a sphere has no plane or axis; its centre is listed above", 2);
                         return new FitResult(made?.Shape, made?.NamePrefix ?? "", made?.Kind == ObjKind.Solid, rows, [], []) { References = refs };
                     }
@@ -258,6 +357,23 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
             }
             if (type != 0 || primitiveOnly) { R("No match", best == null ? "the selected region does not match the requested shape" : $"only {100 * best.Area / total:0.#}% of it fits a {best.Kind}", 2); return new FitResult(null, "", false, rows, [], []); }
             R("Not a single exact shape", "using a smooth patch instead");
+        }
+
+        // ---- extended free-form: a least-squares NURBS surface over the region, continued past it
+        if (type is 0 or 5 && _extend.Value && PrimitiveFit2.FitFreeform(sub, Enumerable.Range(0, sub.TriCount).ToList(), _tol.Value) is { Patch: { } patch } free)
+        {
+            try
+            {
+                Shape face = Occ.NurbsSurface(patch.Poles, patch.NU, patch.NV, patch.DegU, patch.DegV);
+                var wide = ExtendedPatch(face, sub, untrim: false); face.Dispose();
+                R("Smooth surface", $"{patch.NU} × {patch.NV} control points, least-squares fit to the region", 1);
+                R("Fit error (RMS)", N(patch.Rms, "mm"), patch.Rms <= _tol.Value ? 1 : 2);
+                R("Largest error", N(patch.MaxError, "mm"), patch.MaxError <= _tol.Value * 3 ? 1 : 2);
+                R("Within tolerance", $"{patch.PercentInTolerance:0.#}% of the region");
+                R("Extended", $"{N(Margin(sub), "mm")} past the region, so it crosses its neighbours");
+                return new FitResult(wide, "Surface fit (extended)", false, rows, sel.Outlines().Take(1).ToList(), []);
+            }
+            catch (KernelException e) { R("Least-squares surface failed", e.Message + "; using the outline patch instead", 2); }
         }
 
         // ---- smooth patch bounded by the region outline
@@ -282,13 +398,18 @@ public sealed class MeshFitSurfaceCommand : MeshCommand, IUsesMeshRegion
             if (face == null) { R("The patch could not be built", "try a larger outline detail or a simpler region", 3); return new FitResult(null, "", false, rows, [outer], pts); }
             var dev = Deviation(face, sub);
             R("Smooth patch", $"{edges.Count} outline edge(s){note}", 1);
+            if (_extend.Value)
+            {
+                try { var wide = ExtendedPatch(face, sub); face.Dispose(); face = wide; R("Extended", $"{N(Margin(sub), "mm")} past the outline, so it crosses its neighbours"); }
+                catch (KernelException e) { R("Could not extend", e.Message + "; the patch stays trimmed to the outline", 2); }
+            }
             if (dev != null)
             {
                 R("Fit error (RMS)", N(dev.Rms, "mm"), dev.Rms <= _tol.Value ? 1 : 2);
                 R("Largest error", N(dev.AbsMax, "mm"), dev.AbsMax <= _tol.Value * 3 ? 1 : 2);
                 R("Within tolerance", $"{dev.WithinTolerance:0.#}% of the region");
             }
-            return new FitResult(face, "Patch fit", false, rows, [outer], pts);
+            return new FitResult(face, _extend.Value ? "Patch fit (extended)" : "Patch fit", false, rows, [outer], pts);
         }
 
         // ---- rectangular grid

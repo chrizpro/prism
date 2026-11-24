@@ -70,6 +70,15 @@ public static class FeatureFinder
     /// <summary>The body's features, worked out once per shape.</summary>
     public static IReadOnlyList<Feat> Features(SceneObject body) => Get(body).Features;
 
+    /// <summary>The exact type, area and radii of one face (cached with the body's analysis).</summary>
+    public static FaceInfo InfoOf(SceneObject body, int face) => Get(body).Info[face];
+    /// <summary>The axis of a cylindrical or conical face, or null.</summary>
+    public static (Vec3 Origin, Vec3 Dir)? AxisOfFace(SceneObject body, int face) => Get(body).Axis[face];
+    /// <summary>The area-weighted centre of a face and its outward normal (exact for flat faces).</summary>
+    public static (Vec3 Centre, Vec3 Normal) PlaceOf(SceneObject body, int face) { var a = Get(body); return (a.Centre[face], a.Normal[face]); }
+    /// <summary>The faces that share an edge with this one.</summary>
+    public static IEnumerable<int> NeighboursOf(SceneObject body, int face) => Get(body).Adj[face].Select(l => l.To);
+
     public static Feat? FeatureOf(SceneObject body, int face)
     {
         var a = Get(body);

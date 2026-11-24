@@ -88,6 +88,7 @@ public sealed unsafe class GlViewport : Decorator
     {
         _gl = glApi;
         var gl = _gl;
+        int compiledBefore = ShaderCache.Compiled;
         _bg = Program(Shaders.BgVert, Shaders.BgFrag);
         _mesh = Program(Shaders.MeshVert, Shaders.MeshFrag);
         _line = Program(Shaders.LineVert, Shaders.LineFrag);
@@ -95,6 +96,7 @@ public sealed unsafe class GlViewport : Decorator
         _grid = Program(Shaders.GridVert, Shaders.GridFrag);
         _flat = Program(Shaders.FlatVert, Shaders.FlatFrag);
         _img = Program(Shaders.ImgVert, Shaders.ImgFrag);
+        Core.StartupLog.Mark(ShaderCache.Compiled > compiledBefore ? "3D view shaders (compiled)" : "3D view shaders (from the shader cache)");
         _flatVao = gl.GenVertexArray(); _flatVbo = gl.GenBuffer();
 
         _emptyVao = gl.GenVertexArray();
@@ -123,7 +125,7 @@ public sealed unsafe class GlViewport : Decorator
         foreach (var m in _cache.Values) FreeMesh(m);
         _cache.Clear();
         foreach(var tex in _surfaceTex.Values)gl.DeleteTexture(tex); _surfaceTex.Clear();
-        gl.DeleteProgram(_bg); gl.DeleteProgram(_mesh); gl.DeleteProgram(_line); gl.DeleteProgram(_point); gl.DeleteProgram(_grid); gl.DeleteProgram(_flat);
+        foreach (var program in new[] { _bg, _mesh, _line, _point, _grid, _flat, _img }) ShaderCache.Release(gl, program);
         DeleteTargets();
         _gl = null;
     }
@@ -189,7 +191,10 @@ public sealed unsafe class GlViewport : Decorator
         }
     }
 
-    uint Program(string vs, string fs)
+    /// <summary>A linked program, from the shader cache when it has this one (see <see cref="ShaderCache"/>).</summary>
+    uint Program(string vs, string fs) => ShaderCache.Program(_gl!, vs, fs, () => CompileProgram(vs, fs));
+
+    uint CompileProgram(string vs, string fs)
     {
         var gl = _gl!;
         uint Compile(ShaderType t, string src)
@@ -202,6 +207,7 @@ public sealed unsafe class GlViewport : Decorator
         }
         uint v = Compile(ShaderType.VertexShader, vs), f = Compile(ShaderType.FragmentShader, fs);
         uint p = gl.CreateProgram();
+        try { gl.ProgramParameter(p, ProgramParameterPName.BinaryRetrievableHint, 1); } catch (Exception) { /* only a hint */ }
         gl.AttachShader(p, v); gl.AttachShader(p, f); gl.LinkProgram(p);
         gl.GetProgram(p, ProgramPropertyARB.LinkStatus, out int linked);
         if (linked == 0) throw new InvalidOperationException("Program link failed: " + gl.GetProgramInfoLog(p));

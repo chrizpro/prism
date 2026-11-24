@@ -205,6 +205,15 @@ public sealed partial class MainViewModel
         var document = new BrowserNode { Kind = NodeKind.Folder, Title = s.FilePath is { } path ? System.IO.Path.GetFileName(path) : "Untitled model", Icon = "component", ExpansionKey = "Document",
             IsExpanded = filtering || _folderOpen.GetValueOrDefault("Document", true), VisibilityEdited = OnNodeVisibility };
         foreach (var folder in groupFolders) document.Children.Add(folder);
+        // saved selection sets (owner approved 2026-11-24): one row per set; clicking it selects the set
+        if (s.SelectionSets.Count > 0)
+        {
+            var sets = new BrowserNode { Kind = NodeKind.Folder, Title = "Selection Sets", Icon = "sel-save-set", ExpansionKey = "Selection Sets",
+                IsExpanded = filtering || _folderOpen.GetValueOrDefault("Selection Sets", true), Badge = s.SelectionSets.Count.ToString() };
+            foreach (var set in s.SelectionSets)
+                sets.Children.Add(new BrowserNode { Kind = NodeKind.SelectionSet, Title = set.Name, Icon = "sel-save-set", Badge = set.Items.Count.ToString(), RenameEdited = OnSelectionSetRenamed });
+            document.Children.Add(sets);
+        }
         foreach (var root in roots)
         {
             if (root.Title is "Bodies" or "Components") foreach (var body in root.Children) document.Children.Add(body);
@@ -285,6 +294,13 @@ public sealed partial class MainViewModel
         var text = node.EditText.Trim();
         if (text.Length == 0 || text == node.Title) return;
         Session.Update(node.ObjectId, o => o.WithName(text), label: "Rename");
+    }
+
+    void OnSelectionSetRenamed(BrowserNode node)
+    {
+        var text = node.EditText.Trim();
+        if (text.Length == 0 || text == node.Title) return;
+        Session.RenameSelectionSet(node.Title, text);
     }
 
     void OnGroupRenamed(BrowserNode node)

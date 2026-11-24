@@ -70,6 +70,9 @@ public partial class MainWindow : Window
 
     static bool LetterMoved(char letter) => Hotkeys.Actions.Any(a => a.Scope == Hotkeys.Sketch && a.Default == letter.ToString() && Hotkeys.IsChanged(a));
 
+    /// <summary>Run a shortcut action by id exactly as its key would (automation uses this): false when it does not apply right now.</summary>
+    public bool RunShortcut(string id) => DataContext is MainViewModel vm && Run(id, vm);
+
     /// <summary>Do what a shortcut action means right now. False means it does not apply here, and the next candidate is tried.</summary>
     bool Run(string id, MainViewModel vm)
     {
@@ -114,11 +117,16 @@ public partial class MainWindow : Window
             case "edit.selectall": s.SelectAll(); return true;
             case "edit.copy": return s.CanCopy && s.CopySelection();
             case "edit.paste": if (!s.CanPaste) return false; s.Paste(); return true;
+            case "edit.selectgrow": if (!s.CanSelectMore) return false; s.SelectMore(Prism.Core.CadSession.MoreSelect.Grow); return true;
+            case "edit.selectshrink": if (!s.CanSelectMore) return false; s.SelectMore(Prism.Core.CadSession.MoreSelect.Shrink); return true;
+            case "edit.reselect": return s.CanReselect && s.ReselectLast();
             case "edit.group": if (!s.CanGroup) return false; s.GroupSelection(); return true;
             case "edit.ungroup": if (!s.CanUngroup) return false; s.Ungroup(); return true;
             case "edit.delete": return s.Key("Delete");
             case "edit.cancel":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.CancelGizmoPlacement();vm.CloseGizmoPanel();return true;}return s.Key("Escape");
             case "edit.accept":if(s.PendingNotice==null&&vm.ShowGizmoPanel&&vm.GizmoPositioning&&!vm.GizmoIsDatum){vm.BindGizmoSelection();return true;}return s.Key("Enter");
+            case "edit.repeat": return s.RepeatLastTool();
+            case "gizmo.pivot": return s.Sketch == null && s.DatumVisible && vm.ToggleGizmoPivot();
             case "view.lookat": return s.Key("LookAt");
             case "view.extents": case "view.extents.home": s.ZoomExtents(); return true;
             case "view.quad.maximize": return (Content as MainView)?.TryToggleQuadMaximize() == true;

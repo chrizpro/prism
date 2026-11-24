@@ -118,8 +118,10 @@ static class DirectHelpers
     }
 
     /// <summary>
-    /// Re-skin one flat face so it lies on a new plane. Material between the old face and the new plane (inside the face's outline, swept along its normal) is added where the new
-    /// plane is outside the part and cut where it is inside, so a tilted target gives a wedge. Neighbour faces extend or trim to meet the new plane.
+    /// Re-skin one flat face so it lies on a new plane. Material between the old face and the new plane is added where the new plane is outside the part and cut where it is
+    /// inside, so a tilted target gives a wedge. When every neighbour of the face is flat, that material is bounded by the neighbours' own planes, so they extend or trim to meet
+    /// the new plane (owner report 2026-11-23: the end of a turned bar set onto a wall used to grow straight out along its own normal, leaving a step beside the long side).
+    /// A face with a curved neighbour falls back to sweeping the face along its normal.
     /// </summary>
     public static Shape MoveFaceToPlane(Shape body, Shape face, Vec3 outward, Vec3 target, Vec3 targetNormal)
     {
@@ -127,6 +129,47 @@ static class DirectHelpers
         double reach = 2 * (diag + (target - centre).Length) + 10;
         var nt = targetNormal.Normalized(); if (Vec3.Dot(nt, outward) < 0) nt = -nt;
         if (Vec3.Dot(nt, outward) < 1e-3) throw new FormatException("The target plane is square-on to that face, so the face can never reach it.");
+        if (FlatNeighbours(body, face) is { } neighbours)
+        {
+            try
+            {
+                var at = face.Props().Center;
+                Shape Bounded(bool beyondFace)
+                {
+                    // between the face's own plane and the target, on the face's side of every neighbour's plane
+                    var region = Occ.Common(HalfSpace(at, outward, reach, !beyondFace), HalfSpace(target, nt, reach, beyondFace));
+                    foreach (var (p, n) in neighbours)
+                    {
+                        double side = Vec3.Dot(at - p, n);
+                        if (Math.Abs(side) < 1e-9) continue;
+                        region = Occ.Common(region, HalfSpace(p, n, reach, side < 0));
+                    }
+                    return region;
+                }
+                var grow = Bounded(true); var trim = Bounded(false);
+                bool growing = grow.Props().Volume > 1e-9, trimming = trim.Props().Volume > 1e-9;
+                if (!growing && !trimming) throw new FormatException("That face is already on the target plane.");
+                // Neighbour planes that are nearly parallel (a drafted wall beside a gusset) leave the region open far beyond the face: the 2026-11-24
+                // pump-bracket rework grew a slab 450 mm out along the base. Stretching neighbours only ever reaches as far as the face moves, so material
+                // outside the face's box grown by its largest distance to the target is not a stretch: use the plain sweep below instead.
+                if (growing && !NearFace(grow) || trimming && !NearFace(trim)) throw new KernelException("Neighbour planes do not close the moved region.");
+                bool NearFace(Shape region)
+                {
+                    var fp = face.Props(); double reachOut = 0;
+                    foreach (var x in new[] { fp.Min.X, fp.Max.X }) foreach (var y in new[] { fp.Min.Y, fp.Max.Y }) foreach (var z in new[] { fp.Min.Z, fp.Max.Z })
+                        reachOut = Math.Max(reachOut, Math.Abs(Vec3.Dot(new Vec3(x, y, z) - target, nt)));
+                    double e = reachOut + 1; var rp = region.Props();
+                    return rp.Min.X >= fp.Min.X - e && rp.Min.Y >= fp.Min.Y - e && rp.Min.Z >= fp.Min.Z - e
+                        && rp.Max.X <= fp.Max.X + e && rp.Max.Y <= fp.Max.Y + e && rp.Max.Z <= fp.Max.Z + e;
+                }
+                var bounded = body;
+                if (growing) bounded = Occ.Fuse(bounded, grow);
+                if (trimming) bounded = Occ.Cut(bounded, trim);
+                bounded = DropCollapsedFaces(bounded);
+                if (bounded.IsValid && bounded.Count(SubKind.Solid) == body.Count(SubKind.Solid)) return bounded;
+            }
+            catch (KernelException) { /* the swept face below still works */ }
+        }
         Shape? add = null, remove = null;
         try { var a = Occ.Common(Occ.Extrude(face, outward * reach), HalfSpace(target, nt, reach, true)); if (a.Props().Volume > 1e-9) add = a; } catch (KernelException) { }
         try { var r = Occ.Common(Occ.Extrude(face, -outward * reach), HalfSpace(target, nt, reach, false)); if (r.Props().Volume > 1e-9) remove = r; } catch (KernelException) { }
@@ -135,6 +178,59 @@ static class DirectHelpers
         if (add != null) res = Occ.Fuse(res, add);
         if (remove != null) res = Occ.Cut(res, remove);
         return res;
+    }
+
+    /// <summary>
+    /// A face that already touched the target along one edge (the end of a piece turned about the corner it shares with the wall) can survive the boolean
+    /// as a face of no area. Sew the solid again from its real faces; keep the result only when it is a valid solid of the same volume.
+    /// </summary>
+    static Shape DropCollapsedFaces(Shape shape)
+    {
+        int n = shape.Count(SubKind.Face);
+        var faces = Enumerable.Range(0, n).Select(i => shape.Sub(SubKind.Face, i)).ToList();
+        // a turn leaves rounding of about a micron: the face that ran along the shared edge comes out a strip 1e-6 mm wide, not exactly nothing
+        var areas = faces.Select(f => f.Props().Area).ToList();
+        double tiny = Math.Max(1e-9, areas.Sum() * 1e-6);
+        if (areas.All(a => a > tiny) || shape.Count(SubKind.Solid) != 1) return shape;
+        try
+        {
+            // the kernel removes the strip and its end edges, so the faces around it meet at a clean corner
+            var clean = Occ.CleanSmall(shape, 1e-4);
+            if (clean.IsValid && clean.Count(SubKind.Solid) == 1 && clean.Count(SubKind.Face) < n
+                && Math.Abs(clean.Props().Volume - shape.Props().Volume) < 1e-6 * Math.Max(1, shape.Props().Volume))
+                return clean.Sub(SubKind.Solid, 0);
+        }
+        catch (KernelException) { }
+        return shape;
+    }
+
+    /// <summary>The planes (a point and the outward normal) of every face sharing an edge with <paramref name="face"/>, or null when one of them is curved.</summary>
+    static List<(Vec3 point, Vec3 normal)>? FlatNeighbours(Shape body, Shape face)
+    {
+        const double tol = 1e-6;
+        var own = Enumerable.Range(0, face.Count(SubKind.Edge)).Select(i => Occ.EdgeInfoOf(face.Sub(SubKind.Edge, i))).ToList();
+        var fp = face.Props();
+        bool Shares(Shape other)
+        {
+            for (int i = 0; i < other.Count(SubKind.Edge); i++)
+            {
+                var e = Occ.EdgeInfoOf(other.Sub(SubKind.Edge, i));
+                if (own.Any(o => o.Start.DistanceTo(e.Start) < tol && o.End.DistanceTo(e.End) < tol || o.Start.DistanceTo(e.End) < tol && o.End.DistanceTo(e.Start) < tol)) return true;
+            }
+            return false;
+        }
+        var list = new List<(Vec3, Vec3)>();
+        for (int i = 0; i < body.Count(SubKind.Face); i++)
+        {
+            using var other = body.Sub(SubKind.Face, i);
+            var op = other.Props();
+            if (op.Center.DistanceTo(fp.Center) < tol && Math.Abs(op.Area - fp.Area) < tol) continue;    // the face itself
+            if (!Shares(other)) continue;
+            var info = Occ.FaceInfoOf(other);
+            if (info.Type != "Plane") return null;
+            list.Add((op.Center, info.Normal.Normalized()));
+        }
+        return list.Count > 0 ? list : null;
     }
 
     // ---------------------------------------------------------------- pattern recognition (the work is in FeatureFinder)
@@ -646,12 +742,33 @@ public sealed class SplitBodyCommand : Command
 {
     readonly SelectionSlot _body, _tool;
     readonly BoolParam _deleteTool;
+    readonly MovableCutPlane _cut;
 
     public SplitBodyCommand()
     {
         _body = Slot(new SelectionSlot { Label = "Body to split", Filter = SelFilter.Solid });
-        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface or solid)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj });
+        _tool = Slot(new SelectionSlot { Label = "Splitting tool (plane, face, surface, solid or sketch)", Filter = SelFilter.Plane | SelFilter.SurfaceObj | SelFilter.Face | SelFilter.Solid | SelFilter.SketchObj | SelFilter.CurveObj });
         _deleteTool = Check(ToolShapes.DeleteToolLabel, true);
+        // added after the older option, so saved steps keep their values and cut with their picked tool
+        _cut = new MovableCutPlane(Check("Cut with a movable plane", false), Num("Plane X", 0), Num("Plane Y", 0), Num("Plane Z", 0),
+            Num("Plane turn X", 0, unit: "°"), Num("Plane turn Y", 0, unit: "°"), Num("Plane turn Z", 0, unit: "°"));
+        UpdateVisibility();
+    }
+
+    /// <summary>Cut one body after another with Apply (owner request 2026-11-23); the movable plane stays where it is.</summary>
+    protected override bool OffersApply => true;
+    public override GizmoSpec? Gizmo => _cut.On.Value && _body.Items.Count > 0 ? _cut.Gizmo : null;
+    public override bool RefinesAfterDrag => _cut.On.Value;
+
+    /// <summary>A click anywhere on a sketch or curve (one of its lines, or the area a closed sketch fills) means the whole sketch.</summary>
+    SelItem Whole(SelItem it) => it.Kind != SelKind.Object && S.Find(it.Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve } o ? SelItem.Of(o) : it;
+
+    /// <summary>Half the side of the plane's square: past the body wherever the plane is (Apply can leave it away from the next body's centre).</summary>
+    double Reach(SceneObject body) { var p = body.Shape.Props(); return p.Size.Length * 0.75 + p.Center.DistanceTo(_cut.Frame.Origin) + 1; }
+
+    public override void BuildOverlay(CadSession s, Overlay o)
+    {
+        if (_cut.On.Value && _body.Items.Count > 0 && s.Find(_body.Items[0].Obj) is { } body) _cut.Draw(o, Reach(body));
     }
 
     /// <summary>Steps saved before the option existed left the cutting tool in place.</summary>
@@ -661,7 +778,10 @@ public sealed class SplitBodyCommand : Command
     /// A sketch or curve cuts along its own plane's normal, straight through the whole body in both directions: a line across the body divides it in two,
     /// and a closed loop inside the body's outline divides it into the plug the loop encloses and the rest. A line that stops inside the body separates nothing and is refused.
     /// </summary>
-    Shape SweepThroughBody(SelItem item, SceneObject body)
+    Shape SweepThroughBody(SelItem item, SceneObject body) => SweepThroughBody(S, item, body);
+
+    /// <summary>The sheet a sketch or curve sweeps out along its plane's normal, reaching past the body on both sides (shared with Split Face's Through all).</summary>
+    internal static Shape SweepThroughBody(CadSession S, SelItem item, SceneObject body)
     {
         var plane = S.PlaneOf(item) ?? S.Find(item.Obj)?.SketchPlane ?? throw new FormatException("A curve needs a plane to cut along. Pick a sketch, or a curve drawn in a sketch.");
         var normal = plane.Normal.Normalized();
@@ -672,29 +792,40 @@ public sealed class SplitBodyCommand : Command
         return Occ.Extrude(start, normal * (span * 2));
     }
 
-    protected override void UpdateVisibility() =>
-        _deleteTool.IsVisible = _tool.Items.Count > 0 && ToolShapes.Throwaway(S, _tool.Items[0], _body.Items.Count > 0 ? S.Find(_body.Items[0].Obj) : null) != null;
+    protected override void UpdateVisibility()
+    {
+        if (_cut == null || S == null) return;
+        bool plane = _cut.On.Value;
+        _cut.UpdateVisibility();
+        _tool.IsVisible = !plane;
+        var body = _body.Items.Count > 0 ? S.Find(_body.Items[0].Obj) : null;
+        if (plane && body is { HasBrep: true }) _cut.PlaceAt(body.Shape.Props().Center);
+        _deleteTool.IsVisible = !plane && _tool.Items.Count > 0 && ToolShapes.Throwaway(S, Whole(_tool.Items[0]), body) != null;
+    }
 
     public override string Title => "Split Body";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Pick the body, then what cuts it: a plane, face, surface, solid or a sketch. A sketch cuts straight through the body along its plane's normal: a line across the whole body gives two pieces, a closed shape inside the outline gives the plug it encloses and the body with a pocket. A line that stops inside the body is refused. Each piece becomes its own body.";
+    public override string Hint => "Pick the body, then what cuts it: a plane, face, surface, solid or a sketch. A sketch cuts straight through the body along its plane's normal: a line across the whole body gives two pieces, a closed shape inside the outline gives the plug it encloses and the body with a pocket. A line that stops inside the body is refused. Each piece becomes its own body. Or tick Cut with a movable plane and drag the plane with the gizmo. Apply splits and stays open for the next body.";
 
     protected override CommandOutput? Build()
     {
         Results.Clear();
-        if (_body.Items.Count == 0 || _tool.Items.Count == 0) return null;
+        bool plane = _cut.On.Value;
+        if (_body.Items.Count == 0 || !plane && _tool.Items.Count == 0) return null;
         var body = S.Find(_body.Items[0].Obj) ?? throw new FormatException("That body is gone.");
         if (body.Kind != ObjKind.Solid || !body.HasBrep) throw new FormatException("Split Body works on solid bodies.");
-        bool sketchTool = S.Find(_tool.Items[0].Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve } && _tool.Items[0].Kind == SelKind.Object;
-        var tool = sketchTool ? SweepThroughBody(_tool.Items[0], body) : ToolShapes.For(S, _tool.Items[0]);
+        var ti = plane ? default : Whole(_tool.Items[0]);
+        bool sketchTool = !plane && S.Find(ti.Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve };
+        var tool = plane ? _cut.Square(Reach(body)) : sketchTool ? SweepThroughBody(ti, body) : ToolShapes.For(S, ti);
         var pieces = Occ.Split(body.Shape, tool);
         int n = pieces.Count(SubKind.Solid);
         if (n < 2) throw new FormatException(sketchTool
             ? "That line stops inside the body, so it cannot divide it. Draw it across the whole body (past the outline on both sides), or use a closed shape that lies inside the outline."
+            : plane ? "The plane does not cross the body. Drag it with the gizmo so it passes through the body."
             : "The tool does not cut all the way through the body. Extend it so it crosses the body completely.");
         var o = new CommandOutput { Label = "Split body", Icon = "splitbody" };
-        if (_deleteTool.Value && ToolShapes.Throwaway(S, _tool.Items[0], body) is { } used) o.Remove.Add(used);
+        if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
         o.Replace.Add((body, pieces.Sub(SubKind.Solid, 0)));
         for (int i = 1; i < n; i++) o.Add.Add(new NewObject(pieces.Sub(SubKind.Solid, i), "Split piece", ObjKind.Solid));
         Results.Add(new ResultLine("Pieces", n.ToString()));

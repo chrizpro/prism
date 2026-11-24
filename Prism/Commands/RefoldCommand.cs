@@ -49,7 +49,7 @@ public class RefoldCommand:Command
     {
         Results.Clear();if(!Complete)return null;
         var pattern=S.Find(_pattern.Items[0].Obj)??throw new FormatException("Select the original flat pattern.");
-        var map=pattern.FlatMap;
+        var map=_pattern.Items[0].Kind == SelKind.Edge ? null : pattern.FlatMap;
         bool defaults = _scales.All(p=>p.Value==1) && _offsets.All(p=>p.Value==0) && !_mirror.Value && !_swap.Value && !_flip.Value;
         bool curvesOnly = _curves.Items.All(i => i.Kind==SelKind.Edge || S.Find(i.Obj)?.Kind is ObjKind.Curve or ObjKind.Sketch);
         if (map == null || map.Cylinder.Length != 14 || !defaults || !curvesOnly || _target.Items.Count>0 || _reblend.Value)
@@ -88,7 +88,7 @@ public class RefoldCommand:Command
             : map?.SourceFaceBrep is { } brep ? Occ.FromBrep(brep)
             : map != null && S.Find(map.SourceId) is { } original ? original.Shape.Sub(SubKind.Face,map.FaceIndex)
             : throw new FormatException("Choose a target face for this planar reference.");
-        bool alongCurve=map==null && pattern.Shape.Count(SubKind.Face)==0;
+        bool alongCurve=map==null && (_pattern.Items[0].Kind==SelKind.Edge || pattern.Shape.Count(SubKind.Face)==0);
         using var reference = alongCurve ? FaceOf(_pattern.Items[0]) : map?.ReferenceBrep is { } flat ? Occ.FromBrep(flat)
             : _pattern.Items[0].Kind == SelKind.Face ? FaceOf(_pattern.Items[0])
             : pattern.Shape.Count(SubKind.Face)==1 ? Occ.Compound([pattern.Shape])
