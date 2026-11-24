@@ -56,6 +56,7 @@ public sealed class SplitFaceCommand : Command
     readonly ChoiceParam _mode;
     readonly BoolParam _deleteTool;
     readonly MovableCutPlane _cut;
+    readonly ChoiceParam _extent;
 
     public SplitFaceCommand()
     {
@@ -66,8 +67,12 @@ public sealed class SplitFaceCommand : Command
         // added after the older options, so saved steps keep their values and cut with their picked tool
         _cut = new MovableCutPlane(Check("Cut with a movable plane", false), Num("Plane X", 0), Num("Plane Y", 0), Num("Plane Z", 0),
             Num("Plane turn X", 0, unit: "°"), Num("Plane turn Y", 0, unit: "°"), Num("Plane turn Z", 0, unit: "°"));
+        // owner approved 2026-11-24: split only the picked face, or every face of the body the tool crosses; last, so older steps replay as Selected face
+        _extent = Choice("Extent", 0, "Selected face", "Through all (every face the tool crosses)");
         UpdateVisibility();
     }
+
+    bool ThroughAll => _extent.Index == 1 && _mode.Index == 0;
 
     /// <summary>Split one face after another with Apply (owner request 2026-11-23); the movable plane stays where it is.</summary>
     protected override bool OffersApply => true;
@@ -96,10 +101,11 @@ public sealed class SplitFaceCommand : Command
 
     protected override void UpdateVisibility()
     {
-        if (_cut == null || S == null) return;
+        if (_cut == null || _extent == null || S == null) return;
         bool plane = _cut.On.Value;
         _cut.UpdateVisibility();
         _tool.IsVisible = !plane;
+        _extent.IsVisible = _mode.Index == 0;
         if (plane && _face.Items.Count > 0 && S.ShapeOf(_face.Items[0]) is { } face) _cut.PlaceAt(face.Props().Center);
         _deleteTool.IsVisible = !plane && _tool.Items.Count > 0 && ToolShapes.Throwaway(S, Whole(_tool.Items[0]), _face.Items.Count > 0 ? S.Find(_face.Items[0].Obj) : null) != null;
     }
@@ -107,7 +113,7 @@ public sealed class SplitFaceCommand : Command
     public override string Title => "Split Face";
     public override string Icon => "splitbody";
     public override string OkText => "Split";
-    public override string Hint => "Edit existing geometry: pick a face, then a plane, an edge or a sketch that crosses it. The face is divided in two along that line; the shape of the body does not change. Use it to make room for a different edit on one half (for example a Push / Pull of only part of a face). A curve that does not cross the whole face leaves it as it was. Or tick Cut with a movable plane and drag the plane with the gizmo. Apply splits and stays open for the next face.";
+    public override string Hint => "Edit existing geometry: pick a face, then a plane, an edge or a sketch that crosses it. The face is divided in two along that line; the shape of the body does not change. Use it to make room for a different edit on one half (for example a Push / Pull of only part of a face). A curve that does not cross the whole face leaves it as it was. Or tick Cut with a movable plane and drag the plane with the gizmo. Extent Through all splits every face of the body that the plane or sketch crosses, all the way through, and keeps one solid. Apply splits and stays open for the next face.";
 
     protected override CommandOutput? Build()
     {
@@ -119,6 +125,7 @@ public sealed class SplitFaceCommand : Command
         var face = S.ShapeOf(fi) ?? throw new FormatException("That face is gone.");
         var ti = plane ? default : Whole(_tool.Items[0]);
         bool drawn = !plane && S.Find(ti.Obj) is { Kind: ObjKind.Sketch or ObjKind.Curve };
+        if (ThroughAll) return SplitThrough(body, plane, ti, drawn);
         Shape curves;
         if (plane) { var f = _cut.Frame; curves = Occ.Section(face, f.Origin, f.Normal); }
         else if (ti.Kind != SelKind.Edge && !drawn && S.PlaneOf(ti) is { } pl)
@@ -145,6 +152,36 @@ public sealed class SplitFaceCommand : Command
         res = res.Sub(SubKind.Solid, 0);
         Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
         var o = new CommandOutput { Label = "Split face", Icon = "splitbody" };
+        o.Replace.Add((body, res));
+        if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
+        return o;
+    }
+
+    /// <summary>
+    /// Through all: the curves where the plane, or the sheet a sketch sweeps along its normal, crosses the whole body divide every face they cross.
+    /// The body stays one solid of the same shape.
+    /// </summary>
+    CommandOutput SplitThrough(SceneObject body, bool plane, SelItem ti, bool drawn)
+    {
+        Shape curves;
+        try
+        {
+            if (plane) { var f = _cut.Frame; curves = Occ.Section(body.Shape, f.Origin, f.Normal); }
+            else if (drawn) { using var sheet = SplitBodyCommand.SweepThroughBody(S, ti, body); curves = Occ.Intersect(body.Shape, sheet); }
+            else if (ti.Kind != SelKind.Edge && S.PlaneOf(ti) is { } pl) curves = Occ.Section(body.Shape, pl.Origin, pl.Normal);
+            else throw new FormatException("Through all needs a plane or a sketch to cut with: an edge has no direction to carry it through the body. Pick a plane or a sketch, or set Extent to Selected face.");
+        }
+        catch (KernelException) { throw new FormatException("The plane or sketch does not cross the body."); }
+        int before = body.Shape.Count(SubKind.Face);
+        if (curves.Count(SubKind.Edge) == 0) throw new FormatException("The plane or sketch does not cross the body.");
+        Shape res;
+        try { res = Occ.Split(body.Shape, curves); }
+        catch (KernelException) { throw new FormatException("The plane or sketch does not cross the body."); }
+        if (res.Count(SubKind.Solid) != 1 || res.Count(SubKind.Face) <= before)
+            throw new FormatException("That does not divide any face of the body. Move the plane or sketch so it crosses the body.");
+        res = res.Sub(SubKind.Solid, 0);
+        Results.Add(new ResultLine("Faces", $"{before}  →  {res.Count(SubKind.Face)}"));
+        var o = new CommandOutput { Label = "Split faces through", Icon = "splitbody" };
         o.Replace.Add((body, res));
         if (!plane && _deleteTool.Value && ToolShapes.Throwaway(S, ti, body) is { } used) o.Remove.Add(used);
         return o;

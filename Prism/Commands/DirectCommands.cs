@@ -765,7 +765,10 @@ public sealed class SplitBodyCommand : Command
     /// A sketch or curve cuts along its own plane's normal, straight through the whole body in both directions: a line across the body divides it in two,
     /// and a closed loop inside the body's outline divides it into the plug the loop encloses and the rest. A line that stops inside the body separates nothing and is refused.
     /// </summary>
-    Shape SweepThroughBody(SelItem item, SceneObject body)
+    Shape SweepThroughBody(SelItem item, SceneObject body) => SweepThroughBody(S, item, body);
+
+    /// <summary>The sheet a sketch or curve sweeps out along its plane's normal, reaching past the body on both sides (shared with Split Face's Through all).</summary>
+    internal static Shape SweepThroughBody(CadSession S, SelItem item, SceneObject body)
     {
         var plane = S.PlaneOf(item) ?? S.Find(item.Obj)?.SketchPlane ?? throw new FormatException("A curve needs a plane to cut along. Pick a sketch, or a curve drawn in a sketch.");
         var normal = plane.Normal.Normalized();

@@ -122,4 +122,57 @@ public class SplitWithPlaneAndSketchTests
         SetNumber(split, "Plane X", 500);
         Assert.Null(split.TryBuild());
     }
+
+    /// <summary>The side face of a 100 mm cube whose centre is at x = 0.</summary>
+    static SelItem SideFace(SceneObject body) => new(body.Id, SelKind.Face,
+        Enumerable.Range(0, body.Shape.Count(SubKind.Face)).Single(i => Math.Abs(body.Shape.Sub(SubKind.Face, i).Props().Center.X) < 1e-6));
+
+    [AvaloniaFact(DisplayName = "SOL-H205 | Split Face Through all with a level plane splits all four sides of a cube and keeps one solid of the same volume")]
+    [Trait("TestId", "SOL-H205")]
+    public void ThroughAllWithPlane()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 100, 100, 100);
+        var split = Open(session, () => new SplitFaceCommand());
+        SetToggle(split, "Cut with a movable plane", true);
+        Click(split, "Face to split", SideFace(body));
+        SetChoice(split, "Extent", "Through all (every face the tool crosses)");
+        var result = Assert.Single(BuildOutput(split).Replace).New;
+        Assert.Equal(1, result.Count(SubKind.Solid));
+        Assert.Equal(10, result.Count(SubKind.Face));
+        AssertNear(1000000, result.Props().Volume, "Volume (mm³)");
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H206 | Split Face Selected face with the same plane splits only the picked side")]
+    [Trait("TestId", "SOL-H206")]
+    public void SelectedFaceOnlyByDefault()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 100, 100, 100);
+        var split = Open(session, () => new SplitFaceCommand());
+        SetToggle(split, "Cut with a movable plane", true);
+        Click(split, "Face to split", SideFace(body));
+        Assert.Equal("Selected face", split.Params.OfType<ChoiceParam>().Single(p => p.Label == "Extent").Selected);
+        Assert.Equal(7, Assert.Single(BuildOutput(split).Replace).New.Count(SubKind.Face));
+    }
+
+    [AvaloniaFact(DisplayName = "SOL-H207 | Split Face Through all with a sketch line across the top splits the top, the bottom and the two sides it crosses; an edge is refused")]
+    [Trait("TestId", "SOL-H207")]
+    public void ThroughAllWithSketch()
+    {
+        var session = new CadSession();
+        var body = CreateBoxBody(session, Vec3.Zero, 100, 100, 100);
+        var line = TwoSegmentLine(session, 100);
+        var split = Open(session, () => new SplitFaceCommand());
+        Click(split, "Face to split", TopFace(body, 100));
+        Click(split, "Splitting plane, edge or sketch", SelItem.Of(line));
+        SetChoice(split, "Extent", "Through all (every face the tool crosses)");
+        var result = Assert.Single(BuildOutput(split).Replace).New;
+        Assert.Equal(1, result.Count(SubKind.Solid));
+        Assert.Equal(10, result.Count(SubKind.Face));
+        AssertNear(1000000, result.Props().Volume, "Volume (mm³)");
+
+        Click(split, "Splitting plane, edge or sketch", new SelItem(body.Id, SelKind.Edge, 0));
+        Assert.Null(split.TryBuild());
+    }
 }

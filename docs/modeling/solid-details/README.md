@@ -56,7 +56,9 @@ The owner asked that Split Body and Split Face take a sketch as the cutting tool
 
 ## Split extent across modeling workspaces
 
-**Proposed, awaiting owner review.** The [split extent issue](https://github.com/chrizpro/prism/issues/160) tracks the request.
+**Split Face: owner approved 2026-11-24, built (tests, not tried by hand).** The owner wants both: split only the faces picked, or pick one face and have the split go all the way through the body. Split Face has an **Extent** choice: **Selected face** (the default, and what older saved steps replay with) divides only the picked face; **Through all** divides every face of that body the tool crosses and keeps one solid, so the body's shape and volume do not change. The tool for Through all is a plane (picked, or the movable plane) or a sketch or curve, which is carried along its own plane's normal through the whole body, as in Split Body. An edge cannot cut through all (it has no direction to carry it in) and is refused with a message. Extent is hidden in Imprint mode, which marks one face. Tests [SOL-H205 to SOL-H207](../../../Prism.Tests/Headless/Solid/SplitWithPlaneAndSketchTests.cs): a plane at mid-height through a 100 mm cube splits the four side faces, 6 faces become 10 and the volume stays 1,000,000 mm³; Selected face with the same plane splits only the picked side (7 faces); a sketch line across the top, Through all, splits the top, the bottom and the two sides it crosses (6 to 10).
+
+**The other rows below are still proposed, awaiting owner review.** The [split extent issue](https://github.com/chrizpro/prism/issues/160) tracks the request.
 
 | Command | Selected face | Through all |
 | --- | --- | --- |
