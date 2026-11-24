@@ -117,7 +117,8 @@
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                     <Button Grid.Column="1" Classes="ghost" Content="Cancel" Click="OnCancel"/>
-                    <Button Grid.Column="2" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                    <Button Grid.Column="2" Classes="secondary" Content="{Binding ActiveCommand.RepeatApply.Label}" Click="OnRepeatApply"
+                            ToolTip.Tip="Make this and keep the tool open, with the same options, for the next one"
                             IsVisible="{Binding ActiveCommand.RepeatApply, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     <Button Grid.Column="3" Classes="primary" Content="{Binding ActiveCommand.CommitText}" Click="OnOk"/>
                 </Grid>
