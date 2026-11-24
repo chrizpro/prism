@@ -164,3 +164,4 @@ The observatory includes a [116-part inventory](extras/maple-observatory-part-pl
 - [Split keyboard](models/split-keyboard-table-pattern.prism) — An editable placement table controls the width, depth and height of individual keycaps.
 - [Waveform speaker grille](models/waveform-speaker-grille.prism) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.
 - [Aurelia leaf](models/aurelia-leaf.prism) (`aurelia-leaf`) pairs a spline-cut blank with the refolded leaf on a doubly curved forming surface.
+- [Meridian helmet](models/meridian-helmet.prism) (`meridian-helmet`) shows a copper rib extruded 4 mm on the flat layout and refolded onto the shared master surface of a four-panel helmet. The before and after bodies are both visible.

@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "meridian-helmet",
+      "Name": "Meridian helmet",
+      "Description": "A flat S-shaped extrusion follows the local surface normal across a four-panel helmet formed on a common NURBS surface.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 709840,
+      "Sha256": "b832d60c1d2df6330f50e640a95aed7ea4ac334f1e13c59828a132b47de45d7e",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-helmet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-helmet.png?v=56588514485b74b6"
+    },
+    {
       "Id": "aurelia-leaf",
       "Name": "Aurelia leaf",
       "Description": "A pierced brass leaf and its flat blank demonstrate refolding fourteen spline windows across a twisted NURBS saddle.",

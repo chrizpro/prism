@@ -61,3 +61,5 @@ gap, and the kernels may accept different edge cases. Reference:
 and [Deform](https://plasticity-document-revisions.vercel.app/solid/deform-solid-and-sheet.en).
 
 The [Aurelia leaf gallery model](../gallery/models/aurelia-leaf.prism) retains a NURBS forming surface, its flat reference, a pierced blank and the refolded sheet. The result has 14 interior wires and spans 23.20 mm in Z. Toggle the forming surface in the browser to inspect how the leaf follows it.
+
+The [Meridian helmet](../gallery/models/meridian-helmet.prism) uses Flatten, a 4 mm solid Extrude and Refold on a shared master surface. The finished shell has four trimmed panels. The rib is one valid solid with a cross-section at each panel boundary. Five sampled normal heights agreed within 0.04 mm. Independent multi-face return mapping remains outside this example.
