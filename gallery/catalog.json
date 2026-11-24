@@ -2,6 +2,19 @@
   "SchemaVersion": 1,
   "Items": [
     {
+      "Id": "meridian-helmet",
+      "Name": "Meridian helmet",
+      "Description": "A curved surface pattern shows the rim and face boundaries of the four-panel helmet, while its UV layout drives a normal-following copper rib.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1272458,
+      "Sha256": "cdf34b13ec6b4354e9e452e5502edd65ad0989e0dcb8cc5fcabc6c8c97e1803c",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/meridian-helmet.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-helmet.png?v=bcdcd55bdda37c0a"
+    },
+    {
       "Id": "vermilion-gt",
       "Name": "Vermilion GT",
       "Description": "A red mid-engine sports car with sculpted fenders, recessed side intakes and split-spoke wheels.",

@@ -9,8 +9,14 @@ Single faces retain their source surface and reference layout across save/open.
 Cylinders retain the existing analytic, length-preserving return path. General
 faces use a UV layout whose dimensions follow the middle U and V isocurves;
 this can stretch lengths and areas and is not a manufacturing development of
-a doubly curved surface. Multi-face mesh flattening continues to report strain,
-but does not yet retain a general return map.
+a doubly curved surface. Choose **Surface pattern with face boundaries** under **Layout method** to flatten
+the actual shell using the conformal mesh solver. The output follows the sampled
+rim and holes, includes shared face boundaries as separate guide curves when
+joining faces, and reports stretch. DXF exports the outer and hole outlines.
+A curved spatial edge may still develop straight. The existing **UV layout for
+refolding** option retains the editable return map for a single supporting face.
+Surface patterns from the mesh solver have no return map. Cylinders with a
+rectangular analytic development continue to retain their return map.
 
 Refold / wrap accepts curves, sketches, sheets and solids. A saved layout supplies
 the target automatically; an optional target face overrides it. A plain planar
@@ -59,6 +65,12 @@ not established: automatic reblending of arbitrary imported fillets remains a
 gap, and the kernels may accept different edge cases. Reference:
 [Unwrap Face](https://plasticity-document-revisions.vercel.app/solid/unwrap-face)
 and [Deform](https://plasticity-document-revisions.vercel.app/solid/deform-solid-and-sheet.en).
+
+The [revised Meridian helmet](../gallery/models/meridian-helmet.prism) shows the curved
+outline and internal seams calculated from the four-face shell. The copper rib is a
+4 mm extrusion refolded through the shared master surface's UV layout. The geometric
+pattern reported average stretch of 14.9% and a worst case of 74.3%. [FLT-H201](../Prism.Tests/Headless/Surfacing/SurfacePatternTests.cs)
+checks the connected outline and seams. [Issue #163](https://github.com/chrizpro/prism/issues/163).
 
 ## Regression coverage
 

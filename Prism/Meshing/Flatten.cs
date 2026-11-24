@@ -26,6 +26,7 @@ public static class Flattener
         public required double[] VertexV { get; init; }
         public required int[] Tris { get; init; }          // indices into VertexU / VertexV
         public required Vec3[] Vertex3D { get; init; }
+        public int[] SourceVertices { get; init; } = [];
     }
 
     public sealed record Result(List<Patch> Patches, List<string> Notes);
@@ -226,7 +227,7 @@ public static class Flattener
         return new Patch
         {
             Loops = flat, Area3D = Math.Abs(area3), Area2D = area2, MeanStrain = counted > 0 ? sumStrain / counted : 0, MaxStrain = maxStrain, Triangles = nt,
-            Min = (mnU, mnV), Max = (mxU, mxV), VertexU = U, VertexV = V, Tris = T, Vertex3D = P,
+            Min = (mnU, mnV), Max = (mxU, mxV), VertexU = U, VertexV = V, Tris = T, Vertex3D = P, SourceVertices = verts.ToArray(),
         };
     }
 

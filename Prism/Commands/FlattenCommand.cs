@@ -18,7 +18,7 @@ public sealed class FlattenCommand : RefoldCommand
 {
     readonly SelectionSlot _src;
     readonly BoolParam _join;
-    readonly ChoiceParam _place, _result;
+    readonly ChoiceParam _place, _result, _method;
     readonly NumberParam _gap, _tol;
     readonly TextParam _dxf;
 
@@ -35,6 +35,7 @@ public sealed class FlattenCommand : RefoldCommand
         _result = Choice("Create", 0, "Flat surface and outline", "Flat surface only", "Outline curve only");
         _dxf = Text("Export DXF to (blank = Documents\\Prism\\Exports)", "", "full path of a .dxf file");
         Add(new ActionParam { Label = "Export the outline as DXF", Run = ExportDxf });
+        _method = Choice("Layout method", 0, "UV layout for refolding", "Surface pattern with face boundaries");
     }
 
     public override string Title => "Flatten / Refold";
@@ -47,7 +48,7 @@ public sealed class FlattenCommand : RefoldCommand
         base.UpdateVisibility();
         if (_src == null) return;
         _src.IsVisible=!IsRefold;
-        foreach(var p in new Param[] {_join,_place,_gap,_tol,_result,_dxf})p.IsVisible=!IsRefold;
+        foreach(var p in new Param[] {_join,_place,_gap,_tol,_result,_dxf,_method})p.IsVisible=!IsRefold;
         foreach(var p in Params.OfType<ActionParam>())p.IsVisible=!IsRefold;
     }
 
@@ -63,12 +64,14 @@ public sealed class FlattenCommand : RefoldCommand
     }
 
     // ------------------------------------------------------------ gather triangles of the picks
-    (Vec3[] pos, int[] tri, Vec3 min, Vec3 max) Gather()
+    (Vec3[] pos, int[] tri, Vec3 min, Vec3 max, List<(int a, int b)> seams) Gather()
     {
         var positions = new List<Vec3>(); var tris = new List<int>();
         var weld = new Dictionary<(long, long, long), List<(int face, int gid)>>();
         Vec3 mn = new(double.MaxValue, double.MaxValue, double.MaxValue), mx = -mn;
         int faceId = 0;
+        var edgeFaces = new Dictionary<(int, int), int>();
+        var seams = new HashSet<(int, int)>();
         double size = 1;
         foreach (var it in _src.Items) { var o = S.Find(it.Obj); if (o != null) { var m = o.Mesh; size = Math.Max(size, (m.Max - m.Min).Length); } }
         double tol = size * 1e-6;
@@ -82,7 +85,7 @@ public sealed class FlattenCommand : RefoldCommand
             foreach (int f in faces)
             {
                 if (!done.Add((o.Id, f)) || f + 1 >= m.FaceTriStart.Length) continue;
-                int myFace = _join.Value ? faceId : faceId;   // every face is its own "side" for welding
+                int myFace = faceId;   // every face is its own "side" for welding
                 var local = new Dictionary<int, int>();
                 for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
                     for (int c = 0; c < 3; c++)
@@ -109,10 +112,23 @@ public sealed class FlattenCommand : RefoldCommand
                         }
                         tris.Add(gid);
                     }
+                if (_method.Index == 1 && _join.Value)
+                {
+                    for (int t = m.FaceTriStart[f]; t < m.FaceTriStart[f + 1]; t++)
+                        for (int c = 0; c < 3; c++)
+                        {
+                            int a = local[m.Indices[3 * t + c]];
+                            int b = local[m.Indices[3 * t + (c + 1) % 3]];
+                            if (a == b) continue;
+                            var edge = a < b ? (a, b) : (b, a);
+                            if (!edgeFaces.TryAdd(edge, myFace) && edgeFaces[edge] != myFace)
+                                seams.Add(edge);
+                        }
+                }
                 faceId++;
             }
         }
-        return (positions.ToArray(), tris.ToArray(), mn, mx);
+        return (positions.ToArray(), tris.ToArray(), mn, mx, seams.ToList());
     }
 
     // ------------------------------------------------------------ build
@@ -122,8 +138,8 @@ public sealed class FlattenCommand : RefoldCommand
         Results.Clear(); _laidOut = []; _overlay = [];
         if (_src.Items.Count == 0) return null;
         if (CylinderLayout() is { } cylinder) return cylinder;
-        if (SurfaceLayout() is { } surface) return surface;
-        var (pos, tri, mn, mx) = Gather();
+        if (_method.Index == 0 && SurfaceLayout() is { } surface) return surface;
+        var (pos, tri, mn, mx, seams) = Gather();
         if (tri.Length == 0) throw new FormatException("Those picks have no faces to flatten.");
         var res = Flattener.Flatten(pos, tri);
         if (res.Patches.Count == 0) throw new FormatException(res.Notes.Count > 0 ? res.Notes[0] : "Nothing could be flattened.");
@@ -141,6 +157,25 @@ public sealed class FlattenCommand : RefoldCommand
             var wires = loops3.Select(l => Occ.Polyline(l, true)).ToList();
             if (_result.Index != 2) o.Add.Add(new(Occ.Profile(wires, true), "Flat pattern", ObjKind.Surface));
             if (_result.Index != 1) foreach (var w in wires) o.Add.Add(new(w, "Flat outline", ObjKind.Curve));
+            if (seams.Count > 0)
+            {
+                var indices = patch.SourceVertices.Select((id, index) => (id, index)).ToDictionary(p => p.id, p => p.index);
+                Vec3 Flat(int i) => new(patch.VertexU[i] + dx, patch.VertexV[i] + dy, 0);
+                var segments = new List<Shape>();
+                foreach (var (a, b) in seams)
+                {
+                    if (!indices.TryGetValue(a, out int i) || !indices.TryGetValue(b, out int j)) continue;
+                    var start = Flat(i);
+                    var end = Flat(j);
+                    if ((end - start).Length < 1e-7) continue;
+                    segments.Add(Occ.Line(start, end));
+                }
+                if (segments.Count > 0)
+                {
+                    o.Add.Add(new(Occ.Compound(segments), "Flat face boundaries", ObjKind.Curve, 0xFF38B9E7, Plane: Plane3.XY));
+                    foreach (var segment in segments) segment.Dispose();
+                }
+            }
             cursor += (patch.Max.u - patch.Min.u) + _gap.Value;
 
             string tag = res.Patches.Count > 1 ? $"Piece {k}  " : "";
@@ -149,6 +184,8 @@ public sealed class FlattenCommand : RefoldCommand
             Results.Add(new ResultLine($"{tag}Stretch", patch.MaxStrain < 0.005 ? "none: lays flat exactly" : $"average {patch.MeanStrain * 100:0.#} %, worst {patch.MaxStrain * 100:0.#} %", patch.MaxStrain < 0.005 ? 1 : 2));
             if (patch.Loops.Count > 1) Results.Add(new ResultLine($"{tag}Holes", (patch.Loops.Count - 1).ToString(), 1));
         }
+        if (_method.Index == 1)
+            Results.Add(new ResultLine("Mapping", "Surface pattern; stretch is reported. Use a UV layout when you need Refold.", 1));
         foreach (var n in res.Notes) Results.Add(new ResultLine("Note", n, 2));
         return o;
     }
