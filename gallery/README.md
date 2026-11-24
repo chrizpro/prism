@@ -157,3 +157,9 @@ These are workflow demonstrations on synthetic scans, not measurements of real p
 Owner authorized gallery cards and actual studio renders for the seven recent finished models ([#140](https://github.com/chrizpro/prism/issues/140)). `python gallery/render_recent_studies.py` reopens the native documents and renders them through the actual Windows MCP host at 1280 × 720, 96 samples, six bounces and final denoising, then downsizes previews to at most 810 × 504. It uses the task discovery file under `artifacts/guitar-v2/`; originals are not overwritten during rendering. The two experimental Freeform skill studies are outside this curated batch.
 
 The observatory includes a [116-part inventory](extras/maple-observatory-part-plan.csv) and [proposed router work breakdown](extras/maple-observatory-router-plan.md) for the owner-selected 600 × 400 mm bed. This plan is a manufacturing assessment, not generated G-code. Shared-stock multi-part CAM is proposed in [#141](https://github.com/chrizpro/prism/issues/141).
+
+## Parametric tool studies
+
+- [Helix lamp study](models/helix-lamp-study.prism) — Straight and twisted louver cages compare the effect of a 62-degree Warp twist.
+- [Split keyboard](models/split-keyboard-table-pattern.prism) — An editable placement table controls the width, depth and height of individual keycaps.
+- [Waveform speaker grille](models/waveform-speaker-grille.prism) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.

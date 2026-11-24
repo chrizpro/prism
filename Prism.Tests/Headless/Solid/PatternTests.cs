@@ -80,6 +80,32 @@ public class PatternTests
         AssertCenters(command, new(12, 3, 4), new(2, 13, 8));
     }
 
+    [AvaloniaFact(DisplayName = "Table parameters rebuild each instance and blank cells inherit the seed dimensions")]
+    [Trait("TestId", "PAT-H201")]
+    public void TableVariablesRebuildCopiesIndependently()
+    {
+        var session = new CadSession();
+        Assert.True(session.ApplyDocumentParameters([new("CapWidth", "18"), new("CapHeight", "8")]));
+        var box = Begin(session, () => new BoxCommand());
+        foreach (var (label, name, value) in new[] { ("Width (X)", "CapWidth", 18), ("Height (Z)", "CapHeight", 8) })
+        {
+            var param = box.Params.OfType<NumberParam>().Single(p => p.Label == label);
+            param.Value = value;
+            param.Formula = name;
+        }
+        session.CommitCommand();
+        var source = Assert.Single(session.Objects);
+        var pattern = StartCommand(session, source, () => new TablePatternCommand());
+        pattern.Params.OfType<TextParam>().Single(p => p.Label == "Positions").Value =
+            "x,y,z,angle,CapWidth,CapHeight\n45,0,0,0,32,11\n90,0,0,0,,9";
+        var output = pattern.TryBuild();
+        Assert.True(output != null, pattern.Error);
+        Assert.Equal(2, output.Add.Count);
+        AssertNear(32 * 30 * 11, output.Add[0].Shape!.Props().Volume, "wide thumb key");
+        AssertNear(18 * 30 * 9, output.Add[1].Shape!.Props().Volume, "inherited width");
+        AssertNear(18 * 30 * 8, source.Shape.Props().Volume, "original");
+    }
+
     static void SetCount(Command command, string label, int count) =>
         command.Params.OfType<IntParam>().Single(p => p.Label == label).Value = count;
 

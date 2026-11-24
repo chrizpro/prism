@@ -63,7 +63,25 @@ public sealed partial class CadSession
         foreach (var kv in _counters) copy._counters[kv.Key] = kv.Value;
         copy.Objects = Objects;
         copy.DocumentParameters = DocumentParameters;
+        copy.DataSheets.AddRange(DataSheets);
         return copy;
+    }
+
+    internal Dictionary<Guid, Shape> PatternVariants(IReadOnlyDictionary<string, double> values, IReadOnlyList<SceneObject> sources)
+    {
+        var copy = CloneForProbe();
+        var definitions = DocumentParameters.Select(p => values.TryGetValue(p.Name, out var value)
+            ? p with { Formula = value.ToString("R", CultureInfo.InvariantCulture) } : p);
+        if (!copy.ApplyDocumentParameters(definitions))
+            throw new FormatException($"Cannot rebuild this pattern row: {copy.Status}");
+        var result = new Dictionary<Guid, Shape>();
+        foreach (var source in sources)
+        {
+            var rebuilt = copy.Find(source.Id) ?? copy.Objects.SingleOrDefault(o => o.Name == source.Name && o.Kind == source.Kind);
+            if (rebuilt == null || !rebuilt.HasBrep) throw new FormatException($"Cannot rebuild '{source.Name}' for this row.");
+            result.Add(source.Id, rebuilt.Shape);
+        }
+        return result;
     }
 
     /// <summary>
