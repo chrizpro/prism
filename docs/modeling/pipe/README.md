@@ -18,3 +18,5 @@ Run `./tools/test.ps1 -Layer Headless -Feature Pipe`. [Issue #49](https://github
 Curved and closed paths, edge and sketch picking, steep taper and invalid-input combinations need further checks. New requirements remain subject to owner review.
 
 Local Windows verification with the installed native kernel passed all 14 Pipe headless cases.
+
+The [Kingfisher cockpit reproduction](../../kingfisher-study/README.md) on 2026-11-17 returned an invalid capped solid for a 13 mm constant-radius Pipe on a closed, nonplanar trimmed edge. The replacement coaming uses Thicken. [Issue #49](https://github.com/chrizpro/prism/issues/49) records the dimensions and command report.
