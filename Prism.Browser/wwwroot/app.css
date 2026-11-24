@@ -1,54 +1,58 @@
-/* HTML styles for the splash screen */
+/* The web loading page, matching the desktop start-up card (Prism/Views/SplashWindow.cs). It keeps the brand's dark navy in both themes. */
 .avalonia-splash {
     position: absolute;
-    height: 100%;
-    width: 100%;
-    background: white;
-    font-family: 'Outfit', sans-serif;
+    inset: 0;
+    background: #0f1b2d;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    display: flex;
+    gap: 14px;
     pointer-events: none;
 }
 
-/* Light theme styles */
-@media (prefers-color-scheme: light) {
-    .avalonia-splash {
-        background: white;
-    }
-
-    .avalonia-splash h2 {
-        color: #1b2a4e;
-    }
-
-    .avalonia-splash a {
-        color: #0D6EFD;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    .avalonia-splash {
-        background: #1b2a4e;
-    }
-
-    .avalonia-splash h2 {
-        color: white;
-    }
-
-    .avalonia-splash a {
-        color: white;
-    }
+.avalonia-splash .mark {
+    width: 96px;
+    height: auto;
 }
 
 .avalonia-splash h2 {
-    font-weight: 400;
-    font-size: 1.5rem;
+    margin: 0;
+    font-weight: 500;
+    font-size: 1.9rem;
+    color: #eef4fb;
 }
 
-.avalonia-splash a {
-    text-decoration: none;
-    font-size: 2.5rem;
-    display: block;   
+.avalonia-splash .bar {
+    width: 280px;
+    height: 3px;
+    border-radius: 2px;
+    background: #24344d;
+    overflow: hidden;
+}
+
+.avalonia-splash .fill {
+    height: 100%;
+    width: 2%;
+    border-radius: 2px;
+    background: #39c8ed;
+    transition: width 300ms ease;
+}
+
+.avalonia-splash .status {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #8fa3bf;
+}
+
+.avalonia-splash .note {
+    position: absolute;
+    bottom: 18px;
+    margin: 0 16px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #5d7393;
 }
 
 .avalonia-splash.splash-close {
