@@ -158,4 +158,10 @@ Owner authorized gallery cards and actual studio renders for the seven recent fi
 
 The observatory includes a [116-part inventory](extras/maple-observatory-part-plan.csv) and [proposed router work breakdown](extras/maple-observatory-router-plan.md) for the owner-selected 600 × 400 mm bed. This plan is a manufacturing assessment, not generated G-code. Shared-stock multi-part CAM is proposed in [#141](https://github.com/chrizpro/prism/issues/141).
 
+## Parametric tool studies
+
+- [Helix lamp study](models/helix-lamp-study.prism) — Straight and twisted louver cages compare the effect of a 62-degree Warp twist.
+- [Split keyboard](models/split-keyboard-table-pattern.prism) — An editable placement table controls the width, depth and height of individual keycaps.
+- [Waveform speaker grille](models/waveform-speaker-grille.prism) — A flat slot layout and its refolded cylindrical grille show forty rounded openings.
+- [Aurelia leaf](models/aurelia-leaf.prism) (`aurelia-leaf`) pairs a spline-cut blank with the refolded leaf on a doubly curved forming surface.
 - [Meridian helmet](models/meridian-helmet.prism) (`meridian-helmet`) compares the curved surface pattern of the complete shell with the UV-driven 4 mm copper rib. See the [before and after preview](previews/meridian-helmet.png).

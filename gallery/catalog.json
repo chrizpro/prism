@@ -15,6 +15,58 @@
       "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/meridian-helmet.png?v=bcdcd55bdda37c0a"
     },
     {
+      "Id": "aurelia-leaf",
+      "Name": "Aurelia leaf",
+      "Description": "A pierced brass leaf and its flat blank demonstrate refolding fourteen spline windows across a twisted NURBS saddle.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1013727,
+      "Sha256": "20679ba227f70e175d9d5ef94c026a5571830d037b1df7e100d95ae6b12e7278",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/aurelia-leaf.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/aurelia-leaf.png?v=b4a7246faf7f9641"
+    },
+    {
+      "Id": "helix-lamp-study",
+      "Name": "Helix lamp study",
+      "Description": "Straight and twisted louver cages compare the effect of a 62-degree Warp twist.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 298036,
+      "Sha256": "79f7b39bf8f65c04c1f7f203fc826440418891d5d42e3fd9832856fd717b1748",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/helix-lamp-study.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/helix-lamp-study.png?v=c6a18525012acda7"
+    },
+    {
+      "Id": "split-keyboard-table-pattern",
+      "Name": "Split keyboard",
+      "Description": "An editable placement table controls the width, depth and height of individual keycaps.",
+      "Workflow": "Solid",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 1111301,
+      "Sha256": "8d4707cc5b25a26a6e2de69b801fa1da5c65d3541d9e798dfd854ac66e4443fd",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/split-keyboard-table-pattern.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/split-keyboard-table-pattern.png?v=59ca7268b062e1b8"
+    },
+    {
+      "Id": "waveform-speaker-grille",
+      "Name": "Waveform speaker grille",
+      "Description": "A flat slot layout and its refolded cylindrical grille show forty rounded openings.",
+      "Workflow": "Surface",
+      "Author": "Prism / Codex",
+      "License": "MIT",
+      "MinimumVersion": "0.3.0",
+      "Bytes": 271325,
+      "Sha256": "583612cd54a9d2997a6a60dff9756c0cfff505c57e8fbf92d3da68d581c540fd",
+      "ModelUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/models/waveform-speaker-grille.prism",
+      "PreviewUrl": "https://raw.githubusercontent.com/chrizpro/prism/develop/gallery/previews/waveform-speaker-grille.png?v=16a70344a589447e"
+    },
+    {
       "Id": "vermilion-gt",
       "Name": "Vermilion GT",
       "Description": "A red mid-engine sports car with sculpted fenders, recessed side intakes and split-spoke wheels.",

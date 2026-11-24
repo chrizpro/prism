@@ -48,3 +48,5 @@ The cut pattern and refolded face both measure **10050.371983 mm²**, compared w
 - [Perforated model](../artifacts/flatten-cut-refold-review/perforated-refolded-cylinder.prism)
 
 Run `dotnet run --project tests/Prism.RefoldCutTests -c Release` for the cut-face regression.
+
+The [waveform speaker grille](../gallery/models/waveform-speaker-grille.prism) demonstrates cutting 40 slots on a flattened cylindrical face and refolding the edited face. The saved study was reopened and refolded with 41 boundary wires and matching surface area to six decimal places.

@@ -59,3 +59,5 @@ Fixed on 2026-11-12: Warp could not touch any stored NURBS surface — a Control
 Mixed selections, custom transform pivots and desktop gizmo interactions still need coverage.
 
 Windows verification on 2026-11-05: the combined candidate passed 86 Unit and 592 Headless tests with rebuilt native libraries. See the [integration verification report](../../engineering/release-readiness-2026-11-05.md) for source revisions, commands and limits.
+
+The [helix lamp study](../../../gallery/models/helix-lamp-study.prism) pairs a straight louver cage with a 62-degree Warp twist.
