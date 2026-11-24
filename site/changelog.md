@@ -1,6 +1,22 @@
 # Changes
 
-## Next release
+## 0.5.0 alpha
+
+Selecting and finishing work get consistent: a **More** list of selection tools on every ribbon, Cancel, Apply and OK that behave the same in every tool and in the Appearance studio, and splits that can go all the way through a body. Prism also starts faster, shows what it is doing while it loads, and runs in the browser.
+
+### Start-up and the web version
+
+- A start-up card shows each loading stage; the geometry kernel loads from the first moment and the shader cache makes later starts quicker.
+- The **web version** runs Prism in the browser from the website, with a loading page that shows download progress and a notice on phones.
+
+### Tools
+
+- **Repeat last tool** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>) reopens the last tool you finished with the same options. **Apply** is in more tools, including Trim, Boundary Surface, Patch, Fillet, Chamfer, Split Body and Split Face.
+- **Split Body** and **Split Face** take a whole sketch and can cut with a movable plane. **Split Curve** and **Join Curves** are back.
+- The **Move** gizmo can move its own pivot (<kbd>D</kbd>), scale, and move a whole body from any of its faces; it is on Direct Modeling too.
+- **Replace Face** stretches flat neighbours to a tilted target and cleans up slivers; **Merge Faces** joins near-coplanar faces.
+- **Section Sketch** makes usable sketches with region borders, silhouettes and crease traces. **Fit Region** can close a solid from extended surfaces.
+- **Flatten** and refold handle sculpted shells and doubly curved dies; **Table** patterns can be driven by document parameters.
 
 ### Selecting
 
@@ -15,7 +31,7 @@
 
 ### Gallery and panels
 
-- The **Twin-cam inline-four engine** assembly is in the gallery.
+- The **Twin-cam inline-four engine** assembly, a paneled refolded helmet, a pierced leaf, table-pattern studies, the Kingfisher, calla horn, mouse and Solis coupe studies are in the gallery.
 - The **Apply** button in tool panels now matches Prism's other buttons.
 - **Cancel, Apply and OK work like a dialog.** Apply adds a result and keeps the tool open; OK keeps everything applied; Cancel (or Esc) removes everything applied since the tool opened, and Redo brings it back. See [Cancel, Apply and OK](/guide/modeling#cancel-apply-and-ok).
 - The **Appearance studio** has the same **Cancel**, **Apply** and **OK** at the bottom of both its pages, in place of Done and Close. Apply keeps the changes so far as one undo step; Cancel removes every appearance and material change since the studio opened. **Apply material** is now **Assign material**. See [Materials](/guide/rendering#materials).
